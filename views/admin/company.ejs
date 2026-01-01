@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Edit company Info</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <h2>company Info</h2>
+    <form method="POST" action="/admin/company" enctype="multipart/form-data">
+      <label>Logo URL:</label><br />
+      <!-- <input type="text" name="logo_url" value="<%= info?.logo_url || '' %>"><br><br> -->
+      <input type="file" name="logo" /><br /><br />
+      <% if (info?.logo_url) { %>
+      <img
+        src="<%= info.logo_url %>"
+        alt="company Logo"
+        style="max-width: 200px"
+        requred
+      />
+      <% } %><br /><br />
+
+      <label>Vision:</label><br />
+      <textarea name="vision"><%= info?.vision || '' %></textarea><br /><br />
+
+      <label>Mission:</label><br />
+      <textarea name="mission"><%= info?.mission || '' %></textarea><br /><br />
+
+      <label>History:</label><br />
+      <textarea name="history" id="content"><%= info?.history || '' %></textarea
+      ><br /><br />
+
+      <label>Hero Image:</label><br />
+      <input type="file" name="heroImage" accept="image/*" required/><br /><br />
+      <% if (info?.hero_image_url) { %>
+      <img
+        src="<%= info.hero_image_url %>"
+        alt="Hero Image"
+        style="max-width: 300px"
+      /><br /><br />
+      <% } %>
+
+      <label>Company Name:</label><br />
+      <textarea name="company" id="content" required><%= info?.company_name || '' %></textarea
+      ><br /><br />
+
+
+      <label>Marquee Message:</label><br />
+      <textarea name="marquee_message" id="content" rows="2">
+<%= info?.marquee_message || '' %></textarea
+      ><br /><br />
+
+      <button type="submit">Save</button>
+    </form>
+
+    <br />
+
+    <a href="/admin/dashboard">Back to Dashboard</a>
+    <script>
+      CKEDITOR.replace("content");
+    </script>
+  </body>
+</html>

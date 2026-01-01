@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Manage Courses</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>>
+
+    <h2><%= pathway.title %> - Courses</h2>
+    <div class="container2">
+        <button onclick="openModal()" class="btn-create">+ Add Course</button>
+    </div>
+
+   <!-- COURSE GRID -->
+  <section class="article-grid">
+    <% courses.forEach(course => { %>
+      <div class="article-card hoverable">
+        
+        <h3><%= course.title %></h3>
+        <% if (course.thumbnail_url) { %>
+            <a href="/admin/courses/<%= course.id %>" class="article-card-link">
+                <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />
+            </a>
+        <% } %> <br>
+        <small style="color: rgb(143, 112, 9);"><strong> created by: </strong><%= course.created_by %></small>
+        <p><%- course.description.substring(0, 100) %>...</p>
+        <small style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></small>
+
+        <div class="article-buttons">
+          <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+          <button class="btn-delete" onclick="openDeleteModal(<%= course.id %>)">Delete</button>
+        </div>
+      </div>
+
+      <!-- EDIT MODAL -->
+      <!-- <div id="editModal-<%= course.id %>" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
+          <h2>Edit Course</h2>
+          <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
+            <input type="text" name="title" value="<%= course.title %>" required />
+            <textarea id="content" name="description"><%- course.description %></textarea>
+            <input type="text" name="level" value="<%= course.level %>" required />
+            <input type="file" name="thumbnail" accept="image/*" />
+            <button type="submit">Update</button>
+          </form>
+        </div>
+      </div> -->
+      <div id="editModal-<%= course.id %>" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
+            <h2>Edit Course</h2>
+            <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
+            <input type="text" name="title" value="<%= course.title %>" required /><br />
+
+            <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea><br />
+
+            <select name="level" required>
+                <option value="">Select Level</option>
+                <option value="Beginner" <%= course.level === 'Beginner' ? 'selected' : '' %>>Beginner</option>
+                <option value="Intermediate" <%= course.level === 'Intermediate' ? 'selected' : '' %>>Intermediate</option>
+                <option value="Advanced" <%= course.level === 'Advanced' ? 'selected' : '' %>>Advanced</option>
+            </select><br /><br>
+
+            <select name="career_pathway_id" required>
+                <option value="">-- Career Pathway --</option>
+                <% careerPathways.forEach(path => { %>
+                <option value="<%= path.id %>" <%= path.id === course.career_pathway_id ? 'selected' : '' %>><%= path.title %></option>
+                <% }) %>
+            </select><br /><br>
+
+            <label>Curriculum File (PDF or DOCX)</label>
+            <% if (course.curriculum_url) { %>
+              <p>📎 <a href="<%= course.curriculum_url %>" target="_blank">View current curriculum</a></p>
+            <% } %>
+            <input type="file" name="curriculum" accept=".pdf,.doc,.docx">
+
+            <label for="">Sort Number</label>
+            <input type="number" name="sort_order" value="<%= course.sort_order %>" /><br />
+
+            <% if (course.thumbnail_url) { %>
+                <img src="<%= course.thumbnail_url %>" width="100" /><br />
+            <% } %>
+            <input type="file" name="thumbnail" /><br />
+
+            <div class="container" id="amountContainer">
+              <input
+                type="number"
+                name="amount"
+                step="0.01"
+                placeholder="Amount in ₦"
+                value="<%= course.amount || '' %>"
+              /><br />
+            </div>
+
+            <button type="submit">Update Course</button>
+            </form>
+        </div>
+
+        <script>
+            <% courses.forEach(course => { %>
+                CKEDITOR.replace('editContent-<%= course.id %>');
+            <% }); %>
+        </script>
+
+</div>
+
+
+      <!-- DELETE MODAL -->
+      <div id="deleteModal-<%= course.id %>" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeDeleteModal(<%= course.id %>)">&times;</span>
+          <h3>Are you sure you want to delete "<%= course.title %>"?</h3>
+          <form action="/admin/courses/delete/<%= course.id %>" method="POST">
+            <button type="submit">Yes, Delete</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  </section>
+
+  <!-- CREATE COURSE MODAL -->
+  <!-- <div id="createModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeCreateModal()">&times;</span>
+      <h2>Add New Course</h2>
+      <form action="/admin/pathways/<%= pathway.id %>/courses" method="POST" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Course Title" required />
+        <textarea id="content" name="description"></textarea>
+        <input type="text" name="level" placeholder="Beginner, Intermediate, Advanced" required />
+        <input type="file" name="thumbnail" accept="image/*" />
+        <button type="submit">Create Course</button>
+      </form>
+    </div>
+  </div> -->
+  <div id="createModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Create New Course</h2>
+        <form action="/admin/courses" method="POST" enctype="multipart/form-data">
+      <div class="container">
+        <input
+          type="text"
+          name="title"
+          placeholder="Course Title"
+          required
+        /><br />
+      </div>
+      <textarea
+        name="description"
+        id="content"
+        placeholder="Description"
+      ></textarea
+      ><br />
+
+      <div class="container">
+        <select class="gender-details" name="level" required>
+          <option value="">Select Level</option>
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option></select
+        ><br />
+      </div>
+
+      <div class="container">
+        <select class="gender-details" name="career_pathway_id">
+          <option value="">-- Career Pathway --</option>
+          <% careerPathways.forEach(path => { %>
+          <option value="<%= path.id %>"><%= path.title %></option>
+          <% }) %></select
+        ><br />
+      </div>
+
+      <label>Curriculum File (PDF/DOCX)</label>
+      <input type="file" name="curriculum" accept=".pdf,.doc,.docx" /><br />
+
+
+      <input type="number" name="sort_order" placeholder="Sort Order" /><br />
+      <input type="file" name="thumbnail" /><br />
+
+      <div class="container" id="amountContainer">
+              <input
+                type="number"
+                name="amount"
+                step="0.01"
+                placeholder="Amount in ₦"
+              /><br />
+            </div>
+      <button type="submit">Create Course</button>
+    </form>
+      </div>
+    </div>
+
+  <!-- SCRIPT SECTION -->
+  <script>
+    function openCreateModal() {
+      document.getElementById("createModal").style.display = "block";
+    }
+    function closeCreateModal() {
+      document.getElementById("createModal").style.display = "none";
+    }
+
+    function openEditModal(id) {
+      document.getElementById("editModal-" + id).style.display = "block";
+    }
+    function closeEditModal(id) {
+      document.getElementById("editModal-" + id).style.display = "none";
+    }
+
+    function openDeleteModal(id) {
+      document.getElementById("deleteModal-" + id).style.display = "block";
+    }
+    function closeDeleteModal(id) {
+      document.getElementById("deleteModal-" + id).style.display = "none";
+    }
+
+    CKEDITOR.replaceAll('textarea');
+  </script>
+
+    <a href="/admin/dashboard">Back to Dashboard</a>
+
+    <!-- script for ckeditor -->
+    <script>
+      CKEDITOR.replace("content");
+    </script>
+
+    
+
+    <!-- script to toggle navigation menu -->
+    <script>
+      // Close nav when clicking outside of it
+      document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+          nav.classList.toggle("open") &&
+          !nav.contains(event.target) &&
+          !toggleBtn.contains(event.target)
+        ) {
+          nav.classList.remove("open");
+        }
+      });
+    </script>
+
+    <!-- Script not to be able to copy content from article body -->
+    <script>
+      document.querySelectorAll(".article-body").forEach(function (el) {
+        el.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+        el.addEventListener("copy", function (e) {
+          e.preventDefault();
+        });
+      });
+    </script>
+
+    <!-- script to preview image before upload -->
+    <script>
+      document
+        .getElementById("imageInput")
+        .addEventListener("change", function () {
+          const preview = document.getElementById("imagePreview");
+          const file = this.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          } else {
+            preview.src = "#";
+            preview.style.display = "none";
+          }
+        });
+    </script>
+
+    <!-- script to filter level for each career pathway -->
+    <!--<script>
+      function filterByLevel() {
+        const selected = document.getElementById("levelFilter").value;
+        const sections = document.querySelectorAll(".course-level-section");
+
+        sections.forEach(section => {
+          const level = section.getAttribute("data-level");
+          if (selected === "All" || level === selected) {
+            section.style.display = "block";
+          } else {
+            section.style.display = "none";
+          }
+        });
+      }
+    </script> -->
+
+    <script>
+      function filterByPathway(pathway) {
+        const groups = document.querySelectorAll(".pathway-group");
+        groups.forEach((group) => {
+          const groupName = group.getAttribute("data-pathway");
+          if (pathway === "All" || groupName === pathway) {
+            group.style.display = "block";
+          } else {
+            group.style.display = "none";
+          }
+        });
+      }
+    </script>
+
+    <!-- script for opening and closing the modal -->
+    <script>
+      function openModal() {
+        document.getElementById("createModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("createModal").style.display = "none";
+      }
+
+      function openEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "block";
+      }
+
+      function closeEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "none";
+      }
+
+      // Close modal when clicking outside the modal content
+      // window.onclick = function (event) {
+      //   const modal = document.getElementById("createModal");
+      //   if (event.target == modal) {
+      //     modal.style.display = "none";
+      //   }
+      // };
+      // Close any modal when clicking outside it
+      window.onclick = function (event) {
+        if (event.target.classList.contains("modal")) {
+          event.target.style.display = "none";
+        }
+      };
+    </script>
+
+  </body>
+</html>

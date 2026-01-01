@@ -1,0 +1,835 @@
+<!-- <pre><%= JSON.stringify(course, null, 2) %></pre> -->
+
+<div class="lesson-header">
+  <form method="GET" action="">
+    <input type="hidden" name="tab" value="lessons">
+    <label>Filter by Module:</label>
+    <select name="module" onchange="this.form.submit()">
+      <option value="all" <%= selectedModuleId === 'all' ? 'selected' : '' %>>All Modules</option>
+      <% modules.forEach(mod => { %>
+        <option value="<%= mod.id %>" <%= selectedModuleId == mod.id ? 'selected' : '' %>><%= mod.title %></option>
+      <% }) %>
+    </select>
+  </form>
+
+</div>
+
+
+<button onclick="openLessonModal()">+ Add Lesson</button> <br>
+
+<div class="article-grid">
+  <% lessons.forEach(lesson => { %>
+    <!-- <div class="article-card" data-course-id="<%= course.id %>" data-lesson-id="<%= lesson.id %>"> -->
+      <div class="article-card" data-course-id="<%= lesson.course_id %>" data-lesson-id="<%= lesson.id %>">
+      <h3><%= lesson.title %></h3>
+      <p><strong>Module:</strong> <%= lesson.module_title %></p>
+      <% if (lesson.video_url) { %>
+        <video src="<%= lesson.video_url %>" controls></video>
+      <% } %>
+      <p><%- lesson.content.substring(0, 200) %>...</p>
+      <div class="article-buttons">
+        <!-- <button class="btn-edit" onclick="openEditLessonModal(<%= JSON.stringify(lesson) %>)">Edit</button> -->
+         <button class="btn-edit" onclick="openEditLessonModal(<%= lesson.id %>)">Edit</button>
+          <!-- <button class="btn-edit" onclick='openEditLessonModal(<%= JSON.stringify({
+          id: lesson.id,
+          title: lesson.title,
+          content: lesson.content,
+          course_id: course.id,
+          video_url: lesson.video_url || ""
+        }) %>)'>Edit</button> -->
+        <form method="POST" action="/admin/lessons/<%= lesson.id %>/delete" style="display:inline;">
+          <input type="hidden" name="course_id" value="<%= course.id %>">
+          <button class="btn-delete" type="submit" onclick="return confirm('Delete lesson?')">Delete</button>
+        </form>
+        <button class="btn-create" type="button" onclick="openQuizModal(<%= lesson.id %>)">Manage Quiz</button>
+        <!-- <form method="POST" action="/admin/lessons/<%= lesson.id %>/quiz/ai-generate">
+          <label>Questions:</label>
+          <input type="number" name="numQuestions" value="5" min="1" max="20">
+          <label>Difficulty:</label>
+          <select name="difficulty">
+            <option>easy</option>
+            <option selected>mixed</option>
+            <option>hard</option>
+          </select>
+          <button type="submit" class="btn-create">✨ AI Generate</button>
+        </form> -->
+      
+        <!-- <form class="ai-generate-form" data-lesson-id="<%= lesson.id %>">
+          <label>Questions:</label>
+          <input type="number" name="numQuestions" value="5" min="1" max="20">
+          <label>Difficulty:</label>
+          <select name="difficulty">
+            <option value="easy">Easy</option>
+            <option value="mixed" selected>Mixed</option>
+            <option value="hard">Hard</option>
+          </select>
+          <button type="submit" class="btn-create">✨ Preview AI Quiz</button>
+        </form> -->
+
+      
+      </div>
+    </div>
+    
+  <% }) %>
+</div>
+
+<div class="pagination">
+  <% if (page > 1) { %>
+    <a href="?module=<%= selectedModuleId %>&page=<%= page - 1 %>" class="page-link">Prev</a>
+  <% } %>
+
+  <% for (let i = 1; i <= totalPages; i++) { %>
+    <a href="?module=<%= selectedModuleId %>&page=<%= i %>" 
+       class="page-link <%= page === i ? 'active' : '' %>">
+       <%= i %>
+    </a>
+  <% } %>
+
+  <% if (page < totalPages) { %>
+    <a href="?module=<%= selectedModuleId %>&page=<%= page + 1 %>" class="page-link">Next</a>
+  <% } %>
+</div>
+
+
+
+
+<!-- CREATE LESSON MODAL -->
+<div id="lessonModal" class="modal">
+  <form method="POST" action="/admin/lessons/create" class="modal-content">
+    <h2>Create Lesson</h2>
+    <input type="text" name="course_id" value="<%= course.id %>">
+
+    <label>Module</label>
+    <select name="module_id" required>
+      <% modules.forEach(mod => { %>
+        <option value="<%= mod.id %>"><%= mod.title %></option>
+      <% }) %>
+    </select>
+
+    <label>Title</label>
+    <input type="text" name="title" required>
+
+    <label>Order Number</label>
+    <input type="number" name="order_number" min="1" required>
+
+    <label>Content</label>
+    <textarea name="content" id="createLessonContent"></textarea>
+
+    <label>Video Link (YouTube/Vimeo)</label>
+    <input type="url" name="video_url" placeholder="https://www.youtube.com/...">
+
+    <div class="modal-actions">
+      <button type="submit">Save</button>
+      <button type="button" onclick="closeLessonModal()">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<!-- <div id="lessonModal" class="modal">
+  <form method="POST" action="/admin/lessons/create" enctype="multipart/form-data" class="modal-content">
+    <h2>Create Lesson</h2>
+    <input type="hidden" name="course_id" value="<%= course.id %>">
+
+    <label>Module</label>
+    <select name="module_id" required>
+      <% modules.forEach(mod => { %>
+        <option value="<%= mod.id %>"><%= mod.title %></option>
+      <% }) %>
+    </select>
+
+    <label>Title</label>
+    <input type="text" name="title" required>
+
+    <label>Order Number</label>
+    <input type="number" name="order_number" min="1" required>
+
+    <label>Upload Lesson File (PDF/DOCX)</label>
+    <input type="file" name="lessonFile" accept=".pdf,.doc,.docx">
+
+    <label>Video Link (optional)</label>
+    <input type="url" name="video_url">
+
+    <label>Content (optional - for text lessons)</label>
+    <textarea name="content" id="createLessonContent"></textarea>
+
+    <div class="modal-actions">
+      <button type="submit">Save</button>
+      <button type="button" onclick="closeLessonModal()">Cancel</button>
+    </div>
+  </form>
+</div> -->
+
+
+<!-- EDIT LESSON MODAL -->
+<div id="editLessonModal" class="modal" style="display:none;">
+  <form id="editLessonForm" method="POST" class="modal-content">
+    <h2>Edit Lesson</h2>
+
+    <!-- Hidden input for course_id -->
+
+    <label>Title</label>
+    <input type="text" name="title" id="editLessonTitle" required>
+
+    <label>Order Number</label>
+    <input type="number" name="order_number" id="editLessonOrder" min="1" required>
+
+    <label>Content</label>
+    <textarea name="content" id="editLessonContent"></textarea>
+
+    <label>Video Link (YouTube/Vimeo)</label>
+    <input type="url" name="video_url" id="editLessonVideo" placeholder="https://www.youtube.com/...">
+
+    <div class="modal-actions">
+      <button type="submit">Update</button>
+      <button type="button" onclick="closeEditLessonModal()">Cancel</button>
+    </div>
+  </form>
+</div>
+
+
+<!-- QUIZ MODAL -->
+<div id="quizModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h2>Manage Quiz</h2>
+
+    <div id="quizQuestions"></div>
+
+    <hr>
+    <form id="quizForm">
+  <input type="hidden" name="quiz_id" id="quiz_id">
+
+  <label>Question</label>
+  <textarea name="question" required></textarea>
+
+  <label>Question Type</label>
+  <select name="question_type" id="question_type" onchange="toggleOptions()">
+    <option value="multiple_choice">Multiple Choice</option>
+    <option value="true_false">True/False</option>
+    <option value="short_answer">Short Answer</option>
+  </select>
+
+  <div id="options_container">
+    <label>Options</label>
+    <input type="text" name="options" placeholder="Option 1">
+    <input type="text" name="options" placeholder="Option 2">
+    <input type="text" name="options" placeholder="Option 3">
+    <input type="text" name="options" placeholder="Option 4">
+  </div>
+
+  <label>Correct Answer</label>
+  <input type="text" name="correct_option" required>
+
+  <div class="modal-actions">
+    <button type="submit">Add Question</button>
+    <button type="button" onclick="closeQuizModal()">Close</button>
+  </div>
+</form>
+
+  
+  </div>
+</div>
+
+<div id="quizModal2" class="quiz-modal hidden">
+  <div class="quiz-modal-content">
+    <h2>AI Quiz Preview</h2>
+    <div id="quizPreview"></div>
+    <button id="saveQuizBtn">✅ Save to Database</button>
+    <button id="closeQuizBtn">❌ Cancel</button>
+  </div>
+</div>
+
+<style>
+  .quiz-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.6); display:flex; justify-content:center; align-items:center; }
+  .quiz-modal.hidden { display:none; }
+  .quiz-modal-content { background:#fff; padding:20px; border-radius:10px; width:600px; max-height:80vh; overflow:auto; }
+</style>
+
+<script>
+  // const form = document.getElementById('ai-generate-form');
+  const modal = document.getElementById('quizModal2');
+  const previewBox = document.getElementById('quizPreview');
+  const saveBtn = document.getElementById('saveQuizBtn');
+  const closeBtn = document.getElementById('closeQuizBtn');
+  let previewData = [];
+
+ let currentLessonId = null; // <-- add global tracker
+
+document.querySelectorAll('.ai-generate-form').forEach(form => {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const lessonId = form.dataset.lessonId;
+    currentLessonId = lessonId; // store for save
+    const formData = new FormData(form);
+
+    const res = await fetch(`/admin/lessons/${lessonId}/quiz/ai-preview`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (data.preview) {
+      previewData = data.preview;
+      previewBox.innerHTML = previewData.map((q, i) => `
+        <div class="quiz-edit-block">
+          <label><strong>Q${i+1}:</strong></label>
+          <textarea class="quiz-question-input">${q.question}</textarea><br>
+
+          <label>Type:</label>
+          <select class="quiz-type-input">
+            <option value="multiple_choice" ${q.question_type === 'multiple_choice' ? 'selected' : ''}>Multiple Choice</option>
+            <option value="true_false" ${q.question_type === 'true_false' ? 'selected' : ''}>True/False</option>
+            <option value="short_answer" ${q.question_type === 'short_answer' ? 'selected' : ''}>Short Answer</option>
+          </select><br>
+
+          <label>Options:</label>
+          <textarea class="quiz-options-input">${q.options ? q.options.join("\n") : ""}</textarea><br>
+
+          <label>Answer:</label>
+          <input type="text" class="quiz-answer-input" value="${q.correct_option || ""}"><br>
+
+          <label>Explanation:</label>
+          <textarea class="quiz-expl-input">${q.explanation || ""}</textarea><br>
+          <hr>
+        </div>
+      `).join("");
+      modal.classList.remove('hidden');
+    } else {
+      alert(data.error || "Failed to generate quiz.");
+    }
+  });
+});
+
+  saveBtn.addEventListener('click', async () => {
+  if (!currentLessonId) {
+    alert("No lesson selected for saving.");
+    return;
+  }
+
+  const blocks = document.querySelectorAll('.quiz-edit-block');
+  const editedQuestions = Array.from(blocks).map(block => {
+    const question = block.querySelector('.quiz-question-input').value;
+    const question_type = block.querySelector('.quiz-type-input').value;
+    const optionsText = block.querySelector('.quiz-options-input')?.value || "";
+    const options = optionsText.split("\n").filter(x => x.trim() !== "");
+    const correct_option = block.querySelector('.quiz-answer-input').value;
+    const explanation = block.querySelector('.quiz-expl-input').value;
+
+    return { question, question_type, options, correct_option, explanation };
+  });
+
+  const res = await fetch(`/admin/lessons/${currentLessonId}/quiz/ai-save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questions: editedQuestions })
+  });
+
+  const data = await res.json();
+  if (data.ok) {
+    alert("Quiz saved successfully!");
+    modal.classList.add('hidden');
+    window.location.reload();
+  } else {
+    alert("Failed to save quiz.");
+  }
+});
+
+
+  closeBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+</script>
+
+
+<script>
+let isEditing = false;
+let editingQuestionId = null;
+
+function openQuizModal(lessonId) {
+  fetch(`/admin/lesson/${lessonId}/quiz`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('quiz_id').value = data.quiz.id;
+        renderQuestions(data.questions);
+        resetQuizForm();
+        document.getElementById('quizModal').style.display = 'block';
+      }
+    })
+    .catch(err => console.error(err));
+}
+
+function closeQuizModal() {
+  document.getElementById('quizModal').style.display = 'none';
+}
+
+// Render quiz questions
+function renderQuestions(questions) {
+  const container = document.getElementById('quizQuestions');
+  container.innerHTML = '';
+
+  if (questions.length === 0) {
+    container.innerHTML = '<p>No questions yet.</p>';
+    return;
+  }
+
+  questions.forEach(q => {
+    container.innerHTML += `
+      <div class="quiz-question">
+        <p><strong>${q.question}</strong></p>
+        ${q.options ? '<p>Options: ' + q.options.join(', ') + '</p>' : ''}
+        <p>Answer: ${q.correct_option}</p>
+        <div class="article-buttons">
+        <button style  = "btn-edit" type="button" onclick='editQuestion(${JSON.stringify(q)})'>Edit</button>
+        <button style  = "btn-delete"  type="button" onclick="deleteQuestion(${q.id})">Delete</button>
+        </div>
+      </div>
+      <hr>
+    `;
+  });
+}
+
+// Fill form with existing question data for editing
+function editQuestion(q) {
+  isEditing = true;
+  editingQuestionId = q.id;
+
+  document.querySelector('#quizForm textarea[name="question"]').value = q.question;
+  document.querySelector('#quizForm select[name="question_type"]').value = q.question_type;
+  document.querySelector('#quizForm input[name="correct_option"]').value = q.correct_option;
+
+  toggleOptions();
+
+  // Fill options if applicable
+  if (q.question_type === "multiple_choice" && q.options) {
+    const optionInputs = document.querySelectorAll('#options_container input[name="options"]');
+    q.options.forEach((opt, idx) => {
+      if (optionInputs[idx]) optionInputs[idx].value = opt;
+    });
+  }
+
+  document.querySelector('#quizForm button[type="submit"]').textContent = "Update Question";
+}
+
+// Reset form to add mode
+function resetQuizForm() {
+  isEditing = false;
+  editingQuestionId = null;
+  document.getElementById('quizForm').reset();
+  toggleOptions();
+  document.querySelector('#quizForm button[type="submit"]').textContent = "Add Question";
+}
+
+// Toggle options fields based on type
+function toggleOptions() {
+  let type = document.getElementById('question_type').value;
+  let container = document.getElementById('options_container');
+
+  if (type === 'multiple_choice') {
+    container.innerHTML = `
+      <label>Options</label>
+      <input type="text" name="options" placeholder="Option 1">
+      <input type="text" name="options" placeholder="Option 2">
+      <input type="text" name="options" placeholder="Option 3">
+      <input type="text" name="options" placeholder="Option 4">
+    `;
+  } else if (type === 'true_false') {
+    container.innerHTML = `
+      <input type="hidden" name="options" value="True">
+      <input type="hidden" name="options" value="False">
+      <p>True / False are fixed</p>
+    `;
+  } else {
+    container.innerHTML = '';
+  }
+}
+
+// Handle create/update via AJAX
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+  const url = isEditing
+    ? `/admin/quiz-question/${editingQuestionId}/edit`
+    : '/admin/quiz-question/create';
+
+  fetch(url, {
+    method: 'POST',
+    body: formData
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        renderQuestions(data.questions);
+        resetQuizForm();
+      } else {
+        alert('Error saving question');
+      }
+    })
+    .catch(err => console.error(err));
+});
+
+// Delete a question via AJAX
+function deleteQuestion(id) {
+  if (!confirm('Delete question?')) return;
+
+  fetch(`/admin/quiz-question/${id}/delete`, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        openQuizModal(document.getElementById('quiz_id').value);
+      }
+    })
+    .catch(err => console.error(err));
+}
+</script>
+
+<!-- <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script> -->
+<!-- <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script> -->
+<!-- <script>
+  let createLessonEditor = null;
+  let editLessonEditor = null;
+
+  /* ---------------- CREATE LESSON ---------------- */
+  function openLessonModal() {
+    document.getElementById('lessonModal').style.display = 'block';
+
+    if (!createLessonEditor) {
+      ClassicEditor.create(document.querySelector('#createLessonContent'))
+        .then(editor => {
+          createLessonEditor = editor;
+
+          // ✅ sync editor data to hidden textarea before submit
+          document.querySelector('#lessonModal form').addEventListener('submit', function (e) {
+            const content = createLessonEditor.getData().trim();
+            if (!content) {
+              e.preventDefault();
+              alert("Please enter lesson content before saving.");
+              return;
+            }
+            document.querySelector('#createLessonContent').value = content;
+          });
+        })
+        .catch(error => console.error('CKEditor create error:', error));
+    }
+  }
+
+  function closeLessonModal() {
+    document.getElementById('lessonModal').style.display = 'none';
+  }
+
+
+
+async function openEditLessonModal(lessonId) {
+  try {
+    // Fetch lesson details from server
+    const res = await fetch(`/admin/lessons/${lessonId}/json`);
+    const lesson = await res.json();
+
+    if (!lesson) {
+      alert("Failed to load lesson data.");
+      return;
+    }
+
+    const form = document.getElementById('editLessonForm');
+    form.action = `/admin/lessons/${lesson.id}/edit`;
+
+    document.getElementById('editLessonTitle').value = lesson.title;
+    document.getElementById('editLessonOrder').value = lesson.order_number || '';
+
+    // Dynamically create/select module dropdown
+    let moduleSelect = document.getElementById('editLessonModule');
+    if (!moduleSelect) {
+      // Create select if not present
+      moduleSelect = document.createElement('select');
+      moduleSelect.name = 'module_id';
+      moduleSelect.id = 'editLessonModule';
+      moduleSelect.required = true;
+
+      // Insert before the title label/input
+      const titleLabel = document.querySelector('#editLessonForm label[for="editLessonTitle"]') ||
+                         document.querySelector('#editLessonForm input[name="title"]');
+      form.insertBefore(moduleSelect, titleLabel);
+    }
+
+    // Populate module dropdown
+    moduleSelect.innerHTML = '';
+    if (window.modules && Array.isArray(window.modules)) {
+      window.modules.forEach(mod => {
+        const opt = document.createElement('option');
+        opt.value = mod.id;
+        opt.textContent = mod.title;
+        if (lesson.module_id == mod.id) opt.selected = true;
+        moduleSelect.appendChild(opt);
+      });
+    } else {
+      // fallback: just set current value
+      const opt = document.createElement('option');
+      opt.value = lesson.module_id;
+      opt.textContent = lesson.module_title || `Module ${lesson.module_id}`;
+      opt.selected = true;
+      moduleSelect.appendChild(opt);
+    }
+
+    document.getElementById('editLessonVideo').value = lesson.video_url || '';
+
+    document.getElementById('editLessonModal').style.display = 'block';
+
+    if (!editLessonEditor) {
+      ClassicEditor.create(document.querySelector('#editLessonContent'))
+        .then(editor => {
+          editLessonEditor = editor;
+          editor.setData(lesson.content || '');
+          form.addEventListener('submit', syncEditLessonContent, { once: true });
+        })
+        .catch(err => console.error(err));
+    } else {
+      editLessonEditor.setData(lesson.content || '');
+      form.addEventListener('submit', syncEditLessonContent, { once: true });
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Error fetching lesson data.");
+  }
+}
+
+function syncEditLessonContent(e) {
+  const content = editLessonEditor.getData().trim();
+  if (!content) {
+    e.preventDefault();
+    alert("Lesson content is required.");
+    return;
+  }
+  document.getElementById('editLessonContent').value = content;
+
+
+}
+
+function closeEditLessonModal() {
+  document.getElementById('editLessonModal').style.display = 'none';
+}
+
+
+</script> -->
+
+<!-- <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+<script>
+  /* ---------------- CREATE LESSON ---------------- */
+  function openLessonModal() {
+    document.getElementById('lessonModal').style.display = 'block';
+
+    // ✅ Initialize CKEditor 4 for create lesson if not already initialized
+    if (!CKEDITOR.instances['createLessonContent']) {
+      CKEDITOR.replace('createLessonContent');
+    }
+  }
+
+  function closeLessonModal() {
+    document.getElementById('lessonModal').style.display = 'none';
+  }
+
+  /* ---------------- EDIT LESSON ---------------- */
+  async function openEditLessonModal(lessonId) {
+    try {
+      const res = await fetch(`/admin/lessons/${lessonId}/json`);
+      const lesson = await res.json();
+
+      if (!lesson) {
+        alert("Failed to load lesson data.");
+        return;
+      }
+
+      const form = document.getElementById('editLessonForm');
+      form.action = `/admin/lessons/${lesson.id}/edit`;
+
+      document.getElementById('editLessonTitle').value = lesson.title;
+      document.getElementById('editLessonOrder').value = lesson.order_number || '';
+
+      // ✅ Module dropdown logic
+      let moduleSelect = document.getElementById('editLessonModule');
+      if (!moduleSelect) {
+        moduleSelect = document.createElement('select');
+        moduleSelect.name = 'module_id';
+        moduleSelect.id = 'editLessonModule';
+        moduleSelect.required = true;
+
+        const titleLabel = document.querySelector('#editLessonForm label[for="editLessonTitle"]') ||
+                           document.querySelector('#editLessonForm input[name="title"]');
+        form.insertBefore(moduleSelect, titleLabel);
+      }
+
+      moduleSelect.innerHTML = '';
+      if (window.modules && Array.isArray(window.modules)) {
+        window.modules.forEach(mod => {
+          const opt = document.createElement('option');
+          opt.value = mod.id;
+          opt.textContent = mod.title;
+          if (lesson.module_id == mod.id) opt.selected = true;
+          moduleSelect.appendChild(opt);
+        });
+      } else {
+        const opt = document.createElement('option');
+        opt.value = lesson.module_id;
+        opt.textContent = lesson.module_title || `Module ${lesson.module_id}`;
+        opt.selected = true;
+        moduleSelect.appendChild(opt);
+      }
+
+      document.getElementById('editLessonVideo').value = lesson.video_url || '';
+      document.getElementById('editLessonModal').style.display = 'block';
+
+      // ✅ Initialize CKEditor 4 for edit lesson
+      if (!CKEDITOR.instances['editLessonContent']) {
+        CKEDITOR.replace('editLessonContent');
+        // Wait a bit for initialization before setting content
+        setTimeout(() => {
+          CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
+        }, 300);
+      } else {
+        CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching lesson data.");
+    }
+  }
+
+  function closeEditLessonModal() {
+    document.getElementById('editLessonModal').style.display = 'none';
+  }
+
+  /* ---------------- FORM SUBMISSION HANDLERS ---------------- */
+  // ✅ Sync CKEditor 4 data before submitting
+  document.addEventListener('submit', function (e) {
+    for (let instance in CKEDITOR.instances) {
+      CKEDITOR.instances[instance].updateElement();
+    }
+
+    const contentFields = ['createLessonContent', 'editLessonContent'];
+    for (let id of contentFields) {
+      const textarea = document.getElementById(id);
+      if (textarea && !textarea.value.trim()) {
+        e.preventDefault();
+        alert("Please enter lesson content before saving.");
+        return false;
+      }
+    }
+  });
+</script> -->
+
+
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+<script>
+  /* ---------------- CREATE LESSON ---------------- */
+  function openLessonModal() {
+    document.getElementById('lessonModal').style.display = 'block';
+
+    // ✅ Initialize CKEditor 4 for create lesson if not already initialized
+    if (!CKEDITOR.instances['createLessonContent']) {
+      CKEDITOR.replace('createLessonContent');
+    }
+  }
+
+  function closeLessonModal() {
+    document.getElementById('lessonModal').style.display = 'none';
+  }
+
+  /* ---------------- EDIT LESSON ---------------- */
+  async function openEditLessonModal(lessonId) {
+    try {
+      const res = await fetch(`/admin/lessons/${lessonId}/json`);
+      const lesson = await res.json();
+
+      if (!lesson) {
+        alert("Failed to load lesson data.");
+        return;
+      }
+
+      const form = document.getElementById('editLessonForm');
+      form.action = `/admin/lessons/${lesson.id}/edit`;
+
+      document.getElementById('editLessonTitle').value = lesson.title;
+      document.getElementById('editLessonOrder').value = lesson.order_number || '';
+
+      // ✅ Handle module dropdown
+      let moduleSelect = document.getElementById('editLessonModule');
+      if (!moduleSelect) {
+        moduleSelect = document.createElement('select');
+        moduleSelect.name = 'module_id';
+        moduleSelect.id = 'editLessonModule';
+        moduleSelect.required = true;
+
+        const titleLabel = document.querySelector('#editLessonForm label[for="editLessonTitle"]') ||
+                           document.querySelector('#editLessonForm input[name="title"]');
+        form.insertBefore(moduleSelect, titleLabel);
+      }
+
+      moduleSelect.innerHTML = '';
+      if (window.modules && Array.isArray(window.modules)) {
+        window.modules.forEach(mod => {
+          const opt = document.createElement('option');
+          opt.value = mod.id;
+          opt.textContent = mod.title;
+          if (lesson.module_id == mod.id) opt.selected = true;
+          moduleSelect.appendChild(opt);
+        });
+      } else {
+        const opt = document.createElement('option');
+        opt.value = lesson.module_id;
+        opt.textContent = lesson.module_title || `Module ${lesson.module_id}`;
+        opt.selected = true;
+        moduleSelect.appendChild(opt);
+      }
+
+      document.getElementById('editLessonVideo').value = lesson.video_url || '';
+      document.getElementById('editLessonModal').style.display = 'block';
+
+      // ✅ Initialize CKEditor 4 for edit lesson
+      if (!CKEDITOR.instances['editLessonContent']) {
+        CKEDITOR.replace('editLessonContent');
+        setTimeout(() => {
+          CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
+        }, 300);
+      } else {
+        CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching lesson data.");
+    }
+  }
+
+  function closeEditLessonModal() {
+    document.getElementById('editLessonModal').style.display = 'none';
+  }
+
+  /* ---------------- FORM SUBMISSION HANDLERS ---------------- */
+  document.addEventListener('submit', function (e) {
+    // ✅ Update CKEditor fields first before reading their values
+    for (let instance in CKEDITOR.instances) {
+      CKEDITOR.instances[instance].updateElement();
+    }
+
+    // ✅ Now safely check for content
+    const createContent = document.getElementById('createLessonContent');
+    const editContent = document.getElementById('editLessonContent');
+
+    if (createContent && createContent.closest('form') === e.target) {
+      if (!createContent.value.trim()) {
+        e.preventDefault();
+        alert("Please enter lesson content before saving.");
+        return false;
+      }
+    }
+
+    if (editContent && editContent.closest('form') === e.target) {
+      if (!editContent.value.trim()) {
+        e.preventDefault();
+        alert("Lesson content is required.");
+        return false;
+      }
+    }
+  });
+</script>

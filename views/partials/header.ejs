@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+</head>
+<body>
+    <!-- Loading Spinner Overlay -->
+<div id="loadingOverlay">
+  <div class="spin">
+    <img src="/images/JKT logo.png" alt="">
+  </div>
+</div>
+
+<script>
+    function showLoading() {
+  document.getElementById("loadingOverlay").style.display = "flex";
+}
+
+function hideLoading() {
+  document.getElementById("loadingOverlay").style.display = "none";
+}
+
+</script>
+    
+</body>
+</html>
+
+

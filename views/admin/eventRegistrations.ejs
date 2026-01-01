@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Event Registrations</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <h1>📋 Registrations for <%= event.title %></h1>
+
+    <!-- search input -->
+    <form method="GET" style="margin: 20px 0">
+      <input
+        type="text"
+        name="search"
+        placeholder="Search by name or email"
+        value="<%= search %>"
+      />
+      <button type="submit">Search</button>
+      <a
+        href="/admin/events/registrations/<%= event.id %>/export"
+        class="btn btn-secondary"
+        >Export CSV</a
+      >
+    </form>
+
+    <!-- registration details -->
+    <% if (registrations.length === 0) { %>
+    <p>No one has registered yet.</p>
+    <% } else { %>
+    <div class="table-responsive">
+      <div style="overflow-x: auto; margin-top: 20px">
+        <table
+          border="1"
+          cellpadding="10"
+          class="user-table"
+          style="width: 100%; border-collapse: collapse"
+        >
+          <thead style="background-color: #f0f0f0">
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Parent?</th>
+              <th>Child's Names</th>
+              <th>Amount Paid</th>
+              <th>Payment Option</th>
+              <th>Status</th>
+              <th>Registered At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% registrations.forEach(reg => { %>
+            <tr>
+              <td><%= reg.registrant_name %></td>
+              <td><%= reg.registrant_email %></td>
+              <td><%= reg.registrant_phone %></td>
+              <td><%= reg.is_parent ? "Yes" : "No" %></td>
+              <td><%= reg.child_names || "-" %></td>
+              <td>₦<%= reg.amount_paid.toLocaleString() %></td>
+              <td><%= reg.payment_option %></td>
+              <td>
+                <% if (reg.payment_status === 'completed') { %>
+                <span style="color: green; font-weight: bold">✔ Completed</span>
+                <% } else { %>
+                <span style="color: orange">Pending</span>
+                <% } %>
+              </td>
+              <td><%= new Date(reg.created_at).toLocaleString() %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- pagination -->
+    <div style="margin-top: 20px">
+      <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% for (let i = 1; i <= totalPages; i++) { %>
+        <a
+          href="?search=<%= search %>&page=<%= i %>"
+          class="<%= i === currentPage ? 'active' : '' %>"
+        >
+          <%= i %>
+        </a>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+
+    <a href="/admin/events" class="btn btn-secondary" style="margin-top: 15px"
+      >← Back to Events</a
+    >
+
+    <!-- Navigation toggle script -->
+    <script>
+      document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+          nav.classList.toggle("open") &&
+          !nav.contains(event.target) &&
+          !toggleBtn.contains(event.target)
+        ) {
+          nav.classList.remove("open");
+        }
+      });
+    </script>
+
+    <!-- Image preview script -->
+    <script>
+      const input = document.getElementById("imageInput");
+      if (input) {
+        input.addEventListener("change", function () {
+          const preview = document.getElementById("imagePreview");
+          const file = this.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          } else {
+            preview.src = "#";
+            preview.style.display = "none";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

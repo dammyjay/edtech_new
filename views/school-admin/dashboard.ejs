@@ -1,0 +1,28 @@
+<%- include('../partials/header', { title: 'School Admin Dashboard' }) %>
+<%- include('../partials/sidenav') %>
+<h1>🏫 School Admin Dashboard</h1>
+<p>
+  Welcome, <%= schoolAdmin.fullname %> 
+  (<%= school.name %>)
+</p>
+
+<div class="main-content">
+  <!-- Overview is the default content -->
+  <div id="dashboard-content">
+    <%- include('../partials/overview', { 
+      schoolAdmin, school, pendingUsers, teachers, students, classrooms 
+    }) %>
+  </div>
+</div>
+
+<script>
+async function loadSection(section) {
+  try {
+    const res = await fetch(`/school-admin/section/${section}`);
+    const html = await res.text();
+    document.getElementById("dashboard-content").innerHTML = html;
+  } catch (err) {
+    document.getElementById("dashboard-content").innerHTML = "<p>Error loading section.</p>";
+  }
+}
+</script>

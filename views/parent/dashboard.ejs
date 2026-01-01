@@ -1,0 +1,116 @@
+<%- include('../partials/header', { title: 'Dashboard' }) %>
+
+<h1>👨‍👩‍👧 Parent Dashboard</h1>
+<p>Welcome, <%= parent.fullname %></p>
+
+<div style="margin-bottom:20px; text-align: right; width: 90%;">
+  <a href="/admin/logout" 
+     style="text-decoration:none; color:white; background-color: red; padding: 5px 10px ; border-radius: 5px;">
+     Logout
+  </a>
+</div>
+
+<!-- ✅ Success/Error Banner -->
+<div id="messageBox" style="display:none; margin-bottom:15px; padding:10px; border-radius:5px;"></div>
+
+<!-- Add Child Form -->
+<h3>Add Child</h3>
+<form id="addChildForm" style="margin-bottom:20px;">
+  <input type="email" name="childEmail" placeholder="Child's email" required />
+  <button type="submit" id="submitBtn">➕ Add</button>
+  <!-- Spinner (hidden by default) -->
+  <span id="spinner" style="display:none; margin-left:10px;">⏳ Sending...</span>
+</form>
+
+<script>
+document.getElementById("addChildForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const childEmail = e.target.childEmail.value;
+  const messageBox = document.getElementById("messageBox");
+  const spinner = document.getElementById("spinner");
+  const submitBtn = document.getElementById("submitBtn");
+
+  // Show spinner + disable button
+  spinner.style.display = "inline";
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/parent/add-child", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ childEmail })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      messageBox.style.display = "block";
+      messageBox.style.background = "#f8d7da"; // red
+      messageBox.style.color = "#721c24";
+      messageBox.innerText = "❌ " + data.error;
+    } else {
+      messageBox.style.display = "block";
+      messageBox.style.background = "#d4edda"; // green
+      messageBox.style.color = "#155724";
+      messageBox.innerText = data.message;
+
+      // redirect after short delay
+      setTimeout(() => {
+        window.location.href = data.redirect;
+      }, 1500);
+    }
+  } catch (err) {
+    console.error("Error submitting form:", err);
+    messageBox.style.display = "block";
+    messageBox.style.background = "#f8d7da";
+    messageBox.style.color = "#721c24";
+    messageBox.innerText = "❌ Failed to send request";
+  } finally {
+    // Hide spinner + re-enable button
+    spinner.style.display = "none";
+    submitBtn.disabled = false;
+  }
+});
+</script>
+
+
+<!-- List of Linked Children -->
+<h3>Your Children</h3>
+<% if (children.length) { %>
+  <div class="table-responsive">
+    <table class="user-table" style="width:90%; margin-top:20px;">
+      <thead>
+        <tr>
+          <th>Profile</th>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% children.forEach(child => { %>
+          <tr>
+            <td>
+              <img src="<%= child.profile_picture || '/profile.webp' %>" 
+                   alt="Profile"
+                   style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
+            </td>
+            <td><%= child.fullname %></td>
+            <td><%= child.email %></td>
+            <td style="display:flex; gap:10px; justify-content:center; align-items:center;">
+              <!-- View Progress -->
+              <a href="/admin/students/<%= child.id %>/progress?from=parent"
+                 class="btn-edit"
+                 style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
+                 📊View Progress
+              </a>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } else { %>
+  <p>No children linked yet.</p>
+<% } %>

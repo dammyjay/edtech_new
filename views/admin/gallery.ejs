@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Edit company Info</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <h2>📁 Gallery Management</h2>
+
+    <!-- 🌟 Create Category Modal -->
+    <div id="categoryModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('categoryModal')">&times;</span>
+        <h3>Create New Category</h3>
+        <form action="/admin/gallery/create-category" method="POST">
+          <label>Category Name:</label>
+          <input type="text" name="name" required />
+          <button type="submit">➕ Add</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 🌟 Upload Image Modal -->
+    <div id="uploadModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('uploadModal')">&times;</span>
+        <h3>Upload New Image</h3>
+        <form
+          action="/admin/gallery/upload"
+          method="POST"
+          enctype="multipart/form-data"
+        >
+          <label>Image Title:</label>
+          <input type="text" name="title" required />
+
+          <label>Category:</label>
+          <select name="category_id" required>
+            <% categories.forEach(cat => { %>
+            <option value="<%= cat.id %>"><%= cat.name %></option>
+            <% }) %>
+          </select>
+
+          <label>Select Image:</label>
+          <input type="file" name="image" accept="image/*" required />
+
+          <button type="submit">📤 Upload</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Trigger buttons -->
+    <div style="margin: 30px 0">
+      <button onclick="openModal('categoryModal')">➕ Add Category</button>
+      <button onclick="openModal('uploadModal')">📤 Upload Image</button>
+    </div>
+
+    <!-- Show Uploaded Images -->
+    <h3>🖼 Uploaded Images</h3>
+
+    <!-- 🔽 Filter Dropdown -->
+    <label for="categoryFilter"><strong>Filter by Category:</strong></label>
+    <select id="categoryFilter" style="margin-bottom: 24px">
+      <option value="all">All Categories</option>
+      <% categories.forEach(cat => { %>
+      <option value="cat-<%= cat.id %>"><%= cat.name %></option>
+      <% }) %>
+    </select>
+
+    <!-- 🔽 Gallery Image Cards -->
+    <section class="section">
+      <h3>🖼 Uploaded Gallery Images</h3>
+
+      <% categories.forEach(cat => { %>
+      <div class="category-section" data-cat="cat-<%= cat.id %>">
+        <h4 style="margin-top: 2rem"><%= cat.name %></h4>
+        <div class="gallery-grid">
+          <% const catImages = images.filter(img => Number(img.category_id) ===
+          Number(cat.id)); if (catImages.length === 0) { %>
+          <p style="color: #aaa">No images in this category yet.</p>
+          <% } %> <% catImages.forEach(img => { %>
+          <div class="gallery-card">
+            <img
+              src="<%= img.image_url %>"
+              alt="<%= img.title %>"
+              onclick="showModal('<%= img.image_url %>')"
+              style="cursor: zoom-in"
+            />
+            <p><%= img.title %></p>
+
+            <div class="article-buttons">
+              <form
+                method="POST"
+                action="/admin/gallery/delete-image/<%= img.id %>"
+                style="display: inline"
+              >
+                <button
+                  type="submit"
+                  onclick="return confirm('Delete this image?')"
+                >
+                  🗑 Delete
+                </button>
+              </form>
+              <a
+                href="/admin/gallery/edit/<%= img.id %>"
+                class="cta-btn"
+                style="margin-top: 8px"
+              >
+                ✏ Edit
+              </a>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+      <% }) %>
+    </section>
+
+    <!-- 🖼 Modal for Full Image Preview -->
+    <div id="imgModal" class="img-modal" style="display: none">
+      <span class="close-modal" id="closeModal">&times;</span>
+      <img class="img-modal-content" id="modalImg" />
+    </div>
+
+    <!-- Show Categories with Delete -->
+    <h3>🗂 Categories</h3>
+    <div class="table-responsive">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% categories.forEach(cat => { %>
+          <tr>
+            <td><%= cat.name %></td>
+            <td>
+              <div class="article-buttons">
+                <form
+                  action="/admin/gallery/delete-category/<%= cat.id %>"
+                  method="POST"
+                  style="display: inline"
+                >
+                  <button
+                    class="btn-delete"
+                    onclick="return confirm('Delete this image?')"
+                    type="submit"
+                  >
+                    🗑 Delete
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      function openModal() {
+        document.getElementById("createModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("createModal").style.display = "none";
+        document.getElementById("editModal").style.display = "none";
+      }
+
+      function openEditModal(sectionKey, title, content) {
+        document.getElementById("modal-title").innerText = "Edit " + title;
+        document.getElementById("modal-section-key").value = sectionKey;
+        document.getElementById("modal-textarea").value = content;
+        document.getElementById("editModal").style.display = "block";
+      }
+
+      window.onclick = function (event) {
+        if (event.target.classList.contains("modal")) {
+          event.target.style.display = "none";
+        }
+      };
+
+      CKEDITOR.replace("content");
+    </script>
+
+    <!-- script for image modal  -->
+    <!-- 🔽 Modal Script -->
+    <script>
+      function showModal(url) {
+        const modal = document.getElementById("imgModal");
+        const modalImg = document.getElementById("modalImg");
+        modal.style.display = "flex";
+        modalImg.src = url;
+      }
+
+      document.getElementById("closeModal").onclick = function () {
+        document.getElementById("imgModal").style.display = "none";
+        document.getElementById("modalImg").src = "";
+      };
+
+      document.getElementById("imgModal").onclick = function (e) {
+        if (e.target === this) {
+          this.style.display = "none";
+          document.getElementById("modalImg").src = "";
+        }
+      };
+    </script>
+
+    <!-- 🔽 Category Filter Script -->
+    <script>
+      const filterSelect = document.getElementById("categoryFilter");
+      const categorySections = document.querySelectorAll(".category-section");
+
+      filterSelect.addEventListener("change", function () {
+        const selected = this.value;
+
+        categorySections.forEach((section) => {
+          section.style.display =
+            selected === "all" || section.dataset.cat === selected
+              ? "block"
+              : "none";
+        });
+      });
+    </script>
+
+    <!-- script for upload and create category  -->
+    <script>
+      function openModal(id) {
+        document.getElementById(id).style.display = "block";
+      }
+
+      function closeModal(id) {
+        document.getElementById(id).style.display = "none";
+      }
+
+      // Optional: Close modal if clicking outside
+      window.addEventListener("click", function (event) {
+        if (event.target.classList.contains("modal")) {
+          event.target.style.display = "none";
+        }
+      });
+    </script>
+
+    <script>
+      CKEDITOR.replace("content");
+    </script>
+  </body>
+</html>

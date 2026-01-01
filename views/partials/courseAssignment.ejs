@@ -1,0 +1,219 @@
+
+
+<h3>Module Assignments</h3>
+
+<div class="assignment-header">
+  <form method="GET" action="">
+    <input type="hidden" name="tab" value="assignment">
+    <label>Filter by Module:</label>
+    <select name="module" onchange="this.form.submit()">
+      <option value="all" <%= selectedModuleId === 'all' ? 'selected' : '' %>>All Modules</option>
+      <% modules.forEach(mod => { %>
+        <option value="<%= mod.id %>" <%= selectedModuleId == mod.id ? 'selected' : '' %>>
+          <%= mod.title %>
+        </option>
+      <% }) %>
+    </select>
+  </form>
+</div>
+
+<button onclick="openAssignmentModal()">+ Add Assignment</button>
+
+<!-- Assignment List -->
+<div class="article-grid" id="assignmentList">
+  <% assignments.forEach(assign => { %>
+    <div class="article-card" data-id="<%= assign.id %>">
+      <h3><%= assign.title %></h3>
+      <p><strong>Module:</strong> <%= assign.module_title %></p>
+      <p><%- assign.instructions.substring(0, 100) %>...</p>
+      <div class="article-buttons">
+        <button class="btn-edit" onclick='openEditAssignmentModal(<%- JSON.stringify(assign) %>)'>Edit</button>
+        <button class="btn-delete" type="button" onclick="deleteAssignment(<%= assign.id %>)">Delete</button>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- CREATE ASSIGNMENT MODAL -->
+<div id="assignmentModal" class="modal" style="display:none;">
+  <form id="createAssignmentForm" class="modal-content">
+    <h2>Create Assignment</h2>
+    <input type="hidden" name="course_id" value="<%= course.id %>">
+
+    <label>Title</label>
+    <input type="text" name="title" required>
+
+    <label>Instructions</label>
+    <textarea name="instructions" id="createAssignmentContent"></textarea>
+
+    <label>Module</label>
+    <select name="module_id" required>
+      <% modules.forEach(mod => { %>
+        <option value="<%= mod.id %>"><%= mod.title %></option>
+      <% }) %>
+    </select>
+
+    <div class="modal-actions">
+      <button type="submit">Save</button>
+      <button type="button" onclick="closeAssignmentModal()">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<!-- EDIT ASSIGNMENT MODAL -->
+<div id="editAssignmentModal" class="modal" style="display:none;">
+  <form id="editAssignmentForm" class="modal-content">
+    <h2>Edit Assignment</h2>
+    <input type="hidden" name="id" id="editAssignmentId">
+
+    <label>Title</label>
+    <input type="text" name="title" id="editAssignmentTitle" required>
+
+    <label>Instructions</label>
+    <textarea name="instructions" id="editAssignmentContent"></textarea>
+
+    <div class="modal-actions">
+      <button type="submit">Update</button>
+      <button type="button" onclick="closeEditAssignmentModal()">Cancel</button>
+    </div>
+  </form>
+</div>
+
+
+
+<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+<script>
+let createAssignmentEditor = null;
+let editAssignmentEditor = null;
+
+// ----- CREATE MODAL -----
+function openAssignmentModal() {
+  document.getElementById('assignmentModal').style.display = 'block';
+  if (!createAssignmentEditor) {
+    ClassicEditor.create(document.querySelector('#createAssignmentContent'))
+      .then(editor => createAssignmentEditor = editor)
+      .catch(error => console.error(error));
+  }
+}
+function closeAssignmentModal() {
+  document.getElementById('assignmentModal').style.display = 'none';
+}
+
+// Handle Create via AJAX
+document.getElementById('createAssignmentForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  const content = createAssignmentEditor ? createAssignmentEditor.getData().trim() : '';
+  if (!content) {
+    alert('Content is required.');
+    return;
+  }
+  this.querySelector('textarea[name="instructions"]').value = content;
+
+  const formData = new FormData(this);
+  // const res = await fetch('/admin/assignments/create', { method: 'POST', body: formData });
+  const res = await fetch('/admin/assignments/create', { 
+  method: 'POST', 
+  body: formData,
+  headers: { "X-Requested-With": "XMLHttpRequest" }
+});
+
+  if (res.ok) {
+    const newAssignment = await res.json();
+
+    // Append to list
+    document.getElementById('assignmentList').insertAdjacentHTML('beforeend', `
+      <div class="article-card" data-id="${newAssignment.id}">
+        <h3>${newAssignment.title}</h3>
+        <p><strong>Module:</strong> ${newAssignment.module_title}</p>
+        <p>${newAssignment.instructions.substring(0, 100)}...</p>
+        <div class="article-buttons">
+          <button class="btn-edit" onclick='openEditAssignmentModal(${JSON.stringify(newAssignment)})'>Edit</button>
+          <button class="btn-delete" onclick="deleteAssignment(${newAssignment.id})">Delete</button>
+        </div>
+      </div>
+    `);
+
+    // Reset and close
+    this.reset();
+    createAssignmentEditor.setData('');
+    closeAssignmentModal();
+  } else {
+    alert('Error creating assignment');
+  }
+});
+
+// ----- EDIT MODAL -----
+function openEditAssignmentModal(assignment) {
+  document.getElementById('editAssignmentId').value = assignment.id;
+  document.getElementById('editAssignmentTitle').value = assignment.title;
+  document.getElementById('editAssignmentModal').style.display = 'block';
+
+  if (!editAssignmentEditor) {
+    ClassicEditor.create(document.querySelector('#editAssignmentContent'))
+      .then(editor => {
+        editAssignmentEditor = editor;
+        editAssignmentEditor.setData(assignment.instructions || '');
+      })
+      .catch(error => console.error(error));
+  } else {
+    editAssignmentEditor.setData(assignment.instructions || '');
+  }
+}
+function closeEditAssignmentModal() {
+  document.getElementById('editAssignmentModal').style.display = 'none';
+}
+
+// Handle Edit via AJAX
+document.getElementById('editAssignmentForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  const id = document.getElementById('editAssignmentId').value;
+  const content = editAssignmentEditor ? editAssignmentEditor.getData().trim() : '';
+  if (!content) {
+    alert('Content is required.');
+    return;
+  }
+  this.querySelector('textarea[name="instructions"]').value = content;
+
+  const formData = new FormData(this);
+  // const res = await fetch(`/admin/assignments/${id}/edit`, { method: 'POST', body: formData });
+  const res = await fetch(`/admin/assignments/${id}/edit`, { 
+  method: 'POST', 
+  body: formData,
+  headers: { "X-Requested-With": "XMLHttpRequest" }
+});
+
+  if (res.ok) {
+    const updatedAssignment = await res.json();
+
+    // Update card in DOM
+    const card = document.querySelector(`.article-card[data-id="${id}"]`);
+    if (card) {
+      card.querySelector('h3').textContent = updatedAssignment.title;
+      card.querySelector('p:nth-of-type(2)').innerHTML = updatedAssignment.instructions.substring(0, 100) + '...';
+    }
+
+    closeEditAssignmentModal();
+  } else {
+    alert('Error updating assignment');
+  }
+});
+
+// ----- DELETE via AJAX -----
+async function deleteAssignment(id) {
+  if (!confirm('Delete assignment?')) return;
+
+  const res = await fetch(`/admin/assignments/${id}/delete`, { method: 'POST' });
+  if (res.ok) {
+    const card = document.querySelector(`.article-card[data-id="${id}"]`);
+    if (card) card.remove();
+  } else {
+    alert('Error deleting assignment');
+  }
+}
+
+
+
+</script>
+

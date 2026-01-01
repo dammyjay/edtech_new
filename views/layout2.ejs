@@ -1,0 +1,22 @@
+<!-- views/layout.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title || "Edutech" %></title>
+  <link rel="stylesheet" href="/css/style.css"> <!-- optional -->
+</head>
+<body>
+  <header>
+    <h1>Edutech Ministry</h1>
+  </header>
+
+  <main>
+    <%- body %> <!-- This is where each page will be injected -->
+  </main>
+
+  <footer>
+    <p>&copy; <%= new Date().getFullYear() %> Edutech</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<div id="sidenav" class="sidenav">
+  <h2>📌 Admin Menu</h2>
+  <ul>
+    <li><a href="#" onclick="loadSection('overview')">🏠 Overview</a></li>
+    <li><a href="#" onclick="loadSection('teachers')">👨‍🏫 Teachers</a></li>
+    <li><a href="#" onclick="loadSection('students')">🎓 Students</a></li>
+    <li><a href="#" onclick="loadSection('classrooms')">🏫 Classrooms</a></li>
+    <li><a href="#" onclick="loadSection('approvals')">⏳ Approvals</a></li>
+      <!-- New Sections -->
+    <li><a href="#" onclick="loadSection('quotes')">💡 Quotes</a></li>
+    <li><a href="#" onclick="loadSection('payments')">💳 Payments</a></li>
+    <li><a href="#" onclick="loadSection('classroom-courses')">📚 Classroom Courses</a></li>
+    <li><a href="/admin/logout">🚪 Logout</a></li>
+  </ul>
+</div>
+
+<button id="toggleBtn" class="toggle-btn">☰</button>
+
+<style>
+  /* Sidebar */
+  .sidenav {
+    width: 220px;
+    background: #1270b0;
+    color: #fff;
+    height: 100vh;
+    padding: 15px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+  }
+
+  .sidenav h2 {
+    margin-bottom: 20px;
+  }
+
+  .sidenav ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .sidenav ul li {
+    margin: 10px 0;
+  }
+
+  .sidenav ul li a {
+    color: #fff;
+    text-decoration: none;
+    display: block;
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .sidenav ul li a:hover {
+    background: #0b4e7a;
+  }
+
+  /* Main content */
+  /* .main-content {
+    margin-left: 240px;
+    padding: 20px;
+    transition: margin-left 0.3s ease-in-out;
+  } */
+
+  /* Main content */
+.main-content {
+  margin-left: 240px;   /* leave space for sidebar */
+  padding: 20px;
+  width: calc(100% - 240px);  /* fill remaining width beside sidebar */
+  box-sizing: border-box;     /* include padding in width */
+  min-height: 100vh;          /* stretch down */
+  background: #fdfdfd;        /* optional: light background */
+  transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
+}
+
+
+  /* Toggle button (for mobile) */
+  .toggle-btn {
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #1270b0;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 1100;
+    
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidenav {
+      transform: translateX(-100%);
+    }
+    .sidenav.active {
+      transform: translateX(0);
+    }
+    .toggle-btn {
+      display: block;
+    }
+    .main-content {
+    margin-left: 0;            /* no sidebar space */
+    width: 100%;               /* full width on mobile */
+    padding: 15px;
+  }
+
+  /* Make content full width */
+  .main-content,
+  .collapsible-header,
+  .collapsible-content,
+  table.user-table {
+    width: 100%;
+  }
+  }
+</style>
+
+<style>
+    .classroom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.classroom-card {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #f9f9f9;
+  overflow: hidden;
+}
+
+.classroom-header {
+  background: #1270b0;
+  color: #fff;
+  padding: 15px;
+  cursor: pointer;
+}
+
+.classroom-header h3 {
+  margin: 0 0 5px;
+}
+
+.classroom-body {
+  padding: 15px;
+  display: none;
+}
+
+.classroom-body.active {
+  display: block;
+}
+
+.classroom-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.student-search {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.alert-overlay {
+  display: none;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #28a745;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  z-index: 2000;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
+
+  .collapsible-header {
+    background: #1270b0;
+    color: #fff;
+    padding: 10px;
+    cursor: pointer;
+    margin: 5px 0;
+    border-radius: 5px;
+    /* width: 100%; */
+  }
+  .collapsible-content {
+    display: none;
+    margin-bottom: 15px;
+    /* width: 100%; */
+  }
+  .collapsible-content.active {
+    display: block;
+  }
+
+  /* Modal overlay hidden by default */
+  .modal-overlay {
+    display: none; /* 🔥 ensures it doesn't open automatically */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 22px;
+    cursor: pointer;
+  }
+  .article-button form {
+  display: inline;   /* keeps the form inline */
+  margin: 0;         /* remove extra spacing */
+  padding: 0;        /* no extra padding */
+}
+/* === KPI Cards === */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+.kpi-card {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+.kpi-card:hover {
+  transform: translateY(-4px);
+}
+.kpi-card h3 {
+  margin: 10px 0;
+  font-size: 1.5rem;
+}
+
+/* === Charts Layout === */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin: 30px 0;
+}
+.chart-box {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* === Activity Feed === */
+.activity-feed {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.activity-feed ul {
+  list-style: none;
+  padding: 0;
+}
+.activity-feed li {
+  margin: 8px 0;
+}
+
+/* === Responsive Tweaks === */
+@media (max-width: 768px) {
+  .kpi-card h3 {
+    font-size: 1.2rem;
+  }
+  .chart-box h3 {
+    font-size: 1rem;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr; /* stack charts on tablets/phones */
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-card {
+    padding: 15px;
+  }
+  .kpi-card h3 {
+    font-size: 1rem;
+  }
+  .charts-grid {
+    gap: 15px;
+  }
+}
+
+</style>
+
+<!-- <script>
+  document.getElementById("toggleBtn").addEventListener("click", function() {
+    document.getElementById("sidenav").classList.toggle("active");
+  });
+</script> -->
+
+<script>
+  const sidenav = document.getElementById("sidenav");
+  const toggleBtn = document.getElementById("toggleBtn");
+
+  // Toggle open/close
+  toggleBtn.addEventListener("click", function(e) {
+    e.stopPropagation(); // prevent closing immediately
+    sidenav.classList.toggle("active");
+  });
+
+  // Close when clicking a link inside sidenav
+  sidenav.querySelectorAll("a").forEach(link => {
+    link.addEventListener("click", () => {
+      if (window.innerWidth <= 768) { // only on mobile
+        sidenav.classList.remove("active");
+      }
+    });
+  });
+
+  // Close when clicking outside sidenav
+  document.addEventListener("click", (e) => {
+    if (
+      window.innerWidth <= 768 && // only mobile
+      sidenav.classList.contains("active") && 
+      !sidenav.contains(e.target) && 
+      e.target !== toggleBtn
+    ) {
+      sidenav.classList.remove("active");
+    }
+  });
+
+  // Optional: close if window resized to desktop
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 768) {
+      sidenav.classList.remove("active");
+    }
+  });
+</script>

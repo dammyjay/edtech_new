@@ -1,0 +1,200 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Event Payment</title>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="payment-container">
+    <h2><%= reg.title %> - Payment</h2>
+    <img src="<%= reg.image_url %>" alt="Event Image" style="width: 100%; max-width: 300px" />
+    <p><strong>Name:</strong> <%= reg.registrant_name %></p>
+    <p><strong>Email:</strong> <%= reg.registrant_email %></p>
+    <p><strong>Phone:</strong> <%= reg.registrant_phone %></p>
+    <p><strong>Amount:</strong> ₦<%= reg.amount_paid %></p>
+
+    <button onclick="payWithPaystack()">Pay Now</button>
+  </div>
+
+  <script>
+    function payWithPaystack() {
+      const handler = PaystackPop.setup({
+        key: 'pk_live_c89f9942dce6fde45efd45f565408fd80ee09e12',
+        email: '<%= reg.registrant_email %>',
+        amount: <%= reg.amount_paid * 100 %>,
+        metadata: {
+          custom_fields: [
+            { display_name: "Registrant Name", value: "<%= reg.registrant_name %>" }
+          ]
+        },
+        callback: function(response) {
+          fetch('/verify-event-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reference: response.reference,
+              regId: <%= reg.id %>,
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              alert("🎉 Payment successful!");
+              window.location.href = "/events/<%= reg.event_id %>?paid=success";
+            } else {
+              alert("❌ " + data.message);
+            }
+          });
+        },
+        onClose: function() {
+          alert("Payment cancelled");
+        }
+      });
+
+      handler.openIframe();
+    }
+  </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Event Payment</title>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="payment-container">
+    <h2><%= reg.title %> - Payment</h2>
+
+    <% if (reg.image_url) { %>
+      <img src="<%= reg.image_url %>" alt="Event Image" style="width: 100%; max-width: 300px" />
+    <% } %>
+
+    <p><strong>Name:</strong> <%= reg.registrant_name %></p>
+    <p><strong>Email:</strong> <%= reg.registrant_email %></p>
+    <p><strong>Phone:</strong> <%= reg.registrant_phone || "—" %></p>
+
+    <%
+  const baseAmount = Number(reg.amount) || 0;
+  const numPeople = Number(reg.num_people) || 1;
+
+  // Normalize today's date
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Only create Date if discount_deadline exists
+  let deadline = null || 0;
+  if (reg.discount_deadline) {
+    deadline = new Date(reg.discount_deadline);
+    deadline.setHours(0, 0, 0, 0);
+  }
+
+  // Debug logs
+  
+  const discountFromDB = Number(reg.discount_amount) || 0;
+  console.log("📅 Today (normalized):", today.toLocaleString());
+  console.log("📅 Deadline (normalized):", deadline ? deadline.toLocaleString() : "None");
+
+  // Calculate discount
+  <!-- const isDiscountValid = Number(reg.discount_amount) > 0 && deadline instanceof Date && !isNaN(deadline) && today.getTime() <= deadline.getTime(); -->
+  const isDiscountValid = today.getDate() <= deadline.getDate();
+  console.log(isDiscountValid);
+  if (isDiscountValid) {
+    console.log("✅ Discount is valid");
+    console.log(discountFromDB);
+    var discountPerPerson = discountFromDB;
+    console.log("💰 Discount per person:", discountPerPerson);
+  } else {
+    console.log("❌ Discount is not valid");
+  }
+  <!-- const discountPerPerson = isDiscountValid ? Number(reg.discount_amount) : 0; -->
+
+  // Calculate payable
+  const feePerPerson = discountPerPerson;
+  console.log("💰 Discount per person:", discountPerPerson);
+  let totalAmount = feePerPerson * numPeople;
+
+  if (reg.payment_option === 'half') {
+    totalAmount = totalAmount / 2;
+  }
+%>
+
+
+    <hr>
+    <p><strong>Fee per Person:</strong> ₦<%= baseAmount.toLocaleString() %></p>
+    <p><strong>Number of People:</strong> <%= numPeople %></p>
+    <p><strong>Payment Type:</strong> <%= reg.payment_option === 'half' ? 'Half Payment' : 'Full Payment' %></p>
+
+    <% if (discountPerPerson > 0) { %>
+      <p style="color: green;">
+        <strong>Discount Applied:</strong> ₦<%= discountPerPerson.toLocaleString() %> per person
+      </p>
+    <% } %>
+
+    <p><strong>Total Before Discount:</strong> ₦<%= (baseAmount * numPeople).toLocaleString() %></p>
+    <p style="font-size: 1.2em; font-weight: bold;">
+      ✅ Total Payable: ₦<%= totalAmount.toLocaleString() %>
+    </p>
+    <hr>
+
+    <button onclick="payWithPaystack(<%= totalAmount %>)">Pay Now</button>
+  </div>
+
+
+<!-- Client-side (browser) log -->
+<script>
+  //  console.log("📅 Today (normalized local):", today.toLocaleString());
+  console.log("📅 Today (normalized):", "<%= today.toLocaleString() %>");
+  console.log("📅 Deadline (normalized):", "<%= deadline ? deadline.toISOString() : 'No deadline' %>");
+  console.log("💰 Discount per person:", "<%= discountPerPerson %>");
+  console.log("💰 Total amount:", "<%= totalAmount %>");
+</script>
+
+  <script>
+    function payWithPaystack(amount) {
+      const handler = PaystackPop.setup({
+        key: 'pk_live_c89f9942dce6fde45efd45f565408fd80ee09e12',
+        email: '<%= reg.registrant_email %>',
+        amount: amount * 100, // in kobo
+        metadata: {
+          custom_fields: [
+            { display_name: "Registrant Name", value: "<%= reg.registrant_name %>" },
+            { display_name: "Event", value: "<%= reg.title %>" }
+          ]
+        },
+        callback: function(response) {
+          fetch('/verify-event-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reference: response.reference,
+              regId: <%= reg.id %>,
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              alert("🎉 Payment successful!");
+              window.location.href = "/events/<%= reg.event_id %>?paid=success";
+            } else {
+              alert("❌ " + data.message);
+            }
+          });
+        },
+        onClose: function() {
+          alert("Payment cancelled");
+        }
+      });
+
+      handler.openIframe();
+    }
+  </script>
+</body>
+</html>
+

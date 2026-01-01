@@ -1,0 +1,220 @@
+
+
+  <h3>Modules</h3>
+<button onclick="openModal('createModuleModal')">+ Add Module</button>
+
+<div id="createModuleModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('createModuleModal')">&times;</span>
+    <h3>Create Module</h3>
+    <form action="/admin/modules/create" method="POST">
+      <input type="hidden" name="course_id" value="<%= course.id %>" />
+      <input type="text" name="title" placeholder="Module Title" required />
+      <button type="submit">Create</button>
+    </form>
+  </div>
+</div>
+
+
+<!-- Existing modules are listed below: -->
+
+
+<section class="article-grid">
+  <% modules.forEach(module => { %>
+    <div class="article-card2">
+      <div>
+        <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
+        <!-- Badge Image -->
+        <% if (module.badge_image) { %>
+          <div class="module-badge">
+            <h5>🏅 Badge</h5>
+            <img src="<%= module.badge_image %>" alt="Badge" width="80">
+          </div>
+        <% } else { %>
+          <p>No badge assigned</p>
+        <% } %>
+      </div>
+      <h4><%= module.title %></h4>
+      <p>Module ID: <%= module.id %></p>
+      <p>Created At: <%= module.created_at.toDateString() %></p>
+      
+     
+
+      <!-- Edit Button triggers modal -->
+       <div class="article-buttons">
+        <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
+
+        <!-- Delete Form -->
+        <form action="/admin/modules/delete/<%= module.id %>" method="POST" style="display:inline;">
+          <button class="btn-deleteype="submit">🗑️ Delete</button>
+        </form>
+      </div>
+
+      
+    </div>
+  <% }) %>
+</section>
+    <% modules.forEach(module => { %>
+<!-- Edit Modal -->
+      <div id="editModal-<%= module.id %>" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeEditModal('<%= module.id %>')">&times;</span>
+          <h3>Edit Module</h3>
+          <form action="/admin/modules/edit/<%= module.id %>" method="POST" enctype="multipart/form-data">
+            <label for="">Title</label>
+            <input type="text" name="title" value="<%= module.title %>" required />
+            <label for="">Description</label>
+            <textarea name="description" id="editckeditor-<%= module.id %>"><%= module.description %></textarea>
+            <label for="">Objectives</label>
+            <textarea name="objectives" id="editckeditor1-<%= module.id %>"><%= module.objectives %></textarea>
+            <label for="">Learning Outcomes</label> 
+            <textarea name="learning_outcomes" id="editckeditor2-<%= module.id %>"><%= module.learning_outcomes %></textarea>
+            
+            <label for="">Thumbnail</label>
+            <input type="file" name="thumbnail" placeholder="Thumbnail">
+
+            <label>Badge Image (optional)</label>
+            <input type="file" name="badge_image" accept="image/*">
+            <% if (module.badge_image) { %>
+              <img src="<%= module.badge_image %>" alt="Badge" width="80">
+            <% } %>
+
+            <label for="">Order Number</label>
+            <input type="number" name="order_number" value="<%= module.order_number %>" required>
+            <input type="hidden" name="course_id" value="<%= course.id %>" />
+            <button type="submit">Update Module</button>
+            <!-- <button type="submit">Save Changes</button> -->
+          </form>
+        </div>
+      </div>
+    <% }) %>
+
+<!-- Modal to Add New Module -->
+<h3>Create Module</h3>
+    <!-- <form action="/admin/modules/create" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="course_id" value="<%= course.id %>" />
+      <input type="text" name="title" placeholder="Module Title" required />
+      <label for="">Description</label>
+      <textarea name="description" id="ckeditor"></textarea>
+      <label for="">Objectives</label>
+      <textarea name="objectives" id="ckeditor1"></textarea>
+      <label for="">Learning Outcomes</label>
+      <textarea name="learning_outcomes" id="ckeditor2"></textarea>
+      <label for="">Thumbnail</label>
+      <input type="file" name="thumbnail" placeholder="Thumbnail" required>
+      <label for="">Order Number</label>
+      <input type="number" name="order_number" placeholder="Order Number" required>
+      <button type="submit">Create</button>
+    </form> -->
+
+<h3>Create Module</h3>
+<form action="/admin/modules/create" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="course_id" value="<%= course.id %>" />
+
+  <label>Title</label>
+  <input type="text" name="title" placeholder="Module Title" required />
+
+  <label>Description</label>
+  <textarea name="description" id="ckeditor"></textarea>
+
+  <label>Objectives</label>
+  <textarea name="objectives" id="ckeditor1"></textarea>
+
+  <label>Learning Outcomes</label>
+  <textarea name="learning_outcomes" id="ckeditor2"></textarea>
+
+  <label>Thumbnail</label>
+  <input type="file" name="thumbnail" required>
+
+  <label>Badge Image (optional)</label>
+  <input type="file" name="badge_image" accept="image/*">
+
+  <label>Order Number</label>
+  <input type="number" name="order_number" required>
+
+  <button type="submit">Create</button>
+</form>
+
+
+<!-- <div id="createModuleModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('createModuleModal')">&times;</span>
+    <h3>Create Module</h3>
+    <form action="/admin/modules/create" method="POST">
+      <input type="hidden" name="course_id" value="<%= course.id %>" />
+      <input type="text" name="title" placeholder="Module Title" required />
+      <button type="submit">Create</button>
+    </form>
+  </div>
+</div> -->
+<!-- 
+<style>
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .modal-content {
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 20px;
+    width: 60%;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  }
+</style> -->
+
+<script>
+ function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) {
+      console.error("Modal not found:", id);
+      return;
+    }
+    modal.style.display = "block";
+  }
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) {
+      console.error("Modal not found:", id);
+      return;
+    }
+    modal.style.display = "none";
+  }
+
+  window.onclick = function (event) {
+    if (event.target.classList.contains("modal")) {
+      event.target.style.display = "none";
+    }
+  };
+</script>
+
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+<script>
+  // Initialize CKEditor for all with class "ckeditor"
+  window.onload = function () {
+    CKEDITOR.replaceAll("ckeditor");
+  };
+</script>
+
+
+<script>
+  CKEDITOR.replace("ckeditor");
+  CKEDITOR.replace("ckeditor1");
+  CKEDITOR.replace("ckeditor2");
+</script>
+
+<script>
+  <% modules.forEach(module => { %>
+    CKEDITOR.replace("editckeditor-<%= module.id %>");
+    CKEDITOR.replace("editckeditor1-<%= module.id %>");
+    CKEDITOR.replace("editckeditor2-<%= module.id %>");
+  <% }) %>
+</script>
+

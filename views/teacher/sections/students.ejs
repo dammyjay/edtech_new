@@ -1,0 +1,31 @@
+<h2>🎓 My Students</h2>
+<div class="table-responsive">
+  <table class="user-table"  border="1" cellpadding="8" cellspacing="0" width="100%">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Full Name</th>
+        <th>Email</th>
+        <th>Classroom</th>
+        <th>Progress</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (students.length > 0) { %>
+        <% students.forEach(stu => { %>
+          <tr>
+            <td><%= stu.id %></td>
+            <td><%= stu.fullname %></td>
+            <td><%= stu.email %></td>
+            <td><%= stu.classroom_name %></td>
+            <td><a href="/teacher/student/<%= stu.id %>/progress">📊 View Progress</a></td>
+          </tr>
+        <% }) %>
+      <% } else { %>
+        <tr>
+          <td colspan="5">No students found.</td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>

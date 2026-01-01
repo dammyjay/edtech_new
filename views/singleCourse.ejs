@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('./partials/userHeader', { title: 'Course Details' }) %>
+
+   
+<main class="section">
+    <div class="new-hero">
+        <div class="hero-content">
+            <h1><%= course.title %></h1>
+            <div class="article-body">
+            <%- course.description %>
+            </div>
+        </div>
+
+        <div class="hero-content">
+            <% if (course.thumbnail_url) { %>
+            <img src="<%= course.thumbnail_url %>" alt="Thumbnail" style="width:100%; max-height:400px; object-fit:contain; border-radius:10px;" />
+            <% } %>
+        </div>
+    </div>
+
+    <h2>Intro Video</h2>
+  
+
+
+     <div style="margin-top: 30px;">
+        
+        <h3>About this Course</h3>
+        <p><%- course.description %></p>
+        
+        <div class="">
+            <h4>🎯 Level: </h4>
+            <p><%- course.level %></p>
+        </div>
+
+        <% if (course.amount == 0) { %>
+                  <p><strong>This is a free course</strong></p>
+                <% } else { %>
+                  <p><strong>Price:</strong> ₦<%= course.amount %></p>
+                <% } %>
+
+       
+        <div style="display: flex; width: 100%;">
+  <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
+
+  <% if (isLoggedIn && !isEnrolled) { %>
+    <% if (course.amount == 0) { %>
+      <!-- Free course -->
+      <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+        <button type="submit" class="btn-create">Enroll for Free</button>
+      </form>
+    <% } else if (walletBalance >= course.amount) { %>
+      <!-- Paid course and balance is enough -->
+      <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+        <button type="submit" class="btn-create">
+          Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
+        </button>
+      </form>
+    <% } else { %>
+      <!-- Not enough balance -->
+      <p style="color:red;font-weight:bold;">
+        ❌ Not sufficient funds. <a class="btn-create" href="/make-payment">Fund wallet</a>
+      </p>
+    <% } %>
+  <% } else if (isLoggedIn && isEnrolled) { %>
+    <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
+  <% } else { %>
+    <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+  <% } %>
+</div>
+
+
+    </div>
+
+    <hr />
+
+    <h2 style="margin-top: 2rem;">📚 Modules in this Course</h2>
+
+    
+<% if (modules && modules.length > 0) { %>
+    <h2 style="margin-top:2rem;">🧩 Modules in this Course</h2>
+    <!-- <ul class="modules-list">
+        <% modules.forEach(function(module, idx) { %>
+            <li>
+                <strong>Module <%= idx + 1 %>: <%= module.title %></strong>
+                <% if (module.description) { %>
+                    <p><%- module.description %></p>
+                <% } %>
+            </li>
+        <% }); %>
+    </ul> -->
+    <section class="article-grid">
+        
+  <% modules.forEach(module => { %>
+    <div class="article-card">
+      <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
+      <h4><%= module.title %></h4>
+      <!-- <p>Module ID: <%= module.id %></p> -->
+       <% if (module.description) { %>
+                    <p><%- module.description %></p>
+                <% } %>
+      <!-- <p>Created At: <%= module.created_at.toDateString() %></p> -->
+     
+    </div>
+  <% }) %>
+</section>
+
+    <% } else { %>
+    <p>No modules added for this course yet.</p>
+<% } %>
+
+
+  </main>
+
+
+    
+    <% if (isLoggedIn) { %>
+      <a href="/make-payment" class="btn btn-primary">Make a Payment</a>
+    <% } else { %>
+      <!-- <a href=""> -->
+        <button onclick="promptLogin()" class="btn btn-primary">Make a Payment</button>
+      <!-- </a> -->
+      <script>
+        function promptLogin() {
+          alert("Please login to make a payment.");
+          window.location.href = "/admin/login";
+        }
+      </script>
+    <% } %>
+    
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+    <!-- for redirect if user is not logged in -->
+    <script>
+    
+    const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
+
+    function handleProtectedLink(e, targetUrl) {
+        if (!isLoggedIn) {
+        e.preventDefault();
+        // Redirect to login with redirect param
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
+        }
+        // else, allow default navigation
+    }
+
+    // Attach event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const articlesBtn = document.querySelector('a[href="/articles"]');
+        const videosBtn = document.querySelector('a[href="/videos"]');
+        const faqBtn = document.querySelector('a[href="/faq"]');
+        
+        if (articlesBtn) {
+        articlesBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/articles');
+        });
+        }
+        if (videosBtn) {
+        videosBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/videos');
+        });
+        }
+        if (faqBtn) {
+        faqBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/faq');
+        });
+        }
+    });
+    </script>
+
+    <!-- For the navigation toggle -->
+    <script>
+    function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+    }
+    </script>
+
+    <!-- script for closing nav on outside click -->
+    <script>
+    // Close nav when clicking outside of it
+    document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+        nav.classList.contains("open") &&
+        !nav.contains(event.target) &&
+        !toggleBtn.contains(event.target)
+        ) {
+        nav.classList.remove("open");
+        }
+    });
+    </script>
+
+    <!-- script for push notifications -->
+
+    <script>
+    const vapidPublicKey = "<%= vapidPublicKey %>";
+
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        window.addEventListener('load', async () => {
+        const permission = Notification.permission;
+        const lastPrompt = localStorage.getItem("lastPromptTime");
+        const now = Date.now();
+
+        // Only show banner if not granted and enough time has passed (24h)
+        if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+            document.getElementById('notif-banner').style.display = 'block';
+        }
+        });
+    }
+
+    async function triggerSubscription() {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem("lastPromptTime", Date.now());
+
+        if (permission !== 'granted') {
+        alert("❌ Notification permission denied.");
+        dismissBanner();
+        return;
+        }
+
+        try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+        });
+
+        await fetch('/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+
+        alert("✅ Subscribed to notifications!");
+        localStorage.setItem("pushStatus", "granted");
+        dismissBanner();
+        } catch (err) {
+        console.error("Subscription error:", err);
+        }
+    }
+
+    function dismissBanner() {
+        document.getElementById('notif-banner').style.display = 'none';
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    }
+    </script>
+
+    <script>
+        function filterByPathway(pathway) {
+            const groups = document.querySelectorAll(".pathway-group");
+            groups.forEach(group => {
+            const groupName = group.getAttribute("data-pathway");
+            if (pathway === "All" || groupName === pathway) {
+                group.style.display = "block";
+            } else {
+                group.style.display = "none";
+            }
+            });
+        }
+    </script>
+
+
+
+
+</body>
+</html>
+
+
+
+
+
+

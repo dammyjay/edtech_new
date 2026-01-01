@@ -1,0 +1,158 @@
+<!-- partials/courseDetails.ejs -->
+
+<!-- <form action="/admin/courses/<%= course.id %>/edit" method="POST">
+  <label>Title</label>
+  <input type="text" name="title" value="<%= course.title %>" required />
+
+  <label>Description</label>
+  <textarea name="description"><%= course.description %></textarea>
+
+  <label>Level</label>
+  <select name="level">
+    <option <%= course.level === "Beginner" ? "selected" : "" %>>Beginner</option>
+    <option <%= course.level === "Intermediate" ? "selected" : "" %>>Intermediate</option>
+    <option <%= course.level === "Advanced" ? "selected" : "" %>>Advanced</option>
+  </select>
+
+  <button type="submit">Update Course</button>
+</form> -->
+
+<!-- ----------------------------------------------------------------- -->
+
+
+<!-- <button class="btn-create" onclick="openEditModal('course')">✏️ Edit Course</button>
+
+<div id="editModal-course" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeEditModal('course')">&times;</span>
+    <h3>Edit Course</h3>
+    <form action="/admin/courses/<%= course.id %>/edit" method="POST">
+      <label>Title</label>
+      <input type="text" name="title" value="<%= course.title %>" required>
+
+      <label>Description</label>
+      <textarea id="content" name="description"><%= course.description %></textarea>
+
+      <label for="">Thumbnail</label>
+      <img style="width: 100px; height: 100px;" src="<%= course.thumbnail_url %>" st alt="">
+
+      <input type="file" name="thumbnail" id="">
+
+      <label>Level</label>
+      <select name="level">
+        <option value="Beginner" <%= course.level === "Beginner" ? "selected" : "" %>>Beginner</option>
+        <option value="Intermediate" <%= course.level === "Intermediate" ? "selected" : "" %>>Intermediate</option>
+        <option value="Advanced" <%= course.level === "Advanced" ? "selected" : "" %>>Advanced</option>
+      </select>
+
+      <label for="">Amount</label>
+      <input
+        type="number"
+        name="amount"
+        step="0.01"
+        placeholder="Amount in ₦"
+      /><br />
+
+      <button type="submit">Save Changes</button>
+    </form>
+  </div>
+</div> -->
+
+<button class="btn-create" onclick="openEditModal('course')">✏️ Edit Course</button>
+
+<div id="editModal-course" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeEditModal('course')">&times;</span>
+    <h3>Edit Course</h3>
+
+    <form action="/admin/courses/<%= course.id %>/edit" method="POST" enctype="multipart/form-data">
+      <label>Title</label>
+      <input type="text" name="title" value="<%= course.title %>" required>
+
+      <label>Description</label>
+      <textarea id="content" name="description"><%= course.description %></textarea>
+
+      <label>Thumbnail</label>
+      <img src="<%= course.thumbnail_url %>" alt="" style="width:100px; height:100px; object-fit:contain;">
+      <input type="file" name="thumbnail" accept="image/*">
+
+      <label>Curriculum File (PDF or DOCX)</label>
+      <% if (course.curriculum_url) { %>
+        <p>📎 <a href="<%= course.curriculum_url %>" target="_blank">View current curriculum</a></p>
+      <% } %>
+      <input type="file" name="curriculum" accept=".pdf,.doc,.docx">
+
+      <label>Level</label>
+      <select name="level">
+        <option value="Beginner" <%= course.level === "Beginner" ? "selected" : "" %>>Beginner</option>
+        <option value="Intermediate" <%= course.level === "Intermediate" ? "selected" : "" %>>Intermediate</option>
+        <option value="Advanced" <%= course.level === "Advanced" ? "selected" : "" %>>Advanced</option>
+      </select>
+
+      <label>Amount (₦)</label>
+      <input type="number" name="amount" value="<%= course.amount || 0 %>" step="0.01">
+
+      <label>Certificate Template (PDF or Image)</label>
+      <% if (course.certificate_url) { %>
+        <p>🎓 <a href="<%= course.certificate_url %>" target="_blank">View current certificate</a></p>
+      <% } %>
+      <input type="file" name="certificate" accept=".pdf,.png,.jpg,.jpeg">
+
+
+      <button type="submit" class="btn-save">💾 Save Changes</button>
+    </form>
+  </div>
+</div>
+
+
+<div class="course-details">
+  <img src="<%= course.thumbnail_url %>" style="width: 300px; height:200px; object-fit: contain;" alt="">
+  <h2 style="text-align: left;"><%= course.title %></h2>
+  <p><strong>Level:</strong> <%= course.level %></p>
+  <p><strong>Description:</strong> <%- course.description %></p>
+  <p><strong>Level:</strong> <%= course.Level %></p>
+  <p><strong>Created At:</strong> <%= course.created_at.toDateString() %></p>
+  <p><strong>sort number</strong> <%= course.sort_order %></p>
+  <p><strong>Price: </strong> ₦ <%= course.amount %></p>
+
+  <% if (course.certificate_url) { %>
+  <p><strong>Certificate Template:</strong></p>
+  <% if (course.certificate_url.endsWith('.pdf')) { %>
+    <a href="<%= course.certificate_url %>" target="_blank">📄 View Certificate PDF</a>
+  <% } else { %>
+    <img src="<%= course.certificate_url %>" style="max-width:300px; border-radius:8px;">
+  <% } %>
+  <% } else { %>
+    <p>No certificate file uploaded.</p>
+  <% } %>
+
+  
+</div>
+
+<% if (course.curriculum_url) { %>
+    <a href="/admin/courses/<%= course.id %>/curriculum" class="btn-view">
+  📘 View / Download Curriculum
+</a>
+
+<% } else { %>
+  <p>No curriculum file uploaded.</p>
+<% } %>
+
+
+<script>
+  function openEditModal(id) {
+  document.getElementById("editModal-" + id).style.display = "block";
+}
+
+function closeEditModal(id) {
+  document.getElementById("editModal-" + id).style.display = "none";
+}
+
+</script>
+
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+
+<!-- script for ckeditor -->
+    <script>
+      CKEDITOR.replace("content");
+    </script>

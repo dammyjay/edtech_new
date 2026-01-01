@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('./partials/userHeader', { title: 'Courses for you' }) %>
+
+    <div class="wallet-btn" style="display: flex; justify-content: right; margin-top: 1rem; width: 100%;">
+      <% if (isLoggedIn) { %>
+        <a href="/make-payment" class="btn-create" style="text-decoration: none;">Fund wallet</a>
+      <% } else { %>
+        <!-- <a href=""> -->
+          <button  onclick="promptLogin()" class="btn-create">Fund wallet</button>
+        <!-- </a> -->
+        <script>
+          function promptLogin() {
+            alert("Please login to make a payment.");
+            window.location.href = "/admin/login";
+          }
+        </script>
+      <% } %>
+    </div>
+
+    <div class="pathway-nav">
+    <button class="path-nav-btn" onclick="filterByPathway('All')">All Pathways</button>
+    <% careerPathways.forEach(path => { %>
+        <button onclick="filterByPathway('<%= path.title %>')"><%= path.title %></button>
+    <% }) %>
+    </div>
+   
+    
+
+    <% for (let pathway in groupedCourses) { %>
+  <div class="pathway-group" data-pathway="<%= pathway %>">
+    <h2 style="margin-top: 2rem; color: goldenrod;"><%= pathway %></h2>
+
+    <% for (let level in groupedCourses[pathway]) { %>
+
+        <div class="course-level-section" data-level="<%= level %>">
+          <h3 class="collapsible-header <%= level.toLowerCase() %>" onclick="toggleLevel('<%= pathway %>-<%= level %>')">
+            <i class="fas fa-chevron-right"></i> <%= level %> Level
+          </h3>
+          <div id="level-<%= pathway %>-<%= level %>" class="collapsible-content">
+            <section class="course-scroll-container">
+              <% groupedCourses[pathway][level].forEach(course => { %>
+                <div class="scroll-card">
+                  <% if (course.thumbnail_url) { %>
+                    <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
+                  <% } %>
+
+                  <h4><%= course.title %></h4>
+                  <div class="article-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
+                    
+                    <%- course.description.length > 60 ? course.description.substring(0, 60) + '...' : course.description %>
+                  </div>
+
+
+                  <% if (course.description.length > 60) { %>
+                    <a href="javascript:void(0);" class="toggle-article" onclick="toggleDescription(<%= course.id %>, `<%- course.description.replace(/`/g, '\\`').replace(/"/g, '&quot;') %>`)">
+                      Show More
+                    </a>
+                  <% } %>
+                  <!-- <div class="article-buttons">
+                    <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return confirm('Delete this course?');">
+                      <button class="btn-delete" type="submit">Delete</button>
+                    </form>
+                  </div> -->
+
+                  <% if (course.amount == 0) { %>
+                    <p><strong>This is a free course</strong></p>
+                  <% } else { %>
+                    <p><strong>Price:</strong> ₦<%= course.amount %></p>
+                  <% } %>
+
+                  <div style="display: flex; width: 100%;">
+                  <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
+
+                    <!-- <% if (isLoggedIn && !isEnrolled) { %>
+                      <form action="/student/courses/enroll/<%= course.id %>" method="POST" onsubmit="return confirmEnroll(<%= course.amount %>)">
+                        <button type="submit" class="btn-create">
+                          <% if (course.amount == 0) { %>
+                            Enroll for Free
+                          <% } else { %>
+                            Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
+                          <% } %>
+                        </button>
+                      </form>
+                    <% } else if (isLoggedIn && isEnrolled) { %>
+                      <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
+                    <% } else { %>
+                      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+                    <% } %> -->
+
+                    <% if (isLoggedIn && !isEnrolled) { %>
+                      <% if (course.amount == 0) { %>
+                        <!-- Free course -->
+                        <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+                          <button type="submit" class="btn-create">Enroll for Free</button>
+                        </form>
+                      <% } else if (walletBalance >= course.amount) { %>
+                        <!-- Paid course and balance is enough -->
+                        <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+                          <button type="submit" class="btn-create">
+                            Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
+                          </button>
+                        </form>
+                      <% } else { %>
+                        <!-- Not enough balance -->
+                        <p style="color:red;font-weight:bold;">❌ Not sufficient funds. <a class="btn-create" href="/make-payment">Fund wallet</a></p>
+                      <% } %>
+                    <% } else if (isLoggedIn && isEnrolled) { %>
+                      <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
+                    <% } else { %>
+                      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+                    <% } %>
+
+                    </div>
+
+                </div>
+
+                <!-- Edit Modal for this course -->
+                <div id="editModal-<%= course.id %>" class="modal">
+                  <div class="modal-content">
+                    <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
+                    <h2>Edit Course</h2>
+                    <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
+                      <input type="text" name="title" value="<%= course.title %>" required /><br />
+                      <!-- <textarea id="content" name="description"><%- course.description %></textarea><br /> -->
+                      <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea>
+
+                      <select name="level" required>
+                        <option value="">Select Level</option>
+                        <option value="Beginner" <%= course.level === 'Beginner' ? 'selected' : '' %>>Beginner</option>
+                        <option value="Intermediate" <%= course.level === 'Intermediate' ? 'selected' : '' %>>Intermediate</option>
+                        <option value="Advanced" <%= course.level === 'Advanced' ? 'selected' : '' %>>Advanced</option>
+                      </select><br /><br>
+
+                      <select name="career_pathway_id" required>
+                        <option value="">-- Career Pathway --</option>
+                        <% careerPathways.forEach(path => { %>
+                          <option value="<%= path.id %>" <%= path.id === course.career_pathway_id ? 'selected' : '' %>><%= path.title %></option>
+                        <% }) %>
+                      </select><br /><br>
+
+                      <label for="">Sort Number</label>
+                      <input type="number" name="sort_order" value="<%= course.sort_order %>" /><br />
+
+                      <% if (course.thumbnail_url) { %>
+                        <img src="<%= course.thumbnail_url %>" width="100" /><br />
+                      <% } %>
+                      <input type="file" name="thumbnail" /><br />
+                      <button type="submit">Update Course</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            </section>
+          </div>
+        </div>
+
+
+    <% } %>
+  </div>
+<% } %>
+
+
+    
+    
+    
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+    <!-- script for faq toggle show/hide answer -->
+    <!-- <script> 
+      function toggleFaq(index) { 
+        const answer = document.getElementById(`answer-${index}`); 
+        const icon = document.getElementById(`icon-${index}`); 
+        if (answer.classList.contains('hidden')) {
+        answer.classList.remove('hidden'); 
+          icon.classList.remove('fa-plus'); 
+          icon.classList.add('fa-minus'); } 
+        else { 
+          answer.classList.add('hidden'); 
+          icon.classList.remove('fa-minus'); 
+          icon.classList.add('fa-plus'); 
+        } 
+      } 
+    </script> -->
+
+    <!-- for redirect if user is not logged in -->
+    <script>
+    
+    const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
+
+    function handleProtectedLink(e, targetUrl) {
+        if (!isLoggedIn) {
+        e.preventDefault();
+        // Redirect to login with redirect param
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
+        }
+        // else, allow default navigation
+    }
+
+    // Attach event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const articlesBtn = document.querySelector('a[href="/articles"]');
+        const videosBtn = document.querySelector('a[href="/videos"]');
+        const faqBtn = document.querySelector('a[href="/faq"]');
+        
+        if (articlesBtn) {
+        articlesBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/articles');
+        });
+        }
+        if (videosBtn) {
+        videosBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/videos');
+        });
+        }
+        if (faqBtn) {
+        faqBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/faq');
+        });
+        }
+    });
+    </script>
+
+    <!-- For the navigation toggle -->
+    <script>
+    function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+    }
+    </script>
+
+   <!-- script for collapsible and expand header -->
+   <script>
+      // function toggleLevel(id) {
+      //   const content = document.getElementById("level-" + id);
+      //   const header = content.previousElementSibling;
+
+      //   content.classList.toggle("open");
+      //   header.classList.toggle("open");
+      // }
+
+      function toggleLevel(levelId) {
+        const header = document.querySelector(`[onclick="toggleLevel('${levelId}')"]`);
+        const content = document.getElementById("level-" + levelId);
+
+        header.classList.toggle("open");
+        content.classList.toggle("open");
+      }
+
+    </script>
+
+
+    <!-- script for confirm enrollment -->
+    <script>
+      function confirmEnroll(amount) {
+        if (amount === 0) return true;
+        return confirm(`This course costs ₦${amount.toLocaleString()}. Proceed to enroll using your wallet balance?`);
+      }
+    </script>
+
+
+    <!-- script for show more -->
+     <script>
+      function toggleDescription(courseId, fullDescription) {
+        const descElement = document.getElementById(`desc-${courseId}`);
+        const toggleBtn = event.target;
+
+        const isCollapsed = toggleBtn.innerText === "Show More";
+        if (isCollapsed) {
+          descElement.innerHTML = fullDescription;
+          toggleBtn.innerText = "Show Less";
+        } else {
+          descElement.innerHTML = fullDescription.substring(0, 60) + "...";
+          toggleBtn.innerText = "Show More";
+        }
+      }
+    </script>
+
+    <!-- script for closing nav on outside click -->
+    <script>
+    // Close nav when clicking outside of it
+    document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+        nav.classList.contains("open") &&
+        !nav.contains(event.target) &&
+        !toggleBtn.contains(event.target)
+        ) {
+        nav.classList.remove("open");
+        }
+    });
+    </script>
+
+    <!-- script for push notifications -->
+
+    <script>
+    const vapidPublicKey = "<%= vapidPublicKey %>";
+
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        window.addEventListener('load', async () => {
+        const permission = Notification.permission;
+        const lastPrompt = localStorage.getItem("lastPromptTime");
+        const now = Date.now();
+
+        // Only show banner if not granted and enough time has passed (24h)
+        if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+            document.getElementById('notif-banner').style.display = 'block';
+        }
+        });
+    }
+
+    async function triggerSubscription() {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem("lastPromptTime", Date.now());
+
+        if (permission !== 'granted') {
+        alert("❌ Notification permission denied.");
+        dismissBanner();
+        return;
+        }
+
+        try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+        });
+
+        await fetch('/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+
+        alert("✅ Subscribed to notifications!");
+        localStorage.setItem("pushStatus", "granted");
+        dismissBanner();
+        } catch (err) {
+        console.error("Subscription error:", err);
+        }
+    }
+
+    function dismissBanner() {
+        document.getElementById('notif-banner').style.display = 'none';
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    }
+    </script>
+
+    <script>
+        function filterByPathway(pathway) {
+            const groups = document.querySelectorAll(".pathway-group");
+            groups.forEach(group => {
+            const groupName = group.getAttribute("data-pathway");
+            if (pathway === "All" || groupName === pathway) {
+                group.style.display = "block";
+            } else {
+                group.style.display = "none";
+            }
+            });
+        }
+    </script>
+
+
+
+
+</body>
+</html>

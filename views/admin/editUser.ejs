@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Edit Article</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/x-icon" href="/logo.png">
+</head>
+<body>
+  <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+  <h2>Edit User</h2>
+<form action="/admin/users/edit/<%= user.id %>" method="POST">
+  <label>Full Name</label><br />
+  <input type="text" name="fullname" value="<%= user.fullname %>" required /><br /><br />
+
+  <label>Email</label><br />
+  <input type="email" name="email" value="<%= user.email %>" required /><br /><br />
+
+  <label>Phone</label><br />
+  <input type="text" name="phone" value="<%= user.phone || '' %>" /><br /><br />
+
+  <label>Gender</label><br />
+  <select name="gender" required>
+    <option value="male" <%= user.gender === 'male' ? 'selected' : '' %>>Male</option>
+    <option value="female" <%= user.gender === 'female' ? 'selected' : '' %>>Female</option>
+  </select><br /><br />
+
+  <label>Role</label><br />
+  <select name="role" required>
+    <option value="user" <%= user.role === 'user' ? 'selected' : '' %>>user</option>
+    <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>admin</option>
+  </select><br /><br />
+  <label>Wallet Balance ($)</label><br />
+  <input type="number" step="0.01" name="wallet_balance2" value ="<%= user.wallet_balance2 %>" /><br /><br />
+  
+
+  <button type="submit">Update User</button>
+</form>
+
+  <a href="/admin/dashboard">Back to Articles</a>
+
+  <!-- script for navbar hamburger -->
+    <script>
+      function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+      }
+    </script>
+
+</body>
+</html>

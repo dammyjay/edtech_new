@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= typeof title !== 'undefined' ? title : 'Website' %></title>
+
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <%- body %>
+
+    <script>
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then(function (registration) {
+            console.log("SW registered");
+            registration.pushManager
+              .getSubscription()
+              .then(async function (subscription) {
+                if (!subscription) {
+                  const res = await fetch("/vapid-public-key");
+                  const vapidKey = await res.text();
+                  const newSub = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+                  });
+                  await fetch("/subscribe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(newSub),
+                  });
+                }
+              });
+          });
+      }
+      function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding)
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
+        const raw = atob(base64);
+        return new Uint8Array([...raw].map((char) => char.charCodeAt(0)));
+      }
+    </script>
+  </body>
+</html>

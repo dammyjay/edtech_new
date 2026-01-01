@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Manage Courses</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
+    <!-- <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script> -->
+  </head>
+  <body>
+    <!-- Header -->
+   <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <h2><%= course.title %></h2>
+
+    <ul class="tab-list">
+      <li class="<%= activeTab === 'details' ? 'active' : '' %>">
+        <a href="?tab=details">Course Details</a>
+      </li>
+      <li class="<%= activeTab === 'modules' ? 'active' : '' %>">
+        <a href="?tab=modules">Modules</a>
+      </li>
+      <li class="<%= activeTab === 'lessons' ? 'active' : '' %>">
+        <a href="?tab=lessons">Lessons</a>
+      </li>
+      <li class="<%= activeTab === 'assignment' ? 'active' : '' %>">
+        <a href="?tab=assignment">Assignment</a>
+      </li>
+      <li class="<%= activeTab === 'project' ? 'active' : '' %>">
+        <a href="?tab=project">Capstone Project</a>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+
+      <% if (activeTab === 'details') { %> <%- include('../partials/courseDetails',
+      { course }) %> <% } else if (activeTab === 'modules') { %> <%-
+      include('../partials/modules', { modules, quizzes, lessons, course, assignments: moduleAssignments }) %> <% } else if (activeTab === 'lessons') { %>
+  <%- include('../partials/lessons', { lessons, modules, selectedModuleId, page: page || 1, totalPages: totalPages || 0 }) %>
+      <% } else if (activeTab === 'assignment') { %> <%-
+      include('../partials/courseAssignment', { assignments: moduleAssignments }) %> <% } else if
+      (activeTab === 'project') { %> <%- include('../partials/courseProject', {
+      projects }) %> <% } %>
+    </div>
+
+    <!-- SCRIPT SECTION -->
+    <script>
+      function openCreateModal() {
+        document.getElementById("createModal").style.display = "block";
+      }
+      function closeCreateModal() {
+        document.getElementById("createModal").style.display = "none";
+      }
+
+      function openEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "block";
+      }
+      function closeEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "none";
+      }
+
+      function openDeleteModal(id) {
+        document.getElementById("deleteModal-" + id).style.display = "block";
+      }
+      function closeDeleteModal(id) {
+        document.getElementById("deleteModal-" + id).style.display = "none";
+      }
+
+      CKEDITOR.replaceAll("textarea");
+    </script>
+
+    <a href="/admin/dashboard">Back to Dashboard</a>
+
+    <!-- script for ckeditor -->
+    <script>
+      CKEDITOR.replace("content");
+    </script>
+
+    <!-- script to toggle navigation menu -->
+    <script>
+      // Close nav when clicking outside of it
+      document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+          nav.classList.toggle("open") &&
+          !nav.contains(event.target) &&
+          !toggleBtn.contains(event.target)
+        ) {
+          nav.classList.remove("open");
+        }
+      });
+    </script>
+
+    <!-- Script not to be able to copy content from article body -->
+    <script>
+      document.querySelectorAll(".article-body").forEach(function (el) {
+        el.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+        el.addEventListener("copy", function (e) {
+          e.preventDefault();
+        });
+      });
+    </script>
+
+    <!-- script to preview image before upload -->
+    <script>
+      document
+        .getElementById("imageInput")
+        .addEventListener("change", function () {
+          const preview = document.getElementById("imagePreview");
+          const file = this.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          } else {
+            preview.src = "#";
+            preview.style.display = "none";
+          }
+        });
+    </script>
+
+    <!-- script to filter level for each career pathway -->
+
+    <script>
+      function filterByPathway(pathway) {
+        const groups = document.querySelectorAll(".pathway-group");
+        groups.forEach((group) => {
+          const groupName = group.getAttribute("data-pathway");
+          if (pathway === "All" || groupName === pathway) {
+            group.style.display = "block";
+          } else {
+            group.style.display = "none";
+          }
+        });
+      }
+    </script>
+
+    <!-- script for opening and closing the modal -->
+    <script>
+      function openModal() {
+        document.getElementById("createModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("createModal").style.display = "none";
+      }
+
+      function openEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "block";
+      }
+
+      function closeEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "none";
+      }
+
+      // Close modal when clicking outside the modal content
+      // window.onclick = function (event) {
+      //   const modal = document.getElementById("createModal");
+      //   if (event.target == modal) {
+      //     modal.style.display = "none";
+      //   }
+      // };
+      // Close any modal when clicking outside it
+      window.onclick = function (event) {
+        if (event.target.classList.contains("modal")) {
+          event.target.style.display = "none";
+        }
+      };
+    </script>
+  </body>
+</html>

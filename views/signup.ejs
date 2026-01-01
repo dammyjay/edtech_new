@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+    />
+    <title>Signup</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"
+    />
+    <link rel="icon" href="/logo.png" type="image/x-icon" />
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/styles2.css">
+    <link rel="stylesheet" href="/css/styles3.css">
+    <link rel="icon" type="image/x-icon" href="/logo.png">
+    </head>
+
+    <style>
+  .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #1270b0;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+  <body class="signup-body">
+    <!-- <img class="mask" src="logo.png" alt="" /> -->
+    <img
+      src="logo.png"
+      class="background-image"
+      alt="Background"
+      style="margin: auto;"
+    />
+    <div class="form-container">
+      <!-- <img src="/Images/calicare logo.png" alt="Logo" class="logo" /> -->
+      <div class="log-details">
+        <h2>Welcome Onboard!</h2>
+        <p>PLEASE ENTER YOUR DETAILS</p>
+      </div>
+
+      <form
+        id="signup-form"
+        action="/signup"
+        method="post"
+        enctype="multipart/form-data"
+      >
+
+      <div class="container">
+          <label for="">Role</label>
+          <select name="role" id="role" required>
+            <option value="">-- Select Role --</option>
+            <option value="school_admin">School Admin</option>
+            <option value="teacher">Teacher</option>
+            <option value="student">School Student</option>
+            <option value="user">Individual Student</option>
+            <option value="parent">Parent</option>
+          </select>
+        </div> <br>
+        
+        <!-- <input type="email" name="email" required placeholder="Email" /> -->
+         <div class="emailcheck" id="emailcheck" style="display: block;">
+          <div class="container">
+            <input type="text" name="email" placeholder="Email" required />
+            <span class="toggle-password">
+              <i class="fa fa-envelope"></i>
+            </span>
+          </div>
+        </div>
+
+
+        <!-- <input type="text" name="username" required placeholder="Username" />
+        -->
+        <div class="container">
+          <input type="text" name="username" placeholder="Full name" required />
+          <span class="toggle-password">
+            <i class="fa fa-user"></i>
+          </span>
+        </div>
+
+        <!-- <input type="number" name="phone" required placeholder="Phone" /> -->
+        <div class="container">
+          <input type="number" name="phone" placeholder="Phone" required />
+          <span class="toggle-password">
+            <i class="fa fa-phone"></i>
+          </span>
+        </div>
+
+        <div class="container">
+          <!-- <label for="">Date of Birth</label> -->
+          <input type="date" name="dob" placeholder="Date of birth" required/>
+          <span class="toggle-password">
+            <!-- <i class="fa fa-calendar"></i> -->
+          </span>
+        </div>
+
+        <div class="gender-box">
+          <!-- <label style="font-size: 13px; color: grey; padding: 4px;" for=""
+            >Gender</label
+          > -->
+          <select class="gender-details" name="gender" required>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Not Specified</option>
+          </select>
+        </div>
+
+        <div class="password-container">
+          <input
+            id="password"
+            type="password"
+            name="password"
+            placeholder="Password"
+            required
+          />
+          <span id="togglePassword" class="toggle-password">
+            <i class="fa fa-eye"></i>
+          </span>
+        </div>
+        
+        <!-- <div class="container">
+          <label for="">Role</label>
+          <select name="role" required>
+            <option value="user">Student</option>
+            <option value="parent">Parent</option>
+          </select>
+        </div> -->
+
+
+        <!-- Extra fields for School Admin -->
+        <!-- <div id="school-admin-fields" style="display:none;">
+          <div class="container">
+            <input type="text" name="schoolName" placeholder="School Name" />
+          </div>
+          <div class="container">
+            <input type="text" name="schoolAddress" placeholder="School Address" />
+          </div>
+        </div> -->
+
+        <!-- Extra fields for School Admin -->
+<div id="school-admin-fields" style="display:none;">
+  <div class="container">
+    <input type="text" name="schoolName" placeholder="School Name" />
+  </div>
+  <div class="container">
+    <input type="text" name="schoolAddress" placeholder="School Address" />
+  </div>
+  <div class="container">
+    <label for="schoolLogo">Upload School Logo:</label>
+    <input type="file" id="schoolLogo" name="schoolLogo" accept="image/*" />
+  </div>
+  <!-- Optional: Preview -->
+  <div class="preview-container">
+    <img id="schoolLogoPreview" style="display:none;width:80px;height:80px;border-radius:50%;" alt="School Logo Preview">
+  </div>
+</div>
+
+
+        <!-- Extra fields for Teacher/School Student -->
+        <div id="school-id-field" style="display:none;">
+          <div class="container">
+            <input type="text" id="schoolId" name="schoolId" placeholder="Enter School ID" />
+          </div>
+          <p id="school-name-display" style="color:green; font-size:13px;"></p>
+        </div>
+
+        <!-- File input for image upload -->
+        <label style="font-size: 12px" for="profile-pic"
+          >Upload Profile Picture:</label
+        >
+        <input
+          type="file"
+          id="file-input"
+          name="profile_picture"
+          accept="image/*"
+          
+        />
+        <!-- <input type="hidden" name="role" id="role" value="<%= role || 'user' %>" /> -->
+        
+
+
+        <!-- Preview image container -->
+        <div class="preview-container" id="preview-container">
+          <img id="preview-image" alt="Image Preview" />
+        </div>
+
+        <!-- <label class="checkbox-label">
+          <input type="checkbox" name="remember" />
+          Remember me
+        </label> -->
+        <!-- <div class="terms">
+          <label class="checkbox-label">
+            <input type="checkbox" name="remember" />
+            I agree to the
+            <a href="terms.html" style="color: #1270b0">Terms and Conditions</a>
+          </label>
+        </div> -->
+        <button id="signupBtn" style="width: 100%;" type="submit">Sign Up</button>
+        <span id="spinner" style="display:none; margin-left:10px;">⏳ Sending...</span>
+      </form>
+      <p style="text-align: center;">Already have an account? <a href="/admin/login">Login</a></p>
+
+      <!-- OTP Modal -->
+      <div id="otp-modal" class="otp-modal" style="display: none">
+        <div
+         
+        >
+          <p style="color: #218838">
+            Please check your email for verification OTP sent and enter it
+            below.
+          </p>
+          <p style="color: #e73f07">
+            you can also check your spam folder if you don't see it in your
+            inbox.
+          </p>
+          <!-- <input id="email-input" type="text" name="email" placeholder="Email" required />
+          <span class="toggle-password">
+            <i class="fa fa-envelope"></i>
+          </span> -->
+          <input id="otp-input" placeholder="Enter OTP" />
+          <button id="verifyBtn" onclick="verifyOtp()">Verify OTP</button>
+          <span id="spinner2" style="display:none; margin-left:10px;">⏳ Sending...</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+
+
+      document.getElementById("signup-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target); // Don't convert it to JSON
+
+        const signupBtn = document.getElementById("signupBtn");
+        const spinner = document.getElementById("spinner");
+
+        // Show spinner + disable button
+        signupBtn.disabled = true;
+        spinner.style.display = "inline-block";
+
+        const res = await fetch("/signup", {
+          method: "POST",
+          body: formData, // ✅ Send raw FormData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.needsOtp) {
+            document.getElementById("otp-modal").style.display = "block";
+            document.getElementById("signup-form").style.display = "none";
+          } else {
+            alert(data.message);
+            window.location.href = "/admin/login"; // or redirect somewhere else
+          }
+        } else {
+          alert("Signup failed: " + (await res.text()));
+        }
+        
+
+      };
+
+      // async function verifyOtp() {
+      //   const otp = document.getElementById("otp-input").value;
+      //   const email = document.querySelector("input[name='email']").value;
+
+      //   const res = await fetch("/verify-otp", {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({ email, otp }),
+      //   });
+
+      //   const result = await res.text();
+      //   alert(result);
+
+      //   if (result.includes("success")) {
+      //     // Wait 2 seconds and redirect to login
+      //     setTimeout(() => {
+      //       window.location.href = "/admin/login";
+      //     }, 1000);
+      //   }
+      // }
+
+      async function verifyOtp() {
+        const otp = document.getElementById("otp-input").value;
+        const email = document.querySelector("input[name='email']").value;
+        const verifyBtn = document.getElementById("verifyBtn");
+        const spinner = document.getElementById("spinner2");
+
+        const res = await fetch("/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, otp }),
+        });
+        spinner2.style.display = "inline-block";
+        verifyBtn.disabled = true;
+
+        const data = await res.json();
+        alert(data.message); // show school ID alert
+
+        if (data.success) {
+          // Hide OTP modal
+          document.getElementById("otp-modal").style.display = "none";
+
+          // Redirect to login
+          setTimeout(() => {
+            window.location.href = "/admin/login";
+          }, 1000);
+        }
+      }
+
+      const passwordInput = document.getElementById("password");
+      const togglePassword = document.getElementById("togglePassword");
+      const icon = togglePassword.querySelector("i");
+
+      togglePassword.addEventListener("click", () => {
+        const isHidden = passwordInput.type === "password";
+        passwordInput.type = isHidden ? "text" : "password";
+
+        // swap the icon
+        icon.classList.toggle("fa-eye");
+        icon.classList.toggle("fa-eye-slash");
+        }
+      );
+
+      // Handle image preview
+      const fileInput = document.getElementById("file-input");
+      const previewContainer = document.getElementById("preview-container");
+      const previewImage = document.getElementById("preview-image");
+
+      fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            previewContainer.style.display = "flex"; // Display the preview container
+            previewImage.src = e.target.result; // Set the image source to the selected file
+          };
+          reader.readAsDataURL(file); // Read the file as a data URL
+        } else {
+          previewContainer.style.display = "none"; // Hide the preview if no file is selected
+        }
+      });
+    
+      const roleSelect = document.getElementById("role");
+      const schoolAdminFields = document.getElementById("school-admin-fields");
+      const schoolIdField = document.getElementById("school-id-field");
+      const schoolNameDisplay = document.getElementById("school-name-display");
+      const schoolIdInput = document.getElementById("schoolId");
+      const emailcheck = document.getElementById("emailcheck");
+      const emailInput = emailcheck.querySelector("input[name='email']");
+
+      roleSelect.addEventListener("change", () => {
+        const role = roleSelect.value;
+        schoolAdminFields.style.display = "none";
+        schoolIdField.style.display = "none";
+        emailcheck.style.display = "block"; // default visible
+        
+
+        if (role === "school_admin") {
+          schoolAdminFields.style.display = "block";
+        } 
+        if (role === "teacher" || role === "student") {
+          schoolIdField.style.display = "block";
+        }
+
+        if (role === "student") {
+          // hide and disable email field
+          emailcheck.style.display = "none"; 
+          // remove "required" so browser won't block submit
+          emailInput.removeAttribute("required");
+          // clear any existing value
+          emailInput.value = "";
+        }
+      });
+
+
+      // Auto-check school name when schoolId is entered
+      schoolIdInput?.addEventListener("blur", async () => {
+        const schoolId = schoolIdInput.value.trim();
+        if (!schoolId) return;
+
+        try {
+          const res = await fetch(`/api/check-school/${schoolId}`);
+          if (res.ok) {
+            const data = await res.json();
+            schoolNameDisplay.textContent = `✅ School found: ${data.name}`;
+            schoolNameDisplay.style.color = "green";
+          } else {
+            schoolNameDisplay.textContent = "❌ School not found";
+            schoolNameDisplay.style.color = "red";
+          }
+        } catch (err) {
+          console.error("Error checking school:", err);
+        }
+      });
+
+      const schoolLogoInput = document.getElementById("schoolLogo");
+const schoolLogoPreview = document.getElementById("schoolLogoPreview");
+
+schoolLogoInput.addEventListener("change", function () {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      schoolLogoPreview.src = e.target.result;
+      schoolLogoPreview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  } else {
+    schoolLogoPreview.style.display = "none";
+  }
+});
+
+
+    </script>
+  </body>
+</html>

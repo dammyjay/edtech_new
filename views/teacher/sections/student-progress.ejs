@@ -1,0 +1,300 @@
+
+
+
+
+<style>
+  /* Sidebar */
+  .sidenav {
+    width: 220px;
+    background: #1270b0;
+    color: #fff;
+    height: 100vh;
+    padding: 15px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+  }
+
+  .sidenav h2 {
+    margin-bottom: 20px;
+  }
+
+  .sidenav ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .sidenav ul li {
+    margin: 10px 0;
+  }
+
+  .sidenav ul li a {
+    color: #fff;
+    text-decoration: none;
+    display: block;
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .sidenav ul li a:hover {
+    background: #0b4e7a;
+  }
+
+  /* Main content */
+  .main-content {
+    margin-left: 240px;
+    padding: 20px;
+    transition: margin-left 0.3s ease-in-out;
+  }
+
+  /* Toggle button */
+  .toggle-btn {
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #1270b0;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 1100;
+  }
+
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    /* allows horizontal scroll if needed */
+    -webkit-overflow-scrolling: touch;
+    /* smooth scrolling on iOS */
+    max-height: 400px;
+        /* Adjust height as needed */
+        overflow-y: auto;
+        margin-top: 20px;
+}
+
+.user-table-wrapper {
+    max-height: 400px;
+    /* Adjust height as needed */
+    overflow-y: auto;
+    margin-top: 20px;
+    border: 1px solid #ddd;
+    border-radius: 6px;   
+}
+
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+    font-family: sans-serif;
+}
+
+.user-table th {
+    position: sticky;
+        top: 0;
+    background-color: #333;
+    color: white;
+    text-align: left;
+    padding: 12px;
+}
+
+.user-table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.user-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.btn-edit {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-view {
+    background-color: #000000;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-edit:hover {
+    background-color: #45a049;
+}
+.btn-delete {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.btn-delete:hover {
+    background-color: #e53935;
+}
+
+.back-btn {
+  display: inline-block;
+  background-color: #000;
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: background 0.2s ease-in-out;
+  margin-bottom: 15px;
+}
+
+.back-btn:hover {
+  background-color: #333;
+}
+.btns{
+  display: flex;
+  justify-content: space-between;
+  margin: auto;
+}
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidenav {
+      transform: translateX(-100%);
+    }
+    .sidenav.active {
+      transform: translateX(0);
+    }
+    .main-content {
+      margin-left: 0;
+      padding: 15px;
+    }
+    .toggle-btn {
+      display: block;
+    }
+    .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            /* allows horizontal scroll if needed */
+            -webkit-overflow-scrolling: touch;
+            /* smooth scrolling on iOS */   }
+    .user-table th,
+    .user-table td {
+        padding: 8px 6px;
+        font-size: 12px;
+    }
+    .user-table img {
+        width: 35px !important;
+        height: 35px !important;
+    }
+  }
+</style>
+
+
+<div >
+    <div class="btns">
+   <a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back to students</a>
+   
+   <a class="back-btn" 
+    href="/teacher/dashboard">⬅ Back to dashboard</a>
+</div>
+  <h2>📊 Student Progress: <%= student.fullname %></h2>
+  <p><strong>Email:</strong> <%= student.email %></p>
+
+  <% if (courses.length) { %>
+    <% courses.forEach(c => { %>
+      <div class="course-card">
+        <h3>🎓 <%= c.course_title %> — <%= c.percent %>% complete</h3>
+
+        <% c.modules.forEach(m => { %>
+          <div class="module-card">
+            <h4 class="collapsible">
+              📦 <%= m.module_title %> — <%= m.percent %>% complete
+            </h4>
+
+            <div class="content" style="display: none; padding: 10px; border: 1px solid #ddd; margin-top: 5px;">
+              <!-- Lessons + Quizzes -->
+               <div class="table-responsive">
+                <table class="user-table" border="1" cellpadding="8" cellspacing="0" width="100%">
+                    <thead>
+                    <tr>
+                        <th>Lesson</th>
+                        <th>Status</th>
+                        <th>Quiz</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <% m.lessons.forEach(l => { %>
+                        <tr>
+                        <td><%= l.title %></td>
+                        <td><%= l.completed ? "✅ Completed" : "❌ Not Completed" %></td>
+                        <td>
+                            <% 
+                                const lessonQuizzes = m.quizzes.filter(q => q.lesson_id === l.id); 
+                            %>
+                            <% if (lessonQuizzes.length) { %>
+                                <ul>
+                                <% lessonQuizzes.forEach(q => { %>
+                                    <li>
+                                    <%= q.title %> — 
+                                    <% if (q.score !== null) { %>
+                                        Score: <%= q.score %> | 
+                                        <a href="/teacher/student/<%= student.id %>/quizzes/<%= q.id %>/download">📥 Download</a>
+                                    <% } else { %>
+                                        Score: N/A
+                                    <% } %>
+                                    </li>
+                                <% }) %>
+                                </ul>
+                            <% } else { %>
+                                N/A
+                            <% } %>
+                            </td>
+
+
+                        </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+              </div>
+
+              <!-- Module Assignments -->
+              <div class="module-assignments" style="margin-top:15px;">
+                <h5>📑 Module Assignments</h5>
+                <% if (m.assignments.length) { %>
+                  <ul>
+                    <% m.assignments.forEach(a => { %>
+                      <li><%= a.title %> — Grade: <%= a.grade ?? "Pending" %> (Total: <%= a.total ?? "-" %>)</li>
+                    <% }) %>
+                  </ul>
+                <% } else { %>
+                  <p>No assignments for this module.</p>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <p>No progress data available.</p>
+  <% } %>
+</div>
+
+<script>
+  // Simple collapsible toggle
+  document.querySelectorAll(".collapsible").forEach(header => {
+    header.style.cursor = "pointer";
+    header.addEventListener("click", () => {
+      const content = header.nextElementSibling;
+      content.style.display = content.style.display === "none" ? "block" : "none";
+    });
+  });
+</script>

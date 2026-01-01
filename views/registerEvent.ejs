@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-title">
+        <% if (info?.logo_url) { %>
+        <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
+        <% } %>
+        <p><%= info?.company_name || 'C&S Church Online' %></p>
+      </div>
+
+      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+      <nav id="main-nav">
+        <a  href="/">Home</a>
+        <!-- <a href="/pathways">Pathways</a> -->
+        <a href="/courses">Courses</a>
+        <a href="/about">About Us</a>
+        <a href="/gallery">Gallery</a>
+        <!-- <a href="#faq">FAQ</a> -->
+        <% if (isLoggedIn) { %>
+          <% if (users?.profile_picture) { %>
+            <img src="<%= users.profile_picture %>" alt="Profile" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+          <% } %>
+          <a style="background-color: red;" href="/admin/logout" class="login-button">Logout</a>
+          <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown('profileMenu')">Profile ▾</button>
+            <!-- <div class="dropdown-content" id="profileMenu">
+              <a href="/profile">View Profile</a>
+              <a style="background-color: black; padding: 5px 10px;" href="/make-payment" class="btn btn-primary">Fund wallet</a>
+              <a href="/admin/dashboard">Dashboard</a>
+              <a href="/admin/courses">Courses</a>
+              <a href="/admin/pathways">Pathways</a>
+              <a href="/admin/gallery">Gallery</a>
+              <a href="/admin/videos">Videos</a>
+            </div> -->
+
+            <div class="dropdown-content" id="profileMenu">
+              <p style="color: black;">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
+              <a  href="/make-payment">Fund wallet</a>
+              <a href="/profile">View Profile</a>
+            </div>
+          </div>
+          
+          
+          
+        <% } else { %>
+          <a href="/admin/login" class="login-button">Login</a>
+          <a
+            href="/signup"
+            style="background-color: rgb(0, 0, 0); color: rgb(255, 255, 255)"
+            class="login-button"
+          >Signup</a>
+          
+        <% } %>
+      </nav>
+    </header>
+
+    <!-- <h2>Register for: <%= event.title %></h2> -->
+    <!-- <form action="/register/<%= event.id %>" method="POST">
+      <label>Are you registering as a parent?</label>
+      <input type="checkbox" name="is_parent" onchange="toggleChildInput(this)" />
+      <br />
+
+      <div>
+        <label>Your Full Name:</label>
+        <input type="text" name="registrant_name" required />
+      </div>
+
+      <div id="childField" style="display: none;">
+        <label>Child's Full Name:</label>
+        <input type="text" name="child_name" />
+      </div>
+
+      <label>Email:</label>
+      <input type="email" name="registrant_email" required />
+
+      <label>Phone:</label>
+      <input type="text" name="registrant_phone" />
+
+      <% if (event.is_paid) { %>
+        <p><strong>Fee:</strong> ₦<%= event.amount %></p>
+        <button type="submit">Proceed to Pay</button>
+      <% } else { %>
+        <button type="submit">Register</button>
+      <% } %>
+    </form> -->
+
+     <h2>Register for <%= event.title %></h2>
+      <p><strong>Date:</strong> <%= event.event_date.toDateString() %></p>
+      <p><strong>Location:</strong> <%= event.location %></p>
+
+      <!-- <form action="/register/<%= event.id %>" method="POST">
+        <input type="text" name="registrant_name" placeholder="Your Full Name" required />
+        <input type="email" name="registrant_email" placeholder="Your Email" required />
+        <input type="tel" name="registrant_phone" placeholder="Phone (optional)" />
+        
+        <label>
+          <input type="checkbox" name="is_parent" />
+          I am registering as a parent
+        </label>
+
+        
+        <input type="text" name="child_name" placeholder="Child's Name (if parent)" />
+
+        <button type="submit">Register</button>
+      </form> -->
+
+      <form action="/register/<%= event.id %>" method="POST">
+  <input type="text" name="registrant_name" placeholder="Your Full Name" required />
+  <input type="email" name="registrant_email" placeholder="Your Email" required />
+  <input type="tel" name="registrant_phone" placeholder="Phone (optional)" />
+
+  <% if (event.allow_split_payment) { %>
+    <label for="num_people">Number of People:</label>
+    <input type="number" id="num_people" name="num_people" min="1" value="1" onchange="generateNameFields()" />
+  <% } else { %>
+    <input type="hidden" id="num_people" name="num_people" value="1" />
+  <% } %>
+
+  <div id="peopleFields"></div>
+
+  <% if (event.is_paid) { %>
+    <p><strong>Fee per Person:</strong> ₦<%= event.amount %></p>
+
+    <label>
+    <input type="radio" name="payment_option" value="full" checked>
+    Full Payment (₦<%= event.amount %> per person)
+  </label><br>
+
+  <label>
+    <input type="radio" name="payment_option" value="half">
+    Half Payment (₦<%= (event.amount / 2) %> per person)
+  </label>
+
+    <% if (event.discount_amount && event.discount_deadline && new Date() <= event.discount_deadline) { %>
+      <p style="color: green;">
+        <strong>Discount Available:</strong> ₦<%= event.discount_amount %> until <%= event.discount_deadline.toDateString() %>
+      </p>
+    <% } %>
+  <% } %>
+
+  <button type="submit">Register</button>
+</form>
+
+<!-- <script>
+function generateChildFields(count) {
+  const container = document.getElementById('childNamesContainer');
+  container.innerHTML = ''; // clear previous
+
+  count = parseInt(count) || 1;
+  for (let i = 1; i <= count; i++) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = `child_name_${i}`;
+    input.placeholder = `Name of Person ${i}`;
+    input.required = true;
+    container.appendChild(input);
+  }
+}
+
+// If editing form with pre-filled count
+document.addEventListener('DOMContentLoaded', function() {
+  const numPeopleInput = document.getElementById('num_people');
+  if (numPeopleInput) {
+    generateChildFields(numPeopleInput.value);
+  }
+});
+</script> -->
+
+<script>
+  function generateNameFields() {
+    const numPeople = parseInt(document.getElementById('num_people').value) || 1;
+    const container = document.getElementById('peopleFields');
+    container.innerHTML = "";
+
+    for (let i = 1; i <= numPeople; i++) {
+      const label = document.createElement('label');
+      label.textContent = `Full Name for Person ${i}:`;
+
+      const input = document.createElement('input');
+      input.type = "text";
+      input.name = `child_name_${i}`;
+      input.placeholder = `Person ${i} Full Name`;
+      input.required = true;
+
+      container.appendChild(label);
+      container.appendChild(input);
+    }
+  }
+
+  // Auto-generate default person field on page load
+  document.addEventListener("DOMContentLoaded", generateNameFields);
+</script>
+
+
+<script>
+  function toggleChildInput(checkbox) {
+    document.getElementById('childField').style.display = checkbox.checked ? 'block' : 'none';
+  }
+</script>
+
+    <script>
+    function toggleChildField(checkbox) {
+        document.getElementById("childSection").style.display = checkbox.checked ? "block" : "none";
+    }
+    </script>
+
+
+    
+    
+    
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+    <!-- for redirect if user is not logged in -->
+    <!-- <script>
+    
+    const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
+
+    function handleProtectedLink(e, targetUrl) {
+        if (!isLoggedIn) {
+        e.preventDefault();
+        // Redirect to login with redirect param
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
+        }
+        // else, allow default navigation
+    }
+
+    // Attach event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const articlesBtn = document.querySelector('a[href="/articles"]');
+        const videosBtn = document.querySelector('a[href="/videos"]');
+        const faqBtn = document.querySelector('a[href="/faq"]');
+        
+        if (articlesBtn) {
+        articlesBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/articles');
+        });
+        }
+        if (videosBtn) {
+        videosBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/videos');
+        });
+        }
+        if (faqBtn) {
+        faqBtn.addEventListener('click', function(e) {
+            handleProtectedLink(e, '/faq');
+        });
+        }
+    });
+    </script> -->
+
+    <!-- For the navigation toggle -->
+    <script>
+        function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+    }
+    </script>
+
+    <!-- script for closing nav on outside click -->
+    <script>
+    // Close nav when clicking outside of it
+    document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+        nav.classList.contains("open") &&
+        !nav.contains(event.target) &&
+        !toggleBtn.contains(event.target)
+        ) {
+        nav.classList.remove("open");
+        }
+    });
+    </script>
+
+    <!-- script for push notifications -->
+
+    <script>
+    const vapidPublicKey = "<%= vapidPublicKey %>";
+
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        window.addEventListener('load', async () => {
+        const permission = Notification.permission;
+        const lastPrompt = localStorage.getItem("lastPromptTime");
+        const now = Date.now();
+
+        // Only show banner if not granted and enough time has passed (24h)
+        if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+            document.getElementById('notif-banner').style.display = 'block';
+        }
+        });
+    }
+
+    async function triggerSubscription() {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem("lastPromptTime", Date.now());
+
+        if (permission !== 'granted') {
+        alert("❌ Notification permission denied.");
+        dismissBanner();
+        return;
+        }
+
+        try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+        });
+
+        await fetch('/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+
+        alert("✅ Subscribed to notifications!");
+        localStorage.setItem("pushStatus", "granted");
+        dismissBanner();
+        } catch (err) {
+        console.error("Subscription error:", err);
+        }
+    }
+
+    function dismissBanner() {
+        document.getElementById('notif-banner').style.display = 'none';
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    }
+    </script>
+
+
+
+
+</body>
+</html>

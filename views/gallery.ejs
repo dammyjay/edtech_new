@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-title">
+        <% if (info?.logo_url) { %>
+        <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
+        <% } %>
+        <p><%= info?.company_name || 'C&S Church Online' %></p>
+      </div>
+
+      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+      <nav id="main-nav">
+        <a  href="/">Home</a>
+        <!-- <a href="/pathways">Pathways</a> -->
+        <a href="/courses">Courses</a>
+        <a href="/about">About Us</a>
+        <a class="active" href="/gallery">Gallery</a>
+        <!-- <a href="#faq">FAQ</a> -->
+        <% if (isLoggedIn) { %>
+          <% if (users?.profile_picture) { %>
+            <img src="<%= users.profile_picture %>" alt="Profile" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+          <% } %>
+          <a style="background-color: red;" href="/admin/logout" class="login-button">Logout</a>
+          <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown('profileMenu')">Profile ▾</button>
+            <!-- <div class="dropdown-content" id="profileMenu">
+              <a href="/profile">View Profile</a>
+              <a style="background-color: black; padding: 5px 10px;" href="/make-payment" class="btn btn-primary">Fund wallet</a>
+              <a href="/admin/dashboard">Dashboard</a>
+              <a href="/admin/courses">Courses</a>
+              <a href="/admin/pathways">Pathways</a>
+              <a href="/admin/gallery">Gallery</a>
+              <a href="/admin/videos">Videos</a>
+            </div> -->
+
+            <div class="dropdown-content" id="profileMenu">
+              <p style="color: black;">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
+              <a  href="/make-payment">Fund wallet</a>
+              <a href="/profile">View Profile</a>
+            </div>
+          </div>
+          
+          
+          
+        <% } else { %>
+          <a href="/admin/login" class="login-button">Login</a>
+          <a
+            href="/signup"
+            style="background-color: rgb(0, 0, 0); color: rgb(255, 255, 255)"
+            class="login-button"
+          >Signup</a>
+          
+        <% } %>
+      </nav>
+    </header>
+
+    <!-- <h2>Gallery</h2>
+    <section class="section">
+      <% categories.forEach(cat => { %>
+      <h3><%= cat.name %></h3>
+      <div class="gallery-grid">
+        <% images.filter(img => img.category_id === cat.id).forEach(img => { %>
+          <div class="gallery-item">
+            <img src="<%= img.image_url %>" alt="<%= img.title %>" />
+            <p><%= img.title %></p>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </section> -->
+
+  <h2>📸Gallery</h2>
+
+<!-- Filter Dropdown (optional if you want filtering too) -->
+<label for="categoryFilter"><strong>Filter by Category:</strong></label>
+<select id="categoryFilter" style="margin-bottom: 24px">
+  <option value="all">All Categories</option>
+  <% categories.forEach(cat => { %>
+    <option value="cat-<%= cat.id %>"><%= cat.name %></option>
+  <% }) %>
+</select>
+
+<section class="section">
+  <% categories.forEach(cat => { %>
+    <div class="category-section" data-cat="cat-<%= cat.id %>">
+      <h3 style="margin-top: 2rem"><%= cat.name %></h3>
+      <div class="gallery-grid">
+        <% const catImages = images.filter(img => Number(img.category_id) === Number(cat.id)); %>
+        <% if (catImages.length === 0) { %>
+          <p style="color: #aaa">No images available in this category.</p>
+        <% } else { %>
+          <% catImages.forEach(img => { %>
+            <div class="gallery-card">
+              <img src="<%= img.image_url %>" alt="<%= img.title %>" onclick="showModal('<%= img.image_url %>')" style="cursor: zoom-in;" />
+              <p><%= img.title %></p>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  <% }) %>
+</section>
+
+
+<!-- 🖼 Modal for Full Image Preview -->
+<div id="imgModal" class="img-modal" style="display: none">
+  <span class="close-modal" id="closeModal">&times;</span>
+  <img class="img-modal-content" id="modalImg" />
+</div>
+
+
+<!-- script for image zoom modal -->
+<script>
+  function showModal(url) {
+    const modal = document.getElementById("imgModal");
+    const modalImg = document.getElementById("modalImg");
+    modal.style.display = "flex";
+    modalImg.src = url;
+  }
+
+  document.getElementById("closeModal").onclick = function () {
+    document.getElementById("imgModal").style.display = "none";
+    document.getElementById("modalImg").src = "";
+  };
+
+  document.getElementById("imgModal").onclick = function (e) {
+    if (e.target === this) {
+      this.style.display = "none";
+      document.getElementById("modalImg").src = "";
+    }
+  };
+</script>
+
+<script>
+  const filterSelect = document.getElementById("categoryFilter");
+  const categorySections = document.querySelectorAll(".category-section");
+
+  filterSelect.addEventListener("change", function () {
+    const selected = this.value;
+    categorySections.forEach((section) => {
+      section.style.display =
+        selected === "all" || section.dataset.cat === selected
+          ? "block"
+          : "none";
+    });
+  });
+</script>
+
+
+
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+
+    <!-- For the navigation toggle -->
+    <script>
+    function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+    }
+    </script>
+
+    <!-- script for closing nav on outside click -->
+    <script>
+    // Close nav when clicking outside of it
+    document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+        nav.classList.contains("open") &&
+        !nav.contains(event.target) &&
+        !toggleBtn.contains(event.target)
+        ) {
+        nav.classList.remove("open");
+        }
+    });
+    </script>
+
+    <!-- script for push notifications -->
+
+    <script>
+    const vapidPublicKey = "<%= vapidPublicKey %>";
+
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        window.addEventListener('load', async () => {
+        const permission = Notification.permission;
+        const lastPrompt = localStorage.getItem("lastPromptTime");
+        const now = Date.now();
+
+        // Only show banner if not granted and enough time has passed (24h)
+        if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+            document.getElementById('notif-banner').style.display = 'block';
+        }
+        });
+    }
+
+    async function triggerSubscription() {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem("lastPromptTime", Date.now());
+
+        if (permission !== 'granted') {
+        alert("❌ Notification permission denied.");
+        dismissBanner();
+        return;
+        }
+
+        try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+        });
+
+        await fetch('/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+
+        alert("✅ Subscribed to notifications!");
+        localStorage.setItem("pushStatus", "granted");
+        dismissBanner();
+        } catch (err) {
+        console.error("Subscription error:", err);
+        }
+    }
+
+    function dismissBanner() {
+        document.getElementById('notif-banner').style.display = 'none';
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    }
+    </script>
+
+
+
+</body>
+</html>

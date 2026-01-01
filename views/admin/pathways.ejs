@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Manage Articles</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <!-- <form method="GET" action="/admin/pathways" style="margin-top: 20px">
+      <input
+        type="text"
+        name="search"
+        placeholder="Search by title..."
+        value="<%= search || '' %>"
+      />
+      <button type="submit">Search</button>
+    </form> -->
+
+    <h2>Existing Pathways</h2>
+
+    <div class="container2">
+      <button onclick="openModal()" class="btn-create">
+        + Create New Pathway
+      </button>
+    </div>
+
+    <section class="article-grid">
+      <% pathways.forEach(pathway => { %>
+      <div class="article-card">
+        <h3><%= pathway.title %></h3>
+
+        <% if (pathway.thumbnail_url) { %>
+        <img
+          src="<%= pathway.thumbnail_url %>"
+          alt="Pathway Thumbnail"
+          style="background-color: #d6a740;"
+          
+        />
+        <% } %>
+
+        <div class="article-body" id="desc-<%= pathway.id %>">
+          <%- pathway.description.substring(0, 100) %>...
+        </div>
+
+        <a
+          href="javascript:void(0);"
+          class="toggle-article"
+          onclick="togglePathway(<%= pathway.id %>)"
+          >Show More</a
+        >
+
+        
+
+        <div class="article-buttons">
+          <!-- <a href="/admin/pathways/edit/<%= pathway.id %>">Edit</a> -->
+          <button class="btn-edit" onclick="openEditModal(<%= pathway.id %>)">
+            Edit
+          </button>
+          <form
+            action="/admin/pathways/delete/<%= pathway.id %>"
+            method="POST"
+            onsubmit="return confirm('Delete this pathway?');"
+          >
+            <button type="submit">Delete</button>
+          </form>
+
+          <a style="background-color: black;" href="/admin/pathways/<%= pathway.id %>/courses" class="btn-create">View Courses</a>
+        </div>
+      </div>
+      <!-- EDIT Modal for Pathway ID:-->
+      <div id="editModal-<%= pathway.id %>" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeEditModal(<%= pathway.id %>)"
+            >&times;</span
+          >
+          <h2>Edit Pathway</h2>
+          <form
+            action="/admin/pathways/edit/<%= pathway.id %>"
+            method="POST"
+            enctype="multipart/form-data"
+          >
+            <label for="">Title</label>
+            <input
+              type="text"
+              name="title"
+              value="<%= pathway.title %>"
+              required
+            /><br />
+            <label for="">Description</label>
+            <textarea
+              id="content"
+              name="description"
+              id="edit-desc2-<%= pathway.id %>"
+            >
+            <%- pathway.description %></textarea
+            ><br />
+            <label for="">Target Audience</label>
+            <textarea
+              name="target_audience"
+              id="edit-audience-<%= pathway.id %>"
+            ><%- pathway.target_audience %></textarea>
+            
+            <br />
+            <label for="">Expected Outcomes</label>
+            <textarea
+              name="expected_outcomes"
+              id="expectedOutcomes-<%= pathway.id %>"
+            >
+            <%- pathway.expected_outcomes || '' %></textarea
+            >
+            <br />
+            <label for="">Duration</label>
+            <input
+              type="text"
+              name="duration_estimate"
+              value="<%= pathway.duration_estimate || '' %>"
+            /><br />
+            <label for="">Intro video</label>
+            <input
+              type="url"
+              name="video_intro_url"
+              value="<%= pathway.video_intro_url || '' %>"
+            /><br />
+            <label>
+              <input type="checkbox" name="show_on_homepage" value="true" <%=
+              pathway.show_on_homepage ? 'checked' : '' %> /> Show on Homepage
+            </label>
+            <br />
+
+            <img src="<%= pathway.thumbnail_url %>" alt="">
+            <input type="file" name="thumbnail" accept="image/*" /><br />
+
+            <div class="preview-container">
+              <img
+                src="<%= pathway.thumbnail_url %>"
+                style="width: 100px; height: auto"
+              />
+            </div>
+
+            <button type="submit">Update Pathway</button>
+          </form>
+        </div>
+      </div>
+      <script>
+        CKEDITOR.replace("expectedOutcomes-<%= pathway.id %>");
+      </script>
+
+      <script>
+        CKEDITOR.replace("edit-desc-<%= pathway.id %>");
+      </script>
+
+      <script>
+        CKEDITOR.replace("edit-desc2-<%= pathway.id %>");
+      </script>
+
+      <script>
+        CKEDITOR.replace("edit-audience-<%= pathway.id %>");
+      </script>
+      <% }) %>
+    </section>
+
+    <!-- Create Pathway Modal -->
+    <div id="createModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Create New Pathway</h2>
+        <!-- <form
+          action="/admin/pathways"
+          method="POST"
+          enctype="multipart/form-data"
+        >
+          <input
+            type="text"
+            name="title"
+            placeholder="Pathway Name"
+            required
+          /><br />
+          <textarea
+            name="description"
+            id="content"
+            placeholder="Description"
+          ></textarea
+          ><br />
+          <input type="file" name="thumbnail" accept="image/*" /><br />
+
+          <div class="preview-container">
+            <img id="preview-image" alt="Image Preview" />
+          </div>
+
+          <button type="submit">Create Pathway</button>
+        </form> -->
+        <form
+          action="/admin/pathways"
+          method="POST"
+          enctype="multipart/form-data"
+        >
+          <label for="">Pathway Title</label>
+          <br />
+          <input
+            type="text"
+            name="title"
+            placeholder="Pathway Title"
+            required
+          /><br />
+
+          <label for="">Description</label>
+          <br />
+          <textarea
+            name="description"
+            id="content3"
+            placeholder="Full Description"
+          ></textarea
+          ><br />
+
+          <label for="">Target Audience</label>
+          <br />
+          <textarea
+            name="target_audience"
+            id="targetAudience"
+            placeholder="Target Audience (e.g., students, teachers)"
+            required
+          ></textarea><br />
+
+          <label for="">Expected Outcomes</label>
+          <textarea
+            name="expected_outcomes"
+            id="content2"
+            placeholder="Expected Outcomes (e.g., Build apps)"
+            required
+          ></textarea><br />
+
+          <label for="">Duration Estimate</label>
+          <br />
+          <input
+            type="text"
+            name="duration_estimate"
+            placeholder="Estimated Duration (e.g., 6 weeks)"
+            required
+          /><br />
+
+          <label for="">Intro Video URL</label>
+          <br />
+          <input
+            type="url"
+            name="video_intro_url"
+            placeholder="Intro Video URL (YouTube/Vimeo)"
+          /><br />
+
+          <label style="display: inline-block; margin-top: 10px">
+            <input type="checkbox" name="show_on_homepage" value="true" />
+            Show on homepage </label
+          ><br />
+
+          <label for="">Thumbnail Image</label>
+          <br />
+          <input type="file" name="thumbnail" accept="image/*" /><br />
+
+          <!-- Preview image container -->
+          <div class="preview-container">
+            <img id="preview-image" alt="Image Preview" />
+          </div>
+
+          <button type="submit">Create Pathway</button>
+        </form>
+      </div>
+    </div>
+
+    <a href="/admin/dashboard">Back to Dashboard</a>
+    <script>
+      CKEDITOR.replace("content");
+    </script>
+
+    <script>
+      CKEDITOR.replace("content3");
+    </script>
+
+    <script>
+      CKEDITOR.replace("content2");
+    </script>
+
+    <script>
+      CKEDITOR.replace("targetAudience");
+    </script>
+
+    <!-- script to toggle navigation menu -->
+    <script>
+      function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+      }
+    </script>
+
+    <!-- Script not to be able to copy content from article body -->
+    <script>
+      document.querySelectorAll(".article-body").forEach(function (el) {
+        el.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+        el.addEventListener("copy", function (e) {
+          e.preventDefault();
+        });
+      });
+    </script>
+
+    <!-- script to preview image before upload -->
+    <script>
+      document
+        .querySelector("input[name='thumbnail']")
+        .addEventListener("change", function () {
+          const preview = document.getElementById("preview-image");
+          const file = this.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          } else {
+            preview.src = "#";
+            preview.style.display = "none";
+          }
+        });
+    </script>
+
+    <!-- script for opening and closing the modal -->
+    <script>
+      function openModal() {
+        document.getElementById("createModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("createModal").style.display = "none";
+      }
+
+      function openEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "block";
+      }
+
+      function closeEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "none";
+      }
+
+      // Close modal when clicking outside the modal content
+      window.onclick = function (event) {
+        const modal = document.getElementById("createModal");
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+    </script>
+  </body>
+</html>

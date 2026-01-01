@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Secure Payment</title>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        background: #f8f6f3;
+        font-family: "Segoe UI", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .payment-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+        position: relative;
+      }
+
+      .logo {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+
+      .logo img {
+        width: 100px;
+        height: auto;
+      }
+
+      .payment-container h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: #6b4f27; /* golden brown */
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="number"] {
+        width: 100%;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 1rem;
+      }
+
+      button {
+        width: 100%;
+        padding: 0.75rem;
+        background-color: #a9712f; /* golden brown */
+        color: white;
+        font-size: 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 1rem;
+        transition: background-color 0.3s;
+      }
+
+      button:hover {
+        background-color: #8b5e25;
+      }
+
+      .spinner {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      .spinner div {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #a9712f;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 500px) {
+        .payment-container {
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="payment-container">
+      <div class="logo">
+        <img src="/images/JKT logo.png" alt="Logo" />
+        <!-- Place your logo image in public/logo.png -->
+      </div>
+
+      <h2>Make a Payment</h2>
+      <!-- <form id="payForm">
+        <input type="text" id="fullName" placeholder="Full Name" required />
+        <input type="email" id="email" placeholder="Email Address" required />
+        <input
+          type="number"
+          id="amount"
+          placeholder="Amount (Naira)"
+          required
+        />
+        <button type="submit">Pay Now</button>
+      </form> -->
+      <form id="payForm">
+        <!-- Display user profile info -->
+        <div style="text-align: center; margin-bottom: 1rem">
+          <img
+            src="<%= profilePic %>"
+            alt="Profile Picture"
+            style="
+              width: 80px;
+              height: 80px;
+              border-radius: 50%;
+              object-fit: cover;
+            "
+          />
+          <p><strong>Name:</strong> <%= fullname %></p>
+          <p><strong>Email:</strong> <%= email %></p>
+        </div>
+
+        <!-- Hidden inputs for script -->
+        <input type="hidden" id="fullName" value="<%= fullname %>" />
+        <input type="hidden" id="email" value="<%= email %>" />
+
+        <!-- Only field user fills -->
+        <input
+          type="number"
+          id="amount"
+          placeholder="Enter Amount (₦)"
+          required
+        />
+        <button type="submit">Pay Now</button>
+      </form>
+
+      <div class="spinner" id="spinner">
+        <div></div>
+      </div>
+    </div>
+
+    
+    <script>
+      const fullName = document.getElementById("fullName").value;
+      const email = document.getElementById("email").value;
+
+      const form = document.getElementById("payForm");
+      const spinner = document.getElementById("spinner");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const fullName = document.getElementById("fullName").value;
+        const email = document.getElementById("email").value;
+        const amount = document.getElementById("amount").value * 100;
+
+        const handler = PaystackPop.setup({
+          key: "pk_live_c89f9942dce6fde45efd45f565408fd80ee09e12", // Replace with your Paystack public key
+          email: email,
+          amount: amount,
+          metadata: {
+            custom_fields: [{ display_name: "Full Name", value: fullName }],
+          },
+          callback: function (response) {
+            spinner.style.display = "block";
+
+            fetch("/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                reference: response.reference,
+                email,
+                fullName,
+              }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                spinner.style.display = "none";
+
+                if (data.success) {
+                  Swal.fire({
+                    title: "🎉 Thank You!",
+                    text: "Your payment was successful!",
+                    icon: "success",
+                    confirmButtonColor: "#a9712f",
+                    timer: 3000,
+                    timerProgressBar: true,
+                  }).then(() => {
+                    window.location.href = "/"; // 👈 Redirect to homepage
+                  });
+                } else {
+                  Swal.fire({
+                    title: "Oops!",
+                    text: data.message || "Payment verification failed.",
+                    icon: "error",
+                    confirmButtonColor: "#a9712f",
+                  });
+                }
+              })
+              .catch((err) => {
+                spinner.style.display = "none";
+                Swal.fire({
+                  title: "⚠️ Network Error",
+                  text: err.message || "Could not connect to server.",
+                  icon: "error",
+                  confirmButtonColor: "#a9712f",
+                });
+              });
+          },
+          onClose: function () {
+            alert("Transaction cancelled");
+          },
+        });
+
+        handler.openIframe();
+      });
+    </script>
+
+    <!-- <script>
+    const form = document.getElementById("payForm");
+    const spinner = document.getElementById("spinner");
+  
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+  
+      const fullName = document.getElementById("fullName").value;
+      const email = document.getElementById("email").value;
+      const amount = document.getElementById("amount").value;
+  
+      spinner.style.display = "block";
+  
+      fetch("/initialize-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, amount })
+      })
+      .then(res => res.json())
+      .then(data => {
+        spinner.style.display = "none";
+  
+        if (data.success) {
+          const handler = PaystackPop.setup({
+            key: data.reference.startsWith('test') ? 'pk_test_dummy' : 'pk_live_dummy', // dummy fallback if needed
+            email: email,
+            amount: amount * 100,
+            reference: data.reference,
+            callback: function (response) {
+              // After payment, verify from backend
+              fetch("/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reference: response.reference, email, fullName })
+              })
+              .then(res => res.json())
+              .then(data => {
+                Swal.fire({
+                  title: '🎉 Thank You!',
+                  text: 'Your payment was successful!',
+                  icon: 'success',
+                  confirmButtonColor: '#a9712f',
+                  timer: 3000,
+                  timerProgressBar: true
+                });
+                form.reset();
+              });
+            },
+            onClose: function () {
+              alert("Transaction cancelled");
+            }
+          });
+  
+          handler.openIframe();
+        } else {
+          alert("Could not initiate payment.");
+        }
+      });
+    });
+  </script> -->
+  </body>
+</html>

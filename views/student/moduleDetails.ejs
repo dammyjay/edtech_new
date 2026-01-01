@@ -1,0 +1,11 @@
+<%- include('../partials/header', { title: module.title }) %>
+
+<h2><%= module.title %></h2>
+<div class="lessons-grid">
+  <% lessons.forEach(lesson => { %>
+    <div class="lesson-card">
+      <h4><%= lesson.title %></h4>
+      <a href="/student/lessons/<%= lesson.id %>">View Lesson</a>
+    </div>
+  <% }) %>
+</div>

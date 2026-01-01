@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="icon" type="image/x-icon" href="/logo.png" />
+  </head>
+  <body>
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+    <h1>Welcome Admin</h1>
+    <p>You are logged in.</p>
+    <!-- <a href="/admin/logout">Logout</a> -->
+    <h2>All Registered Users</h2>
+    <div class="dashboard-stats"> 
+      <div class="stat-box"> 
+        <h3>Total Users</h3> 
+        <p><%= totalUsers %></p> 
+      </div> 
+      <div class="stat-box"> 
+        <h3>New This Week</h3> 
+        <p><%= recentUsers %> (<%= percentageNew %>% of total)</p> 
+      </div> 
+
+      <!-- <a href="/admin/feedback" class="admin-link">View Feedback</a> -->
+
+      
+    </div>
+    <form method="GET" action="/admin/dashboard" class="filter-form"> <select name="gender"> 
+      <option value="">All Genders</option> 
+      <option value="Male" <%= gender === 'Male' ? 'selected' : '' %>>Male</option> 
+      <option value="Female" <%= gender === 'Female' ? 'selected' : '' %>>Female</option> 
+    </select> 
+    
+    <select name="role"> 
+      <option value="">All Roles</option> 
+      <option value="admin" <%= role === 'admin' ? 'selected' : '' %>>Admin</option> 
+      <option value="user" <%= role === 'user' ? 'selected' : '' %>>User</option> 
+      <option value="instructor" <%= role === 'instructor' ? 'selected' : '' %>>Instructor</option> 
+      <option value="teacher" <%= role === 'teacher' ? 'selected' : '' %>>Teacher</option> 
+      <option value="student" <%= role === 'student' ? 'selected' : '' %>>Student</option> 
+      <option value="school_admin" <%= role === 'school_admin' ? 'selected' : '' %>>School Admin</option> 
+      <option value="parent" <%= role === 'parent' ? 'selected' : '' %>>Parent</option> 
+    </select> 
+    
+    <input type="text" name="email" placeholder="Search by email" value="<%= email || '' %>" /> 
+    <button type="submit">Filter</button> 
+  </form>
+
+     
+    </form>
+    <div class="table-responsive">
+      <table
+        class="user-table"
+        style="width: 80%; border-collapse: collapse; margin-top: 20px"
+      >
+        
+        <thead>
+          <tr>
+            <th>Profile Picture</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Gender</th>
+            <th>Role</th>
+            <th>walletBalance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% users.forEach(user => { %>
+          <tr>
+            <td>
+              <img
+                src="<%= user.profile_picture || '/profile.webp' %>"
+                alt="Profile"
+                style="
+                  width: 50px;
+                  height: 50px;
+                  border-radius: 50%;
+                  object-fit: cover;
+                "
+              />
+            </td>
+            <td><%= user.fullname %></td>
+            <td><%= user.email %></td>
+            <td><%= user.phone %></td>
+            <td><%= user.gender %></td>
+            <td><%= user.role %></td>
+            <td>₦<%= user.wallet_balance2 %></td>
+            <td
+              style="
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+                align-items: center;
+              "
+            >
+              <!-- <a href="/admin/users/edit/<%= user.id %>">Edit</a> | -->
+              <button class="btn-edit" style="background-color: black;" onclick='openUserModal(<%- JSON.stringify(user) %>)'>
+                👁️
+              </button>
+              
+              <button
+                class="btn-edit"
+                onclick="window.location.href='/admin/users/edit/<%= user.id %>'"
+              >
+                Edit
+              </button>
+
+              <!-- <form
+                action="/admin/users/delete/<%= user.id %>"
+                method="POST"
+                style="display: inline"
+                onsubmit="return confirm('Delete this user?');"
+              >
+                <button type="submit" style="color: red">Delete</button>
+              </form> -->
+              <button
+                class="btn-delete"
+                onclick="confirmDelete('<%= user.id %>')"
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- modal to view user  -->
+    <div id="userModal" class="modal" style="display:none;">
+      <div class="modal-content" style="max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; text-align: left;">
+        <span onclick="closeUserModal()" class="close" style="float:right;cursor:pointer;">&times;</span>
+        <h2>User Details</h2>
+        <img id="modalProfilePic" src="" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;"><br><br>
+        <p><strong>Full Name:</strong> <span id="modalFullName"></span></p>
+        <p><strong>Email:</strong> <span id="modalEmail"></span></p>
+        <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
+        <p><strong>Date of Birth:</strong> <span id="modalDOB"></span></p>
+        <p><strong>Gender:</strong> <span id="modalGender"></span></p>
+        <p><strong>Role:</strong> <span id="modalRole"></span></p>
+        <p><strong>walletBalance</strong> <span id="modalWalletBalance"></span></p>
+        <p><strong>Date Registered: <span id="modalDate"></span></strong></p>
+      </div>
+    </div>
+
+    <!-- script for delete user -->
+    <script>
+      function confirmDelete(userId) {
+        if (!confirm("Delete this user?")) return;
+
+        fetch(`/admin/users/delete/${userId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // add CSRF token here if you use one
+          },
+          body: JSON.stringify({ id: userId }), // optional, since id is in URL
+        })
+          .then((res) => {
+            if (res.ok) {
+              alert("User deleted successfully");
+              location.reload(); // reload page to refresh user list
+            } else {
+              alert("Failed to delete user");
+            }
+          })
+          .catch((err) => {
+            console.error(err);
+            alert("Error deleting user");
+          });
+      }
+    </script>
+
+    <!-- script for navbar hamburger -->
+    <!-- <script>
+      function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+      }
+    </script> -->
+
+
+
+
+<script>
+  function openUserModal(user) {
+    document.getElementById("modalFullName").textContent = user.fullname;
+    document.getElementById("modalEmail").textContent = user.email;
+    document.getElementById("modalPhone").textContent = user.phone;
+    document.getElementById("modalDOB").textContent = user.dob || 'N/A'; // Assuming dob is optional
+    document.getElementById("modalGender").textContent = user.gender;
+    document.getElementById("modalRole").textContent = user.role;
+    document.getElementById("modalWalletBalance").textContent = `₦${user.wallet_balance2}`;
+    document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
+    document.getElementById("modalDate").textContent = user.created_at;
+
+    document.getElementById("userModal").style.display = "block";
+  }
+
+  function closeUserModal() {
+    document.getElementById("userModal").style.display = "none";
+  }
+</script>
+
+  </body>
+</html>

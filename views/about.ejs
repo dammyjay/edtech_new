@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('./partials/userHeader', { title: 'About Us' }) %>
+
+
+<!-- <section class="about-section">
+  <% sections.forEach(section => { %>
+    <div class="about-block about-<%= section.section_key %>">
+      
+      <div class="about-style">
+        <% if (section.section_image) { %>
+          <div class="about-image">
+            <img src="<%= section.section_image %>" alt="<%= section.section_title %>" />
+          </div>
+        <% } %>
+
+        <div class="about-content">
+          <h2><%= section.section_title %></h2>
+          <%- section.content %>
+        </div>
+      </div>
+    </div>
+  <% }) %>
+</section> -->
+
+<section class="about-section">
+  <% sections.forEach(section => { %>
+    <div class="about-block about-<%= section.section_key %>">
+      <!-- Title always on top -->
+      <h2><%= section.section_title %></h2>
+
+      <!-- Image + Content wrapper -->
+      <div class="about-body">
+        <% if (section.section_image) { %>
+          <div class="about-image">
+            <img src="<%= section.section_image %>" alt="<%= section.section_title %>" />
+          </div>
+        <% } %>
+        <div class="about-content">
+          <%- section.content %>
+        </div>
+      </div>
+
+    </div>
+  <% }) %>
+</section>
+
+
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+
+    <!-- For the navigation toggle -->
+    <script>
+    function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+    }
+    </script>
+
+    <!-- script for closing nav on outside click -->
+    <script>
+    // Close nav when clicking outside of it
+    document.addEventListener("click", function (event) {
+        const nav = document.getElementById("main-nav");
+        const toggleBtn = document.querySelector(".nav-toggle");
+
+        if (
+        nav.classList.contains("open") &&
+        !nav.contains(event.target) &&
+        !toggleBtn.contains(event.target)
+        ) {
+        nav.classList.remove("open");
+        }
+    });
+    </script>
+
+    <!-- script for push notifications -->
+
+    <script>
+    const vapidPublicKey = "<%= vapidPublicKey %>";
+
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        window.addEventListener('load', async () => {
+        const permission = Notification.permission;
+        const lastPrompt = localStorage.getItem("lastPromptTime");
+        const now = Date.now();
+
+        // Only show banner if not granted and enough time has passed (24h)
+        if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+            document.getElementById('notif-banner').style.display = 'block';
+        }
+        });
+    }
+
+    async function triggerSubscription() {
+        const permission = await Notification.requestPermission();
+        localStorage.setItem("lastPromptTime", Date.now());
+
+        if (permission !== 'granted') {
+        alert("❌ Notification permission denied.");
+        dismissBanner();
+        return;
+        }
+
+        try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+        });
+
+        await fetch('/notifications/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+
+        alert("✅ Subscribed to notifications!");
+        localStorage.setItem("pushStatus", "granted");
+        dismissBanner();
+        } catch (err) {
+        console.error("Subscription error:", err);
+        }
+    }
+
+    function dismissBanner() {
+        document.getElementById('notif-banner').style.display = 'none';
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    }
+    </script>
+
+<script>
+  // Cool warm professional palette
+  const colors = [
+  { bg: "#2a9d8f", text: "#ffffff" }, // green-teal
+  { bg: "#e9c46a", text: "#222222" }, // golden sand
+  { bg: "#f4a261", text: "#222222" }, // soft orange
+  { bg: "#e76f51", text: "#ffffff" }, // terracotta red
+  { bg: "#457b9d", text: "#ffffff" }, // steel blue
+  { bg: "#8d99ae", text: "#ffffff" }, // cool gray-blue
+
+  // 🌿 Fresh & calm
+  { bg: "#6a994e", text: "#ffffff" }, // leafy green
+  { bg: "#a7c957", text: "#222222" }, // lime moss
+  { bg: "#386641", text: "#ffffff" }, // forest green
+
+  // ☀️ Warm & inviting
+  { bg: "#f7b267", text: "#222222" }, // pastel apricot
+  { bg: "#f79d65", text: "#222222" }, // coral-peach
+  { bg: "#f4845f", text: "#ffffff" }, // warm coral
+  { bg: "#ffb703", text: "#222222" }, // sunflower
+
+  // 🌌 Cool professional
+  { bg: "#3a506b", text: "#ffffff" }, // muted navy
+  { bg: "#1c2541", text: "#ffffff" }, // midnight blue
+  { bg: "#5bc0be", text: "#222222" }, // soft aqua
+  { bg: "#118ab2", text: "#ffffff" }, // teal blue
+
+  // 🎨 Muted pastels
+  { bg: "#b5838d", text: "#ffffff" }, // dusty rose
+  { bg: "#6d597a", text: "#ffffff" }, // muted plum
+  { bg: "#355070", text: "#ffffff" }, // denim indigo
+  { bg: "#ffafcc", text: "#222222" }, // cotton candy pink
+  { bg: "#cdb4db", text: "#222222" }  // soft lavender
+];
+
+
+  document.querySelectorAll(".about-block").forEach(block => {
+    const random = colors[Math.floor(Math.random() * colors.length)];
+    block.style.backgroundColor = random.bg;
+    block.style.color = random.text;
+
+    // make headings stand out
+    const h2 = block.querySelector("h2");
+    if (h2) h2.style.color = random.text;
+  });
+</script>
+
+
+</body>
+</html>

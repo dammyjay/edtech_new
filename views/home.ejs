@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <!-- Header -->
+    <%- include('./partials/userHeader', { title: 'JKT Hub Home' }) %>
+
+    
+
+    <!-- Mission & Vision -->
+
+
+
+    <% if (info?.hero_image_url) { %>
+      
+      <!-- <section class="new-hero">
+        <div class="hero-content">
+           <h1>Learn. Grow. Get Certified.</h1>
+          <p><%= info?.vision || 'Empowering lives through the gospel of Christ.' %></p>
+          <a style="background-color: #1660E8;" href="/courses" class="cta-btn">Explore courses</a>
+          
+        </div>
+        <div class="hero-content">
+          <img style="width: 100%; height: 100%; object-fit: contain;" src="/images/Hero-image.png" alt="">
+        </div>
+      
+      </section> -->
+
+  
+
+      <section class="hero-section" style="background-image: url('<%= info.hero_image_url %>');">
+        <div class="hero-overlay">
+          <h1>Welcome to <%= info?.company_name || 'Jaykirch Tech Hub' %></h1>
+          <p><%= info?.vision || 'Empowering lives through the gospel of Christ.' %></p>
+          <a href="/about" class="cta-btn">Know more about us</a>
+          <a style="background-color: white; color: black;" href="/admin/login" class="cta-btn">Get started</a>
+          
+        </div>
+        
+      </section>
+    <% } %>
+
+    <!-- Marquee Message -->
+    <!-- <% if (info?.marquee_message) { %>
+      <div class="marquee-container">
+        <div class="marquee-text"><%= info.marquee_message %></div>
+      </div>
+    <% } %> -->
+
+        <!-- Events section -->
+      <section class="event_section">
+          <h2>📅 Events</h2>
+
+          <% events.forEach(event => { %>
+            <div class="event_container">
+              <!-- Event Image -->
+              <div class="event_details">
+                <% if (event.image_url) { %>
+                  <img src="<%= event.image_url %>" alt="Event image" />
+                <% } %>
+              </div>
+
+              <!-- Event Details -->
+              <div class="event_details">
+                <h2><%= event.title %></h2>
+                <p style="word-break: break-word; white-space: normal;"><strong>Description:</strong> <%- event.description %></p>
+
+                <p><strong>Date:</strong> <%= event.event_date.toDateString() %></p>
+                <p><strong>Time:</strong> <%= event.time %></p>
+                <p><strong>Location:</strong> <%= event.location %></p>
+
+                <% if (event.is_paid) { %>
+                  <p><strong>Price:</strong> ₦<%= event.amount.toLocaleString() %></p>
+                <% } else { %>
+                  <p><strong>This is a free event</strong></p>
+                <% } %>
+                  <a href="/events/<%= event.id %>" class="btn-show">Show</a>
+                <!-- <a href="/register/<%= event.id %>" class="btn-register">Register now</a> -->
+              </div>
+            </div>
+          <% }) %>
+        </section>
+
+    <!-- Pathways -->
+    <section id="articles" class="section">
+      <h2>Checkout our career pathways</h2>
+       <!-- <h2 style="color: black;">What we Offer</h2> -->
+      <div class="card-grid">
+        <% career_pathways.forEach((pathway, idx) => { %>
+          <div class="article-card">
+            <div class="pathway-img">
+              <% if (pathway.thumbnail_url) { %>
+                <a href="/pathways/<%= pathway.id %>">
+                  <img
+                    src="<%= pathway.thumbnail_url %>"
+                    alt="Career_pathway Image"
+                    style="width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background-color: #d6a740;"
+                  />
+                </a>
+              <% } %>
+            </div>
+            <br>
+            <!-- <h3><%- pathway.title %></h3>  -->
+             <a href="/pathways/<%= pathway.id %>">
+              <h3><%- pathway.title %></h3>
+            </a>
+             <!-- <h3 style="color: #1660E8;"><%- pathway.title %></h3>  -->
+            <div class="article-body">
+              <span id="article-short-<%= idx %>" style="display: block;">
+                <%- pathway.description.substring(0, 100) %>...
+              </span>
+              <!-- <span id="article-long-<%= idx %>" style="display: block;">
+                
+                <button class="continue-reading-btn" onclick="continueReading(<%= pathway.id %>)">Continue Reading</button>
+              </span> -->
+            </div>
+            <!-- <small><%- new Date(pathway.created_at).toLocaleString() %></small> -->
+             <!-- <small><strong style="color: #e8da16;">Click on the card to view more</strong></small> -->
+              <small><strong style="color: #1660E8;">Click on the card to view more</strong></small>
+          </div>
+        <% }) %>
+      </div>
+      <div style="text-align: center; margin-top: 20px">
+        <!-- <a href="/articles" class="login-button">View All pathway</a> -->
+      </div>
+    </section>
+
+    <!-- scripts for benefits display  -->
+    <section id="benefits" class="section" style="background-color: rgb(0, 0, 0);">
+      <!-- <h2 style="text-align: center;">Benefits</h2> -->
+       <h2 style="text-align: center; color: rgb(249, 249, 249);">Benefits</h2>
+      <div class="benefits-grid">
+        <% benefits.forEach(benefit => { %>
+          <div class="benefit-card">
+            <div class="benefit-profile">
+              <img src="<%= benefit.icon || '/images/default-user.png' %>" alt="Icon" />
+            </div>
+            <div class="benefit-details">
+              <h4><%= benefit.title %></h4>
+              <p><%= benefit.description %></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="stats-overview">
+      <div class="stat-box schools">
+        <i class="fas fa-school"></i>
+        <h2 class="count" data-target="<%= stats.schools %>">0</h2>
+        <p>Schools</p>
+      </div>
+      <div class="stat-box teachers">
+        <i class="fas fa-chalkboard-teacher"></i>
+        <h2 class="count" data-target="<%= stats.teachers %>">0</h2>
+        <p>Teachers</p>
+      </div>
+      <div class="stat-box students">
+        <i class="fas fa-user-graduate"></i>
+        <h2 class="count" data-target="<%= stats.students %>">0</h2>
+        <p>Students</p>
+      </div>
+      <div class="stat-box users">
+        <i class="fas fa-users"></i>
+        <h2 class="count" data-target="<%= stats.totalUsers %>">0</h2>
+        <p>Total Users</p>
+      </div>
+    </section>
+
+
+
+    <section id="parents" class="section" style="text-align:center; margin: 40px 0;">
+        <h2>👨‍👩‍👧 For Parents</h2>
+        <p>Stay connected to your child’s learning journey. Monitor progress, assignments, and achievements.</p>
+        <a href="/signup?role=parent" class="login-button" 
+          style="background-color:#1660E8; color:white; padding:10px 20px; border-radius:5px;">
+          Register as a Parent
+        </a>
+        <br>
+    </section>
+
+    <!-- course section -->
+     <section id="courses" class="section">
+        <!-- <h2 style="text-align: center;">Explore Our Courses</h2> -->
+         <h2 style="text-align: center; color: black;">Featured Courses</h2>
+        <div class="horizontal-scroll-container" id="courseScroll">
+          <% courses.forEach(course => { %>
+            <div class="course-card scroll-card">
+              <a href="/courses/<%= course.id %>">
+              <% if (course.thumbnail_url) { %>
+                <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />
+              <% } %>
+              </a>
+              <h4><%= course.title %></h4>
+              <!-- <p><%- course.description.substring(0, 50) %>...</p> -->
+              <small><strong><%= course.level %></strong> | <%= course.pathway_name || 'General' %></small>
+
+              <% if (course.amount == 0) { %>
+                  <p><strong>This is a free course</strong></p>
+                <% } else { %>
+                  <p><strong>Price:</strong> ₦<%= course.amount %></p>
+                <% } %>
+            </div>
+          <% }) %>
+        </div>
+         <div style="text-align: center; margin-top: 1rem;">
+          <a href="/courses" class="login-button">View All Courses</a>
+        </div>
+      </section>
+
+      <section class="section">
+       <% if (carouselImages && carouselImages.length > 0) { %>
+        <section class="hero-carousel">
+          <h1>Here are some of our Highlights</h1>
+
+          <% carouselImages.forEach(function(img, idx) { %>
+            <div class="carousel-slide" 
+                style="background-image: url('<%= img.image_url %>'); <%= idx === 0 ? '' : 'display:none;' %>">
+              <div class="carousel-overlay">
+                <h2><%= img.title %></h2>
+              </div>
+            </div>
+          <% }) %>
+
+          <button class="carousel-btn prev" onclick="prevSlide()">&#10094;</button>
+          <button class="carousel-btn next" onclick="nextSlide()">&#10095;</button>
+        </section>
+      <% } %>
+      <div style="text-align: center; margin-top: 20px; width: 100%;">
+      <a style="text-decoration: none; padding: 8px 10px; background-color: black; color: white; margin-top: 20px; border-radius: 10px;" href="/gallery">Click to view gallery</a>
+      </div>
+    </section>
+
+
+      <section id="testimony" class="testimonial-slider">
+        <h2>What People Are Saying</h2>
+        <div class="slider-container" id="testimony-slider">
+          <% for (let i = 0; i < testimonies.length; i += 1) { %>
+            <div class="testimony-row slide <%= i === 0 ? 'active' : '' %>">
+              <div class="testimony-group">
+                <% for (let j = i; j < i + 1 && j < testimonies.length; j++) { %>
+                  <div class="testimony-card" onclick="openTestimonyModal(`<%- testimonies[j].message.replace(/`/g, '\\`') %>`, '<%= testimonies[j].name %>')">
+                    <p class="testimony-message">“<%= testimonies[j].message.substring(0, 200) %>...”</p>
+                    <p class="testimony-name">— <strong><%= testimonies[j].name %></strong></p>
+                    <!-- <p class="testimony-name">— <strong>Anonymous</strong></p> -->
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
+          <button class="prev" onclick="changeTestimonySlide(-1)">❮</button>
+          <button class="next" onclick="changeTestimonySlide(1)">❯</button>
+        </div>
+        <p>You can click on the testimony to view full details</p>
+        <div style="text-align: center; margin-top: 20px">
+          <a href="/testimony" class="login-button">View All Testimony</a>
+        </div>
+      </section>
+
+
+      <!-- Testimony Modal -->
+      <div id="testimonyModal" class="modal" style="display: none;">
+        <div class="modal-content">
+          <span class="close" onclick="closeTestimonyModal()">&times;</span>
+          <h3 style="color: #a9712f; text-align: center;">Testimony</h3>
+          <p id="fullTestimonyMessage" style="margin: 1rem 0; text-align: justify;"></p>
+          <p id="fullTestimonyName" style="text-align: right; font-weight: bold;"></p>
+        </div>
+      </div>
+
+      <!-- open and close testimony modal script -->
+    <script>
+      function openTestimonyModal(message, name) {
+        document.getElementById("fullTestimonyMessage").innerText = message;
+        document.getElementById("fullTestimonyName").innerText = `— ${name}`;
+        // document.getElementById("fullTestimonyName").innerText = "— Anonymous";
+        document.getElementById("testimonyModal").style.display = "block";
+      }
+    
+      function closeTestimonyModal() {
+        document.getElementById("testimonyModal").style.display = "none";
+      }
+    
+      window.addEventListener("click", function (e) {
+        const modal = document.getElementById("testimonyModal");
+        if (e.target === modal) {
+          modal.style.display = "none";
+        }
+      });
+    </script>
+
+       <!-- Frequently Asked Questions -->    
+    <section id="faq" class="section"> 
+      <h2>Frequently Asked Questions</h2> 
+      <div class="faq-list"> 
+        <% faqs.forEach((faq, index) => { %> 
+          <div class="faq-item">
+             
+            <div class="faq-question" onclick="toggleFaq(<%- index %>)">
+              <h4>Q: <%- faq.question %></h4> 
+              <i id="icon-<%= index %>" class="fas fa-plus"></i> 
+            </div> 
+            <div id="answer-<%= index %>" class="faq-answer hidden"> 
+              <% if (faq.answer) { %> 
+                <p><strong>A:</strong> <%- faq.answer %></p> 
+                <% } else { %> 
+                  <p><em>Answer coming soon...</em></p> 
+                  <% } %> 
+                </div> 
+              </div> <% }) %> 
+      </div> 
+      <div style="text-align: center; margin-top: 20px">
+        <a href="/faq" class="login-button">Ask a question</a>
+      </div>
+    </section>
+    
+    <% if (isLoggedIn) { %>
+      <!-- <a href="/make-payment" class="btn btn-primary">Make a Payment</a> -->
+    <% } else { %>
+      <!-- <a href=""> -->
+        <!-- <button onclick="promptLogin()" class="btn btn-primary">Make a Payment</button> -->
+      <!-- </a> -->
+      <script>
+        function promptLogin() {
+          alert("Please login to make a payment.");
+          window.location.href = "/admin/login";
+        }
+      </script>
+    <% } %>
+    
+
+    <% if (subscribed === 'success') { %>
+
+      <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
+    <%- include('./partials/userFooter') %>
+
+    <!-- script for stats overview -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const counters = document.querySelectorAll(".count");
+
+        const speed = 100; // lower = faster
+        counters.forEach(counter => {
+          const updateCount = () => {
+            const target = +counter.getAttribute("data-target");
+            const count = +counter.innerText;
+
+            const increment = Math.ceil(target / speed);
+
+            if (count < target) {
+              counter.innerText = count + increment;
+              setTimeout(updateCount, 30);
+            } else {
+              counter.innerText = target;
+            }
+          };
+
+          updateCount();
+        });
+      });
+    </script>
+
+
+    <!-- script for faq toggle show/hide answer -->
+    <script> 
+      function toggleFaq(index) { 
+        const answer = document.getElementById(`answer-${index}`); 
+        const icon = document.getElementById(`icon-${index}`); 
+        if (answer.classList.contains('hidden')) {
+        answer.classList.remove('hidden'); 
+          icon.classList.remove('fa-plus'); 
+          icon.classList.add('fa-minus'); } 
+        else { 
+          answer.classList.add('hidden'); 
+          icon.classList.remove('fa-minus'); 
+          icon.classList.add('fa-plus'); 
+        } 
+      } 
+    </script>
+
+<!-- for redirect if user is not logged in -->
+<script>
+  
+  const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
+
+  function handleProtectedLink(e, targetUrl) {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      // Redirect to login with redirect param
+      window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
+    }
+    // else, allow default navigation
+  }
+
+  // Attach event listeners after DOM is loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    const articlesBtn = document.querySelector('a[href="/articles"]');
+    const videosBtn = document.querySelector('a[href="/videos"]');
+    const faqBtn = document.querySelector('a[href="/faq"]');
+    
+    if (articlesBtn) {
+      articlesBtn.addEventListener('click', function(e) {
+        handleProtectedLink(e, '/articles');
+      });
+    }
+    if (videosBtn) {
+      videosBtn.addEventListener('click', function(e) {
+        handleProtectedLink(e, '/videos');
+      });
+    }
+    if (faqBtn) {
+      faqBtn.addEventListener('click', function(e) {
+        handleProtectedLink(e, '/faq');
+      });
+    }
+  });
+</script>
+
+<!-- For the navigation toggle -->
+<script>
+  function toggleNav() {
+    var nav = document.getElementById("main-nav");
+    nav.classList.toggle("open");
+  }
+</script>
+
+<!-- script for closing nav on outside click -->
+<script>
+  // Close nav when clicking outside of it
+  document.addEventListener("click", function (event) {
+    const nav = document.getElementById("main-nav");
+    const toggleBtn = document.querySelector(".nav-toggle");
+
+    if (
+      nav.classList.contains("open") &&
+      !nav.contains(event.target) &&
+      !toggleBtn.contains(event.target)
+    ) {
+      nav.classList.remove("open");
+    }
+  });
+</script>
+
+
+<!-- script for carousel  -->
+ <script>
+  let currentSlide = 0;
+  const slides = document.querySelectorAll('.carousel-slide');
+
+  function showSlide(idx) {
+    slides.forEach((slide, i) => {
+      slide.style.display = (i === idx) ? 'block' : 'none';
+    });
+    currentSlide = idx;
+  }
+
+  function nextSlide() {
+    let next = (currentSlide + 1) % slides.length;
+    showSlide(next);
+  }
+
+  function prevSlide() {
+    let prev = (currentSlide - 1 + slides.length) % slides.length;
+    showSlide(prev);
+  }
+
+  setInterval(nextSlide, 4000); // Change every 4 seconds
+  if (slides.length > 0) showSlide(0);
+</script>
+
+<!-- script for testimony -->
+<script>
+        let currentTestimonySlide = 0;
+        const testimonySlides = document.querySelectorAll('.testimony-row');
+      
+        function showTestimonySlide(index) {
+          testimonySlides.forEach((slide, i) => {
+            slide.classList.toggle('active', i === index);
+          });
+        }
+      
+        function changeTestimonySlide(step) {
+          currentTestimonySlide = (currentTestimonySlide + step + testimonySlides.length) % testimonySlides.length;
+          showTestimonySlide(currentTestimonySlide);
+        }
+      
+        // Auto switch every 15 seconds (optional)
+        setInterval(() => changeTestimonySlide(1), 15000);
+      </script>
+
+<!-- script to preview announcement -->
+<!-- <script>
+  function showAnnouncement() {
+    document.getElementById('announcement-preview').style.display = 'none';
+    document.getElementById('announcement-section').style.display = 'block';
+  }
+  function hideAnnouncement() {
+    document.getElementById('announcement-section').style.display = 'none';
+    document.getElementById('announcement-preview').style.display = 'block';
+  }
+</script> -->
+
+<!-- script for continue reading and check if user is logged in -->
+<script>
+  function showMore(idx) {
+  document.getElementById('article-short-' + idx).style.display = 'none';
+  document.getElementById('article-long-' + idx).style.display = 'block';
+}
+function showLess(idx) {
+  document.getElementById('article-long-' + idx).style.display = 'none';
+  document.getElementById('article-short-' + idx).style.display = 'block';
+}
+  function continueReading(articleId) {
+    if (<%= isLoggedIn ? 'true' : 'false' %>) {
+      window.location.href = '/articles/' + articleId;
+    } else {
+      window.location.href = '/admin/login?redirect=' + encodeURIComponent('/articles/' + articleId);
+    }
+  }
+</script>
+
+<!-- script for push notifications -->
+
+<script>
+  const vapidPublicKey = "<%= vapidPublicKey %>";
+
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    window.addEventListener('load', async () => {
+      const permission = Notification.permission;
+      const lastPrompt = localStorage.getItem("lastPromptTime");
+      const now = Date.now();
+
+      // Only show banner if not granted and enough time has passed (24h)
+      if (permission !== 'granted' && (!lastPrompt || now - Number(lastPrompt) > 86400000)) {
+        document.getElementById('notif-banner').style.display = 'block';
+      }
+    });
+  }
+
+  async function triggerSubscription() {
+    const permission = await Notification.requestPermission();
+    localStorage.setItem("lastPromptTime", Date.now());
+
+    if (permission !== 'granted') {
+      alert("❌ Notification permission denied.");
+      dismissBanner();
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array("<%= vapidPublicKey %>")
+      });
+
+      await fetch('/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription)
+      });
+
+      alert("✅ Subscribed to notifications!");
+      localStorage.setItem("pushStatus", "granted");
+      dismissBanner();
+    } catch (err) {
+      console.error("Subscription error:", err);
+    }
+  }
+
+  function dismissBanner() {
+    document.getElementById('notif-banner').style.display = 'none';
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  }
+</script>
+
+<!-- script for auto-scroll -->
+     <!-- <script>
+        let scrollInterval;
+        let scrollContainer = document.getElementById("courseScroll");
+
+        function startAutoScroll() {
+          scrollInterval = setInterval(() => {
+            scrollContainer.scrollLeft += 1;
+            if (scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth) {
+              scrollContainer.scrollLeft = 0;
+            }
+          }, 20); // Lower = faster
+        }
+
+        function stopAutoScroll() {
+          clearInterval(scrollInterval);
+        }
+
+        scrollContainer.addEventListener("mouseenter", stopAutoScroll);
+        scrollContainer.addEventListener("mouseleave", startAutoScroll);
+
+        startAutoScroll(); // Start on load
+      </script> -->
+
+
+      <script>
+  // const scrollContainer = document.querySelector(".course-scroll-container");
+  let scrollContainer = document.getElementById("courseScroll");
+  let scrollAmount = 1;
+  let scrollInterval;
+
+  function startAutoScroll() {
+    scrollInterval = setInterval(() => {
+      // Use Math.ceil for precision
+      const maxScrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      if (Math.ceil(scrollContainer.scrollLeft) >= maxScrollLeft) {
+        // Pause before looping
+        clearInterval(scrollInterval);
+        setTimeout(() => {
+          scrollContainer.scrollLeft = 0;
+          startAutoScroll();
+        }, 1000); // 1-second pause before restarting
+      } else {
+        scrollContainer.scrollLeft += scrollAmount;
+      }
+    }, 20); // speed of scroll
+  }
+
+  scrollContainer.addEventListener("mouseenter", () => clearInterval(scrollInterval));
+  scrollContainer.addEventListener("mouseleave", startAutoScroll);
+
+  window.addEventListener("load", startAutoScroll);
+</script>
+
+
+<!-- Notification Banner -->
+<!-- <div id="notif-banner" style="display: none; position: fixed; top: 0; left: 0; right: 0; background: #333; color: #fff; padding: 12px; text-align: center; z-index: 999;">
+  <span>🔔 Get updates on new devotionals & articles!</span>
+  <button onclick="triggerSubscription()" style="margin-left: 10px; padding: 6px 12px;">Enable</button>
+  <button onclick="dismissBanner()" style="margin-left: 10px; padding: 6px 12px;">Dismiss</button>
+</div> -->
+
+
+
+</body>
+</html>
