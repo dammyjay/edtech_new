@@ -1676,7 +1676,7 @@ exports.editUserForm = async (req, res) => {
       return res.status(404).send("User not found");
     }
 
-    res.render("admin/editUser", { info, user });
+    res.render("admin/editUser", { info, user, role: "admin" });
   } catch (error) {
     console.error("Error loading user edit form:", error);
     res.status(500).send("Server error");

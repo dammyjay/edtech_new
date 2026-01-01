@@ -322,52 +322,6 @@ router.get("/feedback", async (req, res) => {
   });
 });
 
-// router.post("/feedback", async (req, res) => {
-//   try {
-//     const {
-//       user_type,
-//       name,
-//       email,
-//       school_name,
-//       student_class,
-//       organization_name,
-//       rating,
-//       category,
-//       message,
-//     } = req.body;
-
-//     const extra = req.body.extra ? JSON.parse(req.body.extra) : {};
-
-//     await pool.query(
-//       `INSERT INTO feedback
-//       (user_type, name, email, school_name, student_class, organization_name, rating, category, message, extra)
-//       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-//       [
-//         user_type,
-//         name,
-//         email || null,
-//         school_name || null,
-//         student_class || null,
-//         organization_name || null,
-//         rating,
-//         category || null,
-//         message,
-//         extra,
-//       ]
-//     );
-
-//     await sendEmail(
-//            email,
-//            "Your OTP Code",
-//            `Your code is: ${otp}`
-//          );
-//     // Return JSON success instead of redirect
-//     res.json({ success: true, message: "Feedback submitted successfully" });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ success: false, error: "Server error" });
-//   }
-// });
 
 router.post("/feedback", async (req, res) => {
   try {
@@ -783,41 +737,137 @@ router.get("/pathways/:id", async (req, res) => {
    }
 });
 
+// router.get("/courses/:id", async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     // Get company info
+//     const infoResult = await pool.query(
+//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+//     );
+//     const info = infoResult.rows[0] || {};
+
+//     // Get the course details
+//     const courseResult = await pool.query(
+//       "SELECT * FROM courses WHERE id = $1",
+//       [id]
+//     );
+//     const course = courseResult.rows[0];
+
+//     if (!course) return res.status(404).send("Course not found");
+
+//     // Get modules for this course (flat array, not grouped by level)
+//     const modulesResult = await pool.query(
+//       `SELECT * FROM modules 
+//        WHERE course_id = $1
+//        ORDER BY order_number ASC`,
+//       [id]
+//     );
+
+//     const modules = modulesResult.rows;
+
+//       const enrolledCoursesRes = await pool.query(
+//         `SELECT course_id FROM course_enrollments WHERE user_id = $1`,
+//         [req.user?.id]
+//       );
+//     const enrolledCourseIds = enrolledCoursesRes.rows.map((r) => r.course_id);
+    
+//     let walletBalance = 0;
+//     if (req.session.user) {
+//       const walletResult = await pool.query(
+//         "SELECT wallet_balance2 FROM users2 WHERE email = $1",
+//         [req.session.user.email]
+//       );
+//       walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+//     }
+
+//     const usersResult = await pool.query("SELECT * FROM users2");
+//     const users = usersResult.rows;
+//     const isLoggedIn = !!req.session.user;
+//     const profilePic = req.session.user
+//       ? req.session.user.profile_picture
+//       : null;
+
+//     res.render("singleCourse", {
+//       info,
+//       users,
+//       isLoggedIn,
+//       profilePic,
+//       course,
+//       enrolledCourseIds,
+//       walletBalance,
+//       modules,
+//       subscribed: req.query.subscribed,
+//       activePage: "courses", // 👈 Pass active page
+//     });
+//   } catch (err) {
+//     console.error("❌ Error fetching course details:", err.message);
+//     res.status(500).send("Server error");
+//   }
+// });
+
 router.get("/courses/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Get company info
+    // Company info
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
     const info = infoResult.rows[0] || {};
 
-    // Get the course details
+    // Course details
     const courseResult = await pool.query(
       "SELECT * FROM courses WHERE id = $1",
       [id]
     );
     const course = courseResult.rows[0];
-
     if (!course) return res.status(404).send("Course not found");
 
-    // Get modules for this course (flat array, not grouped by level)
+    // Modules
     const modulesResult = await pool.query(
-      `SELECT * FROM modules 
-       WHERE course_id = $1
-       ORDER BY order_number ASC`,
+      `SELECT * FROM modules WHERE course_id = $1 ORDER BY order_number ASC`,
+      [id]
+    );
+    const modules = modulesResult.rows;
+
+    // Course stats
+    const statsResult = await pool.query(
+      `
+      SELECT
+        (SELECT COUNT(*) FROM modules WHERE course_id = $1) AS total_modules,
+        (SELECT COUNT(*) 
+         FROM lessons l 
+         JOIN modules m ON l.module_id = m.id 
+         WHERE m.course_id = $1) AS total_lessons,
+        (SELECT COUNT(*) 
+         FROM quizzes q
+         JOIN lessons l ON q.lesson_id = l.id
+         JOIN modules m ON l.module_id = m.id
+         WHERE m.course_id = $1) AS total_quizzes,
+        (SELECT COUNT(*) 
+         FROM module_assignments a
+         JOIN modules m ON a.module_id = m.id
+         WHERE m.course_id = $1) AS total_assignments,
+        (SELECT COUNT(*) FROM course_projects WHERE course_id = $1) AS total_projects,
+        (SELECT COUNT(*) FROM course_enrollments WHERE course_id = $1) AS total_enrolled,
+        (SELECT EXISTS (
+          SELECT 1 FROM courses WHERE id = $1 AND certificate_url IS NOT NULL
+        )) AS has_certificate
+      `,
       [id]
     );
 
-    const modules = modulesResult.rows;
+    const courseStats = statsResult.rows[0];
 
-      const enrolledCoursesRes = await pool.query(
-        `SELECT course_id FROM course_enrollments WHERE user_id = $1`,
-        [req.user?.id]
-      );
+    // Check if user is enrolled
+    const enrolledCoursesRes = await pool.query(
+      `SELECT course_id FROM course_enrollments WHERE user_id = $1`,
+      [req.user?.id]
+    );
     const enrolledCourseIds = enrolledCoursesRes.rows.map((r) => r.course_id);
-    
+
+    // Wallet balance
     let walletBalance = 0;
     if (req.session.user) {
       const walletResult = await pool.query(
@@ -827,12 +877,12 @@ router.get("/courses/:id", async (req, res) => {
       walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
     }
 
+    // Users info (optional)
     const usersResult = await pool.query("SELECT * FROM users2");
     const users = usersResult.rows;
+
     const isLoggedIn = !!req.session.user;
-    const profilePic = req.session.user
-      ? req.session.user.profile_picture
-      : null;
+    const profilePic = req.session.user ? req.session.user.profile_picture : null;
 
     res.render("singleCourse", {
       info,
@@ -843,15 +893,15 @@ router.get("/courses/:id", async (req, res) => {
       enrolledCourseIds,
       walletBalance,
       modules,
+      courseStats, // ← pass stats here
       subscribed: req.query.subscribed,
-      activePage: "courses", // 👈 Pass active page
+      activePage: "courses",
     });
   } catch (err) {
     console.error("❌ Error fetching course details:", err.message);
     res.status(500).send("Server error");
   }
 });
-
 
 
   module.exports = router;

@@ -54,10 +54,13 @@
             <section class="course-scroll-container">
               <% groupedCourses[pathway][level].forEach(course => { %>
                 <div class="scroll-card">
+                  
                   <% if (course.thumbnail_url) { %>
-                    <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
+                    <a href="/courses/<%= course.id %>">
+                      <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
+                    </a>
                   <% } %>
-
+                
                   <h4><%= course.title %></h4>
                   <div class="article-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
                     
@@ -86,22 +89,6 @@
                   <div style="display: flex; width: 100%;">
                   <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
 
-                    <!-- <% if (isLoggedIn && !isEnrolled) { %>
-                      <form action="/student/courses/enroll/<%= course.id %>" method="POST" onsubmit="return confirmEnroll(<%= course.amount %>)">
-                        <button type="submit" class="btn-create">
-                          <% if (course.amount == 0) { %>
-                            Enroll for Free
-                          <% } else { %>
-                            Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
-                          <% } %>
-                        </button>
-                      </form>
-                    <% } else if (isLoggedIn && isEnrolled) { %>
-                      <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
-                    <% } else { %>
-                      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
-                    <% } %> -->
-
                     <% if (isLoggedIn && !isEnrolled) { %>
                       <% if (course.amount == 0) { %>
                         <!-- Free course -->
@@ -126,7 +113,7 @@
                     <% } %>
 
                     </div>
-
+                    <p><strong>Click on image to view course details</strong></p>
                 </div>
 
                 <!-- Edit Modal for this course -->

@@ -46,6 +46,20 @@
             <p><%- course.level %></p>
         </div>
 
+          <div class="course-summary-card">
+            <h3>Course Summary</h3>
+            <ul>
+              <li>Total Modules: <%= courseStats.total_modules %></li>
+              <li>Total Lessons: <%= courseStats.total_lessons %></li>
+              <li>Total Quizzes: <%= courseStats.total_quizzes %></li>
+              <li>Total Assignments: <%= courseStats.total_assignments %></li>
+              <li>Total Projects: <%= courseStats.total_projects %></li>
+              <li>Total Enrolled Students: <%= courseStats.total_enrolled %></li>
+              <li>Certificate Available: <%= courseStats.has_certificate ? "Yes" : "No" %></li>
+            </ul>
+
+          </div>
+
         <% if (course.amount == 0) { %>
                   <p><strong>This is a free course</strong></p>
                 <% } else { %>

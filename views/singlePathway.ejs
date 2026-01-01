@@ -92,7 +92,9 @@
           <% groupedCourses[level].forEach(course => { %>
             <div class="gallery-card">
               <% if (course.thumbnail_url) { %>
-                <img style="object-fit: contain; background-color: #ab7500;" src="<%= course.thumbnail_url %>" alt="<%= course.title %>" />
+                <a href="/courses/<%= course.id %>">
+                  <img style="object-fit: contain; background-color: #ab7500;" src="<%= course.thumbnail_url %>" alt="<%= course.title %>" />
+                </a>
               <% } %>
               <h4><%= course.title %></h4>
               <!-- <p style="text-align: left;"><%- course.description.substring(0, 100) %>...</p> -->

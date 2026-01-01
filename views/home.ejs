@@ -119,25 +119,21 @@
               <span id="article-short-<%= idx %>" style="display: block;">
                 <%- pathway.description.substring(0, 100) %>...
               </span>
-              <!-- <span id="article-long-<%= idx %>" style="display: block;">
-                
-                <button class="continue-reading-btn" onclick="continueReading(<%= pathway.id %>)">Continue Reading</button>
-              </span> -->
+              
             </div>
-            <!-- <small><%- new Date(pathway.created_at).toLocaleString() %></small> -->
-             <!-- <small><strong style="color: #e8da16;">Click on the card to view more</strong></small> -->
-              <small><strong style="color: #1660E8;">Click on the card to view more</strong></small>
+            
+              <small><strong style="color: #1660E8;">Click on the Image to view more</strong></small>
           </div>
         <% }) %>
       </div>
       <div style="text-align: center; margin-top: 20px">
-        <!-- <a href="/articles" class="login-button">View All pathway</a> -->
+    
       </div>
     </section>
 
     <!-- scripts for benefits display  -->
     <section id="benefits" class="section" style="background-color: rgb(0, 0, 0);">
-      <!-- <h2 style="text-align: center;">Benefits</h2> -->
+      
        <h2 style="text-align: center; color: rgb(249, 249, 249);">Benefits</h2>
       <div class="benefits-grid">
         <% benefits.forEach(benefit => { %>
