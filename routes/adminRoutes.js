@@ -170,6 +170,11 @@ router.post(
   adminController.editCourse
 );
 
+// routes/courses.js
+router.get(
+  "/courses/:id/curriculum/download",
+  adminController.downloadCurriculum
+);
 
 
 // 📘 View Course Curriculum (with proxy streaming support)

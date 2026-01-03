@@ -2097,6 +2097,19 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
   border-bottom: none;
 }
 
+.enroll-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* change to center if you want */
+  gap: 8px;
+}
+
+.cta-subtext {
+  font-size: 14px;
+  color: #666;
+}
+
+
 /* 🔹 VIEW MODE TOGGLE BUTTONS */
 .lesson-view-mode {
     display: flex;

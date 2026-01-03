@@ -71,6 +71,11 @@
   <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
 
   <% if (isLoggedIn && !isEnrolled) { %>
+    <br>
+    <a href="/courses/<%= course.id %>/curriculum/download">
+      📥 Download Curriculum  
+    </a>
+
     <% if (course.amount == 0) { %>
       <!-- Free course -->
       <form action="/student/courses/enroll/<%= course.id %>" method="POST">
@@ -92,10 +97,11 @@
   <% } else if (isLoggedIn && isEnrolled) { %>
     <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
   <% } else { %>
-    <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+    <div class="enroll-cta">
+      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+      <p class="cta-subtext">Also available: download curriculum</p>
+    </div>
   <% } %>
-</div>
-
 
     </div>
 

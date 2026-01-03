@@ -4,6 +4,7 @@ const pool = require("../models/db");
 // const upload = require("../middleware/upload");
 const axios = require("axios");
 const userController = require("../controllers/userController");
+const adminController = require("../controllers/adminController");
 const sendEmail = require("../utils/sendEmail");
 const { feedback } = require("../controllers/adminController");
 const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates"); 
@@ -903,5 +904,9 @@ router.get("/courses/:id", async (req, res) => {
   }
 });
 
+router.get(
+  "/courses/:id/curriculum/download",// 👈 explained below
+  adminController.downloadCurriculum
+);
 
   module.exports = router;

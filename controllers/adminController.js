@@ -19,6 +19,7 @@ const sw = require('stopword');
 const ExcelJS = require('exceljs');
 
 const sentiment = new Sentiment();
+// const html_to_pdf = require("html-pdf-node");
 
 
 // helper: extract keywords (very simple)
@@ -1930,7 +1931,7 @@ exports.showCourses = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
   console.log("📘 Creating course with:", req.body);
-  const { title, description, level, career_pathway_id, sort_order, amount } =
+  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
     req.body;
 
   let thumbnail_url = null;
@@ -1988,33 +1989,56 @@ exports.createCourse = async (req, res) => {
     }
 
     // ✅ Insert into DB
+    // await pool.query(
+    //   `INSERT INTO courses (
+    //     title, description, level, career_pathway_id,
+    //     thumbnail_url, curriculum_url, sort_order,
+    //     amount, created_by, instructor_id,
+    //     curriculum_mime, curriculum_name,
+    //     certificate_url, certificate_mime, certificate_name
+    //   )
+    //   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+    //   [
+    //     title,
+    //     description,
+    //     level,
+    //     career_pathway_id || null,
+    //     thumbnail_url,
+    //     curriculum_url,
+    //     sort_order || 0,
+    //     amount || 0,
+    //     req.user.role === "instructor" ? "instructor" : "admin",
+    //     req.user.role === "instructor" ? req.user.id : null,
+    //     curriculum_mime,
+    //     curriculum_name,
+    //     certificate_url,
+    //     certificate_mime,
+    //     certificate_name,
+    //   ]
+    // );
+
     await pool.query(
       `INSERT INTO courses (
         title, description, level, career_pathway_id,
-        thumbnail_url, curriculum_url, sort_order,
-        amount, created_by, instructor_id,
-        curriculum_mime, curriculum_name,
-        certificate_url, certificate_mime, certificate_name
+        thumbnail_url, sort_order, amount,
+        created_by, instructor_id,
+        curriculum_content
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         title,
         description,
         level,
         career_pathway_id || null,
         thumbnail_url,
-        curriculum_url,
         sort_order || 0,
         amount || 0,
         req.user.role === "instructor" ? "instructor" : "admin",
         req.user.role === "instructor" ? req.user.id : null,
-        curriculum_mime,
-        curriculum_name,
-        certificate_url,
-        certificate_mime,
-        certificate_name,
+        curriculum_content
       ]
     );
+
 
     await logActivityForUser(req, "Course Created", `Course title: ${title}`);
     console.log("✅ Course created successfully.");
@@ -2137,6 +2161,116 @@ exports.deleteCourse = async (req, res) => {
     console.error(err);
     res.status(500).send("Server error.");
   }
+};
+
+exports.downloadCurriculum = async (req, res) => {
+  const courseId = req.params.id;
+
+  const result = await pool.query(
+    `SELECT title, curriculum_content FROM courses WHERE id = $1`,
+    [courseId]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).send("Course not found");
+  }
+
+  const course = result.rows[0];
+
+  if (!course.curriculum_content) {
+    return res.status(400).send("No curriculum available");
+  }
+
+  const html = `
+  <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 40px;
+          line-height: 1.6;
+        }
+        h1 {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+        .watermark {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0.06;
+          z-index: 0;
+          text-align: center;
+        }
+        .watermark h2 {
+          font-size: 48px;
+        }
+        .content {
+          position: relative;
+          z-index: 2;
+        }
+        .footer {
+          margin-top: 80px;
+          font-size: 13px;
+          text-align: center;
+          color: #555;
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="watermark">
+        <img
+          src="https://acad.jkthub.com/images/JKT%20logo.png"
+          alt="JKT Academy Logo"
+        />
+        <h2>JKT Hub Academy</h2>
+      </div>
+
+
+      <div class="content">
+        <h1>${course.title} – Course Curriculum</h1>
+
+        ${course.curriculum_content}
+
+        <div class="footer">
+          <hr />
+          <p>Generated from JKT Academy</p>
+        </div>
+      </div>
+    </body>
+  </html>
+  `;
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    margin: {
+      top: "1cm",
+      bottom: "1cm",
+      left: "1cm",
+      right: "1cm",
+    },
+  });
+
+  await browser.close();
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${course.title.replace(/\s+/g, "_")}_Curriculum.pdf"`
+  );
+
+  res.send(pdfBuffer);
 };
 
 exports.showCoursesByPathway = async (req, res) => {

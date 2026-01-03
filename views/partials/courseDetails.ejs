@@ -92,6 +92,8 @@
       <label>Amount (₦)</label>
       <input type="number" name="amount" value="<%= course.amount || 0 %>" step="0.01">
 
+     
+
       <label>Certificate Template (PDF or Image)</label>
       <% if (course.certificate_url) { %>
         <p>🎓 <a href="<%= course.certificate_url %>" target="_blank">View current certificate</a></p>
@@ -114,6 +116,19 @@
   <p><strong>Created At:</strong> <%= course.created_at.toDateString() %></p>
   <p><strong>sort number</strong> <%= course.sort_order %></p>
   <p><strong>Price: </strong> ₦ <%= course.amount %></p>
+
+   <h3>Course Curriculum</h3>
+      <div class="curriculum-content">
+        <%- course.curriculum_content %>
+      </div>
+
+    <a
+      href="/courses/<%= course.id %>/curriculum/download"
+      class="btn btn-outline-primary"
+      style="margin-top:15px;"
+    >
+      📥 Download Curriculum (PDF)
+    </a>
 
   <% if (course.certificate_url) { %>
   <p><strong>Certificate Template:</strong></p>

@@ -75,11 +75,17 @@
                 <% }) %>
             </select><br /><br>
 
-            <label>Curriculum File (PDF or DOCX)</label>
+            <!-- <label>Curriculum File (PDF or DOCX)</label>
             <% if (course.curriculum_url) { %>
               <p>📎 <a href="<%= course.curriculum_url %>" target="_blank">View current curriculum</a></p>
             <% } %>
-            <input type="file" name="curriculum" accept=".pdf,.doc,.docx">
+            <input type="file" name="curriculum" accept=".pdf,.doc,.docx"> -->
+
+            <label>Course Curriculum</label>
+            <textarea id="editCurriculumContent-<%= course.id %>" name="curriculum_content">
+              <%= course.curriculum_content %>
+            </textarea>
+
 
             <label for="">Sort Number</label>
             <input type="number" name="sort_order" value="<%= course.sort_order %>" /><br />
@@ -106,6 +112,7 @@
         <script>
             <% courses.forEach(course => { %>
                 CKEDITOR.replace('editContent-<%= course.id %>');
+                CKEDITOR.replace('editCurriculumContent-<%= course.id %>');
             <% }); %>
         </script>
 
@@ -177,8 +184,15 @@
         ><br />
       </div>
 
-      <label>Curriculum File (PDF/DOCX)</label>
-      <input type="file" name="curriculum" accept=".pdf,.doc,.docx" /><br />
+      <!-- <label>Curriculum File (PDF/DOCX)</label>
+      <input type="file" name="curriculum" accept=".pdf,.doc,.docx" /><br /> -->
+
+      <label>Course Curriculum</label>
+      <textarea
+        name="curriculum_content"
+        id="curriculumEditor"
+        placeholder="Paste or write the full curriculum here..."
+      ></textarea>
 
 
       <input type="number" name="sort_order" placeholder="Sort Order" /><br />
@@ -221,6 +235,9 @@
     }
 
     CKEDITOR.replaceAll('textarea');
+    CKEDITOR.replace('curriculumEditor', {
+    height: 300
+  });
   </script>
 
     <a href="/admin/dashboard">Back to Dashboard</a>
