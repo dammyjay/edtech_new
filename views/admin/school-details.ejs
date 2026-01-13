@@ -103,6 +103,80 @@
   <% } %>
 </section>
 
+<form action="/admin/terms/create" method="POST">
+  <input type="hidden" name="school_id" value="<%= school.id %>" />
+
+  <input type="text" name="name" placeholder="2024/2025 - Term 1" required />
+  <input type="date" name="start_date" required />
+  <input type="date" name="end_date" required />
+
+  <button type="submit">Create Term</button>
+</form>
+
+
+
+<form action="/admin/terms/assign-students" method="POST">
+  <input type="hidden" name="school_id" value="<%= school.id %>" />
+
+  <select name="classroom_id" required>
+    <% school.classrooms.forEach(c => { %>
+      <option value="<%= c.id %>"><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <% school.students.forEach(s => { %>
+    <label style="color: #3498db;">
+      <input type="checkbox" name="student_ids[]" value="<%= s.id %>" />
+      <%= s.full_name %>
+    </label><br/>
+  <% }) %>
+
+  <button type="submit">Assign Students</button>
+</form>
+
+<hr>
+<h3>📅 Academic Terms</h3>
+
+<% if (school.terms.length === 0) { %>
+  <p>No terms created yet.</p>
+<% } else { %>
+  <table class="user-table">
+    <thead>
+      <tr>
+        <th>Term</th>
+        <th>Period</th>
+        <th>Students</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% school.terms.forEach(term => { %>
+        <tr>
+          <td><strong><%= term.term_name %></strong></td>
+          <td>
+            <%= term.start_date %> → <%= term.end_date %>
+          </td>
+          <td><%= term.student_count %></td>
+          <td>
+            <button onclick="toggleTermStudents('<%= term.term_id %>')">
+              👁 View Students
+            </button>
+          </td>
+        </tr>
+
+        <!-- expandable row -->
+        <tr id="term-row-<%= term.term_id %>" style="display:none;">
+          <td colspan="4">
+            <div id="term-students-<%= term.term_id %>">
+              <em>Loading students...</em>
+            </div>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
 
 <!-- Navigation Tabs -->
 <div class="nav-tabs">
@@ -1328,6 +1402,56 @@ async function refreshAllClassroomCourses() {
 document.addEventListener("DOMContentLoaded", () => {
   refreshAllClassroomCourses();
 });
+</script>
+
+
+<script>
+async function toggleTermStudents(termId) {
+  const row = document.getElementById(`term-row-${termId}`);
+  const container = document.getElementById(`term-students-${termId}`);
+
+  if (row.style.display === "none") {
+    row.style.display = "table-row";
+
+    if (!container.dataset.loaded) {
+      const res = await fetch(`/admin/terms/${termId}/students`);
+      const students = await res.json();
+
+      if (students.length === 0) {
+        container.innerHTML = "<p>No students assigned.</p>";
+      } else {
+        let html = `
+          <table class="user-table" style="margin-top:10px;">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Classroom</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        students.forEach(s => {
+          html += `
+            <tr>
+              <td>${s.fullname}</td>
+              <td>${s.email || "—"}</td>
+              <td>${s.classroom || "—"}</td>
+            </tr>
+          `;
+        });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      }
+
+      container.dataset.loaded = "true";
+    }
+  } else {
+    row.style.display = "none";
+  }
+}
 </script>
 
 

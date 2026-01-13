@@ -72,7 +72,6 @@ exports.updateCourse = async (req, res) => {
   }
 };
 
-
 // -------------------- MODULES --------------------
 
 // CREATE MODULE
@@ -297,8 +296,6 @@ exports.deleteLesson = async (req, res) => {
   }
 };
 
-// GET lesson as JSON for edit modal
-
 // GET /admin/lessons/:id/json
 exports.getLessonJSON = async (req, res) => {
   const lessonId = req.params.id;
@@ -420,28 +417,6 @@ exports.getOrCreateLessonQuiz = async (req, res) => {
 };
 
 // CREATE question
-// exports.createQuizQuestion = async (req, res) => {
-//   const { quiz_id, question, question_type, correct_option } = req.body;
-//   let options = req.body.options || [];
-
-//   if (typeof options === 'string') options = [options];
-
-//   await pool.query(
-//     `INSERT INTO quiz_questions (quiz_id, question, question_type, options, correct_option)
-//      VALUES ($1, $2, $3, $4, $5)`,
-//     [quiz_id, question, question_type, options.length ? options : null, correct_option]
-//   );
-
-//   res.redirect('back');
-// };
-
-// DELETE question
-// exports.deleteQuizQuestion = async (req, res) => {
-//   const { id } = req.params;
-//   await pool.query(`DELETE FROM quiz_questions WHERE id = $1`, [id]);
-//   res.redirect('back');
-// };
-
 exports.createQuizQuestion = async (req, res) => {
   try {
     const { quiz_id, question, question_type, correct_option } = req.body;
@@ -522,81 +497,6 @@ exports.editQuizQuestion = async (req, res) => {
 };
 
 // VIEW course with assignments
-// exports.viewCourseWithAssignments = async (req, res) => {
-//   const courseId = req.params.id;
-//   const activeTab = req.query.tab || "details";
-//   const selectedModuleId = req.query.module || "all";
-
-//   try {
-//     const courseResult = await pool.query("SELECT * FROM courses WHERE id = $1", [courseId]);
-//     const course = courseResult.rows[0];
-//     if (!course) return res.status(404).send("Course not found");
-
-//     const modulesResult = await pool.query("SELECT * FROM modules WHERE course_id = $1", [courseId]);
-//     const modules = modulesResult.rows;
-
-//     let assignmentsQuery = `
-//       SELECT a.*, m.title AS module_title
-//       FROM module_assignments a
-//       LEFT JOIN modules m ON a.module_id = m.id
-//       WHERE
-//         (m.course_id = $1)
-//         OR (a.course_id = $1)
-//     `;
-//     const queryParams = [courseId];
-
-//     if (selectedModuleId !== "all") {
-//       assignmentsQuery += " AND m.id = $2";
-//       queryParams.push(selectedModuleId);
-//     }
-
-//     const assignmentsResult = await pool.query(assignmentsQuery, queryParams);
-//     const assignments = assignmentsResult.rows;
-
-//     res.render("admin/singleCourse", {
-//       course,
-//       modules,
-//       assignments,
-//       selectedModuleId,
-//       activeTab
-//     });
-//   } catch (err) {
-//     console.error("Error loading module assignments:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.viewCourseWithAssignments = async (req, res) => {
-//   try {
-//     const modulesRes = await pool.query(`
-//       SELECT m.*, c.title AS course_title
-//       FROM modules m
-//       JOIN courses c ON m.course_id = c.id
-//       ORDER BY c.title, m.title
-//     `);
-
-//     const selectedModuleId = req.query.module || null;
-//     let assignments = [];
-
-//     if (selectedModuleId) {
-//       const assignmentRes = await pool.query(
-//         `SELECT * FROM module_assignments WHERE module_id = $1 ORDER BY id DESC`,
-//         [selectedModuleId]
-//       );
-//       assignments = assignmentRes.rows;
-//     }
-
-//     res.render("admin/singleCourse", {
-//       modules: modulesRes.rows,
-//       assignments,
-//       selectedModuleId,
-//     });
-//   } catch (err) {
-//     console.error("Get Lessons Error:", err.message);
-//     res.status(500).send("Server Error");
-//   }
-// };
-
 exports.viewCourseWithAssignments = async (req, res) => {
   const courseId = req.params.id;
   const activeTab = req.query.tab || "assignment";
@@ -651,73 +551,6 @@ exports.viewCourseWithAssignments = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
-
-// exports.createAssignment = async (req, res) => {
-//   const { title, instructions, lesson_id, module_id, course_id } = req.body;
-//   try {
-//     let field, id;
-//     if (lesson_id) {
-//       field = "lesson_id";
-//       id = lesson_id;
-//     } else if (module_id) {
-//       field = "module_id";
-//       id = module_id;
-//     } else if (course_id) {
-//       field = "course_id";
-//       id = course_id;
-//     }
-
-//     const result = await pool.query(
-//       `INSERT INTO module_assignments (title, instructions, ${field}) VALUES ($1, $2, $3) RETURNING *`,
-//       [title, instructions, id]
-//     );
-
-//     // Add module_title before sending back
-//     const mod = await pool.query(`SELECT title FROM modules WHERE id = $1`, [
-//       module_id,
-//     ]);
-//     result.rows[0].module_title = mod.rows.length ? mod.rows[0].title : "";
-//     if (req.xhr) {
-//       res.json(result.rows[0]);
-//     } else {
-//       res.redirect(`/admin/courses/${course_id}?tab=assignment`);
-//     }
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
-// exports.editAssignment = async (req, res) => {
-//   const { id } = req.params;
-//   const { title, instructions } = req.body;
-//   try {
-//     const result = await pool.query(
-//       "UPDATE module_assignments SET title = $1, instructions = $2 WHERE id = $3 RETURNING *",
-//       [title, instructions, id]
-//     );
-//     if (req.xhr) {
-//       res.json(result.rows[0]);
-//     } else {
-//       res.redirect(`/admin/courses/${course_id}?tab=assignment`);
-//     }
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
-// exports.deleteAssignment = async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     await pool.query("DELETE FROM module_assignments WHERE id = $1", [id]);
-//     res.json({ success: true });
-//     res.redirect(`/admin/courses/${course_id}?tab=assignment`);
-//   } catch (err) {
-//     console.error("Error deleting assignment:", err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
 
 // Helper to detect AJAX/fetch requests
 function isAjax(req) {
@@ -797,25 +630,6 @@ exports.editAssignment = async (req, res) => {
   }
 };
 
-// DELETE
-// exports.deleteAssignment = async (req, res) => {
-//   const { id } = req.params;
-//   const { course_id } = req.body;
-
-//   try {
-//     await pool.query("DELETE FROM module_assignments WHERE id = $1", [id]);
-
-//     if (isAjax(req)) {
-//       return res.json({ success: true });
-//     } else {
-//       return res.redirect(`/admin/courses/${course_id}?tab=assignment`);
-//     }
-//   } catch (err) {
-//     console.error("Error deleting assignment:", err);
-//     return res.status(500).json({ error: "Server error" });
-//   }
-// };
-
 exports.deleteAssignment = async (req, res) => {
   const { id } = req.params;
   try {
@@ -828,35 +642,6 @@ exports.deleteAssignment = async (req, res) => {
 };
 
 // -------------------- PROJECTS --------------------
-// exports.createProject = async (req, res) => {
-//   const { title, description, course_id } = req.body;
-//   try {
-//     await pool.query(
-//       "INSERT INTO projects (title, description, course_id) VALUES ($1, $2, $3)",
-//       [title, description, course_id]
-//     );
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error creating project:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.editProject = async (req, res) => {
-//   const { id } = req.params;
-//   const { title, description } = req.body;
-//   try {
-//     await pool.query(
-//       "UPDATE projects SET title = $1, description = $2 WHERE id = $3",
-//       [title, description, id]
-//     );
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error editing project:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
 exports.createProject = async (req, res) => {
   const { id } = req.params; // ✅ from URL (not body)
   const { title, description } = req.body;
@@ -873,24 +658,6 @@ exports.createProject = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
-
-
-// exports.editProject = async (req, res) => {
-//   const { id } = req.params;
-//   const { title, description, course_id } = req.body;
-
-//   try {
-//     await pool.query(
-//       "UPDATE course_projects SET title = $1, description = $2 WHERE id = $3",
-//       [title, description, id]
-//     );
-
-//     res.redirect(`/admin/courses/${course_id}?tab=project`);
-//   } catch (err) {
-//     console.error("❌ Error editing project:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
 
 // editProject
 exports.editProject = async (req, res) => {
@@ -920,18 +687,6 @@ exports.deleteProject = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
-
-
-// exports.deleteProject = async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     await pool.query("DELETE FROM projects WHERE id = $1", [id]);
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error deleting project:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
 
 // SINGLE COURSE PAGE
 exports.getSingleCourse = async (req, res) => {
@@ -976,114 +731,7 @@ exports.getSingleCourse = async (req, res) => {
   });
 };
 
-// exports.viewSingleCourse = async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const courseResult = await pool.query(
-//       "SELECT * FROM courses WHERE id = $1",
-//       [id]
-//     );
-//     const course = courseResult.rows[0];
-
-//     if (!course) {
-//       return res.status(404).send("Course not found");
-//     }
-
-//     const modules = await pool.query(
-//       "SELECT * FROM modules WHERE course_id = $1 ORDER BY sort_order ASC",
-//       [id]
-//     );
-//     const assignments = await pool.query(
-//       "SELECT * FROM assignments WHERE course_id = $1",
-//       [id]
-//     );
-//     const projects = await pool.query(
-//       "SELECT * FROM projects WHERE course_id = $1",
-//       [id]
-//     );
-
-//     // Render the single course page
-//     res.render("admin/singleCourse", {
-//       course,
-//       modules: modules.rows,
-//       assignments: assignments.rows,
-//       projects: projects.rows,
-//     });
-//   } catch (err) {
-//     console.error("Error loading course:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.viewSingleCourse = async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const courseResult = await pool.query(
-//       "SELECT * FROM courses WHERE id = $1",
-//       [id]
-//     );
-//     const course = courseResult.rows[0];
-
-//     if (!course) {
-//       return res.status(404).send("Course not found");
-//     }
-
-//     const modulesResult = await pool.query(
-//       "SELECT * FROM modules WHERE course_id = $1",
-//       [id]
-//     );
-
-//     const lessonsResult = await pool.query(
-//       `
-//       SELECT l.*, m.title AS module_title
-//       FROM lessons l
-//       JOIN modules m ON l.module_id = m.id
-//       WHERE m.course_id = $1`,
-//       [id]
-//     );
-
-//     const assignmentsResult = await pool.query(
-//       "SELECT * FROM module_assignments WHERE course_id = $1",
-//       [id]
-//       );
-
-//       const miniAssignmentsResult = await pool.query(
-//         "SELECT * FROM lesson_assignments WHERE course_id = $1",
-//         [id]
-//       );
-
-//     const projectsResult = await pool.query(
-//       "SELECT * FROM course_projects WHERE course_id = $1",
-//       [id]
-//     );
-
-//     const quizzesResult = await pool.query(
-//       `
-//       SELECT q.*, l.title AS lesson_title
-//       FROM quizzes q
-//       JOIN lessons l ON q.lesson_id = l.id
-//       WHERE l.module_id IN (SELECT id FROM modules WHERE course_id = $1)
-//     `,
-//       [id]
-//     );
-
-//     res.render("admin/singleCourse", {
-//       course,
-//       modules: modulesResult.rows,
-//       lessons: lessonsResult.rows,
-//       assignments: assignmentsResult.rows,
-//       miniassignments: miniAssignmentsResult.rows,
-//       projects: projectsResult.rows,
-//       quiz: quizzesResult.rows,
-//       activeTab: req.query.tab || "details",
-//     });
-//   } catch (err) {
-//     console.error("Error loading course:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
+// VIEW SINGLE COURSE WITH FILTERS
 exports.viewSingleCourse = async (req, res) => {
   const { id } = req.params;
   const selectedModuleId = req.query.module || "all"; // ✅ define it here
@@ -1201,73 +849,6 @@ async function ensureQuizForLesson(lessonId) {
   );
   return created.rows[0].id;
 }
-
-// POST /admin/lessons/:lessonId/quiz/ai-generate
-// exports.aiGenerateQuizForLesson = async (req, res) => {
-//   try {
-//     const { lessonId } = req.params;
-//     const { numQuestions = 5, difficulty = "mixed" } = req.body;
-
-//     const lq = await pool.query(
-//       `SELECT title, content FROM lessons WHERE id = $1 LIMIT 1`,
-//       [lessonId]
-//     );
-//     if (!lq.rows[0]) return res.status(404).send("Lesson not found");
-
-//     const prompt = `
-// Generate ${numQuestions} quiz questions from this lesson.
-// Return STRICT JSON with:
-// [
-//   {
-//     "question": "...",
-//     "question_type": "multiple_choice" | "short_answer",
-//     "options": ["A","B","C","D"] // required if multiple_choice
-//     "correct_option": "A" // exact matching string
-//     "explanation": "why the answer is correct" // brief
-//   },
-//   ...
-// ]
-
-// Difficulty: ${difficulty}
-// Lesson Title: ${lq.rows[0].title}
-// Lesson Content:
-// ${lq.rows[0].content || ""}
-// `;
-
-//     const raw = await askTutor({ question: prompt, lessonContext: "", userName: "Admin" });
-
-//     // Parse JSON safely
-//     let items = [];
-//     try {
-//       items = JSON.parse(raw);
-//     } catch {
-//       // Try to strip code fences or extra text
-//       const m = raw.match(/\[[\s\S]*\]/);
-//       items = m ? JSON.parse(m[0]) : [];
-//     }
-
-//     if (!Array.isArray(items) || items.length === 0) {
-//       return res.status(400).send("AI did not return valid questions.");
-//     }
-
-//     const quizId = await ensureQuizForLesson(lessonId);
-
-//     for (const it of items) {
-//       const type = it.question_type === "short_answer" ? "short_answer" : "multiple_choice";
-//       const options = type === "multiple_choice" ? it.options || [] : [];
-//       await pool.query(
-//         `INSERT INTO quiz_questions (quiz_id, question, question_type, options, correct_option, explanation)
-//          VALUES ($1,$2,$3,$4,$5,$6)`,
-//         [quizId, it.question, type, JSON.stringify(options), it.correct_option || "", it.explanation || null]
-//       );
-//     }
-
-//     res.redirect(`/admin/lesson/${lessonId}/quiz?generated=1`);
-//   } catch (e) {
-//     console.error("AI quiz generate error:", e.message);
-//     res.status(500).send("Failed to generate quiz.");
-//   }
-// };
 
 exports.aiGenerateQuizForLesson = async (req, res) => {
   try {

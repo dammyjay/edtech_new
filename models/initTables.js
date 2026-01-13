@@ -644,6 +644,32 @@ async function createTables() {
 
       `);
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS academic_terms (
+          id SERIAL PRIMARY KEY,
+          school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+          name TEXT NOT NULL, -- e.g. "2024/2025 - Term 1"
+          start_date DATE,
+          end_date DATE,
+          is_active BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+
+        `)
+
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS student_term_enrollments (
+            id SERIAL PRIMARY KEY,
+            student_id INT REFERENCES users2(id) ON DELETE CASCADE,
+            school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+            term_id INT REFERENCES academic_terms(id) ON DELETE CASCADE,
+            classroom_id INT REFERENCES classrooms(id),
+            enrolled_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(student_id, term_id)
+          );
+
+          `)
+
     await pool.query(`
         CREATE TABLE IF NOT EXISTS activities (
           id SERIAL PRIMARY KEY,

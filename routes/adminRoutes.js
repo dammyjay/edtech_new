@@ -268,18 +268,6 @@ router.post(
   learningController.updateCourse
 );
 
-
-// router.post(
-//   "/modules/create",
-//   upload.single("thumbnail"),
-//   learningController.createModule
-// );
-// router.post(
-//   "/modules/edit/:id",
-//   upload.single("thumbnail"),
-//   learningController.editModule
-// );
-
 // For multiple files (thumbnail + badge)
 router.post(
   "/modules/create",
@@ -304,11 +292,6 @@ router.post("/modules/delete/:id", learningController.deleteModule);
 
 router.post("/lessons/create", upload.none(), learningController.createLesson);
 
-// router.post(
-//   "/lessons/create",
-//   lessonUpload.single("lessonFile"), // ⬅ must match the input name
-//   learningController.createLesson
-// );
 router.post("/lessons/:id/edit", upload.none(), learningController.editLesson);
 router.post("/lessons/:id/delete", learningController.deleteLesson);
 router.get("/lessons/:id/json", learningController.getLessonJSON);
@@ -445,15 +428,14 @@ router.post("/quotes/:id/reject", adminController.rejectQuote);
 router.post("/schools/:schoolId/users", upload.single("profile_picture"), adminController.addUserToSchool);
 router.put("/schools/:schoolId/users/:userId", upload.single("profile_picture"), adminController.updateUserInSchool);
 router.delete("/schools/:schoolId/users/:userId", adminController.deleteUserFromSchool);
+router.post("/terms/create", adminController.createTerm);
+router.get("/terms/:termId/students", adminController.getTermStudents);
+router.post(
+  "/terms/assign-students",
+  adminController.assignStudentsToTerm
+);
+
 router.get("/classrooms/:id/students", adminController.getClassroomStudents);
-
-
-// Assign multiple students to a classroom
-// router.post(
-//   "/classrooms/:id/add-students",
-//   adminController.addStudentsToClassroom
-// );
-
 router.post("/classrooms/:id/assign", adminController.assignUsersToClassroom);
 
 router.post(

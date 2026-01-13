@@ -3603,6 +3603,24 @@ exports.getSchoolDetails = async (req, res) => {
       [id]
     );
 
+    // Fetch terms with students
+    const termsResult = await pool.query(`
+      SELECT 
+        t.id AS term_id,
+        t.name AS term_name,
+        t.start_date,
+        t.end_date,
+        COUNT(ts.student_id) AS student_count
+      FROM academic_terms t
+      LEFT JOIN student_term_enrollments ts ON ts.term_id = t.id
+      WHERE t.school_id = $1
+      GROUP BY t.id
+      ORDER BY t.created_at DESC
+    `, [id]);
+
+    school.terms = termsResult.rows;
+
+
     // Fetch quotes
     const quotesResult = await pool.query(
       `SELECT * FROM quotes WHERE school_id = $1 ORDER BY created_at DESC`,
@@ -4544,95 +4562,6 @@ exports.deleteUserFromSchool = async (req, res) => {
   }
 };
 
-// exports.addStudentsToClassroom = async (req, res) => {
-//   const classroomId = parseInt(req.params.id, 10);
-//   console.log("DEBUG classroomId:", classroomId);
-//   let { student_ids } = req.body;
-//    console.log("DEBUG raw student_ids:", student_ids);
-//   try {
-//     if (!student_ids) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "No students selected." });
-//     }
-
-//     if (!Array.isArray(student_ids)) {
-//       student_ids = [student_ids];
-//     }
-
-//     // Convert to integers properly
-//     student_ids = student_ids
-//       .map((id) => parseInt(id, 10))
-//       .filter((id) => !isNaN(id));
-
-//     if (student_ids.length === 0) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "No valid students selected." });
-//     }
-
-//     // ✅ Always fetch schoolId from classroom (not session)
-//     const schoolResult = await pool.query(
-//       `SELECT school_id FROM classrooms WHERE id = $1`,
-//       [classroomId]
-//     );
-//     const schoolId = schoolResult.rows[0]?.school_id; // 👈 not whole row
-
-//     console.log("DEBUG schoolId:", schoolId);
-
-//     if (!schoolId) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Classroom not found in any school.",
-//       });
-//     }
-
-//     // ✅ Only query students AFTER validation
-//     const studentResult = await pool.query(
-//       `SELECT u.id, u.fullname, u.email
-//        FROM users2 u
-//        JOIN user_school us ON u.id = us.user_id
-//        WHERE u.id = ANY($1::int[])
-//          AND us.school_id = $2
-//          AND us.role_in_school = 'student'`,
-//       [student_ids, schoolId]
-//     );
-
-//     console.log("DEBUG student_ids:", student_ids);
-
-//     console.log("DEBUG found students:", studentResult.rows);
-
-//     if (studentResult.rows.length === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "No valid students found in this school.",
-//       });
-//     }
-
-//     // ✅ Assign students
-//     await pool.query(
-//       `UPDATE user_school
-//        SET classroom_id = $1
-//        WHERE user_id = ANY($2::int[])
-//          AND school_id = $3
-//          AND role_in_school = 'student'`,
-//       [classroomId, student_ids, schoolId]
-//     );
-
-//     return res.json({
-//       success: true,
-//       message: "Students assigned successfully",
-//       students: studentResult.rows,
-//     });
-//   } catch (err) {
-//     console.error("Error assigning students to classroom:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Server error while assigning students",
-//     });
-//   }
-// };
-
 exports.addStudentsToClassroom = async (req, res) => {
   const classroomId = parseInt(req.params.id, 10);
   let { student_ids } = req.body;
@@ -4722,104 +4651,6 @@ exports.addStudentsToClassroom = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-// exports.assignUsersToClassroom = async (req, res) => {
-//   const classroomId = parseInt(req.params.id, 10);
-//   let { user_ids, role } = req.body;
-
-//   if (!user_ids) {
-//     return res
-//       .status(400)
-//       .json({ success: false, message: "No users selected." });
-//   }
-
-//   if (!Array.isArray(user_ids)) user_ids = [user_ids];
-//   user_ids = user_ids.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id));
-
-//   if (user_ids.length === 0) {
-//     return res
-//       .status(400)
-//       .json({ success: false, message: "No valid users selected." });
-//   }
-
-//   try {
-//     // Get school id
-//     const schoolResult = await pool.query(
-//       `SELECT school_id FROM classrooms WHERE id = $1`,
-//       [classroomId]
-//     );
-//     const schoolId = schoolResult.rows[0]?.school_id;
-//     if (!schoolId) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Classroom not found" });
-//     }
-
-//     // Verify users belong to school & role
-//     const userResult = await pool.query(
-//       `SELECT u.id, u.fullname, u.email
-//        FROM users2 u
-//        JOIN user_school us ON u.id = us.user_id
-//        WHERE u.id = ANY($1::int[])
-//          AND us.school_id = $2
-//          AND us.role_in_school = $3`,
-//       [user_ids, schoolId, role]
-//     );
-
-//     if (userResult.rows.length === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         message: `No valid ${role}s found in this school.`,
-//       });
-//     }
-
-//     // Assign to classroom
-//     await pool.query(
-//       `UPDATE user_school
-//        SET classroom_id = $1
-//        WHERE user_id = ANY($2::int[])
-//          AND school_id = $3
-//          AND role_in_school = $4`,
-//       [classroomId, user_ids, schoolId, role]
-//     );
-
-//     // Return updated classroom counts
-//     const classCounts = await pool.query(
-//       `SELECT
-//          COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN us.user_id END) AS student_count,
-//          COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' THEN us.user_id END) AS teacher_count
-//        FROM user_school us
-//        WHERE us.classroom_id = $1 AND us.school_id = $2`,
-//       [classroomId, schoolId]
-//     );
-
-//     // Fetch unassigned users of this role
-//     const unassignedResult = await pool.query(
-//       `SELECT u.id, u.fullname, u.email
-//        FROM users2 u
-//        JOIN user_school us ON u.id = us.user_id
-//        WHERE us.school_id = $1
-//          AND us.role_in_school = $2
-//          AND us.classroom_id IS NULL
-//        ORDER BY u.fullname`,
-//       [schoolId, role]
-//     );
-
-//     return res.json({
-//       success: true,
-//       message: `${role}s assigned successfully`,
-//       assigned: userResult.rows.map((r) => ({
-//         ...r,
-//         classroom_id: classroomId,
-//       })),
-//       unassigned: unassignedResult.rows,
-//       counts: classCounts.rows[0], // ✅ student_count + teacher_count
-//     });
-//   } catch (err) {
-//     console.error(`Error assigning ${role}s to classroom:`, err);
-//     return res.status(500).json({ success: false, message: "Server error" });
-//   }
-// };
 
 exports.assignUsersToClassroom = async (req, res) => {
   const classroomId = parseInt(req.params.id, 10);
@@ -4942,6 +4773,86 @@ exports.assignUsersToClassroom = async (req, res) => {
   } catch (err) {
     console.error(`Error assigning ${role}s to classroom:`, err);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.createTerm = async (req, res) => {
+  try {
+    const { school_id, name, start_date, end_date } = req.body;
+
+    // Make all other terms inactive for this school
+    await pool.query(
+      "UPDATE academic_terms SET is_active = false WHERE school_id = $1",
+      [school_id]
+    );
+
+    // Create new active term
+    await pool.query(
+      `INSERT INTO academic_terms 
+       (school_id, name, start_date, end_date, is_active)
+       VALUES ($1, $2, $3, $4, true)`,
+      [school_id, name, start_date, end_date]
+    );
+
+    res.redirect("/admin/schools/:id");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error creating term");
+  }
+};
+
+exports.getTermStudents = async (req, res) => {
+  const { termId } = req.params;
+
+  const result = await pool.query(`
+    SELECT 
+      u.id,
+      u.fullname,
+      u.email,
+      c.name AS classroom
+    FROM student_term_enrollments ts
+    JOIN users2 u ON ts.student_id = u.id
+    LEFT JOIN classrooms c ON ts.classroom_id = c.id
+    WHERE ts.term_id = $1
+    ORDER BY u.fullname
+  `, [termId]);
+
+  res.json(result.rows);
+};
+
+
+exports.assignStudentsToTerm = async (req, res) => {
+  try {
+    const { school_id, classroom_id, student_ids } = req.body;
+
+    // 1️⃣ Get active term
+    const termRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true",
+      [school_id]
+    );
+
+    if (!termRes.rows.length) {
+      return res.status(400).send("No active term for this school");
+    }
+
+    const term_id = termRes.rows[0].id;
+
+    // 2️⃣ Assign each student
+    for (const student_id of student_ids) {
+      await pool.query(
+        `INSERT INTO student_term_enrollments
+         (student_id, school_id, term_id, classroom_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (student_id, term_id) DO UPDATE
+         SET classroom_id = EXCLUDED.classroom_id`,
+        [student_id, school_id, term_id, classroom_id]
+      );
+    }
+
+    res.redirect("/admin/schools/:id");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error assigning students");
   }
 };
 
