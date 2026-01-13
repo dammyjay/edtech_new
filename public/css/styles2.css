@@ -1084,6 +1084,89 @@ canvas {
     margin-bottom: 10px;
 }
 
+/* ===== FEEDBACK CARDS ===== */
+.feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.feedback-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-card .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feedback-card .type {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.feedback-card .rating {
+  font-weight: bold;
+}
+
+.feedback-card .message {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.4;
+  max-height: 70px;
+  overflow: hidden;
+}
+
+.feedback-card .meta {
+  font-size: 12px;
+  color: #777;
+}
+
+.feedback-card .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.feedback-card button {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.view-btn {
+  background: #17a2b8;
+  color: #fff;
+}
+
+.publish-btn {
+  background: #28a745;
+  color: #fff;
+}
+
+.publish-btn.unpublish {
+  background: #6c757d;
+}
+
+.delete-btn {
+  background: #dc3545;
+  color: #fff;
+}
+
+
 .course-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

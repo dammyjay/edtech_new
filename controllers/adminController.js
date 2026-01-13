@@ -1303,23 +1303,6 @@ exports.viewFeedback = async (req, res) => {
   }
 };
 
-// Admin JSON API
-// exports.getFeedbackAPI = async (req, res) => {
-//   try {
-//     const feedbackResult = await pool.query(
-//       "SELECT * FROM feedback ORDER BY created_at DESC"
-//     );
-
-//     const infoResult = await pool.query(
-//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//     );
-//     res.json({ feedback: feedbackResult.rows, info: infoResult.rows[0] });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
 // GET /admin/feedback/api
 exports.getFeedbackAPI = async (req, res) => {
   try {

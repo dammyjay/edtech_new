@@ -10,6 +10,219 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.2/wordcloud2.min.js"></script>
 
   <style>
+    /* ===== GRID RESPONSIVE ===== */
+    .feedback-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    /* Mobile: single column */
+    @media (max-width: 600px) {
+      .feedback-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== CARD ===== */
+    .feedback-card {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: fadeInUp 0.4s ease;
+    }
+
+    .feedback-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 25px rgba(0,0,0,0.12);
+    }
+
+    /* ===== PINNED ===== */
+    .feedback-card.pinned {
+      border: 2px solid #ffc107;
+    }
+
+    .pinned-label {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #ffc107;
+      color: #000;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+
+    /* ===== HEADER ===== */
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ===== USER TYPE BADGES ===== */
+    .badge {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 20px;
+      font-weight: bold;
+      color: white;
+      text-transform: uppercase;
+    }
+
+    .badge.student { background:#007bff; }
+    .badge.teacher { background:#28a745; }
+    .badge.parent { background:#17a2b8; }
+    .badge.school_owner { background:#6f42c1; }
+    .badge.organization { background:#fd7e14; }
+
+    /* ===== STAR RATING ===== */
+    .stars {
+      color: #ffc107;
+      font-size: 15px;
+    }
+
+    /* ===== MESSAGE PREVIEW ===== */
+    .message {
+      font-size: 14px;
+      color: #444;
+      line-height: 1.45;
+      max-height: 60px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    /* Expand on hover */
+    .feedback-card:hover .message {
+      max-height: 300px;
+    }
+
+    /* ===== SENTIMENT ===== */
+    .sentiment {
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .sentiment.positive { color:#28a745; }
+    .sentiment.neutral { color:#6c757d; }
+    .sentiment.negative { color:#dc3545; }
+
+    /* ===== ACTIONS ===== */
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: auto;
+    }
+
+    .actions button {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .view-btn { background:#17a2b8; color:white; }
+    .publish-btn { background:#28a745; color:white; }
+    .publish-btn.unpublish { background:#6c757d; }
+    .delete-btn { background:#dc3545; color:white; }
+
+    /* ===== ANIMATION ===== */
+    @keyframes fadeInUp {
+      from { opacity:0; transform: translateY(20px); }
+      to { opacity:1; transform: translateY(0); }
+    }
+
+    .feedback-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .feedback-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feedback-card .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .feedback-card .type {
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    .feedback-card .rating {
+      font-weight: bold;
+    }
+
+    .feedback-card .message {
+      font-size: 14px;
+      color: #444;
+      line-height: 1.4;
+      max-height: 70px;
+      overflow: hidden;
+    }
+
+    .feedback-card .meta {
+      font-size: 12px;
+      color: #777;
+    }
+
+    .feedback-card .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: auto;
+    }
+
+    .feedback-card button {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .view-btn {
+      background: #17a2b8;
+      color: #fff;
+    }
+
+    .publish-btn {
+      background: #28a745;
+      color: #fff;
+    }
+
+    .publish-btn.unpublish {
+      background: #6c757d;
+    }
+
+    .delete-btn {
+      background: #dc3545;
+      color: #fff;
+    }
+
     .stat-box {
       background: white;
       padding: 20px;
@@ -174,7 +387,11 @@
   <canvas id="wordCloudCanvas" width="500" height="230"></canvas>
 
   <!-- TABLE -->
-  <div id="feedbackTableWrap" class="table-responsive" style="margin-top:20px;"></div>
+  <!-- <div id="feedbackTableWrap" class="table-responsive" style="margin-top:20px;"></div> -->
+
+  <!-- Feedback Grid -->
+   <div id="feedbackCardsWrap" class="feedback-grid"></div>
+
 
   <!-- PAGINATION -->
   <div id="pagination" style="margin-top:20px;"></div>
@@ -210,7 +427,9 @@ async function loadFeedback() {
   });
 
   const data = await fetchJSON(`/admin/feedback/api?${qs}`);
-  renderTable(data.rows);
+  // renderTable(data.rows);
+  renderCards(data.rows);
+
   renderPagination(data.total, data.page);
   renderWordCloud(data.rows);
 }
@@ -222,11 +441,12 @@ async function loadFeedback() {
 //       <thead>
 //         <tr>
 //           <th>Type</th><th>Name</th><th>Email</th><th>Rating</th>
-//           <th>Sentiment</th><th>Date</th><th>Action</th>
+//           <th>Sentiment</th><th>Feedback</><th>Published</><th>Date</th><th>Action</th>
 //         </tr>
 //       </thead>
 //       <tbody>
 //   `;
+
 //   rows.forEach(r=>{
 //     html += `
 //       <tr>
@@ -235,109 +455,167 @@ async function loadFeedback() {
 //         <td>${r.email || ""}</td>
 //         <td>${r.rating || "—"}</td>
 //         <td>${r.sentiment_label || "—"}</td>
+//         <td>${r.message}</td>
+//         <td>${r.is_published}</td>
 //         <td>${new Date(r.created_at).toLocaleString()}</td>
-//         <td><button class="view-btn" data-id="${r.id}">View</button></td>
+//         <td>
+//           <button class="view-btn" data-id="${r.id}">View</button>
+
+//           <button class="publish-btn" data-id="${r.id}" data-status="${r.is_published}">
+//             ${r.is_published ? "Unpublish" : "Publish"}
+//           </button>
+
+//           <button class="delete-btn" data-id="${r.id}" style="background:#d9534f;color:white;">
+//             Delete
+//           </button>
+//         </td>
+
 //       </tr>`;
 //   });
 
 //   html += "</tbody></table>";
 //   feedbackTableWrap.innerHTML = html;
 
+//   // ADD EVENT LISTENER HERE
 //   document.querySelectorAll(".view-btn").forEach(btn => {
-//   btn.addEventListener("click", () => {
-//     openFeedbackModal(btn.dataset.id);
+//     btn.addEventListener("click", () => {
+//       openFeedbackModal(btn.dataset.id);
+//     });
+//   });
+
+//   document.querySelectorAll(".publish-btn").forEach(btn => {
+//   btn.addEventListener("click", async () => {
+//     const id = btn.dataset.id;
+//     const newStatus = btn.dataset.status === "true" ? false : true;
+
+//     await fetch(`/admin/feedback/publish/${id}`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ status: newStatus })
+//     });
+
+//     loadFeedback(); // refresh table
 //   });
 // });
 
-// window.addEventListener('click', (e)=>{
-//   if(e.target === feedbackModal){
-//     closeFeedbackModal();
-//   }
-// });
+// document.querySelectorAll(".delete-btn").forEach(btn => {
+//   btn.addEventListener("click", async () => {
+//     if (!confirm("Are you sure you want to delete this feedback?")) return;
 
+//     await fetch(`/admin/feedback/delete/${btn.dataset.id}`, {
+//       method: "DELETE"
+//     });
+
+//     loadFeedback(); // refresh table
+//   });
+// });
+//   window.addEventListener('click', (e)=>{
+//     if(e.target === feedbackModal){
+//       closeFeedbackModal();
+//     }
+//   });
 // }
 
-function renderTable(rows){
-  let html = `
-    <table class="user-table">
-      <thead>
-        <tr>
-          <th>Type</th><th>Name</th><th>Email</th><th>Rating</th>
-          <th>Sentiment</th><th>Feedback</><th>Published</><th>Date</th><th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+// ===== CARD RENDERING =====
+function renderStars(rating = 0) {
+  let stars = "";
+  for (let i = 1; i <= 5; i++) {
+    stars += i <= rating ? "★" : "☆";
+  }
+  return stars;
+}
 
-  rows.forEach(r=>{
+function sentimentClass(label = "") {
+  if (label === "positive") return "positive";
+  if (label === "negative") return "negative";
+  return "neutral";
+}
+
+function renderCards(rows) {
+  let html = "";
+
+  rows.forEach(r => {
     html += `
-      <tr>
-        <td>${r.user_type}</td>
-        <td>${r.name}</td>
-        <td>${r.email || ""}</td>
-        <td>${r.rating || "—"}</td>
-        <td>${r.sentiment_label || "—"}</td>
-        <td>${r.message}</td>
-        <td>${r.is_published}</td>
-        <td>${new Date(r.created_at).toLocaleString()}</td>
-        <td>
+      <div class="feedback-card ${r.is_pinned ? "pinned" : ""}">
+        ${r.is_pinned ? `<div class="pinned-label">⭐ Featured</div>` : ""}
+
+        <div class="card-top">
+          <span class="badge ${r.user_type}">
+            ${r.user_type.replace("_", " ")}
+          </span>
+
+          <span class="stars">
+            ${renderStars(r.rating)}
+          </span>
+        </div>
+
+        <strong>${r.name}</strong>
+        <small>${r.email || "No email"}</small>
+
+        <div class="message">
+          ${r.message}
+        </div>
+
+        <div class="sentiment ${sentimentClass(r.sentiment_label)}">
+          ${r.sentiment_label || "neutral"} (${r.sentiment_score || 0})
+        </div>
+
+        <small>
+          ${new Date(r.created_at).toLocaleString()} • 
+          Published: ${r.is_published ? "Yes" : "No"}
+        </small>
+
+        <div class="actions">
           <button class="view-btn" data-id="${r.id}">View</button>
 
-          <button class="publish-btn" data-id="${r.id}" data-status="${r.is_published}">
+          <button class="publish-btn ${r.is_published ? "unpublish" : ""}"
+            data-id="${r.id}"
+            data-status="${r.is_published}">
             ${r.is_published ? "Unpublish" : "Publish"}
           </button>
 
-          <button class="delete-btn" data-id="${r.id}" style="background:#d9534f;color:white;">
+          <button class="delete-btn" data-id="${r.id}">
             Delete
           </button>
-        </td>
-
-      </tr>`;
+        </div>
+      </div>
+    `;
   });
 
-  html += "</tbody></table>";
-  feedbackTableWrap.innerHTML = html;
+  feedbackCardsWrap.innerHTML = html;
 
-  // ADD EVENT LISTENER HERE
+  // EVENTS
   document.querySelectorAll(".view-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      openFeedbackModal(btn.dataset.id);
-    });
+    btn.onclick = () => openFeedbackModal(btn.dataset.id);
   });
 
   document.querySelectorAll(".publish-btn").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const id = btn.dataset.id;
-    const newStatus = btn.dataset.status === "true" ? false : true;
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const newStatus = btn.dataset.status === "true" ? false : true;
 
-    await fetch(`/admin/feedback/publish/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus })
-    });
+      await fetch(`/admin/feedback/publish/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
 
-    loadFeedback(); // refresh table
+      loadFeedback();
+    };
   });
-});
 
-document.querySelectorAll(".delete-btn").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    if (!confirm("Are you sure you want to delete this feedback?")) return;
+  document.querySelectorAll(".delete-btn").forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm("Delete this feedback?")) return;
 
-    await fetch(`/admin/feedback/delete/${btn.dataset.id}`, {
-      method: "DELETE"
-    });
+      await fetch(`/admin/feedback/delete/${btn.dataset.id}`, {
+        method: "DELETE"
+      });
 
-    loadFeedback(); // refresh table
-  });
-});
-  window.addEventListener('click', (e)=>{
-    if(e.target === feedbackModal){
-      closeFeedbackModal();
-    }
+      loadFeedback();
+    };
   });
 }
-
 
 // ===== PAGINATION =====
 function renderPagination(total, page){

@@ -108,7 +108,9 @@ async function createTables() {
         instructor_id INT REFERENCES users(id), 
         created_at TIMESTAMP DEFAULT NOW(),
         curriculum_url TEXT
-      );`
+      );
+      
+      `
     );
 
     // table for transactions
@@ -216,6 +218,8 @@ async function createTables() {
         created_at TIMESTAMP DEFAULT NOW()
       );
       
+      ALTER TABLE feedback ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false;
+
      `);
 
     // table for faqs
