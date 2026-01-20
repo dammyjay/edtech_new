@@ -4069,7 +4069,6 @@ exports.downloadStudentLoginCards = async (req, res) => {
   }
 };
 
-
 exports.createClassroom = async (req, res) => {
   try {
     const { school_id, name, teacher_id } = req.body; // destructure first

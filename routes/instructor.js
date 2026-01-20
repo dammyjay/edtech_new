@@ -126,6 +126,28 @@ router.post("/chat/markRead/:receiverId", instructorController.markMessagesAsRea
 router.get("/search-student", instructorController.searchStudent);
 router.get("/messages/unread", instructorController.getUnreadMessages);
 
+// View course content (modules, lessons, quizzes)
+router.get(
+  "/courses/:courseId/learn",
+  instructorController.viewCourseAsStudent
+);
+
+// View enrolled students
+router.get(
+  "/courses/:courseId/students",
+  instructorController.viewStudentProgress
+);
+
+// router.get(
+//   "/lessons/:lessonId/preview",ensureInstructorOrAdmin,
+//   instructorController.previewLesson
+// );
+
+// router.get("/assignment/:assignId/preview", instructorController.previewAssignment);
+// router.get("/quiz/:quizId/preview", instructorController.previewQuiz);
+
+// Unified preview route
+router.get("/preview/:type/:id", instructorController.previewContent);
 
 
 // router.get("/chats", adminController.getInstructorChats);

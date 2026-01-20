@@ -158,30 +158,6 @@
     <% } %>
   </div>
 
-  <!-- 🎖️ Badges Section -->
-  <!-- <div class="badges-section">
-    <h3>🎖️ Badges Earned</h3>
-    <% if (badges && badges.length > 0) { %>
-      <div class="badges-grid">
-        <% badges.forEach(b => { %>
-          <div class="badge-card">
-            <div class="badge-icon">
-              <% if (b.badge_name === 'Beginner') { %> 🥉
-              <% } else if (b.badge_name === 'Intermediate') { %> 🥈
-              <% } else if (b.badge_name === 'Advanced') { %> 🥇
-              <% } else if (b.badge_name === 'Master') { %> 👑
-              <% } else { %> 🎖️
-              <% } %>
-            </div>
-            <p class="badge-name"><%= b.badge_name %></p>
-            <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
-          </div>
-        <% }) %>
-      </div>
-    <% } else { %>
-      <p class="no-badges">No badges earned yet. Keep learning! 🚀</p>
-    <% } %>
-  </div> -->
   <div class="badges-section">
   <h3>🎖️ Badges Earned</h3>
 
@@ -362,26 +338,7 @@
         <ul id="module-<%= module.id %>" class="lesson-list" style="display:none;">
           <% (moduleLessons[module.id] || []).forEach(lesson => { %>
             <li>
-              <!-- <button class="lesson-toggle no-bg" onclick="toggleLessonMenu(<%= lesson.id %>)">
-                📚 <%= lesson.title %> ▾
-              </button> -->
-              <!-- <button class="lesson-toggle no-bg" onclick="toggleLessonMenu(<%= lesson.id %>)">
-                <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
-              </button> -->
-
-              <!-- <button class="lesson-toggle no-bg"
-                      <%= lesson.unlocked ? "onclick='toggleLessonMenu(" + lesson.id + ")'" : "disabled style='opacity:0.5; cursor:not-allowed;'" %>>
-                <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
-              </button> -->
-
-              <!-- <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
-                <% /* Video */ %>
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
-                <% /* Lesson Note */ %>
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
-                <% /* Quiz */ %>
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
-              </ul> -->
+              
 
               <button class="lesson-toggle no-bg"
                       onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>)"
@@ -400,31 +357,6 @@
           <h3>Assignments</h3>
           <% (moduleAssignments[module.id] || []).forEach(assign => { %>
             <li>
-              <!-- <button class="no-bg" onclick="loadAssignment(<%= assign.id %>)">
-                📑 <%= assign.title %>
-              </button> -->
-              <!-- <button class="no-bg"
-                      <%= module.unlocked ? "onclick='loadAssignment(" + assign.id + ")'" : "disabled style='opacity:0.5; cursor:not-allowed;'" %>>
-                <%= module.unlocked ? "📑" : "🔒" %> <%= assign.title %>
-              </button> -->
-              <!-- <button 
-                class="no-bg"
-                data-id="<%= assign.id %>"
-                <%= assign.unlocked 
-                      ? 'onclick="loadAssignment(this.dataset.id)"' 
-                      : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
-                <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
-              </button> -->
-
-              <!-- <button 
-                class="no-bg"
-                data-id="<%= assign.id %>"
-                <%= assign.unlocked 
-                      ? 'onclick="loadAssignment(Number(this.dataset.id))"' 
-                      : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
-                <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
-              </button> -->
-
               <button 
                 class="no-bg assignment-btn"
                 data-id="<%= assign.id %>"
@@ -440,14 +372,6 @@
           <% }) %>
         </ul>
 
-        <!-- <h3>Assignments</h3>
-        <ul>
-          <% (moduleAssignments[module.id] || []).forEach(assign => { %>
-            <li onclick="loadAssignmentPart(<%= assign.id %>)">
-              📑 <%= assign.title %>
-            </li>
-          <% }) %>
-        </ul> -->
       </div>
     <% }) %>
   <% }) %>
@@ -582,30 +506,6 @@
         <p><%= certificatesCount %></p>
       </div>
     </section>
-
-    <!-- <section class="badges-section">
-      <h3>🏅 Your Badges</h3>
-      <% if (badges && badges.length > 0) { %>
-        <div class="badges-grid">
-          <% badges.forEach(b => { %>
-            <div class="badge-card">
-              <div class="badge-icon">
-                <% if (b.badge_name === 'Beginner') { %> 🥉
-                <% } else if (b.badge_name === 'Intermediate') { %> 🥈
-                <% } else if (b.badge_name === 'Advanced') { %> 🥇
-                <% } else if (b.badge_name === 'Master') { %> 👑
-                <% } else { %> 🎖️
-                <% } %>
-              </div>
-              <p class="badge-name"><%= b.badge_name %></p>
-              <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
-            </div>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <p>You haven’t earned any badges yet. Keep learning! 🚀</p>
-      <% } %>
-    </section> -->
 
     <!-- BADGE MODAL -->
 <div id="badgeModal" class="modal">

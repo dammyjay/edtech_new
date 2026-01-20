@@ -918,28 +918,6 @@ exports.updateXP = async (req, res) => {
   }
 };
 
-// POST: Award Badge
-// exports.awardBadge = async (req, res) => {
-//   const userId = req.user.id;
-//   const { badge_name } = req.body;
-
-//   try {
-//     await pool.query(
-//       `
-//       INSERT INTO user_badges (user_id, badge_name)
-//       VALUES ($1, $2)
-//       ON CONFLICT DO NOTHING
-//     `,
-//       [userId, badge_name]
-//     );
-
-//     res.json({ message: "Badge awarded successfully" });
-//   } catch (err) {
-//     console.error("Badge awarding error:", err.message);
-//     res.status(500).json({ error: "Server error awarding badge" });
-//   }
-// };
-
 exports.awardBadge = async (req, res) => {
   const userId = req.user.id;
   const { badge_name, module_id } = req.body; // pass module_id from frontend
@@ -967,156 +945,6 @@ exports.awardBadge = async (req, res) => {
     res.status(500).json({ error: "Server error awarding badge" });
   }
 };
-
-
-// POST: Mark lesson complete, award XP, and check for badge
-// exports.completeLesson = async (req, res) => {
-//   const userId = req.user.id;
-//   const lessonId = req.params.lessonId;
-
-//   try {
-//     // // 1. Mark lesson as completed (if not already)
-//     // await pool.query(
-//     //   `
-//     //   INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
-//     //   VALUES ($1, $2, NOW())
-//     //   ON CONFLICT DO NOTHING
-//     // `,
-//     //   [userId, lessonId]
-//     // );
-
-//     // 2. Award XP (say 10 XP per lesson)
-//     // const xpGained = 10;
-//     // const activity = `Completed lesson ${lessonId}`;
-//     // await pool.query(
-//     //   "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
-//     //   [xpGained, userId]
-//     // );
-
-//     // 3. Log XP history
-//     // await pool.query(
-//     //   `
-//     //   INSERT INTO xp_history (user_id, xp, activity)
-//     //   VALUES ($1, $2, $3)
-//     // `,
-//     //   [userId, xpGained, activity]
-//     // );
-
-//     // 4. Count total completed lessons
-//     // const result = await pool.query(
-//     //   `
-//     //   SELECT COUNT(*) FROM user_lesson_progress
-//     //   WHERE user_id = $1
-//     // `,
-//     //   [userId]
-//     // );
-
-//     const completedCount = parseInt(result.rows[0].count);
-
-//     // 5. Award badge based on threshold
-//     // const badgeThresholds = [
-//     //   { count: 5, name: "Beginner Streak" },
-//     //   { count: 10, name: "Learning Champ" },
-//     //   { count: 20, name: "Knowledge Seeker" },
-//     // ];
-
-//     // const badgeThresholds = [
-//     //   { count: 5, name: "Beginner Streak" },
-//     //   { count: 10, name: "Learning Champ" },
-//     //   { count: 20, name: "Knowledge Seeker" },
-//     //   { count: 50, name: "Master Learner" },
-//     //   { count: 100, name: "Legendary Scholar" },
-//     // ];
-
-
-//     // for (const badge of badgeThresholds) {
-//     //   if (completedCount >= badge.count) {
-//     //     await pool.query(
-//     //       `
-//     //       INSERT INTO user_badges (user_id, badge_name)
-//     //       VALUES ($1, $2)
-//     //       ON CONFLICT DO NOTHING
-//     //     `,
-//     //       [userId, badge.name]
-//     //     );
-//     //   }
-//     // }
-//     // res.json({ message: "Lesson completed, XP added, badge checked." });
-
-//     // await pool.query(
-//     //   `
-//     //     UPDATE course_enrollments
-//     //     SET progress = (
-//     //       SELECT ROUND(100.0 * COUNT(DISTINCT ul.lesson_id) / COUNT(l.id))
-//     //       FROM lessons l
-//     //       LEFT JOIN unlocked_lessons ul
-//     //       ON l.id = ul.lesson_id AND ul.student_id = $1
-//     //       WHERE l.module_id IN (
-//     //         SELECT id FROM modules WHERE course_id = (
-//     //           SELECT course_id FROM modules WHERE id = (
-//     //             SELECT module_id FROM lessons WHERE id = $2
-//     //           )
-//     //         )
-//     //       )
-//     //     )
-//     //     WHERE user_id = $1
-//     //     AND course_id = (SELECT course_id FROM modules WHERE id = (SELECT module_id FROM lessons WHERE id = $2))
-//     //   `,
-//     //   [userId, lessonId]
-//     // );
-
-//     await pool.query(
-//       `UPDATE course_enrollments
-//         SET progress = (
-//           SELECT ROUND(100.0 * COUNT(DISTINCT cl.lesson_id) / COUNT(l.id))
-//           FROM lessons l
-//           LEFT JOIN user_lesson_progress cl
-//             ON l.id = cl.lesson_id AND cl.user_id = $1
-//           WHERE l.module_id IN (
-//             SELECT id FROM modules WHERE course_id = (
-//               SELECT course_id FROM modules WHERE id = (
-//                 SELECT module_id FROM lessons WHERE id = $2
-//               )
-//             )
-//           )
-//         )
-//         WHERE user_id = $1
-//         AND course_id = (
-//           SELECT course_id FROM modules WHERE id = (SELECT module_id FROM lessons WHERE id = $2)
-//         )
-
-//       `
-//     );
-//     // After updating progress
-//     const certCheck = await pool.query(
-//       `
-//   SELECT progress, course_id FROM course_enrollments
-//   WHERE user_id = $1 AND course_id = (
-//     SELECT course_id FROM modules WHERE id = (
-//       SELECT module_id FROM lessons WHERE id = $2
-//     )
-//   )
-// `,
-//       [userId, lessonId]
-//     );
-
-//     if (certCheck.rows[0]?.progress === 100) {
-//       const courseId = certCheck.rows[0].course_id;
-//       await pool.query(
-//         `
-//     INSERT INTO user_certificates (user_id, course_id, certificate_url)
-//     VALUES ($1, $2, $3)
-//     ON CONFLICT (user_id, course_id) DO NOTHING
-//   `,
-//         [userId, courseId, `/certificates/${userId}_${courseId}.pdf`]
-//       );
-//     }
-//   } catch (err) {
-//     console.error("Lesson completion error:", err.message);
-//     res.status(500).json({ error: "Server error completing lesson" });
-//   }
-// };
-
 
 exports.completeLesson = async (req, res) => {
   const userId = req.user.id;
@@ -1227,76 +1055,6 @@ exports.completeLesson = async (req, res) => {
   }
 };
 
-
-// POST: Enroll in course using wallet balance
-
-// exports.enrollInCourse = async (req, res) => {
-//   console.log("req.user:", req.user); // 👈 Add this
-//   const userId = req.user.id;
-//   const courseId = req.params.courseId;
-
-//   try {
-//     // 1. Check if already enrolled
-//     const check = await pool.query(
-//       "SELECT * FROM course_enrollments WHERE user_id = $1 AND course_id = $2",
-//       [userId, courseId]
-//     );
-
-//     if (check.rows.length > 0) {
-//       return res.redirect("/student/courses?msg=Already enrolled");
-//     }
-
-//     // 2. Get course info
-//     const courseRes = await pool.query("SELECT * FROM courses WHERE id = $1", [
-//       courseId,
-//     ]);
-//     const course = courseRes.rows[0];
-
-//     if (!course) {
-//       return res.status(404).send("Course not found.");
-//     }
-
-//     if (course.amount > 0) {
-//       // 3. Get user wallet
-//       const userRes = await pool.query(
-//         "SELECT wallet_balance2 FROM users2 WHERE id = $1",
-//         [userId]
-//       );
-//       const wallet = userRes.rows[0].wallet_balance;
-
-//       if (wallet < course.amount) {
-//         return res.redirect(
-//           "/student/dashboard?msg=Insufficient wallet balance"
-//         );
-//       }
-
-//       // 4. Deduct wallet
-//       await pool.query(
-//         "UPDATE users2 SET wallet_balance2 = wallet_balance2 - $1 WHERE id = $2",
-//         [course.amount, userId]
-//       );
-
-//       // 4b. Get new wallet balance
-//       const updatedWalletRes = await pool.query(
-//         "SELECT wallet_balance FROM users2 WHERE id = $1",
-//         [userId]
-//       );
-//       const newWalletBalance = updatedWalletRes.rows[0]?.wallet_balance;
-//     }
-
-//     // 5. Enroll student
-//     await pool.query(
-//       "INSERT INTO course_enrollments (user_id, course_id, progress) VALUES ($1, $2, 0)",
-//       [userId, courseId]
-//     );
-
-//     res.redirect("/student/courses?msg=Enrollment successful");
-//   } catch (err) {
-//     console.error("Enrollment error:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
 exports.enrollInCourse = async (req, res) => {
   console.log("req.user:", req.user);
   const userId = req.user.id;
@@ -1367,7 +1125,6 @@ exports.enrollInCourse = async (req, res) => {
   }
 };
 
-
 exports.editProfile = async (req, res) => {
   const { fullname, gender, dob } = req.body;
   const profilePic = req.file?.path || req.body.existingPic;
@@ -1384,7 +1141,6 @@ exports.editProfile = async (req, res) => {
 
   res.redirect("/student/dashboard?section=profile");
 };
-
 
 exports.viewLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
@@ -2031,7 +1787,6 @@ exports.getQuizSubmissionById = async (req, res) => {
   }
 };
 
-
 exports.getLesson = async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -2050,43 +1805,6 @@ exports.getLesson = async (req, res) => {
   }
 };
 
-// POST /student/ai/ask
-// exports.askAITutor = async (req, res) => {
-//   try {
-//     const userId = req.user?.id || req.session.user?.id;
-//     const { question, lessonId } = req.body;
-
-//     // Pull a little lesson context if provided (title + content)
-//     let lessonContext = "";
-//     if (lessonId) {
-//       const ctx = await pool.query(
-//         `SELECT title, content FROM lessons WHERE id = $1 LIMIT 1`,
-//         [lessonId]
-//       );
-//       if (ctx.rows[0]) {
-//         lessonContext = `Title: ${ctx.rows[0].title}\n\n${
-//           ctx.rows[0].content || ""
-//         }`;
-//       }
-//     }
-
-//     const userName = req.session?.user?.fullname || "Student";
-//     const answer = await askTutor({ question, lessonContext, userName });
-
-//     // (Optional) Persist chat logs
-//     // await pool.query(
-//     //   `INSERT INTO ai_tutor_logs (user_id, lesson_id, question, answer)
-//     //    VALUES ($1,$2,$3,$4)`,
-//     //   [userId || null, lessonId || null, question, answer]
-//     // );
-
-//     res.json({ ok: true, answer });
-//   } catch (e) {
-//     console.error("AI tutor error:", e.message);
-//     res.status(500).json({ ok: false, error: "Tutor is unavailable." });
-//   }
-// };
-// POST /student/ai/ask
 exports.askAITutor = async (req, res) => {
   try {
     const userId = req.user?.id || req.session.user?.id;
@@ -2135,7 +1853,6 @@ exports.askAITutor = async (req, res) => {
     res.status(500).json({ ok: false, error: "Tutor is unavailable." });
   }
 };
-
 
 exports.viewAssignment = async (req, res) => {
   try {

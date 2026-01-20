@@ -70,20 +70,36 @@
                     align-items: center;
                   "
                 >
-                  <button
+                  <!-- <button
                     class="btn-edit"
                     onclick="window.location.href='/instructor/courses/<%= course.id %>'"
                   >
                     View
+                  </button> -->
+
+                  <button
+                    class="btn-edit"
+                    onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'"
+                  >
+                    View Content
                   </button>
 
                   <button
                     class="btn-edit"
                     style="background-color: orange;"
-                    onclick="window.location.href='/instructor/courses/<%= course.id %>/edit'"
+                    onclick="window.location.href='/instructor/admin/courses/:id/edit'"
                   >
                     Edit
                   </button>
+
+                  <button
+                    class="btn-edit"
+                    style="background:#6c5ce7;"
+                    onclick="window.location.href='/instructor/courses/<%= course.id %>/students'"
+                  >
+                    Students
+                  </button>
+
                 </td>
               </tr>
             <% }) %>

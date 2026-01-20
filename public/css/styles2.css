@@ -1380,7 +1380,7 @@ canvas {
 
 /* Mini Lesson Sidebar */
 .lesson-sidebar {
-    width: 220px;
+    min-width: 220px;
     position: sticky;
     top: 0;
     height: 100vh; /* Full screen height */

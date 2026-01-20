@@ -1,0 +1,675 @@
+
+<%- include('../partials/header', { title: course.title }) %>
+
+<h2><%= course.title %></h2>
+
+<div class="learning-container">
+  <aside class="lesson-sidebar">
+    <% modules.forEach(module => { %>
+      <div class="module-card">
+        <button class="module-toggle no-bg" onclick="toggleModule(<%= module.id %>)">
+          📦 <%= module.title %> ▾
+        </button>
+        <ul id="module-<%= module.id %>" class="lesson-list" style="display:none; margin-left:15px;">
+          <% (moduleLessons[module.id] || []).forEach(lesson => { %>
+            <li>
+              <button class="lesson-toggle no-bg" onclick="toggleLessonMenu(<%= lesson.id %>)">
+                📘 <%= lesson.title %> ▾
+              </button>
+              <ul id="lesson-menu-<%= lesson.id %>" style="display:none; margin-left:15px;">
+                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
+                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
+                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
+              </ul>
+            </li>
+          <% }) %>
+
+          <h4>Assignments</h4>
+          <% (moduleAssignments[module.id] || []).forEach(assign => { %>
+            <li>
+              <button onclick="loadAssignment(<%= assign.id %>)">📂 <%= assign.title %></button>
+            </li>
+          <% }) %>
+
+          <h4>Quizzes</h4>
+          <% (moduleQuizzes[module.id] || []).forEach(quiz => { %>
+            <li>
+              <button onclick="loadQuiz(<%= quiz.id %>)">📝 <%= quiz.title %></button>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% }) %>
+  </aside>
+
+  <div class="lesson-main-area" id="lessonMainArea">
+    <p>Select a lesson, quiz, or assignment to preview.</p>
+  </div>
+</div>
+
+<script>
+function toggleModule(moduleId) {
+  const el = document.getElementById(`module-${moduleId}`);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function toggleLessonMenu(lessonId) {
+  const el = document.getElementById(`lesson-menu-${lessonId}`);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+// function loadLessonPart(lessonId, part) {
+//   const mainArea = document.getElementById("lessonMainArea");
+//   mainArea.innerHTML = `<p>Loading ${part} for lesson ${lessonId}...</p>`;
+
+//   fetch(`/instructor/preview/lesson/${lessonId}?part=${part}`)
+//     .then(res => res.text())
+//     .then(html => {
+//       mainArea.innerHTML = html;
+//     })
+//     .catch(err => {
+//       mainArea.innerHTML = `<p style="color:red;">Failed to load ${part}</p>`;
+//       console.error(err);
+//     });
+// }
+
+function loadLessonPart(lessonId, part) {
+  fetch(`/instructor/preview/lesson/${lessonId}?part=${part}`)
+    .then(res => res.json())
+    .then(data => {
+      if (part === "content") buildSlidesView(data.content, data.title);
+      // handle video or quiz differently
+    })
+    .catch(err => console.error(err));
+}
+
+
+//   function loadLessonPart(lessonId, part) {
+//     showLoading();
+//     fetch(`/instructor/preview/lesson/${lessonId}?part=${part}`)
+//       .then(res => res.json())
+//       .then(lesson => {
+//         window.currentLessonId = lessonId; // ✅ Keep track
+//         let html = `<h2>${lesson.title}</h2>`;
+
+//         // 🎥 VIDEO SECTION
+//         if (part === "video" && lesson.video_url) {
+//           let embedUrl = lesson.video_url.trim();
+
+//           if (embedUrl.includes("youtube.com/watch?v=")) {
+//             const videoId = embedUrl.split("v=")[1].split("&")[0];
+//             embedUrl = `https://www.youtube.com/embed/${videoId}`;
+//           } else if (embedUrl.includes("youtu.be/")) {
+//             const videoId = embedUrl.split("youtu.be/")[1].split("?")[0];
+//             embedUrl = `https://www.youtube.com/embed/${videoId}`;
+//           } else if (embedUrl.includes("vimeo.com/")) {
+//             const videoId = embedUrl.split("vimeo.com/")[1].split("?")[0];
+//             embedUrl = `https://player.vimeo.com/video/${videoId}`;
+//           }
+
+//           html += `
+//             <div class="lesson-video">
+//               <iframe 
+//                 src="${embedUrl}" 
+//                 frameborder="0" 
+//                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+//                 allowfullscreen>
+//               </iframe>
+//             </div>
+//           `;
+
+//           document.getElementById("lessonMainArea").innerHTML = html;
+//           document.getElementById("ai-tutor").style.display = "none";
+//           hideLoading();
+//           return;
+//         }
+
+//         // 📝 LESSON NOTE + SLIDES SECTION
+//       if (part === "content") {
+//     const rawContent = lesson.content || "<p>No content available.</p>";
+
+//     // ✅ Split slides automatically by emojis, <hr>, or ---
+//     const slideBreaks = /(<hr\s*\/?>|---)/gi;
+
+//     // Split and clean
+//     // const rawSlides = rawContent
+//     //   .split(slideBreaks)
+//     //   .map(s => s.trim())
+//     //   .filter(s => s && s !== "<hr>" && s !== "<hr/>" && s !== "---");
+//     const rawSlides = rawContent
+//     .split(slideBreaks)
+//     .map(s => s.trim())
+//     .filter(s => {
+//       // Remove empty, HR-only, or image-only fragments
+//       const clean = s.replace(/<img[^>]*>/g, '').replace(/<[^>]+>/g, '').trim();
+//       return clean.length > 0 && !/^(-{3,}|<hr\s*\/?>)$/i.test(s);
+//     });
+
+
+//     // ✅ Build slide objects with titles and content
+//     const slides = rawSlides.map((s, index) => {
+//       // Try to extract the first bold text or first sentence as title
+//       let title = "";
+
+//       // Match first <strong> or <b> text
+//       const boldMatch = s.match(/<strong>(.*?)<\/strong>|<b>(.*?)<\/b>/i);
+//       if (boldMatch) {
+//         title = boldMatch[1] || boldMatch[2];
+//       } else {
+//         // Fallback: use first few words
+//         const plain = s.replace(/<[^>]+>/g, "").trim();
+//         title = plain.split(/\s+/).slice(0, 5).join(" ") + "...";
+//       }
+
+//       return { title, body: s };
+//     });
+
+//     // ✅ Build HTML structure
+//     // const noteView = `
+//     //   <div class="lesson-view-mode">
+//     //     <button id="noteBtn" class="active">📝 Note View</button>
+//     //     <button id="slideBtn">📑 Slides View</button>
+//     //   </div>
+//     //   <div id="noteView" class="lesson-note">${rawContent}</div>
+//     //   <div id="slideView" class="lesson-slides" style="display:none;"></div>
+//     // `;
+//     const noteView = `
+//     <div class="lesson-view-controls">
+//       <div class="text-controls">
+//         <label>Text size:</label>
+//         <button id="fontInc">A+</button>
+//         <button id="fontDec">A−</button>
+
+//         <label>Font:</label>
+//         <select id="fontSelect">
+//           <option value="system-ui">Default</option>
+//           <option value="serif">Serif</option>
+//           <option value="sans-serif">Sans-serif</option>
+//           <option value="OpenDyslexic, Arial">Dyslexic</option>
+//         </select>
+
+//         <label>Line spacing:</label>
+//         <select id="lineSpacing">
+//           <option value="1.4">Normal</option>
+//           <option value="1.8">Comfort</option>
+//           <option value="2.2">Wide</option>
+//         </select>
+//       </div>
+
+//       <div class="lesson-view-mode">
+//         <button id="noteBtn" class="active">📝 Note View</button>
+//         <button id="slideBtn">📑 Slides View</button>
+//       </div>
+//     </div>
+
+//     <div id="noteView" class="lesson-note">${rawContent}</div>
+//     <div id="slideView" class="lesson-slides" style="display:none;"></div>
+//   `;
+
+
+//     document.getElementById("lessonMainArea").innerHTML = noteView;
+
+//     // ✅ Render slides
+//     let current = 0;
+//     function renderSlide() {
+//       const total = slides.length;
+//       const { title, body } = slides[current];
+
+//       const html = `
+//         <div class="slide-box">
+//           <div class="slide-body">${body}</div>
+//           <div class="slide-controls">
+//             <button id="prevSlide" ${current === 0 ? "disabled" : ""}>⬅ Prev</button>
+//             <span>Slide ${current + 1} of ${total}</span>
+//             <button id="nextSlide" ${current === total - 1 ? "disabled" : ""}>Next ➡</button>
+//             <button id="fullscreenBtn" class="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+//           </div>
+//         </div>
+//       `;
+
+//       document.getElementById("slideView").innerHTML = html;
+//       document.getElementById("fullscreenBtn").onclick = toggleFullscreen;
+//       document.getElementById("prevSlide").onclick = () => {
+//         if (current > 0) { current--; renderSlide(); }
+//       };
+//       document.getElementById("nextSlide").onclick = () => {
+//         if (current < total - 1) { current++; renderSlide(); }
+//       };
+//     }
+
+//     // ✅ Add fullscreen toggle support
+//   // function toggleFullscreen() {
+//   //   const slideView = document.getElementById("slideView");
+//   //   if (!document.fullscreenElement) {
+//   //     slideView.requestFullscreen().catch(err => {
+//   //       console.error("Fullscreen error:", err);
+//   //     });
+//   //   } else {
+//   //     document.exitFullscreen();
+//   //   }
+//   // }
+
+//   /* ==============================
+//     🔹 FULLSCREEN + KEYBOARD CONTROLS
+//     ============================== */
+
+//   // Track fullscreen state
+//   function toggleFullscreen() {
+//     const slideView = document.getElementById("slideView");
+//     if (!document.fullscreenElement) {
+//       slideView.requestFullscreen().catch(err => {
+//         console.error("Fullscreen error:", err);
+//         alert("Your browser doesn't support fullscreen mode.");
+//       });
+//     } else {
+//       document.exitFullscreen();
+//     }
+//   }
+
+//   // 🔸 Default font size
+//   let fontSize = 16;
+
+//   // 🔸 Adjust font size dynamically
+//   function adjustFont(delta) {
+//     fontSize = Math.min(26, Math.max(12, fontSize + delta));
+//     const slideBody = document.querySelector(".slide-body");
+//     if (slideBody) slideBody.style.fontSize = fontSize + "px";
+//   }
+
+//   // 🔸 Dark mode toggle
+//   let darkMode = false;
+//   function toggleDarkMode() {
+//     const slideBox = document.querySelector(".slide-box");
+//     if (!slideBox) return;
+//     darkMode = !darkMode;
+
+//     if (darkMode) {
+//       slideBox.style.background = "#111";
+//       slideBox.style.color = "#fff";
+//     } else {
+//       slideBox.style.background = "#fff";
+//       slideBox.style.color = "#111";
+//     }
+//   }
+
+//   // 🔸 Auto-play toggle
+//   let autoPlay = null;
+//   function toggleAutoPlay() {
+//     if (autoPlay) {
+//       clearInterval(autoPlay);
+//       autoPlay = null;
+//       showToast("⏸ Auto-play stopped");
+//     } else {
+//       autoPlay = setInterval(() => {
+//         document.getElementById("nextSlide")?.click();
+//       }, 5000); // every 5 seconds
+//       showToast("▶️ Auto-play started");
+//     }
+//   }
+
+//   // 🔸 Toast notification for feedback
+//   function showToast(message) {
+//     let toast = document.createElement("div");
+//     toast.textContent = message;
+//     toast.style.position = "fixed";
+//     toast.style.bottom = "20px";
+//     toast.style.right = "20px";
+//     toast.style.background = "rgba(0,0,0,0.7)";
+//     toast.style.color = "#fff";
+//     toast.style.padding = "10px 14px";
+//     toast.style.borderRadius = "6px";
+//     toast.style.zIndex = "99999";
+//     toast.style.fontSize = "14px";
+//     toast.style.transition = "opacity 0.3s";
+//     document.body.appendChild(toast);
+//     setTimeout(() => { toast.style.opacity = "0"; }, 2000);
+//     setTimeout(() => { toast.remove(); }, 2500);
+//   }
+
+//   // 🔸 Keyboard shortcuts while in fullscreen
+//   document.addEventListener("keydown", (e) => {
+//     if (!document.fullscreenElement) return; // only works in fullscreen
+
+//     switch (e.key.toLowerCase()) {
+//       case "arrowright":
+//       case "d":
+//         document.getElementById("nextSlide")?.click();
+//         break;
+//       case "arrowleft":
+//       case "a":
+//         document.getElementById("prevSlide")?.click();
+//         break;
+//       case "f":
+//         toggleFullscreen();
+//         break;
+//       case "escape":
+//         document.exitFullscreen();
+//         break;
+//       case "+":
+//         adjustFont(1);
+//         break;
+//       case "-":
+//         adjustFont(-1);
+//         break;
+//       case "0":
+//         fontSize = 17;
+//         const body = document.querySelector(".slide-body");
+//         if (body) body.style.fontSize = "17px";
+//         break;
+//       case "p":
+//         toggleAutoPlay();
+//         break;
+//       case "m":
+//         toggleDarkMode();
+//         break;
+//     }
+//   });
+
+
+
+//     renderSlide();
+//     // ✅ Text Controls
+//   // let fontSize = 16; // default
+
+//   function applyTextStyles() {
+//     const font = document.getElementById("fontSelect").value;
+//     const spacing = document.getElementById("lineSpacing").value;
+//     document.querySelectorAll(".lesson-note, .slide-body").forEach(el => {
+//       el.style.fontSize = fontSize + "px";
+//       el.style.fontFamily = font;
+//       el.style.lineHeight = spacing;
+//     });
+//   }
+
+//   document.getElementById("fontInc").onclick = () => {
+//     fontSize += 2;
+//     applyTextStyles();
+//   };
+
+//   document.getElementById("fontDec").onclick = () => {
+//     if (fontSize > 10) fontSize -= 2;
+//     applyTextStyles();
+//   };
+
+//   document.getElementById("fontSelect").onchange = applyTextStyles;
+//   document.getElementById("lineSpacing").onchange = applyTextStyles;
+
+
+//     // ✅ Toggle Note / Slide views
+//     const noteBtn = document.getElementById("noteBtn");
+//     const slideBtn = document.getElementById("slideBtn");
+//     const noteDiv = document.getElementById("noteView");
+//     const slideDiv = document.getElementById("slideView");
+
+//     noteBtn.onclick = () => {
+//       noteDiv.style.display = "block";
+//       slideDiv.style.display = "none";
+//       noteBtn.classList.add("active");
+//       slideBtn.classList.remove("active");
+//     };
+
+//     slideBtn.onclick = () => {
+//       noteDiv.style.display = "none";
+//       slideDiv.style.display = "block";
+//       slideBtn.classList.add("active");
+//       noteBtn.classList.remove("active");
+//     };
+
+//     // document.getElementById("ai-tutor").style.display = "flex";
+//     document.getElementById("ai-tutor").style.display = "none";
+//     document.getElementById("ai-float").style.display = "flex";
+
+//     // ✅ Suggest questions
+//     const suggestions = [
+//       `Summarize this lesson in simple terms.`,
+//       `What is the key concept in "${lesson.title}"?`,
+//       `Can you give me an example based on this lesson?`
+//     ];
+//     if (window.showLessonSuggestions) {
+//       window.showLessonSuggestions(suggestions);
+//     }
+//     hideLoading();
+//     return;
+//   }
+
+//         // 🧩 QUIZ SECTION
+//         if (part === "quiz") {
+//           loadQuizInline(lessonId);
+//           document.getElementById("ai-tutor").style.display = "none";
+//           hideLoading();
+//           return;
+//         }
+//       })
+//       .catch(err => {
+//         console.error("Error loading lesson:", err);
+//         document.getElementById("lessonMainArea").innerHTML = "<p>⚠️ Failed to load lesson.</p>";
+//         hideLoading();
+//       });
+//   }
+
+function buildSlidesView(rawContent, lessonTitle) {
+  // ✅ Split slides by <hr> or ---
+  const slideBreaks = /(<hr\s*\/?>|---)/gi;
+  const rawSlides = rawContent
+    .split(slideBreaks)
+    .map(s => s.trim())
+    .filter(s => {
+      const clean = s.replace(/<img[^>]*>/g, '').replace(/<[^>]+>/g, '').trim();
+      return clean.length > 0 && !/^(-{3,}|<hr\s*\/?>)$/i.test(s);
+    });
+
+  // ✅ Build slide objects with title + body
+  const slides = rawSlides.map((s, index) => {
+    let title = "";
+    const boldMatch = s.match(/<strong>(.*?)<\/strong>|<b>(.*?)<\/b>/i);
+    if (boldMatch) title = boldMatch[1] || boldMatch[2];
+    else {
+      const plain = s.replace(/<[^>]+>/g, "").trim();
+      title = plain.split(/\s+/).slice(0, 5).join(" ") + "...";
+    }
+    return { title, body: s };
+  });
+
+  // ✅ Build HTML structure
+  const noteViewHTML = `
+    <div class="lesson-view-controls">
+      <div class="text-controls">
+        <label>Text size:</label>
+        <button id="fontInc">A+</button>
+        <button id="fontDec">A−</button>
+
+        <label>Font:</label>
+        <select id="fontSelect">
+          <option value="system-ui">Default</option>
+          <option value="serif">Serif</option>
+          <option value="sans-serif">Sans-serif</option>
+          <option value="OpenDyslexic, Arial">Dyslexic</option>
+        </select>
+
+        <label>Line spacing:</label>
+        <select id="lineSpacing">
+          <option value="1.4">Normal</option>
+          <option value="1.8">Comfort</option>
+          <option value="2.2">Wide</option>
+        </select>
+      </div>
+
+      <div class="lesson-view-mode">
+        <button id="noteBtn" class="active">📝 Note View</button>
+        <button id="slideBtn">📑 Slides View</button>
+      </div>
+    </div>
+
+    <div id="noteView" class="lesson-note">${rawContent}</div>
+    <div id="slideView" class="lesson-slides" style="display:none;"></div>
+  `;
+
+  const mainArea = document.getElementById("lessonMainArea");
+  mainArea.innerHTML = noteViewHTML;
+
+  // 🔹 Slide rendering
+  let current = 0;
+
+  function renderSlide() {
+    const total = slides.length;
+    const { title, body } = slides[current];
+    const html = `
+      <div class="slide-box">
+        <div class="slide-body">${body}</div>
+        <div class="slide-controls">
+          <button id="prevSlide" ${current === 0 ? "disabled" : ""}>⬅ Prev</button>
+          <span>Slide ${current + 1} of ${total}</span>
+          <button id="nextSlide" ${current === total - 1 ? "disabled" : ""}>Next ➡</button>
+          <button id="fullscreenBtn" class="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("slideView").innerHTML = html;
+
+    document.getElementById("prevSlide").onclick = () => { if (current > 0) { current--; renderSlide(); } };
+    document.getElementById("nextSlide").onclick = () => { if (current < total - 1) { current++; renderSlide(); } };
+    document.getElementById("fullscreenBtn").onclick = toggleFullscreen;
+  }
+
+  // 🔹 Fullscreen toggle
+  function toggleFullscreen() {
+    const slideView = document.getElementById("slideView");
+    if (!document.fullscreenElement) {
+      slideView.requestFullscreen().catch(err => {
+        console.error("Fullscreen error:", err);
+        alert("Your browser doesn't support fullscreen mode.");
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  // 🔹 Font size and text controls
+  let fontSize = 16;
+
+  function adjustFont(delta) {
+    fontSize = Math.min(26, Math.max(12, fontSize + delta));
+    applyTextStyles();
+  }
+
+  function applyTextStyles() {
+    const font = document.getElementById("fontSelect").value;
+    const spacing = document.getElementById("lineSpacing").value;
+    document.querySelectorAll(".lesson-note, .slide-body").forEach(el => {
+      el.style.fontSize = fontSize + "px";
+      el.style.fontFamily = font;
+      el.style.lineHeight = spacing;
+    });
+  }
+
+  document.getElementById("fontInc").onclick = () => adjustFont(2);
+  document.getElementById("fontDec").onclick = () => adjustFont(-2);
+  document.getElementById("fontSelect").onchange = applyTextStyles;
+  document.getElementById("lineSpacing").onchange = applyTextStyles;
+
+  // 🔹 Dark mode
+  let darkMode = false;
+  function toggleDarkMode() {
+    const slideBox = document.querySelector(".slide-box");
+    if (!slideBox) return;
+    darkMode = !darkMode;
+    slideBox.style.background = darkMode ? "#111" : "#fff";
+    slideBox.style.color = darkMode ? "#fff" : "#111";
+  }
+
+  // 🔹 Auto-play
+  let autoPlay = null;
+  function toggleAutoPlay() {
+    if (autoPlay) {
+      clearInterval(autoPlay);
+      autoPlay = null;
+      showToast("⏸ Auto-play stopped");
+    } else {
+      autoPlay = setInterval(() => document.getElementById("nextSlide")?.click(), 5000);
+      showToast("▶️ Auto-play started");
+    }
+  }
+
+  // 🔹 Toast notifications
+  function showToast(message) {
+    const toast = document.createElement("div");
+    toast.textContent = message;
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      background: "rgba(0,0,0,0.7)",
+      color: "#fff",
+      padding: "10px 14px",
+      borderRadius: "6px",
+      zIndex: 9999,
+      fontSize: "14px",
+      transition: "opacity 0.3s"
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = "0"; }, 2000);
+    setTimeout(() => { toast.remove(); }, 2500);
+  }
+
+  // 🔹 Keyboard shortcuts (fullscreen only)
+  document.addEventListener("keydown", e => {
+    if (!document.fullscreenElement) return;
+    switch (e.key.toLowerCase()) {
+      case "arrowright": case "d": document.getElementById("nextSlide")?.click(); break;
+      case "arrowleft": case "a": document.getElementById("prevSlide")?.click(); break;
+      case "f": toggleFullscreen(); break;
+      case "escape": document.exitFullscreen(); break;
+      case "+": adjustFont(1); break;
+      case "-": adjustFont(-1); break;
+      case "0": fontSize = 17; applyTextStyles(); break;
+      case "p": toggleAutoPlay(); break;
+      case "m": toggleDarkMode(); break;
+    }
+  });
+
+  // 🔹 Note / Slide view toggle
+  const noteBtn = document.getElementById("noteBtn");
+  const slideBtn = document.getElementById("slideBtn");
+  const noteDiv = document.getElementById("noteView");
+  const slideDiv = document.getElementById("slideView");
+
+  noteBtn.onclick = () => { noteDiv.style.display = "block"; slideDiv.style.display = "none"; noteBtn.classList.add("active"); slideBtn.classList.remove("active"); };
+  slideBtn.onclick = () => { noteDiv.style.display = "none"; slideDiv.style.display = "block"; slideBtn.classList.add("active"); noteBtn.classList.remove("active"); };
+
+  // 🔹 Initial render
+  renderSlide();
+  applyTextStyles();
+}
+
+function loadAssignment(assignId) {
+  const mainArea = document.getElementById("lessonMainArea");
+  mainArea.innerHTML = `<p>Loading assignment ${assignId}...</p>`;
+
+  fetch(`/instructor/preview/assignment/${assignId}`)
+    .then(res => res.text())
+    .then(html => {
+      mainArea.innerHTML = html;
+    })
+    .catch(err => {
+      mainArea.innerHTML = `<p style="color:red;">Failed to load assignment</p>`;
+      console.error(err);
+    });
+}
+
+function loadQuiz(quizId) {
+  const mainArea = document.getElementById("lessonMainArea");
+  mainArea.innerHTML = `<p>Loading quiz ${quizId}...</p>`;
+
+  fetch(`/instructor/preview/quiz/${quizId}`)
+    .then(res => res.text())
+    .then(html => {
+      mainArea.innerHTML = html;
+    })
+    .catch(err => {
+      mainArea.innerHTML = `<p style="color:red;">Failed to load quiz</p>`;
+      console.error(err);
+    });
+}
+
+
+</script>
