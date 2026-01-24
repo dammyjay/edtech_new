@@ -3,6 +3,11 @@
   <h2>📌 Teacher Menu</h2>
   <ul>
     <li><a href="javascript:void(0)" onclick="loadSection('dashboard')">Dashboard</a></li>
+    <li><a href="/admin/pathways">Pathways</a></li>
+    <li><a href="/admin/courses">Courses</a></li>
+        <% if (role === 'instructor') { %>
+          <li><a href="/instructor/chats">Chats</a></li>
+        <% } %>
     <li><a href="javascript:void(0)" onclick="loadSection('classes')">Classes</a></li>
     <li><a href="javascript:void(0)" onclick="loadSection('students')">Students</a></li>
     <li><a href="javascript:void(0)" onclick="loadSection('reports')">Reports</a></li>

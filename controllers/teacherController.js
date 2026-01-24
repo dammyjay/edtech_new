@@ -808,177 +808,6 @@ exports.viewClassroomStudents = async (req, res) => {
 };
 
 
-
-// exports.downloadQuizReport = async (req, res) => {
-//   // const { quizId } = req.params;
-//   // const studentId = req.user.role === "student" ? req.user.id : req.query.studentId; // adjust as needed
-//   const { studentId, quizId } = req.params;
-
-//   try {
-    
-//     // --- Student info
-//     const studentRes = await pool.query(
-//       `SELECT id, fullname, email FROM users2 WHERE id = $1`,
-//       [studentId]
-//     );
-//     if (!studentRes.rows.length)
-//       return res.status(404).send("Student not found");
-//     const student = studentRes.rows[0];
-
-//     // --- Quiz info + lesson/module/course
-//     const quizRes = await pool.query(
-//       `SELECT q.id, q.title AS quiz_title, l.title AS lesson_title, 
-//               m.title AS module_title, c.title AS course_title
-//        FROM quizzes q
-//        JOIN lessons l ON q.lesson_id = l.id
-//        JOIN modules m ON l.module_id = m.id
-//        JOIN courses c ON m.course_id = c.id
-//        WHERE q.id = $1`,
-//       [quizId]
-//     );
-//     if (!quizRes.rows.length) return res.status(404).send("Quiz not found");
-//     const quiz = quizRes.rows[0];
-
-//     // --- Submission info
-//     const submissionRes = await pool.query(
-//       `SELECT id, score, created_at, review_data
-//    FROM quiz_submissions
-//    WHERE quiz_id = $1 AND student_id = $2
-//    ORDER BY created_at DESC LIMIT 1`,
-//       [quizId, studentId]
-//     );
-//     const submission = submissionRes.rows[0];
-
-//     // Parse review_data
-//     let reviewData = [];
-//     if (submission && submission.review_data) {
-//       try {
-//         reviewData = JSON.parse(submission.review_data);
-//       } catch (e) {
-//         reviewData = [];
-//       }
-//     }
-
-//     // Calculate stats
-//     const totalQuestions = reviewData.length;
-//     const answeredCount = reviewData.filter(
-//       (r) => r.yourAnswer && r.yourAnswer.trim() !== ""
-//     ).length;
-//     const correctCount = reviewData.filter((r) => r.isCorrect).length;
-//     const wrongCount = answeredCount - correctCount;
-
-//     const html = `
-//   <html>
-//     <head>
-//       <style>
-//         body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-//         h1 { text-align: center; color: #34495e; }
-//         h2 { margin-top: 30px; color: #2980b9; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-//         .meta { margin: 20px 0; padding: 10px; background: #ecf0f1; border-radius: 8px; }
-//         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-//         th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; vertical-align: top; }
-//         th { background: #2c3e50; color: white; text-align: left; }
-//         tr:nth-child(even) { background: #f9f9f9; }
-//         .correct { color: #28a745; font-weight: bold; } /* green text */
-//         .wrong { color: #dc3545; font-weight: bold; }   /* red text */
-//         .footer { margin-top: 30px; font-size: 10px; text-align: center; color: gray; }
-//       </style>
-//     </head>
-//     <body>
-//       <h1>📝 Quiz Report</h1>
-//       <p style="text-align:center; color: gray;">Generated on: ${new Date().toLocaleString()}</p>
-
-//       <div class="meta">
-//         <h2>👤 Student</h2>
-//         <p><strong>Name:</strong> ${student.fullname}</p>
-//         <p><strong>Email:</strong> ${student.email}</p>
-//       </div>
-
-//       <div class="meta">
-//         <h2>📚 Course Info</h2>
-//         <p><strong>Course:</strong> ${quiz.course_title}</p>
-//         <p><strong>Module:</strong> ${quiz.module_title}</p>
-//         <p><strong>Lesson:</strong> ${quiz.lesson_title}</p>
-//         <p><strong>Quiz:</strong> ${quiz.quiz_title}</p>
-//       </div>
-
-//       <div class="meta">
-//         <h2>📊 Quiz Result</h2>
-//         <p><strong>Score:</strong> ${submission ? submission.score : "N/A"}</p>
-//         <p><strong>Date:</strong> ${
-//           submission
-//             ? new Date(submission.created_at).toLocaleString()
-//             : "Not taken"
-//         }</p>
-//         <p><strong>Answered:</strong> ${answeredCount}/${totalQuestions}</p>
-//         <p><strong>Correct:</strong> ${correctCount}</p>
-//         <p><strong>Wrong:</strong> ${wrongCount}</p>
-//       </div>
-
-//       ${
-//         reviewData.length
-//           ? `
-//           <h2>📄 Answers</h2>
-//           <table>
-//             <tr>
-//               <th>Question</th>
-//               <th>Your Answer</th>
-//               <th>Correct Answer</th>
-//               <th>AI Feedback</th>
-//             </tr>
-//             ${reviewData
-//               .map(
-//                 (r) => `
-//                 <tr>
-//                   <td>${r.question}</td>
-//                   <td class="${r.isCorrect ? "correct" : "wrong"}">
-//                     ${r.yourAnswer || "—"}
-//                   </td>
-//                   <td>${r.correctAnswer}</td>
-//                   <td>${r.feedback || ""}</td>
-//                 </tr>`
-//               )
-//               .join("")}
-//           </table>
-//         `
-//           : "<p>No answers recorded.</p>"
-//       }
-
-//       <div class="footer">© ${new Date().getFullYear()} Quiz Report</div>
-//     </body>
-//   </html>
-// `;
-
-//     // --- Generate PDF
-//     const browser = await puppeteer.launch({
-//       headless: true,
-//       args: ["--no-sandbox", "--disable-setuid-sandbox"],
-//     });
-//     const page = await browser.newPage();
-//     await page.setContent(html, { waitUntil: "networkidle0" });
-//     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-//     await browser.close();
-
-//     // When sending PDF, include student name in filename
-//     res.setHeader(
-//       "Content-Disposition",
-//       `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${
-//         quiz.lesson_title
-//       }_Quiz_Report.pdf`
-//     );
-//     // --- Send
-//     // res.setHeader(
-//     //   "Content-Disposition",
-//     //   `attachment; filename=quiz_${quizId}_report.pdf`
-//     // );
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.send(pdfBuffer);
-//   } catch (err) {
-//     console.error("Quiz PDF Error:", err);
-//     res.status(500).send("Error generating quiz report");
-//   }
-// };
-
 exports.downloadQuizReport = async (req, res) => {
   const { studentId, quizId } = req.params;
 
@@ -1173,8 +1002,6 @@ exports.downloadQuizReport = async (req, res) => {
   }
 };
 
-
-
 // ----------------- DOWNLOAD REPORT -----------------
 exports.downloadStudentReport = async (req, res) => {
   try {
@@ -1200,7 +1027,6 @@ exports.downloadStudentReport = async (req, res) => {
     res.status(500).send("Error generating report");
   }
 };
-
 
 exports.sendChatMessage = async (req, res) => {
   try {

@@ -1,0 +1,63 @@
+<a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back</a>
+
+<h2>📚 My Classes Overview</h2>
+
+<div class="cards-container">
+  <div class="card">
+    <h3>🏫 Total Classes</h3>
+    <p><%= overview.total_classes || 0 %></p>
+  </div>
+  <div class="card">
+    <h3>👩‍🎓 Students</h3>
+    <p><%= overview.total_students || 0 %></p>
+  </div>
+  <div class="card">
+    <h3>📘 Lessons</h3>
+    <p><%= overview.total_lessons || 0 %></p>
+  </div>
+  <div class="card">
+    <h3>📊 Avg Quiz Score</h3>
+    <p><%= overview.avg_quiz_score || "–" %></p>
+  </div>
+  <div class="card">
+    <h3>📝 Avg Assignment Score</h3>
+    <p><%= overview.avg_assignment_score || "–" %></p>
+  </div>
+  <div class="card">
+    <h3>🔥 Engagement (7d)</h3>
+    <p><%= overview.engagement_last7 || 0 %>%</p>
+  </div>
+</div>
+
+<h2>📚 My Classes</h2>
+<div class="table-responsive">
+  <table class="user-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Class Name</th>
+        <th>Number of Lessons</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (classes.length > 0) { %>
+        <% classes.forEach(cls => { %>
+          <tr>
+            <td><%= cls.id %></td>
+            <td><%= cls.name %></td>
+            <td><%= (lessonsPerClass.find(l => l.id == cls.id) || {}).lesson_count || 0 %></td>
+            <td>
+              <a href="/instructor/section/students?classroom_id=<%= cls.id %>">
+                👀 View Students
+              </a>
+
+            </td>
+          </tr>
+        <% }) %>
+      <% } else { %>
+        <tr><td colspan="4">No classes assigned.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>

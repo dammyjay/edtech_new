@@ -1,0 +1,383 @@
+
+
+    <h1>Welcome <%= info.fullname %></h1>
+    <p>You are logged in as an Instructor.</p>
+
+        <h2>🏫 Select School</h2>
+    <p>Select a school and section</p>
+    <form id="schoolForm">
+      <select name="school_id" id="schoolSelect">
+        <% schools.forEach(s => { %>
+          <option value="<%= s.id %>" <%= selectedSchoolId == s.id ? "selected" : "" %>><%= s.name %></option>
+        <% }) %>
+      </select>
+    </form>
+
+        <h2>🏫 School</h2>
+    <p><%= school ? school.name : "Not assigned" %></p>
+
+    <h2>📚 Assigned Classrooms</h2>
+    <% if (classrooms.length > 0) { %>
+      <ul>
+        <% classrooms.forEach(c => { %>
+          <li><%= c.name %></li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p>No classroom assigned yet.</p>
+    <% } %>
+
+
+    <!-- Stats Section -->
+    <h2>Your Teaching Stats</h2>
+    <div class="dashboard-stats">
+      <div class="stat-box">
+        <h3>Total Courses</h3>
+        <p><%= total_courses %></p>
+      </div>
+      <div class="stat-box">
+        <h3>Total Modules</h3>
+        <p><%= total_modules %></p>
+      </div>
+      <div class="stat-box">
+        <h3>Total Lessons</h3>
+        <p><%= total_lessons %></p>
+      </div>
+      <div class="stat-box">
+        <h3>Total Students</h3>
+        <p><%= total_students %></p>
+      </div>
+    </div>
+
+    <!-- Assignment Submissions -->
+    <h2>Assignment Submissions</h2>
+    <div class="dashboard-stats">
+      <div class="stat-box">
+        <h3>Submissions Received</h3>
+        <p><%= total_submissions %></p>
+      </div>
+    </div>
+
+    <!-- Courses Table -->
+    <h2>Your Courses</h2>
+    <div class="table-responsive">
+      <table
+        class="user-table"
+        style="width: 80%; border-collapse: collapse; margin-top: 20px"
+      >
+        <thead>
+          <tr>
+            <th>Course Title</th>
+            <th>Students Enrolled</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (courses.length > 0) { %>
+            <% courses.forEach(course => { %>
+              <tr>
+                <td><%= course.title %></td>
+                <td><%= course.student_count %></td>
+                <td
+                  style="
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                    align-items: center;
+                  "
+                >
+                  <!-- <button
+                    class="btn-edit"
+                    onclick="window.location.href='/instructor/courses/<%= course.id %>'"
+                  >
+                    View
+                  </button> -->
+
+                  <button
+                    class="btn-edit"
+                    onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'"
+                  >
+                    View Content
+                  </button>
+
+                  <button
+                    class="btn-edit"
+                    style="background-color: orange;"
+                    onclick="window.location.href='/instructor/admin/courses/:id/edit'"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    class="btn-edit"
+                    style="background:#6c5ce7;"
+                    onclick="window.location.href='/instructor/courses/<%= course.id %>/students'"
+                  >
+                    Students
+                  </button>
+
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="3" style="text-align: center;">No courses created yet.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <hr>
+
+    <tbody id="coursesBody"></tbody>
+
+
+
+
+<hr>
+
+  <% const messages = receivedMessages || []; %>
+  <h2>📨 Recent Messages Received (<%= messages.length %>)</h2>
+
+  <% if (messages.length > 0) { %>
+    <div class="table-responsive">
+      <table class="user-table" style="width: 80%; border-collapse: collapse; margin-top: 20px">
+        <thead>
+          <tr>
+            <th>Sender Name</th>
+            <th>Email</th>
+            <th>Message</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% receivedMessages.forEach(msg => { %>
+            <tr>
+              <td><%= msg.sender_name %></td>
+              <td><%= msg.sender_email %></td>
+              <td>
+                <%= msg.message %>
+                <br>
+                <button 
+                  onclick="openReplyBox(<%= msg.sender_id %>, '<%= msg.sender_name %>')" 
+                  style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:5px; margin-top:4px;">
+                  💬 Reply
+                </button>
+              </td>
+              <td><%= new Date(msg.created_at).toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+    <p style="color:gray;">No messages received yet.</p>
+  <% } %>
+
+
+<!-- Reply Box -->
+<div id="replyBox" style="display:none; margin-top:20px; background:#f9f9f9; padding:10px; border-radius:8px; width:60%;">
+  <h4>Replying to <span id="replyToName"></span></h4>
+  <input type="hidden" id="replyReceiverId">
+  <textarea id="replyMessage" rows="3" style="width:100%; padding:8px;"></textarea>
+  <br>
+  <button onclick="sendReply()" style="background:#2ecc71; color:white; border:none; padding:8px 12px; border-radius:5px; margin-top:5px;">Send Reply</button>
+  <button onclick="closeReplyBox()" style="background:#ccc; padding:8px 12px; border:none; border-radius:5px; margin-top:5px;">Cancel</button>
+</div>
+
+
+    <hr>
+
+<!-- Chat box -->
+<div id="chatBox" style="display:none; border:1px solid #ccc; border-radius:8px; margin-top:20px; padding:10px; max-width:600px; height:400px; overflow-y:auto; background:#fafafa;">
+  <div id="messages"></div>
+</div>
+
+<!-- Message input -->
+<div id="messageInputArea" style="display:none; margin-top:10px;">
+  <input type="text" id="chatMessage" placeholder="Type your message..." style="width:80%; padding:8px;" />
+  <button onclick="sendMessage()" style="padding:8px 12px; background:#3498db; color:#fff; border:none; border-radius:5px;">Send</button>
+</div>
+
+<script>
+const instructorId = "<%= info.id %>"; // logged-in instructor id
+
+async function loadMessages() {
+  const studentId = document.getElementById("studentSelect").value;
+  const chatBox = document.getElementById("chatBox");
+  const msgDiv = document.getElementById("messages");
+  const inputArea = document.getElementById("messageInputArea");
+
+  if (!studentId) {
+    chatBox.style.display = "none";
+    inputArea.style.display = "none";
+    return;
+  }
+
+  chatBox.style.display = "block";
+  inputArea.style.display = "block";
+
+  try {
+    const res = await fetch(`/student/chat/messages/${studentId}`);
+    const data = await res.json();
+
+    msgDiv.innerHTML = "";
+    if (data.length === 0) {
+      msgDiv.innerHTML = "<p style='text-align:center; color:gray;'>No messages yet.</p>";
+    } else {
+      data.forEach(msg => {
+        const msgEl = document.createElement("div");
+        msgEl.style.margin = "8px 0";
+        msgEl.style.textAlign = msg.sender === "self" ? "right" : "left";
+        msgEl.innerHTML = `
+          <div style="display:inline-block; padding:8px 12px; border-radius:10px;
+                      background:${msg.sender === "self" ? "#d1f1ff" : "#f1f1f1"};">
+            ${msg.message}
+            <br>
+            <small style="font-size:10px; color:gray;">${new Date(msg.created_at).toLocaleTimeString()}</small>
+          </div>
+        `;
+        msgDiv.appendChild(msgEl);
+      });
+      msgDiv.scrollTop = msgDiv.scrollHeight;
+    }
+  } catch (err) {
+    console.error("Load messages error:", err);
+    msgDiv.innerHTML = "<p style='color:red;'>Failed to load messages.</p>";
+  }
+}
+
+async function sendMessage() {
+  const studentId = document.getElementById("studentSelect").value;
+  const message = document.getElementById("chatMessage").value.trim();
+
+  if (!studentId || !message) return alert("Please select a student and type a message.");
+
+  try {
+    const res = await fetch("/student/chat/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receiverId: studentId, message })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById("chatMessage").value = "";
+      await loadMessages(); // Refresh chat
+    } else {
+      alert("❌ " + data.message);
+    }
+  } catch (err) {
+    console.error("Send message error:", err);
+    alert("Server error sending message.");
+  }
+}
+
+// Auto-refresh chat every 5 seconds
+setInterval(() => {
+  const studentId = document.getElementById("studentSelect").value;
+  if (studentId) loadMessages();
+}, 5000);
+</script>
+
+<script>
+async function loadCourses() {
+  const res = await fetch("/instructor/ajax/courses");
+  const courses = await res.json();
+
+  const tbody = document.getElementById("coursesBody");
+  tbody.innerHTML = "";
+
+  if (courses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3">No courses yet</td></tr>`;
+    return;
+  }
+
+  courses.forEach(course => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${course.title}</td>
+        <td>${course.student_count}</td>
+        <td>
+          <button onclick="location.href='/instructor/courses/${course.id}/learn'">View</button>
+          <button onclick="location.href='/instructor/courses/${course.id}/students'">Students</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+loadCourses();
+</script>
+
+<script>
+function openReplyBox(receiverId, name) {
+  document.getElementById('replyBox').style.display = 'block';
+  document.getElementById('replyToName').textContent = name;
+  document.getElementById('replyReceiverId').value = receiverId;
+}
+
+function closeReplyBox() {
+  document.getElementById('replyBox').style.display = 'none';
+  document.getElementById('replyMessage').value = '';
+}
+
+async function sendReply() {
+  const receiverId = document.getElementById('replyReceiverId').value;
+  const message = document.getElementById('replyMessage').value.trim();
+
+  if (!message) return alert("Please type a message.");
+
+  try {
+    const res = await fetch("/student/chat/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receiverId, message })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Reply sent successfully!");
+      closeReplyBox();
+      location.reload();
+    } else {
+      alert("❌ " + data.message);
+    }
+  } catch (err) {
+    console.error("Reply error:", err);
+    alert("Server error sending reply.");
+  }
+}
+</script>
+
+    <!-- script for navbar hamburger -->
+    <script>
+      function toggleNav() {
+        var nav = document.getElementById("main-nav");
+        nav.classList.toggle("open");
+      }
+    </script>
+
+    
+<script>
+const schoolSelect = document.getElementById("schoolSelect");
+
+schoolSelect.addEventListener("change", async () => {
+  const schoolId = schoolSelect.value;
+  // load dashboard section with selected school
+  await loadSection("dashboard?school_id=" + schoolId);
+});
+
+async function loadSection(section) {
+  const res = await fetch(`/instructor/section/${section}`);
+  const html = await res.text();
+  document.getElementById("main-content").innerHTML = html;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  // load default dashboard section
+  const defaultSchoolId = schoolSelect.value;
+  loadSection("dashboard?school_id=" + defaultSchoolId);
+});
+</script>
