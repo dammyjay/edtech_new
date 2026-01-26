@@ -23,50 +23,19 @@
       <div class="article-card" data-course-id="<%= lesson.course_id %>" data-lesson-id="<%= lesson.id %>">
       <h3><%= lesson.title %></h3>
       <p><strong>Module:</strong> <%= lesson.module_title %></p>
-      <% if (lesson.video_url) { %>
+      <!-- <% if (lesson.video_url) { %>
         <video src="<%= lesson.video_url %>" controls></video>
       <% } %>
-      <p><%- lesson.content.substring(0, 200) %>...</p>
+      <p><%- lesson.content.substring(0, 200) %>...</p> -->
       <div class="article-buttons">
-        <!-- <button class="btn-edit" onclick="openEditLessonModal(<%= JSON.stringify(lesson) %>)">Edit</button> -->
-         <button class="btn-edit" onclick="openEditLessonModal(<%= lesson.id %>)">Edit</button>
-          <!-- <button class="btn-edit" onclick='openEditLessonModal(<%= JSON.stringify({
-          id: lesson.id,
-          title: lesson.title,
-          content: lesson.content,
-          course_id: course.id,
-          video_url: lesson.video_url || ""
-        }) %>)'>Edit</button> -->
+        <button class="btn-edit" onclick="openEditLessonModal(<%= lesson.id %>)">Edit</button>
+          
         <form method="POST" action="/admin/lessons/<%= lesson.id %>/delete" style="display:inline;">
           <input type="hidden" name="course_id" value="<%= course.id %>">
           <button class="btn-delete" type="submit" onclick="return confirm('Delete lesson?')">Delete</button>
         </form>
         <button class="btn-create" type="button" onclick="openQuizModal(<%= lesson.id %>)">Manage Quiz</button>
-        <!-- <form method="POST" action="/admin/lessons/<%= lesson.id %>/quiz/ai-generate">
-          <label>Questions:</label>
-          <input type="number" name="numQuestions" value="5" min="1" max="20">
-          <label>Difficulty:</label>
-          <select name="difficulty">
-            <option>easy</option>
-            <option selected>mixed</option>
-            <option>hard</option>
-          </select>
-          <button type="submit" class="btn-create">✨ AI Generate</button>
-        </form> -->
-      
-        <!-- <form class="ai-generate-form" data-lesson-id="<%= lesson.id %>">
-          <label>Questions:</label>
-          <input type="number" name="numQuestions" value="5" min="1" max="20">
-          <label>Difficulty:</label>
-          <select name="difficulty">
-            <option value="easy">Easy</option>
-            <option value="mixed" selected>Mixed</option>
-            <option value="hard">Hard</option>
-          </select>
-          <button type="submit" class="btn-create">✨ Preview AI Quiz</button>
-        </form> -->
-
-      
+       
       </div>
     </div>
     

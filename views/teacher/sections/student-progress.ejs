@@ -225,6 +225,7 @@
                 <table class="user-table" border="1" cellpadding="8" cellspacing="0" width="100%">
                     <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Lesson</th>
                         <th>Status</th>
                         <th>Quiz</th>
@@ -233,6 +234,7 @@
                     <tbody>
                     <% m.lessons.forEach(l => { %>
                         <tr>
+                        <td><%= l.id %></td>
                         <td><%= l.title %></td>
                         <td><%= l.completed ? "✅ Completed" : "❌ Not Completed" %></td>
                         <td>
