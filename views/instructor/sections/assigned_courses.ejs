@@ -1,0 +1,42 @@
+<h2>📚 Assigned Courses</h2>
+
+<% if (classroomCourse.length === 0) { %>
+  <p>No courses assigned to your classrooms in this school.</p>
+<% } else { %>
+  <div class="table-responsive">
+     <table class="user-table" style="width:80%; margin-top:20px;">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Classroom</th>
+          <th>Students</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% classroomCourse.forEach(course => { %>
+          <tr>
+            <td><%= course.title %></td>
+            <td><%= course.classroom_name %></td>
+            <td><%= course.student_count %></td>
+            <td>
+              <button
+                class="btn-edit"
+                onclick="location.href='/instructor/courses/<%= course.id %>/learn'">
+                Teach
+              </button>
+
+              <button
+                class="btn-edit"
+                style="background:#6c5ce7;"
+                onclick="location.href='/instructor/courses/<%= course.id %>/students?classroom=<%= course.classroom_id %>'">
+                Students
+              </button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  
+<% } %>

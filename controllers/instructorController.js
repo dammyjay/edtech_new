@@ -372,6 +372,7 @@ exports.ajaxCourses = async (req, res) => {
 
 exports.loadSection = async (req, res) => {
   try {
+    
     const { section } = req.params;
     const instructorId = req.user.id;
 
@@ -532,6 +533,28 @@ exports.loadSection = async (req, res) => {
           engagement_last7: 0
         };
       }
+
+      const assignedCoursesRes = await pool.query(`
+        SELECT DISTINCT
+          cr.id,
+          cr.title,
+          COUNT(DISTINCT us.user_id) AS student_count
+        FROM classroom_courses cc
+        JOIN courses cr ON cc.course_id = cr.id
+        JOIN classrooms c ON cc.classroom_id = c.id
+        JOIN classroom_instructors ci ON ci.classroom_id = c.id
+        LEFT JOIN user_school us 
+          ON us.classroom_id = c.id 
+          AND us.role_in_school = 'student'
+          AND us.approved = true
+        WHERE ci.instructor_id = $1
+          AND c.school_id = $2
+        GROUP BY cr.id
+        ORDER BY cr.title
+      `, [instructorId, activeSchoolId]);
+
+      const assignedCourses = assignedCoursesRes.rows;
+
     }
 
     // Messages
@@ -560,6 +583,32 @@ exports.loadSection = async (req, res) => {
       `, [instructorId])
     ).rows;
 
+    const classroomIds = classes.map(c => c.id);
+
+    let classroomCourse = { rows: [] };
+
+    if (classroomIds.length > 0) {
+      classroomCourse = await pool.query(`
+        SELECT DISTINCT
+          crs.id,
+          crs.title,
+          c.name AS classroom_name,
+          (
+            SELECT COUNT(*)
+            FROM user_school us
+            WHERE us.classroom_id = c.id
+              AND us.role_in_school = 'student'
+              AND us.approved = true
+          ) AS student_count
+        FROM classroom_courses cc
+        JOIN courses crs ON cc.course_id = crs.id
+        JOIN classrooms c ON cc.classroom_id = c.id
+        WHERE cc.classroom_id = ANY($1::int[])
+        ORDER BY crs.title
+      `, [classroomIds]);
+    }
+
+  
     // Build final data object
     const data = {
       info,
@@ -568,6 +617,7 @@ exports.loadSection = async (req, res) => {
       school,
       classes,
       classrooms: classes, // <-- add this line
+      classroomCourse: classroomCourse.rows,
       students,
       courses,
       total_courses,
@@ -589,6 +639,7 @@ exports.loadSection = async (req, res) => {
       case "students":
       case "reports":
       case "messages":
+      case "assigned_courses":
         return res.render(`instructor/sections/${section}`, data);
       default:
         return res.send("<p>Section not found</p>");
@@ -1360,6 +1411,7 @@ exports.previewContent = async (req, res) => {
   const { type, id } = req.params; // type = lesson | assignment | quiz, id = lessonId/assignId/quizId
 
   try {
+    
     if (type === "lesson") {
       const lesson = (await pool.query("SELECT * FROM lessons WHERE id = $1", [id])).rows[0];
       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
@@ -1408,7 +1460,7 @@ exports.previewContent = async (req, res) => {
       return res.json({
         type: "assignment",
         title: assignment.title,
-        description: assignment.description,
+        description: assignment.instructions,
         file_url: assignment.file_url || null
       });
 
@@ -1520,3 +1572,53 @@ exports.viewCourseAsStudent = async (req, res) => {
 };
 
 
+exports.assignedCoursesSection = async (req, res) => {
+  const instructorId = req.user.id;
+  const schoolId = parseInt(req.query.school_id, 10);
+
+  if (!schoolId) {
+    return res.send("<p>Please select a school</p>");
+  }
+
+  try {
+    // 1️⃣ Get instructor classrooms in this school
+    const classroomsResult = await pool.query(`
+      SELECT c.id, c.name
+      FROM classroom_instructors ci
+      JOIN classrooms c ON ci.classroom_id = c.id
+      WHERE ci.instructor_id = $1
+        AND c.school_id = $2
+    `, [instructorId, schoolId]);
+
+    if (classroomsResult.rows.length === 0) {
+      return res.send("<p>No classrooms assigned in this school.</p>");
+    }
+
+    // 2️⃣ Get courses assigned to those classrooms
+    const coursesResult = await pool.query(`
+      SELECT DISTINCT
+        crs.id,
+        crs.title,
+        c.name AS classroom_name,
+        (
+          SELECT COUNT(*)
+          FROM user_school us
+          WHERE us.classroom_id = c.id
+            AND us.role_in_school = 'student'
+        ) AS student_count
+      FROM classroom_courses cc
+      JOIN courses crs ON cc.course_id = crs.id
+      JOIN classrooms c ON cc.classroom_id = c.id
+      WHERE cc.classroom_id = ANY($1::int[])
+    `, [classroomsResult.rows.map(c => c.id)]);
+
+    res.render("instructor/sections/assigned_courses", {
+      classrooms: classroomsResult.rows,
+      courses: coursesResult.rows
+    });
+
+  } catch (err) {
+    console.error("Assigned courses error:", err);
+    res.send("<p>Error loading assigned courses</p>");
+  }
+};

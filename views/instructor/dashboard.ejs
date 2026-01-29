@@ -2,14 +2,13 @@
 <html>
 <head>
   <title>Instructor Dashboard</title>
-  <link rel="stylesheet" href="/css/style2.css">
+  <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/style3.css">
-  
 </head>
 <body>
 
+<%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 <%- include('./partials/instructor_sidenav') %>
-
 
 <div class="main-content" id="main-content">
   <p>Loading dashboard…</p>
@@ -18,30 +17,83 @@
 <script>
 let currentSection = "dashboard";
 
+/**
+ * Load a dashboard section via AJAX
+ * @param {string} section
+ */
+// async function loadSection(section) {
+//   currentSection = section;
+
+//   const schoolSelect = document.getElementById("schoolSelect");
+//   const schoolId = schoolSelect ? schoolSelect.value : null;
+
+//   let url = `/instructor/section/${section}`;
+//   if (schoolId) {
+//     url += `?school_id=${schoolId}`;
+//   }
+
+//   try {
+//     const res = await fetch(url);
+//     const html = await res.text();
+//     document.getElementById("main-content").innerHTML = html;
+
+//     // Re-bind school selector after content load
+//     bindSchoolSelector();
+//   } catch (err) {
+//     console.error("Load section error:", err);
+//     document.getElementById("main-content").innerHTML =
+//       "<p style='color:red;'>Failed to load section</p>";
+//   }
+// }
+
 async function loadSection(section) {
   const schoolSelect = document.getElementById("schoolSelect");
   const schoolId = schoolSelect ? schoolSelect.value : null;
 
-  const url = `/instructor/section/${section}${schoolId ? '?school_id=' + schoolId : ''}`;
+  let url = `/instructor/section/${section}`;
+  if (schoolId) url += `?school_id=${schoolId}`;
+
+  // 🔹 Highlight active tab
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === section);
+  });
+
   try {
     const res = await fetch(url);
     const html = await res.text();
     document.getElementById("main-content").innerHTML = html;
-
-    // Reattach the change listener for schoolSelect inside loaded content
-    const newSchoolSelect = document.getElementById("schoolSelect");
-    if (newSchoolSelect) {
-      newSchoolSelect.addEventListener("change", () => {
-        loadSection("dashboard");
-      });
-    }
+    bindSchoolSelector();
   } catch (err) {
-    console.error(err);
-    document.getElementById("main-content").innerHTML = "<p style='color:red;'>Failed to load section</p>";
+    document.getElementById("main-content").innerHTML =
+      "<p style='color:red'>Failed to load section</p>";
   }
 }
 
-// Load default section on page load
+
+/**
+ * Re-attach school selector listener (AJAX-safe)
+ */
+function bindSchoolSelector() {
+  const schoolSelect = document.getElementById("schoolSelect");
+  if (!schoolSelect) return;
+
+  schoolSelect.onchange = () => {
+    loadSection("dashboard");
+  };
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    loadSection(btn.dataset.tab);
+  });
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  loadSection("dashboard");
+});
+
+
+// Initial load
 window.addEventListener("DOMContentLoaded", () => {
   loadSection(currentSection);
 });

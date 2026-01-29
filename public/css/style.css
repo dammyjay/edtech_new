@@ -13,6 +13,54 @@ body {
     align-items: center;
 }
 
+/* === Main Content === */
+.main-content {
+    width: 100%;
+        /* Same as sidebar width */
+    padding: 30px;
+    flex-grow: 1;
+    min-height: 100vh;
+    background-color: #f5f6fa;
+}
+
+.main-content h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.instructor-tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font-size: 15px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  color: #555;
+}
+
+.tab-btn:hover {
+  color: #deab1d;
+}
+
+.tab-btn.active {
+  color: #deab1d;
+  border-bottom-color: #deab1d  ;
+  font-weight: bold;
+}
+
+.lesson-main-area {
+    padding: 15px;
+    width: 100%;
+}
+
 /* Style the dropdown container */
 .dropdown {
     position: relative;
@@ -1925,6 +1973,44 @@ nav a:hover {
                                                             transform: scale(1.12);                             }
 /* Optional: reduce padding on very small screens */
 @media screen and (max-width: 480px) {
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+        width: 100%;
+    }
+    .instructor-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    }
+
+    .tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 15px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    color: #555;
+    }
+
+    .tab-btn:hover {
+    color: #deab1d;
+    }
+
+    .tab-btn.active {
+    color: #deab1d;
+    border-bottom-color: #deab1d  ;
+    font-weight: bold;
+    }
+
+    .lesson-main-area {
+        padding: 15px;
+        width: 100%;
+    }
+
     .hero-carousel {
             position: relative;
             width: 100%;

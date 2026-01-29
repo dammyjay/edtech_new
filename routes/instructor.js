@@ -30,6 +30,10 @@ router.get(
   instructorController.downloadQuizReport
 );
 router.get("/student/:id/report", instructorController.downloadStudentReport);
+router.get(
+  "/section/assigned-courses",
+  instructorController.assignedCoursesSection
+);
 
 
 

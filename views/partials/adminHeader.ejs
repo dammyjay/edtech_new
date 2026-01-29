@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="/css/style.css" />
+
     <link rel="icon" type="image/x-icon" href="/logo.png" />
 </head>
 <body>
@@ -19,7 +20,13 @@
       <!-- <button class="nav-toggle" onclick="toggleNav()">☰</button> -->
        <button id="nav-toggle-btn" class="nav-toggle" onclick="toggleNav()" aria-expanded="false" aria-controls="main-nav">☰</button>
       <nav id="main-nav">
-        <div class="dropdown">
+        <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
+          Dashboard
+        </a>
+        
+        
+        <% if (role === 'admin') { %>
+          <div class="dropdown">
           <button class="dropbtn" onclick="toggleDropdown('schoolsMenu')">
               Dashoboard ▾
             </button>
@@ -27,13 +34,12 @@
               <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
                 Dashboard
               </a>
+              
               <a href="/admin/analytics">Analytics</a>
               <a href="/admin/feedback">Feedbacks</a>
             </div>
         </div>
-        
-        
-        <% if (role === 'admin') { %>
+
           <div class="dropdown">
             <button class="dropbtn" onclick="toggleDropdown('studentsMenu')">
               Students ▾
