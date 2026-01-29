@@ -1651,7 +1651,7 @@ document.addEventListener("DOMContentLoaded", () => {
              hideLoading(); // 🟢 Hide once submitted
 
             if (result.success) {
-              refreshSidebarProgress();
+              // refreshSidebarProgress();
               const criteriaHTML = result.criteria
                 ? Object.entries(result.criteria)
                     .map(([crit, score]) => `<p>${crit}: <strong>${score}</strong></p>`)
@@ -1969,7 +1969,7 @@ document.addEventListener("DOMContentLoaded", () => {
           nextLessonBtn.style.opacity = "1";
           nextLessonBtn.style.cursor = "pointer";
         }
-        refreshSidebarProgress();
+        // refreshSidebarProgress();
       }
 
       if (result.feedback) {
