@@ -323,7 +323,7 @@
   <h3>All Modules</h3>
   <% Object.keys(courseModules).forEach(courseId => { %>
     <% courseModules[courseId].forEach(module => { %>
-      <div id="module-<%= module.id %>" class="module-block">
+      <div class="module-block">
         <button style="text-align: left;" class="module-toggle no-bg" onclick="toggleModule(<%= module.id %>)">
           📦 <%= module.title %> ▾
         </button>
@@ -340,7 +340,7 @@
             <li>
               
 
-              <button id="lesson-btn-<%= lesson.id %>" class="lesson-toggle no-bg"
+              <button class="lesson-toggle no-bg"
                       onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>)"
                       style="text-align: left; <%= lesson.unlocked ? '' : 'opacity:0.5; cursor:not-allowed;' %>">
                 <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
@@ -358,7 +358,6 @@
           <% (moduleAssignments[module.id] || []).forEach(assign => { %>
             <li>
               <button 
-                id="assignment-btn-<%= assign.id %>"
                 class="no-bg assignment-btn"
                 data-id="<%= assign.id %>"
                 <%= assign.unlocked 
@@ -1651,7 +1650,6 @@ document.addEventListener("DOMContentLoaded", () => {
              hideLoading(); // 🟢 Hide once submitted
 
             if (result.success) {
-              // refreshSidebarProgress();
               const criteriaHTML = result.criteria
                 ? Object.entries(result.criteria)
                     .map(([crit, score]) => `<p>${crit}: <strong>${score}</strong></p>`)
@@ -1969,7 +1967,6 @@ document.addEventListener("DOMContentLoaded", () => {
           nextLessonBtn.style.opacity = "1";
           nextLessonBtn.style.cursor = "pointer";
         }
-        // refreshSidebarProgress();
       }
 
       if (result.feedback) {
@@ -2167,72 +2164,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 </script>
-
-<!-- Referesh content Sidebar -->
- <!-- <script>
-  async function refreshSidebarProgress() {
-  try {
-    const res = await fetch("/student/progress/sidebar");
-    const data = await res.json();
-
-    // 🔓 Modules
-    data.modules.forEach(m => {
-      const mod = document.getElementById(`module-${m.id}`);
-      if (mod && m.unlocked) {
-        mod.classList.remove("locked");
-      }
-    });
-
-    // 📚 Lessons
-    data.lessons.forEach(l => {
-      const btn = document.getElementById(`lesson-btn-${l.id}`);
-      if (btn && l.unlocked) {
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
-        btn.onclick = () => handleLessonClick(l.id, true);
-      }
-    });
-
-    // 📑 Assignments
-    data.assignments.forEach(a => {
-      const btn = document.getElementById(`assignment-btn-${a.id}`);
-      if (btn) {
-        btn.disabled = false;
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
-      }
-    });
-
-    // 🏁 Final project
-    Object.entries(data.finalProjects).forEach(([courseKey, unlocked]) => {
-      if (unlocked) {
-        document.querySelectorAll(".final-project-locked")
-          .forEach(el => el.style.display = "none");
-        document.querySelectorAll(".final-project-btn")
-          .forEach(el => el.style.display = "block");
-      }
-    });
-
-  } catch (err) {
-    console.error("Sidebar refresh failed:", err);
-  }
-}
-
-function showUnlockToast(msg) {
-  const t = document.createElement("div");
-  t.textContent = msg;
-  t.style.position = "fixed";
-  t.style.bottom = "20px";
-  t.style.left = "50%";
-  t.style.transform = "translateX(-50%)";
-  t.style.background = "#4CAF50";
-  t.style.color = "#fff";
-  t.style.padding = "10px 16px";
-  t.style.borderRadius = "6px";
-  t.style.zIndex = "9999";
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
-
- </script> -->
 
