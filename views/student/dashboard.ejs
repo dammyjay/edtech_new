@@ -1329,18 +1329,6 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     }
 
-    // ✅ Add fullscreen toggle support
-  // function toggleFullscreen() {
-  //   const slideView = document.getElementById("slideView");
-  //   if (!document.fullscreenElement) {
-  //     slideView.requestFullscreen().catch(err => {
-  //       console.error("Fullscreen error:", err);
-  //     });
-  //   } else {
-  //     document.exitFullscreen();
-  //   }
-  // }
-
   /* ==============================
     🔹 FULLSCREEN + KEYBOARD CONTROLS
     ============================== */
@@ -1826,32 +1814,6 @@ document.addEventListener("DOMContentLoaded", () => {
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
 
-  // function toggleLesson(lessonId) {
-  //   const el = document.getElementById(`lesson-expand-${lessonId}`);
-  //   if (el.style.display === "block") {
-  //     el.style.display = "none";
-  //     return;
-  //   }
-  //   // Load lesson details
-  //   fetch(`/student/lessons/${lessonId}`)
-  //     .then(res => res.json())
-  //     .then(lesson => {
-  //       let html = "";
-  //       if (lesson.video_url) {
-  //         html += `<div class="lesson-video">
-  //           <iframe src="${lesson.video_url}" frameborder="0" allowfullscreen></iframe>
-  //         </div>`;
-  //       }
-  //       html += `<div class="lesson-text">${lesson.content || '<p>No content available.</p>'}</div>`;
-  //       if (lesson.has_quiz) {
-  //         html += `<button class="btn-quiz" onclick="loadQuizInline(${lesson.id})">Take Quiz</button>
-  //                 <div id="quiz-area-${lesson.id}" class="quiz-inline"></div>`;
-  //       }
-  //       el.innerHTML = html;
-  //       el.style.display = "block";
-  //     });
-  // }
-
 
   function loadQuizInline(lessonId) {
     showLoading();
@@ -1935,74 +1897,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
   }
-
-
-  // function submitQuizInline(e, lessonId) {
-  //   e.preventDefault();
-  //    showLoading(); // ⬅️ Start loading animation
-
-  //   const formData = new FormData(e.target);
-  //   const answers = {};
-  //   for (let [key, value] of formData.entries()) {
-  //     answers[key] = value;
-  //   }
-
-  //   fetch(`/student/lessons/${lessonId}/quiz/submit`, {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({
-  //       lessonId: lessonId,  // ✅ backend uses this to lookup quizId
-  //       answers: answers
-  //     })
-  //   })
-  //     .then(res => res.json())
-  //     .then(result => {
-  //       const quizContainer = document.getElementById(`quiz-area-${lessonId}`) || document.getElementById("lessonMainArea");
-
-  //       if (!result.success) {
-  //         quizContainer.innerHTML = `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
-  //         return;
-  //       }
-
-  //       // Save review data globally
-  //       window.quizReviewData = result.reviewData;
-  //       window.currentReviewLesson = lessonId;
-
-  //       quizContainer.innerHTML = `
-  //         <h3>Quiz Results</h3>
-  //         <p><strong>Score:</strong> ${result.score}%</p>
-  //         <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
-  //         <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
-  //         <hr>
-  //         <h3>Detailed Review</h3>
-  //         <div id="quiz-review-${lessonId}"></div>
-  //         <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
-  //       `;
-
-  //       reviewQuizInline(lessonId); // show detailed review
-  //       // 🚀 If passed, unlock the next lesson in the UI
-  //       if (result.passed) {
-  //         const nextLessonBtn = document.querySelector(
-  //           `#lesson-btn-${lessonId + 1}` // adjust if your button IDs differ
-  //         );
-  //         if (nextLessonBtn) {
-  //           nextLessonBtn.removeAttribute("disabled");
-  //           nextLessonBtn.style.opacity = "1";
-  //           nextLessonBtn.style.cursor = "pointer";
-  //         }
-  //       }
-  //       if (result.feedback) {
-  //         pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
-  //       }
-  //     })
-  //     .catch(err => {
-  //       hideLoading(); // ⬅️ Stop animation even on error
-  //       console.error("❌ Error submitting quiz:", err);
-  //       const quizContainer = document.getElementById(`quiz-area-${lessonId}`) || document.getElementById("lessonMainArea");
-  //       quizContainer.innerHTML = `<p class="error">Error submitting quiz. Please try again.</p>`;
-  //     });
-  // }
-  
 
   function submitQuizInline(e, lessonId) {
   e.preventDefault();

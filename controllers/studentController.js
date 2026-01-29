@@ -1543,6 +1543,19 @@ ${JSON.stringify(reviewData, null, 2)}
       [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
     );
 
+    res.json({
+      success: true,
+      score: percent,
+      passed: percent >= 50,
+      reviewData,
+      feedback:
+        percent >= 80
+          ? "🌟 Excellent work! You clearly understood this lesson."
+          : percent >= 50
+          ? "👍 Good attempt. Review the explanations for the wrong answers."
+          : "📘 Don’t worry! Revisit the lesson content and try again.",
+    });
+
     // ✅ Mark lesson as completed when quiz is submitted
     await pool.query(
       `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
@@ -1718,18 +1731,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // ... same for Advanced and Master
 
     // ✅ Respond to frontend
-    res.json({
-      success: true,
-      score: percent,
-      passed: percent >= 50,
-      reviewData,
-      feedback:
-        percent >= 80
-          ? "🌟 Excellent work! You clearly understood this lesson."
-          : percent >= 50
-          ? "👍 Good attempt. Review the explanations for the wrong answers."
-          : "📘 Don’t worry! Revisit the lesson content and try again.",
-    });
+    
   } catch (err) {
     console.error("Quiz submit error:", err.message);
     res.status(500).json({ success: false, message: "Failed to submit quiz." });
