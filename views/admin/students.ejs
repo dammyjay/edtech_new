@@ -17,6 +17,44 @@
       <a style="text-decoration: none; color: white;" href="/admin/dashboard">⬅ Back to Dashboard</a>
     </header>
 
+    <button onclick="openAddUserModal()" 
+      style="background:#000; color:#fff; padding:10px 15px; border:none; border-radius:5px;">
+      ➕ Add User
+    </button>
+
+    <div id="addUserModal" class="modal" style="display:none;">
+      <div class="modal-content" style="max-width:400px; margin:auto; background:#fff; padding:20px; border-radius:8px;">
+        <span onclick="closeAddUserModal()" style="float:right; cursor:pointer;">&times;</span>
+
+        <h2>Add New User</h2>
+
+        <form method="POST" action="/admin/add-user">
+          <input type="text" name="fullname" placeholder="Full Name" required />
+          <input type="email" name="email" placeholder="Email" required />
+          <input type="text" name="phone" placeholder="Phone" />
+          
+          <select name="gender" required>
+            <option value="">Select Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+          </select>
+
+          <select name="role">
+            <option value="user">Student</option>
+            <option value="parent">Parent</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          <p style="font-size:12px; color:#666;">
+            Default password: <strong>12345678</strong>
+          </p>
+
+          <button type="submit" style="margin-top:10px;">Create User</button>
+        </form>
+      </div>
+    </div>
+
+
     <h1>👩‍🎓 All Students</h1>
 
     <div class="table-responsive">
@@ -127,5 +165,17 @@
         document.getElementById("userModal").style.display = "none";
       }
     </script>
+
+    <!-- Script to open add user modal -->
+     <script>
+  function openAddUserModal() {
+    document.getElementById("addUserModal").style.display = "block";
+  }
+
+  function closeAddUserModal() {
+    document.getElementById("addUserModal").style.display = "none";
+  }
+</script>
+
   </body>
   </html>

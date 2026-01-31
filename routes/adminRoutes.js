@@ -41,6 +41,7 @@ router.get("/dashboard", adminController.dashboard);
 router.get("/analytics/export", adminController.exportAnalyticsPDF);
 router.get("/analytics", adminController.analyticsPage);
 router.get("/stats/overview", adminController.overview);
+router.post("/add-user", adminController.addUser);
 router.get("/stats/users", adminController.users);
 router.get("/stats/courses", adminController.courses);
 router.get("/stats/progress",adminController.progress);
