@@ -780,6 +780,25 @@ exports.getEnrolledCourses = async (req, res) => {
       walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
     }
 
+    // --- Parents
+    const { rows: parents } = await pool.query(
+      `SELECT u.id, u.fullname, u.email
+       FROM users2 u
+       JOIN parent_children pc ON u.id = pc.parent_id
+       WHERE pc.child_id = $1 AND u.role = 'parent'`,
+      [studentId]
+    );
+
+        // --- Parent requests
+    const requestsRes = await pool.query(
+      `SELECT r.id, u.fullname AS parent_name, u.email AS parent_email, r.status
+       FROM parent_child_requests r
+       JOIN users2 u ON r.parent_id = u.id
+       WHERE r.child_id = $1 AND r.status = 'pending'`,
+      [studentId]
+    );
+    const parentRequests = requestsRes.rows;
+
     // Stats (same as before)
     const completedCoursesRes = await pool.query(
       `SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND progress = 100`,
@@ -851,6 +870,8 @@ exports.getEnrolledCourses = async (req, res) => {
       engagementData,
       section: req.query.section || null,
       selectedPathway: req.query.pathway || null,
+      parents,
+      parentRequests,
     });
   } catch (err) {
     console.error("Error fetching courses:", err.message);
