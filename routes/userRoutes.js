@@ -193,9 +193,14 @@ router.get(
   userController.downloadCourseSummary
 );
 
+// router.get(
+//   "/student/:studentId/quiz/:quizId/report/download",
+//   ensureParent,
+//   userController.downloadQuizReport
+// );
+
 router.get(
   "/student/:studentId/quiz/:quizId/report/download",
-  ensureParent,
   userController.downloadQuizReport
 );
 
