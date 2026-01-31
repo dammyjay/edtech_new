@@ -36,6 +36,7 @@ const multer = require("multer");
 router.get("/login", adminController.showLogin);
 router.post("/login", adminController.login);
 router.get("/dashboard", adminController.dashboard);
+router.get("/users/filter", adminController.filterUsersAjax);
 
 
 router.get("/analytics/export", adminController.exportAnalyticsPDF);

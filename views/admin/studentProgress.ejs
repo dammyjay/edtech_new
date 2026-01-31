@@ -272,33 +272,6 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   <% } %>
 </div>
 
-
-  <!-- <div id="modules" class="tab-content">
-  <h2>📦 Modules Unlocked</h2>
-  <% if (courses.length) { %>
-    <% courses.forEach(c => { %>
-      <% c.modules.forEach(m => { %>
-        <div style="margin-bottom:15px;">
-          <p>
-            <strong><%= m.module_title %></strong> (in <%= c.course_title %>) —
-            <%= m.percent %>% complete
-          </p>
-          <p>
-            Quiz Avg: <%= m.quizAvg ?? "N/A" %>, Assignment Avg:
-            <%= m.assignmentAvg ?? "N/A" %>
-          </p>
-          <p>
-            Unlocked At:
-            <%= m.unlocked_at ? new Date(m.unlocked_at).toLocaleDateString() : "N/A" %>
-          </p>
-        </div>
-      <% }) %>
-    <% }) %>
-  <% } else { %>
-    <p>No modules unlocked yet.</p>
-  <% } %>
-</div> -->
-
 <div id="modules" class="tab-content">
   <h2>📦 Modules Unlocked</h2>
   <% if (courses.length) { %>
@@ -325,37 +298,6 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   <% } %>
 </div>
 
-
-<!-- <div id="lessons" class="tab-content">
-  <h2>📚 Lessons Progress</h2>
-  <% if (courses.length) { %>
-    <% courses.forEach(c => { %>
-      <h3><%= c.course_title %></h3>
-      <% c.modules.forEach(m => { %>
-        <h4>📦 <%= m.module_title %></h4>
-        <% if (m.lessons.length) { %>
-          <table>
-            <thead>
-              <tr><th>Lesson</th><th>Completed At</th></tr>
-            </thead>
-            <tbody>
-              <% m.lessons.forEach(l => { %>
-                <tr>
-                  <td><%= l.title %></td>
-                  <td><%= l.completed_at ? new Date(l.completed_at).toLocaleString() : "Not completed" %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p>No lessons in this module yet.</p>
-        <% } %>
-      <% }) %>
-    <% }) %>
-  <% } else { %>
-    <p>No lessons available yet.</p>
-  <% } %>
-</div> -->
 
 <div id="lessons" class="tab-content">
   <h2>📚 Lessons Progress</h2>
@@ -391,7 +333,7 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     <p><strong>Overall Average:</strong> <%= quizAvg ?? "N/A" %></p>
     <% if (quizzes.length) { %>
       <table>
-        <thead><tr><th>Quiz</th><th>Lesson</th><th>Score</th><th>Taken At</th></tr></thead>
+        <thead><tr><th>Quiz</th><th>Lesson</th><th>Score</th><th>Taken At</th> <th>Action</th></tr></thead>
         <tbody>
           <% quizzes.forEach(q => { %>
             <tr>
@@ -399,6 +341,16 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
               <td data-label="Lesson"><%= q.lesson_title %></td>
               <td data-label="Score"><%= q.score %></td>
               <td data-label="Date taken"><%= new Date(q.taken_at).toLocaleString() %></td>
+              <td data-label="Actions">
+                <a
+                  href="/student/<%= student.id %>/quiz/<%= q.id %>/report/download"
+                  class="btn-edit"
+                >
+                  📄 Download Report
+                </a>
+
+              </td>
+
             </tr>
           <% }) %>
         </tbody>
@@ -406,73 +358,6 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     <% } else { %><p>No quizzes taken yet.</p><% } %>
   </div>
 
-<!-- <div id="quizzes" class="tab-content">
-  <h2>📝 Quiz Results</h2>
-  <p><strong>Overall Average:</strong> <%= quizAvg ?? "N/A" %></p>
-  <% if (quizzes.length) { %>
-    <table>
-      <thead>
-        <tr><th>Quiz</th><th>Module</th><th>Course</th><th>Score</th><th>Taken At</th></tr>
-      </thead>
-      <tbody>
-        <% courses.forEach(c => { %>
-          <% c.modules.forEach(m => { %>
-            <% m.quizzes?.forEach(q => { %>
-              <tr>
-                <td><%= q.title %></td>
-                <td><%= m.module_title %></td>
-                <td><%= c.course_title %></td>
-                <td><%= q.score %></td>
-                <td><%= new Date(q.taken_at).toLocaleString() %></td>
-              </tr>
-            <% }) %>
-          <% }) %>
-        <% }) %>
-      </tbody>
-    </table>
-  <% } else { %><p>No quizzes taken yet.</p><% } %>
-</div> -->
-
-
-  <!-- <div id="assignments" class="tab-content">
-  <h2>📑 Assignments</h2>
-  <% if (courses.length) { %>
-    <% courses.forEach(c => { %>
-      <h3>🎓 <%= c.course_title %></h3>
-      <% c.modules.forEach(m => { %>
-        <h4>📦 <%= m.module_title %></h4>
-        <% if (m.assignments.length) { %>
-          <table>
-            <thead>
-              <tr>
-                <th>Assignment</th>
-                <th>Score</th>
-                <th>Grade</th>
-                <th>Feedback</th>
-                <th>Submitted At</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% m.assignments.forEach(a => { %>
-                <tr>
-                  <td><%= a.title %></td>
-                  <td><%= a.total ?? "Pending" %></td>
-                  <td><%= a.grade ?? "-" %></td>
-                  <td><%= a.ai_feedback ?? "No feedback" %></td>
-                  <td><%= a.submitted_at ? new Date(a.submitted_at).toLocaleString() : "-" %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p>No assignments submitted for this module yet.</p>
-        <% } %>
-      <% }) %>
-    <% }) %>
-  <% } else { %>
-    <p>No assignments submitted yet.</p>
-  <% } %>
-</div> -->
 <div id="assignments" class="tab-content">
   <h2>📑 Assignments</h2>
   <% if (courses.length) { %>
@@ -507,7 +392,7 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 </div>
 
 
-  <script>
+  <script> 
     function openTab(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));

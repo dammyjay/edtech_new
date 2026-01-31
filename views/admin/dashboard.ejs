@@ -27,26 +27,28 @@
 
       
     </div>
-    <form method="GET" action="/admin/dashboard" class="filter-form"> <select name="gender"> 
-      <option value="">All Genders</option> 
-      <option value="Male" <%= gender === 'Male' ? 'selected' : '' %>>Male</option> 
-      <option value="Female" <%= gender === 'Female' ? 'selected' : '' %>>Female</option> 
-    </select> 
+    <!-- <form method="GET" action="/admin/dashboard" class="filter-form">  -->
+    <form class="filter-form" id="filterForm">
+      <select name="gender"> 
+        <option value="">All Genders</option> 
+        <option value="Male" <%= gender === 'Male' ? 'selected' : '' %>>Male</option> 
+        <option value="Female" <%= gender === 'Female' ? 'selected' : '' %>>Female</option> 
+      </select> 
     
-    <select name="role"> 
-      <option value="">All Roles</option> 
-      <option value="admin" <%= role === 'admin' ? 'selected' : '' %>>Admin</option> 
-      <option value="user" <%= role === 'user' ? 'selected' : '' %>>User</option> 
-      <option value="instructor" <%= role === 'instructor' ? 'selected' : '' %>>Instructor</option> 
-      <option value="teacher" <%= role === 'teacher' ? 'selected' : '' %>>Teacher</option> 
-      <option value="student" <%= role === 'student' ? 'selected' : '' %>>Student</option> 
-      <option value="school_admin" <%= role === 'school_admin' ? 'selected' : '' %>>School Admin</option> 
-      <option value="parent" <%= role === 'parent' ? 'selected' : '' %>>Parent</option> 
-    </select> 
+      <select name="role"> 
+        <option value="All">All Roles</option> 
+        <option value="admin" <%= role === 'admin' ? 'selected' : '' %>>Admin</option> 
+        <option value="user" <%= role === 'user' ? 'selected' : '' %>>User</option> 
+        <option value="instructor" <%= role === 'instructor' ? 'selected' : '' %>>Instructor</option> 
+        <option value="teacher" <%= role === 'teacher' ? 'selected' : '' %>>Teacher</option> 
+        <option value="student" <%= role === 'student' ? 'selected' : '' %>>Student</option> 
+        <option value="school_admin" <%= role === 'school_admin' ? 'selected' : '' %>>School Admin</option> 
+        <option value="parent" <%= role === 'parent' ? 'selected' : '' %>>Parent</option> 
+      </select> 
     
-    <input type="text" name="email" placeholder="Search by email" value="<%= email || '' %>" /> 
-    <button type="submit">Filter</button> 
-  </form>
+      <input type="text" name="email" placeholder="Search by email" value="<%= email || '' %>" /> 
+      <button type="submit">Filter</button> 
+    </form>
 
      
     </form>
@@ -175,36 +177,82 @@
       }
     </script>
 
-    <!-- script for navbar hamburger -->
-    <!-- <script>
-      function toggleNav() {
-        var nav = document.getElementById("main-nav");
-        nav.classList.toggle("open");
+    <script>
+      function openUserModal(user) {
+        document.getElementById("modalFullName").textContent = user.fullname;
+        document.getElementById("modalEmail").textContent = user.email;
+        document.getElementById("modalPhone").textContent = user.phone;
+        document.getElementById("modalDOB").textContent = user.dob || 'N/A'; // Assuming dob is optional
+        document.getElementById("modalGender").textContent = user.gender;
+        document.getElementById("modalRole").textContent = user.role;
+        document.getElementById("modalWalletBalance").textContent = `₦${user.wallet_balance2}`;
+        document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
+        document.getElementById("modalDate").textContent = user.created_at;
+
+        document.getElementById("userModal").style.display = "block";
       }
-    </script> -->
 
+      function closeUserModal() {
+        document.getElementById("userModal").style.display = "none";
+      }
+    </script>
 
+    <script>
+      const form = document.getElementById("filterForm");
+      const tbody = document.querySelector(".user-table tbody");
 
+      let typingTimer;
 
-<script>
-  function openUserModal(user) {
-    document.getElementById("modalFullName").textContent = user.fullname;
-    document.getElementById("modalEmail").textContent = user.email;
-    document.getElementById("modalPhone").textContent = user.phone;
-    document.getElementById("modalDOB").textContent = user.dob || 'N/A'; // Assuming dob is optional
-    document.getElementById("modalGender").textContent = user.gender;
-    document.getElementById("modalRole").textContent = user.role;
-    document.getElementById("modalWalletBalance").textContent = `₦${user.wallet_balance2}`;
-    document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
-    document.getElementById("modalDate").textContent = user.created_at;
+      // Listen to typing and select changes
+      form.addEventListener("input", () => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(fetchUsers, 300); // debounce typing
+      });
 
-    document.getElementById("userModal").style.display = "block";
-  }
+      function fetchUsers() {
+        const gender = form.gender.value;
+        const role = form.role.value;
+        const email = form.email.value;
 
-  function closeUserModal() {
-    document.getElementById("userModal").style.display = "none";
-  }
-</script>
+        const params = new URLSearchParams({ gender, role, email });
+
+        fetch(`/admin/users/filter?${params.toString()}`)
+          .then(res => res.json())
+          .then(users => {
+            tbody.innerHTML = "";
+
+            if (users.length === 0) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="8" style="text-align:center;">No users found</td>
+                </tr>`;
+              return;
+            }
+
+            users.forEach(user => {
+              tbody.innerHTML += `
+                <tr>
+                  <td>
+                    <img src="${user.profile_picture || '/profile.webp'}"
+                      style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
+                  </td>
+                  <td>${user.fullname}</td>
+                  <td>${user.email}</td>
+                  <td>${user.phone || ''}</td>
+                  <td>${user.gender || ''}</td>
+                  <td>${user.role}</td>
+                  <td>₦${user.wallet_balance2}</td>
+                  <td style="display:flex;gap:10px;justify-content:center;">
+                    <button class="btn-edit" onclick='openUserModal(${JSON.stringify(user)})'>👁️</button>
+                    <button class="btn-edit" onclick="location.href='/admin/users/edit/${user.id}'">Edit</button>
+                  </td>
+                </tr>
+              `;
+            });
+          });
+      }
+    </script>
+
 
   </body>
 </html>

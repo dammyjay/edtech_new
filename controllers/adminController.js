@@ -306,7 +306,6 @@ exports.analyticsPage = async (req, res) => {
   }
 };
 
-
 exports.dashboard = async (req, res) => {
   // if (!req.session.admin) return res.redirect('/admin/login');
   if (!req.session.user || req.session.user.role !== "admin") {
@@ -385,6 +384,38 @@ exports.dashboard = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
+
+exports.filterUsersAjax = async (req, res) => {
+  try {
+    const { gender, role, email } = req.query;
+
+    let query = `SELECT * FROM users2 WHERE 1=1`;
+    const values = [];
+
+    if (gender) {
+      values.push(gender);
+      query += ` AND gender = $${values.length}`;
+    }
+
+    if (role) {
+      values.push(role);
+      query += ` AND role = $${values.length}`;
+    }
+
+    if (email) {
+      values.push(`%${email}%`);
+      query += ` AND email ILIKE $${values.length}`;
+    }
+
+    const result = await pool.query(query, values);
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+};
+
 
 exports.exportAnalyticsPDF = async (req, res) => {
   try {
@@ -1287,157 +1318,6 @@ exports.deleteFeedback = async (req, res) => {
   }
 };
 
-// Admincontroller.js
-// exports.instructorDashboard = async (req, res) => {
-//   try {
-//     const instructorId = req.user.id;
-
-//     // ✅ Company Info
-//     const infoResult = await pool.query(
-//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//     );
-//     const info = infoResult.rows[0];
-
-//     // ✅ Teaching Stats
-//     const coursesCount = await pool.query(
-//       `SELECT COUNT(*) FROM courses WHERE instructor_id = $1`,
-//       [instructorId]
-//     );
-
-//     const modulesCount = await pool.query(
-//       `SELECT COUNT(*) 
-//        FROM modules m
-//        JOIN courses c ON m.course_id = c.id
-//        WHERE c.instructor_id = $1`,
-//       [instructorId]
-//     );
-
-//     const lessonsCount = await pool.query(
-//       `SELECT COUNT(*) 
-//        FROM lessons l
-//        JOIN modules m ON l.module_id = m.id
-//        JOIN courses c ON m.course_id = c.id
-//        WHERE c.instructor_id = $1`,
-//       [instructorId]
-//     );
-
-//     const studentsCount = await pool.query(
-//       `SELECT COUNT(DISTINCT e.user_id) 
-//        FROM course_enrollments e
-//        JOIN courses c ON e.course_id = c.id
-//        WHERE c.instructor_id = $1`,
-//       [instructorId]
-//     );
-
-//     const submissionsCount = await pool.query(
-//       `SELECT COUNT(*) 
-//        FROM assignment_submissions s
-//        JOIN lessons l ON s.assignment_id = l.id
-//        JOIN modules m ON l.module_id = m.id
-//        JOIN courses c ON m.course_id = c.id
-//        WHERE c.instructor_id = $1`,
-//       [instructorId]
-//     );
-
-//     const coursesList = await pool.query(
-//       `SELECT c.id, c.title, COUNT(e.id) AS student_count
-//        FROM courses c
-//        LEFT JOIN course_enrollments e ON e.course_id = c.id
-//        WHERE c.instructor_id = $1
-//        GROUP BY c.id
-//        ORDER BY c.created_at DESC`,
-//       [instructorId]
-//     );
-
-//     // ✅ Students list (for dropdown)
-//     const studentsResult = await pool.query(
-//       `
-//       SELECT u.id, u.fullname AS full_name, u.email
-//       FROM users2 u
-//       JOIN user_school us ON us.user_id = u.id
-//       WHERE us.school_id = (
-//         SELECT school_id FROM user_school WHERE user_id = $1 LIMIT 1
-//       )
-//       AND us.role_in_school = 'student'
-//       ORDER BY u.fullname
-//       `,
-//       [instructorId]
-//     );
-
-//     // 🏫 Instructor school (via classrooms)
-//     const schoolRes = await pool.query(
-//       `
-//       SELECT DISTINCT s.id, s.name
-//       FROM schools s
-//       JOIN classrooms c ON c.school_id = s.id
-//       JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//       WHERE ci.instructor_id = $1
-//       LIMIT 1
-//       `,
-//       [instructorId]
-//     );
-
-//     const school = schoolRes.rows[0] || null;
-
-
-//     // 🏫 Classrooms instructor teaches
-//     const classroomsRes = await pool.query(
-//       `
-//       SELECT c.id, c.name
-//       FROM classrooms c
-//       JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//       WHERE ci.instructor_id = $1
-//       `,
-//       [instructorId]
-//     );
-
-//     const classrooms = classroomsRes.rows;
-
-
-//     // ✅ Recent messages sent *to* this instructor
-//     const receivedMessagesResult = await pool.query(
-//       `
-//       SELECT 
-//         m.id,
-//         m.sender_id,
-//         m.message,
-//         m.created_at,
-//         u.fullname AS sender_name,
-//         u.email AS sender_email
-//       FROM messages m
-//       JOIN users2 u ON u.id = m.sender_id
-//       WHERE m.receiver_id = $1
-//       ORDER BY m.created_at DESC
-//       LIMIT 10
-//       `,
-//       [instructorId]
-//     );
-
-//     const profilePic = req.session.user
-//       ? req.session.user.profile_picture
-//       : null;
-
-//     res.render("instructor/dashboard", {
-//       total_courses: parseInt(coursesCount.rows[0].count, 10),
-//       total_modules: parseInt(modulesCount.rows[0].count, 10),
-//       total_lessons: parseInt(lessonsCount.rows[0].count, 10),
-//       total_students: parseInt(studentsCount.rows[0].count, 10),
-//       total_submissions: parseInt(submissionsCount.rows[0].count, 10),
-//       courses: coursesList.rows,
-//       students: studentsResult.rows,
-//       receivedMessages: receivedMessagesResult.rows, // ✅ new
-//       info,
-//       profilePic,
-//       role: "instructor",
-//       user: req.session.user,
-//       school,
-//       classrooms,
-//     });
-//   } catch (err) {
-//     console.error("Instructor Dashboard Error:", err);
-//     res.status(500).send("Error loading dashboard");
-//   }
-// };
 
 // Admincontroller.js
 exports.instructorDashboard = async (req, res) => {

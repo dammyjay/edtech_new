@@ -25,21 +25,6 @@ router.post(
 
 router.get("/parent/dashboard", userController.getParentDashboard);
 
-// Optionally, add a way for admin to link parent ↔ child
-// router.post("/parent/add-child", async (req, res) => {
-//   const { parent_id, child_id } = req.body;
-//   try {
-//     await pool.query(
-//       "INSERT INTO parent_children (parent_id, child_id) VALUES ($1,$2) ON CONFLICT DO NOTHING",
-//       [parent_id, child_id]
-//     );
-//     res.redirect(`/parent/dashboard`);
-//   } catch (err) {
-//     console.error("Error linking child:", err.message);
-//     res.status(500).send("Failed to link child");
-//   }
-// });
-
 router.post("/parent/add-child", userController.addChild);
 
 
@@ -208,10 +193,11 @@ router.get(
   userController.downloadCourseSummary
 );
 
-
-// router.post("/remove-child", ensureParent, userController.removeChild);
-
-
+router.get(
+  "/student/:studentId/quiz/:quizId/report/download",
+  ensureParent,
+  userController.downloadQuizReport
+);
 
 
 module.exports = router;
