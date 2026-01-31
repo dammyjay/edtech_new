@@ -515,11 +515,13 @@
     </div>
 </div>
 
-  <section>
-    <button class="btn btn-primary" onclick="window.location.href='/courses'">Find Course</button>
-  </section>
+  
   <% } else if (!selectedPathway || !pathwayCourses[selectedPathway]) { %>
     <!-- DASHBOARD VIEW -->
+     <section>
+        <button class="btn btn-primary" onclick="window.location.href='/courses'">Find Course</button>
+      </section>
+
     <section class="stats-boxes">
       <div class="stat-box light-blue">
         <h4>📘 Courses Completed</h4>
