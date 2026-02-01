@@ -176,40 +176,82 @@
 
 
 // ---------------------------------------------------------------------------------------------------
-// utils/sendEmail.js
+// // utils/sendEmail.js
+// const Brevo = require("@getbrevo/brevo");
+
+// // Create API client
+// const apiClient = Brevo.ApiClient.instance;
+
+// // Set API Key
+// const apiKey = apiClient.authentications["api-key"];
+// apiKey.apiKey = process.env.BREVO_API_KEY;
+
+// // Transactional email API
+// const transactionalEmailApi = new Brevo.TransactionalEmailsApi();
+
+// /**
+//  * Send email using Brevo
+//  * @param {string} to - Recipient email
+//  * @param {string} subject - Email subject
+//  * @param {string} htmlContent - HTML email body
+//  */
+// const sendEmail = async (to, subject, htmlContent) => {
+//   try {
+//     const sendSmtpEmail = new Brevo.SendSmtpEmail({
+//       to: [{ email: to }],
+//       subject,
+//       htmlContent,
+//       sender: {
+//         email: process.env.BREVO_FROM,
+//         name: "JKT Hub",
+//       },
+//     });
+
+//     const response = await transactionalEmailApi.sendTransacEmail(sendSmtpEmail);
+
+//     console.log("✅ Email sent successfully:", response.messageId);
+//     return response;
+//   } catch (error) {
+//     console.error(
+//       "❌ Email sending failed:",
+//       error.response?.body || error.message
+//     );
+//     throw error;
+//   }
+// };
+
+// module.exports = sendEmail;
+
+
 const Brevo = require("@getbrevo/brevo");
 
-// Create API client
-const apiClient = Brevo.ApiClient.instance;
-
-// Set API Key
-const apiKey = apiClient.authentications["api-key"];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-
-// Transactional email API
 const transactionalEmailApi = new Brevo.TransactionalEmailsApi();
+
+// ✅ SET API KEY (THIS IS THE IMPORTANT PART)
+transactionalEmailApi.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
 
 /**
  * Send email using Brevo
- * @param {string} to - Recipient email
- * @param {string} subject - Email subject
- * @param {string} htmlContent - HTML email body
  */
 const sendEmail = async (to, subject, htmlContent) => {
   try {
-    const sendSmtpEmail = new Brevo.SendSmtpEmail({
+    const sendSmtpEmail = {
       to: [{ email: to }],
-      subject,
-      htmlContent,
       sender: {
         email: process.env.BREVO_FROM,
         name: "JKT Hub",
       },
-    });
+      subject,
+      htmlContent,
+    };
 
-    const response = await transactionalEmailApi.sendTransacEmail(sendSmtpEmail);
+    const response =
+      await transactionalEmailApi.sendTransacEmail(sendSmtpEmail);
 
-    console.log("✅ Email sent successfully:", response.messageId);
+    console.log("✅ Email sent:", response.messageId || response);
     return response;
   } catch (error) {
     console.error(
