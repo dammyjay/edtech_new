@@ -282,6 +282,8 @@ async function createTables() {
         order_number INTEGER,
         lesson_file_url TEXT
       );
+      ALTER TABLE lessons
+      ADD COLUMN lesson_plan TEXT;
       `
     );
 

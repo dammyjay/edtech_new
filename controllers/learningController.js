@@ -233,13 +233,13 @@ exports.getLessonsPage = async (req, res) => {
 // CREATE LESSON
 exports.createLesson = async (req, res) => {
   try {
-    const { title, content, module_id, course_id, video_url, order_number } =
+    const { title, content, module_id, course_id, video_url, order_number, lesson_plan } =
       req.body;
 
     await pool.query(
-      `INSERT INTO lessons (title, content, module_id, video_url, order_number)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [title, content, module_id, video_url, order_number]
+      `INSERT INTO lessons (title, content, module_id, video_url, order_number, lesson_plan)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [title, content, module_id, video_url, order_number, lesson_plan]
     );
 
     res.redirect(`/admin/courses/${course_id}?tab=lessons`);
@@ -251,15 +251,15 @@ exports.createLesson = async (req, res) => {
 
 exports.editLesson = async (req, res) => {
   const { id } = req.params;
-  const { title, content, video_url, order_number, module_id } = req.body;
+  const { title, content, video_url, order_number, module_id, lesson_plan } = req.body;
 
   try {
     // Update lesson, including order_number and module_id
     await pool.query(
       `UPDATE lessons
-       SET title = $1, content = $2, video_url = $3, order_number = $4, module_id = $5
-       WHERE id = $6`,
-      [title, content, video_url, order_number, module_id, id]
+       SET title = $1, content = $2, video_url = $3, order_number = $4, module_id = $5, lesson_plan = $6
+       WHERE id = $7`,
+      [title, content, video_url, order_number, module_id, lesson_plan, id]
     );
 
     // Get course_id for redirect
