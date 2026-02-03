@@ -236,9 +236,43 @@
       </div>
     </div>
 
+<script>
+window.addEventListener("DOMContentLoaded", async () => {
+  const pendingEmail = localStorage.getItem("pendingEmail");
+  if (!pendingEmail) return;
+
+  console.log("✅ Pending email:", pendingEmail);
+
+  // Fill email field
+  const emailInput = document.querySelector("input[name='email']");
+  if (emailInput) {
+    emailInput.value = pendingEmail;
+    emailInput.readOnly = true;
+  }
+
+  try {
+    const res = await fetch(
+      `/auth/check-pending?email=${encodeURIComponent(pendingEmail)}`
+    );
+    const data = await res.json();
+
+    console.log("✅ check-pending:", data);
+
+    if (data.needsOtp) {
+      document.getElementById("signup-form").style.display = "none";
+      document.getElementById("otp-modal").style.display = "flex";
+    } else {
+      localStorage.removeItem("pendingEmail");
+    }
+  } catch (err) {
+    console.error("❌ OTP check failed:", err);
+  }
+});
+</script>
+
+
+
     <script>
-
-
       document.getElementById("signup-form").onsubmit = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target); // Don't convert it to JSON
@@ -258,6 +292,7 @@
         if (res.ok) {
           const data = await res.json();
           if (data.needsOtp) {
+            localStorage.setItem("pendingEmail", formData.get("email"));
             document.getElementById("otp-modal").style.display = "block";
             document.getElementById("signup-form").style.display = "none";
           } else {
@@ -268,57 +303,72 @@
           alert("Signup failed: " + (await res.text()));
         }
         
-
       };
 
       // async function verifyOtp() {
       //   const otp = document.getElementById("otp-input").value;
       //   const email = document.querySelector("input[name='email']").value;
+      //   const verifyBtn = document.getElementById("verifyBtn");
+      //   const spinner = document.getElementById("spinner2");
 
       //   const res = await fetch("/verify-otp", {
       //     method: "POST",
       //     headers: { "Content-Type": "application/json" },
       //     body: JSON.stringify({ email, otp }),
       //   });
+      //   spinner2.style.display = "inline-block";
+      //   verifyBtn.disabled = true;
 
-      //   const result = await res.text();
-      //   alert(result);
+      //   const data = await res.json();
+      //   alert(data.message); // show school ID alert
 
-      //   if (result.includes("success")) {
-      //     // Wait 2 seconds and redirect to login
+      //   if (data.success) {
+      //     // Hide OTP modal
+      //     document.getElementById("otp-modal").style.display = "none";
+
+      //     // Redirect to login
       //     setTimeout(() => {
       //       window.location.href = "/admin/login";
       //     }, 1000);
       //   }
       // }
 
+
       async function verifyOtp() {
         const otp = document.getElementById("otp-input").value;
-        const email = document.querySelector("input[name='email']").value;
+        const email =
+          document.querySelector("input[name='email']")?.value ||
+          localStorage.getItem("pendingEmail");
+
+        if (!email) {
+          alert("Email not found. Please sign up again.");
+          return;
+        }
+
         const verifyBtn = document.getElementById("verifyBtn");
         const spinner = document.getElementById("spinner2");
+
+        spinner.style.display = "inline-block";
+        verifyBtn.disabled = true;
 
         const res = await fetch("/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, otp }),
         });
-        spinner2.style.display = "inline-block";
-        verifyBtn.disabled = true;
 
         const data = await res.json();
-        alert(data.message); // show school ID alert
+        alert(data.message);
 
         if (data.success) {
-          // Hide OTP modal
-          document.getElementById("otp-modal").style.display = "none";
-
-          // Redirect to login
-          setTimeout(() => {
-            window.location.href = "/admin/login";
-          }, 1000);
+          localStorage.removeItem("pendingEmail");
+          window.location.href = "/admin/login";
+        } else {
+          spinner.style.display = "none";
+          verifyBtn.disabled = false;
         }
       }
+
 
       const passwordInput = document.getElementById("password");
       const togglePassword = document.getElementById("togglePassword");
@@ -422,7 +472,6 @@ schoolLogoInput.addEventListener("change", function () {
     schoolLogoPreview.style.display = "none";
   }
 });
-
 
     </script>
   </body>

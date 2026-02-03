@@ -15,6 +15,8 @@ router.post("/signup", upload.fields([
 
 router.get("/signup", userController.showSignup);
 router.post("/verify-otp", userController.verifyOtp);
+router.post("/resend-otp", userController.resendOtp);
+
 
 router.get("/profile", userController.getUserProfile);
 router.post(
@@ -203,6 +205,8 @@ router.get(
   "/student/:studentId/quiz/:quizId/report/download",
   userController.downloadQuizReport
 );
+
+router.get("/auth/check-pending", userController.checkPendingUser);
 
 
 module.exports = router;

@@ -224,15 +224,13 @@ exports.verifyOtp = async (req, res) => {
       } catch {}
     }
 
-    if (cleanOtp !== otp) return res.status(400).send("Invalid OTP");
-    if (new Date(user.otp_expires) < new Date())
-      return res.status(400).send("OTP expired");
+    // if (cleanOtp !== otp) return res.status(400).send("Invalid OTP");
+    // if (new Date(user.otp_expires) < new Date())
+    //   return res.status(400).send("OTP expired");
 
-    // if (result.rows.length === 0) return res.status(400).send("Invalid OTP");
+    if (cleanOtp !== otp) return res.status(400).json({ success: false, message: "Invalid OTP" });
+    if (new Date(user.otp_expires) < new Date()) return res.status(400).json({ success: false, message: "OTP expired" });
 
-    //   const user = result.rows[0];
-    //   if (new Date(user.otp_expires) < new Date())
-    //     return res.status(400).send("OTP expired");
 
     // insert into users2
     const newUserResult = await pool.query(
@@ -256,19 +254,7 @@ exports.verifyOtp = async (req, res) => {
     if (user.role === "school_admin") {
       const schoolId =
         "SCH-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-      // await pool.query(
-      //   `INSERT INTO schools (school_id, name, address, email, phone, created_by) 
-      //    VALUES ($1,$2,$3,$4,$5,$6)`,
-      //   [
-      //     schoolId,
-      //     extraData.schoolName,
-      //     extraData.schoolAddress,
-      //     newUser.email,
-      //     newUser.phone,
-      //     newUser.id,
-      //   ]
-      // );
-      
+
       const schoolLogoFile = req.files?.schoolLogo?.[0]; // multer stores file info
       const logo_url = schoolLogoFile
         ? schoolLogoFile.path
@@ -313,6 +299,130 @@ exports.verifyOtp = async (req, res) => {
   } catch (err) {
     console.error("❌ Verify OTP error:", err.message);
     res.status(500).send("Internal server error");
+  }
+};
+
+exports.checkPendingUser = async (req, res) => {
+  const { email } = req.query;
+  console.log("🔍 checkPendingUser called with:", email);
+
+  if (!email) {
+    return res.json({ pending: false });
+  }
+
+  const pending = await pool.query(
+    "SELECT otp_expires FROM pending_users WHERE email = $1",
+    [email]
+  );
+
+  if (pending.rowCount === 0) {
+    return res.json({ pending: false });
+  }
+
+  // Optional: check expiry
+  if (new Date(pending.rows[0].otp_expires) < new Date()) {
+    return res.json({ pending: false, expired: true });
+  }
+
+  return res.json({
+    pending: true,
+    needsOtp: true,
+  });
+};
+
+// exports.resendOtp = async (req, res) => {
+//   const { email } = req.body;
+
+//   const user = await pool.query(
+//     "SELECT * FROM pending_users WHERE email = $1",
+//     [email]
+//   );
+
+//   // if (user.rowCount === 0)
+//   //   return res.status(400).send("No pending account");
+
+//   // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   // const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+//   // await pool.query(
+//   //   "UPDATE pending_users SET otp_code=$1, otp_expires=$2 WHERE email=$3",
+//   //   [otp, expires, email]
+//   // );
+
+//   // await sendEmail(email, "Your new OTP", `Your OTP is ${otp}`);
+
+//   // res.json({ message: "OTP resent" });
+
+//   if (user.rowCount === 0)
+//     return res.status(400).json({ success: false, message: "No pending account" });
+
+//   try {
+//     await sendEmail(email, "Your new OTP", `Your OTP is ${otp}`);
+//   } catch (err) {
+//     console.error("Error sending OTP email:", err);
+//     return res.status(500).json({ success: false, message: "Failed to send OTP email" });
+//   }
+
+//   res.json({ success: true, message: "OTP resent successfully" });
+
+// };
+
+exports.resendOtp = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // 1️⃣ Check if the user exists in pending_users
+    const userResult = await pool.query(
+      "SELECT * FROM pending_users WHERE email = $1",
+      [email]
+    );
+
+    if (userResult.rowCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No pending account found with this email.",
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // 2️⃣ Generate new OTP and expiry
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    // 3️⃣ Preserve extraData if OTP was for school_admin
+    let otpToSave = otp;
+    if (user.role === "school_admin" && user.otp_code.includes("|")) {
+      const [, jsonString] = user.otp_code.split("|");
+      otpToSave = otp + "|" + jsonString;
+    }
+
+    // 4️⃣ Update the pending_users table
+    await pool.query(
+      "UPDATE pending_users SET otp_code = $1, otp_expires = $2 WHERE email = $3",
+      [otpToSave, expires, email]
+    );
+
+    // 5️⃣ Send OTP via email
+    try {
+      await sendEmail(email, "Your new OTP", `Your OTP is: ${otp}`);
+    } catch (err) {
+      console.error("❌ Error sending OTP email:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP email. Please try again later.",
+      });
+    }
+
+    // 6️⃣ Respond with success JSON
+    res.json({
+      success: true,
+      message: "OTP resent successfully. Check your email.",
+    });
+
+  } catch (err) {
+    console.error("❌ resendOtp error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

@@ -3,24 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <title>Admin Login</title>
+
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/styles2.css">
-    <link rel="stylesheet" href="/css/styles3.css">
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
     <link rel="icon" type="image/x-icon" href="/logo.png" />
   </head>
+
   <body class="signup-body">
     <div class="form-container">
       <h2>Login</h2>
       <p>Please enter your login details</p>
-      <% if (error) { %>
-      <p style="color: red"><%= error %></p>
+
+      <% if (typeof error !== "undefined" && error) { %>
+        <p style="color: red;"><%= error %></p>
       <% } %>
-      <!-- <form action="/admin/login" method="POST">
-    <input type="email" name="email" placeholder="Email" required><br><br>
-    <input type="password" name="password" placeholder="Password" required><br><br>
-    <button type="submit">Login</button>
-    <p style="text-align: center;">Don't have an account? <a href="/signup">Signup</a></p>
-  </form> -->
 
       <form
         action="/admin/login<%= redirect ? ('?redirect=' + encodeURIComponent(redirect)) : '' %>"
@@ -31,7 +28,10 @@
           name="email"
           placeholder="Email"
           required
-        /><br /><br />
+        />
+
+        <br /><br />
+
         <input
           type="password"
           name="password"
@@ -39,22 +39,155 @@
           placeholder="Password"
           required
         />
-        <input type="checkbox" id="showPassword" onclick="togglePassword()" />
-        Show Password <br /><br />
-        <p style="text-align: center">
+
+        <br />
+
+        <label>
+          <input type="checkbox" onclick="togglePassword()" />
+          Show Password
+        </label>
+
+        <br /><br />
+
+        <p style="text-align: center;">
           <a href="/admin/forgot-password">Forgot Password?</a>
         </p>
-        <button style="width: 100%;" type="submit">Login</button>
-        <p style="text-align: center">
-          Don't have an account? <a href="/signup">Signup</a>
+
+        <button type="submit" style="width: 100%;">Login</button>
+
+        <p style="text-align: center;">
+          Don't have an account?
+          <a href="/signup">Signup</a>
         </p>
       </form>
     </div>
+
+    <!-- OTP Modal on login page -->
+    <div id="otp-modal" class="otp-modal" style="display: none;">
+      <div>
+        <p style="color: #218838">
+          Please check your email for verification OTP and enter it below.
+        </p>
+        <p style="color: #e73f07">
+          Check spam folder if you don't see it in your inbox.
+        </p>
+        <input id="otp-input" placeholder="Enter OTP" />
+        <button id="verifyBtn" onclick="verifyOtp()">Verify OTP</button>
+        <span id="spinner2" style="display:none; margin-left:10px;">⏳ Sending...</span>
+
+        <button id="resendBtn">Resend OTP</button>
+        <span id="resendTimer" style="margin-left:10px;"></span>
+      </div>
+    </div>
+
+
     <script>
       function togglePassword() {
-        var pwd = document.getElementById("password");
+        const pwd = document.getElementById("password");
         pwd.type = pwd.type === "password" ? "text" : "password";
       }
     </script>
+
+    <% if (pendingEmail && pendingEmail.length > 0) { %>
+      <script>
+        localStorage.setItem("pendingEmail", "<%= pendingEmail %>");
+        document.querySelector(".form-container").style.display = "none"; // hide login form
+        document.getElementById("otp-modal").style.display = "flex";
+      </script>
+    <% } %>
+
+
+
+    <script>
+const verifyBtn = document.getElementById("verifyBtn");
+const resendBtn = document.getElementById("resendBtn");
+const resendTimer = document.getElementById("resendTimer");
+
+// Trigger OTP modal if pendingEmail exists
+// window.addEventListener("DOMContentLoaded", async () => {
+//   const pendingEmail = "<%= pendingEmail || '' %>"; // From server render
+
+//   if (!pendingEmail) return;
+
+//   console.log("✅ Pending email:", pendingEmail);
+//   localStorage.setItem("pendingEmail", pendingEmail);
+
+//   document.getElementById("otp-modal").style.display = "flex";
+// });
+
+// Verify OTP function
+async function verifyOtp() {
+  const otp = document.getElementById("otp-input").value;
+  const email = localStorage.getItem("pendingEmail");
+
+  if (!email) {
+    alert("Email not found. Please login again.");
+    return;
+  }
+
+  verifyBtn.disabled = true;
+  document.getElementById("spinner2").style.display = "inline-block";
+
+  try {
+    const res = await fetch("/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await res.json();
+    alert(data.message);
+
+    if (data.success) {
+      localStorage.removeItem("pendingEmail");
+      window.location.href = "/admin/login"; // or redirect somewhere
+    } else {
+      verifyBtn.disabled = false;
+      document.getElementById("spinner2").style.display = "none";
+    }
+  } catch (err) {
+    console.error(err);
+    alert("OTP verification failed");
+    verifyBtn.disabled = false;
+    document.getElementById("spinner2").style.display = "none";
+  }
+}
+
+// Resend OTP logic with 30s timer
+let resendCooldown = 30;
+resendBtn.addEventListener("click", async () => {
+  const email = localStorage.getItem("pendingEmail");
+  if (!email) return;
+
+  try {
+    const res = await fetch("/resend-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    alert(data.message);
+
+    // Disable resend button for 30s
+    resendBtn.disabled = true;
+    resendTimer.textContent = `Wait ${resendCooldown}s`;
+    const timerInterval = setInterval(() => {
+      resendCooldown--;
+      resendTimer.textContent = `Wait ${resendCooldown}s`;
+      if (resendCooldown <= 0) {
+        clearInterval(timerInterval);
+        resendBtn.disabled = false;
+        resendTimer.textContent = "";
+        resendCooldown = 30; // reset for next
+      }
+    }, 1000);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to resend OTP");
+  }
+});
+</script>
+
+
   </body>
 </html>
