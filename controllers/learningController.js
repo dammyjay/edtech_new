@@ -302,7 +302,7 @@ exports.getLessonJSON = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT l.id, l.title, l.content, l.video_url, l.order_number, l.module_id, m.course_id
+      `SELECT l.id, l.title, l.content, l.video_url, l.order_number, l.module_id, l.lesson_plan, m.course_id
        FROM lessons l
        JOIN modules m ON l.module_id = m.id
        WHERE l.id = $1`,
