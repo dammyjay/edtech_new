@@ -223,43 +223,72 @@
 // module.exports = sendEmail;
 
 
+// const Brevo = require("@getbrevo/brevo");
+
+// const transactionalEmailApi = new Brevo.TransactionalEmailsApi();
+
+// // ✅ SET API KEY (THIS IS THE IMPORTANT PART)
+// transactionalEmailApi.setApiKey(
+//   Brevo.TransactionalEmailsApiApiKeys.apiKey,
+//   process.env.BREVO_API_KEY
+// );
+
+// /**
+//  * Send email using Brevo
+//  */
+// const sendEmail = async (to, subject, htmlContent) => {
+//   try {
+//     const sendSmtpEmail = {
+//       to: [{ email: to }],
+//       sender: {
+//         email: process.env.BREVO_FROM,
+//         name: "JKT Hub",
+//       },
+//       subject,
+//       htmlContent,
+//     };
+
+//     const response =
+//       await transactionalEmailApi.sendTransacEmail(sendSmtpEmail);
+
+//     console.log("✅ Email sent:", response.messageId || response);
+//     return response;
+//   } catch (error) {
+//     console.error(
+//       "❌ Email sending failed:",
+//       error.response?.body || error.message
+//     );
+//     throw error;
+//   }
+// };
+
+// module.exports = sendEmail;
+
+
 const Brevo = require("@getbrevo/brevo");
 
-const transactionalEmailApi = new Brevo.TransactionalEmailsApi();
-
-// ✅ SET API KEY (THIS IS THE IMPORTANT PART)
-transactionalEmailApi.setApiKey(
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(
   Brevo.TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY
 );
 
-/**
- * Send email using Brevo
- */
-const sendEmail = async (to, subject, htmlContent) => {
+async function sendEmail(to, subject, htmlContent) {
   try {
     const sendSmtpEmail = {
       to: [{ email: to }],
-      sender: {
-        email: process.env.BREVO_FROM,
-        name: "JKT Hub",
-      },
+      sender: { email: process.env.BREVO_FROM, name: "JKT Hub" },
       subject,
       htmlContent,
     };
 
-    const response =
-      await transactionalEmailApi.sendTransacEmail(sendSmtpEmail);
-
-    console.log("✅ Email sent:", response.messageId || response);
-    return response;
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log("✅ Email sent:", data.messageId || data);
+    return data;
   } catch (error) {
-    console.error(
-      "❌ Email sending failed:",
-      error.response?.body || error.message
-    );
+    console.error("❌ Email sending failed:", error.message);
     throw error;
   }
-};
+}
 
 module.exports = sendEmail;
