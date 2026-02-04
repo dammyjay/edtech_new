@@ -1407,31 +1407,151 @@ ${module.assignments.length ? `<table><tr><th>Assignment</th><th>Score</th></tr>
   }
 };
 
+// exports.previewContent = async (req, res) => {
+//   const { type, id } = req.params; // type = lesson | assignment | quiz, id = lessonId/assignId/quizId
+
+//   try {
+    
+//     if (type === "lesson") {
+//       const lesson = (await pool.query("SELECT * FROM lessons WHERE id = $1", [id])).rows[0];
+//       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+//       const lessonType = req.query.part; // video | content | quiz
+
+//       if (lessonType === "video") {
+//         return res.json({ type: "video", title: lesson.title, video_url: lesson.video_url });
+//       } else if (lessonType === "content") {
+//         return res.json({ type: "content", title: lesson.title, content: lesson.content });
+//       } else if (lessonType === "lesson plan") {
+//         return res.json({ type: "lesson plan", title: lesson.title, lesson_plan: lesson.lesson_plan });
+//       } else if (lessonType === "quiz") {
+//         // Fetch lesson quiz
+//         const quizRes = await pool.query(
+//           "SELECT * FROM quizzes WHERE lesson_id = $1",
+//           [id]
+//         );
+//         const quiz = quizRes.rows[0];
+//         if (!quiz) return res.status(404).json({ error: "No quiz found for this lesson" });
+
+//         const questionsRes = await pool.query(
+//           "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
+//           [quiz.id]
+//         );
+
+//         const questions = questionsRes.rows.map(q => ({
+//           id: q.id,
+//           question: q.question,
+//           options: q.options || [],
+//           correct_option: q.correct_option,
+//           question_type: q.question_type
+//         }));
+
+//         return res.json({ type: "quiz", title: quiz.title, questions });
+//       } else {
+//         return res.status(400).json({ error: "Invalid lesson part type" });
+//       }
+
+//     } else if (type === "assignment") {
+//       const assignmentRes = await pool.query(
+//         "SELECT * FROM module_assignments WHERE id = $1",
+//         [id]
+//       );
+//       const assignment = assignmentRes.rows[0];
+//       if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+
+//       return res.json({
+//         type: "assignment",
+//         title: assignment.title,
+//         description: assignment.instructions,
+//         file_url: assignment.file_url || null
+//       });
+
+//     } else if (type === "quiz") {
+//       const quizRes = await pool.query("SELECT * FROM quizzes WHERE id = $1", [id]);
+//       const quiz = quizRes.rows[0];
+//       if (!quiz) return res.status(404).json({ error: "Quiz not found" });
+
+//       const questionsRes = await pool.query(
+//         "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
+//         [id]
+//       );
+
+//       const questions = questionsRes.rows.map(q => ({
+//         id: q.id,
+//         question: q.question,
+//         options: q.options || [],
+//         correct_option: q.correct_option,
+//         question_type: q.question_type
+//       }));
+
+//       return res.json({ type: "quiz", title: quiz.title, questions });
+
+//     } else {
+//       return res.status(400).json({ error: "Invalid content type" });
+//     }
+
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Failed to load content" });
+//   }
+// };
+
 exports.previewContent = async (req, res) => {
-  const { type, id } = req.params; // type = lesson | assignment | quiz, id = lessonId/assignId/quizId
+  const { type, id } = req.params; // lesson | assignment | quiz
+  const { part } = req.query;      // lesson_plan | video | content | quiz
 
   try {
-    
+
+    // ================= LESSON =================
     if (type === "lesson") {
-      const lesson = (await pool.query("SELECT * FROM lessons WHERE id = $1", [id])).rows[0];
-      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      const lessonRes = await pool.query(
+        "SELECT id, title, content, video_url, lesson_plan FROM lessons WHERE id = $1",
+        [id]
+      );
 
-      const lessonType = req.query.part; // video | content | quiz
+      const lesson = lessonRes.rows[0];
+      if (!lesson) {
+        return res.status(404).json({ error: "Lesson not found" });
+      }
 
-      if (lessonType === "video") {
-        return res.json({ type: "video", title: lesson.title, video_url: lesson.video_url });
-      } else if (lessonType === "content") {
-        return res.json({ type: "content", title: lesson.title, content: lesson.content });
-      } else if (lessonType === "lesson plan") {
-        return res.json({ type: "lesson plan", title: lesson.title, lesson_plan: lesson.lesson_plan });
-      } else if (lessonType === "quiz") {
-        // Fetch lesson quiz
+      // 🧑‍🏫 LESSON PLAN (CKEditor)
+      if (part === "lesson_plan") {
+        return res.json({
+          type: "lesson_plan",
+          title: lesson.title,
+          lesson_plan: lesson.lesson_plan || ""
+        });
+      }
+
+      // 📝 LESSON NOTE
+      if (part === "content") {
+        return res.json({
+          type: "content",
+          title: lesson.title,
+          content: lesson.content || ""
+        });
+      }
+
+      // 🎥 VIDEO
+      if (part === "video") {
+        return res.json({
+          type: "video",
+          title: lesson.title,
+          video_url: lesson.video_url || null
+        });
+      }
+
+      // 🧩 QUIZ (linked to lesson)
+      if (part === "quiz") {
         const quizRes = await pool.query(
           "SELECT * FROM quizzes WHERE lesson_id = $1",
           [id]
         );
+
         const quiz = quizRes.rows[0];
-        if (!quiz) return res.status(404).json({ error: "No quiz found for this lesson" });
+        if (!quiz) {
+          return res.status(404).json({ error: "No quiz found for this lesson" });
+        }
 
         const questionsRes = await pool.query(
           "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
@@ -1446,18 +1566,27 @@ exports.previewContent = async (req, res) => {
           question_type: q.question_type
         }));
 
-        return res.json({ type: "quiz", title: quiz.title, questions });
-      } else {
-        return res.status(400).json({ error: "Invalid lesson part type" });
+        return res.json({
+          type: "quiz",
+          title: quiz.title,
+          questions
+        });
       }
 
-    } else if (type === "assignment") {
+      return res.status(400).json({ error: "Invalid lesson part" });
+    }
+
+    // ================= ASSIGNMENT =================
+    if (type === "assignment") {
       const assignmentRes = await pool.query(
         "SELECT * FROM module_assignments WHERE id = $1",
         [id]
       );
+
       const assignment = assignmentRes.rows[0];
-      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+      if (!assignment) {
+        return res.status(404).json({ error: "Assignment not found" });
+      }
 
       return res.json({
         type: "assignment",
@@ -1465,11 +1594,19 @@ exports.previewContent = async (req, res) => {
         description: assignment.instructions,
         file_url: assignment.file_url || null
       });
+    }
 
-    } else if (type === "quiz") {
-      const quizRes = await pool.query("SELECT * FROM quizzes WHERE id = $1", [id]);
+    // ================= QUIZ =================
+    if (type === "quiz") {
+      const quizRes = await pool.query(
+        "SELECT * FROM quizzes WHERE id = $1",
+        [id]
+      );
+
       const quiz = quizRes.rows[0];
-      if (!quiz) return res.status(404).json({ error: "Quiz not found" });
+      if (!quiz) {
+        return res.status(404).json({ error: "Quiz not found" });
+      }
 
       const questionsRes = await pool.query(
         "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
@@ -1484,17 +1621,21 @@ exports.previewContent = async (req, res) => {
         question_type: q.question_type
       }));
 
-      return res.json({ type: "quiz", title: quiz.title, questions });
-
-    } else {
-      return res.status(400).json({ error: "Invalid content type" });
+      return res.json({
+        type: "quiz",
+        title: quiz.title,
+        questions
+      });
     }
 
+    return res.status(400).json({ error: "Invalid content type" });
+
   } catch (err) {
-    console.error(err);
+    console.error("Preview error:", err);
     res.status(500).json({ error: "Failed to load content" });
   }
 };
+
 
 exports.viewCourseAsStudent = async (req, res) => {
   const courseId = req.params.courseId;
