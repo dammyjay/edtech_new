@@ -283,7 +283,7 @@ async function createTables() {
         lesson_file_url TEXT
       );
       ALTER TABLE lessons
-      ADD COLUMN lesson_plan TEXT;
+      ADD COLUMN IF NOT EXISTS lesson_plan TEXT;
       `
     );
 
