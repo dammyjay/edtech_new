@@ -605,16 +605,23 @@ function deleteQuestion(id) {
 <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
 <script>
 /* ---------------- CREATE LESSON ---------------- */
-function openLessonModal() {
-  document.getElementById('lessonModal').style.display = 'block';
+// function openLessonModal() {
+//   document.getElementById('lessonModal').style.display = 'block';
 
-  if (!CKEDITOR.instances.createLessonContent) {
-    CKEDITOR.replace('createLessonContent');
+//   if (!CKEDITOR.instances.createLessonContent) {
+//     CKEDITOR.replace('createLessonContent');
+//   }
+//   if (!CKEDITOR.instances.createLessonPlan) {
+//     CKEDITOR.replace('createLessonPlan');
+//   }
+
+// }
+
+function openLessonModal() {
+    document.getElementById('lessonModal').style.display = 'block';
+    if (!CKEDITOR.instances['createLessonContent']) CKEDITOR.replace('createLessonContent');
+    if (!CKEDITOR.instances['createLessonPlan']) CKEDITOR.replace('createLessonPlan');
   }
-  if (!CKEDITOR.instances.createLessonPlan) {
-    CKEDITOR.replace('createLessonPlan');
-  }
-}
 
 function closeLessonModal() {
   document.getElementById('lessonModal').style.display = 'none';
@@ -624,6 +631,7 @@ function closeLessonModal() {
 async function openEditLessonModal(lessonId) {
   try {
     const res = await fetch(`/admin/lessons/${lessonId}/json`);
+    
     const lesson = await res.json();
     if (!lesson) return alert("Failed to load lesson");
 
