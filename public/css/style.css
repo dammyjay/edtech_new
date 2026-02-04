@@ -2011,6 +2011,12 @@ nav a:hover {
         width: 100%;
     }
 
+    .lesson-plan-content {
+        background: #f8f9fa;
+        padding: 16px;
+        border-left: 4px solid #2e7d32;
+    }
+
     .hero-carousel {
             position: relative;
             width: 100%;

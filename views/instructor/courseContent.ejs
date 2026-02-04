@@ -19,6 +19,7 @@
                 📘 <%= lesson.title %> ▾
               </button>
               <ul id="lesson-menu-<%= lesson.id %>" style="display:none; margin-left:15px;">
+                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'lesson_plan')">📘 Lesson Plan</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
@@ -69,7 +70,17 @@ function loadLessonPart(lessonId, part) {
     .then(data => {
 
       // 📝 CONTENT
-      if (data.type === "content") {
+
+      if (data.type === "lesson_plan") {
+        const plan = data.lesson_plan?.trim();
+
+        mainArea.innerHTML = `
+          <h3>${data.title} – Lesson Plan</h3>
+          <div class="lesson-plan-content">
+            ${plan ? plan : "<p>No lesson plan provided.</p>"}
+          </div>
+        `;
+      } else if (data.type === "content") {
         buildSlidesView(data.content, data.title);
       }
 

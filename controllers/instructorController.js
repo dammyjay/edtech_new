@@ -1422,6 +1422,8 @@ exports.previewContent = async (req, res) => {
         return res.json({ type: "video", title: lesson.title, video_url: lesson.video_url });
       } else if (lessonType === "content") {
         return res.json({ type: "content", title: lesson.title, content: lesson.content });
+      } else if (lessonType === "lesson plan") {
+        return res.json({ type: "lesson plan", title: lesson.title, lesson_plan: lesson.lesson_plan });
       } else if (lessonType === "quiz") {
         // Fetch lesson quiz
         const quizRes = await pool.query(
