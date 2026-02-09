@@ -1590,7 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
           data.questions.forEach((q, idx) => {
             html += `<p><strong>Q${idx+1}:</strong> ${q.question}</p>`;
             q.options.forEach(opt => {
-              html += `<label><input type="radio" name="q${q.id}" value="${opt}" required> ${opt}</label><br>`;
+              html += `<label><input type="radio" name="q${q.id}" value="${opt}" required> ${opt}</label><br> <hr>`;
             });
           });
           html += `<button type="submit">Submit Quiz</button></form>`;
@@ -1919,7 +1919,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         questions.forEach((q, i) => {
           quizHTML += `
-            <div class="quiz-question" style="margin-bottom:15px;">
+            <div class="quiz-question" style="border:1px solid #ccc; padding:10px; margin-bottom:15px; border-radius:5px; max-width:600px;">
               <p><strong>Q${i + 1}:</strong> ${q.question}</p>
               ${q.options
                 .map(
