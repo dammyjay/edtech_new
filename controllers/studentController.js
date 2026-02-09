@@ -342,73 +342,154 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
+    // // --- AUTO UNLOCK NEXT MODULE LOGIC
+    // for (const mod of modulesRes.rows) {
+    //   if (!mod.unlocked) continue;
+
+    //   const lessonsForModule = moduleLessons[mod.id] || [];
+    //   if (lessonsForModule.length === 0) continue;
+
+    //   // 1️⃣ All lessons completed?
+    //   const completedRes = await pool.query(
+    //     `SELECT COUNT(*) FROM user_lesson_progress ul
+    //     JOIN lessons l ON l.id = ul.lesson_id
+    //     WHERE ul.user_id = $1 AND l.module_id = $2`,
+    //     [studentId, mod.id]
+    //   );
+
+    //   const completedLessons = parseInt(completedRes.rows[0].count);
+    //   if (completedLessons !== lessonsForModule.length) continue;
+
+    //   // 2️⃣ Check assignment
+    //   const assignmentRes = await pool.query(
+    //     `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
+    //     [mod.id]
+    //   );
+
+    //   let moduleCompleted = false;
+
+    //   if (assignmentRes.rows.length === 0) {
+    //     // ✅ No assignment → module completed
+    //     moduleCompleted = true;
+    //   } else {
+    //     // Assignment exists → check submission
+    //     const submissionRes = await pool.query(
+    //       `SELECT 1 FROM assignment_submissions
+    //       WHERE student_id = $1 AND assignment_id = $2
+    //       LIMIT 1`,
+    //       [studentId, assignmentRes.rows[0].id]
+    //     );
+
+    //     moduleCompleted = submissionRes.rows.length > 0;
+    //   }
+
+    //   if (!moduleCompleted) continue;
+
+    //   // 3️⃣ Unlock next module
+    //   const nextModuleRes = await pool.query(
+    //     `SELECT id FROM modules
+    //     WHERE course_id = $1 AND order_number > $2
+    //     ORDER BY order_number ASC
+    //     LIMIT 1`,
+    //     [mod.course_id, mod.order_number]
+    //   );
+
+    //   if (nextModuleRes.rows.length > 0) {
+    //     const nextModuleId = nextModuleRes.rows[0].id;
+
+    //     await pool.query(
+    //       `INSERT INTO unlocked_modules (student_id, module_id)
+    //       VALUES ($1,$2)
+    //       ON CONFLICT (student_id,module_id) DO NOTHING`,
+    //       [studentId, nextModuleId]
+    //     );
+
+    //     // Update in-memory flag so UI reflects it
+    //     const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
+    //     if (nextModule) nextModule.unlocked = true;
+    //   }
+    // }
+
     // --- AUTO UNLOCK NEXT MODULE LOGIC
-    for (const mod of modulesRes.rows) {
-      if (!mod.unlocked) continue;
+for (const mod of modulesRes.rows) {
+  if (!mod.unlocked) continue;
 
-      const lessonsForModule = moduleLessons[mod.id] || [];
-      if (lessonsForModule.length === 0) continue;
+  const lessonsForModule = moduleLessons[mod.id] || [];
+  if (lessonsForModule.length === 0) continue;
 
-      // 1️⃣ All lessons completed?
-      const completedRes = await pool.query(
-        `SELECT COUNT(*) FROM user_lesson_progress ul
-        JOIN lessons l ON l.id = ul.lesson_id
-        WHERE ul.user_id = $1 AND l.module_id = $2`,
-        [studentId, mod.id]
-      );
+  const lastLesson = lessonsForModule[lessonsForModule.length - 1];
 
-      const completedLessons = parseInt(completedRes.rows[0].count);
-      if (completedLessons !== lessonsForModule.length) continue;
+  // 1️⃣ All lessons completed?
+  const completedRes = await pool.query(
+    `SELECT COUNT(*) FROM user_lesson_progress ul
+     JOIN lessons l ON l.id = ul.lesson_id
+     WHERE ul.user_id = $1 AND l.module_id = $2`,
+    [studentId, mod.id]
+  );
 
-      // 2️⃣ Check assignment
-      const assignmentRes = await pool.query(
-        `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
-        [mod.id]
-      );
+  const completedLessons = parseInt(completedRes.rows[0].count);
+  if (completedLessons !== lessonsForModule.length) continue;
 
-      let moduleCompleted = false;
+  // 2️⃣ Last lesson quiz must be attempted (if quiz exists)
+  const quizAttemptRes = await pool.query(
+    `SELECT 1
+     FROM quizzes q
+     LEFT JOIN quiz_submissions qs ON qs.quiz_id = q.id
+     WHERE q.lesson_id = $1 AND qs.student_id = $2
+     LIMIT 1`,
+    [lastLesson.id, studentId]
+  );
 
-      if (assignmentRes.rows.length === 0) {
-        // ✅ No assignment → module completed
-        moduleCompleted = true;
-      } else {
-        // Assignment exists → check submission
-        const submissionRes = await pool.query(
-          `SELECT 1 FROM assignment_submissions
-          WHERE student_id = $1 AND assignment_id = $2
-          LIMIT 1`,
-          [studentId, assignmentRes.rows[0].id]
-        );
+  const quizAttempted = quizAttemptRes.rows.length > 0;
+  if (!quizAttempted) continue; // ⛔ BLOCK HERE if quiz not done
 
-        moduleCompleted = submissionRes.rows.length > 0;
-      }
+  // 3️⃣ Assignment logic (unchanged behavior)
+  const assignmentRes = await pool.query(
+    `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
+    [mod.id]
+  );
 
-      if (!moduleCompleted) continue;
+  let moduleCompleted = false;
 
-      // 3️⃣ Unlock next module
-      const nextModuleRes = await pool.query(
-        `SELECT id FROM modules
-        WHERE course_id = $1 AND order_number > $2
-        ORDER BY order_number ASC
-        LIMIT 1`,
-        [mod.course_id, mod.order_number]
-      );
+  if (assignmentRes.rows.length === 0) {
+    // ✅ No assignment → quiz already verified above
+    moduleCompleted = true;
+  } else {
+    const submissionRes = await pool.query(
+      `SELECT 1 FROM assignment_submissions
+       WHERE student_id = $1 AND assignment_id = $2
+       LIMIT 1`,
+      [studentId, assignmentRes.rows[0].id]
+    );
 
-      if (nextModuleRes.rows.length > 0) {
-        const nextModuleId = nextModuleRes.rows[0].id;
+    moduleCompleted = submissionRes.rows.length > 0;
+  }
 
-        await pool.query(
-          `INSERT INTO unlocked_modules (student_id, module_id)
-          VALUES ($1,$2)
-          ON CONFLICT (student_id,module_id) DO NOTHING`,
-          [studentId, nextModuleId]
-        );
+  if (!moduleCompleted) continue;
 
-        // Update in-memory flag so UI reflects it
-        const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
-        if (nextModule) nextModule.unlocked = true;
-      }
-    }
+  // 4️⃣ Unlock next module
+  const nextModuleRes = await pool.query(
+    `SELECT id FROM modules
+     WHERE course_id = $1 AND order_number > $2
+     ORDER BY order_number ASC
+     LIMIT 1`,
+    [mod.course_id, mod.order_number]
+  );
+
+  if (nextModuleRes.rows.length > 0) {
+    const nextModuleId = nextModuleRes.rows[0].id;
+
+    await pool.query(
+      `INSERT INTO unlocked_modules (student_id, module_id)
+       VALUES ($1,$2)
+       ON CONFLICT (student_id,module_id) DO NOTHING`,
+      [studentId, nextModuleId]
+    );
+
+    const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
+    if (nextModule) nextModule.unlocked = true;
+  }
+}
 
 
     // --- Group by pathway & course
