@@ -639,7 +639,7 @@ for (const mod of modulesRes.rows) {
                     EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
              FROM lessons l
              WHERE module_id = ANY($1)
-             ORDER BY l.id ASC`,
+             ORDER BY l.order_number ASC`,
             [moduleIdsForThisCourse, studentId]
           );
 
