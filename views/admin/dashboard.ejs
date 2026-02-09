@@ -60,6 +60,7 @@
         
         <thead>
           <tr>
+            <th>ID</th>
             <th>Profile Picture</th>
             <th>Full Name</th>
             <th>Email</th>
@@ -73,6 +74,8 @@
         <tbody>
           <% users.forEach(user => { %>
           <tr>
+            
+            <td><%= user.id %></td>
             <td>
               <img
                 src="<%= user.profile_picture || '/profile.webp' %>"
@@ -232,10 +235,12 @@
             users.forEach(user => {
               tbody.innerHTML += `
                 <tr>
+                  <td>${user.id}</td>
                   <td>
                     <img src="${user.profile_picture || '/profile.webp'}"
                       style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
                   </td>
+                  
                   <td>${user.fullname}</td>
                   <td>${user.email}</td>
                   <td>${user.phone || ''}</td>

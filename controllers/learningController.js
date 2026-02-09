@@ -6,7 +6,7 @@ const { askTutor } = require("../utils/ai");
 
 exports.updateCourse = async (req, res) => {
   const { id } = req.params;
-  const { title, description, level, amount } = req.body;
+  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content  } = req.body;
 
   try {
     // 🟢 Get existing course data
@@ -46,23 +46,45 @@ exports.updateCourse = async (req, res) => {
       certificateUrl = uploadedCert.secure_url;
     }
 
-    // 🟢 Update database
     await pool.query(
-      `UPDATE courses 
-       SET title = $1, description = $2, level = $3, amount = $4,
-           thumbnail_url = $5, curriculum_url = $6, certificate_url = $7
-       WHERE id = $8`,
+      `UPDATE courses SET
+        title=$1, description=$2, level=$3, career_pathway_id=$4,
+        thumbnail_url=$5, sort_order=$6, amount=$7,
+        created_by=$8, instructor_id=$9,
+        curriculum_content=$10
+      WHERE id=$11`,
       [
         title,
         description,
         level,
-        amount,
+        career_pathway_id || null,
         thumbnailUrl,
-        curriculumUrl,
-        certificateUrl,
-        id,
+        sort_order || 0,
+        amount || 0,
+        req.user.role === "instructor" ? "instructor" : "admin",
+        req.user.role === "instructor" ? req.user.id : null,
+        curriculum_content || null,
+        id
       ]
     );
+
+    // 🟢 Update database
+    // await pool.query(
+    //   `UPDATE courses 
+    //    SET title = $1, description = $2, level = $3, amount = $4,
+    //        thumbnail_url = $5, curriculum_url = $6, certificate_url = $7
+    //    WHERE id = $8`,
+    //   [
+    //     title,
+    //     description,
+    //     level,
+    //     amount,
+    //     thumbnailUrl,
+    //     curriculumUrl,
+    //     certificateUrl,
+    //     id,
+    //   ]
+    // );
 
     // 🟢 Redirect to course details tab
     res.redirect(`/admin/courses/${id}?tab=details`);

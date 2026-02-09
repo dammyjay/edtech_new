@@ -342,6 +342,75 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
+    // --- AUTO UNLOCK NEXT MODULE LOGIC
+    for (const mod of modulesRes.rows) {
+      if (!mod.unlocked) continue;
+
+      const lessonsForModule = moduleLessons[mod.id] || [];
+      if (lessonsForModule.length === 0) continue;
+
+      // 1️⃣ All lessons completed?
+      const completedRes = await pool.query(
+        `SELECT COUNT(*) FROM user_lesson_progress ul
+        JOIN lessons l ON l.id = ul.lesson_id
+        WHERE ul.user_id = $1 AND l.module_id = $2`,
+        [studentId, mod.id]
+      );
+
+      const completedLessons = parseInt(completedRes.rows[0].count);
+      if (completedLessons !== lessonsForModule.length) continue;
+
+      // 2️⃣ Check assignment
+      const assignmentRes = await pool.query(
+        `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
+        [mod.id]
+      );
+
+      let moduleCompleted = false;
+
+      if (assignmentRes.rows.length === 0) {
+        // ✅ No assignment → module completed
+        moduleCompleted = true;
+      } else {
+        // Assignment exists → check submission
+        const submissionRes = await pool.query(
+          `SELECT 1 FROM assignment_submissions
+          WHERE student_id = $1 AND assignment_id = $2
+          LIMIT 1`,
+          [studentId, assignmentRes.rows[0].id]
+        );
+
+        moduleCompleted = submissionRes.rows.length > 0;
+      }
+
+      if (!moduleCompleted) continue;
+
+      // 3️⃣ Unlock next module
+      const nextModuleRes = await pool.query(
+        `SELECT id FROM modules
+        WHERE course_id = $1 AND order_number > $2
+        ORDER BY order_number ASC
+        LIMIT 1`,
+        [mod.course_id, mod.order_number]
+      );
+
+      if (nextModuleRes.rows.length > 0) {
+        const nextModuleId = nextModuleRes.rows[0].id;
+
+        await pool.query(
+          `INSERT INTO unlocked_modules (student_id, module_id)
+          VALUES ($1,$2)
+          ON CONFLICT (student_id,module_id) DO NOTHING`,
+          [studentId, nextModuleId]
+        );
+
+        // Update in-memory flag so UI reflects it
+        const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
+        if (nextModule) nextModule.unlocked = true;
+      }
+    }
+
+
     // --- Group by pathway & course
     let pathwayCourses = {};
     let courseModules = {};
@@ -1146,22 +1215,69 @@ exports.enrollInCourse = async (req, res) => {
   }
 };
 
+// exports.editProfile = async (req, res) => {
+//   const { fullname, gender, dob } = req.body;
+//   const profilePic = req.file?.path || req.body.existingPic;
+
+//   await pool.query(
+//     `UPDATE users2 SET fullname = $1, gender = $2, dob = $3, profile_picture = $4 WHERE id = $5`,
+//     [fullname, gender, dob, profilePic, req.user.id]
+//   );
+
+//   req.session.user.fullname = fullname;
+//   req.session.user.gender = gender;
+//   req.session.user.dob = dob;
+//   req.session.user.profile_picture = profilePic;
+
+//   res.redirect("/student/dashboard?section=profile");
+// };
+
 exports.editProfile = async (req, res) => {
   const { fullname, gender, dob } = req.body;
-  const profilePic = req.file?.path || req.body.existingPic;
+  let profilePic = req.body.existingPic; // fallback
 
-  await pool.query(
-    `UPDATE users2 SET fullname = $1, gender = $2, dob = $3, profile_picture = $4 WHERE id = $5`,
-    [fullname, gender, dob, profilePic, req.user.id]
-  );
+  try {
+    // ✅ Upload new profile picture if provided
+    if (req.file?.path) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "users/profile_pictures",
+        resource_type: "image",
+        use_filename: true,
+        unique_filename: false,
+      });
 
-  req.session.user.fullname = fullname;
-  req.session.user.gender = gender;
-  req.session.user.dob = dob;
-  req.session.user.profile_picture = profilePic;
+      profilePic = result.secure_url;
 
-  res.redirect("/student/dashboard?section=profile");
+      // delete temp file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    }
+
+    await pool.query(
+      `UPDATE users2
+       SET fullname = $1,
+           gender = $2,
+           dob = $3,
+           profile_picture = $4
+       WHERE id = $5`,
+      [fullname, gender, dob, profilePic, req.user.id]
+    );
+
+    // update session
+    req.session.user.fullname = fullname;
+    req.session.user.gender = gender;
+    req.session.user.dob = dob;
+    req.session.user.profile_picture = profilePic;
+
+    res.redirect("/student/dashboard?section=profile");
+
+  } catch (err) {
+    console.error("❌ Profile update error:", err);
+    res.status(500).send("Failed to update profile");
+  }
 };
+
 
 exports.viewLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
