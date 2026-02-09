@@ -23,6 +23,7 @@
       <div class="article-card hoverable">
         
         <h3><%= course.title %></h3>
+        <p>Course ID: <%= course.id %></p>
         <% if (course.thumbnail_url) { %>
             <a href="/admin/courses/<%= course.id %>" class="article-card-link">
                 <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />

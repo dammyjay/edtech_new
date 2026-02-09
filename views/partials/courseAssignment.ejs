@@ -24,6 +24,7 @@
   <% assignments.forEach(assign => { %>
     <div class="article-card" data-id="<%= assign.id %>">
       <h3><%= assign.title %></h3>
+      <p>Assignment ID: <%= assign.id %></p>
       <p><strong>Module:</strong> <%= assign.module_title %></p>
       <p><%- assign.instructions.substring(0, 100) %>...</p>
       <div class="article-buttons">
