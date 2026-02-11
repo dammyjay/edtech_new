@@ -1375,17 +1375,25 @@ canvas {
 }
 
 /* Mini Lesson Sidebar */
-.lesson-sidebar {
+/* .lesson-sidebar {
     min-width: 220px;
     position: sticky;
     top: 0;
-    height: 100vh; /* Full screen height */
-    overflow-y: auto; /* Scroll only inside sidebar if too many items */
-    background: #f9f9f9; /* Or transparent if you want */
+    height: 100vh;
+    overflow-y: auto;
+    background: #f9f9f9; 
     border-right: 1px solid #ddd;
     padding: 10px;
-}
+} */
 
+/* Sidebar */
+.lesson-sidebar {
+  width: 280px;
+  transition: transform 0.3s ease;
+  position: relative;
+  background: #fff;
+  border-right: 1px solid #ddd;
+}
 /* Responsive: Sidebar at top on mobile */
 
 
@@ -1393,6 +1401,32 @@ canvas {
     font-size: 16px;
     margin-bottom: 10px;
     color: #333;
+}
+
+/* Collapsed state */
+.lesson-sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Handle button */
+.sidebar-handle {
+  position: absolute;
+  top: 50%;
+  right: -15px;
+  transform: translateY(-50%);
+  background: #007bff;
+  color: #fff;
+  padding: 8px 6px;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: background 0.2s ease;
+}
+
+.sidebar-handle:hover {
+  background: #0056b3;
 }
 
 .lesson-list {

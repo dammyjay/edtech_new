@@ -137,28 +137,6 @@
   </div>
 
   <!-- 📜 Certificates Section -->
-  <!-- <div class="certificates-section">
-    <h3>📜 My Certificates</h3>
-    <% if (certificates && certificates.length > 0) { %>
-      <div class="certificates-grid">
-        <% certificates.forEach(c => { %>
-          <div class="certificate-card">
-            <h4><%= c.course_title %></h4>
-            <p>Issued: <%= new Date(c.issued_date).toLocaleDateString() %></p>
-            <% if (c.certificate_url) { %>
-              <a href="<%= c.certificate_url %>" target="_blank" class="btn-view">🔗 View Certificate</a>
-            <% } else { %>
-              <p>No link available</p>
-            <% } %>
-          </div>
-        <% }) %>
-      </div>
-    <% } else { %>
-      <p class="no-certificates">No certificates yet. Complete courses to earn yours! 🎓</p>
-    <% } %>
-  </div> -->
-
-  <!-- 📜 Certificates Section -->
   <div class="certificates-section">
     <h3>📜 My Certificates</h3>
 
@@ -382,133 +360,135 @@
   <div class="learning-container">
     <!-- Mini Sidebar -->
     
-<aside class="lesson-sidebar">
-  <h3>All Modules</h3>
-  <% Object.keys(courseModules).forEach(courseId => { %>
-    <% courseModules[courseId].forEach(module => { %>
-      <div class="module-block">
-        <button style="text-align: left;" class="module-toggle no-bg" onclick="toggleModule(<%= module.id %>)">
-          📦 <%= module.title %> ▾
-        </button>
 
-        <!-- <button 
-          class="module-toggle no-bg"
-          <%= module.unlocked 
-                ? "onclick='toggleModule(" + module.id + ")'" 
-                : "disabled style=\"opacity:0.5; cursor:not-allowed;\"" %>>
-          <%= module.unlocked ? "📦" : "🔒" %> <%= module.title %> ▾
-        </button> -->
-        <ul id="module-<%= module.id %>" class="lesson-list" style="display:none;">
-          <% (moduleLessons[module.id] || []).forEach(lesson => { %>
-            <li>
-              
+  <aside class="lesson-sidebar" id="lessonSidebar">
+    <!-- Toggle Handle -->
+    <div id="sidebarHandle" class="sidebar-handle">❮</div>
 
-              <button class="lesson-toggle no-bg"
-                      onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>)"
-                      style="text-align: left; <%= lesson.unlocked ? '' : 'opacity:0.5; cursor:not-allowed;' %>">
-                <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
-              </button>
+    <h3>All Modules</h3>
+    <% Object.keys(courseModules).forEach(courseId => { %>
+      <% courseModules[courseId].forEach(module => { %>
+        <div class="module-block">
+          <button style="text-align: left;" class="module-toggle no-bg" onclick="toggleModule(<%= module.id %>)">
+            📦 <%= module.title %> ▾
+          </button>
 
-              <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
-                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
-              </ul>
+          <!-- <button 
+            class="module-toggle no-bg"
+            <%= module.unlocked 
+                  ? "onclick='toggleModule(" + module.id + ")'" 
+                  : "disabled style=\"opacity:0.5; cursor:not-allowed;\"" %>>
+            <%= module.unlocked ? "📦" : "🔒" %> <%= module.title %> ▾
+          </button> -->
+          <ul id="module-<%= module.id %>" class="lesson-list" style="display:none;">
+            <% (moduleLessons[module.id] || []).forEach(lesson => { %>
+              <li>
+                
 
-            </li>
-          <% }) %>
-          <h3>Assignments</h3>
-          <% (moduleAssignments[module.id] || []).forEach(assign => { %>
-            <li>
-              <button 
-                class="no-bg assignment-btn"
-                data-id="<%= assign.id %>"
-                <%= assign.unlocked 
-                      ? '' 
-                      : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
-                <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
-              </button>
+                <button class="lesson-toggle no-bg"
+                        onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>)"
+                        style="text-align: left; <%= lesson.unlocked ? '' : 'opacity:0.5; cursor:not-allowed;' %>">
+                  <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
+                </button>
+
+                <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
+                  <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
+                  <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
+                  <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
+                </ul>
+
+              </li>
+            <% }) %>
+            <h3>Assignments</h3>
+            <% (moduleAssignments[module.id] || []).forEach(assign => { %>
+              <li>
+                <button 
+                  class="no-bg assignment-btn"
+                  data-id="<%= assign.id %>"
+                  <%= assign.unlocked 
+                        ? '' 
+                        : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
+                  <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
+                </button>
 
 
 
-            </li>
-          <% }) %>
-        </ul>
+              </li>
+            <% }) %>
+          </ul>
 
-      </div>
+        </div>
+      <% }) %>
     <% }) %>
+
+  <h3>🏁 Final Project</h3>
+  <% enrolledCourses.forEach(course => { %>
+    <% if (courseFinalUnlocked[course.id]) { %>
+      <% const projects = courseProjects[course.id] || []; %>
+      <% projects.forEach(project => { %>
+        <button onclick="loadProject(<%= project.id %>)">
+          🎯 <%= project.title %>
+        </button>
+      <% }) %>
+    <% } else { %>
+      <p style="opacity:0.5;">🔒 Complete all modules to unlock the final project for <%= course.title %></p>
+    <% } %>
   <% }) %>
 
-<h3>🏁 Final Project</h3>
-<% enrolledCourses.forEach(course => { %>
-  <% if (courseFinalUnlocked[course.id]) { %>
-    <% const projects = courseProjects[course.id] || []; %>
-    <% projects.forEach(project => { %>
-      <button onclick="loadProject(<%= project.id %>)">
-        🎯 <%= project.title %>
-      </button>
-    <% }) %>
-  <% } else { %>
-    <p style="opacity:0.5;">🔒 Complete all modules to unlock the final project for <%= course.title %></p>
-  <% } %>
-<% }) %>
 
-
-</aside>
-
-
+  </aside>
     <!-- Lesson Content Area -->
 
  <div class="lesson-main-area" id="lessonMainArea">
   <p>Select a lesson to start learning.</p>
 
-</div>
+  </div>
 <!-- Project Area (hidden by default) -->
-<div id="projectArea" style="display:none; padding: 15px;">
-  <% enrolledCourses.forEach(course => { %>
-    <h3>🏁 Projects for <%= course.title %></h3>
+  <div id="projectArea" style="display:none; padding: 15px;">
+    <% enrolledCourses.forEach(course => { %>
+      <h3>🏁 Projects for <%= course.title %></h3>
 
-    <% const projects = courseProjects[course.id] || []; %>
+      <% const projects = courseProjects[course.id] || []; %>
 
-    <% if (projects.length > 0) { %>
-      <% projects.forEach(project => { %>
-        <div class="project-card" style="padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px;">
-          <h4>🎯 <%= project.title %></h4>
-          <p><%= project.description || "Complete this project after finishing all modules." %></p>
-          <% if (project.due_date) { %>
-            <p>⏰ Due: <%= new Date(project.due_date).toLocaleDateString() %></p>
-          <% } %>
+      <% if (projects.length > 0) { %>
+        <% projects.forEach(project => { %>
+          <div class="project-card" style="padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px;">
+            <h4>🎯 <%= project.title %></h4>
+            <p><%= project.description || "Complete this project after finishing all modules." %></p>
+            <% if (project.due_date) { %>
+              <p>⏰ Due: <%= new Date(project.due_date).toLocaleDateString() %></p>
+            <% } %>
 
-          <% 
-            // Check if student has submitted this project
-            const submission = projectSubmissions[project.id] || projectSubmissions[course.id];
-          %>
+            <% 
+              // Check if student has submitted this project
+              const submission = projectSubmissions[project.id] || projectSubmissions[course.id];
+            %>
 
-          <% if (submission) { %>
-            <p>✅ You submitted this project on <%= new Date(submission.submitted_at).toLocaleDateString() %></p>
-            <a href="<%= submission.file_url %>" target="_blank">View Submission</a>
-          <% } else { %>
-            <form id="projectForm-<%= project.id %>" enctype="multipart/form-data" method="POST" action="/student/projects/submit">
-              <input type="hidden" name="courseId" value="<%= course.id %>">
-              <input type="hidden" name="projectId" value="<%= project.id %>">
+            <% if (submission) { %>
+              <p>✅ You submitted this project on <%= new Date(submission.submitted_at).toLocaleDateString() %></p>
+              <a href="<%= submission.file_url %>" target="_blank">View Submission</a>
+            <% } else { %>
+              <form id="projectForm-<%= project.id %>" enctype="multipart/form-data" method="POST" action="/student/projects/submit">
+                <input type="hidden" name="courseId" value="<%= course.id %>">
+                <input type="hidden" name="projectId" value="<%= project.id %>">
 
-              <label>Upload Project File:</label>
-              <input type="file" name="projectFile" required />
+                <label>Upload Project File:</label>
+                <input type="file" name="projectFile" required />
 
-              <label>Notes (optional):</label>
-              <textarea name="notes" placeholder="Add any notes about your project"></textarea>
+                <label>Notes (optional):</label>
+                <textarea name="notes" placeholder="Add any notes about your project"></textarea>
 
-              <button type="submit" class="btn-submit">Submit Project</button>
-            </form>
-          <% } %>
-        </div>
-      <% }) %>
-    <% } else { %>
-      <p>No projects available for this course yet.</p>
-    <% } %>
+                <button type="submit" class="btn-submit">Submit Project</button>
+              </form>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p>No projects available for this course yet.</p>
+      <% } %>
 
-  <% }) %>
-</div>
+    <% }) %>
+  </div>
 
 
 
@@ -1097,6 +1077,39 @@ async function loadChatMessages(teacherId) {
     });
   });
 </script>
+
+<!-- toggle lesson sidebar -->
+ <script>
+  const sidebar = document.getElementById("lessonSidebar");
+  const handle = document.getElementById("sidebarHandle");
+
+  handle.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+
+    // Change arrow direction
+    if (sidebar.classList.contains("collapsed")) {
+      handle.innerHTML = "❯";
+    } else {
+      handle.innerHTML = "❮";
+    }
+  });
+
+  if (localStorage.getItem("lessonSidebarCollapsed") === "true") {
+    sidebar.classList.add("collapsed");
+    handle.innerHTML = "❯";
+  }
+
+  handle.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+
+    const isCollapsed = sidebar.classList.contains("collapsed");
+    handle.innerHTML = isCollapsed ? "❯" : "❮";
+
+    localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
+  });
+
+
+ </script>
 
 <!-- script to Highlight active navbar -->
 <script>
