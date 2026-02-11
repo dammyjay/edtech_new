@@ -504,6 +504,9 @@ async function createTables() {
         certificate_url TEXT
       );
 
+      ALTER TABLE user_certificates
+      ADD COLUMN IF NOT EXISTS certificate_code TEXT UNIQUE;
+      
       `
     );
 

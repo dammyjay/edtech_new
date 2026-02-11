@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 module.exports = async ({ studentName, courseTitle }) => {
   const certCode = uuidv4().slice(0, 12).toUpperCase();
 
-  const templatePath = path.join(__dirname, "../partials/certificate.html");
+  const templatePath = path.join(__dirname, "../views/partials/certificate.html");
   let html = fs.readFileSync(templatePath, "utf8");
 
   html = html
@@ -25,7 +25,12 @@ module.exports = async ({ studentName, courseTitle }) => {
   await page.setContent(html, { waitUntil: "networkidle0" });
 
   const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
-  await page.pdf({ path: outputPath, format: "A4" });
+  await page.pdf({ 
+    path: outputPath, 
+    format: "A4",
+    lanscape: true,
+    printBackground: true,    
+});
 
   await browser.close();
 

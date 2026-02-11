@@ -176,41 +176,79 @@ exports.getDashboard = async (req, res) => {
     const parentRequests = requestsRes.rows;
 
     // --- Calculate progress for each enrolled course
+    // for (let course of enrolledCourses) {
+    //   const totalLessonsRes = await pool.query(
+    //     `SELECT COUNT(*) FROM lessons l
+    //      JOIN modules m ON l.module_id = m.id
+    //      WHERE m.course_id = $1`,
+    //     [course.id]
+    //   );
+    //   const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
+
+    //   const completedLessonsRes = await pool.query(
+    //     `SELECT COUNT(DISTINCT ul.lesson_id)
+    //      FROM user_lesson_progress ul
+    //      JOIN lessons l ON ul.lesson_id = l.id
+    //      JOIN modules m ON l.module_id = m.id
+    //      WHERE ul.user_id = $1 AND m.course_id = $2`,
+    //     [studentId, course.id]
+    //   );
+    //   const completedLessons = parseInt(completedLessonsRes.rows[0].count);
+
+    //   course.progress = Math.round((completedLessons / totalLessons) * 100);
+
+    //   const issueCertificate = require("../services/issueCertificate");
+
+    //   for (const course of enrolledCourses) {
+    //     if (course.progress === 100) {
+    //       await issueCertificate({
+    //         userId: studentId,
+    //         courseId: course.id,
+    //         studentName: student.fullname,
+    //         courseTitle: course.title,
+    //       });
+    //     }
+    //   }
+
+    // }
+
+    const issueCertificate = require("../services/issueCertificate");
+
     for (let course of enrolledCourses) {
+
       const totalLessonsRes = await pool.query(
         `SELECT COUNT(*) FROM lessons l
-         JOIN modules m ON l.module_id = m.id
-         WHERE m.course_id = $1`,
+        JOIN modules m ON l.module_id = m.id
+        WHERE m.course_id = $1`,
         [course.id]
       );
+
       const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
 
       const completedLessonsRes = await pool.query(
         `SELECT COUNT(DISTINCT ul.lesson_id)
-         FROM user_lesson_progress ul
-         JOIN lessons l ON ul.lesson_id = l.id
-         JOIN modules m ON l.module_id = m.id
-         WHERE ul.user_id = $1 AND m.course_id = $2`,
+        FROM user_lesson_progress ul
+        JOIN lessons l ON ul.lesson_id = l.id
+        JOIN modules m ON l.module_id = m.id
+        WHERE ul.user_id = $1 AND m.course_id = $2`,
         [studentId, course.id]
       );
+
       const completedLessons = parseInt(completedLessonsRes.rows[0].count);
 
       course.progress = Math.round((completedLessons / totalLessons) * 100);
 
-      const issueCertificate = require("../services/issueCertificate");
-
-      for (const course of enrolledCourses) {
-        if (course.progress === 100) {
-          await issueCertificate({
-            userId: studentId,
-            courseId: course.id,
-            studentName: student.fullname,
-            courseTitle: course.title,
-          });
-        }
+      // 🔥 Issue certificate ONLY for this course
+      if (course.progress === 100) {
+        await issueCertificate({
+          userId: studentId,
+          courseId: course.id,
+          studentName: student.fullname,
+          courseTitle: course.title,
+        });
       }
-
     }
+
 
     // --- Modules (with unlocked flag)
     const courseIds = enrolledCourses.map((c) => c.id);
