@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Georgia, serif;
+      text-align: center;
+      padding: 80px;
+      border: 12px solid #1f3c88;
+    }
+    h1 { font-size: 42px; }
+    .name { font-size: 34px; font-weight: bold; margin: 20px 0; }
+    .course { font-size: 26px; margin: 20px 0; }
+    .footer { margin-top: 50px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Certificate of Completion</h1>
+
+  <p>This certifies that</p>
+  <div class="name">{{STUDENT_NAME}}</div>
+
+  <p>has successfully completed the course</p>
+  <div class="course">{{COURSE_TITLE}}</div>
+
+  <p>Issued on {{DATE}}</p>
+
+  <div class="footer">
+    Certificate ID: {{CERT_CODE}}
+  </div>
+</body>
+</html>

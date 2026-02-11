@@ -2,6 +2,8 @@ const pool = require("../models/db");
 // controllers/studentController.js
 const { askTutor } = require("../utils/ai");
 const PDFDocument = require("pdfkit");
+const generateCertificate = require("../utils/generateCertificate");
+const cloudinary = require("../utils/cloudinary");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -194,6 +196,20 @@ exports.getDashboard = async (req, res) => {
       const completedLessons = parseInt(completedLessonsRes.rows[0].count);
 
       course.progress = Math.round((completedLessons / totalLessons) * 100);
+
+      const issueCertificate = require("../services/issueCertificate");
+
+      for (const course of enrolledCourses) {
+        if (course.progress === 100) {
+          await issueCertificate({
+            userId: studentId,
+            courseId: course.id,
+            studentName: student.fullname,
+            courseTitle: course.title,
+          });
+        }
+      }
+
     }
 
     // --- Modules (with unlocked flag)

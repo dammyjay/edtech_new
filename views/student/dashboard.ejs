@@ -137,7 +137,7 @@
   </div>
 
   <!-- 📜 Certificates Section -->
-  <div class="certificates-section">
+  <!-- <div class="certificates-section">
     <h3>📜 My Certificates</h3>
     <% if (certificates && certificates.length > 0) { %>
       <div class="certificates-grid">
@@ -156,7 +156,40 @@
     <% } else { %>
       <p class="no-certificates">No certificates yet. Complete courses to earn yours! 🎓</p>
     <% } %>
+  </div> -->
+
+  <!-- 📜 Certificates Section -->
+  <div class="certificates-section">
+    <h3>📜 My Certificates</h3>
+
+    <% if (certificates && certificates.length > 0) { %>
+      <div class="certificates-grid">
+        <% certificates.forEach(cert => { %>
+          <div class="certificate-card">
+            <h4><%= cert.course_title %></h4>
+
+            <p>
+              Issued:
+              <%= new Date(cert.issued_at).toLocaleDateString() %>
+            </p>
+
+            <% if (cert.certificate_url) { %>
+              <a href="<%= cert.certificate_url %>"
+                target="_blank"
+                class="btn-view">
+                🎓 Download Certificate
+              </a>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="no-certificates">
+        No certificates yet. Complete courses to earn yours! 🎓
+      </p>
+    <% } %>
   </div>
+
 
   <div class="badges-section">
   <h3>🎖️ Badges Earned</h3>

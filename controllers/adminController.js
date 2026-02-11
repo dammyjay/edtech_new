@@ -1883,6 +1883,63 @@ exports.createCourse = async (req, res) => {
   }
 };
 
+exports.createCourse = async (req, res) => {
+  console.log("📘 Creating course with:", req.body);
+  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
+    req.body;
+
+  let thumbnail_url = null;
+
+  try {
+    // ✅ Upload thumbnail (image)
+    if (req.files?.thumbnail?.[0]) {
+      const thumbPath = req.files.thumbnail[0].path;
+      const thumbResult = await cloudinary.uploader.upload(thumbPath, {
+        folder: "courses/thumbnails",
+        resource_type: "image",
+        use_filename: true,
+        unique_filename: false,
+      });
+      thumbnail_url = thumbResult.secure_url;
+      if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+    }
+
+
+    await pool.query(
+      `INSERT INTO courses (
+        title, description, level, career_pathway_id,
+        thumbnail_url, sort_order, amount,
+        created_by, instructor_id,
+        curriculum_content
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        title,
+        description,
+        level,
+        career_pathway_id || null,
+        thumbnail_url,
+        sort_order || 0,
+        amount || 0,
+        req.user.role === "instructor" ? "instructor" : "admin",
+        req.user.role === "instructor" ? req.user.id : null,
+        curriculum_content
+      ]
+    );
+
+
+    await logActivityForUser(req, "Course Created", `Course title: ${title}`);
+    console.log("✅ Course created successfully.");
+
+    res.redirect(`/admin/pathways/${career_pathway_id}/courses`);
+  } catch (err) {
+    console.error("❌ Error creating course:", err);
+    res
+      .status(500)
+      .send("Error creating course: " + (err.message || "unknown"));
+  }
+};
+
 // ✅ EDIT COURSE
 
 exports.editCourse = async (req, res) => {

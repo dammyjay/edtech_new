@@ -17,12 +17,6 @@
       <img src="<%= course.thumbnail_url %>" alt="" style="width:100px; height:100px; object-fit:contain;">
       <input type="file" name="thumbnail" accept="image/*">
 
-      <!-- <label>Curriculum File (PDF or DOCX)</label>
-      <% if (course.curriculum_url) { %>
-        <p>📎 <a href="<%= course.curriculum_url %>" target="_blank">View current curriculum</a></p>
-      <% } %>
-      <input type="file" name="curriculum" accept=".pdf,.doc,.docx"> -->
-
       <label>Course Curriculum</label>
         <textarea id="editCurriculumContent-<%= course.id %>" name="curriculum_content">
           <%= course.curriculum_content %>
@@ -39,12 +33,6 @@
       <input type="number" name="amount" value="<%= course.amount || 0 %>" step="0.01">
 
      
-
-      <label>Certificate Template (PDF or Image)</label>
-      <% if (course.certificate_url) { %>
-        <p>🎓 <a href="<%= course.certificate_url %>" target="_blank">View current certificate</a></p>
-      <% } %>
-      <input type="file" name="certificate" accept=".pdf,.png,.jpg,.jpeg">
 
 
       <button type="submit" class="btn-save">💾 Save Changes</button>
