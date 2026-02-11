@@ -363,7 +363,7 @@
 
   <aside class="lesson-sidebar" id="lessonSidebar">
     <!-- Toggle Handle -->
-    <div id="sidebarHandle" class="sidebar-handle">❮</div>
+    <div id="sidebarHandle" class="sidebar-handle"></div>
 
     <h3>All Modules</h3>
     <% Object.keys(courseModules).forEach(courseId => { %>
@@ -1088,7 +1088,7 @@ async function loadChatMessages(teacherId) {
 
   if (isSavedCollapsed) {
     lessonsidebar.classList.add("collapsed");
-    handle.innerHTML = "❯";
+    handle.innerHTML = "❯>";
   }
 
   // Toggle click
@@ -1097,7 +1097,7 @@ async function loadChatMessages(teacherId) {
 
     const isCollapsed = lessonsidebar.classList.contains("collapsed");
 
-    handle.innerHTML = isCollapsed ? "❯" : "❮";
+    handle.innerHTML = isCollapsed ? "❯>" : "❮<";
 
     localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
   });

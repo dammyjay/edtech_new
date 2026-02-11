@@ -896,10 +896,18 @@
     margin: 5px 0;
 }
 
-.lesson-main-area {
+/* .lesson-main-area {
     padding: 15px;
     width: 100%;
+} */
+
+.lesson-main-area {
+    flex: 1;              /* 🔥 Important */
+    padding: 15px;
+    transition: all 0.3s ease;
+    min-width: 0;         /* Prevent overflow issues */
 }
+
 
 /* === Main Content === */
 .main-content {
@@ -1375,8 +1383,9 @@ canvas {
 }
 
 /* Mini Lesson Sidebar */
-.lesson-sidebar {
-    min-width: 220px;
+/* .lesson-sidebar {
+    width: 220px;
+    flex-shrink: 0; 
     position: sticky;
     top: 0;
     height: 100vh;
@@ -1384,25 +1393,43 @@ canvas {
     background: #f9f9f9; 
     border-right: 1px solid #ddd;
     padding: 10px;
+    transition: transform 0.3s ease;
+} */
 
-    transition: transform 0.3s ease;   /* 🔥 ADD THIS */
+/* Sidebar */
+.lesson-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    position: relative;
+    height: 100vh;
+    overflow-y: auto;
+    background: #f9f9f9; 
+    border-right: 1px solid #ddd;
+    padding: 10px;
+    transition: all 0.3s ease;
 }
 
 /* Collapsed state */
+/* .lesson-sidebar.collapsed {
+  transform: translateX(-95%);
+} */
+
 .lesson-sidebar.collapsed {
-  transform: translateX(-100%);
+  width: 20px;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Handle button */
 .sidebar-handle {
   position: absolute;
   top: 50%;
-  right: -15px;
+  right: -1px;
   transform: translateY(-50%);
   background: #007bff;
   color: #fff;
   padding: 8px 6px;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px 0 0 6px;
   cursor: pointer;
   font-size: 14px;
   user-select: none;
