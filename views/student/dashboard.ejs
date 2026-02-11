@@ -1660,7 +1660,7 @@ document.addEventListener("DOMContentLoaded", () => {
           : "<p>No detailed breakdown.</p>";
 
         lessonMain.innerHTML = `
-          <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px;">
+          <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px; background-color:#f9f9f9;">
             <h2>📑 ${data.assignment.title}</h2>
             <p><strong>Course:</strong> ${data.assignment.course_title}</p>
             <p><strong>Module:</strong> ${data.assignment.module_title}</p>
@@ -1671,7 +1671,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <h3>📊 AI Feedback</h3>
             <p><strong>Total Score:</strong> ${data.submission.total ?? "Pending"}</p>
             <p><strong>Grade:</strong> ${data.submission.grade ?? "N/A"}</p>
-            <div><strong>Criteria Breakdown:</strong>${criteriaHTML}</div>
+            <div><strong>Criteria Breakdown:</strong>${data.submission.criteria}</div>
             <div><strong>Comments:</strong><p>${data.submission.ai_feedback ?? "Pending"}</p></div>
           </div>
         `;
