@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 module.exports = async ({ studentName, courseTitle }) => {
   const certCode = uuidv4().slice(0, 12).toUpperCase();
 
-  const templatePath = path.join(__dirname, "../templates/certificate.html");
+  const templatePath = path.join(__dirname, "../partials/certificate.html");
   let html = fs.readFileSync(templatePath, "utf8");
 
   html = html
