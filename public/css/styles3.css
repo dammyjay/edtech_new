@@ -15,6 +15,7 @@
 
  .learning-container {
         position: relative;
+        flex-direction: column;
     }
 
     /* .lesson-sidebar {
