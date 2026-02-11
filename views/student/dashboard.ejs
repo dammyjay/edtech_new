@@ -1079,37 +1079,29 @@ async function loadChatMessages(teacherId) {
 </script>
 
 <!-- toggle lesson sidebar -->
- <script>
-  const sidebar = document.getElementById("lessonSidebar");
+<script>
+  const lessonsidebar = document.getElementById("lessonSidebar");
   const handle = document.getElementById("sidebarHandle");
 
-  handle.addEventListener("click", () => {
-    sidebar.classList.toggle("collapsed");
+  // Restore saved state
+  const isSavedCollapsed = localStorage.getItem("lessonSidebarCollapsed") === "true";
 
-    // Change arrow direction
-    if (sidebar.classList.contains("collapsed")) {
-      handle.innerHTML = "❯";
-    } else {
-      handle.innerHTML = "❮";
-    }
-  });
-
-  if (localStorage.getItem("lessonSidebarCollapsed") === "true") {
-    sidebar.classList.add("collapsed");
+  if (isSavedCollapsed) {
+    lessonsidebar.classList.add("collapsed");
     handle.innerHTML = "❯";
   }
 
+  // Toggle click
   handle.addEventListener("click", () => {
-    sidebar.classList.toggle("collapsed");
+    lessonsidebar.classList.toggle("collapsed");
 
-    const isCollapsed = sidebar.classList.contains("collapsed");
+    const isCollapsed = lessonsidebar.classList.contains("collapsed");
+
     handle.innerHTML = isCollapsed ? "❯" : "❮";
 
     localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
   });
-
-
- </script>
+</script>
 
 <!-- script to Highlight active navbar -->
 <script>
