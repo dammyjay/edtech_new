@@ -363,7 +363,7 @@
 
   <aside class="lesson-sidebar" id="lessonSidebar">
     <!-- Toggle Handle -->
-    <div id="sidebarHandle" class="sidebar-handle"></div>
+    <div id="sidebarHandle" class="sidebar-handle">❮</div>
 
     <h3>All Modules</h3>
     <% Object.keys(courseModules).forEach(courseId => { %>
@@ -1079,7 +1079,7 @@ async function loadChatMessages(teacherId) {
 </script>
 
 <!-- toggle lesson sidebar -->
-<script>
+<!-- <script>
   const lessonsidebar = document.getElementById("lessonSidebar");
   const handle = document.getElementById("sidebarHandle");
 
@@ -1101,7 +1101,65 @@ async function loadChatMessages(teacherId) {
 
     localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
   });
+</script> -->
+
+<script>
+  const lessonsidebar = document.getElementById("lessonSidebar");
+  const handle = document.getElementById("sidebarHandle");
+
+  function isMobile() {
+    return window.innerWidth <= 600;
+  }
+
+  // Restore saved desktop state only
+  if (!isMobile()) {
+    const isSavedCollapsed = localStorage.getItem("lessonSidebarCollapsed") === "true";
+
+    if (isSavedCollapsed) {
+      lessonsidebar.classList.add("collapsed");
+      handle.innerHTML = "❯";
+    }
+  }
+
+  handle.addEventListener("click", () => {
+
+    if (isMobile()) {
+      // MOBILE BEHAVIOR (overlay slide)
+      lessonsidebar.classList.toggle("mobile-open");
+
+    } else {
+      // DESKTOP BEHAVIOR (collapse width)
+      lessonsidebar.classList.toggle("collapsed");
+
+      const isCollapsed = lessonsidebar.classList.contains("collapsed");
+      handle.innerHTML = isCollapsed ? "❯" : "❮";
+
+      localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
+    }
+
+  });
+
+  // Optional: Auto close sidebar after clicking lesson on mobile
+  document.addEventListener("click", function(e) {
+    if (isMobile()) {
+      if (e.target.closest(".lesson-toggle") || 
+          e.target.closest(".module-toggle") || 
+          e.target.closest(".assignment-btn")) {
+
+        lessonsidebar.classList.remove("mobile-open");
+      }
+    }
+  });
+
+  // Handle window resize (important)
+  window.addEventListener("resize", () => {
+    if (!isMobile()) {
+      lessonsidebar.classList.remove("mobile-open");
+    }
+  });
+
 </script>
+
 
 <!-- script to Highlight active navbar -->
 <script>
