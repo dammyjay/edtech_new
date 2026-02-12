@@ -217,54 +217,57 @@
       <div class="projects-section">
         <h3>🚀 My Projects</h3>
 
-        <% if (projects && projects.length > 0) { %>
+        <% 
+          const hasProjects = Object.keys(courseProjects || {}).length > 0;
+        %>
+
+        <% if (hasProjects) { %>
+          
           <div class="projects-grid">
 
-            <% projects.forEach(project => { 
-                const submission = submissionMap[project.id];
-            %>
+            <% Object.keys(courseProjects).forEach(courseId => { %>
 
-              <div class="project-card">
+              <% courseProjects[courseId].forEach(project => { 
+                  const submission = projectSubmissions[project.id];
+              %>
 
-                <h4 class="project-title"><%= project.title %></h4>
+                <div class="project-card">
 
-                <% if (project.course_title) { %>
-                  <p class="project-course">
-                    🎓 <strong>Course:</strong> <%= project.course_title %>
-                  </p>
-                <% } %>
+                  <h4><%= project.title %></h4>
 
-                <% if (submission) { %>
-                  <p class="project-status completed">
-                    ✅ Submitted on 
-                    <%= new Date(submission.submitted_at).toLocaleDateString() %>
-                  </p>
+                  <% if (submission) { %>
+                    <p class="project-status completed">
+                      ✅ Submitted on 
+                      <%= new Date(submission.submitted_at).toLocaleDateString() %>
+                    </p>
 
-                  <% if (submission.file_url) { %>
-                    <a href="<%= submission.file_url %>" 
-                      target="_blank" 
-                      class="btn-view">
-                      👁 View Submission
-                    </a>
+                    <% if (submission.file_url) { %>
+                      <a href="<%= submission.file_url %>" 
+                        target="_blank" 
+                        class="btn-view">
+                        👁 View Submission
+                      </a>
+                    <% } %>
+
+                  <% } else { %>
+                    <p class="project-status pending">
+                      ⏳ Not Submitted Yet
+                    </p>
                   <% } %>
 
-                <% } else { %>
-                  <p class="project-status pending">
-                    ⏳ Not Submitted Yet
-                  </p>
-                <% } %>
+                </div>
 
-              </div>
+              <% }) %>
 
             <% }) %>
 
           </div>
+
         <% } else { %>
-          <p class="no-projects">
-            No projects assigned yet. Keep learning! 🚀
-          </p>
+          <p>No projects assigned yet. Keep learning! 🚀</p>
         <% } %>
       </div>
+
 
     </div>
 
@@ -695,7 +698,7 @@
 
                 <div class="project-card">
                   <h4><%= project.title %></h4>
-                  <p><%= project.description %></p>
+                  <p><%- project.description %></p>
 
                   <% if (project.resource_url) { %>
                     <a href="<%= project.resource_url %>" target="_blank" class="btn-view">
