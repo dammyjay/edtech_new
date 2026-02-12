@@ -106,69 +106,69 @@
   <% if (section === 'profile') { %>
     <!-- 👤 PROFILE SECTION -->
     <div class="profile-container">
-  <h2>👤 My Profile</h2>
+      <h2>👤 My Profile</h2>
 
-  <div class="profile-card">
-    <img src="<%= profilePic || '/images/profile male.png' %>" class="profile-pic-large" />
-    <p><strong>Full Name:</strong> <%= student.fullname %></p>
-    <p><strong>Gender:</strong> <%= student.gender %></p>
-    <p><strong>Date of Birth:</strong> <%= student.dob ? student.dob.toISOString().split('T')[0] : 'N/A' %></p>
-    <p style="color: rgb(0, 0, 0);">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
-    <button class="btn-create" onclick="openEditModal('profile')">✏️ Edit Profile</button>
-  </div>
-
-  <!-- 🏅 Achievements -->
-  <h3>🏅 Achievements</h3>
-  <div class="achievements">
-    <div class="achievement-item">
-      <h4>🪙 XP Points</h4>
-      <p><%= student.xp || 0 %> points</p>
-    </div>
-
-    <div class="achievement-item">
-      <h4>📘 Courses Completed</h4>
-      <p><%= completedCourses || 0 %></p>
-    </div>
-
-    <div class="achievement-item">
-      <h4>📜 Certificates</h4>
-      <p><%= certificatesCount || 0 %></p>
-    </div>
-  </div>
-
-  <!-- 📜 Certificates Section -->
-  <div class="certificates-section">
-    <h3>📜 My Certificates</h3>
-
-    <% if (certificates && certificates.length > 0) { %>
-      <div class="certificates-grid">
-        <% certificates.forEach(cert => { %>
-          <div class="certificate-card">
-
-            <% if (cert.certificate_url) { %>
-              <a href="<%= cert.certificate_url %>" target="_blank">
-                <img src="<%= cert.certificate_url %>" 
-                    alt="<%= cert.course_title %>" 
-                    class="certificate-img" />
-              </a>
-            <% } %>
-
-            <p class="certificate-title"><%= cert.course_title %></p>
-
-            <p class="certificate-date">
-              Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
-            </p>
-
-          </div>
-
-        <% }) %>
+      <div class="profile-card">
+        <img src="<%= profilePic || '/images/profile male.png' %>" class="profile-pic-large" />
+        <p><strong>Full Name:</strong> <%= student.fullname %></p>
+        <p><strong>Gender:</strong> <%= student.gender %></p>
+        <p><strong>Date of Birth:</strong> <%= student.dob ? student.dob.toISOString().split('T')[0] : 'N/A' %></p>
+        <p style="color: rgb(0, 0, 0);">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
+        <button class="btn-create" onclick="openEditModal('profile')">✏️ Edit Profile</button>
       </div>
-    <% } else { %>
-      <p class="no-certificates">
-        No certificates yet. Complete courses to earn yours! 🎓
-      </p>
-    <% } %>
-  </div>
+
+    <!-- 🏅 Achievements -->
+    <h3>🏅 Achievements</h3>
+    <div class="achievements">
+      <div class="achievement-item">
+        <h4>🪙 XP Points</h4>
+        <p><%= student.xp || 0 %> points</p>
+      </div>
+
+      <div class="achievement-item">
+        <h4>📘 Courses Completed</h4>
+        <p><%= completedCourses || 0 %></p>
+      </div>
+
+      <div class="achievement-item">
+        <h4>📜 Certificates</h4>
+        <p><%= certificatesCount || 0 %></p>
+      </div>
+    </div>
+
+    <!-- 📜 Certificates Section -->
+    <div class="certificates-section">
+      <h3>📜 My Certificates</h3>
+
+      <% if (certificates && certificates.length > 0) { %>
+        <div class="certificates-grid">
+          <% certificates.forEach(cert => { %>
+            <div class="certificate-card">
+
+              <% if (cert.certificate_url) { %>
+                <a href="<%= cert.certificate_url %>" target="_blank">
+                  <img src="<%= cert.certificate_url %>" 
+                      alt="<%= cert.course_title %>" 
+                      class="certificate-img" />
+                </a>
+              <% } %>
+
+              <p class="certificate-title"><%= cert.course_title %></p>
+
+              <p class="certificate-date">
+                Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
+              </p>
+
+            </div>
+
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="no-certificates">
+          No certificates yet. Complete courses to earn yours! 🎓
+        </p>
+      <% } %>
+    </div>
 
 
   <div class="badges-section">
@@ -291,10 +291,7 @@
                  class="card-avatar" style=" object-fit:contain;">
             <h3><%= t.fullname %></h3>
           </div>
-          <!-- <div class="card-body">
-            <p><strong>Email:</strong> <%= t.email %></p>
-            <p><strong>Role:</strong> Teacher</p>
-          </div> -->
+          
           <div class="card-body">
             <p><strong>Email:</strong> <%= t.email %></p>
             <p><strong>Role:</strong> Teacher</p>
@@ -336,10 +333,6 @@
                  class="card-avatar" style="object-fit:contain;">
             <h3><%= i.fullname %></h3>
           </div>
-          <!-- <div class="card-body">
-            <p><strong>Email:</strong> <%= i.email %></p>
-            <p><strong>Role:</strong> Instructor</p>
-          </div> -->
         
            <div class="card-body">
               <p><strong>Email:</strong> <%= i.email %></p>
@@ -389,13 +382,6 @@
             📦 <%= module.title %> ▾
           </button>
 
-          <!-- <button 
-            class="module-toggle no-bg"
-            <%= module.unlocked 
-                  ? "onclick='toggleModule(" + module.id + ")'" 
-                  : "disabled style=\"opacity:0.5; cursor:not-allowed;\"" %>>
-            <%= module.unlocked ? "📦" : "🔒" %> <%= module.title %> ▾
-          </button> -->
           <ul id="module-<%= module.id %>" class="lesson-list" style="display:none;">
             <% (moduleLessons[module.id] || []).forEach(lesson => { %>
               <li>
@@ -426,9 +412,6 @@
                         : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
                   <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
                 </button>
-
-
-
               </li>
             <% }) %>
           </ul>
@@ -556,9 +539,10 @@
         <h4>📘 Courses Completed</h4>
         <p><%= completedCourses %></p>
       </div>
-      <div class="stat-box light-pink">
+      <div class="stat-box light-pink" onclick="openProjectModal()">
         <h4>🗂️ Completed Projects</h4>
         <p><%= completedProjects %></p>
+        <small style="cursor:pointer;">View All ➜</small>
       </div>
       <div class="stat-box light-yellow badge-box" onclick="openBadgeModal()">
         <h4>🏅 Badges Earned</h4>
@@ -568,74 +552,142 @@
       <div class="stat-box light-grey" onclick="openCertificateModal()">
         <h4>📜 Certificates</h4>
         <p><%= certificatesCount %></p>
+        <small style="cursor:pointer;">View All ➜</small>
       </div>
     </section>
 
     <!-- BADGE MODAL -->
-<div id="badgeModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeBadgeModal()">&times;</span>
-    <h3>🏅 Your Badges</h3>
+    <div id="badgeModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeBadgeModal()">&times;</span>
+        <h3>🏅 Your Badges</h3>
 
-    <% if (badges && badges.length > 0) { %>
-      <div class="badges-grid">
-        <% badges.forEach(b => { %>
-          <div class="badge-card">
-            <div class="badge-icon">
-              <% if (b.badge_name === 'Beginner') { %> 🥉
-              <% } else if (b.badge_name === 'Intermediate') { %> 🥈
-              <% } else if (b.badge_name === 'Advanced') { %> 🥇
-              <% } else if (b.badge_name === 'Master') { %> 👑
-              <% } else { %> 🎖️
-              <% } %>
+        <% if (badges && badges.length > 0) { %>
+          <div class="badges-grid">
+            <% badges.forEach(b => { %>
+              <div class="badge-card">
+                <div class="badge-icon">
+                  <% if (b.badge_name === 'Beginner') { %> 🥉
+                  <% } else if (b.badge_name === 'Intermediate') { %> 🥈
+                  <% } else if (b.badge_name === 'Advanced') { %> 🥇
+                  <% } else if (b.badge_name === 'Master') { %> 👑
+                  <% } else { %> 🎖️
+                  <% } %>
+                </div>
+                <p class="badge-name"><%= b.badge_name %></p>
+                <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p>You haven’t earned any badges yet. Keep learning! 🚀</p>
+        <% } %>
+      </div>
+    </div>
+
+        <!-- Certificate MODAL -->
+    <div id="certificateModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeCertificateModal()">&times;</span>
+        <h3>🏅 Your Certificate</h3>
+
+        <% if (certificates && certificates.length > 0) { %>
+          <div class="certificates-grid">
+            <% certificates.forEach(cert => { %>
+              <div class="certificate-card">
+                <% if (cert.certificate_url) { %>
+                  <a href="<%= cert.certificate_url %>" target="_blank">
+                    <img src="<%= cert.certificate_url %>" 
+                        alt="<%= cert.course_title %>" 
+                        class="certificate-img" />
+                  </a>
+                <% } %>
+
+                <p class="certificate-title"><%= cert.course_title %></p>
+
+                <p class="certificate-date">
+                  Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
+                </p>
+
+              </div>
+
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p class="no-certificates">
+            No certificates yet. Complete courses to earn yours! 🎓
+          </p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- PROJECT MODAL -->
+    <div id="projectModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeProjectModal()">&times;</span>
+        <h3>🚀 Your Course Projects</h3>
+
+        <% 
+          const hasProjects = Object.keys(courseProjects || {}).length > 0;
+        %>
+
+        <% if (hasProjects) { %>
+
+          <% Object.keys(courseProjects).forEach(courseId => { %>
+            
+            <div class="project-course-section">
+              <% const projects = courseProjects[courseId]; %>
+
+              <% projects.forEach(project => { 
+                  const submission = projectSubmissions[project.id];
+              %>
+
+                <div class="project-card">
+                  <h4><%= project.title %></h4>
+                  <p><%= project.description %></p>
+
+                  <% if (project.resource_url) { %>
+                    <a href="<%= project.resource_url %>" target="_blank" class="btn-view">
+                      📎 View Instructions
+                    </a>
+                  <% } %>
+
+                  <% if (submission) { %>
+                    <div class="project-submitted">
+                      <p>✅ Submitted on 
+                        <%= new Date(submission.submitted_at).toLocaleDateString() %>
+                      </p>
+
+                      <% if (submission.file_url) { %>
+                        <a href="<%= submission.file_url %>" target="_blank" class="btn-view">
+                          👁 View Submission
+                        </a>
+                      <% } %>
+
+                      <% if (submission.notes) { %>
+                        <p class="submission-notes">
+                          📝 <%= submission.notes %>
+                        </p>
+                      <% } %>
+                    </div>
+                  <% } else { %>
+                    <p class="not-submitted">❌ Not submitted yet</p>
+                  <% } %>
+
+                </div>
+
+              <% }) %>
+
             </div>
-            <p class="badge-name"><%= b.badge_name %></p>
-            <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
-          </div>
-        <% }) %>
+
+          <% }) %>
+
+        <% } else { %>
+          <p>No projects assigned yet. Keep progressing! 🎯</p>
+        <% } %>
+
       </div>
-    <% } else { %>
-      <p>You haven’t earned any badges yet. Keep learning! 🚀</p>
-    <% } %>
-  </div>
-</div>
-
-    <!-- Certificate MODAL -->
-<div id="certificateModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeCertificateModal()">&times;</span>
-    <h3>🏅 Your Certificate</h3>
-
-    <% if (certificates && certificates.length > 0) { %>
-      <div class="certificates-grid">
-        <% certificates.forEach(cert => { %>
-          <div class="certificate-card">
-
-            <% if (cert.certificate_url) { %>
-              <a href="<%= cert.certificate_url %>" target="_blank">
-                <img src="<%= cert.certificate_url %>" 
-                    alt="<%= cert.course_title %>" 
-                    class="certificate-img" />
-              </a>
-            <% } %>
-
-            <p class="certificate-title"><%= cert.course_title %></p>
-
-            <p class="certificate-date">
-              Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
-            </p>
-
-          </div>
-
-        <% }) %>
-      </div>
-    <% } else { %>
-      <p class="no-certificates">
-        No certificates yet. Complete courses to earn yours! 🎓
-      </p>
-    <% } %>
-  </div>
-</div>
+    </div>
 
 
     <div class="analytics-wrapper">
@@ -1037,11 +1089,21 @@ async function loadChatMessages(teacherId) {
   function closeCertificateModal() {
     document.getElementById("certificateModal").style.display = "none"
   }
+
+  function openProjectModal() {
+    document.getElementById("projectModal").style.display = "block";
+  }
+
+  function closeProjectModal() {
+    document.getElementById("projectModal").style.display = "none";
+  }
   window.onclick = function(event) {
     const modal = document.getElementById("badgeModal");
-    const certModal = document.getElementById("certificateModal")
+    const certModal = document.getElementById("certificateModal");
+    const projectModal = document.getElementById("projectModal");
     if (event.target === modal) modal.style.display = "none";
-    if (event.target === certModal) certModal.style.display = "none"
+    if (event.target === certModal) certModal.style.display = "none";
+    if (event.target === projectModal) projectModal.style.display = "none"
   };
 </script>
 
