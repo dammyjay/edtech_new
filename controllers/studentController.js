@@ -175,43 +175,6 @@ exports.getDashboard = async (req, res) => {
     );
     const parentRequests = requestsRes.rows;
 
-    // --- Calculate progress for each enrolled course
-    // for (let course of enrolledCourses) {
-    //   const totalLessonsRes = await pool.query(
-    //     `SELECT COUNT(*) FROM lessons l
-    //      JOIN modules m ON l.module_id = m.id
-    //      WHERE m.course_id = $1`,
-    //     [course.id]
-    //   );
-    //   const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
-
-    //   const completedLessonsRes = await pool.query(
-    //     `SELECT COUNT(DISTINCT ul.lesson_id)
-    //      FROM user_lesson_progress ul
-    //      JOIN lessons l ON ul.lesson_id = l.id
-    //      JOIN modules m ON l.module_id = m.id
-    //      WHERE ul.user_id = $1 AND m.course_id = $2`,
-    //     [studentId, course.id]
-    //   );
-    //   const completedLessons = parseInt(completedLessonsRes.rows[0].count);
-
-    //   course.progress = Math.round((completedLessons / totalLessons) * 100);
-
-    //   const issueCertificate = require("../services/issueCertificate");
-
-    //   for (const course of enrolledCourses) {
-    //     if (course.progress === 100) {
-    //       await issueCertificate({
-    //         userId: studentId,
-    //         courseId: course.id,
-    //         studentName: student.fullname,
-    //         courseTitle: course.title,
-    //       });
-    //     }
-    //   }
-
-    // }
-
     const issueCertificate = require("../services/issueCertificate");
 
     for (let course of enrolledCourses) {
@@ -617,10 +580,24 @@ for (const mod of modulesRes.rows) {
     );
     const completedProjects = parseInt(completedProjectsRes.rows[0].count);
 
+    // const badgesRes = await pool.query(
+    //   "SELECT * FROM user_badges WHERE user_id = $1",
+    //   [studentId]
+    // );
+
     const badgesRes = await pool.query(
-      "SELECT * FROM user_badges WHERE user_id = $1",
-      [studentId]
+      `SELECT 
+      ub.*,
+      m.title AS module_title,
+      c.title AS course_title
+   FROM user_badges ub
+   JOIN modules m ON ub.module_id = m.id
+   JOIN courses c ON m.course_id = c.id
+   WHERE ub.user_id = $1
+   ORDER BY ub.awarded_at DESC`,
+      [studentId],
     );
+
 
     const certificatesRes = await pool.query(
       `SELECT c.id AS course_id, c.title AS course_title, uc.issued_at, uc.certificate_url
