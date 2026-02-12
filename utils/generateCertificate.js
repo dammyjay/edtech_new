@@ -24,13 +24,26 @@ module.exports = async ({ studentName, courseTitle }) => {
 
   await page.setContent(html, { waitUntil: "networkidle0" });
 
-  const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
-  await page.pdf({
-    path: outputPath,
-    format: "A4",
-    landscape: true, // ✅ correct spelling
-    printBackground: true,
+  // const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
+  // await page.pdf({
+  //   path: outputPath,
+  //   format: "A4",
+  //   landscape: true, // ✅ correct spelling
+  //   printBackground: true,
+  // });
+
+  const outputPath = path.join(__dirname, `../tmp/${certCode}.png`);
+
+  await page.setViewport({
+    width: 1754,  // A4 landscape width in pixels (high quality)
+    height: 1240, // A4 landscape height in pixels
   });
+
+  await page.screenshot({
+    path: outputPath,
+    fullPage: true,
+  });
+
 
 
   await browser.close();

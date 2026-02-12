@@ -23,16 +23,22 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
   //   resource_type: "raw",
   // });
 
+  // const upload = await cloudinary.uploader.upload(outputPath, {
+  //   folder: "certificates",
+  //   resource_type: "image", // 🔥 IMPORTANT
+  //   format: "pdf",
+  // });
+
+  // const pdfUrl = upload.secure_url.replace(
+  //   "/upload/",
+  //   "/upload/fl_attachment:false/",
+  // );
+
   const upload = await cloudinary.uploader.upload(outputPath, {
     folder: "certificates",
-    resource_type: "image", // 🔥 IMPORTANT
-    format: "pdf",
+    resource_type: "image",
   });
 
-  const pdfUrl = upload.secure_url.replace(
-    "/upload/",
-    "/upload/fl_attachment:false/",
-  );
 
 
   // 4️⃣ Save record
@@ -40,8 +46,8 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
     `INSERT INTO user_certificates
      (user_id, course_id, certificate_code, certificate_url)
      VALUES ($1,$2,$3,$4)`,
-    // [userId, courseId, certCode, upload.secure_url]
-    [userId, courseId, certCode, pdfUrl],
+    [userId, courseId, certCode, upload.secure_url]
+    // [userId, courseId, certCode, pdfUrl],
   );
 
   // 5️⃣ Cleanup
