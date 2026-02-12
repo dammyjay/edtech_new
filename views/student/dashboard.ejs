@@ -143,31 +143,6 @@
     <% if (certificates && certificates.length > 0) { %>
       <div class="certificates-grid">
         <% certificates.forEach(cert => { %>
-          <!-- <div class="certificate-card">
-            <h4><%= cert.course_title %></h4>
-
-            <p>
-              Issued:
-              <%= new Date(cert.issued_at).toLocaleDateString() %>
-            </p>
-
-            <% if (cert.certificate_url) { %>
-              <div class="certificate-actions">
-                <a href="<%= cert.certificate_url %>"
-                  target="_blank"
-                  class="btn-view">
-                  👁 View Certificate
-                </a>
-
-                <a href="<%= cert.certificate_url.replace('fl_attachment:false','fl_attachment:true') %>"
-                  class="btn-download">
-                  ⬇ Download
-                </a>
-              </div>
-
-            <% } %>
-          </div> -->
-        
           <div class="certificate-card">
 
             <% if (cert.certificate_url) { %>
@@ -590,7 +565,7 @@
         <p><%= badges.length %></p>
         <small style="cursor:pointer;">View All ➜</small>
       </div>
-      <div class="stat-box light-grey">
+      <div class="stat-box light-grey" onclick="openCertificateModal()">
         <h4>📜 Certificates</h4>
         <p><%= certificatesCount %></p>
       </div>
@@ -621,6 +596,43 @@
       </div>
     <% } else { %>
       <p>You haven’t earned any badges yet. Keep learning! 🚀</p>
+    <% } %>
+  </div>
+</div>
+
+    <!-- Certificate MODAL -->
+<div id="certificateModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeCertificateModal()">&times;</span>
+    <h3>🏅 Your Certificate</h3>
+
+    <% if (certificates && certificates.length > 0) { %>
+      <div class="certificates-grid">
+        <% certificates.forEach(cert => { %>
+          <div class="certificate-card">
+
+            <% if (cert.certificate_url) { %>
+              <a href="<%= cert.certificate_url %>" target="_blank">
+                <img src="<%= cert.certificate_url %>" 
+                    alt="<%= cert.course_title %>" 
+                    class="certificate-img" />
+              </a>
+            <% } %>
+
+            <p class="certificate-title"><%= cert.course_title %></p>
+
+            <p class="certificate-date">
+              Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
+            </p>
+
+          </div>
+
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="no-certificates">
+        No certificates yet. Complete courses to earn yours! 🎓
+      </p>
     <% } %>
   </div>
 </div>
@@ -1017,9 +1029,19 @@ async function loadChatMessages(teacherId) {
   function closeBadgeModal() {
     document.getElementById("badgeModal").style.display = "none";
   }
+
+  function openCertificateModal() {
+    document.getElementById("certificateModal").style.display = "block"
+  }
+
+  function closeCertificateModal() {
+    document.getElementById("certificateModal").style.display = "none"
+  }
   window.onclick = function(event) {
     const modal = document.getElementById("badgeModal");
+    const certModal = document.getElementById("certificateModal")
     if (event.target === modal) modal.style.display = "none";
+    if (event.target === certModal) certModal.style.display = "none"
   };
 </script>
 
