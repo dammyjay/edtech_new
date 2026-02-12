@@ -152,11 +152,24 @@
             </p>
 
             <% if (cert.certificate_url) { %>
-              <a href="<%= cert.certificate_url %>"
+              <!-- <a href="<%= cert.certificate_url %>"
                 target="_blank"
                 class="btn-view">
                 🎓 Download Certificate
-              </a>
+              </a> -->
+              <div class="certificate-actions">
+                <a href="<%= cert.certificate_url %>"
+                  target="_blank"
+                  class="btn-view">
+                  👁 View Certificate
+                </a>
+
+                <a href="<%= cert.certificate_url.replace('fl_attachment:false','fl_attachment:true') %>"
+                  class="btn-download">
+                  ⬇ Download
+                </a>
+              </div>
+
             <% } %>
           </div>
         <% }) %>

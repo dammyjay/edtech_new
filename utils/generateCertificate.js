@@ -25,12 +25,13 @@ module.exports = async ({ studentName, courseTitle }) => {
   await page.setContent(html, { waitUntil: "networkidle0" });
 
   const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
-  await page.pdf({ 
-    path: outputPath, 
+  await page.pdf({
+    path: outputPath,
     format: "A4",
-    lanscape: true,
-    printBackground: true,    
-});
+    landscape: true, // ✅ correct spelling
+    printBackground: true,
+  });
+
 
   await browser.close();
 

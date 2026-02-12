@@ -2,40 +2,70 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 0;
-    }
-      body {
-      font-family: Georgia, serif;
-      text-align: center;
-      padding: 80px;
-      border: 12px solid #1f3c88;
-      width: 100%;
-      height: 100%;
-    }
-    h1 { font-size: 42px; }
-    .name { font-size: 34px; font-weight: bold; margin: 20px 0; }
-    .course { font-size: 26px; margin: 20px 0; }
-    .footer { margin-top: 50px; font-size: 14px; }
-  </style>
- 
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .certificate {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 20px solid #1f3c88;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: Georgia, serif;
+    text-align: center;
+    padding: 60px;
+  }
+
+  h1 { font-size: 48px; margin-bottom: 30px; }
+
+  .name {
+    font-size: 40px;
+    font-weight: bold;
+    margin: 25px 0;
+  }
+
+  .course {
+    font-size: 30px;
+    margin: 25px 0;
+  }
+
+  .footer {
+    margin-top: 60px;
+    font-size: 16px;
+  }
+</style>
+
 
 </head>
 <body>
-  <h1>Certificate of Completion</h1>
+  <div class="certificate">
+    <h1>Certificate of Completion</h1>
 
-  <p>This certifies that</p>
-  <div class="name">{{STUDENT_NAME}}</div>
+    <p>This certifies that</p>
+    <div class="name">{{STUDENT_NAME}}</div>
 
-  <p>has successfully completed the course</p>
-  <div class="course">{{COURSE_TITLE}}</div>
+    <p>has successfully completed the course</p>
+    <div class="course">{{COURSE_TITLE}}</div>
 
-  <p>Issued on {{DATE}}</p>
+    <p>Issued on {{DATE}}</p>
 
-  <div class="footer">
-    Certificate ID: {{CERT_CODE}}
+    <div class="footer">
+      Certificate ID: {{CERT_CODE}}
+    </div>
   </div>
+  
 </body>
 </html>
