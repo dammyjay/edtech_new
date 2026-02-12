@@ -2065,13 +2065,13 @@ canvas {
     color: #666;
 }
 
-.project-card {
+/* .project-card {
     background: #fff;
     padding: 15px;
     border-radius: 12px;
     margin-bottom: 15px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-}
+} */
 
 .project-card h4 {
     margin-bottom: 5px;
@@ -2094,6 +2094,51 @@ canvas {
     font-size: 14px;
     color: #555;
     margin-top: 5px;
+}
+
+.projects-section {
+    margin-top: 30px;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.project-card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-4px);
+}
+
+.project-title {
+    margin-bottom: 8px;
+}
+
+.project-course {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.project-status {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.project-status.completed {
+    color: green;
+}
+
+.project-status.pending {
+    color: #cc0000;
 }
 
 .badges-section {

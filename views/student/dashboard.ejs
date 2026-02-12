@@ -117,105 +117,156 @@
         <button class="btn-create" onclick="openEditModal('profile')">✏️ Edit Profile</button>
       </div>
 
-    <!-- 🏅 Achievements -->
-    <h3>🏅 Achievements</h3>
-    <div class="achievements">
-      <div class="achievement-item">
-        <h4>🪙 XP Points</h4>
-        <p><%= student.xp || 0 %> points</p>
-      </div>
+      <!-- 🏅 Achievements -->
+        <h3>🏅 Achievements</h3>
+        <div class="achievements">
+          <div class="achievement-item">
+            <h4>🪙 XP Points</h4>
+            <p><%= student.xp || 0 %> points</p>
+          </div>
 
-      <div class="achievement-item">
-        <h4>📘 Courses Completed</h4>
-        <p><%= completedCourses || 0 %></p>
-      </div>
+          <div class="achievement-item">
+            <h4>📘 Courses Completed</h4>
+            <p><%= completedCourses || 0 %></p>
+          </div>
 
-      <div class="achievement-item">
-        <h4>📜 Certificates</h4>
-        <p><%= certificatesCount || 0 %></p>
-      </div>
-    </div>
+          <div class="achievement-item">
+            <h4>📜 Certificates</h4>
+            <p><%= certificatesCount || 0 %></p>
+          </div>
+        </div>
 
-    <!-- 📜 Certificates Section -->
-    <div class="certificates-section">
-      <h3>📜 My Certificates</h3>
+        <!-- 📜 Certificates Section -->
+        <div class="certificates-section">
+          <h3>📜 My Certificates</h3>
 
-      <% if (certificates && certificates.length > 0) { %>
-        <div class="certificates-grid">
-          <% certificates.forEach(cert => { %>
-            <div class="certificate-card">
+          <% if (certificates && certificates.length > 0) { %>
+            <div class="certificates-grid">
+              <% certificates.forEach(cert => { %>
+                <div class="certificate-card">
 
-              <% if (cert.certificate_url) { %>
-                <a href="<%= cert.certificate_url %>" target="_blank">
-                  <img src="<%= cert.certificate_url %>" 
-                      alt="<%= cert.course_title %>" 
-                      class="certificate-img" />
-                </a>
-              <% } %>
+                  <% if (cert.certificate_url) { %>
+                    <a href="<%= cert.certificate_url %>" target="_blank">
+                      <img src="<%= cert.certificate_url %>" 
+                          alt="<%= cert.course_title %>" 
+                          class="certificate-img" />
+                    </a>
+                  <% } %>
 
-              <p class="certificate-title"><%= cert.course_title %></p>
+                  <p class="certificate-title"><%= cert.course_title %></p>
 
-              <p class="certificate-date">
-                Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
-              </p>
+                  <p class="certificate-date">
+                    Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
+                  </p>
 
+                </div>
+
+              <% }) %>
             </div>
-
-          <% }) %>
-        </div>
-      <% } else { %>
-        <p class="no-certificates">
-          No certificates yet. Complete courses to earn yours! 🎓
-        </p>
-      <% } %>
-    </div>
-
-
-  <div class="badges-section">
-  <h3>🎖️ Badges Earned</h3>
-
-  <% if (badges && badges.length > 0) { %>
-    <div class="badges-grid">
-      <% badges.forEach(b => { %>
-        <div class="badge-card">
-          <!-- Show badge image if exists -->
-          <% if (b.badge_image) { %>
-            <a href="<%= b.badge_image %>" target="_blank">
-              <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" class="badge-img" />
-            </a>
-            
           <% } else { %>
-            <div class="badge-placeholder">🎖️</div>
-          <% } %>
-
-          <p class="badge-name"><%= b.badge_name %></p>
-          <% if (b.module_title) { %>
-              <p class="badge-module">
-                📘 <strong>Module:</strong> <%= b.module_title %>
-              </p>
-          <% } %>
-
-            <% if (b.course_title) { %>
-              <p class="badge-course">
-                🎓 <strong>Course:</strong> <%= b.course_title %>
-              </p>
-            <% } %>
-          <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
-
-          <!-- Optional: show module title that earned this badge -->
-          <% if (b.module_title) { %>
-            <p class="badge-module">Module: <%= b.module_title %></p>
+            <p class="no-certificates">
+              No certificates yet. Complete courses to earn yours! 🎓
+            </p>
           <% } %>
         </div>
-      <% }) %>
+
+      <div class="badges-section">
+        <h3>🎖️ Badges Earned</h3>
+
+        <% if (badges && badges.length > 0) { %>
+          <div class="badges-grid">
+            <% badges.forEach(b => { %>
+              <div class="badge-card">
+                <!-- Show badge image if exists -->
+                <% if (b.badge_image) { %>
+                  <a href="<%= b.badge_image %>" target="_blank">
+                    <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" class="badge-img" />
+                  </a>
+                  
+                <% } else { %>
+                  <div class="badge-placeholder">🎖️</div>
+                <% } %>
+
+                <p class="badge-name"><%= b.badge_name %></p>
+                <% if (b.module_title) { %>
+                    <p class="badge-module">
+                      📘 <strong>Module:</strong> <%= b.module_title %>
+                    </p>
+                <% } %>
+
+                  <% if (b.course_title) { %>
+                    <p class="badge-course">
+                      🎓 <strong>Course:</strong> <%= b.course_title %>
+                    </p>
+                  <% } %>
+                <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
+
+                <!-- Optional: show module title that earned this badge -->
+                <% if (b.module_title) { %>
+                  <p class="badge-module">Module: <%= b.module_title %></p>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p class="no-badges">No badges earned yet. Keep learning! 🚀</p>
+        <% } %>
+      </div>
+
+      <!-- 🚀 Projects Section -->
+      <div class="projects-section">
+        <h3>🚀 My Projects</h3>
+
+        <% if (projects && projects.length > 0) { %>
+          <div class="projects-grid">
+
+            <% projects.forEach(project => { 
+                const submission = submissionMap[project.id];
+            %>
+
+              <div class="project-card">
+
+                <h4 class="project-title"><%= project.title %></h4>
+
+                <% if (project.course_title) { %>
+                  <p class="project-course">
+                    🎓 <strong>Course:</strong> <%= project.course_title %>
+                  </p>
+                <% } %>
+
+                <% if (submission) { %>
+                  <p class="project-status completed">
+                    ✅ Submitted on 
+                    <%= new Date(submission.submitted_at).toLocaleDateString() %>
+                  </p>
+
+                  <% if (submission.file_url) { %>
+                    <a href="<%= submission.file_url %>" 
+                      target="_blank" 
+                      class="btn-view">
+                      👁 View Submission
+                    </a>
+                  <% } %>
+
+                <% } else { %>
+                  <p class="project-status pending">
+                    ⏳ Not Submitted Yet
+                  </p>
+                <% } %>
+
+              </div>
+
+            <% }) %>
+
+          </div>
+        <% } else { %>
+          <p class="no-projects">
+            No projects assigned yet. Keep learning! 🚀
+          </p>
+        <% } %>
+      </div>
+
     </div>
-  <% } else { %>
-    <p class="no-badges">No badges earned yet. Keep learning! 🚀</p>
-  <% } %>
-</div>
-
-
-</div>
 
 <!-- Student edit profile modal -->
 <div id="editModal-profile" class="modal" style="display: none;">
