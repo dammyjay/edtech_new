@@ -121,6 +121,41 @@ router.get("/", async (req, res) => {
       totalUsers: totalUsersRes.rows[0].count,
     };
 
+    const [
+      totalCoursesRes,
+      totalModulesRes,
+      totalLessonsRes,
+      totalQuizzesRes,
+      totalEnrollmentsRes,
+      totalQuizAttemptsRes,
+      totalQuizPassedRes,
+      totalAssignmentsRes,
+      totalProjectsRes,
+    ] = await Promise.all([
+      pool.query("SELECT COUNT(*) FROM courses"),
+      pool.query("SELECT COUNT(*) FROM modules"),
+      pool.query("SELECT COUNT(*) FROM lessons"),
+      pool.query("SELECT COUNT(*) FROM quizzes"),
+      pool.query("SELECT COUNT(*) FROM course_enrollments"),
+      pool.query("SELECT COUNT(*) FROM quiz_submissions"),
+      pool.query("SELECT COUNT(*) FROM quiz_submissions WHERE score >= 70"),
+      pool.query("SELECT COUNT(*) FROM assignment_submissions"),
+      pool.query("SELECT COUNT(*) FROM course_projects"),
+    ]);
+
+    const engagementStats = {
+      courses: totalCoursesRes.rows[0].count,
+      modules: totalModulesRes.rows[0].count,
+      lessons: totalLessonsRes.rows[0].count,
+      quizzes: totalQuizzesRes.rows[0].count,
+      enrollments: totalEnrollmentsRes.rows[0].count,
+      quizAttempts: totalQuizAttemptsRes.rows[0].count,
+      quizPassed: totalQuizPassedRes.rows[0].count,
+      assignmentsSubmitted: totalAssignmentsRes.rows[0].count,
+      projects: totalProjectsRes.rows[0].count,
+    };
+
+
     res.render("home", {
       info,
       users,
@@ -138,6 +173,7 @@ router.get("/", async (req, res) => {
       stats,
       faqs,
       testimonies,
+      engagementStats,
       activePage: "home", // 👈 Pass active page
     });
   } catch (err) {

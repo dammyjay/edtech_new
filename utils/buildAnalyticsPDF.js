@@ -1,222 +1,951 @@
-module.exports = function buildAnalyticsPDF(data) {
+// module.exports = function buildAnalyticsPDF(data) {
+//   const {
+//     overview,
+//     users,
+//     courses,
+//     quizzes,
+//     activity,
+//     finance,
+//     eventPaymentDetails,
+//   } = data;
+
+//   function tableRows(items, cols) {
+//     return items
+//       .map((item) => {
+//         return `<tr>${cols
+//           .map((c) => `<td>${item[c] ?? "—"}</td>`)
+//           .join("")}</tr>`;
+//       })
+//       .join("");
+//   }
+
+//   return `
+// <html>
+// <head>
+// <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+// <meta charset="utf-8" />
+// <style>
+//   body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
+//   h1 { text-align: center; color: #34495e; }
+//   h2 { margin-top: 30px; color: #2980b9; }
+//   h3 { margin-top: 20px; }
+
+//   table {
+//     width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;
+//   }
+//   th, td {
+//     border: 1px solid #ddd; padding: 6px;
+//   }
+//   th { background: #2c3e50; color: white; text-align: left; }
+//   tr:nth-child(even) { background: #f9f9f9; }
+
+//   .cards { display: flex; flex-wrap: wrap; gap: 15px; }
+//   .card {
+//     background: #ecf0f1; padding: 12px; border-radius: 8px;
+//     width: 180px;
+//   }
+//   .footer { margin-top: 40px; text-align: center; font-size: 10px; color: gray; }
+// </style>
+// </head>
+
+// <body>
+
+// <h1>📊 Analytics Report</h1>
+// <p style="text-align:center;color:gray;">Generated on ${new Date().toLocaleString()}</p>
+
+// <h2>Summary Cards</h2>
+// <div class="cards">
+//   <div class="card"><strong>Total Users:</strong> ${overview.total_users}</div>
+//   <div class="card"><strong>Active (24h):</strong> ${overview.dau}</div>
+//   <div class="card"><strong>New (7d):</strong> ${
+//     overview.new_users?.new_7d
+//   }</div>
+//   <div class="card"><strong>Total Courses:</strong> ${
+//     courses.counts.total_courses
+//   }</div>
+//   <div class="card"><strong>Avg Quiz Score:</strong> ${
+//     quizzes.summary.avg_score
+//   }</div>
+//   <div class="card"><strong>Total Revenue:</strong> ${
+//     finance.revenue.total_revenue
+//   }</div>
+//   <div class="card"><strong>Revenue (30d):</strong> ${
+//     finance.revenue.revenue_30d
+//   }</div>
+// </div>
+
+// <h2>Users by Role</h2>
+// <h2>Users by Role (Chart)</h2>
+// <canvas id="usersRoleChart" width="400" height="200"></canvas>
+
+// <table>
+//   <tr><th>Role</th><th>Count</th></tr>
+//   ${tableRows(users.byRole, ["role", "count"])}
+// </table>
+
+// <h2>Top Courses Progress</h2>
+// <canvas id="coursesProgressChart" width="400" height="200"></canvas>
+
+// <h2>Top Courses</h2>
+// <table>
+//   <thead>
+//     <tr>
+//       <th>Course</th>
+//       <th>Total Lessons</th>
+//       <th>Avg Completed Lessons</th>
+//       <th>Individual Students</th>
+//       <th>School Students</th>
+//       <th>Total Enrollments</th>
+//       <th>Avg Progress</th>
+//     </tr>
+//   </thead>
+//   <tbody>
+//     ${courses.topCourses
+//       .map(
+//         (c) => `
+//       <tr>
+//         <td>${c.title}</td>
+//         <td>${c.total_lessons}</td>
+//         <td>${c.avg_completed_lessons}</td>
+//         <td>${c.individual_enrollments}</td>
+//         <td>${c.school_enrollments}</td>
+//         <td>${c.total_enrollments}</td>
+//         <td>${c.avg_progress}%</td>
+//       </tr>
+//     `
+//       )
+//       .join("")}
+//   </tbody>
+// </table>
+
+// <h2>Quiz Pass / Fail</h2>
+// <table>
+//   <tr><th>Status</th><th>Count</th></tr>
+//   ${tableRows(quizzes.passFail, ["passed", "count"])}
+// </table>
+
+// <h2>School Payments</h2>
+// <table>
+//   <tr><th>Status</th><th>Count</th></tr>
+//   ${tableRows(finance.schoolPayments, ["status", "count"])}
+// </table>
+
+// <h2>Event Payments</h2>
+// <table>
+//   <tr><th>Status</th><th>Count</th><th>Total Collected</th></tr>
+//   ${tableRows(finance.eventPayments, [
+//     "payment_status",
+//     "count",
+//     "total_collected",
+//   ])}
+// </table>
+
+// <h2>Event Payment Details</h2>
+// <table>
+//   <tr><th>User</th><th>Email</th><th>Event</th><th>Status</th><th>Amount</th><th>Date</th></tr>
+//   ${eventPaymentDetails
+//     .map(
+//       (e) => `
+//     <tr>
+//       <td>${e.fullname}</td>
+//       <td>${e.email}</td>
+//       <td>${e.event_title}</td>
+//       <td>${e.payment_status}</td>
+//       <td>${e.amount}</td>
+//       <td>${new Date(e.created_at).toLocaleDateString()}</td>
+//     </tr>
+//   `
+//     )
+//     .join("")}
+// </table>
+
+// <h2>Recent Activity</h2>
+// <table>
+//   <tr><th>Date</th><th>Role</th><th>Action</th><th>Details</th></tr>
+//   ${activity.feed
+//     .map(
+//       (a) => `
+//       <tr>
+//         <td>${new Date(a.created_at).toLocaleString()}</td>
+//         <td>${a.role}</td>
+//         <td>${a.action}</td>
+//         <td>${a.details || ""}</td>
+//       </tr>
+//       `
+//     )
+//     .join("")}
+// </table>
+
+// <div class="footer">© ${new Date().getFullYear()} Analytics Report</div>
+
+// <script>
+//   // Users by Role Chart
+//   const usersRoleCtx = document.getElementById('usersRoleChart').getContext('2d');
+//   new Chart(usersRoleCtx, {
+//     type: 'bar',
+//     data: {
+//       labels: ${JSON.stringify(users.byRole.map((u) => u.role))},
+//       datasets: [{
+//         label: 'Number of Users',
+//         data: ${JSON.stringify(users.byRole.map((u) => u.count))},
+//         backgroundColor: 'rgba(52, 152, 219, 0.6)',
+//         borderColor: 'rgba(52, 152, 219, 1)',
+//         borderWidth: 1
+//       }]
+//     },
+//     options: { responsive: true, plugins: { legend: { display: false } } }
+//   });
+
+//   // Top Courses Progress Chart
+//   const coursesProgressCtx = document.getElementById('coursesProgressChart').getContext('2d');
+//   new Chart(coursesProgressCtx, {
+//     type: 'line',
+//     data: {
+//       labels: ${JSON.stringify(courses.topCourses.map((c) => c.title))},
+//       datasets: [{
+//         label: 'Avg Progress (%)',
+//         data: ${JSON.stringify(courses.topCourses.map((c) => c.avg_progress))},
+//         backgroundColor: 'rgba(46, 204, 113, 0.6)',
+//         borderColor: 'rgba(46, 204, 113, 1)',
+//         fill: false,
+//         tension: 0.1
+//       }]
+//     },
+//     options: { responsive: true }
+//   });
+// </script>
+
+// </body>
+// </html>
+// `;
+// };
+
+// module.exports = function buildAnalyticsPDF(data) {
+//   const {
+//     overview,
+//     users,
+//     courses,
+//     quizzes,
+//     activity,
+//     finance,
+//     eventPaymentDetails,
+//   } = data;
+
+//   return `
+//   <!DOCTYPE html>
+//   <html>
+//   <head>
+//     <meta charset="utf-8">
+//     <title>Analytics Report</title>
+
+//     <link rel="stylesheet"
+//       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+//     <style>
+//       body {
+//         font-family: Arial, sans-serif;
+//         background: #f4f6f9;
+//         padding: 30px;
+//       }
+
+//       h1 { text-align:center; margin-bottom:30px; }
+//       h2 { margin-top:40px; }
+
+//       .grid {
+//         display:grid;
+//         grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+//         gap:20px;
+//         margin-bottom:30px;
+//       }
+
+//       .card {
+//         background:#fff;
+//         border-radius:12px;
+//         padding:18px;
+//         display:flex;
+//         justify-content:space-between;
+//         align-items:center;
+//         box-shadow:0 4px 10px rgba(0,0,0,0.08);
+//       }
+
+//       .icon {
+//         width:50px;
+//         height:50px;
+//         border-radius:50%;
+//         display:flex;
+//         align-items:center;
+//         justify-content:center;
+//         color:white;
+//         font-size:18px;
+//       }
+
+//       .green{background:#025a10;}
+//       .blue{background:#2204c7;}
+//       .lime{background:#29c50a;}
+//       .purple{background:#471b80;}
+//       .sky{background:#1079f2;}
+//       .gold{background:#6e5205;}
+
+//       table {
+//         width:100%;
+//         border-collapse:collapse;
+//         margin-top:15px;
+//         background:#fff;
+//       }
+
+//       th, td {
+//         border:1px solid #ddd;
+//         padding:8px;
+//         font-size:12px;
+//       }
+
+//       th { background:#f0f0f0; }
+
+//       .section {
+//         page-break-inside: avoid;
+//       }
+//     </style>
+//   </head>
+
+//   <body>
+
+//   <h1>📊 Admin Analytics Report</h1>
+
+//   <!-- ================= OVERVIEW ================= -->
+//   <div class="section">
+//     <h2>Overview</h2>
+//     <div class="grid">
+//       <div class="card">
+//         <div class="icon green"><i class="fa-solid fa-user-check"></i></div>
+//         <div>
+//           <strong>${overview.dau}</strong><br/>
+//           Active (24h)
+//         </div>
+//       </div>
+
+//       <div class="card">
+//         <div class="icon blue"><i class="fas fa-users"></i></div>
+//         <div>
+//           <strong>${overview.total_users}</strong><br/>
+//           Total Users
+//         </div>
+//       </div>
+
+//       <div class="card">
+//         <div class="icon lime"><i class="fas fa-arrow-trend-up"></i></div>
+//         <div>
+//           <strong>${overview.new_users.new_7d}</strong><br/>
+//           New (7d)
+//         </div>
+//       </div>
+
+//       <div class="card">
+//         <div class="icon purple"><i class="fa-solid fa-book"></i></div>
+//         <div>
+//           <strong>${courses.counts.total_courses}</strong><br/>
+//           Total Courses
+//         </div>
+//       </div>
+
+//       <div class="card">
+//         <div class="icon sky"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+//         <div>
+//           <strong>${finance.revenue.total_revenue}</strong><br/>
+//           Total Revenue
+//         </div>
+//       </div>
+
+//       <div class="card">
+//         <div class="icon gold"><i class="fa-solid fa-coins"></i></div>
+//         <div>
+//           <strong>${finance.revenue.revenue_30d}</strong><br/>
+//           Revenue (30d)
+//         </div>
+//       </div>
+//     </div>
+//   </div>
+
+//   <!-- ================= USERS ================= -->
+//   <div class="section">
+//   <h2>Users by Role (Chart)</h2>
+//   <canvas id="usersRoleChart" width="400" height="200"></canvas>
+//     <h2>Users By Role</h2>
+//     <table>
+//       <thead>
+//         <tr><th>Role</th><th>Count</th></tr>
+//       </thead>
+//       <tbody>
+//         ${users.byRole
+//           .map(
+//             (r) => `
+//           <tr><td>${r.role}</td><td>${r.count}</td></tr>
+//         `,
+//           )
+//           .join("")}
+//       </tbody>
+//     </table>
+
+//     <p><strong>Active (48h):</strong> ${users.active}</p>
+//     <p><strong>Inactive (30d):</strong> ${users.inactive}</p>
+//   </div>
+
+//   <!-- ================= COURSES ================= -->
+//   <div class="section">
+//     <h2>Top Courses</h2>
+//     <table>
+//       <thead>
+//         <tr>
+//           <th>Course</th>
+//           <th>Total Lessons</th>
+//           <th>Individual</th>
+//           <th>School</th>
+//           <th>Total</th>
+//           <th>Avg Progress</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+//         ${courses.topCourses
+//           .map(
+//             (c) => `
+//           <tr>
+//             <td>${c.title}</td>
+//             <td>${c.total_lessons}</td>
+//             <td>${c.individual_enrollments}</td>
+//             <td>${c.school_enrollments}</td>
+//             <td>${c.total_enrollments}</td>
+//             <td>${c.avg_progress}%</td>
+//           </tr>
+//         `,
+//           )
+//           .join("")}
+//       </tbody>
+//     </table>
+//   </div>
+
+//   <!-- ================= QUIZZES ================= -->
+//   <div class="section">
+//     <h2>Quiz Summary</h2>
+//     <p><strong>Total Quizzes:</strong> ${quizzes.summary.total_quizzes}</p>
+//     <p><strong>Total Submissions:</strong> ${quizzes.summary.total_quiz_submissions}</p>
+//     <p><strong>Average Score:</strong> ${quizzes.summary.avg_score}</p>
+
+//     <table>
+//       <thead>
+//         <tr><th>Status</th><th>Count</th></tr>
+//       </thead>
+//       <tbody>
+//         ${quizzes.passFail
+//           .map(
+//             (q) => `
+//           <tr>
+//             <td>${q.passed ? "Passed" : "Failed"}</td>
+//             <td>${q.count}</td>
+//           </tr>
+//         `,
+//           )
+//           .join("")}
+//       </tbody>
+//     </table>
+//   </div>
+
+//   <!-- ================= ACTIVITY ================= -->
+//   <div class="section">
+//     <h2>Recent Activity</h2>
+//     <table>
+//       <thead>
+//         <tr>
+//           <th>Date</th>
+//           <th>User</th>
+//           <th>Action</th>
+//           <th>Details</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+//         ${activity.feed
+//           .map(
+//             (a) => `
+//           <tr>
+//             <td>${new Date(a.created_at).toLocaleString()}</td>
+//             <td>${a.role || "User"}</td>
+//             <td>${a.action}</td>
+//             <td>${a.details || ""}</td>
+//           </tr>
+//         `,
+//           )
+//           .join("")}
+//       </tbody>
+//     </table>
+//   </div>
+
+//   <!-- ================= EVENT PAYMENTS ================= -->
+//   <h2>Event Payments</h2>
+//   <table>
+//     <tr><th>Status</th><th>Count</th><th>Total Collected</th></tr>
+//     ${tableRows(finance.eventPayments, [
+//       "payment_status",
+//       "count",
+//       "total_collected",
+//     ])}
+//   </table>
+  
+//   <div class="section">
+//     <h2>Event Payment Details</h2>
+//     <table>
+//       <thead>
+//         <tr>
+//           <th>Name</th>
+//           <th>Email</th>
+//           <th>Event</th>
+//           <th>Status</th>
+//           <th>Amount</th>
+//           <th>Date</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+//         ${eventPaymentDetails
+//           .map(
+//             (e) => `
+//           <tr>
+//             <td>${e.registrant_name}</td>
+//             <td>${e.registrant_email}</td>
+//             <td>${e.event_title}</td>
+//             <td>${e.payment_status}</td>
+//             <td>${e.amount_paid}</td>
+//             <td>${new Date(e.created_at).toLocaleString()}</td>
+//           </tr>
+//         `,
+//           )
+//           .join("")}
+//       </tbody>
+//     </table>
+//   </div>
+
+//   <script>
+//   // Users by Role Chart
+//   const usersRoleCtx = document.getElementById('usersRoleChart').getContext('2d');
+//   new Chart(usersRoleCtx, {
+//     type: 'bar',
+//     data: {
+//       labels: ${JSON.stringify(users.byRole.map((u) => u.role))},
+//       datasets: [{
+//         label: 'Number of Users',
+//         data: ${JSON.stringify(users.byRole.map((u) => u.count))},
+//         backgroundColor: 'rgba(52, 152, 219, 0.6)',
+//         borderColor: 'rgba(52, 152, 219, 1)',
+//         borderWidth: 1
+//       }]
+//     },
+//     options: { responsive: true, plugins: { legend: { display: false } } }
+//   });
+
+//   // Top Courses Progress Chart
+//   const coursesProgressCtx = document.getElementById('coursesProgressChart').getContext('2d');
+//   new Chart(coursesProgressCtx, {
+//     type: 'line',
+//     data: {
+//       labels: ${JSON.stringify(courses.topCourses.map((c) => c.title))},
+//       datasets: [{
+//         label: 'Avg Progress (%)',
+//         data: ${JSON.stringify(courses.topCourses.map((c) => c.avg_progress))},
+//         backgroundColor: 'rgba(46, 204, 113, 0.6)',
+//         borderColor: 'rgba(46, 204, 113, 1)',
+//         fill: false,
+//         tension: 0.1
+//       }]
+//     },
+//     options: { responsive: true }
+//   });
+// </script>
+
+//   </body>
+//   </html>
+//   `;
+// };
+
+// Helper function for dynamic tables
+function tableRows(data = [], columns = []) {
+  if (!Array.isArray(data)) return "";
+
+  return data
+    .map(
+      (row) => `
+        <tr>
+          ${columns
+            .map((col) => `<td>${row?.[col] ?? ""}</td>`)
+            .join("")}
+        </tr>
+      `
+    )
+    .join("");
+}
+
+module.exports = function buildAnalyticsPDF(data = {}) {
   const {
-    overview,
-    users,
-    courses,
-    quizzes,
-    activity,
-    finance,
-    eventPaymentDetails,
+    overview = {},
+    users = {},
+    courses = {},
+    quizzes = {},
+    activity = {},
+    finance = {},
+    eventPaymentDetails = [],
   } = data;
 
-  function tableRows(items, cols) {
-    return items
-      .map((item) => {
-        return `<tr>${cols
-          .map((c) => `<td>${item[c] ?? "—"}</td>`)
-          .join("")}</tr>`;
-      })
-      .join("");
-  }
-
   return `
+<!DOCTYPE html>
 <html>
 <head>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="utf-8">
+  <title>Analytics Report</title>
 
-<meta charset="utf-8" />
-<style>
-  body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-  h1 { text-align: center; color: #34495e; }
-  h2 { margin-top: 30px; color: #2980b9; }
-  h3 { margin-top: 20px; }
+  <!-- FontAwesome -->
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
-  table {
-    width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;
-  }
-  th, td {
-    border: 1px solid #ddd; padding: 6px;
-  }
-  th { background: #2c3e50; color: white; text-align: left; }
-  tr:nth-child(even) { background: #f9f9f9; }
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  .cards { display: flex; flex-wrap: wrap; gap: 15px; }
-  .card {
-    background: #ecf0f1; padding: 12px; border-radius: 8px;
-    width: 180px;
-  }
-  .footer { margin-top: 40px; text-align: center; font-size: 10px; color: gray; }
-</style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      padding: 30px;
+    }
+
+    h1 { text-align:center; margin-bottom:30px; }
+    h2 { margin-top:40px; }
+
+    .grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:20px;
+      margin-bottom:30px;
+    }
+
+    .card {
+      background:#fff;
+      border-radius:12px;
+      padding:18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      box-shadow:0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .icon {
+      width:50px;
+      height:50px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-size:18px;
+    }
+
+    .green{background:#025a10;}
+    .blue{background:#2204c7;}
+    .lime{background:#29c50a;}
+    .purple{background:#471b80;}
+    .sky{background:#1079f2;}
+    .gold{background:#6e5205;}
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:15px;
+      background:#fff;
+    }
+
+    th, td {
+      border:1px solid #ddd;
+      border:1px solid #000000;
+      padding:8px;
+      font-size:12px;
+    }
+
+    th { background:#000000; color: #ddd }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    canvas {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h1>📊 Analytics Report</h1>
-<p style="text-align:center;color:gray;">Generated on ${new Date().toLocaleString()}</p>
+<h1>📊 Admin Analytics Report</h1>
 
-<h2>Summary Cards</h2>
-<div class="cards">
-  <div class="card"><strong>Total Users:</strong> ${overview.total_users}</div>
-  <div class="card"><strong>Active (24h):</strong> ${overview.dau}</div>
-  <div class="card"><strong>New (7d):</strong> ${
-    overview.new_users?.new_7d
-  }</div>
-  <div class="card"><strong>Total Courses:</strong> ${
-    courses.counts.total_courses
-  }</div>
-  <div class="card"><strong>Avg Quiz Score:</strong> ${
-    quizzes.summary.avg_score
-  }</div>
-  <div class="card"><strong>Total Revenue:</strong> ${
-    finance.revenue.total_revenue
-  }</div>
-  <div class="card"><strong>Revenue (30d):</strong> ${
-    finance.revenue.revenue_30d
-  }</div>
+<!-- ================= OVERVIEW ================= -->
+<div class="section">
+  <h2>Overview</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="icon green"><i class="fa-solid fa-user-check"></i></div>
+      <div>
+        <strong>${overview?.dau ?? 0}</strong><br/>
+        Active (24h)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon blue"><i class="fas fa-users"></i></div>
+      <div>
+        <strong>${overview?.total_users ?? 0}</strong><br/>
+        Total Users
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon lime"><i class="fas fa-arrow-trend-up"></i></div>
+      <div>
+        <strong>${overview?.new_users?.new_7d ?? 0}</strong><br/>
+        New (7d)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon purple"><i class="fa-solid fa-book"></i></div>
+      <div>
+        <strong>${courses?.counts?.total_courses ?? 0}</strong><br/>
+        Total Courses
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon sky"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+      <div>
+        <strong>${finance?.revenue?.total_revenue ?? 0}</strong><br/>
+        Total Revenue
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="icon gold"><i class="fa-solid fa-coins"></i></div>
+      <div>
+        <strong>${finance?.revenue?.revenue_30d ?? 0}</strong><br/>
+        Revenue (30d)
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<h2>Users by Role</h2>
-<h2>Users by Role (Chart)</h2>
-<canvas id="usersRoleChart" width="400" height="200"></canvas>
+<!-- ================= USERS ================= -->
+<div class="section">
+  <h2>Users by Role (Chart)</h2>
+  <canvas id="usersRoleChart" width="400" height="200"></canvas>
 
-<table>
-  <tr><th>Role</th><th>Count</th></tr>
-  ${tableRows(users.byRole, ["role", "count"])}
-</table>
+  <h2>Users By Role</h2>
+  <table>
+    <thead>
+      <tr><th>Role</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+      ${(users?.byRole ?? [])
+        .map(
+          (r) => `
+        <tr>
+          <td>${r?.role ?? ""}</td>
+          <td>${r?.count ?? 0}</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  </table>
 
+  <p><strong>Active (48h):</strong> ${users?.active ?? 0}</p>
+  <p><strong>Inactive (30d):</strong> ${users?.inactive ?? 0}</p>
+</div>
 
-<h2>Top Courses Progress</h2>
-<canvas id="coursesProgressChart" width="400" height="200"></canvas>
+<!-- ================= COURSES ================= -->
+<div class="section">
+  <h2>Top Courses Progress (Chart)</h2>
+  <canvas id="coursesProgressChart" width="400" height="200"></canvas>
 
-<h2>Top Courses</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Course</th>
-      <th>Total Lessons</th>
-      <th>Avg Completed Lessons</th>
-      <th>Individual Students</th>
-      <th>School Students</th>
-      <th>Total Enrollments</th>
-      <th>Avg Progress</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${courses.topCourses
-      .map(
-        (c) => `
+  <h2>Top Courses</h2>
+  <table>
+    <thead>
       <tr>
-        <td>${c.title}</td>
-        <td>${c.total_lessons}</td>
-        <td>${c.avg_completed_lessons}</td>
-        <td>${c.individual_enrollments}</td>
-        <td>${c.school_enrollments}</td>
-        <td>${c.total_enrollments}</td>
-        <td>${c.avg_progress}%</td>
+        <th>Course</th>
+        <th>Total Lessons</th>
+        <th>Individual</th>
+        <th>School</th>
+        <th>Total</th>
+        <th>Avg Progress</th>
       </tr>
-    `
-      )
-      .join("")}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      ${(courses?.topCourses ?? [])
+        .map(
+          (c) => `
+        <tr>
+          <td>${c?.title ?? ""}</td>
+          <td>${c?.total_lessons ?? 0}</td>
+          <td>${c?.individual_enrollments ?? 0}</td>
+          <td>${c?.school_enrollments ?? 0}</td>
+          <td>${c?.total_enrollments ?? 0}</td>
+          <td>${c?.avg_progress ?? 0}%</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</div>
 
-<h2>Quiz Pass / Fail</h2>
-<table>
-  <tr><th>Status</th><th>Count</th></tr>
-  ${tableRows(quizzes.passFail, ["passed", "count"])}
-</table>
+<!-- ================= QUIZZES ================= -->
+<div class="section">
+  <h2>Quiz Summary</h2>
 
-<h2>School Payments</h2>
-<table>
-  <tr><th>Status</th><th>Count</th></tr>
-  ${tableRows(finance.schoolPayments, ["status", "count"])}
-</table>
+  <p><strong>Total Quizzes:</strong> ${quizzes?.summary?.total_quizzes ?? 0}</p>
+  <p><strong>Total Submissions:</strong> ${quizzes?.summary?.total_quiz_submissions ?? 0}</p>
+  <p><strong>Average Score:</strong> ${quizzes?.summary?.avg_score ?? 0}</p>
 
-<h2>Event Payments</h2>
-<table>
-  <tr><th>Status</th><th>Count</th><th>Total Collected</th></tr>
-  ${tableRows(finance.eventPayments, [
-    "payment_status",
-    "count",
-    "total_collected",
-  ])}
-</table>
+  <table>
+    <thead>
+      <tr><th>Status</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+      ${(quizzes?.passFail ?? [])
+        .map(
+          (q) => `
+        <tr>
+          <td>${q?.passed ? "Passed" : "Failed"}</td>
+          <td>${q?.count ?? 0}</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</div>
 
-<h2>Event Payment Details</h2>
-<table>
-  <tr><th>User</th><th>Email</th><th>Event</th><th>Status</th><th>Amount</th><th>Date</th></tr>
-  ${eventPaymentDetails
-    .map(
-      (e) => `
-    <tr>
-      <td>${e.fullname}</td>
-      <td>${e.email}</td>
-      <td>${e.event_title}</td>
-      <td>${e.payment_status}</td>
-      <td>${e.amount}</td>
-      <td>${new Date(e.created_at).toLocaleDateString()}</td>
-    </tr>
-  `
-    )
-    .join("")}
-</table>
-
-<h2>Recent Activity</h2>
-<table>
-  <tr><th>Date</th><th>Role</th><th>Action</th><th>Details</th></tr>
-  ${activity.feed
-    .map(
-      (a) => `
+<!-- ================= ACTIVITY ================= -->
+<div class="section">
+  <h2>Recent Activity</h2>
+  <table>
+    <thead>
       <tr>
-        <td>${new Date(a.created_at).toLocaleString()}</td>
-        <td>${a.role}</td>
-        <td>${a.action}</td>
-        <td>${a.details || ""}</td>
+        <th>Date</th>
+        <th>User</th>
+        <th>Action</th>
+        <th>Details</th>
       </tr>
-      `
-    )
-    .join("")}
-</table>
+    </thead>
+    <tbody>
+      ${(activity?.feed ?? [])
+        .map(
+          (a) => `
+        <tr>
+          <td>${a?.created_at ? new Date(a.created_at).toLocaleString() : ""}</td>
+          <td>${a?.role ?? "User"}</td>
+          <td>${a?.action ?? ""}</td>
+          <td>${a?.details ?? ""}</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</div>
 
-<div class="footer">© ${new Date().getFullYear()} Analytics Report</div>
+<!-- ================= EVENT PAYMENTS ================= -->
+<div class="section">
+  <h2>Event Payments</h2>
+  <table>
+    <tr><th>Status</th><th>Count</th><th>Total Collected</th></tr>
+    ${tableRows(finance?.eventPayments ?? [], [
+      "payment_status",
+      "count",
+      "total_collected",
+    ])}
+  </table>
+</div>
+
+<div class="section">
+  <h2>Event Payment Details</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Event</th>
+        <th>Status</th>
+        <th>Amount</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(eventPaymentDetails ?? [])
+        .map(
+          (e) => `
+        <tr>
+          <td>${e?.registrant_name ?? ""}</td>
+          <td>${e?.registrant_email ?? ""}</td>
+          <td>${e?.event_title ?? ""}</td>
+          <td>${e?.payment_status ?? ""}</td>
+          <td>${e?.amount_paid ?? 0}</td>
+          <td>${e?.created_at ? new Date(e.created_at).toLocaleString() : ""}</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  </table>
+</div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function () {
+
   // Users by Role Chart
-  const usersRoleCtx = document.getElementById('usersRoleChart').getContext('2d');
-  new Chart(usersRoleCtx, {
-    type: 'bar',
-    data: {
-      labels: ${JSON.stringify(users.byRole.map((u) => u.role))},
-      datasets: [{
-        label: 'Number of Users',
-        data: ${JSON.stringify(users.byRole.map((u) => u.count))},
-        backgroundColor: 'rgba(52, 152, 219, 0.6)',
-        borderColor: 'rgba(52, 152, 219, 1)',
-        borderWidth: 1
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+  const usersRoleCtx = document.getElementById('usersRoleChart');
+  if (usersRoleCtx) {
+    new Chart(usersRoleCtx, {
+      type: 'bar',
+      data: {
+        labels: ${JSON.stringify((users?.byRole ?? []).map((u) => u.role))},
+        datasets: [{
+          label: 'Number of Users',
+          data: ${JSON.stringify((users?.byRole ?? []).map((u) => u.count))},
+          backgroundColor: 'rgba(52, 152, 219, 0.6)',
+          borderColor: 'rgba(52, 152, 219, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: { responsive: true }
+    });
+  }
 
   // Top Courses Progress Chart
-  const coursesProgressCtx = document.getElementById('coursesProgressChart').getContext('2d');
-  new Chart(coursesProgressCtx, {
-    type: 'line',
-    data: {
-      labels: ${JSON.stringify(courses.topCourses.map((c) => c.title))},
-      datasets: [{
-        label: 'Avg Progress (%)',
-        data: ${JSON.stringify(courses.topCourses.map((c) => c.avg_progress))},
-        backgroundColor: 'rgba(46, 204, 113, 0.6)',
-        borderColor: 'rgba(46, 204, 113, 1)',
-        fill: false,
-        tension: 0.1
-      }]
-    },
-    options: { responsive: true }
-  });
-</script>
+  const coursesProgressCtx = document.getElementById('coursesProgressChart');
+  if (coursesProgressCtx) {
+    new Chart(coursesProgressCtx, {
+      type: 'line',
+      data: {
+        labels: ${JSON.stringify((courses?.topCourses ?? []).map((c) => c.title))},
+        datasets: [{
+          label: 'Avg Progress (%)',
+          data: ${JSON.stringify((courses?.topCourses ?? []).map((c) => c.avg_progress))},
+          borderColor: 'rgba(46, 204, 113, 1)',
+          backgroundColor: 'rgba(46, 204, 113, 0.2)',
+          fill: false,
+          tension: 0.1
+        }]
+      },
+      options: { responsive: true }
+    });
+  }
 
+});
+</script>
 
 </body>
 </html>

@@ -389,6 +389,7 @@ exports.filterUsersAjax = async (req, res) => {
 };
 
 
+
 exports.exportAnalyticsPDF = async (req, res) => {
   try {
     // Fetch all analytics in parallel
@@ -404,10 +405,10 @@ exports.exportAnalyticsPDF = async (req, res) => {
       // OVERVIEW
       (async () => {
         const total = await pool.query(
-          "SELECT COUNT(*)::int AS total_users FROM users2"
+          "SELECT COUNT(*)::int AS total_users FROM users2",
         );
         const roles = await pool.query(
-          "SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role"
+          "SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role",
         );
         const newbies = await pool.query(`
           SELECT
@@ -417,7 +418,7 @@ exports.exportAnalyticsPDF = async (req, res) => {
           FROM users2;
         `);
         const dau = await pool.query(
-          "SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day'"
+          "SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day'",
         );
 
         return {
@@ -431,10 +432,10 @@ exports.exportAnalyticsPDF = async (req, res) => {
       // USERS
       (async () => {
         const byRole = await pool.query(
-          "SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role"
+          "SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role",
         );
         const active = await pool.query(
-          "SELECT COUNT(*)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours'"
+          "SELECT COUNT(*)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours'",
         );
         const inactive = await pool.query(`
           SELECT COUNT(*)::int AS inactive_30d 
@@ -527,7 +528,7 @@ exports.exportAnalyticsPDF = async (req, res) => {
         `);
 
         const passFail = await pool.query(
-          "SELECT passed, COUNT(*)::int AS count FROM quiz_submissions GROUP BY passed"
+          "SELECT passed, COUNT(*)::int AS count FROM quiz_submissions GROUP BY passed",
         );
 
         return { summary: summary.rows[0], passFail: passFail.rows };
@@ -616,6 +617,28 @@ exports.exportAnalyticsPDF = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "inline; filename=analytics.pdf");
     res.send(pdfBuffer);
+
+   
+
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
+
+    // const page = await browser.newPage();
+
+    // await page.setContent(html, { waitUntil: "networkidle0" });
+
+    // const pdfBuffer = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    // });
+
+    // await browser.close();
+
+    // res.setHeader("Content-Type", "application/pdf");
+    // res.setHeader("Content-Disposition", "inline; filename=analytics.pdf");
+    // res.send(pdfBuffer);
 
   } catch (err) {
     console.error("Analytics PDF Export Error:", err);

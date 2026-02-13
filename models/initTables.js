@@ -450,6 +450,7 @@ async function createTables() {
       `
     );
 
+    // Quiz Submissions
     await pool.query(`
       CREATE TABLE IF NOT EXISTS quiz_submissions (
       id SERIAL PRIMARY KEY,

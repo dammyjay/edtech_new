@@ -13,20 +13,34 @@
     <p>You are logged in.</p>
     <!-- <a href="/admin/logout">Logout</a> -->
     <h2>All Registered Users</h2>
-    <div class="dashboard-stats"> 
-      <div class="stat-box"> 
-        <h3>Total Users</h3> 
-        <p><%= totalUsers %></p> 
+    <section class="stats-overview"> 
+      
+      <div class="metric-card" style="border-left: 6px solid blue;"> 
+        <div class="card-icon" style="background-color: blue;">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="card-content">
+          <h3>Total Users</h3> 
+          <p><%= totalUsers %></p> 
+        </div>
+        
       </div> 
-      <div class="stat-box"> 
-        <h3>New This Week</h3> 
-        <p><%= recentUsers %> (<%= percentageNew %>% of total)</p> 
+
+      <div class="metric-card" style="border-left: 6px solid #29c50a;"> 
+        <div class="card-icon" style="background-color: #29c50a;">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+        </div>
+        <div class="card-content">
+          <h3>New This Week</h3> 
+          <p><%= recentUsers %> (<%= percentageNew %>% of total)</p> 
+        </div>
+        
       </div> 
 
       <!-- <a href="/admin/feedback" class="admin-link">View Feedback</a> -->
 
       
-    </div>
+    </section>
     <!-- <form method="GET" action="/admin/dashboard" class="filter-form">  -->
     <form class="filter-form" id="filterForm">
       <select name="gender"> 

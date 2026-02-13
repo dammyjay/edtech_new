@@ -1075,6 +1075,177 @@ canvas {
     color: #424242;
 }
 
+.engagement-section {
+    padding: 40px 20px;
+    width: 100%;
+}
+
+.engagement-section h2 {
+    margin-bottom: 25px;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* GRID */
+/* .engagement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+} */
+
+.engagement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 25px;
+    /* max-width: 1200px; */
+    width: 100%;
+    margin: auto;
+}
+
+.stat-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* CARD */
+.metric-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 30px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* ICON CIRCLE */
+.card-icon {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+/* COLORS */
+.blue-bg {
+    background: #4e73df;
+}
+
+.metric-card.blue {
+    border-left: 6px solid #4e73df;
+}
+
+.purple-bg {
+    background: #6f42c1;
+}
+
+.metric-card.purple {
+    border-left: 6px solid #6f42c1;
+}
+
+.teal-bg {
+    background: #20c997;
+}
+
+.metric-card.teal {
+    border-left: 6px solid #20c997;
+}
+
+.orange-bg {
+    background: #fd7e14;
+}
+
+.metric-card.orange {
+    border-left: 6px solid #fd7e14;
+}
+
+.green-bg {
+    background: #28a745;
+}
+
+.metric-card.green {
+    border-left: 6px solid #28a745;
+}
+
+.pink-bg {
+    background: #e83e8c;
+}
+
+.metric-card.pink {
+    border-left: 6px solid #e83e8c;
+}
+
+.indigo-bg {
+    background: #6610f2;
+}
+
+.metric-card.indigo {
+    border-left: 6px solid #6610f2;
+}
+
+.dark-bg {
+    background: #343a40;
+}
+
+.success-bg {
+    background: #1cc88a;
+}
+
+.card-content {
+    text-align: right;
+}
+
+/* TEXT */
+.card-content h3 {
+    font-size: 26px;
+    margin: 0;
+    font-weight: 700;
+    color: #222;
+}
+
+.card-content p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #777;
+    font-weight: 500;
+}
+
+/* SUCCESS CARD ACCENT */
+.metric-card.success {
+    border-left: 6px solid #1cc88a;
+}
+
+.metric-card.indigo {
+    border-left: 6px solid #1cc88a;
+}
+
 .analytics-wrapper {
     margin-bottom: 40px;
     background: #fff;
@@ -2682,6 +2853,13 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
 
 /* Responsive design */
 @media (max-width: 768px) {
+    .engagement-section h2 {
+            font-size: 24px;
+        }
+    
+        .metric-card h3 {
+            font-size: 28px;
+        }
     .ai-tutor {
         width: 95%;        /* almost full width */
         right: 2.5%;
