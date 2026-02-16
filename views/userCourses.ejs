@@ -17,10 +17,10 @@
 
     <div class="wallet-btn" style="display: flex; justify-content: right; margin-top: 1rem; width: 100%;">
       <% if (isLoggedIn) { %>
-        <a href="/make-payment" class="btn-create" style="text-decoration: none;">Fund wallet</a>
+        <a href="/make-payment" class="btn-black" style="text-decoration: none;">Fund wallet</a>
       <% } else { %>
         <!-- <a href=""> -->
-          <button  onclick="promptLogin()" class="btn-create">Fund wallet</button>
+          <button  onclick="promptLogin()" class="btn-black">Fund wallet</button>
         <!-- </a> -->
         <script>
           function promptLogin() {
@@ -31,7 +31,7 @@
       <% } %>
     </div>
 
-    <div class="pathway-nav">
+    <div class="tab-nav">
     <button class="path-nav-btn" onclick="filterByPathway('All')">All Pathways</button>
     <% careerPathways.forEach(path => { %>
         <button onclick="filterByPathway('<%= path.title %>')"><%= path.title %></button>
@@ -46,7 +46,7 @@
 
     <% for (let level in groupedCourses[pathway]) { %>
 
-        <div class="course-level-section" data-level="<%= level %>">
+        <div class="section" data-level="<%= level %>">
           <h3 class="collapsible-header <%= level.toLowerCase() %>" onclick="toggleLevel('<%= pathway %>-<%= level %>')">
             <i class="fas fa-chevron-right"></i> <%= level %> Level
           </h3>
@@ -93,23 +93,23 @@
                       <% if (course.amount == 0) { %>
                         <!-- Free course -->
                         <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-                          <button type="submit" class="btn-create">Enroll for Free</button>
+                          <button type="submit" class="btn-black">Enroll for Free</button>
                         </form>
                       <% } else if (walletBalance >= course.amount) { %>
                         <!-- Paid course and balance is enough -->
                         <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-                          <button type="submit" class="btn-create">
+                          <button type="submit" class="btn-black">
                             Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
                           </button>
                         </form>
                       <% } else { %>
                         <!-- Not enough balance -->
-                        <p style="color:red;font-weight:bold;">❌ Not sufficient funds. <a class="btn-create" href="/make-payment">Fund wallet</a></p>
+                        <p style="color:red;font-weight:bold;">❌ Not sufficient funds. <a class="btn-black" href="/make-payment">Fund wallet</a></p>
                       <% } %>
                     <% } else if (isLoggedIn && isEnrolled) { %>
                       <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
                     <% } else { %>
-                      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+                      <button class="btn-black" onclick="promptLogin()">Login to Enroll</button>
                     <% } %>
 
                     </div>

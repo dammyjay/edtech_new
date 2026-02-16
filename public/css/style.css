@@ -179,6 +179,23 @@ header {
     font-weight: 500;
 }
 
+/* .engagement-section {
+    padding: 40px 20px;
+    width: 100%;
+    background-color: #fff;
+} */
+
+.engagement-section {
+    /* max-width: 1000px; */
+    padding: 40px 20px;
+    background-color: #fff;
+    margin-top: 1.5rem;
+    width: fit-content;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
 
 .engagement-grid {
     display: grid;
@@ -673,10 +690,27 @@ textarea {
     z-index: 1000;
 }
 
+.btn-primary {
+    background-color: #bfa046;
+    color: #fff;
+    font-weight: 600;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 25px;
+    transition: background-color 0.3s ease;
+    
+}
+
+.btn-primary:hover {
+    background-color: #a38833;
+}
+
 /* Buttons */
 button {
     background-color: #bfa046;
-    /* gold */
     color: #fff;
     font-weight: 600;
     padding: 12px 24px;
@@ -690,22 +724,20 @@ button {
 }
 
 button:hover {
-    background-color: #a38833;
+    background-color: #614f15;
     /* darker gold */
 }
 form button {
     background-color: #bfa046;
-    /* gold */
     color: #fff;
     font-weight: 600;
-    padding: 12px 24px;
+    padding: 12px 16px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
     margin-top: 25px;
     transition: background-color 0.3s ease;
-    /* width: 100%; */
 }
 
 .video-grid {
@@ -1111,8 +1143,8 @@ nav a:hover {
 
 .active{
     background-color: #f5f5f5;
-        color: #4d3b00;
-        transition: ease 0.5s;
+    color: #4d3b00;
+    transition: ease 0.5s;
 }
 
 .marquee-container {
@@ -1159,7 +1191,7 @@ nav a:hover {
 /* Card Grid */
 .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 3rem;
     margin-top: 1rem;
     margin-bottom: 5rem;
@@ -1209,11 +1241,7 @@ nav a:hover {
     /* dark gold */
 }
 
-/* .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 20px;
-    } */
+
     
     .card {
     background-color: #fff;
@@ -2125,7 +2153,7 @@ nav a:hover {
                 height: 100%;
                 background: #222;
                 flex-direction: column;
-                padding-top: 60px;
+                padding: 60px 10px;
                 transition: left 0.3s ease;
                 box-shadow: 2px 0 8px rgba(0, 0,0, 0.2);
                 /* display: flex; */
@@ -2246,7 +2274,8 @@ nav a:hover {
     align-items: center;
     justify-content: space-between;
     gap: 18px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0px 18px rgba(0, 0, 0, 0.1);
+    /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -2329,7 +2358,7 @@ nav a:hover {
                     height: 100%;
                     background: #222;
                     flex-direction: column;
-                    padding-top: 60px;
+                    padding: 60px 10px;
                     transition: left 0.3s ease;
                     z-index: 2000;
                     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);      
@@ -2343,7 +2372,7 @@ nav a:hover {
     
         #main-nav a,
         #main-nav img {
-            margin: 20px 0 0 20px;
+            margin: 20px 0 0 0;
             /* margin: 10px 0; */
             display: block;   
             color: #deab1d;
