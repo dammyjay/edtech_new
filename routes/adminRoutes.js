@@ -381,6 +381,12 @@ router.get(
   adminController.downloadCourseSummary
 );
 
+router.get(
+  "/student/:studentId/module-summary/:moduleId/download",
+  adminController.downloadModuleSummary,
+);
+
+
 // routes/admin.js
 router.get("/schools", adminController.getSchools);
 router.post(

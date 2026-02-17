@@ -214,6 +214,11 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
                 <div class="progress-container">
                   <div class="progress-bar progress-blue" style="width:<%= m.percent %>%"><%= m.percent %>%</div>
                 </div>
+                <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download"
+                  style="display:inline-block; margin:10px; padding:6px 10px; background:#2980b9; color:white; border-radius:5px; text-decoration:none;">
+                  ⬇ Download Module Report
+                </a>
+
                 <span class="toggle-btn" id="toggle-btn-module-<%= ci %>-<%= mi %>">➕</span>
               </div>
 
