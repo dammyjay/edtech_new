@@ -3472,6 +3472,25 @@ exports.downloadCourseSummary = async (req, res) => {
       [studentId, courseId],
     );
     const assignments = assignmentsRes.rows;
+    
+    const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+
+
+    /* ==========================
+   CHECK IF STUDENT BELONGS TO A SCHOOL
+========================== */
+
+const schoolRes = await pool.query(
+  `SELECT s.name, s.logo_url
+   FROM user_school us
+   JOIN schools s ON us.school_id = s.id
+   WHERE us.user_id = $1
+   AND us.approved = true
+   LIMIT 1`,
+  [studentId]
+);
+
+const school = schoolRes.rows[0] || null;
 
     /* ==========================
        GLOBAL STATISTICS
@@ -3608,10 +3627,77 @@ exports.downloadCourseSummary = async (req, res) => {
 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
 <style>
-body { font-family: Arial; padding:40px; background:#f4f6f9; color:#2c3e50; }
-h1 { text-align:center; color:#1e2a38; }
-.section { margin-top:40px; }
-.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-top:20px; }
+body { 
+  font-family: Arial; 
+  padding:40px; 
+  background:#f4f6f9; 
+  color:#2c3e50; 
+}
+
+/* WATERMARK */
+body::before {
+  content: "";
+  position: fixed;
+  top: 30%;
+  left: 20%;
+  width: 60%;
+  height: 60%;
+  background-image: url('${COMPANY_LOGO}');
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.05;
+  z-index: 0;
+}
+
+/* CONTENT ABOVE WATERMARK */
+body > * {
+  position: relative;
+  z-index: 2;
+}
+
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.school-info {
+  text-align: right;
+}
+
+.school-logo {
+  max-height: 60px;
+}
+
+/* FOOTER */
+.footer {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #666;
+}
+
+h1 { 
+  text-align:center; 
+  color:#1e2a38; 
+}
+
+.section { 
+  margin-top:40px; 
+}
+
+.grid { 
+  display:grid; 
+  grid-template-columns:repeat(4,1fr); 
+  gap:20px; 
+  margin-top:20px; 
+}
 
 .card {
   background:white;
@@ -3671,6 +3757,19 @@ tr:nth-child(even) { background:#f9f9f9; }
 </head>
 
 <body>
+<div class="header">
+  <div>
+    <h2>Student Course Report</h2>
+  </div>
+
+  ${school ? `
+  <div class="school-info">
+    <strong>${school.name}</strong><br/>
+    ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
+  </div>
+  ` : ""}
+</div>
+
 
 <h1><i class="fa-solid fa-graduation-cap"></i> Detailed Student Course Report</h1>
 <p style="text-align:center;">Generated: ${new Date().toLocaleString()}</p>
@@ -3787,6 +3886,13 @@ ${assignments
 © ${new Date().getFullYear()} Academic Course Analytics Report
 </div>
 
+<div class="footer">
+  © ${new Date().getFullYear()} Jaykirch Technology Hub |
+  Confidential Academic Performance Report |
+  Generated on ${new Date().toLocaleDateString()}
+</div>
+
+
 </body>
 </html>
 `;
@@ -3888,6 +3994,24 @@ exports.downloadModuleSummary = async (req, res) => {
       [studentId, moduleId],
     );
     const assignments = assignmentsRes.rows;
+    const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+
+    /* ==========================
+   CHECK IF STUDENT BELONGS TO A SCHOOL
+========================== */
+
+const schoolRes = await pool.query(
+  `SELECT s.name, s.logo_url
+   FROM user_school us
+   JOIN schools s ON us.school_id = s.id
+   WHERE us.user_id = $1
+   AND us.approved = true
+   LIMIT 1`,
+  [studentId]
+);
+
+const school = schoolRes.rows[0] || null;
+
 
     /* ================= CALCULATIONS ================= */
 
@@ -3990,6 +4114,55 @@ exports.downloadModuleSummary = async (req, res) => {
 
     <style>
     body { font-family: Arial; padding:40px; background:#f4f6f9; }
+    
+/* WATERMARK */
+body::before {
+  content: "";
+  position: fixed;
+  top: 30%;
+  left: 20%;
+  width: 60%;
+  height: 60%;
+  background-image: url('${COMPANY_LOGO}');
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.05;
+  z-index: 0;
+}
+
+/* CONTENT ABOVE WATERMARK */
+body > * {
+  position: relative;
+  z-index: 2;
+}
+
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.school-info {
+  text-align: right;
+}
+
+.school-logo {
+  max-height: 60px;
+}
+
+/* FOOTER */
+.footer {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #666;
+}
     h1 { text-align:center; color:#1e2a38; }
     .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:20px; }
 
@@ -4029,6 +4202,18 @@ exports.downloadModuleSummary = async (req, res) => {
     </head>
 
     <body>
+    <div class="header">
+  <div>
+    <h2>Student Course Report</h2>
+  </div>
+
+  ${school ? `
+  <div class="school-info">
+    <strong>${school.name}</strong><br/>
+    ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
+  </div>
+  ` : ""}
+</div>
 
     <h1><i class="fa-solid fa-box"></i> Module Performance Report</h1>
 
@@ -4120,6 +4305,12 @@ exports.downloadModuleSummary = async (req, res) => {
         </div>
       </div>
 
+    </div>
+
+    <div class="footer">
+      © ${new Date().getFullYear()} Jaykirch Technology Hub |
+      Confidential Academic Performance Report |
+      Generated on ${new Date().toLocaleDateString()}
     </div>
 
     </body>
