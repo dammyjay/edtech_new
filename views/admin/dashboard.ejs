@@ -69,7 +69,7 @@
     <div class="table-responsive">
       <table
         class="user-table"
-        style="width: 80%; border-collapse: collapse; margin-top: 20px"
+        style="border-collapse: collapse; margin-top: 20px"
       >
         
         <thead>
@@ -108,40 +108,19 @@
             <td><%= user.gender %></td>
             <td><%= user.role %></td>
             <td>₦<%= user.wallet_balance2 %></td>
-            <td
-              style="
-                display: flex;
-                gap: 10px;
-                justify-content: center;
-                align-items: center;
-              "
-            >
-              <!-- <a href="/admin/users/edit/<%= user.id %>">Edit</a> | -->
-              <button class="btn-edit" style="background-color: black;" onclick='openUserModal(<%- JSON.stringify(user) %>)'>
-                👁️
-              </button>
+            <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
+                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(user) %>); return false;'>
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
               
-              <button
-                class="btn-edit"
-                onclick="window.location.href='/admin/users/edit/<%= user.id %>'"
-              >
-                Edit
-              </button>
+              
+                <a href="/admin/users/edit/<%= user.id %>" class="no-bg">
+                <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);">  </i>
+                </a>
 
-              <!-- <form
-                action="/admin/users/delete/<%= user.id %>"
-                method="POST"
-                style="display: inline"
-                onsubmit="return confirm('Delete this user?');"
-              >
-                <button type="submit" style="color: red">Delete</button>
-              </form> -->
-              <button
-                class="btn-delete"
-                onclick="confirmDelete('<%= user.id %>')"
-              >
-                Delete
-              </button>
+                <a href="#" class="no-bg" onclick="confirmDelete('<%= user.id %>'); return false;">
+                <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
+                </a>
             </td>
           </tr>
           <% }) %>

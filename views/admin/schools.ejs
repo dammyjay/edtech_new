@@ -23,12 +23,17 @@
           <td><%= school.student_count %></td>
           <td><%= school.teacher_count %></td>
           <td><%= school.classroom_count %></td>
-          <td>
-            <a href="/admin/schools/<%= school.id %>" class="btn-view">👁️ View</a>
-            <button class="btn-edit" 
+          <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
+            <a href="/admin/schools/<%= school.id %>">
+              <i class="fa-regular fa-eye" style="color: #0000ff;"></i>
+            </a>
+            <!-- <button class="btn-edit" 
                     onclick="openEditSchoolModal('<%= school.id %>', '<%= school.name %>', '<%= school.email || '' %>', '<%= school.phone || '' %>', '<%= school.logo_url || '' %>')">
               ✏️ Edit
-            </button>
+            </button> -->
+            <a href="#" class="no-bg" onclick="openEditSchoolModal('<%= school.id %>', '<%= school.name %>', '<%= school.email || '' %>', '<%= school.phone || '' %>', '<%= school.logo_url || '' %>'); return false;">
+              <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
+            </a>
           </td>
         </tr>
       <% }) %>

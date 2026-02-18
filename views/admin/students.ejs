@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>All Students</title>
     <link rel="stylesheet" href="/css/style.css">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
   </head>
   <body>
     <!-- Header -->
@@ -83,14 +84,11 @@
               <td><%= student.phone %></td>
               <td><%= student.gender %></td>
               <td><%= new Date(student.created_at).toLocaleDateString() %></td>
-              <td style="display:flex; gap:10px; justify-content:center; align-items:center;">
-                <!-- View Profile Modal -->
-                <button class="btn-edit" style="background:black;" onclick='openUserModal(<%- JSON.stringify(student) %>)'>👁️</button>
-
-                <!-- View Progress -->
-                <!-- <a href="/admin/students/<%= student.id %>/progress" class="btn-edit" style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                  Progress
-                </a> -->
+              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px;">
+                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(student) %>)'>
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
+                
                 <a href="/admin/students/<%= student.id %>/progress?from=admin"
                   class="btn-edit"
                   style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">

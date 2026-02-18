@@ -1279,6 +1279,11 @@ nav a:hover {
     /* darker gold */
 }
 
+i {
+    /* padding: 0 5px; */
+    width: 24px;
+}
+
 .logout-button {
     padding: 6px 12px;
     background-color: #ff0000;

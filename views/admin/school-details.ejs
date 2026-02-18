@@ -84,13 +84,6 @@
           🏫 <%= classroom.name %>
         </a>
       </li>
-      <li>
-        <a href="/admin/schools/<%= school.id %>/classrooms/<%= classroom.id %>/dashboard"
-          style="color:#3498db; font-weight:600; text-decoration:none;">
-          🏫 <%= classroom.name %>
-        </a>
-      </li>
-
     <% }) %>
   <% } else { %>
     <p>No classrooms available.</p>
@@ -186,9 +179,9 @@
             </td>
             <td><%= term.student_count %></td>
             <td>
-              <button onclick="toggleTermStudents('<%= term.term_id %>')">
-                👁 View Students
-              </button>
+              <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
             </td>
           </tr>
 
@@ -353,14 +346,17 @@
               <td><%= student.full_name %></td>
               <td><%= student.email %></td>
               <td><%= student.classroom_name || '—' %></td>
-              <td>
-                <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(student) %>)'>👁️ View</button>
-                <button class="btn-assign" 
-                  onclick="openAssignModal('<%= student.id %>', 'student', '<%= student.classroom_id || '' %>')">
-                  📌 Assign
-                </button>
-
-                <button class="btn-delete" onclick="deleteUser('<%= student.id %>')">🗑️ Delete</button>
+              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
+                <!-- <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(student) %>)'>👁️ View</button> -->
+                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(student) %>); return false;'>
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
+                <a href="#" class="no-bg" onclick="openAssignModal('<%= student.id %>', 'student', '<%= student.classroom_id || '' %>'); return false;">
+                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
+                </a>
+                <a href="#" class="no-bg" onclick="deleteUser('<%= student.id %>'); return false;">
+                  <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
               </td>
               <td>
                 <a href="/admin/students/<%= student.id %>/progress?from=admin"
@@ -402,12 +398,7 @@
         <% if (school.classrooms.length > 0) { %>
           <% school.classrooms.forEach(c => { %>
             <tr>
-              <!-- <td><%= c.name %></td> -->
-               <td>
-                <a href="/admin/classrooms/<%= c.id %>/dashboard" class="btn-edit">
-                  👁 Open Dashboard
-                </a>
-              </td>
+              <td><%= c.name %></td>
               <td id="student-count-<%= c.id %>"><%= c.student_count %></td>
               <td id="teacher-count-<%= c.id %>"><%= c.teacher_count %></td>
               <td id="instructor-count-<%= c.id %>"><%= c.instructor_count %></td>
@@ -416,10 +407,20 @@
                   <em>Loading courses...</em>
                 </div>
               </td>
-              <td>
-                <button onclick="toggleStudents('<%= c.id %>')">👁 View / Manage</button>
-                <button onclick="updateClassroom('<%= c.id %>', { name: prompt('New name?') })">✏ Edit</button>
-                <button onclick="deleteClassroom('<%= c.id %>')">🗑 Delete</button>
+
+               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
+                <a href="/admin/classrooms/<%= c.id %>/dashboard">
+                  <i class="fa-solid fa-chart-column" style="color: #9e06bd;"></i>
+                </a>
+                <a href="#" class="no-bg" onclick="toggleStudents('<%= c.id %>'); return false;">
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
+                <a href="#" class="no-bg" onclick="updateClassroom('<%= c.id %>', { name: prompt('New name?') }); return false;">
+                  <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
+                </a>
+                <a href="#" class="no-bg" onclick="deleteClassroom('<%= c.id %>'); return false;">
+                  <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
               </td>
             </tr>
 
