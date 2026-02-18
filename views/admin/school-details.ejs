@@ -63,7 +63,7 @@
 
     <hr>
 
-    <h3>Classrooms</h3>
+    <!-- <h3>Classrooms</h3>
     <ul>
     <% if (school.classrooms.length > 0) { %>
         <% school.classrooms.forEach(classroom => { %>
@@ -72,7 +72,31 @@
     <% } else { %>
         <p>No classrooms available.</p>
     <% } %>
-    </ul>
+    </ul> -->
+
+    <h3>Classrooms</h3>
+<ul>
+  <% if (school.classrooms.length > 0) { %>
+    <% school.classrooms.forEach(classroom => { %>
+      <li>
+        <a href="/admin/classrooms/<%= classroom.id %>/dashboard" 
+           style="color:#3498db; font-weight:600; text-decoration:none;">
+          🏫 <%= classroom.name %>
+        </a>
+      </li>
+      <li>
+        <a href="/admin/schools/<%= school.id %>/classrooms/<%= classroom.id %>/dashboard"
+          style="color:#3498db; font-weight:600; text-decoration:none;">
+          🏫 <%= classroom.name %>
+        </a>
+      </li>
+
+    <% }) %>
+  <% } else { %>
+    <p>No classrooms available.</p>
+  <% } %>
+</ul>
+
 
     <hr>
     
@@ -82,22 +106,25 @@
   <h3>🎓 Courses Assigned to This School</h3>
 
   <% if (school.courses.length > 0) { %>
-    <table class="user-table">
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Level</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% school.courses.forEach(course => { %>
+    <div class="table-responsive">
+      <table class="user-table" style="width: 80%; border-collapse: collapse; margin-top: 20px;">
+        <thead>
           <tr>
-            <td><%= course.title %></td>
-            <td><%= course.level || '-' %></td>
+            <th>Title</th>
+            <th>Level</th>
           </tr>
-        <% }) %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% school.courses.forEach(course => { %>
+            <tr>
+              <td><%= course.title %></td>
+              <td><%= course.level || '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    
   <% } else { %>
     <p>No courses assigned yet.</p>
   <% } %>
@@ -140,41 +167,43 @@
 <% if (school.terms.length === 0) { %>
   <p>No terms created yet.</p>
 <% } else { %>
-  <table class="user-table">
-    <thead>
-      <tr>
-        <th>Term</th>
-        <th>Period</th>
-        <th>Students</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% school.terms.forEach(term => { %>
+  <div class="table-responsive">
+    <table class="user-table" style="border-collapse: collapse; margin-top: 20px;">
+      <thead>
         <tr>
-          <td><strong><%= term.term_name %></strong></td>
-          <td>
-            <%= term.start_date %> → <%= term.end_date %>
-          </td>
-          <td><%= term.student_count %></td>
-          <td>
-            <button onclick="toggleTermStudents('<%= term.term_id %>')">
-              👁 View Students
-            </button>
-          </td>
+          <th>Term</th>
+          <th>Period</th>
+          <th>Students</th>
+          <th>Actions</th>
         </tr>
+      </thead>
+      <tbody>
+        <% school.terms.forEach(term => { %>
+          <tr>
+            <td><strong><%= term.term_name %></strong></td>
+            <td>
+              <%= term.start_date %> → <%= term.end_date %>
+            </td>
+            <td><%= term.student_count %></td>
+            <td>
+              <button onclick="toggleTermStudents('<%= term.term_id %>')">
+                👁 View Students
+              </button>
+            </td>
+          </tr>
 
-        <!-- expandable row -->
-        <tr id="term-row-<%= term.term_id %>" style="display:none;">
-          <td colspan="4">
-            <div id="term-students-<%= term.term_id %>">
-              <em>Loading students...</em>
-            </div>
-          </td>
-        </tr>
-      <% }) %>
-    </tbody>
-  </table>
+          <!-- expandable row -->
+          <tr id="term-row-<%= term.term_id %>" style="display:none;">
+            <td colspan="4">
+              <div id="term-students-<%= term.term_id %>">
+                <em>Loading students...</em>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
 <% } %>
 
 
@@ -358,7 +387,7 @@
   </button>
 
   <div class="table-responsive">
-    <table class="user-table" style="width:95%; margin-top:20px;">
+    <table class="user-table" style="margin-top:20px;">
       <thead>
         <tr>
           <th>Classroom Name</th>
@@ -373,7 +402,12 @@
         <% if (school.classrooms.length > 0) { %>
           <% school.classrooms.forEach(c => { %>
             <tr>
-              <td><%= c.name %></td>
+              <!-- <td><%= c.name %></td> -->
+               <td>
+                <a href="/admin/classrooms/<%= c.id %>/dashboard" class="btn-edit">
+                  👁 Open Dashboard
+                </a>
+              </td>
               <td id="student-count-<%= c.id %>"><%= c.student_count %></td>
               <td id="teacher-count-<%= c.id %>"><%= c.teacher_count %></td>
               <td id="instructor-count-<%= c.id %>"><%= c.instructor_count %></td>
@@ -618,21 +652,21 @@
 
 <!-- script for nav tab  -->
 <script>
-function openTab(sectionId, btn) {
-  // Hide all sections
-  const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section'];
-  sections.forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
+  function openTab(sectionId, btn) {
+    // Hide all sections
+    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section'];
+    sections.forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
 
-  // Show selected
-  document.getElementById(sectionId).style.display = 'block';
-  document.getElementById(sectionId).style.width = '100%';
+    // Show selected
+    document.getElementById(sectionId).style.display = 'block';
+    document.getElementById(sectionId).style.width = '100%';
 
-  // Update active tab
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
+    // Update active tab
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
 </script>
 
 <!-- close button script -->
@@ -863,26 +897,26 @@ function openTab(sectionId, btn) {
 
 <!-- script for fitler table -->
 <script>
-function filterUsers(tableId, selectId, searchId) {
-  const filterClass = document.getElementById(selectId).value.toLowerCase();
-  const searchText = document.getElementById(searchId).value.toLowerCase();
-  const table = document.getElementById(tableId);
-  const trs = table.getElementsByTagName("tr");
+  function filterUsers(tableId, selectId, searchId) {
+    const filterClass = document.getElementById(selectId).value.toLowerCase();
+    const searchText = document.getElementById(searchId).value.toLowerCase();
+    const table = document.getElementById(tableId);
+    const trs = table.getElementsByTagName("tr");
 
-  for (let i = 1; i < trs.length; i++) { // skip header
-    const tds = trs[i].getElementsByTagName("td");
-    if (tds.length > 0) {
-      const nameText = tds[0].innerText.toLowerCase();
-      const emailText = tds[1].innerText.toLowerCase();
-      const classText = tds[2].innerText.toLowerCase();
+    for (let i = 1; i < trs.length; i++) { // skip header
+      const tds = trs[i].getElementsByTagName("td");
+      if (tds.length > 0) {
+        const nameText = tds[0].innerText.toLowerCase();
+        const emailText = tds[1].innerText.toLowerCase();
+        const classText = tds[2].innerText.toLowerCase();
 
-      const matchClass = (filterClass === "" || classText === filterClass);
-      const matchSearch = (nameText.includes(searchText) || emailText.includes(searchText));
+        const matchClass = (filterClass === "" || classText === filterClass);
+        const matchSearch = (nameText.includes(searchText) || emailText.includes(searchText));
 
-      trs[i].style.display = (matchClass && matchSearch) ? "" : "none";
+        trs[i].style.display = (matchClass && matchSearch) ? "" : "none";
+      }
     }
   }
-}
 </script>
 
 <!-- script for user modal -->
@@ -1063,42 +1097,27 @@ function filterUsers(tableId, selectId, searchId) {
     }
   
 
-    // function openAssignModal(userId, role, currentClassroomId = null) {
-    //   document.getElementById("assignUserId").value = userId;
-    //   document.getElementById("assignRole").value = role;
-    //   document.getElementById("assignTitle").innerText = `Assign ${role} to a Classroom`;
-
-    //   const select = document.getElementById("assignClassroom");
-    //   if (currentClassroomId) {
-    //     select.value = currentClassroomId; // auto-select their existing class
-    //   } else {
-    //     select.value = ""; // default empty
-    //   }
-
-    //   document.getElementById("assignModal").style.display = "block";
-    // }
-
     function openAssignModal(userId, role, currentClassroomId = null) {
-  document.getElementById("assignUserId").value = userId;
-  document.getElementById("assignRole").value = role;
-  document.getElementById("assignTitle").innerText = `Assign ${role} to Classroom`;
+      document.getElementById("assignUserId").value = userId;
+      document.getElementById("assignRole").value = role;
+      document.getElementById("assignTitle").innerText = `Assign ${role} to Classroom`;
 
-  const select = document.getElementById("assignClassroom");
+      const select = document.getElementById("assignClassroom");
 
-  if (role === "instructor") {
-    select.setAttribute("multiple", "multiple"); // allow many classes
-    select.value = "";
-  } else {
-    select.removeAttribute("multiple"); // only one class
-    if (currentClassroomId) {
-      select.value = currentClassroomId;
-    } else {
-      select.value = "";
+      if (role === "instructor") {
+        select.setAttribute("multiple", "multiple"); // allow many classes
+        select.value = "";
+      } else {
+        select.removeAttribute("multiple"); // only one class
+        if (currentClassroomId) {
+          select.value = currentClassroomId;
+        } else {
+          select.value = "";
+        }
+      }
+
+      document.getElementById("assignModal").style.display = "block";
     }
-  }
-
-  document.getElementById("assignModal").style.display = "block";
-}
 
 
     function closeAssignModal() {

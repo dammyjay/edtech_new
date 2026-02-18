@@ -1,0 +1,230 @@
+<%- include('../partials/adminHeader', { title: classroom.school_name }) %>
+
+
+<section class="section">
+    <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+        <img src="<%= classroom.school_logo %>" alt="School Logo" style="width:100px;height:100px;object-fit:cover;">
+    <h2>🏫 <%= classroom.school_name %></h2>
+    <p><strong>Email:</strong> <%= classroom.school_email %></p>
+    <p><strong>Phone:</strong> <%= classroom.school_phone %></p>
+    <p><strong>Address:</strong> <%= classroom.school_address %></p>
+
+    <a href="/admin/schools/<%= classroom.school_id %>" 
+        style="color:#3498db;font-weight:600;">
+        ← Back to School Details
+    </a>
+    </div>
+</section>
+
+<h2>📊 <%= classroom.name %> - Classroom Analytics</h2>
+
+<!-- <section class="section">
+    <div class="engagement-grid">
+        <div class="metric-card">
+            <h3><%= totalStudents %></h3>
+            <p>Total Students</p>
+        </div>
+
+        <div class="metric-card">
+            <h3><%= averageCompletion %>%</h3>
+            <p>Average Completion</p>
+        </div>
+
+        <div class="metric-card">
+            <h3><%= averageQuiz %>%</h3>
+            <p>Average Quiz Score</p>
+        </div>
+        </div>
+</section> -->
+
+<section class="section">
+    <div class="engagement-grid">
+
+        <div class="metric-card">
+            <div class="card-icon">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="card-content">
+                <h3><%= totalStudents %></h3>
+                <p>Total Students</p>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="card-icon">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div class="card-content">
+                <h3><%= averageCompletion %>%</h3>
+                <p>Average Completion</p>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="card-icon">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="card-content">
+                <h3><%= averageQuiz %>%</h3>
+                <p>Average Quiz Score</p>
+            </div>
+        </div>
+        </div>
+
+    </div>
+</section>
+
+
+<hr>
+
+<section class="section">
+    <h3>📈 Lesson Completion Chart</h3>
+    <canvas id="completionChart"></canvas>
+</section>
+
+
+<!-- <section class="section">
+    <h3>🏆 Leaderboard</h3>
+    <div class="table-responsive">
+        <table class="user-table" style="border-collapse: collapse; margin-top: 20px;">
+            <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Overall Score</th>
+            </tr>
+
+            <% leaderboard.forEach((student, index) => { %>
+                <tr>
+                <td><%= index + 1 %></td>
+                <td><%= student.fullname %></td>
+                <td><%= student.overallScore %>%</td>
+                </tr>
+            <% }) %>
+        </table>
+    </div>
+</section> -->
+
+<section class="section">
+    <h3>🏆 Leaderboard</h3>
+    <div class="table-responsive">
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Lessons</th>
+                    <th>Completion %</th>
+                    <th>Quiz Avg</th>
+                    <th>Overall</th>
+                    <th>Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+            <% leaderboard.forEach((student, index) => { %>
+                <tr>
+                    <td><%= index + 1 %></td>
+                    <td><%= student.fullname %></td>
+                    <td>
+                        <%= student.completedLessons %> / 
+                        <%= student.totalLessons %>
+                    </td>
+                    <td><%= student.completionPercent %>%</td>
+                    <td><%= student.quizAvg %>%</td>
+                    <td><strong><%= student.overallScore %>%</strong></td>
+                    <td>
+                        <a href="/admin/students/<%= student.id %>/progress?from=admin"
+                        class="btn-edit"
+                        style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
+                        Progress
+                        </a>
+                    </td>
+                </tr>
+            <% }) %>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+
+<hr>
+
+<!-- <section class="section">
+  <h3>⚠️ At Risk Students</h3>
+  <ul>
+    <% atRiskStudents.forEach(student => { %>
+        <li>
+        <%= student.fullname %> 
+        (Completion: <%= student.completionPercent %>%, 
+        Quiz Avg: <%= student.quizAvg %>%)
+        </li>
+    <% }) %>
+    </ul>
+</section> -->
+
+<section class="section">
+  <h3>⚠️ At Risk Students</h3>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Lessons</th>
+          <th>Completion %</th>
+          <th>Quiz Avg</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (atRiskStudents.length > 0) { %>
+          <% atRiskStudents.forEach(student => { %>
+            <tr>
+              <td><%= student.fullname %></td>
+              <td>
+                <%= student.completedLessons %> / 
+                <%= student.totalLessons %>
+              </td>
+              <td style="color:#e74c3c;">
+                <%= student.completionPercent %>%
+              </td>
+              <td style="color:#e74c3c;">
+                <%= student.quizAvg %>%
+              </td>
+                <td>
+                    <a href="/admin/students/<%= student.id %>/progress?from=admin"
+                    class="btn-edit"
+                    style="background:#e74c3c; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
+                    Progress
+                    </a>
+                </td>
+            </tr>
+          <% }) %>
+        <% } else { %>
+          <tr>
+            <td colspan="4" style="text-align:center;">
+              ✅ No students at risk
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('completionChart');
+
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: <%- JSON.stringify(studentMetrics.map(s => s.fullname)) %>,
+    datasets: [{
+      label: 'Completion %',
+      data: <%- JSON.stringify(studentMetrics.map(s => s.completionPercent)) %>
+    }]
+  }
+});
+</script>
