@@ -161,6 +161,47 @@ header {
     gap: 10px;
 }
 
+.article-grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 32px;
+        margin-top: 24px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .article-grid2 img {
+            width: 100%;
+            object-fit: contain;
+        }
+.card-images{
+    display: flex;
+    box-sizing: border-box;
+    border-radius: 12px;
+    background-color: #bfa046;
+    justify-content: center;
+    gap: 10px;
+}
+
+.card-images div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-weight: bold;
+    width: 100%;
+    padding: 0 10px;
+}
+
+.card-images img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    background-color: ;
+}
+
 .card-content{
     text-align: right;
 }
@@ -792,7 +833,7 @@ form button {
         width: 100%; */
     }
 
-        .article-grid {
+    .article-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 32px;
@@ -800,16 +841,6 @@ form button {
         width: 100%;
         box-sizing: border-box;
     }
-
-        /* .article-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 320px);
-            gap: 32px;
-            margin-top: 24px;
-            width: 100%;
-            box-sizing: border-box;
-            justify-content: center;
-        } */
 
     .article-grid img {
             width: 100%;

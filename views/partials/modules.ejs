@@ -19,16 +19,19 @@
 <!-- Existing modules are listed below: -->
 
 
-<section class="article-grid">
+<section class="article-grid2">
   <% modules.forEach(module => { %>
     <div class="article-card2">
-      <div>
-        <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
+      <div class="card-images" style="display: flex;">
+        <div>
+          <p>Thumbnail</p>
+          <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
+        </div>
         <!-- Badge Image -->
         <% if (module.badge_image) { %>
-          <div class="module-badge">
-            <h5>🏅 Badge</h5>
-            <img src="<%= module.badge_image %>" alt="Badge" width="80">
+          <div>
+            <p>🏅 Badge</p>
+            <img src="<%= module.badge_image %>" alt="Badge">
           </div>
         <% } else { %>
           <p>No badge assigned</p>

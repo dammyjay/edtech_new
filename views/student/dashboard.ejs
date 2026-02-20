@@ -100,6 +100,52 @@
   </ul>
 </aside>
 
+<!-- QUIZ CELEBRATION MODAL -->
+<div id="quizCelebration" class="celebration-modal">
+  <div class="celebration-content">
+    <div class="confetti"></div>
+
+    <h2>🎉 Congratulations!</h2>
+    <p id="celebrationMessage"></p>
+
+    <div class="xp-box">
+      <h3>⭐ XP Earned</h3>
+      <p id="xpEarnedText"></p>
+    </div>
+
+    <button onclick="closeCelebration()">Continue Learning ➜</button>
+  </div>
+</div>
+
+<!-- QUIZ CELEBRATION MODAL -->
+<!-- QUIZ CELEBRATION MODAL -->
+<div id="quizCelebration" class="celebration-modal">
+  <div class="celebration-content">
+    <div class="confetti"></div>
+
+    <h2>🎉 Congratulations!</h2>
+    <p id="celebrationMessage"></p>
+
+    <div class="xp-box">
+      <h3>⭐ XP Earned</h3>
+      <p id="xpEarnedText"></p>
+    </div>
+
+    <button onclick="closeCelebration()">Continue Learning ➜</button>
+  </div>
+</div>
+
+<!-- BADGE AWARD MODAL -->
+<div id="badgeCelebration" class="celebration-modal">
+  <div class="celebration-content badge-mode">
+    <h2>🏅 Badge Unlocked!</h2>
+
+    <div id="badgeVisual"></div>
+    <h3 id="badgeName"></h3>
+
+    <button onclick="closeBadgeCelebration()">Awesome! 🚀</button>
+  </div>
+</div>
 
  <main class="main-content">
   
@@ -1073,58 +1119,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- script to send and receive chat messages -->
 <script>
-function openChat(teacherId, teacherName) {
-  document.getElementById(`chatModal-${teacherId}`).style.display = 'block';
-  loadChatMessages(teacherId);
-}
+  function openChat(teacherId, teacherName) {
+    document.getElementById(`chatModal-${teacherId}`).style.display = 'block';
+    loadChatMessages(teacherId);
+  }
 
-function closeChat(teacherId) {
-  document.getElementById(`chatModal-${teacherId}`).style.display = 'none';
-}
+  function closeChat(teacherId) {
+    document.getElementById(`chatModal-${teacherId}`).style.display = 'none';
+  }
 
-async function sendChat(teacherId) {
-  const input = document.getElementById(`chatInput-${teacherId}`);
-  const message = input.value.trim();
-  if (!message) return;
-  input.value = '';
+  async function sendChat(teacherId) {
+    const input = document.getElementById(`chatInput-${teacherId}`);
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
 
-  await fetch(`/student/chat/send`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ receiverId: teacherId, message })
-  });
+    await fetch(`/student/chat/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiverId: teacherId, message })
+    });
 
-  loadChatMessages(teacherId);
-}
-async function loadChatMessages(teacherId) {
-  const res = await fetch(`/student/chat/messages/${teacherId}`);
-  const data = await res.json();
-  const container = document.getElementById(`chatMessages-${teacherId}`);
+    loadChatMessages(teacherId);
+  }
+  async function loadChatMessages(teacherId) {
+    const res = await fetch(`/student/chat/messages/${teacherId}`);
+    const data = await res.json();
+    const container = document.getElementById(`chatMessages-${teacherId}`);
 
-  container.innerHTML = data
-    .map(msg => `
-      <div class="chat-bubble ${msg.sender === 'self' ? 'self' : 'other'}">
-        ${msg.message}
-        <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
-      </div>
-    `)
-    .join('');
-}
+    container.innerHTML = data
+      .map(msg => `
+        <div class="chat-bubble ${msg.sender === 'self' ? 'self' : 'other'}">
+          ${msg.message}
+          <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
+        </div>
+      `)
+      .join('');
+  }
 
 
 </script>
 
 <!-- styling for AI tutor -->
 <style>
-.chat-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:1000; }
-.chat-content { background:#fff; border-radius:8px; width:400px; max-width:90%; margin:80px auto; padding:15px; position:relative; }
-.chat-messages { max-height:300px; overflow-y:auto; border:1px solid #ddd; padding:10px; margin-bottom:10px; }
-.chat-bubble { margin:6px 0; padding:8px 10px; border-radius:10px; max-width:70%; }
-.chat-bubble.self { background:#e5f0ff; align-self:flex-end; margin-left:auto; }
-.chat-bubble.other { background:#f1f1f1; align-self:flex-start; }
-.chat-input { display:flex; gap:6px; }
-.chat-input input { flex:1; padding:6px 10px; }
-.close-chat { position:absolute; top:8px; right:10px; cursor:pointer; font-size:20px; }
+  .chat-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:1000; }
+  .chat-content { background:#fff; border-radius:8px; width:400px; max-width:90%; margin:80px auto; padding:15px; position:relative; }
+  .chat-messages { max-height:300px; overflow-y:auto; border:1px solid #ddd; padding:10px; margin-bottom:10px; }
+  .chat-bubble { margin:6px 0; padding:8px 10px; border-radius:10px; max-width:70%; }
+  .chat-bubble.self { background:#e5f0ff; align-self:flex-end; margin-left:auto; }
+  .chat-bubble.other { background:#f1f1f1; align-self:flex-start; }
+  .chat-input { display:flex; gap:6px; }
+  .chat-input input { flex:1; padding:6px 10px; }
+  .close-chat { position:absolute; top:8px; right:10px; cursor:pointer; font-size:20px; }
 </style>
 
 <!-- Badge modal -->
@@ -1160,7 +1206,6 @@ async function loadChatMessages(teacherId) {
     if (event.target === projectModal) projectModal.style.display = "none"
   };
 </script>
-
 
 <!-- Script for engagement char -->
 <script>
@@ -1258,30 +1303,6 @@ async function loadChatMessages(teacherId) {
 </script>
 
 <!-- toggle lesson sidebar -->
-<!-- <script>
-  const lessonsidebar = document.getElementById("lessonSidebar");
-  const handle = document.getElementById("sidebarHandle");
-
-  // Restore saved state
-  const isSavedCollapsed = localStorage.getItem("lessonSidebarCollapsed") === "true";
-
-  if (isSavedCollapsed) {
-    lessonsidebar.classList.add("collapsed");
-    handle.innerHTML = "❯>";
-  }
-
-  // Toggle click
-  handle.addEventListener("click", () => {
-    lessonsidebar.classList.toggle("collapsed");
-
-    const isCollapsed = lessonsidebar.classList.contains("collapsed");
-
-    handle.innerHTML = isCollapsed ? "❯>" : "❮<";
-
-    localStorage.setItem("lessonSidebarCollapsed", isCollapsed);
-  });
-</script> -->
-
 <script>
   const lessonsidebar = document.getElementById("lessonSidebar");
   const handle = document.getElementById("sidebarHandle");
@@ -1339,7 +1360,6 @@ async function loadChatMessages(teacherId) {
 
 </script>
 
-
 <!-- script to Highlight active navbar -->
 <script>
   const tabs = document.querySelectorAll(".nav-tab");
@@ -1381,102 +1401,100 @@ window.closeEditModal = function (id) {
 </script>
 
 <!-- Lesson and quiz script -->
- 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const sendBtn = document.getElementById("ai-send");
-  const input = document.getElementById("ai-question");
-  const messages = document.getElementById("ai-messages");
+  document.addEventListener("DOMContentLoaded", () => {
+    const sendBtn = document.getElementById("ai-send");
+    const input = document.getElementById("ai-question");
+    const messages = document.getElementById("ai-messages");
 
-  // helper: render message (✅ allow HTML so answers can be styled)
-  function pushMsg(text, who = "user") {
-    const msg = document.createElement("div");
-    msg.className = "msg " + who;
-    msg.innerHTML = text; // ✅ allow headings, lists, code
-    messages.appendChild(msg);
-    messages.scrollTop = messages.scrollHeight;
-  }
+    // helper: render message (✅ allow HTML so answers can be styled)
+    function pushMsg(text, who = "user") {
+      const msg = document.createElement("div");
+      msg.className = "msg " + who;
+      msg.innerHTML = text; // ✅ allow headings, lists, code
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
-  // handle sending
-  async function sendQuestion(q) {
-    if (!q.trim()) return;
+    // handle sending
+    async function sendQuestion(q) {
+      if (!q.trim()) return;
 
-    pushMsg(`<p>${q}</p>`, "user"); // show immediately
-    input.value = "";
+      pushMsg(`<p>${q}</p>`, "user"); // show immediately
+      input.value = "";
 
-    try {
-      const res = await fetch("/student/ai/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q,
-          lessonId: window.currentLessonId || null
-        })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        const html = marked.parse(data.answer); // ✅ Convert Markdown → HTML
-        pushMsg(html, "bot");
-      } else {
-        pushMsg("<em>⚠️ Tutor is unavailable.</em>", "bot");
+      try {
+        const res = await fetch("/student/ai/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: q,
+            lessonId: window.currentLessonId || null
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const html = marked.parse(data.answer); // ✅ Convert Markdown → HTML
+          pushMsg(html, "bot");
+        } else {
+          pushMsg("<em>⚠️ Tutor is unavailable.</em>", "bot");
+        }
+      } catch (err) {
+        console.error("AI send error:", err);
+        pushMsg("<em>❌ Error contacting tutor.</em>", "bot");
       }
-    } catch (err) {
-      console.error("AI send error:", err);
-      pushMsg("<em>❌ Error contacting tutor.</em>", "bot");
     }
-  }
 
-  // click send
-  sendBtn.addEventListener("click", () => sendQuestion(input.value));
+    // click send
+    sendBtn.addEventListener("click", () => sendQuestion(input.value));
 
-  // press Enter
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      sendQuestion(input.value);
-    }
-  });
-
-  // ✅ Suggested questions buttons
-  const suggRow = document.createElement("div");
-  suggRow.className = "ai-suggestions";
-  document.querySelector("#ai-tutor .ai-input-row").before(suggRow);
-
-  window.showLessonSuggestions = function (suggestions = []) {
-    suggRow.innerHTML = ""; // clear old
-    suggestions.forEach((s) => {
-      const btn = document.createElement("button");
-      btn.className = "sugg-btn";
-      btn.innerText = s;
-      btn.onclick = () => sendQuestion(s);
-      suggRow.appendChild(btn);
+    // press Enter
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendQuestion(input.value);
+      }
     });
-  };
 
-  // ✅ Collapse/expand chatbox
-  const aiTutor = document.getElementById("ai-tutor");
-  const aiMessages = document.getElementById("ai-messages");
-  const toggleBtn = document.getElementById("ai-toggle");
+    // ✅ Suggested questions buttons
+    const suggRow = document.createElement("div");
+    suggRow.className = "ai-suggestions";
+    document.querySelector("#ai-tutor .ai-input-row").before(suggRow);
 
-  toggleBtn.addEventListener("click", () => {
-    if (aiTutor.classList.contains("collapsed")) {
-      aiTutor.classList.remove("collapsed");
-      aiMessages.style.display = "block";
-      document.querySelector("#ai-tutor .ai-input-row").style.display = "flex";
-      suggRow.style.display = "flex";
-      toggleBtn.textContent = "–";
-    } else {
-      aiTutor.classList.add("collapsed");
-      aiMessages.style.display = "none";
-      document.querySelector("#ai-tutor .ai-input-row").style.display = "none";
-      suggRow.style.display = "none";
-      toggleBtn.textContent = "+";
-    }
+    window.showLessonSuggestions = function (suggestions = []) {
+      suggRow.innerHTML = ""; // clear old
+      suggestions.forEach((s) => {
+        const btn = document.createElement("button");
+        btn.className = "sugg-btn";
+        btn.innerText = s;
+        btn.onclick = () => sendQuestion(s);
+        suggRow.appendChild(btn);
+      });
+    };
+
+    // ✅ Collapse/expand chatbox
+    const aiTutor = document.getElementById("ai-tutor");
+    const aiMessages = document.getElementById("ai-messages");
+    const toggleBtn = document.getElementById("ai-toggle");
+
+    toggleBtn.addEventListener("click", () => {
+      if (aiTutor.classList.contains("collapsed")) {
+        aiTutor.classList.remove("collapsed");
+        aiMessages.style.display = "block";
+        document.querySelector("#ai-tutor .ai-input-row").style.display = "flex";
+        suggRow.style.display = "flex";
+        toggleBtn.textContent = "–";
+      } else {
+        aiTutor.classList.add("collapsed");
+        aiMessages.style.display = "none";
+        document.querySelector("#ai-tutor .ai-input-row").style.display = "none";
+        suggRow.style.display = "none";
+        toggleBtn.textContent = "+";
+      }
+    });
   });
-});
 </script>
 
 <!-- script for loading lesson content and assignment loading and submission review -->
@@ -1972,6 +1990,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const result = await res2.json();
              hideLoading(); // 🟢 Hide once submitted
+             if (result.badgeAwarded) {
+                setTimeout(() => {
+                  // showBadgeCelebration(result.badgeAwarded);
+                  showBadgeCelebration();
+                }, 1500); // delay after quiz popup
+              }
 
             if (result.success) {
               const criteriaHTML = result.criteria
@@ -2277,8 +2301,36 @@ document.addEventListener("DOMContentLoaded", () => {
     window.speechSynthesis.speak(utterance);
   }
 
+function showQuizCelebration(score, xp) {
+  const modal = document.getElementById("quizCelebration");
+  document.getElementById("celebrationMessage").innerHTML =
+    `You completed this quiz with <strong>${score}%</strong> 🎯`;
 
+  document.getElementById("xpEarnedText").innerHTML =
+    `+${xp} XP`;
 
+  modal.style.display = "flex";
+}
+
+function closeCelebration() {
+  document.getElementById("quizCelebration").style.display = "none";
+}
+
+function showBadgeCelebration() {
+  const modal = document.getElementById("badgeCelebration");
+
+  document.getElementById("badgeName").innerText =
+    "Module Completed! 🎉";
+
+  document.getElementById("badgeVisual").innerHTML =
+    `<div style="font-size:60px;">🏅</div>`;
+
+  modal.style.display = "flex";
+}
+
+function closeBadgeCelebration() {
+  document.getElementById("badgeCelebration").style.display = "none";
+}
   function submitQuizInline(e, lessonId) {
   e.preventDefault();
   showLoading(); // ⬅️ Start loading animation
@@ -2318,6 +2370,16 @@ document.addEventListener("DOMContentLoaded", () => {
         quizContainer.innerHTML =
           `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
         return;
+      }
+
+      if (result.success) {
+        showQuizCelebration(result.score, result.xpEarned);
+      }
+
+      if (result.badgeAwarded) {
+        setTimeout(() => {
+          showBadgeCelebration();
+        }, 1200);
       }
 
       // Save review data globally

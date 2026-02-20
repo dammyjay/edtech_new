@@ -4,6 +4,7 @@ const { askTutor } = require("../utils/ai");
 const PDFDocument = require("pdfkit");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
+const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -484,6 +485,8 @@ for (const mod of modulesRes.rows) {
 
   if (!moduleCompleted) continue;
 
+
+    
   // 4️⃣ Unlock next module
   const nextModuleRes = await pool.query(
     `SELECT id FROM modules
@@ -1742,68 +1745,13 @@ ${JSON.stringify(reviewData, null, 2)}
         : "❌ Incorrect. Review the lesson content.";
     });
 
-    // ✅ Save submission
-    // await pool.query(
-    //   `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
-    //    VALUES ($1,$2,$3,$4,$5)`,
-    //   [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
-    // );
-
-    // res.json({
-    //   success: true,
-    //   score: percent,
-    //   passed: percent >= 50,
-    //   reviewData,
-    //   feedback:
-    //     percent >= 80
-    //       ? "🌟 Excellent work! You clearly understood this lesson."
-    //       : percent >= 50
-    //       ? "👍 Good attempt. Review the explanations for the wrong answers."
-    //       : "📘 Don’t worry! Revisit the lesson content and try again.",
-    // });
-
-    // ✅ Unlock next lesson if passed
-    // if (percent >= 50) {
-    //   const nextLessonRes = await pool.query(
-    //     `SELECT id FROM lessons
-    //  WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
-    //    AND id > $1
-    //  ORDER BY id ASC
-    //  LIMIT 1`,
-    //     [lessonId]
-    //   );
-
-    //   if (nextLessonRes.rows.length > 0) {
-    //     const nextLessonId = nextLessonRes.rows[0].id;
-
-    //     await pool.query(
-    //       `INSERT INTO unlocked_lessons (student_id, lesson_id)
-    //    VALUES ($1, $2)
-    //    ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-    //       [studentId, nextLessonId]
-    //     );
-    //   }
-    // }
-
+   
     // ✅ Save submission
     await pool.query(
       `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
    VALUES ($1,$2,$3,$4,$5)`,
       [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
     );
-
-    res.json({
-      success: true,
-      score: percent,
-      passed: percent >= 50,
-      reviewData,
-      feedback:
-        percent >= 80
-          ? "🌟 Excellent work! You clearly understood this lesson."
-          : percent >= 50
-          ? "👍 Good attempt. Review the explanations for the wrong answers."
-          : "📘 Don’t worry! Revisit the lesson content and try again.",
-    });
 
     // ✅ Mark lesson as completed when quiz is submitted
     await pool.query(
@@ -1825,30 +1773,8 @@ ${JSON.stringify(reviewData, null, 2)}
       [studentId, xpGained, `Completed quiz for lesson ${lessonId}`]
     );
 
-    // ✅ Unlock next lesson if passed
-    // if (percent >= 50) {
-    //   const nextLessonRes = await pool.query(
-    //     `SELECT id FROM lessons
-    //  WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
-    //    AND id > $1
-    //  ORDER BY id ASC
-    //  LIMIT 1`,
-    //     [lessonId]
-    //   );
 
-    //   if (nextLessonRes.rows.length > 0) {
-    //     const nextLessonId = nextLessonRes.rows[0].id;
-
-    //     await pool.query(
-    //       `INSERT INTO unlocked_lessons (student_id, lesson_id)
-    //    VALUES ($1, $2)
-    //    ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-    //       [studentId, nextLessonId]
-    //     );
-    //   }
-    // }
-
-    // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
+ // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
     const nextLessonRes = await pool.query(
       `SELECT id FROM lessons 
        WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
@@ -1885,6 +1811,33 @@ ${JSON.stringify(reviewData, null, 2)}
       );
     }
 
+    const { checkAndCompleteModule } = require("../services/moduleCompletionService");
+
+    // 🔥 Get module ID
+    const moduleRes = await pool.query(
+      `SELECT module_id FROM lessons WHERE id=$1`,
+      [lessonId]
+    );
+
+    const moduleId = moduleRes.rows[0].module_id;
+
+    // 🔥 Check module completion
+    const moduleResult = await checkAndCompleteModule(studentId, moduleId);
+
+    res.json({
+      success: true,
+      score: percent,
+      passed: percent >= 50,
+      reviewData,
+      feedback:
+        percent >= 80
+          ? "🌟 Excellent work! You clearly understood this lesson."
+          : percent >= 50
+          ? "👍 Good attempt. Review the explanations for the wrong answers."
+          : "📘 Don’t worry! Revisit the lesson content and try again.",
+      badgeAwarded: moduleResult?.badgeAwarded || false
+    });
+
     // ✅ Count completed lessons
     const completedRes = await pool.query(
       `SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1`,
@@ -1900,86 +1853,87 @@ ${JSON.stringify(reviewData, null, 2)}
     const completionRate = (completedCount / totalLessons) * 100;
 
     // ✅ Award badges based on % completed
-    if (completionRate >= 20) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-     VALUES ($1, 'Beginner', NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId]
-      );
-    }
-    if (completionRate >= 50) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-     VALUES ($1, 'Intermediate', NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId]
-      );
-    }
-    if (completionRate >= 80) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-     VALUES ($1, 'Advanced', NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId]
-      );
-    }
-    if (completionRate === 100) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-     VALUES ($1, 'Master', NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId]
-      );
-    }
+    // if (completionRate >= 20) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+    //  VALUES ($1, 'Beginner', NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId]
+    //   );
+    // }
+    // if (completionRate >= 50) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+    //  VALUES ($1, 'Intermediate', NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId]
+    //   );
+    // }
+    // if (completionRate >= 80) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+    //  VALUES ($1, 'Advanced', NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId]
+    //   );
+    // }
+    // if (completionRate === 100) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+    //  VALUES ($1, 'Master', NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId]
+    //   );
+    // }
 
     // Get module ID and badge image for the lesson
-    const moduleRes = await pool.query(
-      `SELECT id, badge_image FROM modules 
-   WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
-      [lessonId]
-    );
-    const moduleId = moduleRes.rows[0]?.id;
-    const badgeImage = moduleRes.rows[0]?.badge_image || null;
+  //   const moduleRes = await pool.query(
+  //     `SELECT id, badge_image FROM modules 
+  //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
+  //     [lessonId]
+  //   );
+  //   const moduleId = moduleRes.rows[0]?.id;
+  //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
 
     // Award badges with module_id and badge_image
-    if (completionRate >= 20) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-     VALUES ($1, 'Beginner', $2, $3, NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId, moduleId, badgeImage]
-      );
-    }
-    if (completionRate >= 50) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-     VALUES ($1, 'Intermediate', $2, $3, NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId, moduleId, badgeImage]
-      );
-    }
+    // if (completionRate >= 20) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+    //  VALUES ($1, 'Beginner', $2, $3, NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId, moduleId, badgeImage]
+    //   );
+    // }
+    // if (completionRate >= 50) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+    //  VALUES ($1, 'Intermediate', $2, $3, NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId, moduleId, badgeImage]
+    //   );
+    // }
 
-    if (completionRate >= 80) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-     VALUES ($1, 'Advance', $2, $3, NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId, moduleId, badgeImage]
-      );
-    }
+    // if (completionRate >= 80) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+    //  VALUES ($1, 'Advance', $2, $3, NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId, moduleId, badgeImage]
+    //   );
+    // }
 
-    if (completionRate >= 100) {
-      await pool.query(
-        `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-     VALUES ($1, 'Master', $2, $3, NOW()) 
-     ON CONFLICT DO NOTHING`,
-        [studentId, moduleId, badgeImage]
-      );
-    }
+    // if (completionRate >= 100) {
+    //   await pool.query(
+    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+    //  VALUES ($1, 'Master', $2, $3, NOW()) 
+    //  ON CONFLICT DO NOTHING`,
+    //     [studentId, moduleId, badgeImage]
+    //   );
+    // }
     // ... same for Advanced and Master
 
     // ✅ Respond to frontend
+
     
   } catch (err) {
     console.error("Quiz submit error:", err.message);
@@ -2181,6 +2135,7 @@ exports.viewAssignment = async (req, res) => {
 exports.submitAssignment = async (req, res) => {
   try {
     const assignmentId = req.params.assignmentId || req.body.assignmentId;
+    const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 
     let studentId =
       req.session?.student?.id || req.user?.id || req.body.studentId;
@@ -2302,6 +2257,17 @@ Return ONLY valid JSON, e.g.:
       [total, grade, feedbackText, criteria ? JSON.stringify(criteria) : null, submission.id]
     );
 
+    // 🔥 Get module id from assignment
+    const moduleRes = await pool.query(
+      `SELECT module_id FROM module_assignments WHERE id=$1`,
+      [assignmentId]
+    );
+
+    const moduleId = moduleRes.rows[0].module_id;
+
+    // 🔥 Check module completion
+    const moduleResult = await checkAndCompleteModule(studentId, moduleId);
+
     res.json({
       success: true,
       message: "Assignment submitted and graded ✅",
@@ -2310,6 +2276,7 @@ Return ONLY valid JSON, e.g.:
       grade,
       feedbackText,
       criteria,
+      badgeAwarded: moduleResult?.badgeAwarded || false
     });
 
     // ✅ Unlock next module if grading happened
