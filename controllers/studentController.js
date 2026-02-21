@@ -1745,7 +1745,7 @@ ${JSON.stringify(reviewData, null, 2)}
         : "❌ Incorrect. Review the lesson content.";
     });
 
-   
+   console.log("Module result:", moduleResult);
     // ✅ Save submission
     await pool.query(
       `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
