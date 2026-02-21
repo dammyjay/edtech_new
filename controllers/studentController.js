@@ -1592,7 +1592,357 @@ exports.getLessonQuiz = async (req, res) => {
   }
 };
 
+// exports.submitLessonQuiz = async (req, res) => {
+//   try {
+//     const { lessonId, answers } = req.body;
+//     const studentId =
+//       req.session?.student?.id || req.user?.id || req.body.studentId;
+
+//     if (!lessonId || !answers) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Lesson ID and answers are required.",
+//       });
+//     }
+//     if (!studentId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Student ID missing. Please log in again.",
+//       });
+//     }
+
+//     // ✅ Fetch lesson content
+//     const lessonRes = await pool.query(
+//       `SELECT id, title, content FROM lessons WHERE id=$1`,
+//       [lessonId]
+//     );
+//     if (lessonRes.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Lesson not found" });
+//     }
+//     const lesson = lessonRes.rows[0];
+
+//     // ✅ Find the quiz for this lesson
+//     const quizRes = await pool.query(
+//       `SELECT id FROM quizzes WHERE lesson_id=$1`,
+//       [lessonId]
+//     );
+//     if (quizRes.rows.length === 0) {
+//       return res.json({
+//         success: false,
+//         message: "No quiz found for this lesson",
+//       });
+//     }
+//     const quizId = quizRes.rows[0].id;
+
+//     // ✅ Fetch quiz questions
+//     const qRes = await pool.query(
+//       `SELECT qq.id, qq.question, qq.options, qq.correct_option
+//        FROM quiz_questions qq
+//        WHERE qq.quiz_id = $1
+//        ORDER BY qq.id ASC`,
+//       [quizId]
+//     );
+//     const questions = qRes.rows;
+//     if (questions.length === 0) {
+//       return res.json({ success: false, message: "No quiz questions found" });
+//     }
+
+//     // ✅ Score student answers
+//     let score = 0;
+//     const reviewData = [];
+//     questions.forEach((q) => {
+//       const yourAnswer = answers[`q${q.id}`] || "";
+//       const isCorrect =
+//         yourAnswer.toString().trim().toLowerCase() ===
+//         q.correct_option.toString().trim().toLowerCase();
+
+//       if (isCorrect) score++;
+
+//       reviewData.push({
+//         id: q.id,
+//         question: q.question,
+//         yourAnswer,
+//         correctAnswer: q.correct_option,
+//         isCorrect,
+//       });
+//     });
+
+//     const percent = Math.round((score / questions.length) * 100);
+
+//     // ✅ AI Prompt WITH lesson content
+// //     const feedbackPrompt = `
+// // You are an AI tutor. Use the following LESSON CONTENT to explain quiz answers:
+
+// // "${lesson.content}"
+
+// // Now here is a student's quiz attempt for the lesson "${lesson.title}":
+
+// // ${reviewData
+// //   .map(
+// //     (r) => `
+// // QuestionId: ${r.id}
+// // Question: ${r.question}
+// // Student answered: ${r.yourAnswer || "No answer"}
+// // Correct answer: ${r.correctAnswer}
+// // Result: ${r.isCorrect ? "✅ Correct" : "❌ Wrong"}
+// // `
+// //   )
+// //   .join("\n\n")}
+
+// // TASK:
+// // For EACH question (correct OR wrong):
+// // - Use the QuestionId from above in the JSON.
+// // - If correct → give a short reinforcement explanation.
+// // - If wrong → explain why their answer is incorrect AND what the correct answer means.
+// // - Base explanations on the LESSON CONTENT.
+// // - Be supportive.
+
+// // OUTPUT:
+// // Return only valid JSON in this format:
+// // [
+// //   { "questionId": 12, "feedback": "..." },
+// //   { "questionId": 15, "feedback": "..." }
+// // ]
+//     // `;
+    
+//     const feedbackPrompt = `
+// You are an AI tutor. Give short, simple feedback for each quiz question.
+
+// Do NOT restate the lesson.  
+// Do NOT repeat the questions in detail.  
+// Do NOT write short explanations.
+
+// For each item, return JSON like this:
+// [
+//   { "questionId": 1, "feedback": "…" }
+// ]
+
+// Student quiz review:
+// ${JSON.stringify(reviewData, null, 2)}
+// `;
+
+
+//     let perQuestionFeedback = [];
+//     try {
+//       const raw = await askTutor({ question: feedbackPrompt });
+//       const jsonMatch = raw.match(/\[[\s\S]*\]/);
+//       if (jsonMatch) {
+//         perQuestionFeedback = JSON.parse(jsonMatch[0]);
+//       }
+//     } catch (err) {
+//       console.error("AI feedback error:", err.message);
+//     }
+
+//     // ✅ Attach AI feedback
+//     reviewData.forEach((r) => {
+//       const fb = perQuestionFeedback.find((f) => f.questionId == r.id);
+//       r.feedback = fb
+//         ? fb.feedback
+//         : r.isCorrect
+//         ? "✅ Correct! Great understanding."
+//         : "❌ Incorrect. Review the lesson content.";
+//     });
+
+//     // ✅ Save submission
+//     await pool.query(
+//       `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
+//    VALUES ($1,$2,$3,$4,$5)`,
+//       [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
+//     );
+
+//     // ✅ Mark lesson as completed when quiz is submitted
+//     await pool.query(
+//       `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
+//    VALUES ($1, $2, NOW())
+//    ON CONFLICT (user_id, lesson_id) DO NOTHING`,
+//       [studentId, lessonId]
+//     );
+
+//     const xpGained = 10;
+//     await pool.query(
+//       "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
+//       [xpGained, studentId]
+//     );
+
+//     await pool.query(
+//       `INSERT INTO xp_history (user_id, xp, activity)
+//    VALUES ($1, $2, $3)`,
+//       [studentId, xpGained, `Completed quiz for lesson ${lessonId}`]
+//     );
+
+
+//  // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
+//     const nextLessonRes = await pool.query(
+//       `SELECT id FROM lessons 
+//        WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
+//          AND id > $1
+//        ORDER BY id ASC
+//        LIMIT 1`,
+//       [lessonId]
+//     );
+
+//     if (nextLessonRes.rows.length > 0) {
+//       // unlock the next lesson
+//       const nextLessonId = nextLessonRes.rows[0].id;
+//       await pool.query(
+//         `INSERT INTO unlocked_lessons (student_id, lesson_id)
+//          VALUES ($1, $2)
+//          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
+//         [studentId, nextLessonId]
+//       );
+//     } else {
+//       // no more lessons → unlock the assignment
+//       const moduleIdRes = await pool.query(
+//         `SELECT module_id FROM lessons WHERE id=$1`,
+//         [lessonId]
+//       );
+//       const moduleId = moduleIdRes.rows[0].module_id;
+
+//       await pool.query(
+//         `INSERT INTO unlocked_assignments (student_id, assignment_id)
+//          SELECT $1, id 
+//          FROM module_assignments 
+//          WHERE module_id=$2
+//          ON CONFLICT (student_id, assignment_id) DO NOTHING`,
+//         [studentId, moduleId]
+//       );
+//     }
+
+//     const { checkAndCompleteModule } = require("../services/moduleCompletionService");
+
+//     // 🔥 Get module ID
+//     const moduleRes = await pool.query(
+//       `SELECT module_id FROM lessons WHERE id=$1`,
+//       [lessonId]
+//     );
+
+//     const moduleId = moduleRes.rows[0].module_id;
+
+//     // 🔥 Check module completion
+//     const moduleResult = await checkAndCompleteModule(studentId, moduleId);
+
+//     res.json({
+//       success: true,
+//       score: percent,
+//       passed: percent >= 50,
+//       reviewData,
+//       feedback:
+//         percent >= 80
+//           ? "🌟 Excellent work! You clearly understood this lesson."
+//           : percent >= 50
+//           ? "👍 Good attempt. Review the explanations for the wrong answers."
+//           : "📘 Don’t worry! Revisit the lesson content and try again.",
+//       badgeAwarded: moduleResult?.badgeAwarded || false
+//     });
+
+//     // ✅ Count completed lessons
+//     const completedRes = await pool.query(
+//       `SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1`,
+//       [studentId]
+//     );
+//     const completedCount = parseInt(completedRes.rows[0].count);
+
+//     // ✅ Count total lessons
+//     const totalRes = await pool.query(`SELECT COUNT(*) FROM lessons`);
+//     const totalLessons = parseInt(totalRes.rows[0].count) || 1;
+
+//     // ✅ Calculate completion %
+//     const completionRate = (completedCount / totalLessons) * 100;
+
+//     // ✅ Award badges based on % completed
+//     // if (completionRate >= 20) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+//     //  VALUES ($1, 'Beginner', NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId]
+//     //   );
+//     // }
+//     // if (completionRate >= 50) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+//     //  VALUES ($1, 'Intermediate', NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId]
+//     //   );
+//     // }
+//     // if (completionRate >= 80) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+//     //  VALUES ($1, 'Advanced', NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId]
+//     //   );
+//     // }
+//     // if (completionRate === 100) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
+//     //  VALUES ($1, 'Master', NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId]
+//     //   );
+//     // }
+
+//     // Get module ID and badge image for the lesson
+//   //   const moduleRes = await pool.query(
+//   //     `SELECT id, badge_image FROM modules 
+//   //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
+//   //     [lessonId]
+//   //   );
+//   //   const moduleId = moduleRes.rows[0]?.id;
+//   //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
+
+//     // Award badges with module_id and badge_image
+//     // if (completionRate >= 20) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+//     //  VALUES ($1, 'Beginner', $2, $3, NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId, moduleId, badgeImage]
+//     //   );
+//     // }
+//     // if (completionRate >= 50) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+//     //  VALUES ($1, 'Intermediate', $2, $3, NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId, moduleId, badgeImage]
+//     //   );
+//     // }
+
+//     // if (completionRate >= 80) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+//     //  VALUES ($1, 'Advance', $2, $3, NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId, moduleId, badgeImage]
+//     //   );
+//     // }
+
+//     // if (completionRate >= 100) {
+//     //   await pool.query(
+//     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
+//     //  VALUES ($1, 'Master', $2, $3, NOW()) 
+//     //  ON CONFLICT DO NOTHING`,
+//     //     [studentId, moduleId, badgeImage]
+//     //   );
+//     // }
+//     // ... same for Advanced and Master
+
+//     // ✅ Respond to frontend
+
+    
+//   } catch (err) {
+//     console.error("Quiz submit error:", err.message);
+//     res.status(500).json({ success: false, message: "Failed to submit quiz." });
+//   }
+// };
+
 exports.submitLessonQuiz = async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const { lessonId, answers } = req.body;
     const studentId =
@@ -1604,6 +1954,7 @@ exports.submitLessonQuiz = async (req, res) => {
         message: "Lesson ID and answers are required.",
       });
     }
+
     if (!studentId) {
       return res.status(400).json({
         success: false,
@@ -1611,48 +1962,65 @@ exports.submitLessonQuiz = async (req, res) => {
       });
     }
 
-    // ✅ Fetch lesson content
-    const lessonRes = await pool.query(
-      `SELECT id, title, content FROM lessons WHERE id=$1`,
-      [lessonId]
-    );
-    if (lessonRes.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Lesson not found" });
-    }
-    const lesson = lessonRes.rows[0];
+    await client.query("BEGIN");
 
-    // ✅ Find the quiz for this lesson
-    const quizRes = await pool.query(
-      `SELECT id FROM quizzes WHERE lesson_id=$1`,
+    // ✅ Fetch lesson + module in one query
+    const lessonRes = await client.query(
+      `SELECT id, title, content, module_id
+       FROM lessons
+       WHERE id = $1`,
       [lessonId]
     );
+
+    if (lessonRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        success: false,
+        message: "Lesson not found",
+      });
+    }
+
+    const lesson = lessonRes.rows[0];
+    const moduleId = lesson.module_id;
+
+    // ✅ Fetch quiz
+    const quizRes = await client.query(
+      `SELECT id FROM quizzes WHERE lesson_id = $1`,
+      [lessonId]
+    );
+
     if (quizRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.json({
         success: false,
         message: "No quiz found for this lesson",
       });
     }
+
     const quizId = quizRes.rows[0].id;
 
-    // ✅ Fetch quiz questions
-    const qRes = await pool.query(
-      `SELECT qq.id, qq.question, qq.options, qq.correct_option
-       FROM quiz_questions qq
-       WHERE qq.quiz_id = $1
-       ORDER BY qq.id ASC`,
+    // ✅ Fetch questions
+    const qRes = await client.query(
+      `SELECT id, question, options, correct_option
+       FROM quiz_questions
+       WHERE quiz_id = $1
+       ORDER BY id ASC`,
       [quizId]
     );
+
     const questions = qRes.rows;
-    if (questions.length === 0) {
-      return res.json({ success: false, message: "No quiz questions found" });
+
+    if (!questions.length) {
+      await client.query("ROLLBACK");
+      return res.json({
+        success: false,
+        message: "No quiz questions found",
+      });
     }
 
-    // ✅ Score student answers
+    // ✅ Score answers
     let score = 0;
-    const reviewData = [];
-    questions.forEach((q) => {
+    const reviewData = questions.map((q) => {
       const yourAnswer = answers[`q${q.id}`] || "";
       const isCorrect =
         yourAnswer.toString().trim().toLowerCase() ===
@@ -1660,173 +2028,147 @@ exports.submitLessonQuiz = async (req, res) => {
 
       if (isCorrect) score++;
 
-      reviewData.push({
+      return {
         id: q.id,
         question: q.question,
         yourAnswer,
         correctAnswer: q.correct_option,
         isCorrect,
-      });
+      };
     });
 
     const percent = Math.round((score / questions.length) * 100);
 
-    // ✅ AI Prompt WITH lesson content
-//     const feedbackPrompt = `
-// You are an AI tutor. Use the following LESSON CONTENT to explain quiz answers:
-
-// "${lesson.content}"
-
-// Now here is a student's quiz attempt for the lesson "${lesson.title}":
-
-// ${reviewData
-//   .map(
-//     (r) => `
-// QuestionId: ${r.id}
-// Question: ${r.question}
-// Student answered: ${r.yourAnswer || "No answer"}
-// Correct answer: ${r.correctAnswer}
-// Result: ${r.isCorrect ? "✅ Correct" : "❌ Wrong"}
-// `
-//   )
-//   .join("\n\n")}
-
-// TASK:
-// For EACH question (correct OR wrong):
-// - Use the QuestionId from above in the JSON.
-// - If correct → give a short reinforcement explanation.
-// - If wrong → explain why their answer is incorrect AND what the correct answer means.
-// - Base explanations on the LESSON CONTENT.
-// - Be supportive.
-
-// OUTPUT:
-// Return only valid JSON in this format:
-// [
-//   { "questionId": 12, "feedback": "..." },
-//   { "questionId": 15, "feedback": "..." }
-// ]
-    // `;
-    
+    // ✅ AI Feedback Prompt
     const feedbackPrompt = `
-You are an AI tutor. Give short, simple feedback for each quiz question.
+You are an AI tutor.
 
-Do NOT restate the lesson.  
-Do NOT repeat the questions in detail.  
-Do NOT write short explanations.
+Give short, supportive feedback for each quiz question.
 
-For each item, return JSON like this:
+Rules:
+- Do NOT restate the lesson.
+- Do NOT repeat the full question.
+- If correct → briefly reinforce why it’s correct.
+- If wrong → briefly explain why it’s incorrect and what the correct idea is.
+- Keep each feedback under 2 sentences.
+- Return ONLY valid JSON.
+
+Format:
 [
-  { "questionId": 1, "feedback": "…" }
+  { "questionId": 1, "feedback": "..." }
 ]
 
 Student quiz review:
-${JSON.stringify(reviewData, null, 2)}
+${JSON.stringify(reviewData)}
 `;
 
-
     let perQuestionFeedback = [];
+
     try {
       const raw = await askTutor({ question: feedbackPrompt });
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        perQuestionFeedback = JSON.parse(jsonMatch[0]);
-      }
+
+      const cleaned = raw
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      perQuestionFeedback = JSON.parse(cleaned);
     } catch (err) {
       console.error("AI feedback error:", err.message);
     }
 
-    // ✅ Attach AI feedback
+    // ✅ Attach feedback
     reviewData.forEach((r) => {
-      const fb = perQuestionFeedback.find((f) => f.questionId == r.id);
+      const fb = perQuestionFeedback.find(
+        (f) => Number(f.questionId) === Number(r.id)
+      );
+
       r.feedback = fb
         ? fb.feedback
         : r.isCorrect
         ? "✅ Correct! Great understanding."
-        : "❌ Incorrect. Review the lesson content.";
+        : "❌ Incorrect. Review the lesson and try again.";
     });
 
     // ✅ Save submission
-    await pool.query(
-      `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
-   VALUES ($1,$2,$3,$4,$5)`,
+    await client.query(
+      `INSERT INTO quiz_submissions 
+       (quiz_id, student_id, score, passed, review_data)
+       VALUES ($1, $2, $3, $4, $5)`,
       [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
     );
 
-    // ✅ Mark lesson as completed when quiz is submitted
-    await pool.query(
-      `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
-   VALUES ($1, $2, NOW())
-   ON CONFLICT (user_id, lesson_id) DO NOTHING`,
+    // ✅ Mark lesson completed
+    await client.query(
+      `INSERT INTO user_lesson_progress 
+       (user_id, lesson_id, completed_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id, lesson_id) DO NOTHING`,
       [studentId, lessonId]
     );
 
-    const xpGained = 10;
-    await pool.query(
-      "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
+    // ✅ Smart XP scaling
+    const xpGained =
+      percent >= 80 ? 20 :
+      percent >= 50 ? 15 :
+      5;
+
+    await client.query(
+      `UPDATE users2
+       SET xp = COALESCE(xp, 0) + $1
+       WHERE id = $2`,
       [xpGained, studentId]
     );
 
-    await pool.query(
+    await client.query(
       `INSERT INTO xp_history (user_id, xp, activity)
-   VALUES ($1, $2, $3)`,
+       VALUES ($1, $2, $3)`,
       [studentId, xpGained, `Completed quiz for lesson ${lessonId}`]
     );
 
-
- // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
-    const nextLessonRes = await pool.query(
-      `SELECT id FROM lessons 
-       WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
-         AND id > $1
+    // ✅ Unlock next lesson
+    const nextLessonRes = await client.query(
+      `SELECT id FROM lessons
+       WHERE module_id = $1
+         AND id > $2
        ORDER BY id ASC
        LIMIT 1`,
-      [lessonId]
+      [moduleId, lessonId]
     );
 
     if (nextLessonRes.rows.length > 0) {
-      // unlock the next lesson
       const nextLessonId = nextLessonRes.rows[0].id;
-      await pool.query(
+
+      await client.query(
         `INSERT INTO unlocked_lessons (student_id, lesson_id)
          VALUES ($1, $2)
-         ON CONFLICT (student_id, lesson_id) DO NOTHING`,
+         ON CONFLICT DO NOTHING`,
         [studentId, nextLessonId]
       );
     } else {
-      // no more lessons → unlock the assignment
-      const moduleIdRes = await pool.query(
-        `SELECT module_id FROM lessons WHERE id=$1`,
-        [lessonId]
-      );
-      const moduleId = moduleIdRes.rows[0].module_id;
-
-      await pool.query(
+      // Unlock assignments if last lesson
+      await client.query(
         `INSERT INTO unlocked_assignments (student_id, assignment_id)
-         SELECT $1, id 
-         FROM module_assignments 
-         WHERE module_id=$2
-         ON CONFLICT (student_id, assignment_id) DO NOTHING`,
+         SELECT $1, id
+         FROM module_assignments
+         WHERE module_id = $2
+         ON CONFLICT DO NOTHING`,
         [studentId, moduleId]
       );
     }
 
+    // ✅ Module completion check
     const { checkAndCompleteModule } = require("../services/moduleCompletionService");
-
-    // 🔥 Get module ID
-    const moduleRes = await pool.query(
-      `SELECT module_id FROM lessons WHERE id=$1`,
-      [lessonId]
-    );
-
-    const moduleId = moduleRes.rows[0].module_id;
-
-    // 🔥 Check module completion
     const moduleResult = await checkAndCompleteModule(studentId, moduleId);
 
-    res.json({
+    await client.query("COMMIT");
+
+    // ✅ Final response (last thing executed)
+    return res.json({
       success: true,
       score: percent,
       passed: percent >= 50,
+      xpGained,
       reviewData,
       feedback:
         percent >= 80
@@ -1834,111 +2176,21 @@ ${JSON.stringify(reviewData, null, 2)}
           : percent >= 50
           ? "👍 Good attempt. Review the explanations for the wrong answers."
           : "📘 Don’t worry! Revisit the lesson content and try again.",
-      badgeAwarded: moduleResult?.badgeAwarded || false
+      badgeAwarded: moduleResult?.badgeAwarded || false,
     });
 
-    // ✅ Count completed lessons
-    const completedRes = await pool.query(
-      `SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1`,
-      [studentId]
-    );
-    const completedCount = parseInt(completedRes.rows[0].count);
-
-    // ✅ Count total lessons
-    const totalRes = await pool.query(`SELECT COUNT(*) FROM lessons`);
-    const totalLessons = parseInt(totalRes.rows[0].count) || 1;
-
-    // ✅ Calculate completion %
-    const completionRate = (completedCount / totalLessons) * 100;
-
-    // ✅ Award badges based on % completed
-    // if (completionRate >= 20) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Beginner', NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate >= 50) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Intermediate', NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate >= 80) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Advanced', NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate === 100) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Master', NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-
-    // Get module ID and badge image for the lesson
-  //   const moduleRes = await pool.query(
-  //     `SELECT id, badge_image FROM modules 
-  //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
-  //     [lessonId]
-  //   );
-  //   const moduleId = moduleRes.rows[0]?.id;
-  //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
-
-    // Award badges with module_id and badge_image
-    // if (completionRate >= 20) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Beginner', $2, $3, NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-    // if (completionRate >= 50) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Intermediate', $2, $3, NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-
-    // if (completionRate >= 80) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Advance', $2, $3, NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-
-    // if (completionRate >= 100) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Master', $2, $3, NOW()) 
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-    // ... same for Advanced and Master
-
-    // ✅ Respond to frontend
-
-    
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Quiz submit error:", err.message);
-    res.status(500).json({ success: false, message: "Failed to submit quiz." });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit quiz.",
+    });
+  } finally {
+    client.release();
   }
 };
+
 
 exports.getMyQuizzes = async (req, res) => {
   try {
