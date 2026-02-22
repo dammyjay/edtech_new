@@ -34,12 +34,27 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
   //   "/upload/fl_attachment:false/",
   // );
 
+  // const upload = await cloudinary.uploader.upload(outputPath, {
+  //   folder: "certificates",
+  //   resource_type: "image",
+  // });
+
   const upload = await cloudinary.uploader.upload(outputPath, {
     folder: "certificates",
-    resource_type: "image",
+    resource_type: "raw", // 🔥 must be raw for PDF
   });
 
+  const pdfUrl = upload.secure_url.replace(
+    "/upload/",
+    "/upload/fl_attachment:false/"
+  );
 
+  await pool.query(
+    `INSERT INTO user_certificates
+    (user_id, course_id, certificate_code, certificate_url)
+    VALUES ($1,$2,$3,$4)`,
+    [userId, courseId, certCode, pdfUrl],
+  );
 
   // 4️⃣ Save record
   await pool.query(
