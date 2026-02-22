@@ -57,6 +57,12 @@ module.exports = async ({ studentName, courseTitle }) => {
 
   const outputPath = path.join(__dirname, `../tmp/${certCode}.png`);
 
+  html = html
+  .replace(/{{\s*STUDENT_NAME\s*}}/g, studentName)
+  .replace(/{{\s*COURSE_TITLE\s*}}/g, courseTitle)
+  .replace(/{{\s*DATE\s*}}/g, new Date().toDateString())
+  .replace(/{{\s*CERT_CODE\s*}}/g, certCode);
+
   // Set the viewport to match A4 landscape size at high DPI
   await page.setViewport({
     width: 2480,   // A4 landscape width at 300 DPI

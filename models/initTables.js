@@ -404,8 +404,8 @@ async function createTables() {
         module_id INTEGER REFERENCES modules(id) ON DELETE CASCADE,
         badge_image TEXT
       );
-      ALTER TABLE user_badges
-      ADD CONSTRAINT unique_user_module_badge
+      ALTER TABLE user_badges 
+      ADD CONSTRAINT if not exists unique_user_module_badge
       UNIQUE (user_id, module_id);
       `
     );
