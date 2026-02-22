@@ -94,8 +94,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  width: 297mm;
-  height: 210mm;
+  width: 100%;
+  height: 100%;
   overflow: hidden; /* VERY IMPORTANT */
   font-family: "Georgia", serif;
   -webkit-print-color-adjust: exact;
@@ -114,32 +114,35 @@ body {
 
 .certificate {
   position: relative;
-  width: 297mm;
-  height: 210mm;
+  width: 100vw;
+  height: 100vh;
+  /* width: 297mm;
+  height: 210mm; */
   page-break-after: avoid;
   page-break-inside: avoid;
   break-after: avoid;
   break-inside: avoid;
-  background-image: url('/public/images/Certificate.png'); /* FIXED PATH */
-  background-size: cover;
+  background-image: url('https://acad.jkthub.com/images/Certificate.png');
+  /* background-size: cover; */
+  background-size: 277mm 180mm;
   background-position: center;
   background-repeat: no-repeat;
 }
 /* Content wrapper */
 .content {
   position: absolute;
-  top: 0;
-  left: 0;
+  /* top: 0;
+  left: 0; */
   width: 100%;
   height: 100%;
-  padding: 60mm 30mm 30mm 30mm;
+  padding: 30mm 30mm 30mm 30mm;
   box-sizing: border-box;
   text-align: center;
 }
 
 /* Title */
 h1 {
-  font-size: 42px;
+  font-size: 30px;
   margin-bottom: 20px;
   letter-spacing: 2px;
 }
@@ -165,7 +168,7 @@ h1 {
   bottom: 30mm;
   left: 0;
   width: 100%;
-  padding: 0 40mm;
+  padding: 0 70mm;
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
@@ -194,8 +197,9 @@ h1 {
 
 .cert-id {
   position: absolute;
-  bottom: 15mm;
-  left: 25mm;
+  bottom: 10mm;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 14px;
 }
 </style>
@@ -225,7 +229,8 @@ h1 {
     </div>
 
     <div class="signature">
-      <img src="/public/images/Signature.jpg" alt="Signature">
+      <!-- <img src="/public/images/Signature.jpg" alt="Signature"> -->
+       <img src="https://acad.jkthub.com/images/Signature.jpg">
       <div class="signature-line"></div>
       <div style="font-weight: bold;">Jimoh Damilola</div>
     </div>
