@@ -46,13 +46,27 @@ module.exports = async ({ studentName, courseTitle }) => {
   //   fullPage: true,
   // });
 
-  const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
-  await page.pdf({
+  // const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
+  // await page.pdf({
+  //   path: outputPath,
+  //   format: "A4",
+  //   landscape: true,
+  //   printBackground: true,
+  //   margin: { top: 0, right: 0, bottom: 0, left: 0 }
+  // });
+
+  const outputPath = path.join(__dirname, `../tmp/${certCode}.png`);
+
+  // Set the viewport to match A4 landscape size at high DPI
+  await page.setViewport({
+    width: 2480,   // A4 landscape width at 300 DPI
+    height: 1754,  // A4 landscape height at 300 DPI
+    deviceScaleFactor: 2, // Higher scale = sharper image
+  });
+
+  await page.screenshot({
     path: outputPath,
-    format: "A4",
-    landscape: true,
-    printBackground: true,
-    margin: { top: 0, right: 0, bottom: 0, left: 0 }
+    fullPage: true,
   });
 
   await browser.close();
