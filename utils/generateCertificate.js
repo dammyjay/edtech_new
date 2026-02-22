@@ -65,8 +65,8 @@ module.exports = async ({ studentName, courseTitle }) => {
 
   // Set the viewport to match A4 landscape size at high DPI
   await page.setViewport({
-    width: 2480,   // A4 landscape width at 300 DPI
-    height: 1754,  // A4 landscape height at 300 DPI
+    width: 3504,   // A4 landscape width at 300 DPI
+    height: 2480,  // A4 landscape height at 300 DPI
     deviceScaleFactor: 2, // Higher scale = sharper image
   });
 
