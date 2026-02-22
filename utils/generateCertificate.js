@@ -32,19 +32,28 @@ module.exports = async ({ studentName, courseTitle }) => {
   //   printBackground: true,
   // });
 
-  const outputPath = path.join(__dirname, `../tmp/${certCode}.png`);
 
-  await page.setViewport({
-    width: 1754,  // A4 landscape width in pixels (high quality)
-    height: 1240, // A4 landscape height in pixels
-  });
+  // ---------------------------------------------------------------------------------
+  // const outputPath = path.join(__dirname, `../tmp/${certCode}.png`);
 
-  await page.screenshot({
+  // await page.setViewport({
+  //   width: 1754,  // A4 landscape width in pixels (high quality)
+  //   height: 1240, // A4 landscape height in pixels
+  // });
+
+  // await page.screenshot({
+  //   path: outputPath,
+  //   fullPage: true,
+  // });
+
+  const outputPath = path.join(__dirname, `../tmp/${certCode}.pdf`);
+  await page.pdf({
     path: outputPath,
-    fullPage: true,
+    format: "A4",
+    landscape: true,
+    printBackground: true,
+    margin: { top: 0, right: 0, bottom: 0, left: 0 }
   });
-
-
 
   await browser.close();
 
