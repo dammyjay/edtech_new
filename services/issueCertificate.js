@@ -57,13 +57,13 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
   );
 
   // 4️⃣ Save record
-  await pool.query(
-    `INSERT INTO user_certificates
-     (user_id, course_id, certificate_code, certificate_url)
-     VALUES ($1,$2,$3,$4)`,
-    [userId, courseId, certCode, upload.secure_url]
-    // [userId, courseId, certCode, pdfUrl],
-  );
+  // await pool.query(
+  //   `INSERT INTO user_certificates
+  //    (user_id, course_id, certificate_code, certificate_url)
+  //    VALUES ($1,$2,$3,$4)`,
+  //   [userId, courseId, certCode, upload.secure_url]
+  //   // [userId, courseId, certCode, pdfUrl],
+  // );
 
   // 5️⃣ Cleanup
   fs.unlinkSync(outputPath);
