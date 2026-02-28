@@ -1,0 +1,396 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+<h3>Search</h3>
+<!-- <form method="GET" action=""> 
+  <input 
+    type="text" 
+    name="search" 
+    value="<%= search %>" 
+    placeholder="Search..."
+  >
+  <button type="submit">Search</button>
+</form> -->
+
+
+
+<h3>Add New Record</h3>
+
+<button onclick="openCreateModal()">+ Add New Record</button>
+
+<!-- <form method="POST" action="/admin/db/<%= table %>">
+  <% columns.forEach(col => { %>
+    <% if(col.column_name !== 'id' && col.column_name !== 'created_at'){ %>
+
+      <div style="margin-bottom:10px;">
+        <label><%= col.column_name %></label><br>
+
+        <% if(col.data_type === 'boolean'){ %>
+          <input type="checkbox" name="<%= col.column_name %>" value="true">
+
+        <% } else if(col.data_type === 'date'){ %>
+          <input type="date" name="<%= col.column_name %>">
+
+        <% } else if(col.data_type.includes('timestamp')){ %>
+          <input type="datetime-local" name="<%= col.column_name %>">
+
+        <% } else if(col.data_type === 'jsonb'){ %>
+          <textarea name="<%= col.column_name %>" rows="4" placeholder='{"key":"value"}'></textarea>
+
+        <% } else if(col.column_name.includes('description') || col.column_name.includes('content')){ %>
+          <textarea class="ckeditor" name="<%= col.column_name %>"></textarea>
+
+        <% } else { %>
+          <input type="text" name="<%= col.column_name %>">
+        <% } %>
+      </div>
+
+    <% } %>
+  <% }) %>
+
+  <button type="submit">Create</button>
+</form> -->
+
+<h2>Table: <%= table %></h2>
+<input 
+  type="text" 
+  id="liveSearch"
+  placeholder="Search..."
+>
+<div class="table-responsive">
+  <table class="user-table">
+  <thead>
+    <tr>
+      <% if(rows.length > 0){ %>
+        <% Object.keys(rows[0]).forEach(col => { %>
+          <th><%= col %></th>
+        <% }) %>
+        <th>Actions</th>
+      <% } %>
+    </tr>
+  </thead>
+  <tbody>
+    <% rows.forEach(row => { %>
+      <tr>
+
+      <% Object.entries(row).forEach(([key, val]) => { %>
+        <td>
+          <% if(typeof val === 'object'){ %>
+            <pre style="max-height:100px; overflow:auto;">
+      <%= JSON.stringify(val, null, 2) %>
+            </pre>
+          <% } else if(typeof val === 'string' && val.length > 10){ %>
+            <%= val.substring(0,10) %>...
+            <!-- <a href="#" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>View</a> -->
+          <% } else { %>
+            <%= val %>
+          <% } %>
+        </td>
+      <% }) %>
+
+        <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 82px; text-decoration: none;">
+          <a href="#" class="no-bg" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>
+            <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+          </a>
+          <a href="#" class="no-bg" onclick='openEditModal(<%- JSON.stringify(row) %>); return false;'>
+            <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);">  </i>
+          </a>
+
+          <a href="#" 
+            class="no-bg"
+            onclick="confirmDelete('<%= row.id %>'); return false;">
+            <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
+          </a>
+          
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+<div style="margin-top:20px;">
+  <% for(let i=1; i<=totalPages; i++){ %>
+    <a href="?page=<%= i %>&search=<%= search %>"
+       style="<%= currentPage === i ? 'font-weight:bold;' : '' %>">
+       <%= i %>
+    </a>
+  <% } %>
+</div>
+</div>
+
+<!-- create record modal -->
+<div id="createModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeCreateModal()" class="close">&times;</span>
+    <h3>Add New Record</h3>
+
+    <form id="createForm">
+      <% columns.forEach(col => { %>
+        <% if(col.column_name !== 'id' && col.column_name !== 'created_at'){ %>
+          <div style="margin-bottom:10px;">
+            <label><%= col.column_name %></label><br>
+
+            <% if(col.data_type === 'boolean'){ %>
+              <input type="hidden" name="<%= col.column_name %>" value="false">
+              <input type="checkbox" name="<%= col.column_name %>" value="true">
+
+            <% } else if(col.data_type === 'date'){ %>
+              <input type="date" name="<%= col.column_name %>">
+
+            <% } else if(col.data_type.includes('timestamp')){ %>
+              <input type="datetime-local" name="<%= col.column_name %>">
+
+            <% } else if(col.data_type === 'jsonb'){ %>
+              <textarea class="ckeditor" name="<%= col.column_name %>" rows="4"></textarea>
+              <!-- <textarea class="ckeditor" name="<%= col.column_name %>"></textarea> -->
+
+            <% } else { %>
+              <input type="text" name="<%= col.column_name %>">
+            <% } %>
+
+          </div>
+        <% } %>
+      <% }) %>
+
+      <button type="submit">Create</button>
+    </form>
+
+  </div>
+</div>
+
+<!-- Row Modal -->
+<div id="rowModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeRowModal()" class="close">&times;</span>
+    <h3>Full Record Details</h3>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div id="editModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeEditModal()" class="close">&times;</span>
+    <h3>Edit Record</h3>
+    <form id="editForm" method="POST">
+      <div id="editFields"></div>
+      <button type="submit">Update</button>
+    </form>
+  </div>
+</div>
+
+<!-- View row content modal script -->
+<script>
+  function openRowModal(row) {
+    const container = document.getElementById("modalContent");
+    container.innerHTML = "";
+
+    Object.entries(row).forEach(([key, value]) => {
+      container.innerHTML += `
+        <p><strong>${key}:</strong> ${value || ''}</p>
+      `;
+    });
+
+    document.getElementById("rowModal").style.display = "flex";
+  }
+
+  function closeRowModal() {
+    document.getElementById("rowModal").style.display = "none";
+  }
+</script>
+
+<!-- Edit modal script -->
+ <script>
+function openEditModal(row) {
+  const container = document.getElementById("editFields");
+  container.innerHTML = "";
+
+  Object.entries(row).forEach(([key, value]) => {
+    if (key !== "id" && key !== "created_at") {
+      container.innerHTML += `
+        <div>
+          <label>${key}</label>
+          <input type="text" name="${key}" value="${value || ''}">
+        </div>
+      `;
+    }
+  });
+
+  document.getElementById("editForm").action =
+    `/admin/db/<%= table %>/update/${row.id}`;
+
+  document.getElementById("editModal").style.display = "flex";
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").style.display = "none";
+}
+</script>
+
+<!-- to delete record -->
+ <script>
+function confirmDelete(id) {
+  if (!confirm("Are you sure you want to delete this record?")) return;
+
+  fetch(`/admin/db/<%= table %>/delete/${id}`, {
+    method: "POST"
+  })
+  .then(res => {
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert("Delete failed");
+    }
+  })
+  .catch(() => alert("Error deleting record"));
+}
+</script>
+
+<!-- open and close create modal with CKEditor and search Ajax -->
+<script>
+  document.querySelectorAll('.ckeditor').forEach(textarea => {
+    CKEDITOR.replace(textarea);
+  });
+
+//   function openCreateModal() {
+//   document.getElementById("createModal").style.display = "flex";
+// }
+
+function openCreateModal() {
+  document.getElementById("createModal").style.display = "flex";
+
+  document.querySelectorAll('#createModal .ckeditor').forEach(textarea => {
+    if (!CKEDITOR.instances[textarea.name]) {
+      CKEDITOR.replace(textarea);
+    }
+  });
+}
+
+// function closeCreateModal() {
+//   document.getElementById("createModal").style.display = "none";
+// }
+
+function closeCreateModal() {
+
+  Object.values(CKEDITOR.instances).forEach(instance => {
+    instance.destroy(true);
+  });
+
+  document.getElementById("createModal").style.display = "none";
+}
+
+window.onclick = function(event) {
+  if (event.target === document.getElementById("createModal")) {
+    closeCreateModal();
+  }
+  if (event.target === document.getElementById("rowModal")) {
+    closeRowModal();
+  }
+  if (event.target === document.getElementById("editModal")) {
+    closeEditModal();
+  }
+};
+document.getElementById("createForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch("/admin/db/<%= table %>", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => {
+    if (res.ok) {
+      closeCreateModal();
+      loadTable(); // reload table dynamically
+    } else {
+      alert("Create failed");
+    }
+  });
+});
+
+const searchInput = document.getElementById("liveSearch");
+
+if (searchInput) {
+
+  let timeout;
+
+  searchInput.addEventListener("input", function() {
+    clearTimeout(timeout);
+
+    timeout = setTimeout(() => {
+      const value = this.value.trim();
+
+      if (value === "") {
+        loadTable();
+        return;
+      }
+
+      fetch(`/admin/db/<%= table %>/data?search=${value}`)
+        .then(res => res.json())
+        .then(data => {
+          renderTable(data);
+        });
+
+    }, 300);
+  });
+
+}
+
+function loadTable() {
+  fetch(`/admin/db/<%= table %>/data`)
+    .then(res => res.json())
+    .then(data => {
+      renderTable(data);
+    });
+}
+
+function renderTable(rows) {
+  const tbody = document.querySelector(".user-table tbody");
+  tbody.innerHTML = "";
+
+  rows.forEach(row => {
+    let tr = document.createElement("tr");
+
+    // Data columns
+    Object.entries(row).forEach(([key, val]) => {
+      let td = document.createElement("td");
+
+      if (typeof val === "object" && val !== null) {
+        td.innerHTML = `<pre style="max-height:100px; overflow:auto;">
+${JSON.stringify(val, null, 2)}
+</pre>`;
+      } 
+      else if (typeof val === "string" && val.length > 10) {
+        td.textContent = val.substring(0, 10) + "...";
+      } 
+      else {
+        td.textContent = val ?? "";
+      }
+
+      tr.appendChild(td);
+    });
+
+    // ✅ ACTION COLUMN
+    let actionTd = document.createElement("td");
+    actionTd.style.display = "flex";
+    actionTd.style.gap = "10px";
+    actionTd.style.justifyContent = "center";
+    actionTd.style.alignItems = "center";
+
+    actionTd.innerHTML = `
+      <a href="#" class="no-bg" onclick='openRowModal(${JSON.stringify(row)}); return false;'>
+        <i class="fa-regular fa-eye" style="color:#0000ff;"></i>
+      </a>
+      <a href="#" class="no-bg" onclick='openEditModal(${JSON.stringify(row)}); return false;'>
+        <i class="fa-regular fa-pen-to-square" style="color:rgb(1,156,61);"></i>
+      </a>
+      <a href="#" class="no-bg" onclick="confirmDelete('${row.id}'); return false;">
+        <i class="fa-regular fa-trash-can" style="color:rgb(252,21,5);"></i>
+      </a>
+    `;
+
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+</script>

@@ -1235,6 +1235,7 @@ canvas {
 
 .card-content {
     text-align: right;
+    width: 50%;
 }
 
 /* TEXT */
@@ -1250,6 +1251,13 @@ canvas {
     font-size: 14px;
     color: #777;
     font-weight: 500;
+}
+
+.card-content h5,
+.card-content p {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* SUCCESS CARD ACCENT */

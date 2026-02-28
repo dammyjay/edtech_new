@@ -120,6 +120,9 @@ app.use("/", messageRoutes);
 const classroomAnalyticsRoutes = require("./routes/classroomAnalyticsRoutes");
 app.use(classroomAnalyticsRoutes);
 
+const adminDbRoutes = require("./routes/adminDbRoutes");
+app.use("/admin/db", adminDbRoutes);
+
 
 app.get("/test", (req, res) => {
   res.send("✅ Test route works");

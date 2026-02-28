@@ -1,0 +1,29 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+<h2>Database Tables</h2>
+
+<!-- <ul>
+  <% tables.forEach(table => { %>
+    <li>
+      <a href="/admin/db/<%= table %>"><%= table %></a>
+    </li>
+  <% }) %>
+</ul> -->
+
+<div class="engagement-grid">
+    <% tables.forEach(table => { %>
+        <a href="/admin/db/<%= table.name %>" style="text-decoration:none;color:inherit;">
+            <div class="metric-card">
+                <div class="card-icon">
+                    <i style="color: black;" class="fa-solid fa-database"></i>
+                </div>
+                
+                <div class="card-content">
+                    <h5><%= table.name %></h5>
+                    <p><%= table.count %> Records</p>
+                </div>
+                
+            </div>
+        </a>
+    <% }) %>
+</div>

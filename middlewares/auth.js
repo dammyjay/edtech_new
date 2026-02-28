@@ -69,6 +69,17 @@ function ensureInstructorOrAdmin(req, res, next) {
   return res.redirect("/admin/login");
 }
 
+function isAdmin(req, res, next) {
+  if (
+    req.isAuthenticated &&
+    req.isAuthenticated() &&
+    (req.user.role === "admin")
+  ) {
+    return next();
+  }
+  return res.redirect("/admin/login");
+}
+
 module.exports = {
   ensureAuthenticated,
   ensureParent,

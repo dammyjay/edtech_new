@@ -204,6 +204,7 @@ header {
 
 .card-content{
     text-align: right;
+    width: 50%;
 }
 
 .card-content h3 h2 {
@@ -220,11 +221,12 @@ header {
     font-weight: 500;
 }
 
-/* .engagement-section {
-    padding: 40px 20px;
-    width: 100%;
-    background-color: #fff;
-} */
+.card-content h5,
+.card-content p {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
 
 .engagement-section {
     /* max-width: 1000px; */
