@@ -123,27 +123,60 @@ exports.viewTable = async (req, res) => {
 };
 
 // Create record
+// exports.createRecord = async (req, res) => {
+//   const table = req.params.table;
+//   const data = req.body;
+
+//   if (!allowedTables.includes(table)) {
+//     return res.status(403).send("Unauthorized table");
+//   }
+
+//   try {
+//     const columns = Object.keys(data);
+//     const values = Object.values(data);
+
+//     const placeholders = columns.map((_, i) => `$${i + 1}`).join(",");
+
+//     await pool.query(
+//       `INSERT INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`,
+//       values
+//     );
+
+//     res.redirect(`/admin/db/${table}`);
+//   } catch (err) {
+//     res.status(500).send(err.message);
+//   }
+// };
+
 exports.createRecord = async (req, res) => {
-  const table = req.params.table;
-  const data = req.body;
-
-  if (!allowedTables.includes(table)) {
-    return res.status(403).send("Unauthorized table");
-  }
-
   try {
+    const { table } = req.params;
+
+    if (!allowedTables.includes(table)) {
+      return res.status(403).send("Unauthorized table");
+    }
+
+    const data = req.body;
+
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).send("No data received");
+    }
+
     const columns = Object.keys(data);
     const values = Object.values(data);
+    const placeholders = values.map((_, i) => `$${i + 1}`);
 
-    const placeholders = columns.map((_, i) => `$${i + 1}`).join(",");
+    const query = `
+      INSERT INTO ${table} (${columns.join(",")})
+      VALUES (${placeholders.join(",")})
+    `;
 
-    await pool.query(
-      `INSERT INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`,
-      values
-    );
+    await pool.query(query, values);
 
-    res.redirect(`/admin/db/${table}`);
+    res.status(200).send("Created");
+
   } catch (err) {
+    console.error("CREATE ERROR:", err);
     res.status(500).send(err.message);
   }
 };
