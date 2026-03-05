@@ -2315,14 +2315,28 @@ function closeCelebration() {
   document.getElementById("quizCelebration").style.display = "none";
 }
 
-function showBadgeCelebration() {
+// function showBadgeCelebration() {
+//   const modal = document.getElementById("badgeCelebration");
+
+//   document.getElementById("badgeName").innerText =
+//     "Module Completed! 🎉";
+
+//   document.getElementById("badgeVisual").innerHTML =
+//     `<div style="font-size:60px;">🏅</div>`;
+
+//   modal.style.display = "flex";
+// }
+
+function showBadgeCelebration(name, image) {
   const modal = document.getElementById("badgeCelebration");
 
   document.getElementById("badgeName").innerText =
-    "Module Completed! 🎉";
+    name || "Module Completed! 🎉";
 
   document.getElementById("badgeVisual").innerHTML =
-    `<div style="font-size:60px;">🏅</div>`;
+    image
+      ? `<img src="${image}" width="80">`
+      : `<div style="font-size:60px;">🏅</div>`;
 
   modal.style.display = "flex";
 }
@@ -2375,9 +2389,15 @@ function submitQuizInline(e, lessonId) {
         showQuizCelebration(result.score, result.xpEarned);
       }
 
+      // if (result.badgeAwarded) {
+      //   setTimeout(() => {
+      //     showBadgeCelebration();
+      //   }, 1200);
+      // }
+
       if (result.badgeAwarded) {
         setTimeout(() => {
-          showBadgeCelebration();
+          showBadgeCelebration(result.badgeName, result.badgeImage);
         }, 1200);
       }
 

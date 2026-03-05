@@ -1816,7 +1816,12 @@ ${JSON.stringify(reviewData, null, 2)}
           : percent >= 50
           ? "👍 Good attempt. Review the explanations for the wrong answers."
           : "📘 Don’t worry! Revisit the lesson content and try again.",
-      badgeAwarded: moduleResult?.badgeAwarded || false
+      // badgeAwarded: moduleResult?.badgeAwarded || false
+
+      badgeAwarded: moduleResult?.badgeAwarded || false,
+      badgeName: moduleResult?.badgeName || null,
+      badgeImage: moduleResult?.badgeImage || null
+
     });
 
     // ✅ Count completed lessons
@@ -2257,7 +2262,10 @@ Return ONLY valid JSON, e.g.:
       grade,
       feedbackText,
       criteria,
-      badgeAwarded: moduleResult?.badgeAwarded || false
+      // badgeAwarded: moduleResult?.badgeAwarded || false
+      badgeAwarded: moduleResult?.badgeAwarded || false,
+      badgeName: moduleResult?.badgeName || null,
+      badgeImage: moduleResult?.badgeImage || null
     });
 
     // ✅ Unlock next module if grading happened
