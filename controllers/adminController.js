@@ -3320,37 +3320,37 @@ tr:nth-child(even) { background:#f9f9f9; }
 
 <div class="section grid">
   <div class="card">
-    <i class="fa-solid fa-layer-group fa-2x"></i>
+    <i style="color: #3498db;" class="fa-solid fa-layer-group fa-2x"></i>
     <h2>${totalModules}</h2>
     <p>Total Modules</p>
   </div>
   <div class="card">
-    <i class="fa-solid fa-book fa-2x"></i>
+    <i style="color: #27ae60;" class="fa-solid fa-book fa-2x"></i>
     <h2>${totalLessons}</h2>
     <p>Total Lessons</p>
   </div>
   <div class="card">
-    <i class="fa-solid fa-clipboard-check fa-2x"></i>
+    <i style="color: #f39c12;" class="fa-solid fa-clipboard-check fa-2x"></i>
     <h2>${totalQuizzes}</h2>
     <p>Total Quizzes</p>
   </div>
   <div class="card">
-    <i class="fa-solid fa-pen-to-square fa-2x"></i>
+    <i style="color: #e74c3c;" class="fa-solid fa-pen-to-square fa-2x"></i>
     <h2>${totalAssignments}</h2>
     <p>Total Assignments</p>
   </div>
 </div>
 
 <div class="section grid">
-  <div class="card"><h2>${lessonPercent}%</h2><p>Completion</p></div>
-  <div class="card"><h2>${quizAvg}%</h2><p>Quiz Average</p></div>
+  <div style="color: #3498db;" class="card"><h2>${lessonPercent}%</h2><p>Completion</p></div>
+  <div style="color: #27ae60;" class="card"><h2>${quizAvg}%</h2><p>Quiz Average</p></div>
   ${hasAssignments ? `
-  <div class="card">
+  <div style="color: #f39c12;" class="card">
     <h2>${assignmentAvg}%</h2>
     <p>Assignment Average</p>
   </div>` : ""}
 
-  <div class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
+  <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
 
 </div>
 
@@ -3374,7 +3374,9 @@ ${lessons
     (l) => `
 <tr>
 <td>${l.title}</td>
-<td>${l.completed_at ? "Completed" : "Not Completed"}</td>
+<td style="color: ${l.completed_at ? '#27ae60' : '#e74c3c'};">
+  ${l.completed_at ? "Completed" : "Not Completed"}
+</td>
 <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
 </tr>`,
   )
@@ -3389,8 +3391,10 @@ ${quizzes
   .map(
     (q) => `
 <tr>
-<td>${q.title}</td>
-<td>${q.score ?? "N/A"}</td>
+<td>${q.id}</td>
+<td style="color: ${q.score !== null ? '#27ae60' : '#e74c3c'};">
+  ${q.score ?? "N/A"}
+</td>
 <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "Not Taken"}</td>
 </tr>`,
   )
@@ -3420,9 +3424,6 @@ ${assignments
   )
   .join("")}
 
-<div class="footer">
-© ${new Date().getFullYear()} Academic Course Analytics Report
-</div>
 
 <div class="footer">
   © ${new Date().getFullYear()} Jaykirch Technology Hub |
