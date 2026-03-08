@@ -155,6 +155,7 @@ router.get(
   adminController.downloadCurriculum
 );
 
+router.get("/courses/:id/certificate-preview", adminController.previewCertificate);
 
 // 📘 View Course Curriculum (with proxy streaming support)
 router.get("/courses/:id/curriculum", async (req, res) => {

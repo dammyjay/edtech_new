@@ -1783,6 +1783,42 @@ exports.showCourses = async (req, res) => {
   });
 };
 
+exports.previewCertificate = async (req, res) => {
+  const courseId = req.params.id;
+
+  try {
+    const courseResult = await pool.query(
+      "SELECT title FROM courses WHERE id = $1",
+      [courseId]
+    );
+
+    const course = courseResult.rows[0];
+    if (!course) return res.status(404).send("Course not found");
+
+    const fs = require("fs");
+    const path = require("path");
+
+    const templatePath = path.join(
+      __dirname,
+      "../views/partials/certificate.html"
+    );
+
+    let html = fs.readFileSync(templatePath, "utf8");
+
+    html = html
+      .replace(/{{STUDENT_NAME}}/g, "Student Name")
+      .replace(/{{COURSE_TITLE}}/g, course.title)
+      .replace(/{{DATE}}/g, new Date().toDateString())
+      .replace(/{{CERT_CODE}}/g, "PREVIEW-12345");
+
+    res.send(html); // 👈 display certificate in browser
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating preview");
+  }
+};
+
 exports.createCourse = async (req, res) => {
   console.log("📘 Creating course with:", req.body);
   const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
@@ -3018,6 +3054,35 @@ exports.downloadCourseSummary = async (req, res) => {
       [studentId, courseId],
     );
     const assignments = assignmentsRes.rows;
+
+    const badgesRes = await pool.query(
+      `SELECT 
+          ub.id,
+          ub.badge_name,
+          ub.badge_image,
+          ub.awarded_at,
+          m.title AS module_title
+      FROM user_badges ub
+      JOIN modules m ON ub.module_id = m.id
+      WHERE ub.user_id = $1
+      AND m.course_id = $2
+      ORDER BY ub.awarded_at`,
+      [studentId, courseId]
+    );
+
+    const badges = badgesRes.rows;
+    const totalBadges = badges.length;
+
+    const certRes = await pool.query(
+      `SELECT certificate_url, certificate_code, issued_at
+      FROM user_certificates
+      WHERE user_id = $1
+      AND course_id = $2
+      LIMIT 1`,
+      [studentId, courseId]
+    );
+
+    const certificate = certRes.rows[0] || null;
     
     const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
 
@@ -3339,6 +3404,7 @@ tr:nth-child(even) { background:#f9f9f9; }
     <h2>${totalAssignments}</h2>
     <p>Total Assignments</p>
   </div>
+  
 </div>
 
 <div class="section grid">
@@ -3351,6 +3417,53 @@ tr:nth-child(even) { background:#f9f9f9; }
   </div>` : ""}
 
   <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
+
+  <div class="card">
+    <i style="color: #9b59b6;" class="fa-solid fa-award fa-2x"></i>
+    <h2>${totalBadges}</h2>
+    <p>Badges Earned</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>🏅 Course Badges Earned</h2>
+
+  ${badges.length === 0 ? `
+  <p>No badges earned yet.</p>
+  ` : `
+  <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
+  ${badges.map(b => `
+    <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+      
+      ${b.badge_image ? `
+        <img src="${b.badge_image}" 
+            style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
+      ` : ""}
+        <hr><br>
+      <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
+
+    </div>
+  `).join("")}
+  </div>
+  `}
+</div>
+
+<div class="section">
+  <h2>🎓 Course Certificate</h2>
+
+  ${certificate ? `
+  <div style="background:white;padding:20px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+
+    <img src="${certificate.certificate_url}" 
+        style="max-width:100%; margin-bottom:20px; border:1px solid #ddd;"/>
+
+    <p><strong>Certificate Code:</strong> ${certificate.certificate_code}</p>
+    <p><strong>Issued:</strong> ${new Date(certificate.issued_at).toLocaleDateString()}</p>
+
+  </div>
+  ` : `
+  <p>No certificate issued yet.</p>
+  `}
 
 </div>
 
