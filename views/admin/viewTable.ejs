@@ -82,7 +82,12 @@
             <%= val.substring(0,10) %>...
             <!-- <a href="#" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>View</a> -->
           <% } else { %>
-            <%= val %>
+            <!-- <%= val %> -->
+             <% if(row[key + "_name"]){ %>
+              <%= val %> — <strong><%= row[key + "_name"] %></strong>
+            <% } else { %>
+              <%= val %>
+            <% } %>
           <% } %>
         </td>
       <% }) %>
@@ -95,11 +100,18 @@
             <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);">  </i>
           </a>
 
-          <a href="#" 
+          <!-- <a href="#" 
             class="no-bg"
             onclick="confirmDelete('<%= row.id %>'); return false;">
             <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
-          </a>
+          </a> -->
+          <% if(row.id){ %>
+            <a href="#" 
+              class="no-bg"
+              onclick="confirmDelete('<%= row.id %>'); return false;">
+              <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
+            </a>
+          <% } %>
           
         </td>
       </tr>
@@ -354,7 +366,8 @@ if (searchInput) {
         return;
       }
 
-      fetch(`/admin/db/<%= table %>/data?search=${value}`)
+      // fetch(`/admin/db/<%= table %>/data?search=${value}`)
+      fetch(`/admin/db/<%= table %>/data?search=${encodeURIComponent(value)}`)
         .then(res => res.json())
         .then(data => {
           renderTable(data);
@@ -392,8 +405,18 @@ ${JSON.stringify(val, null, 2)}
       else if (typeof val === "string" && val.length > 10) {
         td.textContent = val.substring(0, 10) + "...";
       } 
+      // else {
+      //   td.textContent = val ?? "";
+      // }
+
       else {
-        td.textContent = val ?? "";
+
+        if (row[key + "_name"]) {
+          td.innerHTML = `${val} — <strong>${row[key + "_name"]}</strong>`;
+        } else {
+          td.textContent = val ?? "";
+        }
+
       }
 
       tr.appendChild(td);
@@ -413,9 +436,11 @@ ${JSON.stringify(val, null, 2)}
       <a href="#" class="no-bg" onclick='openEditModal(${JSON.stringify(row)}); return false;'>
         <i class="fa-regular fa-pen-to-square" style="color:rgb(1,156,61);"></i>
       </a>
+      ${row.id ? `
       <a href="#" class="no-bg" onclick="confirmDelete('${row.id}'); return false;">
         <i class="fa-regular fa-trash-can" style="color:rgb(252,21,5);"></i>
       </a>
+      ` : ''}
     `;
 
     tr.appendChild(actionTd);

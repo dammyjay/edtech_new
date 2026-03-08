@@ -28,7 +28,7 @@
         <% if (role === 'admin') { %>
           <div class="dropdown">
           <button class="dropbtn" onclick="toggleDropdown('schoolsMenu')">
-              Dashoboard ▾
+              Dashboard ▾
             </button>
             <div class="dropdown-content" id="schoolsMenu">
               <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">

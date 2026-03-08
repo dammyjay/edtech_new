@@ -1,21 +1,6 @@
 const pool = require("../models/db");
 const allowedTables = require("../utils/allowedTables");
 
-// Show list of tables
-// exports.showTables = async (req, res) => {
-//     if (!req.session.user || req.session.user.role !== "admin") {
-//     return res.redirect("/admin/login");
-//   }
-//     const infoResult = await pool.query(
-//           "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//         );
-//         const info = infoResult.rows[0];
-//   res.render("admin/dbTables", 
-//     { tables: allowedTables, 
-//         info, role: "admin", // ✅ important
-//       user: req.session.user, });
-
-// };
 
 exports.showTables = async (req, res) => {
   if (!req.session.user || req.session.user.role !== "admin") {
@@ -52,6 +37,45 @@ exports.viewTable = async (req, res) => {
     return res.redirect("/admin/login");
   }
 
+  const foreignKeyMap = {
+    user_id: {
+      table: "users2",
+      nameColumn: "fullname"
+    },
+    student_id: {
+      table: "users2",
+      nameColumn: "fullname"
+    },
+    child_id: {
+      table: "users2",
+      nameColumn: "fullname"
+    },
+    parent_id: {
+      table: "users2",
+      nameColumn: "fullname"
+    },
+    school_id: {
+      table: "schools",
+      nameColumn: "name"
+    },
+    course_id: {
+      table: "courses",
+      nameColumn: "title"
+    },
+    module_id: {
+      table: "modules",
+      nameColumn: "title"
+    },
+    lesson_id: {
+      table: "lessons",
+      nameColumn: "title"
+    },
+    classroom_id: {
+      table: "classrooms",
+      nameColumn: "name"
+    }
+  };
+
   const infoResult = await pool.query(
         "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
       );
@@ -81,14 +105,21 @@ exports.viewTable = async (req, res) => {
     let searchValues = [];
 
     if (search) {
-      const textColumns = columns
-        .filter(col => col.data_type.includes("text") || col.data_type.includes("character"))
+      const searchableColumns = columns
+        .filter(col =>
+          col.data_type.includes("text") ||
+          col.data_type.includes("character") ||
+          col.data_type.includes("integer")
+        )
         .map(col => col.column_name);
 
-      if (textColumns.length > 0) {
-        const conditions = textColumns.map((col, i) => `${col} ILIKE $${i + 1}`);
+      if (search) {
+        const conditions = searchableColumns.map((col, i) => {
+          return `CAST(${col} AS TEXT) ILIKE $${i + 1}`;
+        });
+
         searchQuery = `WHERE ${conditions.join(" OR ")}`;
-        searchValues = textColumns.map(() => `%${search}%`);
+        searchValues = searchableColumns.map(() => `%${search}%`);
       }
     }
 
@@ -100,21 +131,61 @@ exports.viewTable = async (req, res) => {
     const totalRows = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalRows / limit);
 
+    // Check if table has id column
+    const hasId = columns.some(col => col.column_name === "id");
+
+    let orderClause = "";
+    if (hasId) {
+      orderClause = "ORDER BY id DESC";
+    }
+
     const result = await pool.query(
-      `SELECT * FROM ${table} ${searchQuery} ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`,
+      `SELECT * FROM ${table} ${searchQuery} ${orderClause} LIMIT ${limit} OFFSET ${offset}`,
       searchValues
     );
 
+    let rows = result.rows;
+
+    for (const col of Object.keys(foreignKeyMap)) {
+
+      if (columns.some(c => c.column_name === col)) {
+
+        const ids = rows.map(r => r[col]).filter(Boolean);
+
+        if (ids.length === 0) continue;
+
+        const fk = foreignKeyMap[col];
+
+        const nameResult = await pool.query(
+          `SELECT id, ${fk.nameColumn} FROM ${fk.table} WHERE id = ANY($1)`,
+          [ids]
+        );
+
+        const map = {};
+        nameResult.rows.forEach(r => {
+          map[r.id] = r[fk.nameColumn];
+        });
+
+        rows.forEach(r => {
+          if (r[col]) {
+            r[col + "_name"] = map[r[col]] || null;
+          }
+        });
+
+      }
+
+    }
+
     res.render("admin/viewTable", {
       table,
-      rows: result.rows,
+      rows,
       columns,
       currentPage: page,
       totalPages,
       search,
       info,
-        role: "admin", // ✅ important
-      user: req.session.user,
+      role: "admin",
+      user: req.session.user
     });
 
   } catch (err) {
@@ -123,31 +194,6 @@ exports.viewTable = async (req, res) => {
 };
 
 // Create record
-// exports.createRecord = async (req, res) => {
-//   const table = req.params.table;
-//   const data = req.body;
-
-//   if (!allowedTables.includes(table)) {
-//     return res.status(403).send("Unauthorized table");
-//   }
-
-//   try {
-//     const columns = Object.keys(data);
-//     const values = Object.values(data);
-
-//     const placeholders = columns.map((_, i) => `$${i + 1}`).join(",");
-
-//     await pool.query(
-//       `INSERT INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`,
-//       values
-//     );
-
-//     res.redirect(`/admin/db/${table}`);
-//   } catch (err) {
-//     res.status(500).send(err.message);
-//   }
-// };
-
 exports.createRecord = async (req, res) => {
   try {
     const { table } = req.params;
@@ -233,12 +279,25 @@ exports.updateRecord = async (req, res) => {
 };
 
 exports.getTableData = async (req, res) => {
+
   const table = req.params.table;
   const search = req.query.search || "";
 
   if (!allowedTables.includes(table)) {
     return res.status(403).json({ error: "Unauthorized" });
   }
+
+  const foreignKeyMap = {
+    user_id: { table: "users2", nameColumn: "fullname" },
+    student_id: { table: "users2", nameColumn: "fullname" },
+    child_id: { table: "users2", nameColumn: "fullname" }, // self-referencing
+    parent_id: { table: "users2", nameColumn: "fullname" }, // self-referencing
+    school_id: { table: "schools", nameColumn: "name" },
+    course_id: { table: "courses", nameColumn: "title" },
+    module_id: { table: "modules", nameColumn: "title" },
+    lesson_id: { table: "lessons", nameColumn: "title" },
+    classroom_id: { table: "classrooms", nameColumn: "name" }
+  };
 
   const columnResult = await pool.query(`
     SELECT column_name, data_type
@@ -248,25 +307,78 @@ exports.getTableData = async (req, res) => {
 
   const columns = columnResult.rows;
 
+
   let searchQuery = "";
   let searchValues = [];
 
-  if (search) {
-    const textColumns = columns
-      .filter(col => col.data_type.includes("text") || col.data_type.includes("character"))
-      .map(col => col.column_name);
+  if (!search) {
+    searchQuery = "";
+  }
+  const hasId = columns.some(col => col.column_name === "id");
 
-    if (textColumns.length > 0) {
-      const conditions = textColumns.map((col, i) => `${col} ILIKE $${i + 1}`);
-      searchQuery = `WHERE ${conditions.join(" OR ")}`;
-      searchValues = textColumns.map(() => `%${search}%`);
-    }
+  let orderClause = "";
+  if (hasId) {
+    orderClause = "ORDER BY id DESC";
   }
 
-  const result = await pool.query(
-    `SELECT * FROM ${table} ${searchQuery} ORDER BY id DESC LIMIT 10`,
-    searchValues
-  );
+  // const result = await pool.query(
+  //  `SELECT * FROM ${table} ${searchQuery} ${orderClause} LIMIT 10`,
+  //   searchValues
+  // ); 
 
-  res.json(result.rows);
+  let query;
+
+  if (search) {
+    // search entire table
+    query = `SELECT * FROM ${table} ${orderClause}`;
+  } else {
+    // normal pagination
+    query = `SELECT * FROM ${table} ${orderClause} LIMIT 10`;
+  }
+
+  const result = await pool.query(query);
+
+  let rows = result.rows;
+
+  // 🔥 Attach foreign key names
+  for (const col of Object.keys(foreignKeyMap)) {
+
+    if (columns.some(c => c.column_name === col)) {
+
+      const ids = rows.map(r => r[col]).filter(Boolean);
+
+      if (ids.length === 0) continue;
+
+      const fk = foreignKeyMap[col];
+
+      const nameResult = await pool.query(
+        `SELECT id, ${fk.nameColumn} FROM ${fk.table} WHERE id = ANY($1)`,
+        [ids]
+      );
+
+      const map = {};
+      nameResult.rows.forEach(r => {
+        map[r.id] = r[fk.nameColumn];
+      });
+
+      rows.forEach(r => {
+        if (r[col]) {
+          r[col + "_name"] = map[r[col]] || null;
+        }
+      });
+
+    }
+
+  }
+
+  if (search) {
+    rows = rows.filter(row => {
+      return Object.values(row).some(val =>
+        String(val).toLowerCase().includes(search.toLowerCase())
+      );
+    });
+  }
+
+  res.json(rows);
+
 };
