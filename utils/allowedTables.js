@@ -7,6 +7,8 @@ module.exports = [
     "benefits",
     "career_pathways",
     "categories",
+    "class_messages",
+    "muted_students",
     "classroom_courses",
     "classroom_instructors",
     "classroom_teachers",
