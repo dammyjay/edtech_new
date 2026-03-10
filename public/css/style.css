@@ -362,6 +362,35 @@ i {
     background-repeat: no-repeat;
 } */
 
+.chat-self{
+background:#dcf8c6;
+padding:8px 12px;
+border-radius:10px;
+max-width:60%;
+margin-left:auto;
+}
+
+.chat-other{
+background:#fff;
+padding:8px 12px;
+border-radius:10px;
+max-width:60%;
+}
+
+.chat-tab{
+background:#eee;
+border:none;
+padding:10px 16px;
+margin-right:5px;
+border-radius:6px;
+cursor:pointer;
+}
+
+.chat-tab.active{
+background:#3498db;
+color:white;
+}
+
 .carousel-btn {
     position: absolute;
     top: 50%;

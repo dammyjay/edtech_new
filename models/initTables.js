@@ -712,6 +712,28 @@ async function createTables() {
       `);
     
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS class_messages (
+        id SERIAL PRIMARY KEY,
+        classroom_id INTEGER NOT NULL,
+        sender_id INTEGER NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS muted_students (
+        id SERIAL PRIMARY KEY,
+        classroom_id INT,
+        student_id INT,
+        muted_by INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+      `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS project_submissions (
         id SERIAL PRIMARY KEY,
         student_id INT REFERENCES students(id),

@@ -35,13 +35,6 @@ router.get(
   instructorController.assignedCoursesSection
 );
 
-
-
-
-
-
-
-
 // Courses
 router.post(
   "/courses",
@@ -49,7 +42,6 @@ router.post(
   upload.single("thumbnail"),
   adminController.createCourse
 );
-
 
 router.post(
   "/courses/edit/:id",
@@ -94,7 +86,6 @@ router.get("/lessons/:id/json", learningController.getLessonJSON);
 
 // Get or create quiz for lesson
 router.get("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
-
 
 // Create question
 router.post(
@@ -142,12 +133,16 @@ router.get("/dashboard", ensureInstructorOrAdmin, (req, res) => {
 // studentRoutes.js
 router.post("/instructor/chat/send", adminController.sendChatMessage);
 router.get("/chat/messages/:receiverId", adminController.getChatMessages);
-
 router.get("/chats", instructorController.getInstructorChats);
+
 router.get("/chats/:studentId", instructorController.getChatWithStudent);
 router.post("/chat/markRead/:receiverId", instructorController.markMessagesAsRead);
 router.get("/search-student", instructorController.searchStudent);
 router.get("/messages/unread", instructorController.getUnreadMessages);
+
+router.post("/class/send", instructorController.sendClassMessage)
+router.get("/class/messages/:classroomId",instructorController.getClassMessages)
+router.get("/class-chat/:classroomId",instructorController.renderClassChat)
 
 // View course content (modules, lessons, quizzes)
 router.get(

@@ -2,54 +2,118 @@
 
 <h2 style="margin-top:20px;">💬 Your Chat Conversations</h2>
 
-<div style="margin:15px 0;">
-  <form id="searchForm" style="display:flex; gap:10px; align-items:center;">
-    <input type="text" id="searchInput" placeholder="🔍 Search student by name or class"
-      style="padding:8px; width:250px; border:1px solid #ccc; border-radius:5px;" />
-    <button type="submit"
-      style="background:#2ecc71; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;">
-      Search
-    </button>
-  </form>
+<div style="margin:20px 0;">
+  <button class="chat-tab active" onclick="showTab('privateChat')">
+    💬 Private Chat
+  </button>
+
+  <button class="chat-tab" onclick="showTab('classChat')">
+    📚 Class Groups
+  </button>
 </div>
 
-<div class="table-responsive">
-  <div id="searchResults"></div>
-</div>
 
-<h2 style="margin-top:20px;">💬 Previous Chat</h2>
+<div id="privateChat">
 
-<div class="table-responsive">
-  <% if (chats.length > 0) { %>
-    <table class="user-table" style="width:90%; border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th>Student Name</th>
-          <th>Email</th>
-          <th>Last Message</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% chats.forEach(c => { %>
+  <div style="margin:15px 0;">
+    <form id="searchForm" style="display:flex; gap:10px; align-items:center;">
+      <input type="text" id="searchInput" placeholder="🔍 Search student by name or class"
+        style="padding:8px; width:250px; border:1px solid #ccc; border-radius:5px;" />
+      <button type="submit"
+        style="background:#2ecc71; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;">
+        Search
+      </button>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <div id="searchResults"></div>
+  </div>
+
+  <h2 style="margin-top:20px;">💬 Previous Chat</h2>
+
+  <div class="table-responsive">
+    <% if (chats.length > 0) { %>
+      <table class="user-table" style="width:90%; border-collapse:collapse;">
+        <thead>
           <tr>
-            <td><%= c.student_name %></td>
-            <td><%= c.email %></td>
-            <td><%= new Date(c.last_message_time).toLocaleString() %></td>
-            <td>
-              <a href="/instructor/chats/<%= c.student_id %>" 
-                 style="background:#3498db; color:white; border:none; padding:6px 10px; border-radius:5px; text-decoration:none;">
-                💬 View Chat
-              </a>
-            </td>
+            <th>Student Name</th>
+            <th>Email</th>
+            <th>Last Message</th>
+            <th>Actions</th>
           </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  <% } else { %>
-    <p style="color:gray;">No chat conversations yet.</p>
-  <% } %>
+        </thead>
+        <tbody>
+          <% chats.forEach(c => { %>
+            <tr>
+              <td><%= c.student_name %></td>
+              <td><%= c.email %></td>
+              <td><%= new Date(c.last_message_time).toLocaleString() %></td>
+              <td>
+                <a href="/instructor/chats/<%= c.student_id %>" 
+                  style="background:#3498db; color:white; border:none; padding:6px 10px; border-radius:5px; text-decoration:none;">
+                  💬 View Chat
+                </a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p style="color:gray;">No chat conversations yet.</p>
+    <% } %>
+  </div>
+
 </div>
+
+<div id="classChat" style="display:none;">
+  <select id="schoolFilter">
+    <option value="">All Schools</option>
+
+    <% classes.forEach(c => { %>
+    <option value="<%= c.school_name %>"><%= c.school_name %></option>
+    <% }) %>
+
+  </select>
+
+  <h2>📚School Class Groups</h2>
+
+  <table class="user-table" style="width:90%">
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>School</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <% if (classes && classes.length > 0) { %>
+        <% classes.forEach(c => { %>
+
+        <tr>
+          <td><%= c.name %></td>
+          <td><%= c.school_name %></td>
+
+          <td>
+            <a href="/instructor/class-chat/<%= c.id %>"
+            style="background:#9b59b6;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
+            Open Group
+            </a>
+          </td>
+        </tr>
+
+        <% }) %>
+        <% } else { %>
+          <tr>
+            <td colspan="2" style="color:gray;">No classes found</td>
+          </tr>
+        <% } %>
+    </tbody>
+  </table>
+
+</div>
+
 
 
 <script>
@@ -99,4 +163,45 @@
     `;
     container.appendChild(table);
   });
+</script>
+
+
+<script>
+  document.getElementById("schoolFilter").addEventListener("change",function(){
+
+  const school=this.value
+  const rows=document.querySelectorAll("#classChat tbody tr")
+
+  rows.forEach(row=>{
+
+  const rowSchool=row.children[1].innerText
+
+  if(!school || rowSchool===school){
+  row.style.display=""
+  }else{
+  row.style.display="none"
+  }
+
+  })
+
+  })
+</script>
+
+<script>
+
+  function showTab(tab){
+
+  document.getElementById("privateChat").style.display="none"
+  document.getElementById("classChat").style.display="none"
+
+  document.getElementById(tab).style.display="block"
+
+  document.querySelectorAll(".chat-tab").forEach(btn=>{
+  btn.classList.remove("active")
+  })
+
+  event.target.classList.add("active")
+
+  }
+
 </script>

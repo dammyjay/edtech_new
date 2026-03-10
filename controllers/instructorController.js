@@ -76,14 +76,72 @@ exports.getChatMessages = async (req, res) => {
 };
 
 // ✅ Get all chat conversations (students who have messaged instructor)
+// exports.getInstructorChats = async (req, res) => {
+//   try {
+
+//     const infoResult = await pool.query(
+//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+//     );
+//     const info = infoResult.rows[0] || {};
+
+//     const instructorId = req.user.id;
+
+//     // 🔹 Get student chat list
+//     const { rows } = await pool.query(
+//       `
+//       SELECT DISTINCT 
+//         u.id AS student_id,
+//         u.fullname AS student_name,
+//         u.email,
+//         MAX(m.created_at) AS last_message_time
+//       FROM messages m
+//       JOIN users2 u ON 
+//         (u.id = m.sender_id AND m.receiver_id = $1)
+//         OR (u.id = m.receiver_id AND m.sender_id = $1)
+//       WHERE u.role = 'student'
+//       GROUP BY u.id, u.fullname, u.email
+//       ORDER BY last_message_time DESC
+//       `,
+//       [instructorId]
+//     );
+
+//     // 🔹 Get instructor classes
+//     const classResult = await pool.query(`
+//       SELECT DISTINCT c.id, c.name
+//       FROM classrooms c
+//       JOIN user_school us ON us.classroom_id = c.id
+//       WHERE us.role_in_school = 'student'
+//     `);
+
+//     const profilePic = req.session.user
+//       ? req.session.user.profile_picture
+//       : null;
+
+//     res.render("instructor/chatList", {
+//       chats: rows,
+//       classes: classResult.rows,   // ✅ IMPORTANT
+//       info,
+//       profilePic,
+//       role: "instructor",
+//       user: req.session.user,
+//     });
+
+//   } catch (err) {
+//     console.error("Get instructor chats error:", err);
+//     res.status(500).send("Error loading chats");
+//   }
+// };
+
 exports.getInstructorChats = async (req, res) => {
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
     const info = infoResult.rows[0] || {};
+
     const instructorId = req.user.id;
 
+    // 🔹 Get student chat list
     const { rows } = await pool.query(
       `
       SELECT DISTINCT 
@@ -102,17 +160,39 @@ exports.getInstructorChats = async (req, res) => {
       [instructorId]
     );
 
+    // ✅ ADD THE CLASS QUERY HERE
+    // const classResult = await pool.query(`
+    //   SELECT DISTINCT c.id, c.name
+    //   FROM classrooms c
+    //   JOIN user_school us ON us.classroom_id = c.id
+    //   WHERE us.role_in_school = 'student'
+    // `);
+
+    const classResult = await pool.query(`
+      SELECT DISTINCT 
+        c.id,
+        c.name,
+        s.name AS school_name
+      FROM classrooms c
+      JOIN user_school us ON us.classroom_id = c.id
+      JOIN schools s ON s.id = us.school_id
+      WHERE us.role_in_school = 'student'
+      ORDER BY s.name, c.name
+    `);
+
     const profilePic = req.session.user
       ? req.session.user.profile_picture
       : null;
 
     res.render("instructor/chatList", {
       chats: rows,
+      classes: classResult.rows, // ✅ THIS FIXES YOUR ERROR
       info,
       profilePic,
       role: "instructor",
       user: req.session.user,
     });
+
   } catch (err) {
     console.error("Get instructor chats error:", err);
     res.status(500).send("Error loading chats");
@@ -263,6 +343,194 @@ exports.getUnreadMessages = async (req, res) => {
     res.status(500).send("Error loading unread messages");
   }
 };
+
+exports.renderClassChat = async (req, res) => {
+  try {
+
+    const classroomId = req.params.classroomId;
+    const userId = req.session.user?.id;
+
+    if (!userId) {
+      return res.redirect("/login");
+    }
+
+    // company info (same as other pages)
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
+
+    // get classroom info
+    const classResult = await pool.query(
+      `SELECT id, name FROM classrooms WHERE id = $1`,
+      [classroomId]
+    );
+
+    const classroom = classResult.rows[0];
+
+    const studentsResult = await pool.query(
+    `
+    SELECT 
+      u.id,
+      u.fullname,
+      u.email
+    FROM users2 u
+    JOIN user_school us ON us.user_id = u.id
+    WHERE us.classroom_id = $1
+    AND us.role_in_school = 'student'
+    ORDER BY u.fullname
+    `,
+    [classroomId]
+    );
+
+    // get class messages
+    const { rows } = await pool.query(
+      `
+      SELECT 
+        cm.id,
+        cm.message,
+        cm.created_at,
+        cm.sender_id,
+        u.fullname
+      FROM class_messages cm
+      JOIN users2 u ON u.id = cm.sender_id
+      WHERE cm.classroom_id = $1
+      ORDER BY cm.created_at ASC
+      `,
+      [classroomId]
+    );
+
+    const profilePic = req.session.user
+      ? req.session.user.profile_picture
+      : null;
+
+    res.render("instructor/classChatView", {
+      classroom,
+      messages: rows,
+      students: studentsResult.rows,
+      info,
+      profilePic,
+      role: "instructor",
+      user: req.session.user,
+    });
+
+  } catch (err) {
+    console.error("Render class chat error:", err);
+    res.status(500).send("Error loading class chat");
+  }
+};
+
+exports.muteStudent = async (req, res) => {
+  try {
+
+    const { classroomId, studentId } = req.body
+    const instructorId = req.session.user.id
+
+    await pool.query(
+    `INSERT INTO muted_students (classroom_id, student_id, muted_by)
+     VALUES ($1,$2,$3)
+     ON CONFLICT DO NOTHING`,
+    [classroomId, studentId, instructorId]
+    )
+
+    res.json({success:true})
+
+  } catch(err){
+    console.error(err)
+    res.json({success:false})
+  }
+}
+
+exports.sendClassMessage = async (req, res) => {
+  try {
+    const { classroomId, message } = req.body;
+    const senderId = req.session.user?.id;
+
+    if (!senderId) {
+      return res.status(401).json({ success: false });
+    }
+
+    if (!message.trim()) {
+      return res.status(400).json({ success: false });
+    }
+
+    const muteCheck = await pool.query(
+      `
+        SELECT * FROM muted_students
+        WHERE classroom_id=$1 AND student_id=$2
+      `,
+      [classroomId, senderId]
+      )
+
+      if(muteCheck.rows.length>0){
+      return res.status(403).json({
+      success:false,
+      message:"You are muted in this class"
+      })
+    }
+
+    await pool.query(
+      `INSERT INTO class_messages (classroom_id, sender_id, message)
+       VALUES ($1,$2,$3)`,
+      [classroomId, senderId, message]
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success:false });
+  }
+};
+
+exports.getClassMessages = async (req, res) => {
+  try {
+    const classroomId = req.params.classroomId;
+
+    const { rows } = await pool.query(
+      `
+      SELECT 
+        cm.id,
+        cm.message,
+        cm.created_at,
+        cm.sender_id,
+        u.fullname
+      FROM class_messages cm
+      JOIN users2 u ON u.id = cm.sender_id
+      WHERE cm.classroom_id = $1
+      ORDER BY cm.created_at ASC
+      `,
+      [classroomId]
+    );
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+};
+
+exports.getInstructorClasses = async (req,res)=>{
+  try{
+
+  const { rows } = await pool.query(
+  `
+  SELECT DISTINCT c.id,c.name
+  FROM classrooms c
+  JOIN user_school us ON us.classroom_id = c.id
+  WHERE us.role_in_school = 'student'
+  `
+  )
+
+  res.render("instructor/classChatList",{
+  classes:rows
+  })
+
+  }catch(err){
+  console.error(err)
+  }
+}
 
 // controllers/instructorController.js
 exports.getInstructorDashboard = async (req, res) => {

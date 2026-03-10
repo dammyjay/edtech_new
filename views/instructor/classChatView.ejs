@@ -1,0 +1,235 @@
+<%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
+
+<!-- <h2>📚 Class Chat: <%= classroom.name %></h2>
+
+<div id="chatContainer"
+style="border:1px solid #ccc;
+border-radius:10px;
+padding:15px;
+width:90%;
+max-width:700px;
+height:400px;
+overflow-y:auto;
+background:#fafafa;">
+
+<% messages.forEach(msg => { %>
+
+<div style="margin:8px 0">
+
+<b><%= msg.fullname %></b><br>
+
+<div style="
+display:inline-block;
+background:#f1f1f1;
+padding:8px 12px;
+border-radius:10px;
+">
+
+<%= msg.message %>
+
+<br>
+
+<small style="color:gray;font-size:10px;">
+<%= new Date(msg.created_at).toLocaleTimeString() %>
+</small>
+
+</div>
+
+</div>
+
+<% }) %>
+
+</div>
+
+<div style="margin-top:10px;width:90%;max-width:700px;">
+
+<textarea
+id="chatMessage"
+rows="2"
+placeholder="Type message to class..."
+style="width:80%;padding:8px;"></textarea>
+
+<button onclick="sendClassMessage()"
+style="padding:8px 12px;background:#3498db;color:white;border:none;border-radius:5px;">
+Send
+</button>
+
+</div> -->
+
+<div style="display:flex; gap:20px; width:90%;">
+
+    <!-- LEFT: Chat -->
+    <div style="flex:2">
+
+        <h2>📚 Class Chat: <%= classroom.name %></h2>
+
+        <div id="chatContainer"
+        style="border:1px solid #ccc;
+        border-radius:10px;
+        padding:15px;
+        height:400px;
+        overflow-y:auto;
+        background:#fafafa;">
+
+        <% messages.forEach(msg => { %>
+
+        <div style="margin:8px 0">
+
+        <b><%= msg.fullname %></b>
+
+        <div style="
+        display:inline-block;
+        background:#f1f1f1;
+        padding:8px 12px;
+        border-radius:10px;
+        ">
+
+        <%= msg.message %>
+
+        <br>
+
+        <small style="color:gray;font-size:10px;">
+        <%= new Date(msg.created_at).toLocaleTimeString() %>
+        </small>
+
+        </div>
+
+        </div>
+
+        <% }) %>
+
+        </div>
+
+        <textarea
+        id="chatMessage"
+        rows="2"
+        placeholder="Type message to class..."
+        style="width:80%;padding:8px;margin-top:10px;"></textarea>
+
+        <button onclick="sendClassMessage()"
+        style="padding:8px 12px;background:#3498db;color:white;border:none;border-radius:5px;">
+        Send
+        </button>
+
+    </div>
+
+
+    <!-- RIGHT: Student List -->
+    <div style="flex:1;border:1px solid #ccc;border-radius:10px;padding:10px;height:480px;overflow-y:auto;">
+
+        <h3>👩‍🎓 Students</h3>
+
+        <% students.forEach(s => { %>
+
+        <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        border-bottom:1px solid #eee;
+        padding:6px 0;
+        ">
+
+        <div>
+        <b><%= s.fullname %></b><br>
+        <small><%= s.email %></small>
+        </div>
+
+        <div>
+
+        <a href="/instructor/chats/<%= s.id %>"
+        style="background:#3498db;color:white;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:12px;">
+        💬 Chat
+        </a>
+
+        <button onclick="muteStudent(<%= s.id %>)"
+        style="background:#e74c3c;color:white;padding:4px 8px;border:none;border-radius:4px;font-size:12px;">
+        Mute
+        </button>
+
+        </div>
+
+        </div>
+
+        <% }) %>
+
+    </div>
+
+</div>
+
+<script>
+
+    const classroomId = "<%= classroom.id %>"
+    const chatContainer = document.getElementById('chatContainer')
+
+    chatContainer.scrollTop = chatContainer.scrollHeight
+
+    async function muteStudent(studentId){
+
+        await fetch("/instructor/mute-student",{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                classroomId,
+                studentId
+            })
+        })
+
+        alert("Student muted")
+
+    }
+
+    async function sendClassMessage(){
+
+        const message = document.getElementById('chatMessage').value.trim()
+
+        if(!message) return
+
+        await fetch('/instructor/class/send',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+        classroomId,
+        message
+        })
+        })
+
+        document.getElementById('chatMessage').value=""
+
+        loadMessages()
+
+    }
+
+
+    async function loadMessages(){
+
+        const res = await fetch(`/instructor/class/messages/${classroomId}`)
+        const messages = await res.json()
+
+        chatContainer.innerHTML=""
+
+        messages.forEach(msg=>{
+
+        const div=document.createElement("div")
+
+        div.innerHTML=`
+        <b>${msg.fullname}</b><br>
+        <div style="background:#f1f1f1;padding:8px;border-radius:10px;display:inline-block;">
+        ${msg.message}
+        <br>
+        <small style="color:gray;font-size:10px;">
+        ${new Date(msg.created_at).toLocaleTimeString()}
+        </small>
+        </div>
+        `
+
+        chatContainer.appendChild(div)
+
+        })
+
+        chatContainer.scrollTop = chatContainer.scrollHeight
+
+    }
+
+    setInterval(loadMessages,5000)
+
+</script>
