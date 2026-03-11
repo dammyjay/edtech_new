@@ -392,6 +392,220 @@ background:#806906;
 color:white;
 }
 
+.chat-layout{
+    display:flex;
+    gap:20px;
+    width:90%;
+    margin:auto;
+    flex-wrap:wrap;
+}
+
+.chat-box{
+    border:1px solid #ccc;
+    border-radius:10px;
+    padding:15px;
+    height:400px;
+    overflow-y:auto;
+    background:#fafafa;
+}
+
+.chat-msg{
+margin:8px 0;
+}
+
+/* .chat-name{
+font-weight:bold;
+margin-bottom:3px;
+} */
+
+.chat-name{
+    font-weight:bold;
+    margin-bottom:4px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+.chat-time{
+color:gray;
+font-size:10px;
+}
+
+.chat-role{
+font-size:10px;
+padding:2px 6px;
+border-radius:6px;
+margin-left:5px;
+color:white;
+}
+
+/* ROLE COLORS */
+/* 
+.role-student{
+background:#3498db;
+}
+
+.role-teacher{
+background:#e67e22;
+}
+
+.role-instructor{
+background:#9b59b6;
+} */
+
+
+.role-student{
+background:#3498db;
+color:white;
+padding:2px 6px;
+border-radius:6px;
+font-size:10px;
+}
+
+.role-teacher{
+background:#e67e22;
+color:white;
+padding:2px 6px;
+border-radius:6px;
+font-size:10px;
+}
+
+.role-instructor{
+background:#9b59b6;
+color:white;
+padding:2px 6px;
+border-radius:6px;
+font-size:10px;
+}
+
+
+/* MESSAGE BUBBLES */
+
+.msg-student{
+background:#eaf4ff;
+border-left:4px solid #3498db;
+}
+
+.msg-teacher{
+background:#fff3e6;
+border-left:4px solid #e67e22;
+}
+
+.msg-instructor{
+background:#f3e8ff;
+border-left:4px solid #9b59b6;
+}
+
+.chat-bubble{
+padding:8px 12px;
+border-radius:10px;
+display:inline-block;
+max-width:70%;
+}
+
+.chat-input-area{
+margin-top:10px;
+display:flex;
+gap:10px;
+}
+
+.chat-row{
+display:flex;
+gap:10px;
+align-items:flex-start;
+}
+
+/* .chat-avatar{
+width:35px;
+height:35px;
+border-radius:50%;
+object-fit:cover;
+} */
+
+.chat-avatar{
+width:22px;
+height:22px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.default-avatar{
+background:#ddd;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:16px;
+}
+
+
+.chat-input-area textarea{
+flex:1;
+padding:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+.chat-input-area button{
+padding:8px 14px;
+background:#3498db;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* STUDENT LIST */
+
+.student-section{
+flex:1;
+min-width:250px;
+border:1px solid #ccc;
+border-radius:10px;
+padding:10px;
+height:480px;
+overflow-y:auto;
+}
+
+.student-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+border-bottom:1px solid #eee;
+padding:6px 0;
+}
+
+.student-actions{
+display:flex;
+gap:5px;
+}
+
+.chat-btn{
+background:#3498db;
+color:white;
+padding:4px 8px;
+border-radius:4px;
+text-decoration:none;
+font-size:12px;
+}
+
+.mute-btn{
+background:#000;
+color:white;
+padding:4px 8px;
+border:none;
+border-radius:4px;
+font-size:12px;
+}
+
+.unmute-btn{
+background:#2ecc71;
+color:white;
+padding:4px 8px;
+border:none;
+border-radius:4px;
+font-size:12px;
+}
+
 .carousel-btn {
     position: absolute;
     top: 50%;
@@ -2317,6 +2531,28 @@ i {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+
+.chat-layout{
+flex-direction:column;
+width:95%;
+}
+
+.chat-box{
+height:350px;
+}
+
+.student-section{
+height:auto;
+}
+
+.chat-input-area{
+flex-direction:column;
+}
+
+.chat-input-area button{
+width:100%;
+}
+
 .engagement-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));

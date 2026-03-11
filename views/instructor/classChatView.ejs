@@ -1,10 +1,9 @@
 <%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 
-<h2>📚 Class Chat: <%= classroom.name %></h2>
+<!-- <h2>📚 Class Chat: <%= classroom.name %></h2>
 
 <div style="display:flex; gap:20px; width:90%;">
-
-    <!-- LEFT: Chat -->
+ 
     <div style="flex:2">
         <div id="chatContainer"
         style="border:1px solid #ccc;
@@ -14,32 +13,41 @@
         overflow-y:auto;
         background:#fafafa;">
 
-        <% messages.forEach(msg => { %>
+            <% messages.forEach(msg => { %>
 
-        <div style="margin:8px 0">
+            <div style="margin:8px 0">
 
-        <b><%= msg.fullname %></b>
+            <div class="chat-msg">
 
-        <div style="
-        display:inline-block;
-        background:#f1f1f1;
-        padding:8px 12px;
-        border-radius:10px;
-        ">
+                <div class="chat-name">
+                    <span>
+                        <img src="<%= msg.profile_picture %>" alt="Profile Picture" style="width:20px;height:20px;border-radius:50%;margin-right:5px;">
+                    </span>
 
-        <%= msg.message %>
+                    <%= msg.fullname %>
 
-        <br>
+                    <span class="chat-role role-<%= msg.role %>">
+                    <%= msg.role %>
+                    </span>
 
-        <small style="color:gray;font-size:10px;">
-        <%= new Date(msg.created_at).toLocaleTimeString() %>
-        </small>
+                </div>
 
-        </div>
+                <div class="chat-bubble msg-<%= msg.role %>">
+                    <%= msg.message %>
+                    <br>
 
-        </div>
+                    <small style="color:gray;font-size:10px;">
+                    <%= new Date(msg.created_at).toLocaleTimeString() %>
+                    </small>
 
-        <% }) %>
+                </div>
+
+            </div>
+
+
+            </div>
+
+            <% }) %>
 
         </div>
 
@@ -59,7 +67,6 @@
     </div>
 
 
-    <!-- RIGHT: Student List -->
     <div style="flex:1;border:1px solid #ccc;border-radius:10px;padding:10px;height:480px;overflow-y:auto;">
 
         <h3>👩‍🎓 Students</h3>
@@ -86,11 +93,6 @@
             💬
             </a>
 
-            <!-- <button onclick="muteStudent(<%= s.id %>)"
-            style="background:#000000;color:white;padding:4px 8px;border:none;border-radius:4px;font-size:12px;">
-            🔇
-            </button> -->
-
             <button onclick="muteStudent(<%= s.id %>)"
                 style="background:#000;color:white;padding:4px 8px;border:none;border-radius:4px;font-size:12px;">
                 🔇
@@ -102,6 +104,105 @@
             </button>
 
         </div>
+
+        </div>
+
+        <% }) %>
+
+    </div>
+
+</div> -->
+
+<h2 class="class-title">📚 Class Chat: <%= classroom.name %></h2>
+
+<div class="chat-layout">
+
+    <!-- LEFT: Chat -->
+    <div class="chat-section">
+
+        <div id="chatContainer" class="chat-box">
+
+            <% messages.forEach(msg => { %>
+
+            <div class="chat-msg">
+
+                <div class="chat-name">
+
+                    <img src="<%= msg.profile_picture %>" 
+                    class="chat-avatar">
+
+                    <%= msg.fullname %>
+
+                    <span class="chat-role role-<%= msg.role %>">
+                        <%= msg.role %>
+                    </span>
+
+                </div>
+
+                <div class="chat-bubble msg-<%= msg.role %>">
+
+                    <%= msg.message %>
+
+                    <br>
+
+                    <small class="chat-time">
+                        <%= new Date(msg.created_at).toLocaleTimeString() %>
+                    </small>
+
+                </div>
+
+            </div>
+
+            <% }) %>
+
+        </div>
+
+        <div class="chat-input-area">
+
+            <textarea
+            id="chatMessage"
+            rows="2"
+            placeholder="Type message to class..."
+            ></textarea>
+
+            <button onclick="sendClassMessage()">
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Student List -->
+
+    <div class="student-section">
+
+        <h3>👩‍🎓 Students</h3>
+
+        <% students.forEach(s => { %>
+
+        <div class="student-row">
+
+            <div>
+                <b><%= s.fullname %></b><br>
+                <small><%= s.email %></small>
+            </div>
+
+            <div class="student-actions">
+
+                <a  href="/instructor/chats/<%= s.id %>" class="chat-btn">
+                    💬
+                </a>
+
+                <button onclick="muteStudent(<%= s.id %>)" class="mute-btn">
+                    🔇
+                </button>
+
+                <button onclick="unmuteStudent(<%= s.id %>)" class="unmute-btn">
+                    🔊
+                </button>
+
+            </div>
 
         </div>
 
@@ -179,25 +280,49 @@
 
         messages.forEach(msg=>{
 
-        const div=document.createElement("div")
+            const div=document.createElement("div")
+            div.className="chat-msg"
 
-        div.innerHTML=`
-        <b>${msg.fullname}</b><br>
-        <div style="background:#f1f1f1;padding:8px;border-radius:10px;display:inline-block;">
-        ${msg.message}
-        <br>
-        <small style="color:gray;font-size:10px;">
-        ${new Date(msg.created_at).toLocaleTimeString()}
-        </small>
-        </div>
-        `
+            const avatar = msg.profile_picture
+                ? `<img src="${msg.profile_picture}" class="chat-avatar">`
+                : `<img src="/images/profile male.png" class="chat-avatar">`
 
-        chatContainer.appendChild(div)
+            div.innerHTML=`
+
+            <div class="chat-row">
+
+                ${avatar}
+
+                <div>
+
+                    <div class="chat-name">
+                        ${msg.fullname}
+
+                        <span class="chat-role role-${msg.role}">
+                            ${msg.role}
+                        </span>
+                    </div>
+
+                    <div class="chat-bubble msg-${msg.role}">
+                        ${msg.message}
+
+                        <br>
+
+                        <small style="color:gray;font-size:10px;">
+                            ${new Date(msg.created_at).toLocaleTimeString()}
+                        </small>
+                    </div>
+
+                </div>
+
+            </div>
+            `
+
+            chatContainer.appendChild(div)
 
         })
 
         chatContainer.scrollTop = chatContainer.scrollHeight
-
     }
 
     setInterval(loadMessages,5000)

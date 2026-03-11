@@ -2645,7 +2645,9 @@ exports.getClassMessages = async (req, res) => {
       SELECT 
       cm.message,
       cm.created_at,
-      u.fullname
+      u.fullname,
+      u.role,
+      u.profile_picture
       FROM class_messages cm
       JOIN users2 u ON u.id = cm.sender_id
       WHERE cm.classroom_id=$1

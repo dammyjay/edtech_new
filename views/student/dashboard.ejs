@@ -1159,19 +1159,80 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadChatMessages(teacherId);
   }
-  async function loadChatMessages(teacherId) {
-    const res = await fetch(`/student/chat/messages/${teacherId}`);
-    const data = await res.json();
-    const container = document.getElementById(`chatMessages-${teacherId}`);
+ 
+  // async function loadChatMessages(teacherId) {
+  //   const res = await fetch(`/student/chat/messages/${teacherId}`);
+  //   const data = await res.json();
+  //   const container = document.getElementById(`chatMessages-${teacherId}`);
 
-    container.innerHTML = data
-      .map(msg => `
-        <div class="chat-bubble ${msg.sender === 'self' ? 'self' : 'other'}">
-          ${msg.message}
-          <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
-        </div>
-      `)
-      .join('');
+  //   container.innerHTML = data
+  //     .map(msg => `
+  //       <div class="chat-bubble ${msg.sender === 'self' ? 'self' : 'other'}">
+  //         ${msg.message}
+  //         <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
+  //       </div>
+  //     `)
+  //     .join('');
+  // }
+
+  async function loadChatMessages(classroomId){
+
+    const res = await fetch(`/student/class/messages/${classroomId}`)
+    const messages = await res.json()
+
+    const container = document.getElementById("classchatbox")
+
+    container.innerHTML=""
+
+    messages.forEach(msg=>{
+
+      const div=document.createElement("div")
+
+      div.className="chat-msg"
+
+      const avatar = msg.profile_picture 
+        ? `<img src="${msg.profile_picture}" class="chat-avatar">`
+        : `<div class="chat-avatar default-avatar">👤</div>`
+
+      div.innerHTML=`
+
+      <div class="chat-row">
+
+          ${avatar}
+
+          <div>
+
+            <div class="chat-name">
+              ${msg.fullname}
+
+              <span class="chat-role role-${msg.role}">
+                ${msg.role}
+              </span>
+
+            </div>
+
+            <div class="chat-bubble msg-${msg.role}">
+              ${msg.message}
+
+              <br>
+
+              <small style="color:gray;font-size:10px;">
+                ${new Date(msg.created_at).toLocaleTimeString()}
+              </small>
+
+            </div>
+
+          </div>
+
+      </div>
+      `
+
+      container.appendChild(div)
+
+    })
+
+    container.scrollTop = container.scrollHeight
+
   }
 
   const classroomId = "<%= classroom.id %>"
@@ -1205,29 +1266,87 @@ document.addEventListener("DOMContentLoaded", () => {
 
   }
 
+  // async function loadClassMessages(){
+
+  //   const res = await fetch(`/student/class/messages/${classroomId}`)
+  //   const messages = await res.json()
+
+  //   classChatBox.innerHTML=""
+
+  //   messages.forEach(msg=>{
+
+  //     classChatBox.innerHTML += `
+  //     <div style="margin-bottom:8px">
+  //       <b>${msg.fullname}</b><br>
+  //       <div style="background:#f1f1f1;padding:8px;border-radius:8px;display:inline-block;">
+  //         ${msg.message}
+  //         <br>
+  //         <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
+  //       </div>
+  //     </div>
+  //     `
+  //   })
+
+  //   classChatBox.scrollTop = classChatBox.scrollHeight
+
+  // }
+
   async function loadClassMessages(){
 
     const res = await fetch(`/student/class/messages/${classroomId}`)
     const messages = await res.json()
 
-    classChatBox.innerHTML=""
+    const container = document.getElementById("classChatBox")
+
+    container.innerHTML=""
 
     messages.forEach(msg=>{
 
-      classChatBox.innerHTML += `
-      <div style="margin-bottom:8px">
-        <b>${msg.fullname}</b><br>
-        <div style="background:#f1f1f1;padding:8px;border-radius:8px;display:inline-block;">
-          ${msg.message}
-          <br>
-          <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
+      const div=document.createElement("div")
+
+      div.className="chat-msg"
+
+      const avatar = msg.profile_picture
+        ? `<img src="${msg.profile_picture}" class="chat-avatar">`
+        : `<img src="/images/profile male.png" class="chat-avatar">`
+
+      div.innerHTML=`
+
+        <div class="chat-row">
+
+          ${avatar}
+
+          <div>
+
+            <div class="chat-name">
+              ${msg.fullname}
+
+              <span class="chat-role role-${msg.role}">
+                ${msg.role}
+              </span>
+            </div>
+
+            <div class="chat-bubble msg-${msg.role}">
+              ${msg.message}
+
+              <br>
+
+              <small style="color:gray;font-size:10px;">
+                ${new Date(msg.created_at).toLocaleTimeString()}
+              </small>
+
+            </div>
+
+          </div>
+
         </div>
-      </div>
       `
+
+      container.appendChild(div)
+
     })
 
-    classChatBox.scrollTop = classChatBox.scrollHeight
-
+    container.scrollTop = container.scrollHeight
   }
 
   setInterval(loadClassMessages,5000)

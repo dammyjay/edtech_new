@@ -373,7 +373,9 @@ exports.renderClassChat = async (req, res) => {
     SELECT 
       u.id,
       u.fullname,
-      u.email
+      u.email,
+      u.role,
+      u.profile_picture
     FROM users2 u
     JOIN user_school us ON us.user_id = u.id
     WHERE us.classroom_id = $1
@@ -513,7 +515,9 @@ exports.getClassMessages = async (req, res) => {
         cm.message,
         cm.created_at,
         cm.sender_id,
-        u.fullname
+        u.fullname,
+        u.role,
+        u.profile_picture
       FROM class_messages cm
       JOIN users2 u ON u.id = cm.sender_id
       WHERE cm.classroom_id = $1
