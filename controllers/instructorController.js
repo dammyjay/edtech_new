@@ -351,7 +351,7 @@ exports.renderClassChat = async (req, res) => {
     const userId = req.session.user?.id;
 
     if (!userId) {
-      return res.redirect("/login");
+      return res.redirect("/admin/login");
     }
 
     // company info (same as other pages)
@@ -441,7 +441,26 @@ exports.muteStudent = async (req, res) => {
   }
 }
 
-exports.sendClassMessage = async (req, res) => {
+exports.unmuteStudent = async (req, res) => {
+  try {
+
+    const { classroomId, studentId } = req.body
+
+    await pool.query(
+      `DELETE FROM muted_students
+       WHERE classroom_id = $1 AND student_id = $2`,
+      [classroomId, studentId]
+    )
+
+    res.json({ success: true })
+
+  } catch (err) {
+    console.error("Unmute error:", err)
+    res.json({ success: false })
+  }
+}
+
+exports.sendClassMessage = async (req, res) => { 
   try {
     const { classroomId, message } = req.body;
     const senderId = req.session.user?.id;

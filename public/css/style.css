@@ -384,10 +384,11 @@ padding:10px 16px;
 margin-right:5px;
 border-radius:6px;
 cursor:pointer;
+color: #000;
 }
 
 .chat-tab.active{
-background:#3498db;
+background:#806906;
 color:white;
 }
 

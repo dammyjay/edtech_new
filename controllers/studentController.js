@@ -2593,6 +2593,75 @@ exports.markMessagesAsRead = async (req, res) => {
   }
 };
 
+exports.sendClassMessage = async (req, res) => {
+  try {
+
+    const { classroomId, message } = req.body
+    const senderId = req.session.user?.id
+
+    if(!senderId){
+      return res.status(401).json({success:false})
+    }
+
+    if(!message.trim()){
+      return res.status(400).json({success:false})
+    }
+
+    // 🔇 Check if student is muted
+    const muteCheck = await pool.query(
+      `SELECT * FROM muted_students
+       WHERE classroom_id=$1 AND student_id=$2`,
+      [classroomId, senderId]
+    )
+
+    if(muteCheck.rows.length > 0){
+      return res.json({
+        success:false,
+        message:"You are muted in this class"
+      })
+    }
+
+    await pool.query(
+      `INSERT INTO class_messages (classroom_id, sender_id, message)
+       VALUES ($1,$2,$3)`,
+      [classroomId, senderId, message]
+    )
+
+    res.json({success:true})
+
+  } catch(err){
+    console.error("Student class message error:", err)
+    res.status(500).json({success:false})
+  }
+}
+
+exports.getClassMessages = async (req, res) => {
+  try {
+
+    const classroomId = req.params.classroomId
+
+    const { rows } = await pool.query(
+      `
+      SELECT 
+      cm.message,
+      cm.created_at,
+      u.fullname
+      FROM class_messages cm
+      JOIN users2 u ON u.id = cm.sender_id
+      WHERE cm.classroom_id=$1
+      ORDER BY cm.created_at ASC
+      `,
+      [classroomId]
+    )
+
+    res.json(rows)
+
+  } catch(err){
+    console.error(err)
+    res.status(500).json({success:false})
+  }
+}
+
 exports.submitProject = async (req, res) => {
   try {
     const studentId = req.session.studentId;

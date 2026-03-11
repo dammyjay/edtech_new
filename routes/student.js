@@ -115,6 +115,8 @@ router.post("/chat/send", studentController.sendChatMessage);
 router.get("/chat/messages/:receiverId", studentController.getChatMessages);
 router.post("/chat/markRead/:receiverId", studentController.markMessagesAsRead);
 
+router.post("/class/send", studentController.sendClassMessage)
+router.get("/class/messages/:classroomId",studentController.getClassMessages)
 
 router.post(
   "/projects/submit",
