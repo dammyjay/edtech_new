@@ -317,7 +317,7 @@
     </div>
 
     <!-- Student edit profile modal -->
-    <div id="editModal-profile" class="modal" style="display: none;">
+    <!-- <div id="editModal-profile" class="modal" style="display: none;">
       <div class="modal-content">
         <span class="close-modal" onclick="closeEditModal('profile')">&times;</span>
         <h2>Edit Profile</h2>
@@ -337,13 +337,61 @@
           <label for="dob">Date of Birth:</label>
           <input type="date" id="dob" name="dob" value="<%= student.dob ? student.dob.toISOString().split('T')[0] : '' %>" required />
 
-          <!-- Profile Picture Upload -->
           <label for="profile_picture">Profile Picture:</label>
           <input type="file" id="profile_picture" name="profile_picture" accept=".jpg,.jpeg,.png"/>
 
-          <!-- Submit Button -->
           <button type="submit">Update Profile</button>
         </form>
+      </div>
+    </div> -->
+
+    <!-- Student edit profile modal -->
+    <div id="editModal-profile" class="modal" style="display:none;">
+      <div class="modal-content">
+
+        <span class="close-modal" onclick="closeEditModal('profile')">&times;</span>
+
+        <h2>Edit Profile</h2>
+
+        <form action="/student/profile/edit" method="POST" enctype="multipart/form-data">
+
+          <input type="hidden" name="student_id" value="<%= student.id %>" />
+
+          <label>Full Name:</label>
+          <input type="text" name="fullname" value="<%= student.fullname %>" required>
+
+          <label>Gender:</label>
+          <select name="gender" required>
+            <option value="">Select Gender</option>
+            <option value="Male" <%= student.gender === 'Male' ? 'selected' : '' %>>Male</option>
+            <option value="Female" <%= student.gender === 'Female' ? 'selected' : '' %>>Female</option>
+            <option value="Other" <%= student.gender === 'Other' ? 'selected' : '' %>>Other</option>
+          </select>
+
+          <label>Date of Birth:</label>
+          <input type="date" name="dob"
+          value="<%= student.dob ? student.dob.toISOString().split('T')[0] : '' %>">
+
+          <label>Profile Picture:</label>
+          <input type="file" name="profile_picture" accept=".jpg,.jpeg,.png">
+
+          <hr>
+
+          <h3>🔑 Change Password</h3>
+
+          <label>Current Password</label>
+          <input type="password" name="current_password">
+
+          <label>New Password</label>
+          <input type="password" name="new_password">
+
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm_password">
+
+          <button type="submit">Update Profile</button>
+
+        </form>
+
       </div>
     </div>
 

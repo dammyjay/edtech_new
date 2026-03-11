@@ -5,6 +5,7 @@ const PDFDocument = require("pdfkit");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
+const bcrypt = require("bcrypt");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -1330,39 +1331,126 @@ exports.enrollInCourse = async (req, res) => {
   }
 };
 
+// exports.editProfile = async (req, res) => {
+//   const { fullname, gender, dob } = req.body;
+//   let profilePic = req.body.existingPic; // fallback
+
+//   try {
+//     // ✅ Upload new profile picture if provided
+//     if (req.file?.path) {
+//       const result = await cloudinary.uploader.upload(req.file.path, {
+//         folder: "users/profile_pictures",
+//         resource_type: "image",
+//         use_filename: true,
+//         unique_filename: false,
+//       });
+
+//       profilePic = result.secure_url;
+
+//       // delete temp file
+//       if (fs.existsSync(req.file.path)) {
+//         fs.unlinkSync(req.file.path);
+//       }
+//     }
+
+//     await pool.query(
+//       `UPDATE users2
+//        SET fullname = $1,
+//            gender = $2,
+//            dob = $3,
+//            profile_picture = $4
+//        WHERE id = $5`,
+//       [fullname, gender, dob, profilePic, req.user.id]
+//     );
+
+//     // update session
+//     req.session.user.fullname = fullname;
+//     req.session.user.gender = gender;
+//     req.session.user.dob = dob;
+//     req.session.user.profile_picture = profilePic;
+
+//     res.redirect("/student/dashboard?section=profile");
+
+//   } catch (err) {
+//     console.error("❌ Profile update error:", err);
+//     res.status(500).send("Failed to update profile");
+//   }
+// };
+
+
+
 exports.editProfile = async (req, res) => {
-  const { fullname, gender, dob } = req.body;
-  let profilePic = req.body.existingPic; // fallback
+
+  const { fullname, gender, dob, current_password, new_password, confirm_password } = req.body;
+  let profilePic = req.body.existingPic;
 
   try {
-    // ✅ Upload new profile picture if provided
+
+    /* =============================
+       PROFILE PICTURE UPLOAD
+    ============================= */
+
     if (req.file?.path) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "users/profile_pictures",
-        resource_type: "image",
-        use_filename: true,
-        unique_filename: false,
+
+      const result = await cloudinary.uploader.upload(req.file.path,{
+        folder:"users/profile_pictures",
+        resource_type:"image"
       });
 
       profilePic = result.secure_url;
 
-      // delete temp file
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
+      if(fs.existsSync(req.file.path)){
+        fs.unlinkSync(req.file.path)
       }
+
     }
+
+    /* =============================
+       PASSWORD CHANGE
+    ============================= */
+
+    if (new_password) {
+
+      if (new_password !== confirm_password) {
+        return res.send("New passwords do not match");
+      }
+
+      const userResult = await pool.query(
+        "SELECT password FROM users2 WHERE id=$1",
+        [req.user.id]
+      );
+
+      const user = userResult.rows[0];
+
+      const match = await bcrypt.compare(current_password, user.password);
+
+      if (!match) {
+        return res.send("Current password is incorrect");
+      }
+
+      const hashedPassword = await bcrypt.hash(new_password,10);
+
+      await pool.query(
+        "UPDATE users2 SET password=$1 WHERE id=$2",
+        [hashedPassword, req.user.id]
+      );
+
+    }
+
+    /* =============================
+       UPDATE PROFILE
+    ============================= */
 
     await pool.query(
       `UPDATE users2
-       SET fullname = $1,
-           gender = $2,
-           dob = $3,
-           profile_picture = $4
-       WHERE id = $5`,
+       SET fullname=$1,
+           gender=$2,
+           dob=$3,
+           profile_picture=$4
+       WHERE id=$5`,
       [fullname, gender, dob, profilePic, req.user.id]
     );
 
-    // update session
     req.session.user.fullname = fullname;
     req.session.user.gender = gender;
     req.session.user.dob = dob;
@@ -1371,9 +1459,12 @@ exports.editProfile = async (req, res) => {
     res.redirect("/student/dashboard?section=profile");
 
   } catch (err) {
-    console.error("❌ Profile update error:", err);
+
+    console.error("❌ Profile update error:",err);
     res.status(500).send("Failed to update profile");
+
   }
+
 };
 
 exports.viewLesson = async (req, res) => {
