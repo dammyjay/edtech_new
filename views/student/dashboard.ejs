@@ -1135,224 +1135,230 @@ document.addEventListener("DOMContentLoaded", () => {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- script to send and receive chat messages -->
+
 <script>
-  function openChat(teacherId, teacherName) {
-    document.getElementById(`chatModal-${teacherId}`).style.display = 'block';
-    loadChatMessages(teacherId);
-  }
 
-  function closeChat(teacherId) {
-    document.getElementById(`chatModal-${teacherId}`).style.display = 'none';
-  }
+/* =========================
+   OPEN / CLOSE PRIVATE CHAT
+========================= */
 
-  async function sendChat(teacherId) {
-    const input = document.getElementById(`chatInput-${teacherId}`);
-    const message = input.value.trim();
-    if (!message) return;
-    input.value = '';
+function openChat(teacherId){
+  document.getElementById(`chatModal-${teacherId}`).style.display='block'
+  loadPrivateMessages(teacherId)
+}
 
-    await fetch(`/student/chat/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiverId: teacherId, message })
-    });
+function closeChat(teacherId){
+  document.getElementById(`chatModal-${teacherId}`).style.display='none'
+}
 
-    loadChatMessages(teacherId);
-  }
- 
-  // async function loadChatMessages(teacherId) {
-  //   const res = await fetch(`/student/chat/messages/${teacherId}`);
-  //   const data = await res.json();
-  //   const container = document.getElementById(`chatMessages-${teacherId}`);
 
-  //   container.innerHTML = data
-  //     .map(msg => `
-  //       <div class="chat-bubble ${msg.sender === 'self' ? 'self' : 'other'}">
-  //         ${msg.message}
-  //         <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
-  //       </div>
-  //     `)
-  //     .join('');
-  // }
+/* =========================
+   SEND PRIVATE MESSAGE
+========================= */
 
-  async function loadChatMessages(classroomId){
+async function sendChat(teacherId){
 
-    const res = await fetch(`/student/class/messages/${classroomId}`)
-    const messages = await res.json()
+  const input=document.getElementById(`chatInput-${teacherId}`)
+  const message=input.value.trim()
 
-    const container = document.getElementById("classchatbox")
+  if(!message) return
 
-    container.innerHTML=""
+  input.value=""
 
-    messages.forEach(msg=>{
+  await fetch('/student/chat/send',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      receiverId:teacherId,
+      message
+    })
+  })
 
-      const div=document.createElement("div")
+  loadPrivateMessages(teacherId)
 
-      div.className="chat-msg"
+}
 
-      const avatar = msg.profile_picture 
-        ? `<img src="${msg.profile_picture}" class="chat-avatar">`
-        : `<div class="chat-avatar default-avatar">👤</div>`
 
-      div.innerHTML=`
+/* =========================
+   LOAD PRIVATE MESSAGES
+========================= */
+
+async function loadPrivateMessages(teacherId){
+
+  const res=await fetch(`/student/chat/messages/${teacherId}`)
+  const messages=await res.json()
+
+  const container=document.getElementById(`chatBox-${teacherId}`)
+
+  if(!container) return
+
+  container.innerHTML=""
+
+  messages.forEach(msg=>{
+
+    const div=document.createElement("div")
+
+    const avatar = msg.profile_picture
+      ? `<img src="${msg.profile_picture}" class="chat-avatar">`
+      : `<img src="/images/profile male.png" class="chat-avatar">`
+
+    div.className="chat-msg"
+
+    div.innerHTML=`
 
       <div class="chat-row">
 
-          ${avatar}
+        ${avatar}
 
-          <div>
+        <div>
 
-            <div class="chat-name">
-              ${msg.fullname}
+          <div class="chat-name">
+            ${msg.fullname}
 
-              <span class="chat-role role-${msg.role}">
-                ${msg.role}
-              </span>
+            <span class="chat-role role-${msg.role}">
+              ${msg.role}
+            </span>
+          </div>
 
-            </div>
+          <div class="chat-bubble msg-${msg.role}">
+            ${msg.message}
 
-            <div class="chat-bubble msg-${msg.role}">
-              ${msg.message}
+            <br>
 
-              <br>
+            <small style="color:gray;font-size:10px;">
+              ${new Date(msg.created_at).toLocaleTimeString()}
+            </small>
+          </div>
 
-              <small style="color:gray;font-size:10px;">
-                ${new Date(msg.created_at).toLocaleTimeString()}
-              </small>
+        </div>
 
-            </div>
+      </div>
+    `
+
+    container.appendChild(div)
+
+  })
+
+  container.scrollTop = container.scrollHeight
+
+}
+
+
+/* =========================
+   CLASS CHAT SYSTEM
+========================= */
+
+const classroomId = "<%= classroom ? classroom.id : '' %>"
+
+
+async function sendClassMessage(){
+
+  if(!classroomId) return
+
+  const input=document.getElementById("classMessage")
+  const message=input.value.trim()
+
+  if(!message) return
+
+  const res=await fetch('/student/class/send',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      classroomId,
+      message
+    })
+  })
+
+  const data=await res.json()
+
+  if(!data.success){
+    alert(data.message)
+    return
+  }
+
+  input.value=""
+
+  loadClassMessages()
+
+}
+
+
+async function loadClassMessages(){
+
+  if(!classroomId) return
+
+  const res=await fetch(`/student/class/messages/${classroomId}`)
+  const messages=await res.json()
+
+  const container=document.getElementById("classChatBox")
+
+  if(!container) return
+
+  container.innerHTML=""
+
+  messages.forEach(msg=>{
+
+    const div=document.createElement("div")
+
+    const avatar = msg.profile_picture
+      ? `<img src="${msg.profile_picture}" class="chat-avatar">`
+      : `<img src="/images/profile male.png" class="chat-avatar">`
+
+    div.className="chat-msg"
+
+    div.innerHTML=`
+
+      <div class="chat-row">
+
+        ${avatar}
+
+        <div>
+
+          <div class="chat-name">
+
+            ${msg.fullname}
+
+            <span class="chat-role role-${msg.role}">
+              ${msg.role}
+            </span>
 
           </div>
 
-      </div>
-      `
+          <div class="chat-bubble msg-${msg.role}">
 
-      container.appendChild(div)
+            ${msg.message}
 
-    })
+            <br>
 
-    container.scrollTop = container.scrollHeight
-
-  }
-
-  const classroomId = "<%= classroom.id %>"
-  const classChatBox = document.getElementById("classChatBox")
-
-  async function sendClassMessage(){
-
-    const message = document.getElementById("classMessage").value.trim()
-
-    if(!message) return
-
-    const res = await fetch("/student/class/send",{
-      method:"POST",
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        classroomId,
-        message
-      })
-    })
-
-    const data = await res.json()
-
-    if(!data.success){
-      alert(data.message)
-    return
-    }
-
-    document.getElementById("classMessage").value=""
-
-    loadClassMessages()
-
-  }
-
-  // async function loadClassMessages(){
-
-  //   const res = await fetch(`/student/class/messages/${classroomId}`)
-  //   const messages = await res.json()
-
-  //   classChatBox.innerHTML=""
-
-  //   messages.forEach(msg=>{
-
-  //     classChatBox.innerHTML += `
-  //     <div style="margin-bottom:8px">
-  //       <b>${msg.fullname}</b><br>
-  //       <div style="background:#f1f1f1;padding:8px;border-radius:8px;display:inline-block;">
-  //         ${msg.message}
-  //         <br>
-  //         <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
-  //       </div>
-  //     </div>
-  //     `
-  //   })
-
-  //   classChatBox.scrollTop = classChatBox.scrollHeight
-
-  // }
-
-  async function loadClassMessages(){
-
-    const res = await fetch(`/student/class/messages/${classroomId}`)
-    const messages = await res.json()
-
-    const container = document.getElementById("classChatBox")
-
-    container.innerHTML=""
-
-    messages.forEach(msg=>{
-
-      const div=document.createElement("div")
-
-      div.className="chat-msg"
-
-      const avatar = msg.profile_picture
-        ? `<img src="${msg.profile_picture}" class="chat-avatar">`
-        : `<img src="/images/profile male.png" class="chat-avatar">`
-
-      div.innerHTML=`
-
-        <div class="chat-row">
-
-          ${avatar}
-
-          <div>
-
-            <div class="chat-name">
-              ${msg.fullname}
-
-              <span class="chat-role role-${msg.role}">
-                ${msg.role}
-              </span>
-            </div>
-
-            <div class="chat-bubble msg-${msg.role}">
-              ${msg.message}
-
-              <br>
-
-              <small style="color:gray;font-size:10px;">
-                ${new Date(msg.created_at).toLocaleTimeString()}
-              </small>
-
-            </div>
+            <small style="color:gray;font-size:10px;">
+              ${new Date(msg.created_at).toLocaleTimeString()}
+            </small>
 
           </div>
 
         </div>
-      `
 
-      container.appendChild(div)
+      </div>
 
-    })
+    `
 
-    container.scrollTop = container.scrollHeight
-  }
+    container.appendChild(div)
 
-  setInterval(loadClassMessages,5000)
+  })
 
+  container.scrollTop = container.scrollHeight
+
+}
+
+
+/* =========================
+   AUTO REFRESH
+========================= */
+
+if(classroomId){
   loadClassMessages()
-
+  setInterval(loadClassMessages,5000)
+}
 
 </script>
 
