@@ -573,6 +573,9 @@ async function createTables() {
           name TEXT NOT NULL, -- e.g. "JSS1A"
           created_at TIMESTAMP DEFAULT NOW()
         );
+
+        ALTER TABLE classrooms
+        ADD COLUMN IF NOT EXISTS chat_locked BOOLEAN DEFAULT false;
       `);
 
       // junction table for quotes

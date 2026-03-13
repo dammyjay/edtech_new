@@ -606,6 +606,31 @@ border-radius:4px;
 font-size:12px;
 }
 
+
+.btn-black {
+    background-color: #000000;
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    margin: 10px 0;
+    cursor: pointer; 
+}
+
+.btn-black:hover {
+    background-color: #333333;
+}
+
+.btn-nobg {
+    background-color: transparent;
+    color: #000000;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    margin: 10px 0;
+    cursor: pointer; 
+}
+
 .carousel-btn {
     position: absolute;
     top: 50%;

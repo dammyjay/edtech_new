@@ -1,7 +1,12 @@
 <%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 
 <h2 class="class-title">📚 Class Chat: <%= classroom.name %></h2>
+<!-- <div class="display:flex">
+    <button class="btn-black" onclick="lockChat()">🔒 Lock Chat</button>
+    <button class="btn-black" onclick="unlockChat()">🔓 Unlock Chat</button>
+</div> -->
 
+<button id="chatToggleBtn" class="btn-black" onclick="toggleChatLock()"></button>
 <div class="chat-layout">
 
     <!-- LEFT: Chat -->
@@ -23,12 +28,16 @@
                     <span class="chat-role role-<%= msg.role %>">
                         <%= msg.role %>
                     </span>
-
+                    <button onclick="deleteMessage(<%= msg.id %>)" style="margin-left:8px;">🗑</button>
                 </div>
 
                 <div class="chat-bubble msg-<%= msg.role %>">
 
-                    <%= msg.message %>
+                   <% if (msg.role !== 'instructor') { %>
+                    <button onclick="deleteMessage(<%= msg.id %>)" class="delete-msg">
+                    🗑
+                    </button>
+                    <% } %>
 
                     <br>
 
@@ -103,6 +112,13 @@
 
     const classroomId = "<%= classroom.id %>"
     const chatContainer = document.getElementById('chatContainer')
+    const bannedWords = [
+        "stupid",
+        "idiot",
+        "hate",
+        "fool",
+        "nonsense"
+    ]
 
     chatContainer.scrollTop = chatContainer.scrollHeight
 
@@ -174,36 +190,74 @@
                 ? `<img src="${msg.profile_picture}" class="chat-avatar">`
                 : `<img src="/images/profile male.png" class="chat-avatar">`
 
-            div.innerHTML=`
+            // div.innerHTML=`
 
-            <div class="chat-row">
+            // <div class="chat-row">
 
-                ${avatar}
+            //     ${avatar}
 
-                <div>
+            //     <div>
 
-                    <div class="chat-name">
-                        ${msg.fullname}
+            //         <div class="chat-name">
+            //             ${msg.fullname}
 
-                        <span class="chat-role role-${msg.role}">
-                            ${msg.role}
-                        </span>
-                    </div>
+            //             <span class="chat-role role-${msg.role}">
+            //                 ${msg.role}
+            //             </span>
+            //         </div>
 
-                    <div class="chat-bubble msg-${msg.role}">
-                        ${msg.message}
+            //         <div class="chat-bubble msg-${msg.role}">
+            //             ${msg.message}
 
-                        <br>
+            //             <br>
 
-                        <small style="color:gray;font-size:10px;">
-                            ${new Date(msg.created_at).toLocaleTimeString()}
-                        </small>
+            //             <small style="color:gray;font-size:10px;">
+            //                 ${new Date(msg.created_at).toLocaleTimeString()}
+            //             </small>
+            //         </div>
+
+            //     </div>
+
+            // </div>
+            // `
+
+                div.innerHTML=`
+                <div class="chat-row">
+
+                    ${avatar}
+
+                    <div>
+
+                        <div class="chat-name">
+                            ${msg.fullname}
+
+                            <span class="chat-role role-${msg.role}">
+                                ${msg.role}
+                            </span>
+
+                        </div>
+
+                        <div class="chat-bubble msg-${msg.role}">
+                            ${msg.message}
+
+                            <br>
+                            
+                            <small style="color:gray;font-size:10px;">
+                                ${new Date(msg.created_at).toLocaleTimeString()}
+                            </small>
+                            <span>
+                            ${msg.role !== 'instructor' ? `
+                            <button class="btn-nobg" onclick="deleteMessage(${msg.id})" style="margin-left:8px;">
+                            🗑
+                            </button>
+                            ` : ''}
+                            </span>
+                        </div>
+
                     </div>
 
                 </div>
-
-            </div>
-            `
+                `
 
             chatContainer.appendChild(div)
 
@@ -212,6 +266,92 @@
         chatContainer.scrollTop = chatContainer.scrollHeight
     }
 
+    let chatLocked = <%= classroom.chat_locked ? "true" : "false" %>
+
+    function updateLockButton(){
+
+        const btn = document.getElementById("chatToggleBtn")
+
+        if(chatLocked){
+
+            btn.innerText = "🔓 Unlock Chat"
+            btn.style.background = "#28a745"
+            btn.style.color = "#fff"
+
+        }else{
+
+            btn.innerText = "🔒 Lock Chat"
+            btn.style.background = "#000"
+            btn.style.color = "#fff"
+
+        }
+
+    }
+
+   async function lockChat(){
+
+        await fetch("/instructor/class/lock",{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ classroomId })
+        })
+
+        alert("Chat locked")
+
+    }
+
+    async function unlockChat(){
+
+    await fetch("/instructor/class/unlock",{
+        method:"POST",
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ classroomId })
+    })
+
+    alert("Chat unlocked")
+
+    }
+
+    async function deleteMessage(messageId){
+
+        if(!confirm("Delete this message?")) return
+
+        await fetch("/instructor/class/delete-message",{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({messageId})
+        })
+
+        loadMessages()
+
+    }
+   
+    async function toggleChatLock(){
+
+        const url = chatLocked
+            ? "/instructor/class/unlock"
+            : "/instructor/class/lock"
+
+        const res = await fetch(url,{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ classroomId })
+        })
+
+        const data = await res.json()
+
+        if(data.success){
+
+            chatLocked = !chatLocked
+            updateLockButton()
+
+        }else{
+            alert("Action failed")
+        }
+
+    }
+
+    updateLockButton()
     setInterval(loadMessages,5000)
 
 </script>

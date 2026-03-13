@@ -2594,6 +2594,14 @@ exports.getTeacher = async (req, res) => {
 
 exports.sendChatMessage = async (req, res) => {
   try {
+
+    const bannedWords = [
+      "stupid",
+      "idiot",
+      "hate",
+      "fool",
+      "nonsense"
+    ]
     const { receiverId, message } = req.body;
     const senderId = req.session.user?.id; // Use logged-in user's ID
 
@@ -2603,6 +2611,21 @@ exports.sendChatMessage = async (req, res) => {
 
     if (!receiverId || !message.trim()) {
       return res.status(400).json({ success: false, message: "Invalid input" });
+    }
+
+    const cleanMessage = message.toLowerCase()
+
+    for(const word of bannedWords){
+
+      if(cleanMessage.includes(word)){
+
+        return res.json({
+          success:false,
+          message:"Your message contains inappropriate words."
+        })
+
+      }
+
     }
 
     await pool.query(
@@ -2704,6 +2727,20 @@ exports.sendClassMessage = async (req, res) => {
        WHERE classroom_id=$1 AND student_id=$2`,
       [classroomId, senderId]
     )
+
+     /* CHECK CHAT LOCK */
+
+    const classCheck = await pool.query(
+      `SELECT chat_locked FROM classrooms WHERE id=$1`,
+      [classroomId]
+    )
+
+    if(classCheck.rows[0].chat_locked){
+      return res.json({
+        success:false,
+        message:"Chat is locked by instructor"
+      })
+    }
 
     if(muteCheck.rows.length > 0){
       return res.json({

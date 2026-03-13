@@ -440,6 +440,14 @@
       </textarea>
 
       <button onclick="sendClassMessage()">Send</button>
+
+      <div id="warningModal" class="modal">
+      <div class="modal-content">
+        <h3>⚠ Message Blocked</h3>
+        <p id="warningText"></p>
+        <button onclick="closeWarning()">OK</button>
+      </div>
+    </div>
     </div>
   <% } else { %>
     <p>No classmates found in this classroom.</p>
@@ -1204,6 +1212,28 @@ function closeChat(teacherId){
    SEND PRIVATE MESSAGE
 ========================= */
 
+// async function sendChat(teacherId){
+
+//   const input=document.getElementById(`chatInput-${teacherId}`)
+//   const message=input.value.trim()
+
+//   if(!message) return
+
+//   input.value=""
+
+//   await fetch('/student/chat/send',{
+//     method:'POST',
+//     headers:{'Content-Type':'application/json'},
+//     body:JSON.stringify({
+//       receiverId:teacherId,
+//       message
+//     })
+//   })
+
+//   loadPrivateMessages(teacherId)
+
+// }
+
 async function sendChat(teacherId){
 
   const input=document.getElementById(`chatInput-${teacherId}`)
@@ -1211,9 +1241,7 @@ async function sendChat(teacherId){
 
   if(!message) return
 
-  input.value=""
-
-  await fetch('/student/chat/send',{
+  const res = await fetch('/student/chat/send',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -1222,6 +1250,14 @@ async function sendChat(teacherId){
     })
   })
 
+  const data = await res.json()
+
+  if(!data.success){
+    showWarning(data.message)
+    return
+  }
+
+  input.value=""
   loadPrivateMessages(teacherId)
 
 }
@@ -1321,6 +1357,7 @@ async function sendClassMessage(){
 
   if(!data.success){
     alert(data.message)
+    showWarning(data.message)
     return
   }
 
@@ -1398,6 +1435,16 @@ async function loadClassMessages(){
 
 }
 
+function showWarning(msg){
+
+  document.getElementById("warningText").innerText = msg
+  document.getElementById("warningModal").style.display="block"
+
+}
+
+function closeWarning(){
+  document.getElementById("warningModal").style.display="none"
+}
 
 /* =========================
    AUTO REFRESH

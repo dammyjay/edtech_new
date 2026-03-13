@@ -13,7 +13,7 @@
 </div>
 
 
-<div id="privateChat">
+<div id="privateChat" style="width: 100%;">
 
   <div style="margin:15px 0;">
     <form id="searchForm" style="display:flex; gap:10px; align-items:center;">
@@ -51,8 +51,8 @@
               <td><%= new Date(c.last_message_time).toLocaleString() %></td>
               <td>
                 <a href="/instructor/chats/<%= c.student_id %>" 
-                  style="background:#3498db; color:white; border:none; padding:6px 10px; border-radius:5px; text-decoration:none;">
-                  💬 View Chat
+                  style="background:#916d0d; color:white; border:none; padding:6px 10px; border-radius:5px; text-decoration:none;">
+                  💬
                 </a>
               </td>
             </tr>
@@ -66,7 +66,7 @@
 
 </div>
 
-<div id="classChat" style="display:none;">
+<div id="classChat" style="display:none;" width="100%;">
   <select id="schoolFilter">
     <option value="">All Schools</option>
 
@@ -77,44 +77,43 @@
   </select>
 
   <h2>📚School Class Groups</h2>
-
-  <table class="user-table" style="width:90%">
-    <thead>
-      <tr>
-        <th>Class</th>
-        <th>School</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      <% if (classes && classes.length > 0) { %>
-        <% classes.forEach(c => { %>
-
+  <div class="table-responsive" style="width: 90%;">
+    <table class="user-table">
+      <thead>
         <tr>
-          <td><%= c.name %></td>
-          <td><%= c.school_name %></td>
-
-          <td>
-            <a href="/instructor/class-chat/<%= c.id %>"
-            style="background:#9b59b6;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
-            Open Group
-            </a>
-          </td>
+          <th>Class</th>
+          <th>School</th>
+          <th>Action</th>
         </tr>
+      </thead>
 
-        <% }) %>
-        <% } else { %>
+      <tbody>
+        <% if (classes && classes.length > 0) { %>
+          <% classes.forEach(c => { %>
+
           <tr>
-            <td colspan="2" style="color:gray;">No classes found</td>
+            <td><%= c.name %></td>
+            <td><%= c.school_name %></td>
+
+            <td>
+              <a href="/instructor/class-chat/<%= c.id %>"
+              style="background:#000000;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
+              Open Group
+              </a>
+            </td>
           </tr>
-        <% } %>
-    </tbody>
-  </table>
 
+          <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="2" style="color:gray;">No classes found</td>
+            </tr>
+          <% } %>
+      </tbody>
+    </table>
+  </div>
+  
 </div>
-
-
 
 <script>
   document.getElementById("searchForm").addEventListener("submit", async (e) => {
@@ -164,7 +163,6 @@
     container.appendChild(table);
   });
 </script>
-
 
 <script>
   document.getElementById("schoolFilter").addEventListener("change",function(){

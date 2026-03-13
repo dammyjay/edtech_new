@@ -504,6 +504,77 @@ exports.sendClassMessage = async (req, res) => {
   }
 };
 
+// exports.sendClassMessage = async (req, res) => { 
+//   try {
+
+//     const { classroomId, message } = req.body
+//     const senderId = req.session.user?.id
+
+//     if (!senderId) {
+//       return res.status(401).json({ success:false })
+//     }
+
+//     /* CHECK CHAT LOCK */
+
+//     const classCheck = await pool.query(
+//       `SELECT chat_locked FROM classrooms WHERE id=$1`,
+//       [classroomId]
+//     )
+
+//     if(classCheck.rows[0].chat_locked){
+//       return res.json({
+//         success:false,
+//         message:"Chat is currently locked by instructor"
+//       })
+//     }
+
+//     /* MUTE CHECK */
+
+//     const muteCheck = await pool.query(
+//       `SELECT * FROM muted_students
+//        WHERE classroom_id=$1 AND student_id=$2`,
+//       [classroomId, senderId]
+//     )
+
+//     if(muteCheck.rows.length>0){
+//       return res.json({
+//         success:false,
+//         message:"You are muted in this class"
+//       })
+//     }
+
+//     await pool.query(
+//       `INSERT INTO class_messages (classroom_id, sender_id, message)
+//        VALUES ($1,$2,$3)`,
+//       [classroomId, senderId, message]
+//     )
+
+//     res.json({success:true})
+
+//   } catch (err) {
+//     console.error(err)
+//     res.status(500).json({success:false})
+//   }
+// }
+
+exports.deleteClassMessage = async (req,res)=>{
+  try{
+
+    const { messageId } = req.body
+
+    await pool.query(
+      `DELETE FROM class_messages WHERE id=$1`,
+      [messageId]
+    )
+
+    res.json({success:true})
+
+  }catch(err){
+    console.error(err)
+    res.json({success:false})
+  }
+}
+
 exports.getClassMessages = async (req, res) => {
   try {
     const classroomId = req.params.classroomId;
@@ -533,6 +604,47 @@ exports.getClassMessages = async (req, res) => {
     res.status(500).json([]);
   }
 };
+
+exports.lockClassChat = async (req,res)=>{
+  try{
+
+    const { classroomId } = req.body
+
+    await pool.query(
+      `UPDATE classrooms
+       SET chat_locked = true
+       WHERE id = $1`,
+      [classroomId]
+    )
+
+    res.json({success:true})
+
+  }catch(err){
+    console.error(err)
+    res.json({success:false})
+  }
+}
+
+
+exports.unlockClassChat = async (req,res)=>{
+  try{
+
+    const { classroomId } = req.body
+
+    await pool.query(
+      `UPDATE classrooms
+       SET chat_locked = false
+       WHERE id = $1`,
+      [classroomId]
+    )
+
+    res.json({success:true})
+
+  }catch(err){
+    console.error(err)
+    res.json({success:false})
+  }
+}
 
 exports.getInstructorClasses = async (req,res)=>{
   try{

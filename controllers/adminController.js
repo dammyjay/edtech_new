@@ -227,6 +227,7 @@ exports.login = async (req, res) => {
         error: "Invalid credentials",
         title: "Login",
         redirect: redirectUrl || "",
+        pendingEmail: ""
       });
     }
 

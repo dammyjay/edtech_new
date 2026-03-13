@@ -145,6 +145,9 @@ router.get("/class/messages/:classroomId",instructorController.getClassMessages)
 router.get("/class-chat/:classroomId",instructorController.renderClassChat)
 router.post("/mute-student", instructorController.muteStudent);
 router.post("/unmute-student", instructorController.unmuteStudent)
+router.post("/class/lock", instructorController.lockClassChat);
+router.post("/class/unlock", instructorController.unlockClassChat);
+router.post("/class/delete-message", instructorController.deleteClassMessage);
 
 // View course content (modules, lessons, quizzes)
 router.get(
