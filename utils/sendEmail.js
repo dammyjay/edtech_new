@@ -272,6 +272,8 @@ apiInstance.setApiKey(
   Brevo.TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY
 );
+console.log("BREVO_API_KEY:", process.env.BREVO_API_KEY);
+console.log("BREVO_FROM:", process.env.BREVO_FROM);
 
 async function sendEmail(to, subject, htmlContent) {
   try {
@@ -286,7 +288,7 @@ async function sendEmail(to, subject, htmlContent) {
     console.log("✅ Email sent:", data.messageId || data);
     return data;
   } catch (error) {
-    console.error("❌ Email sending failed:", error.message);
+    console.error("❌ Email sending failed:", error.response?.data || error.message);
     throw error;
   }
 }

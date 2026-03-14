@@ -75,7 +75,7 @@ exports.handleForgotPassword = async (req, res) => {
     [token, expires, user.id]
   );
 
-  const resetUrl = `http://${req.headers.host}/admin/reset-password/${token}`;
+  const resetUrl = `https://${req.headers.host}/admin/reset-password/${token}`;
   await sendEmail(
     email,
     "Password Reset",

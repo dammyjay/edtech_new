@@ -35,10 +35,10 @@ const multer = require("multer");
 
 router.get("/login", adminController.showLogin);
 router.post("/login", adminController.login);
-router.get("/forgot-password", adminController.showForgotPasswordForm);
-router.post("/forgot-password", adminController.handleForgotPassword);
-router.get("/reset-password/:token", adminController.showResetPasswordForm);
-router.post("/reset-password/:token", adminController.handleResetPassword);
+  router.get("/forgot-password", adminController.showForgotPasswordForm);
+  router.post("/forgot-password", adminController.handleForgotPassword);
+  router.get("/reset-password/:token", adminController.showResetPasswordForm);
+  router.post("/reset-password/:token", adminController.handleResetPassword);
 
 router.get("/dashboard", adminController.dashboard);
 router.get("/users/filter", adminController.filterUsersAjax);
