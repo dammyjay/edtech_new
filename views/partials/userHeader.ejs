@@ -28,7 +28,10 @@
               <p style="color: black;">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
               <a  href="/make-payment">Fund wallet</a>
               <a href="/profile">View Profile</a>
-              <a href="/student/dashboard"> Dashboard</a>
+              
+              <% if (users) { %>
+              <a href="/<%= users.role %>/dashboard">Dashboard</a>
+              <% } %>   
             </div>
           </div>
           
@@ -45,4 +48,4 @@
           
         <% } %>
       </nav>
-    </header>
+</header>

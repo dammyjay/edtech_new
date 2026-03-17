@@ -1,7 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../models/db");
-// const upload = require("../middleware/upload");
+const {upload} = require("../middlewares/upload");
+const cloudinary = require("../utils/cloudinary");
+const fs = require("fs");
+const multer = require("multer");
 const axios = require("axios");
 const userController = require("../controllers/userController");
 const adminController = require("../controllers/adminController");
@@ -77,7 +80,8 @@ router.get("/", async (req, res) => {
     );
 
     const info = infoResult.rows[0];
-    const users = usersResult.rows;
+    // const users = usersResult.rows;
+    const users = req.session.user ? [req.session.user] : [];
     const career_pathways = career_pathwaysResult.rows;
     const allImages = allImagesResult.rows;
     const faqs = faqsResult.rows;
@@ -158,7 +162,6 @@ router.get("/", async (req, res) => {
 
     res.render("home", {
       info,
-      users,
       events,
       walletBalance,
       career_pathways,
@@ -168,6 +171,7 @@ router.get("/", async (req, res) => {
       benefits: benefitsRes.rows,
       courses: coursesResult.rows,
       isLoggedIn: !!req.session.user,
+      users: req.session.user,
       subscribed: req.query.subscribed,
       carouselImages,
       stats,
@@ -184,6 +188,102 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/profile", async (req, res) => {
+  if (!req.session.user) {
+    return res.redirect("/admin/login");
+  }
+
+  try {
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+
+    const userResult = await pool.query(
+      "SELECT * FROM users2 WHERE id = $1",
+      [req.session.user.id]
+    );
+
+    const user = userResult.rows[0];
+
+    res.render("profile", {
+      title: "My Profile",
+      users: user,
+      info: infoResult.rows[0] || {}
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.send("Error loading profile");
+  }
+});
+
+// router.post("/update-profile", async (req, res) => {
+
+//   if (!req.session.user) {
+//     return res.redirect("/admin/login");
+//   }
+
+//   const { fullname, phone, gender, dob } = req.body;
+
+//   await pool.query(
+//     `UPDATE users2 
+//      SET fullname=$1, phone=$2, gender=$3, dob=$4
+//      WHERE id=$5`,
+//     [fullname, phone, gender, dob, req.session.user.id]
+//   );
+
+//   res.redirect("/profile");
+// });
+
+router.post("/update-profile", upload.single("profile_picture"), async (req, res) => {
+
+  if (!req.session.user) {
+    return res.redirect("/admin/login");
+  }
+
+  try {
+
+    const { fullname, phone, gender, dob } = req.body;
+
+    // Get old profile picture
+    const oldUser = await pool.query(
+      "SELECT profile_picture FROM users2 WHERE id=$1",
+      [req.session.user.id]
+    );
+
+    let profilePicture = oldUser.rows[0].profile_picture;
+
+    // Upload new image if provided
+    if (req.file) {
+
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "profile_pictures"
+      });
+
+      profilePicture = result.secure_url;
+
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+    }
+
+    await pool.query(
+      `UPDATE users2 
+       SET fullname=$1, phone=$2, gender=$3, dob=$4, profile_picture=$5
+       WHERE id=$6`,
+      [fullname, phone, gender, dob, profilePicture, req.session.user.id]
+    );
+
+    res.redirect("/profile");
+
+  } catch (error) {
+    console.error(error);
+    res.send("Error updating profile");
+  }
+
+});
 
 router.get("/faq", async (req, res) => {
   try {

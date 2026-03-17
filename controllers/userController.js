@@ -445,10 +445,10 @@ exports.getUserProfile = async (req, res) => {
       title: "Admin Profile",
     });
   } else {
-    return res.render("userProfile", {
+    return res.render("profile", {
       user: currentUser,
       title: "User Profile",
-      activePage: "profilw", // 👈 Pass active page
+      activePage: "profile", // 👈 Pass active page
     });
   }
 };

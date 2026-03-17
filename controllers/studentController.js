@@ -4,6 +4,8 @@ const { askTutor } = require("../utils/ai");
 const PDFDocument = require("pdfkit");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
+const {upload} = require("../middlewares/upload");
+const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const bcrypt = require("bcrypt");
 
@@ -1064,9 +1066,7 @@ exports.getEnrolledCourses = async (req, res) => {
   }
 };
 
-
 // GET: Learning Analytics
-
 exports.getAnalytics = async (req, res) => {
   const studentId = req.user.id;
 

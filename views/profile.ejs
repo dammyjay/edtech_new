@@ -1,0 +1,104 @@
+<%- include('partials/header') %>
+
+<section class="profile-section" style="width: 100%;">
+
+    <h2>My Profile</h2>
+
+    <div class="profile-container" style="background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+        <img 
+        src="<%= users.profile_picture ? users.profile_picture : '/images/profile.jpg' %>" 
+        class="profile-img"
+        style="width:100px;height:100px;border-radius:50%;"
+        >
+
+        <p><strong>Full Name:</strong> <%= users.fullname %></p>
+        <p><strong>Email:</strong> <%= users.email %></p>
+        <p><strong>Phone:</strong> <%= users.phone || 'Not provided' %></p>
+        <p><strong>Gender:</strong> <%= users.gender || 'Not provided' %></p>
+        <p><strong>Date of Birth:</strong> <%= users.dob || 'Not set' %></p>
+        <p><strong>Wallet Balance:</strong> ₦<%= users.wallet_balance2 %></p>
+        <p><strong>XP Points:</strong> <%= users.xp %></p>
+        <p><strong>Child Code:</strong> <%= users.child_code || 'None' %></p>
+        <p><strong>Role:</strong> <%= users.role %></p>
+        <p><strong>Joined:</strong> <%= new Date(users.created_at).toLocaleDateString() %></p>
+
+        <button onclick="openEditModal()" class="btn">Edit Profile</button>
+
+    </div>
+
+</section>
+
+<div id="editProfileModal" class="modal">
+
+    <div class="modal-content">
+
+        <span class="close" onclick="closeEditModal()">&times;</span>
+
+        <h3>Edit Profile</h3>
+
+        <!-- <form action="/update-profile" method="POST">
+
+            <label for="fullname">Full Name</label>
+            <input type="text" id="fullname" name="fullname" value="<%= users.fullname %>" required>
+
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="<%= users.phone %>">
+
+            <label for="gender">Gender  </label>
+            <select name="gender">
+                <option value="">Select Gender</option>
+                <option value="Male" <%= users.gender === 'Male' ? 'selected' : '' %>>Male</option>
+                <option value="Female" <%= users.gender === 'Female' ? 'selected' : '' %>>Female</option>
+            </select>
+
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" name="dob" value="<%= users.dob %>">
+
+            <button type="submit">Update Profile</button>
+
+        </form> -->
+
+        <form action="/update-profile" method="POST" enctype="multipart/form-data">
+
+            <img 
+            src="<%= users.profile_picture ? users.profile_picture : '/images/profile.jpg' %>" 
+            class="profile-img"
+            style="width:100px;height:100px;border-radius:50%;"
+            >
+            <label for="profile_picture">Profile Picture</label>
+            <input type="file" name="profile_picture" accept="image/*">
+
+            <label for="fullname">Full Name</label>
+            <input type="text" id="fullname" name="fullname" value="<%= users.fullname %>" required>
+
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="<%= users.phone %>">
+
+            <label for="gender">Gender</label>
+            <select name="gender">
+                <option value="">Select Gender</option>
+                <option value="Male" <%= users.gender === 'Male' ? 'selected' : '' %>>Male</option>
+                <option value="Female" <%= users.gender === 'Female' ? 'selected' : '' %>>Female</option>
+            </select>
+
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" name="dob" value="<%= users.dob %>">
+
+            <button type="submit">Update Profile</button>
+
+            </form>
+    </div>
+</div>
+
+<script>
+
+function openEditModal() {
+  document.getElementById("editProfileModal").style.display = "block";
+}
+
+function closeEditModal() {
+  document.getElementById("editProfileModal").style.display = "none";
+}
+
+</script>

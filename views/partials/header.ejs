@@ -11,6 +11,26 @@
 </head>
 <body>
     <!-- Loading Spinner Overlay -->
+<header class="header">
+      <div class="logo-title">
+        <% if (info?.logo_url) { %>
+        <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
+        <% } %>
+        <p><%= info?.company_name || 'JKT Hub' %></p>
+         <!-- <p>Fasttrack IT Innovations</p> -->
+      </div>
+
+      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+      <nav id="main-nav">
+        <a href="/">Home</a>
+        <% if (users) { %>
+          <a href="/<%= users.role %>/dashboard">Dashboard</a>
+        <% } %> 
+        <a href="/profile">View Profile</a>
+          <a style="background-color: red;" href="/admin/logout" class="login-button">Logout</a>
+      </nav>
+</header>
+    
 <div id="loadingOverlay">
   <div class="spin">
     <img src="/images/JKT logo.png" alt="">
