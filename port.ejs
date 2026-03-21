@@ -1,0 +1,38 @@
+<h2>🎓 Student Portfolio</h2>
+
+<div class="profile-card">
+  <img src="<%= student.profile_picture || '/images/default.png' %>" />
+  <h3><%= student.fullname %></h3>
+  <p><%= student.email %></p>
+</div>
+
+<hr>
+
+<h3>📚 Courses Progress</h3>
+
+<% courses.forEach(course => { %>
+  <div class="course-card">
+    <h4><%= course.title %></h4>
+
+    <div class="progress-bar">
+      <div style="width:<%= course.progress %>%"></div>
+    </div>
+
+    <p><%= course.progress %>% completed</p>
+  </div>
+<% }) %>
+
+<hr>
+
+<h3>📊 Performance</h3>
+<p>Quiz Average: <strong><%= quizAvg %>%</strong></p>
+<p>Assignment Average: <strong><%= assignmentAvg %>%</strong></p>
+
+<hr>
+
+<h3>🏆 Certificates</h3>
+<% certificates.forEach(cert => { %>
+  <a href="<%= cert.certificate_url %>" target="_blank">
+    View Certificate
+  </a>
+<% }) %>

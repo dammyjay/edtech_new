@@ -1066,6 +1066,66 @@ exports.getEnrolledCourses = async (req, res) => {
   }
 };
 
+exports.getPortfolio = async (req, res) => {
+  const studentId = req.session.user.id;
+
+  try {
+    // 👤 Student Info
+    const studentRes = await pool.query(
+      "SELECT * FROM users2 WHERE id = $1",
+      [studentId]
+    );
+    const student = studentRes.rows[0];
+
+    // 📚 Courses + Progress
+    const coursesRes = await pool.query(`
+      SELECT c.id, c.title,
+      COUNT(l.id) AS total_lessons,
+      COUNT(ulp.lesson_id) AS completed_lessons
+      FROM courses c
+      LEFT JOIN modules m ON m.course_id = c.id
+      LEFT JOIN lessons l ON l.module_id = m.id
+      LEFT JOIN user_lesson_progress ulp 
+        ON ulp.lesson_id = l.id AND ulp.user_id = $1
+      GROUP BY c.id
+    `, [studentId]);
+
+    const courses = coursesRes.rows.map(c => ({
+      ...c,
+      progress: c.total_lessons > 0
+        ? Math.round((c.completed_lessons / c.total_lessons) * 100)
+        : 0
+    }));
+
+    // 🧠 Quiz Average
+    const quizAvgRes = await pool.query(`
+      SELECT AVG(score) as avg FROM quiz_submissions WHERE student_id = $1
+    `, [studentId]);
+
+    // 📝 Assignment Average
+    const assignmentAvgRes = await pool.query(`
+      SELECT AVG(total) as avg FROM assignment_submissions WHERE student_id = $1
+    `, [studentId]);
+
+    // 🏆 Certificates
+    const certRes = await pool.query(`
+      SELECT * FROM user_certificates WHERE user_id = $1
+    `, [studentId]);
+
+    res.render("student/portfolio", {
+      student,
+      courses,
+      quizAvg: Math.round(quizAvgRes.rows[0].avg || 0),
+      assignmentAvg: Math.round(assignmentAvgRes.rows[0].avg || 0),
+      certificates: certRes.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.send("Error loading portfolio");
+  }
+};
+
 // GET: Learning Analytics
 exports.getAnalytics = async (req, res) => {
   const studentId = req.user.id;
@@ -1330,54 +1390,6 @@ exports.enrollInCourse = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
-
-// exports.editProfile = async (req, res) => {
-//   const { fullname, gender, dob } = req.body;
-//   let profilePic = req.body.existingPic; // fallback
-
-//   try {
-//     // ✅ Upload new profile picture if provided
-//     if (req.file?.path) {
-//       const result = await cloudinary.uploader.upload(req.file.path, {
-//         folder: "users/profile_pictures",
-//         resource_type: "image",
-//         use_filename: true,
-//         unique_filename: false,
-//       });
-
-//       profilePic = result.secure_url;
-
-//       // delete temp file
-//       if (fs.existsSync(req.file.path)) {
-//         fs.unlinkSync(req.file.path);
-//       }
-//     }
-
-//     await pool.query(
-//       `UPDATE users2
-//        SET fullname = $1,
-//            gender = $2,
-//            dob = $3,
-//            profile_picture = $4
-//        WHERE id = $5`,
-//       [fullname, gender, dob, profilePic, req.user.id]
-//     );
-
-//     // update session
-//     req.session.user.fullname = fullname;
-//     req.session.user.gender = gender;
-//     req.session.user.dob = dob;
-//     req.session.user.profile_picture = profilePic;
-
-//     res.redirect("/student/dashboard?section=profile");
-
-//   } catch (err) {
-//     console.error("❌ Profile update error:", err);
-//     res.status(500).send("Failed to update profile");
-//   }
-// };
-
-
 
 exports.editProfile = async (req, res) => {
 

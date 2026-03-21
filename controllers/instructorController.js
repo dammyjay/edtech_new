@@ -2106,7 +2106,7 @@ exports.viewCourseAsStudent = async (req, res) => {
   res.render("instructor/courseContent", {
     info,
     profilePic: req.session.user?.profile_picture || null,
-    user: req.session.user,
+    users: req.session.user,
     role: "instructor",
     instructor,
     course: course.rows[0],

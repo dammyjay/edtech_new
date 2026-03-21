@@ -198,7 +198,7 @@ exports.signup = async (req, res) => {
 };
 
 
-exports.verifyOtp = async (req, res) => {
+  exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
   const created_at = new Date();
 

@@ -76,6 +76,232 @@
 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 
+/* STUDENT INFO */
+.student-info {
+  background: #f9fafc;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* .hidden { display: none; } */
+
+/* COURSE GRID */
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* COURSE CARD */
+.course-card-pro {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+
+/* COURSE HEADER */
+.course-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.course-top:hover {
+  background: #f9fafc;
+  border-radius: 8px;
+}
+
+.course-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.course-top h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.percent {
+  font-size: 13px;
+  color: #777;
+}
+
+/* DOWNLOAD ICON */
+.download-icon {
+  font-size: 18px;
+  color: #4CAF50;
+  cursor: pointer;
+}
+
+/* PROGRESS */
+.progress-bar-wrapper {
+  width: 100%;
+  height: 8px;
+  background: #eee;
+  border-radius: 20px;
+  margin: 10px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4CAF50;
+  border-radius: 20px;
+}
+
+.progress-fill.blue {
+  background: #2980b9;
+}
+
+.progress-bar-wrapper.small {
+  height: 6px;
+}
+
+/* MODULE GRID */
+/* .module-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+} */
+
+.module-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+/* OPEN STATE */
+.module-grid.open {
+  max-height: 2000px; /* large enough */
+}
+
+/* MODULE CARD */
+.module-card-pro {
+  background: #f9fafc;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+/* MODULE HEADER */
+.module-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+/* SCORES */
+.scores {
+  font-size: 12px;
+  color: #666;
+  margin: 5px 0;
+}
+
+/* LESSON LIST */
+.lesson-list {
+  margin-top: 8px;
+}
+
+.lesson-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+/* STATUS COLORS */
+.done {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.not-done {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+
+/* TOGGLE ICON */
+.toggle-icon {
+  font-size: 18px;
+  font-weight: bold;
+  transition: transform 0.3s ease;
+}
+
+/* ROTATE ICON WHEN OPEN */
+.toggle-icon.open {
+  transform: rotate(45deg); /* turns + into × */
+}
+
+
+/* GRID LAYOUT */
+.course-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+/* CARD STYLE */
+.course-card-ui {
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+  transition: 0.3s ease;
+}
+
+.course-card-ui:hover {
+  transform: translateY(-3px);
+}
+
+/* HEADER */
+.course-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* BODY */
+.course-card-body {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+/* PROGRESS BAR */
+.progress-bar-wrapper {
+  width: 100%;
+  height: 8px;
+  background: #eee;
+  border-radius: 10px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4CAF50;
+  border-radius: 10px;
+}
+
+.course-thumb {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
 /* Mobile: convert table into cards */
 @media (max-width: 768px) {
   table, thead, tbody, th, td, tr {
@@ -184,7 +410,7 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   </div>
 
   <!-- Tab Contents -->
-<div id="summary" class="tab-content active">
+<!-- <div id="summary" class="tab-content active">
   <h2>📌 Summary</h2>
   <p><strong>Student:</strong> <%= student.fullname %></p>
   <p><strong>Email:</strong> <%= student.email %></p>
@@ -199,10 +425,6 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
             <div class="progress-bar progress-green" style="width:<%= c.percent %>%"><%= c.percent %>%</div>
           </div>
 
-          <!-- <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/course-summary/<%= c.id %>/download"
-            style="display:inline-block; margin:10px; padding:8px 12px; background:#4CAF50; color:white; border:none; border-radius:5px; text-decoration:none;">
-            ⬇ Download Full Report
-          </a> -->
           <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/course-summary/<%= c.id %>/download">
             <i class="fa-solid fa-download" style="color: #4CAF50;"></i>
           </a>
@@ -218,10 +440,6 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
                 <div class="progress-container">
                   <div class="progress-bar progress-blue" style="width:<%= m.percent %>%"><%= m.percent %>%</div>
                 </div>
-                <!-- <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download"
-                  style="display:inline-block; margin:10px; padding:6px 10px; background:#2980b9; color:white; border-radius:5px; text-decoration:none;">
-                  ⬇ Download Module Report
-                </a> -->
                 <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download">
                   <i class="fa-solid fa-download" style="color: #2980b9;"></i>
                 </a>
@@ -250,13 +468,97 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   <% } else { %>
     <p>No enrolled courses yet.</p>
   <% } %>
-</div>
+</div> -->
 
+<div id="summary" class="tab-content active">
+  <h2>📌 Summary</h2>
+
+  <div class="student-info">
+    <p><strong>Student:</strong> <%= student.fullname %></p>
+    <p><strong>Email:</strong> <%= student.email %></p>
+    <p><strong>Registered:</strong> <%= new Date(student.created_at).toLocaleDateString() %></p>
+  </div>
+
+  <% if (courses.length) { %>
+    <div class="course-grid">
+
+      <% courses.forEach((c, ci) => { %>
+        <div class="course-card-pro">
+
+          <!-- COURSE HEADER (CLICKABLE) -->
+          <div class="course-top" onclick="toggleCourse(<%= ci %>)">
+            <div>
+              <h3>🎓 <%= c.course_title %></h3>
+              <span class="percent"><%= c.percent %>% Complete</span>
+            </div>
+
+            <div class="course-actions">
+              <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/course-summary/<%= c.id %>/download">
+                <i class="fa-solid fa-download download-icon"></i>
+              </a>
+              <span class="toggle-icon" id="icon-<%= ci %>">➕</span>
+            </div>
+          </div>
+
+          <!-- COURSE PROGRESS -->
+          <div class="progress-bar-wrapper">
+            <div class="progress-fill" style="width:<%= c.percent %>%"></div>
+          </div>
+
+          <!-- MODULES (HIDDEN BY DEFAULT) -->
+          <!-- <div class="module-grid hidden" id="course-body-<%= ci %>"> -->
+          <div class="module-grid" id="course-body-<%= ci %>">
+            <% c.modules.forEach((m) => { %>
+              <div class="module-card-pro">
+
+                <div class="module-top">
+                  <div>
+                    <h4>📦 <%= m.module_title %></h4>
+                    <span><%= m.percent %>%</span>
+                  </div>
+
+                  <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download">
+                    <i class="fa-solid fa-download" style="color: #2980b9;"></i>
+                  </a>
+                </div>
+
+                <div class="progress-bar-wrapper small">
+                  <div class="progress-fill blue" style="width:<%= m.percent %>%"></div>
+                </div>
+
+                <p class="scores">
+                  Quiz: <%= m.quizAvg ?? "N/A" %> |
+                  Assignment: <%= m.assignmentAvg ?? "N/A" %>
+                </p>
+
+                <div class="lesson-list">
+                  <% m.lessons.forEach(l => { %>
+                    <div class="lesson-item">
+                      <span>📚 <%= l.lesson_title %></span>
+                      <span class="<%= l.completed_at ? 'done' : 'not-done' %>">
+                        <%= l.completed_at ? '✔' : '✖' %>
+                      </span>
+                    </div>
+                  <% }) %>
+                </div>
+
+              </div>
+            <% }) %>
+          </div>
+
+        </div>
+      <% }) %>
+
+    </div>
+  <% } else { %>
+    <p>No enrolled courses yet.</p>
+  <% } %>
+</div>
 
 <div id="courses" class="tab-content">
   <h2>🎓 Courses Enrolled</h2>
   <% if (courses.length) { %>
-    <table>
+    <!-- <table>
       <thead>
         <tr><th>Course</th><th>Progress</th><th>Enrolled At</th></tr>
       </thead>
@@ -269,8 +571,34 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
           </tr>
         <% }) %>
       </tbody>
-    </table>
-  <% } else { %>
+    </table> -->
+ 
+    <div class="course-grid-cards">
+      <% courses.forEach(c => { %>
+        
+        <div class="course-card-ui">
+          <img src="<%= c.thumbnail || '/images/default-course.png' %>" class="course-thumb">
+          <div class="course-card-header">
+            <h3>🎓 <%= c.course_title %></h3>
+          </div>
+
+          <div class="course-card-body">
+            <p><strong>Progress:</strong> <%= c.percent %>%</p>
+
+            <div class="progress-bar-wrapper">
+              <div class="progress-fill" style="width:<%= c.percent %>%"></div>
+            </div>
+
+            <p><strong>Enrolled:</strong> 
+              <%= c.enrolled_at ? new Date(c.enrolled_at).toLocaleDateString() : "N/A" %>
+            </p>
+          </div>
+
+        </div>
+
+      <% }) %>
+    </div>
+    <% } else { %>
     <p>No courses enrolled.</p>
   <% } %>
 </div>
@@ -424,5 +752,37 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     }
 
   </script>
+
+  <script>
+// function toggleCourse(index) {
+//   const body = document.getElementById("course-body-" + index);
+//   const icon = document.getElementById("icon-" + index);
+
+//   if (body.classList.contains("hidden")) {
+//     body.classList.remove("hidden");
+//     icon.classList.add("open");
+//     icon.textContent = "✖";
+//   } else {
+//     body.classList.add("hidden");
+//     icon.classList.remove("open");
+//     icon.textContent = "➕";
+//   }
+// }
+
+function toggleCourse(index) {
+  const body = document.getElementById("course-body-" + index);
+  const icon = document.getElementById("icon-" + index);
+
+  body.classList.toggle("open");
+
+  if (body.classList.contains("open")) {
+    icon.textContent = "✖";
+    icon.classList.add("open");
+  } else {
+    icon.textContent = "➕";
+    icon.classList.remove("open");
+  }
+}
+</script>
 </body>
 </html>
