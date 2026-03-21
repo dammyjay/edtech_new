@@ -17,34 +17,6 @@
 <script>
 let currentSection = "dashboard";
 
-/**
- * Load a dashboard section via AJAX
- * @param {string} section
- */
-// async function loadSection(section) {
-//   currentSection = section;
-
-//   const schoolSelect = document.getElementById("schoolSelect");
-//   const schoolId = schoolSelect ? schoolSelect.value : null;
-
-//   let url = `/instructor/section/${section}`;
-//   if (schoolId) {
-//     url += `?school_id=${schoolId}`;
-//   }
-
-//   try {
-//     const res = await fetch(url);
-//     const html = await res.text();
-//     document.getElementById("main-content").innerHTML = html;
-
-//     // Re-bind school selector after content load
-//     bindSchoolSelector();
-//   } catch (err) {
-//     console.error("Load section error:", err);
-//     document.getElementById("main-content").innerHTML =
-//       "<p style='color:red;'>Failed to load section</p>";
-//   }
-// }
 
 async function loadSection(section) {
   const schoolSelect = document.getElementById("schoolSelect");

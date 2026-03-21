@@ -20,7 +20,10 @@
     <% if (classrooms.length > 0) { %>
       <ul>
         <% classrooms.forEach(c => { %>
-          <li><%= c.name %></li>
+          <li><a href="/admin/classrooms/<%= c.id %>/dashboard" 
+           style="color:#3498db; font-weight:600; text-decoration:none;">
+          🏫 <%= c.name %>
+        </a></li>
         <% }) %>
       </ul>
     <% } else { %>
