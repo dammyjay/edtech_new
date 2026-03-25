@@ -24,6 +24,7 @@
 
   <h2 style="font-size: 14px;">👤 <%= student.fullname %></h2>
   <h2 style="font-size: 14px; color: #e5f0ff;">🪙 Xp: <%= student.xp %> points</h2>
+  <a href="/student/dashboard">🏠 Dashboard</a>
 
   <ul class="sidebar-nav">
     <li><a href="/student/dashboard">🏠 Dashboard</a></li>
@@ -427,6 +428,139 @@
           <small style="cursor:pointer;">View All ➜</small>
         </div>
       </div>
+
+          <!-- BADGE MODAL -->
+        <div id="badgeModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeBadgeModal()">&times;</span>
+            <h3>🏅 Your Badges</h3>
+
+            <% if (badges && badges.length > 0) { %>
+              <div class="badges-grid">
+                <% badges.forEach(b => { %>
+                  <div class="badge-card">
+                    <div class="badge-icon">
+                      <% if (b.badge_name === 'Beginner') { %> 🥉
+                      <% } else if (b.badge_name === 'Intermediate') { %> 🥈
+                      <% } else if (b.badge_name === 'Advanced') { %> 🥇
+                      <% } else if (b.badge_name === 'Master') { %> 👑
+                      <% } else { %> 🎖️
+                      <% } %>
+                    </div>
+                    <p class="badge-name"><%= b.badge_name %></p>
+                    <p class="badge-date">Awarded: <%= new Date(b.awarded_at).toLocaleDateString() %></p>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <p>You haven’t earned any badges yet. Keep learning! 🚀</p>
+            <% } %>
+          </div>
+        </div>
+
+            <!-- Certificate MODAL -->
+        <div id="certificateModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeCertificateModal()">&times;</span>
+            <h3>🏅 Your Certificate</h3>
+
+            <% if (certificates && certificates.length > 0) { %>
+              <div class="certificates-grid">
+                <% certificates.forEach(cert => { %>
+                  <div class="certificate-card">
+                    <% if (cert.certificate_url) { %>
+                      <a href="<%= cert.certificate_url %>" target="_blank">
+                        <img src="<%= cert.certificate_url %>" 
+                            alt="<%= cert.course_title %>" 
+                            class="certificate-img" />
+                      </a>
+                    <% } %>
+
+                    <p class="certificate-title"><%= cert.course_title %></p>
+
+                    <p class="certificate-date">
+                      Issued: <%= new Date(cert.issued_at).toLocaleDateString() %>
+                    </p>
+
+                  </div>
+
+                <% }) %>
+              </div>
+            <% } else { %>
+              <p class="no-certificates">
+                No certificates yet. Complete courses to earn yours! 🎓
+              </p>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- PROJECT MODAL -->
+        <div id="projectModal" class="modal">
+          <div class="modal-content">
+            <span class="close" onclick="closeProjectModal()">&times;</span>
+            <h3>🚀 Your Course Projects</h3>
+
+            <% 
+              const hasProjects = Object.keys(courseProjects || {}).length > 0;
+            %>
+
+            <% if (hasProjects) { %>
+
+              <% Object.keys(courseProjects).forEach(courseId => { %>
+                
+                <div class="project-course-section">
+                  <% const projects = courseProjects[courseId]; %>
+
+                  <% projects.forEach(project => { 
+                      const submission = projectSubmissions[project.id];
+                  %>
+
+                    <div class="project-card">
+                      <h4><%= project.title %></h4>
+                      <!-- <p><%- project.description %></p>  -->
+
+                      <% if (project.resource_url) { %>
+                        <a href="<%= project.resource_url %>" target="_blank" class="btn-view">
+                          📎 View Instructions
+                        </a>
+                      <% } %>
+
+                      <% if (submission) { %>
+                        <div class="project-submitted">
+                          <p>✅ Submitted on 
+                            <%= new Date(submission.submitted_at).toLocaleDateString() %>
+                          </p>
+
+                          <% if (submission.file_url) { %>
+                            <a href="<%= submission.file_url %>" target="_blank" class="btn-view">
+                              👁 View Submission
+                            </a>
+                          <% } %>
+
+                          <% if (submission.notes) { %>
+                            <p class="submission-notes">
+                              📝 <%= submission.notes %>
+                            </p>
+                          <% } %>
+                        </div>
+                      <% } else { %>
+                        <p class="not-submitted">❌ Not submitted yet</p>
+                      <% } %>
+
+                    </div>
+
+                  <% }) %>
+
+                </div>
+
+              <% }) %>
+
+            <% } else { %>
+              <p>No projects assigned yet. Keep progressing! 🎯</p>
+            <% } %>
+
+          </div>
+        </div>
 
       <!-- COURSE PROGRESS -->
       <div class="course-grid">

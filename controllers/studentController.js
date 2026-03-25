@@ -204,6 +204,12 @@ exports.getDashboard = async (req, res) => {
       const completedLessons = parseInt(completedLessonsRes.rows[0].count);
 
       course.progress = Math.round((completedLessons / totalLessons) * 100);
+      await pool.query(
+        `UPDATE course_enrollments
+        SET progress = $1
+        WHERE user_id = $2 AND course_id = $3`,
+        [course.progress, studentId, course.id]
+      );
 
       // 🔥 Issue certificate ONLY for this course
       if (course.progress === 100) {
@@ -274,6 +280,7 @@ exports.getDashboard = async (req, res) => {
     const moduleIds = modulesRes.rows.map((m) => m.id);
     let lessonCounts = {};
     let moduleLessons = {};
+
     if (moduleIds.length > 0) {
       const countRes = await pool.query(
         `SELECT module_id, COUNT(*) AS total_lessons
@@ -328,6 +335,7 @@ exports.getDashboard = async (req, res) => {
 
     // --- Assignments (unlocked after last lesson quiz attempted)
     let moduleAssignments = {};
+
     if (moduleIds.length > 0) {
       const assignmentsRes = await pool.query(
         `SELECT a.*, m.title AS module_title
@@ -363,161 +371,94 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
-    // // --- AUTO UNLOCK NEXT MODULE LOGIC
-    // for (const mod of modulesRes.rows) {
-    //   if (!mod.unlocked) continue;
-
-    //   const lessonsForModule = moduleLessons[mod.id] || [];
-    //   if (lessonsForModule.length === 0) continue;
-
-    //   // 1️⃣ All lessons completed?
-    //   const completedRes = await pool.query(
-    //     `SELECT COUNT(*) FROM user_lesson_progress ul
-    //     JOIN lessons l ON l.id = ul.lesson_id
-    //     WHERE ul.user_id = $1 AND l.module_id = $2`,
-    //     [studentId, mod.id]
-    //   );
-
-    //   const completedLessons = parseInt(completedRes.rows[0].count);
-    //   if (completedLessons !== lessonsForModule.length) continue;
-
-    //   // 2️⃣ Check assignment
-    //   const assignmentRes = await pool.query(
-    //     `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
-    //     [mod.id]
-    //   );
-
-    //   let moduleCompleted = false;
-
-    //   if (assignmentRes.rows.length === 0) {
-    //     // ✅ No assignment → module completed
-    //     moduleCompleted = true;
-    //   } else {
-    //     // Assignment exists → check submission
-    //     const submissionRes = await pool.query(
-    //       `SELECT 1 FROM assignment_submissions
-    //       WHERE student_id = $1 AND assignment_id = $2
-    //       LIMIT 1`,
-    //       [studentId, assignmentRes.rows[0].id]
-    //     );
-
-    //     moduleCompleted = submissionRes.rows.length > 0;
-    //   }
-
-    //   if (!moduleCompleted) continue;
-
-    //   // 3️⃣ Unlock next module
-    //   const nextModuleRes = await pool.query(
-    //     `SELECT id FROM modules
-    //     WHERE course_id = $1 AND order_number > $2
-    //     ORDER BY order_number ASC
-    //     LIMIT 1`,
-    //     [mod.course_id, mod.order_number]
-    //   );
-
-    //   if (nextModuleRes.rows.length > 0) {
-    //     const nextModuleId = nextModuleRes.rows[0].id;
-
-    //     await pool.query(
-    //       `INSERT INTO unlocked_modules (student_id, module_id)
-    //       VALUES ($1,$2)
-    //       ON CONFLICT (student_id,module_id) DO NOTHING`,
-    //       [studentId, nextModuleId]
-    //     );
-
-    //     // Update in-memory flag so UI reflects it
-    //     const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
-    //     if (nextModule) nextModule.unlocked = true;
-    //   }
-    // }
-
     // --- AUTO UNLOCK NEXT MODULE LOGIC
-for (const mod of modulesRes.rows) {
-  if (!mod.unlocked) continue;
+    for (const mod of modulesRes.rows) {
+      if (!mod.unlocked) continue;
 
-  const lessonsForModule = moduleLessons[mod.id] || [];
-  if (lessonsForModule.length === 0) continue;
+      const lessonsForModule = moduleLessons[mod.id] || [];
+      if (lessonsForModule.length === 0) continue;
 
-  const lastLesson = lessonsForModule[lessonsForModule.length - 1];
+      const lastLesson = lessonsForModule[lessonsForModule.length - 1];
 
-  // 1️⃣ All lessons completed?
-  const completedRes = await pool.query(
-    `SELECT COUNT(*) FROM user_lesson_progress ul
-     JOIN lessons l ON l.id = ul.lesson_id
-     WHERE ul.user_id = $1 AND l.module_id = $2`,
-    [studentId, mod.id]
-  );
+      // 1️⃣ All lessons completed?
+      const completedRes = await pool.query(
+        `SELECT COUNT(*) FROM user_lesson_progress ul
+        JOIN lessons l ON l.id = ul.lesson_id
+        WHERE ul.user_id = $1 AND l.module_id = $2`,
+        [studentId, mod.id]
+      );
 
-  const completedLessons = parseInt(completedRes.rows[0].count);
-  if (completedLessons !== lessonsForModule.length) continue;
+      const completedLessons = parseInt(completedRes.rows[0].count);
+      if (completedLessons !== lessonsForModule.length) continue;
 
-  // 2️⃣ Last lesson quiz must be attempted (if quiz exists)
-  const quizAttemptRes = await pool.query(
-    `SELECT 1
-     FROM quizzes q
-     LEFT JOIN quiz_submissions qs ON qs.quiz_id = q.id
-     WHERE q.lesson_id = $1 AND qs.student_id = $2
-     LIMIT 1`,
-    [lastLesson.id, studentId]
-  );
+      // 2️⃣ Last lesson quiz must be attempted (if quiz exists)
+      const quizAttemptRes = await pool.query(
+        `SELECT 1
+        FROM quizzes q
+        LEFT JOIN quiz_submissions qs ON qs.quiz_id = q.id
+        WHERE q.lesson_id = $1 AND qs.student_id = $2
+        LIMIT 1`,
+        [lastLesson.id, studentId]
+      );
 
-  const quizAttempted = quizAttemptRes.rows.length > 0;
-  if (!quizAttempted) continue; // ⛔ BLOCK HERE if quiz not done
+      const quizAttempted = quizAttemptRes.rows.length > 0;
+      if (!quizAttempted) continue; // ⛔ BLOCK HERE if quiz not done
 
-  // 3️⃣ Assignment logic (unchanged behavior)
-  const assignmentRes = await pool.query(
-    `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
-    [mod.id]
-  );
+      // 3️⃣ Assignment logic (unchanged behavior)
+      const assignmentRes = await pool.query(
+        `SELECT id FROM module_assignments WHERE module_id = $1 LIMIT 1`,
+        [mod.id]
+      );
 
-  let moduleCompleted = false;
+      let moduleCompleted = false;
 
-  if (assignmentRes.rows.length === 0) {
-    // ✅ No assignment → quiz already verified above
-    moduleCompleted = true;
-  } else {
-    const submissionRes = await pool.query(
-      `SELECT 1 FROM assignment_submissions
-       WHERE student_id = $1 AND assignment_id = $2
-       LIMIT 1`,
-      [studentId, assignmentRes.rows[0].id]
-    );
+      if (assignmentRes.rows.length === 0) {
+        // ✅ No assignment → quiz already verified above
+        moduleCompleted = true;
+      } else {
+        const submissionRes = await pool.query(
+          `SELECT 1 FROM assignment_submissions
+          WHERE student_id = $1 AND assignment_id = $2
+          LIMIT 1`,
+          [studentId, assignmentRes.rows[0].id]
+        );
 
-    moduleCompleted = submissionRes.rows.length > 0;
-  }
+        moduleCompleted = submissionRes.rows.length > 0;
+      }
 
-  if (!moduleCompleted) continue;
+      if (!moduleCompleted) continue;
 
 
-    
-  // 4️⃣ Unlock next module
-  const nextModuleRes = await pool.query(
-    `SELECT id FROM modules
-     WHERE course_id = $1 AND order_number > $2
-     ORDER BY order_number ASC
-     LIMIT 1`,
-    [mod.course_id, mod.order_number]
-  );
+        
+      // 4️⃣ Unlock next module
+      const nextModuleRes = await pool.query(
+        `SELECT id FROM modules
+        WHERE course_id = $1 AND order_number > $2
+        ORDER BY order_number ASC
+        LIMIT 1`,
+        [mod.course_id, mod.order_number]
+      );
 
-  if (nextModuleRes.rows.length > 0) {
-    const nextModuleId = nextModuleRes.rows[0].id;
+      if (nextModuleRes.rows.length > 0) {
+        const nextModuleId = nextModuleRes.rows[0].id;
 
-    await pool.query(
-      `INSERT INTO unlocked_modules (student_id, module_id)
-       VALUES ($1,$2)
-       ON CONFLICT (student_id,module_id) DO NOTHING`,
-      [studentId, nextModuleId]
-    );
+        await pool.query(
+          `INSERT INTO unlocked_modules (student_id, module_id)
+          VALUES ($1,$2)
+          ON CONFLICT (student_id,module_id) DO NOTHING`,
+          [studentId, nextModuleId]
+        );
 
-    const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
-    if (nextModule) nextModule.unlocked = true;
-  }
-}
+        const nextModule = modulesRes.rows.find(m => m.id === nextModuleId);
+        if (nextModule) nextModule.unlocked = true;
+      }
+    }
 
 
     // --- Group by pathway & course
     let pathwayCourses = {};
     let courseModules = {};
+
     for (const course of enrolledCourses) {
       if (!pathwayCourses[course.pathway_name]) {
         pathwayCourses[course.pathway_name] = [];
@@ -586,11 +527,6 @@ for (const mod of modulesRes.rows) {
     );
     const completedProjects = parseInt(completedProjectsRes.rows[0].count);
 
-    // const badgesRes = await pool.query(
-    //   "SELECT * FROM user_badges WHERE user_id = $1",
-    //   [studentId]
-    // );
-
     const badgesRes = await pool.query(
       `SELECT 
       ub.*,
@@ -645,50 +581,116 @@ for (const mod of modulesRes.rows) {
     };
 
     // Module view (kept same, you can later inject unlocked flag here too)
-    let moduleInfo = null;
-    let lessons = [];
-    let selectedLesson = null;
+    // let moduleInfo = null;
+    // let lessons = [];
+    // let selectedLesson = null;
 
-    if (req.query.section === "module" && req.query.moduleId) {
-      const moduleRes = await pool.query(
-        `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
-        [req.query.moduleId]
+    // if (req.query.section === "module" && req.query.moduleId) {
+    //   const moduleRes = await pool.query(
+    //     `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
+    //     [req.query.moduleId]
+    //   );
+    //   moduleInfo = moduleRes.rows[0] || null;
+
+    //   // 🔑 Only keep modules from this course
+    //   if (moduleInfo) {
+    //     const modsRes = await pool.query(
+    //       `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
+    //       [moduleInfo.course_id]
+    //     );
+    //     courseModules = { [moduleInfo.course_id]: modsRes.rows };
+
+    //     // also refetch lessons only for this course
+    //     const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
+    //     if (moduleIdsForThisCourse.length > 0) {
+    //       const lessonsRes2 = await pool.query(
+    //         `SELECT l.*,
+    //                 EXISTS(
+    //                   SELECT 1 FROM unlocked_lessons ul
+    //                   WHERE ul.student_id = $2 AND ul.lesson_id = l.id
+    //                 ) AS unlocked,
+    //                 EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+    //          FROM lessons l
+    //          WHERE module_id = ANY($1)
+    //          ORDER BY l.order_number ASC`,
+    //         [moduleIdsForThisCourse, studentId]
+    //       );
+
+    //       moduleLessons = {};
+    //       lessonsRes2.rows.forEach((lsn) => {
+    //         if (!moduleLessons[lsn.module_id])
+    //           moduleLessons[lsn.module_id] = [];
+    //         moduleLessons[lsn.module_id].push(lsn);
+    //       });
+    //     }
+    //   }
+    // }
+
+    // Module view
+let moduleInfo = null;
+let lessons = [];
+let selectedLesson = null;
+
+if (req.query.section === "module") {
+
+  // 🔥 If moduleId is NOT provided but courseId is → auto-pick first module
+  if (!req.query.moduleId && req.query.courseId) {
+
+    const firstModuleRes = await pool.query(
+      `SELECT id FROM modules
+       WHERE course_id = $1
+       ORDER BY order_number ASC
+       LIMIT 1`,
+      [req.query.courseId]
+    );
+
+    if (firstModuleRes.rows.length > 0) {
+      req.query.moduleId = firstModuleRes.rows[0].id;
+    }
+  }
+
+  // ✅ Now load module normally
+  if (req.query.moduleId) {
+    const moduleRes = await pool.query(
+      `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
+      [req.query.moduleId]
+    );
+    moduleInfo = moduleRes.rows[0] || null;
+
+    // 🔑 Only keep modules from this course
+    if (moduleInfo) {
+      const modsRes = await pool.query(
+        `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
+        [moduleInfo.course_id]
       );
-      moduleInfo = moduleRes.rows[0] || null;
+      courseModules = { [moduleInfo.course_id]: modsRes.rows };
 
-      // 🔑 Only keep modules from this course
-      if (moduleInfo) {
-        const modsRes = await pool.query(
-          `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
-          [moduleInfo.course_id]
+      // also refetch lessons only for this course
+      const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
+      if (moduleIdsForThisCourse.length > 0) {
+        const lessonsRes2 = await pool.query(
+          `SELECT l.*,
+                  EXISTS(
+                    SELECT 1 FROM unlocked_lessons ul
+                    WHERE ul.student_id = $2 AND ul.lesson_id = l.id
+                  ) AS unlocked,
+                  EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+           FROM lessons l
+           WHERE module_id = ANY($1)
+           ORDER BY l.order_number ASC`,
+          [moduleIdsForThisCourse, studentId]
         );
-        courseModules = { [moduleInfo.course_id]: modsRes.rows };
 
-        // also refetch lessons only for this course
-        const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
-        if (moduleIdsForThisCourse.length > 0) {
-          const lessonsRes2 = await pool.query(
-            `SELECT l.*,
-                    EXISTS(
-                      SELECT 1 FROM unlocked_lessons ul
-                      WHERE ul.student_id = $2 AND ul.lesson_id = l.id
-                    ) AS unlocked,
-                    EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
-             FROM lessons l
-             WHERE module_id = ANY($1)
-             ORDER BY l.order_number ASC`,
-            [moduleIdsForThisCourse, studentId]
-          );
-
-          moduleLessons = {};
-          lessonsRes2.rows.forEach((lsn) => {
-            if (!moduleLessons[lsn.module_id])
-              moduleLessons[lsn.module_id] = [];
-            moduleLessons[lsn.module_id].push(lsn);
-          });
-        }
+        moduleLessons = {};
+        lessonsRes2.rows.forEach((lsn) => {
+          if (!moduleLessons[lsn.module_id])
+            moduleLessons[lsn.module_id] = [];
+          moduleLessons[lsn.module_id].push(lsn);
+        });
       }
     }
+  }
+}
 
     // Pathway filter (same)
     if (req.query.pathway && pathwayCourses[req.query.pathway]) {
