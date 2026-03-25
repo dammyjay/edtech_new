@@ -28,6 +28,7 @@
   <ul class="sidebar-nav">
     <li><a href="/student/dashboard">🏠 Dashboard</a></li>
     <li><a href="/student/dashboard?section=profile">👤 My Profile</a></li>
+    <li><a href="/student/dashboard?section=progress">📊 My Progress</a></li>
     <p style="color: rgb(255, 255, 255);">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
 
     <!-- Collapsible: School Info -->
@@ -394,6 +395,78 @@
 
       </div>
     </div>
+
+
+  <% } else if (section === 'progress') { %>
+
+    <div class="progress-container">
+
+      <h2>📊 My Learning Progress</h2>
+
+      <!-- SUMMARY CARDS -->
+      <div class="stats-boxes">
+        <div class="stat-box light-blue">
+          <h4>📘 Courses</h4>
+          <p><%= enrolledCourses.length %></p>
+        </div>
+
+        <div class="stat-box light-green">
+          <h4>✅ Completed</h4>
+          <p><%= completedCourses %></p>
+        </div>
+
+        <div class="stat-box light-yellow" onclick="openBadgeModal()">
+          <h4>🏅 Badges</h4>
+          <p><%= badges.length %></p>
+          <small style="cursor:pointer;">View All ➜</small>
+        </div>
+
+        <div class="stat-box light-grey" onclick="openCertificateModal()">
+          <h4>📜 Certificates</h4>
+          <p><%= certificatesCount %></p>
+          <small style="cursor:pointer;">View All ➜</small>
+        </div>
+      </div>
+
+      <!-- COURSE PROGRESS -->
+      <div class="course-grid">
+
+        <% enrolledCourses.forEach(course => { %>
+          <div class="course-card3" style="flex-direction: column;">
+
+            <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" />
+            <div>
+              <h4><%= course.title %></h4>
+              <p><%= course.progress %>% complete</p>
+            </div>
+            
+            <div class="progress-bar">
+              <div class="filled" style="width: <%= course.progress %>%"></div>
+            </div>
+
+            <div>
+              
+              <!-- Child-friendly encouragement -->
+              <% if (course.progress == 100) { %>
+                <p style="color:green;">🎉 You finished this course!</p>
+              <% } else if (course.progress >= 50) { %>
+                <p style="color:orange;">🔥 You're doing great!</p>
+              <% } else { %>
+                <p style="color:#555;">💪 Keep going!</p>
+              <% } %>
+
+              <a href="/student/dashboard?section=module&courseId=<%= course.id %>" class="btn-view" style="text-decoration: none;">
+                📖 View Course
+              </a>
+            </div>
+
+          </div>
+        <% }) %>
+
+      </div>
+
+    </div>
+
 
   <% } else if (section === 'classroom' && classroom) { %>
   <h2>👥 Your Classmates in <%= classroom.name %></h2>
