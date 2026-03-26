@@ -131,6 +131,7 @@ exports.handleResetPassword = async (req, res) => {
     title: "Login",
     redirect: "",
     message: "Password reset successful. Please log in.",
+    pendingEmail: "" 
   });
 };
 
