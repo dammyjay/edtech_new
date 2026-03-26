@@ -835,6 +835,24 @@
     color: gold;
 }
 
+.sidebar a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: block;
+    
+    border-radius: 4px;
+    transition: 0.3s;
+}
+
+
+.sidebar a:hover,
+.sidebar a.active {
+    background-color: #444;
+    padding: 8px 12px;
+
+} 
+
 .sidebar ul {
     list-style: none;
     padding: 0;
@@ -863,6 +881,14 @@
 .sidebar ul {
     list-style: none;
     padding: 0;
+}
+
+.dash-sect {
+    margin-bottom: 30px;
+    border: #000000 1px solid;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #776c49;
 }
 
 .sidebar .dropdown-btn {
@@ -1003,8 +1029,8 @@ canvas {
 }
 
 .profile-pic {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     margin-right: 10px;
 }
