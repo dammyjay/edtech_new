@@ -1,7 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const schoolAdminController = require("../controllers/schoolAdminController");
-const activityLoggerMiddleware = require("../middlewares/activityMiddleware")
+const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
+const multer = require("multer");
+const path = require("path");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/"); // make sure this folder exists
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
 
 // Dashboard
 router.get("/dashboard", schoolAdminController.getDashboard);
@@ -24,6 +37,26 @@ router.post(
   ),
   schoolAdminController.approveAllUsers
 );
+
+router.post(
+  "/bulk-add-students",
+  upload.single("file"),
+  activityLoggerMiddleware(
+    "School bulk students added",
+    (req) => `User ID: ${req.params.id}`
+  ),
+  schoolAdminController.bulkAddStudents
+);
+
+router.post(
+  "/add-student",
+  activityLoggerMiddleware(
+    "School student added",
+    (req) => `User ID: ${req.params.id}`
+  ),
+  schoolAdminController.addStudent
+);
+
 
 router.post(
   "/reject/:id",

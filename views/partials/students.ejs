@@ -1,3 +1,63 @@
+<style>
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+  }
+
+  .modal-content {
+    background: #fff;
+    padding: 20px;
+    width: 400px;
+    margin: 8% auto;
+    border-radius: 10px;
+  }
+
+  .close {
+    float: right;
+    font-size: 20px;
+    cursor: pointer;
+  }
+</style>
+
+
+<button onclick="openStudentModal()">➕ Add Student</button>
+
+<!-- MODAL -->
+<div id="studentModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeStudentModal()">&times;</span>
+
+    <h3>Add Student</h3>
+
+    <form action="/school-admin/add-student" method="POST">
+      <input type="text" name="fullname" placeholder="Full Name" required />
+
+      <select name="gender" required>
+        <option value="">Select Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+
+      <button type="submit">Add Student</button>
+    </form>
+
+    <hr>
+
+    <h3>Bulk Upload (CSV)</h3>
+
+    <form action="/school-admin/bulk-add-students" method="POST" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required />
+      <button type="submit">Upload CSV</button>
+    </form>
+  </div>
+</div>
+
 <h2>🎓 Approved Students</h2>
 <div class="table-responsive">
   <table class="user-table">
@@ -23,3 +83,40 @@
     </tbody>
   </table>
 </div>
+
+
+<!-- <script>
+  function openStudentModal() {
+    document.getElementById("studentModal").style.display = "block";
+  }
+
+  function closeStudentModal() {
+    document.getElementById("studentModal").style.display = "none";
+  }
+
+  // Close when clicking outside
+  window.onclick = function(event) {
+    const modal = document.getElementById("studentModal");
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  };
+</script> -->
+
+
+<script>
+  window.openStudentModal = function () {
+    document.getElementById("studentModal").style.display = "block";
+  };
+
+  window.closeStudentModal = function () {
+    document.getElementById("studentModal").style.display = "none";
+  };
+
+  window.onclick = function(event) {
+    const modal = document.getElementById("studentModal");
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  };
+</script>

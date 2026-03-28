@@ -1,11 +1,29 @@
 // controllers/schoolAdminController.js
 const pool = require("../models/db");
 const { logActivityForUser } = require("../utils/activityLogger");
+const csv = require("csv-parser");
+const fs = require("fs");
+const bcrypt = require("bcrypt");
 
 
 exports.getDashboard = async (req, res) => {
-  const schoolDbId = req.session.user.school_id; // numeric PK
-  console.log("session.school_id:", schoolDbId);
+  // const schoolDbId = req.session.user.school_id; // numeric PK
+  // console.log("session.school_id:", schoolDbId);
+
+  const schoolRes = await pool.query(
+  `SELECT s.id, s.name
+   FROM schools s
+   WHERE s.created_by = $1
+   LIMIT 1`,
+  [req.session.user.id]
+);
+
+if (!schoolRes.rows.length) {
+  return res.status(404).send("School not found");
+}
+
+const schoolDbId = schoolRes.rows[0].id;
+// const schoolName = schoolRes.rows[0].name;
 
   // Get school name
   const schoolRow = await pool.query(
@@ -199,12 +217,24 @@ ORDER BY engagement_rate DESC;
     studentEngagement: studentEngagement.rows, // ✅ add this
     info,
     profilePic,
+    users: req.session.user,
   });
 };
 
 exports.loadSection = async (req, res) => {
   const section = req.params.section;
-  const schoolId = req.session.user.school_id;
+  // const schoolId = req.session.user.school_id;
+
+  const schoolRes = await pool.query(
+    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+    [req.session.user.id]
+  );
+
+  if (!schoolRes.rows.length) {
+    return res.status(404).send("School not found");
+  }
+
+  const schoolId = schoolRes.rows[0].id;
 
   if (section === "teachers") {
     const teachers = await pool.query(
@@ -454,68 +484,71 @@ ORDER BY engagement_rate DESC;
     // Teacher Performance
     const teacherPerformance = await pool.query(
       `WITH student_engagement AS (
-    SELECT 
-      u.id AS student_id,             -- ✅ use users2.id instead of user_school.id
-      ct.teacher_id,
-      COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
-      COUNT(DISTINCT l.id) AS total_lessons
-    FROM classroom_teachers ct
-    JOIN user_school us2 
-      ON ct.classroom_id = us2.classroom_id
-     AND us2.role_in_school = 'student'
-     AND us2.approved = true
-    JOIN users2 u 
-      ON us2.user_id = u.id           -- ✅ proper student link
-    LEFT JOIN classroom_courses cc 
-      ON ct.classroom_id = cc.classroom_id
-    LEFT JOIN courses cr 
-      ON cc.course_id = cr.id
-    LEFT JOIN modules m 
-      ON cr.id = m.course_id
-    LEFT JOIN lessons l 
-      ON m.id = l.module_id
-    LEFT JOIN user_lesson_progress ulp 
-      ON ulp.user_id = u.id AND ulp.lesson_id = l.id
-    GROUP BY u.id, ct.teacher_id
-  )
-  SELECT 
-    t.id,
-    t.fullname,
-    t.email,
-    COUNT(DISTINCT ct.classroom_id) AS classrooms_assigned,
-    COUNT(DISTINCT s.id) AS total_students,
-    ROUND(
-      COALESCE(AVG(
-        CASE WHEN se.total_lessons > 0 
-             THEN (se.lessons_completed::numeric / se.total_lessons) * 100
-             ELSE 0
-        END
-      ), 0), 1
-    ) AS avg_engagement
-  FROM users2 t
-  JOIN user_school us 
-    ON t.id = us.user_id
-  LEFT JOIN classroom_teachers ct 
-    ON t.id = ct.teacher_id
-  LEFT JOIN user_school s 
-    ON ct.classroom_id = s.classroom_id 
-   AND s.role_in_school = 'student'
-   AND s.approved = true
-  LEFT JOIN student_engagement se 
-    ON se.teacher_id = t.id AND se.student_id = s.id
-  WHERE us.school_id = $1
-    AND us.role_in_school = 'teacher'
-    AND us.approved = true
-  GROUP BY t.id, t.fullname, t.email
-  ORDER BY total_students DESC;
+          SELECT 
+            u.id AS student_id,             -- ✅ use users2.id instead of user_school.id
+            ct.teacher_id,
+            COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
+            COUNT(DISTINCT l.id) AS total_lessons
+          FROM classroom_teachers ct
+          JOIN user_school us2 
+            ON ct.classroom_id = us2.classroom_id
+          AND us2.role_in_school = 'student'
+          AND us2.approved = true
+          JOIN users2 u 
+            ON us2.user_id = u.id           -- ✅ proper student link
+          LEFT JOIN classroom_courses cc 
+            ON ct.classroom_id = cc.classroom_id
+          LEFT JOIN courses cr 
+            ON cc.course_id = cr.id
+          LEFT JOIN modules m 
+            ON cr.id = m.course_id
+          LEFT JOIN lessons l 
+            ON m.id = l.module_id
+          LEFT JOIN user_lesson_progress ulp 
+            ON ulp.user_id = u.id AND ulp.lesson_id = l.id
+          GROUP BY u.id, ct.teacher_id
+        )
+        SELECT 
+          t.id,
+          t.fullname,
+          t.email,
+          COUNT(DISTINCT ct.classroom_id) AS classrooms_assigned,
+          COUNT(DISTINCT s.id) AS total_students,
+          ROUND(
+            COALESCE(AVG(
+              CASE WHEN se.total_lessons > 0 
+                  THEN (se.lessons_completed::numeric / se.total_lessons) * 100
+                  ELSE 0
+              END
+            ), 0), 1
+          ) AS avg_engagement
+        FROM users2 t
+        JOIN user_school us 
+          ON t.id = us.user_id
+        LEFT JOIN classroom_teachers ct 
+          ON t.id = ct.teacher_id
+        LEFT JOIN user_school s 
+          ON ct.classroom_id = s.classroom_id 
+        AND s.role_in_school = 'student'
+        AND s.approved = true
+        LEFT JOIN student_engagement se 
+          ON se.teacher_id = t.id AND se.student_id = s.id
+        WHERE us.school_id = $1
+          AND us.role_in_school = 'teacher'
+          AND us.approved = true
+        GROUP BY t.id, t.fullname, t.email
+        ORDER BY total_students DESC;
 
-`,
+      `,
       [schoolId]
     );
 
+    console.log("Dashboard schoolDbId:", schoolDbId);
+    console.log("LoadSection schoolId:", schoolId);
     return res.render("partials/overview", {
       schoolAdmin: req.session.user,
-      school: { id: schoolId, name: req.session.user.school_name },
+      // school: { id: schoolId, name: req.session.user.school_name },
+      school: { id: schoolId, name: schoolName },
       pendingUsers: pendingUsers.rows,
       classrooms: classrooms.rows,
       teachers: teachers.rows,
@@ -528,6 +561,115 @@ ORDER BY engagement_rate DESC;
 
   return res.send("<p>Section not found.</p>");
 };
+
+exports.addStudent = async (req, res) => {
+  try {
+    const { fullname, gender } = req.body;
+    const schoolRes = await pool.query(
+      "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
+      [req.session.user.id]
+    );
+
+    if (!schoolRes.rows.length) {
+      return res.status(404).send("School not found");
+    }
+
+    const schoolId = schoolRes.rows[0].id;
+    const schoolName = schoolRes.rows[0].name; // ✅ now works
+
+    // 🔥 Generate email
+    const cleanName = fullname.toLowerCase().replace(/\s+/g, "");
+    const schoolFirstWord = schoolName.split(" ")[0].toLowerCase();
+
+    const email = `${cleanName}@${schoolFirstWord}school.com`;
+
+    // 🔥 Default password
+    const defaultPassword = "12345678";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // 1️⃣ Create user
+    const userRes = await pool.query(
+      `INSERT INTO users2 (fullname, email, password, role, gender)
+       VALUES ($1, $2, $3, 'student', $4)
+       RETURNING id`,
+      [fullname, email, hashedPassword, gender]
+    );
+
+    const userId = userRes.rows[0].id;
+
+    // 2️⃣ Link to school
+    await pool.query(
+      `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+       VALUES ($1, $2, 'student', true)`,
+      [userId, schoolId]
+    );
+
+    res.redirect("/school-admin/dashboard?section=students");
+
+  } catch (err) {
+    console.error("Add student error:", err);
+    res.status(500).send("Server error");
+  }
+};
+
+// exports.bulkAddStudents = async (req, res) => {
+//   try {
+//     const schoolRes = await pool.query(
+//       "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
+//       [req.session.user.id]
+//     );
+
+//     if (!schoolRes.rows.length) {
+//       return res.status(404).send("School not found");
+//     }
+
+//     const schoolId = schoolRes.rows[0].id;
+//     const schoolName = schoolRes.rows[0].name; // ✅ now works
+//     const schoolFirstWord = schoolName.split(" ")[0].toLowerCase();
+
+//     const students = [];
+
+//     fs.createReadStream(req.file.path)
+//       .pipe(csv())
+//       .on("data", (row) => {
+//         students.push(row);
+//       })
+//       .on("end", async () => {
+//         for (const s of students) {
+
+//           const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
+//           const email = `${cleanName}@${schoolFirstWord}school.com`;
+
+//           const hashedPassword = await bcrypt.hash("12345678", 10);
+
+//           const userRes = await pool.query(
+//             `INSERT INTO users2 (fullname, email, password, role, gender)
+//              VALUES ($1, $2, $3, 'student', $4)
+//              ON CONFLICT (email) DO NOTHING
+//              RETURNING id`,
+//             [s.fullname, email, hashedPassword, s.gender]
+//           );
+
+//           if (userRes.rows.length > 0) {
+//             const userId = userRes.rows[0].id;
+
+//             await pool.query(
+//               `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+//                VALUES ($1, $2, 'student', true)
+//                ON CONFLICT DO NOTHING`,
+//               [userId, schoolId]
+//             );
+//           }
+//         }
+
+//         res.redirect("/school-admin/dashboard?section=students");
+//       });
+
+//   } catch (err) {
+//     console.error("Bulk upload error:", err);
+//     res.status(500).send("Bulk upload failed");
+//   }
+// };
 
 // Approve user (set approved = true)
 // exports.approveUser = async (req, res) => {
@@ -545,6 +687,74 @@ ORDER BY engagement_rate DESC;
 //   res.redirect("/school-admin/dashboard");
 // };
 // controllers/schoolAdminController.js
+
+exports.bulkAddStudents = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send("No file uploaded");
+    }
+
+    const schoolRes = await pool.query(
+      "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
+      [req.session.user.id]
+    );
+
+    if (!schoolRes.rows.length) {
+      return res.status(404).send("School not found");
+    }
+
+    const schoolId = schoolRes.rows[0].id;
+    const schoolName = schoolRes.rows[0].name;
+
+    const schoolFirstWord = schoolName
+      .split(" ")[0]
+      .replace(/[^a-zA-Z]/g, "")
+      .toLowerCase();
+
+    const students = [];
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", (row) => {
+        students.push(row);
+      })
+      .on("end", async () => {
+        for (const s of students) {
+
+          const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
+          const email = `${cleanName}@${schoolFirstWord}school.com`;
+
+          const hashedPassword = await bcrypt.hash("12345678", 10);
+
+          const userRes = await pool.query(
+            `INSERT INTO users2 (fullname, email, password, role, gender)
+             VALUES ($1, $2, $3, 'student', $4)
+             ON CONFLICT (email) DO NOTHING
+             RETURNING id`,
+            [s.fullname, email, hashedPassword, s.gender]
+          );
+
+          if (userRes.rows.length > 0) {
+            const userId = userRes.rows[0].id;
+
+            await pool.query(
+              `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+               VALUES ($1, $2, 'student', true)
+               ON CONFLICT DO NOTHING`,
+              [userId, schoolId]
+            );
+          }
+        }
+
+        res.redirect("/school-admin/dashboard?section=students");
+      });
+
+  } catch (err) {
+    console.error("Bulk upload error:", err);
+    res.status(500).send("Bulk upload failed");
+  }
+};
+
 exports.approveUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -590,8 +800,6 @@ exports.approveAllUsers = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
-
-
 
 // Reject user (remove link)
 exports.rejectUser = async (req, res) => {
