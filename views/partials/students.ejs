@@ -65,7 +65,10 @@
       <tr>
         <th>Full Name</th>
         <th>Email</th>
+        <th>Gender</th>
+        <th>Classroom</th>
         <th>Joined On</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -74,7 +77,12 @@
           <tr>
             <td><%= s.fullname %></td>
             <td><%= s.email %></td>
+            <td><%= s.gender %></td>
+            <td><%= s.classroom_name %></td>
             <td><%= new Date(s.joined_at).toDateString() %></td>
+            <td>
+              <button class="btn-edit" onclick="openAssignClassroomModal(<%= s.id %>, '<%= s.fullname %>')">➕ Add to Classroom</button>
+            </td>
           </tr>
         <% }) %>
       <% } else { %>
@@ -85,38 +93,35 @@
 </div>
 
 
-<!-- <script>
-  function openStudentModal() {
-    document.getElementById("studentModal").style.display = "block";
-  }
+<div id="assignClassroomModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeAssignClassroomModal()">&times;</span>
 
-  function closeStudentModal() {
-    document.getElementById("studentModal").style.display = "none";
-  }
+    <h3>Assign <span id="modalStudentName"></span> to Classroom</h3>
 
-  // Close when clicking outside
-  window.onclick = function(event) {
-    const modal = document.getElementById("studentModal");
-    if (event.target === modal) {
-      modal.style.display = "none";
-    }
-  };
-</script> -->
+    <form id="assignClassForm">
+      <input type="hidden" name="student_id" id="modalStudentId">
+
+      <select name="classroom_id" id="modalClassroomSelect" required>
+        <option value="">-- Select Classroom --</option>
+        
+        <% if (typeof classrooms !== 'undefined' && classrooms.length) { %>
+          <% classrooms.forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }) %>
+        <% } %>
+      </select>
+
+      <button type="submit" class="btn-edit">Assign</button>
+    </form>
+  </div>
+</div>
 
 
-<script>
-  window.openStudentModal = function () {
-    document.getElementById("studentModal").style.display = "block";
-  };
-
-  window.closeStudentModal = function () {
-    document.getElementById("studentModal").style.display = "none";
-  };
-
-  window.onclick = function(event) {
-    const modal = document.getElementById("studentModal");
-    if (event.target === modal) {
-      modal.style.display = "none";
-    }
-  };
-</script>
+<div id="assignSuccessModal" class="modal">
+  <div class="modal-content" style="text-align:center;">
+    <h3>✅ Success</h3>
+    <p>Student assigned to classroom successfully!</p>
+    <button onclick="closeAssignSuccessModal()" class="btn-edit">OK</button>
+  </div>
+</div>

@@ -16,13 +16,165 @@
 </div>
 
 <script>
-async function loadSection(section) {
-  try {
-    const res = await fetch(`/school-admin/section/${section}`);
-    const html = await res.text();
-    document.getElementById("dashboard-content").innerHTML = html;
-  } catch (err) {
-    document.getElementById("dashboard-content").innerHTML = "<p>Error loading section.</p>";
+  async function loadSection(section) {
+    try {
+      const res = await fetch(`/school-admin/section/${section}`);
+      const html = await res.text();
+      document.getElementById("dashboard-content").innerHTML = html;
+      // ✅ reattach events AFTER loading
+      attachEvents();
+    } catch (err) {
+      document.getElementById("dashboard-content").innerHTML = "<p>Error loading section.</p>";
+    }
+  }
+</script>
+
+<script>
+  function openStudentModal() {
+    document.getElementById("studentModal").style.display = "block";
+  }
+
+  function closeStudentModal() {
+    document.getElementById("studentModal").style.display = "none";
+  }
+
+  function openAssignClassroomModal(studentId, studentName) {
+    document.getElementById("modalStudentId").value = studentId;
+    document.getElementById("modalStudentName").textContent = studentName;
+    document.getElementById("assignClassroomModal").style.display = "block";
+  }
+
+  function closeAssignClassroomModal() {
+    document.getElementById("assignClassroomModal").style.display = "none";
+  }
+
+  function openAssignSuccessModal() {
+    document.getElementById("assignSuccessModal").style.display = "block";
+  }
+
+  function closeAssignSuccessModal() {
+    document.getElementById("assignSuccessModal").style.display = "none";
+  }
+
+  window.addEventListener("click", function(event) {
+    const studentModal = document.getElementById("studentModal");
+    const assignModal = document.getElementById("assignClassroomModal");
+
+    if (event.target === studentModal) {
+      studentModal.style.display = "none";
+    }
+
+    if (event.target === assignModal) {
+      assignModal.style.display = "none";
+    }
+  });
+
+  function attachEvents() {
+  const form = document.getElementById("assignClassForm");
+
+  if (form) {
+    form.addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const studentId = document.getElementById("modalStudentId").value;
+      const classroomId = document.getElementById("modalClassroomSelect").value;
+
+      const res = await fetch(`/school-admin/students/${studentId}/assign-classroom`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ classroom_id: classroomId })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // alert("Assigned successfully");
+        closeAssignClassroomModal();
+          // Show success modal
+        openAssignSuccessModal();
+
+        // Reload after small delay (optional but smooth)
+        setTimeout(() => {
+          loadSection("students");
+        }, 1500);
+      }
+    });
   }
 }
+</script>
+
+
+<script>
+  async function addStudent(event, classroomId) {
+    event.preventDefault();
+
+    const select = document.getElementById("student-select-" + classroomId);
+    const studentId = select.value;
+    if (!studentId) return alert("Please select a student.");
+
+    try {
+      const res = await fetch(`/school-admin/classrooms/${classroomId}/add-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_id: studentId })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+    // Add row...
+    const tbody = document.querySelector(`#classroom-${classroomId} table tbody`);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${data.student.fullname}</td>
+      <td>${data.student.email}</td>
+      <td>${new Date(data.student.joined_at).toDateString()}</td>
+      <td>
+        <form method="POST" action="/school-admin/students/${data.student.id}/delete" 
+              style="display:inline;" 
+              onsubmit="return confirm('Remove this student?')">
+          <button class="btn-delete">🗑 Remove</button>
+        </form>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // Reset dropdown
+    select.value = "";
+
+    // ✅ Show overlay alert
+    // const alertBox = document.getElementById("studentAlert");
+    // alertBox.style.display = "block";
+    // setTimeout(() => {
+    //   alertBox.style.display = "none";
+    // }, 3000);
+
+    // ✅ Show success modal
+    openStudentSuccessModal();
+
+    // Auto close after 2 seconds (optional)
+    setTimeout(() => {
+      closeStudentSuccessModal();
+    }, 2000);
+  }
+
+
+  } catch (err) {
+      console.error(err);
+      alert("Server error while adding student.");
+    }
+  }
+
+  function filterStudents(classroomId, searchText) {
+    const select = document.getElementById(`student-select-${classroomId}`);
+    const options = select.getElementsByTagName("option");
+    const filter = searchText.toLowerCase();
+
+    for (let i = 0; i < options.length; i++) {
+      const text = options[i].textContent.toLowerCase();
+      if (i === 0) continue; // skip placeholder "-- Select Student --"
+      options[i].style.display = text.includes(filter) ? "" : "none";
+    }
+  }
+
 </script>

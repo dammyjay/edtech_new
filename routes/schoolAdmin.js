@@ -98,15 +98,29 @@ router.post(
 );
 router.get("/section/:section", schoolAdminController.loadSection);
 // Add student to a classroom
+// router.post(
+//   "/classrooms/:id/add-student",
+//   activityLoggerMiddleware(
+//     "Student assigned to classroom",
+//     (req) => `Classroom: ${req.body.name}`
+//   ),
+//   schoolAdminController.assignToClassroom
+// );
+
 router.post(
   "/classrooms/:id/add-student",
   activityLoggerMiddleware(
     "Student assigned to classroom",
-    (req) => `Classroom: ${req.body.name}`
+    (req) => `Classroom ID: ${req.params.id}`
   ),
-  schoolAdminController.addStudentToClassroom
+  schoolAdminController.assignToClassroom
 );
 
+// Assign student to classroom (via modal/fetch)
+router.post(
+  "/students/:id/assign-classroom",
+  schoolAdminController.assignToClassroomB
+);
 
 
 // Quotes

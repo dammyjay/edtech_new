@@ -367,6 +367,56 @@
     document.getElementById("studentModal").style.display = "none";
   }
 
+  function openAssignClassroomModal(studentId, studentName) {
+  document.getElementById("modalStudentId").value = studentId;
+  document.getElementById("modalStudentName").textContent = studentName;
+  document.getElementById("assignClassroomModal").style.display = "block";
+}
+
+function closeAssignClassroomModal() {
+  document.getElementById("assignClassroomModal").style.display = "none";
+}
+
+// Close when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById("assignClassroomModal");
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+};
+
+// Handle form submission
+document.getElementById("assignClassForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const studentId = document.getElementById("modalStudentId").value;
+  const classroomId = document.getElementById("modalClassroomSelect").value;
+
+  if (!classroomId) return alert("Please select a classroom.");
+
+  try {
+    const res = await fetch(`/school-admin/students/${studentId}/assign-classroom`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ classroom_id: classroomId })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert(`${data.student.fullname} assigned to ${data.classroom.name}`);
+      closeAssignClassroomModal();
+      // Optionally update the table dynamically:
+      const row = document.querySelector(`tr[data-student-id='${studentId}'] td[data-classroom]`);
+      if(row) row.textContent = data.classroom.name;
+    } else {
+      alert(data.message || "Failed to assign classroom.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Server error while assigning classroom.");
+  }
+});
+
   // Close when clicking outside
   window.onclick = function(event) {
     const modal = document.getElementById("studentModal");

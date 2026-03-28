@@ -80,14 +80,26 @@ GROUP BY c.id, c.name;`,
     [schoolDbId]
   );
 
-  // Students
   const students = await pool.query(
-    `SELECT u.id, u.fullname, u.email, us.role_in_school, us.joined_at
-     FROM users2 u
-     JOIN user_school us ON u.id = us.user_id
-     WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
-    [schoolDbId]
+    `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+            COALESCE(c.name, 'Not assigned') AS classroom_name
+    FROM users2 u
+    JOIN user_school us ON u.id = us.user_id
+    LEFT JOIN classrooms c ON us.classroom_id = c.id
+    WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+    ORDER BY u.fullname`,
+    [schoolDbId]  
   );
+
+  // // Students
+  // const students = await pool.query(
+  //   `SELECT u.id, u.fullname, u.email, us.role_in_school, us.joined_at
+          
+  //    FROM users2 u
+  //    JOIN user_school us ON u.id = us.user_id
+  //    WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
+  //   [schoolDbId]
+  // );
 
   // ✅ Recent activities (limit 10 for dashboard)
   const recentActivities = await pool.query(
@@ -223,7 +235,7 @@ ORDER BY engagement_rate DESC;
 
 exports.loadSection = async (req, res) => {
   const section = req.params.section;
-  // const schoolId = req.session.user.school_id;
+
 
   const schoolRes = await pool.query(
     `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
@@ -247,15 +259,52 @@ exports.loadSection = async (req, res) => {
     return res.render("partials/teachers", { teachers: teachers.rows });
   }
 
+  // if (section === "students") {
+  //     const students = await pool.query(
+  //       `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+  //               COALESCE(c.name, 'Not assigned') AS classroom_name
+  //       FROM users2 u
+  //       JOIN user_school us ON u.id = us.user_id
+  //       LEFT JOIN classrooms c ON us.classroom_id = c.id
+  //       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+  //       ORDER BY u.fullname`,
+  //       [schoolId]  
+  //     );
+  //   return res.render("partials/students", { students: students.rows });
+  // }
+
   if (section === "students") {
+
     const students = await pool.query(
-      `SELECT u.id, u.fullname, u.email, us.joined_at
-       FROM users2 u
-       JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
+      `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+              COALESCE(c.name, 'Not assigned') AS classroom_name
+      FROM users2 u
+      JOIN user_school us ON u.id = us.user_id
+      LEFT JOIN classrooms c ON us.classroom_id = c.id
+      WHERE us.school_id = $1 
+        AND us.role_in_school = 'student' 
+        AND us.approved = true
+      ORDER BY u.fullname`,
       [schoolId]
     );
-    return res.render("partials/students", { students: students.rows });
+
+    // ✅ ADD THIS: fetch classrooms
+    const classrooms = await pool.query(
+      `SELECT c.id, c.name,
+              COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names
+      FROM classrooms c
+      LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+      LEFT JOIN users2 u ON u.id = ct.teacher_id
+      WHERE c.school_id = $1
+      GROUP BY c.id, c.name
+      ORDER BY c.name`,
+      [schoolId]
+    );
+
+    return res.render("partials/students", { 
+      students: students.rows,
+      classrooms: classrooms.rows   // ✅ FIXED
+    });
   }
 
   if (section === "classrooms") {
@@ -612,82 +661,6 @@ exports.addStudent = async (req, res) => {
   }
 };
 
-// exports.bulkAddStudents = async (req, res) => {
-//   try {
-//     const schoolRes = await pool.query(
-//       "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
-//       [req.session.user.id]
-//     );
-
-//     if (!schoolRes.rows.length) {
-//       return res.status(404).send("School not found");
-//     }
-
-//     const schoolId = schoolRes.rows[0].id;
-//     const schoolName = schoolRes.rows[0].name; // ✅ now works
-//     const schoolFirstWord = schoolName.split(" ")[0].toLowerCase();
-
-//     const students = [];
-
-//     fs.createReadStream(req.file.path)
-//       .pipe(csv())
-//       .on("data", (row) => {
-//         students.push(row);
-//       })
-//       .on("end", async () => {
-//         for (const s of students) {
-
-//           const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
-//           const email = `${cleanName}@${schoolFirstWord}school.com`;
-
-//           const hashedPassword = await bcrypt.hash("12345678", 10);
-
-//           const userRes = await pool.query(
-//             `INSERT INTO users2 (fullname, email, password, role, gender)
-//              VALUES ($1, $2, $3, 'student', $4)
-//              ON CONFLICT (email) DO NOTHING
-//              RETURNING id`,
-//             [s.fullname, email, hashedPassword, s.gender]
-//           );
-
-//           if (userRes.rows.length > 0) {
-//             const userId = userRes.rows[0].id;
-
-//             await pool.query(
-//               `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
-//                VALUES ($1, $2, 'student', true)
-//                ON CONFLICT DO NOTHING`,
-//               [userId, schoolId]
-//             );
-//           }
-//         }
-
-//         res.redirect("/school-admin/dashboard?section=students");
-//       });
-
-//   } catch (err) {
-//     console.error("Bulk upload error:", err);
-//     res.status(500).send("Bulk upload failed");
-//   }
-// };
-
-// Approve user (set approved = true)
-// exports.approveUser = async (req, res) => {
-//   const { id } = req.params;
-//   await pool.query(
-//     `UPDATE user_school
-//      SET approved = true
-//      WHERE user_id = $1 AND school_id = $2`,
-//     [id, req.session.user.school_id]
-//   );
-
-//   // 📝 Log activity
-//   await logActivityForUser(req, "User approved", `Approved user ID: ${id}`);
-
-//   res.redirect("/school-admin/dashboard");
-// };
-// controllers/schoolAdminController.js
-
 exports.bulkAddStudents = async (req, res) => {
   try {
     if (!req.file) {
@@ -814,7 +787,12 @@ exports.rejectUser = async (req, res) => {
 
 // List classrooms
 exports.listClassrooms = async (req, res) => {
-  const schoolId = req.session.user.school_id;
+  const schoolRes = await pool.query(
+    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+    [req.session.user.id]
+  );
+
+  const schoolId = schoolRes.rows[0].id;
   const result = await pool.query(
     "SELECT * FROM classrooms WHERE school_id = $1",
     [schoolId]
@@ -824,7 +802,12 @@ exports.listClassrooms = async (req, res) => {
 
 // Create classroom
 exports.createClassroom = async (req, res) => {
-  const schoolId = req.session.user.school_id;
+  const schoolRes = await pool.query(
+    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+    [req.session.user.id]
+  );
+
+  const schoolId = schoolRes.rows[0].id;
   const { name, teacher_id } = req.body;
 
   try {
@@ -859,41 +842,150 @@ exports.createClassroom = async (req, res) => {
 };
 
 // Assign student/teacher to a classroom
+
 exports.assignToClassroom = async (req, res) => {
-  const { classroomId, userId } = req.params;
+  try {
+    const { student_id } = req.body;
+    const classroomId = req.params.id;
 
-  // Check if this is a teacher or student
-  const roleResult = await pool.query(
-    `SELECT role_in_school FROM user_school WHERE user_id = $1 AND school_id = $2`,
-    [userId, req.session.user.school_id]
-  );
+    const schoolRes = await pool.query(
+      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      [req.session.user.id]
+    );
 
-  if (!roleResult.rows.length) {
-    return res.status(400).send("User not part of this school");
-  }
+    const schoolId = schoolRes.rows[0].id;
 
-  const role = roleResult.rows[0].role_in_school;
+    // Check if user is part of this school
+    const roleResult = await pool.query(
+      `SELECT role_in_school 
+       FROM user_school 
+       WHERE user_id = $1 AND school_id = $2`,
+      [student_id, schoolId]
+    );
 
-  if (role === "student") {
+    if (!roleResult.rows.length) {
+      return res.status(400).json({
+        success: false,
+        message: "User not part of this school"
+      });
+    }
+
+    const role = roleResult.rows[0].role_in_school;
+
+    if (role !== "student") {
+      return res.status(400).json({
+        success: false,
+        message: "Only students can be assigned here"
+      });
+    }
+
+    // ✅ Assign student
     await pool.query(
       `UPDATE user_school
        SET classroom_id = $1
        WHERE user_id = $2 AND school_id = $3`,
-      [classroomId, userId, req.session.user.school_id]
+      [classroomId, student_id, schoolId]
     );
-    await logActivityForUser(req, "Student assigned to classroon", `student ID: ${name}`);
-  } else if (role === "teacher") {
-    await pool.query(
-      `INSERT INTO classroom_teachers (classroom_id, teacher_id)
-       VALUES ($1, $2)
-       ON CONFLICT (classroom_id, teacher_id) DO NOTHING`,
-      [classroomId, userId]
-    );
-    await logActivityForUser(req, "Teacher assigned to classroom", `Teacher ID: ${userId}`);
-  }
 
-  res.redirect(`/school-admin/classrooms/${classroomId}`);
+    // ✅ Fetch student
+    const studentRes = await pool.query(
+      `SELECT u.id, u.fullname, u.email, us.joined_at
+       FROM users2 u
+       JOIN user_school us ON u.id = us.user_id
+       WHERE u.id = $1 AND us.school_id = $2`,
+      [student_id, schoolId]
+    );
+
+    const student = studentRes.rows[0];
+
+    res.json({ success: true, student });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while assigning classroom"
+    });
+  }
 };
+
+exports.assignToClassroomB = async (req, res) => {
+  try {
+    const { classroom_id } = req.body; // From AJAX POST JSON
+    const userId = req.params.id;       // From URL param
+    const schoolRes = await pool.query(
+      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      [req.session.user.id]
+    );
+
+    const schoolId = schoolRes.rows[0].id;
+
+    // Check if user is part of this school
+    const roleResult = await pool.query(
+      `SELECT role_in_school FROM user_school WHERE user_id = $1 AND school_id = $2`,
+      [userId, schoolId]
+    );
+
+    if (!roleResult.rows.length) {
+      return res.status(400).json({ success: false, message: "User not part of this school" });
+    }
+
+    const role = roleResult.rows[0].role_in_school;
+
+    let student, classroom;
+
+    if (role === "student") {
+      // Assign student to classroom
+      const updateRes = await pool.query(
+        `UPDATE user_school
+         SET classroom_id = $1
+         WHERE user_id = $2 AND school_id = $3
+         RETURNING user_id`,
+        [classroom_id, userId, schoolId]
+      );
+
+
+      const studentRes = await pool.query(
+        `SELECT u.id, u.fullname, u.email, us.joined_at
+        FROM users2 u
+        JOIN user_school us ON u.id = us.user_id
+        WHERE u.id = $1 AND us.school_id = $2`,
+        [userId, schoolId]
+      );
+
+      student = studentRes.rows[0];
+
+      // Fetch classroom info
+      const classroomRes = await pool.query(
+        `SELECT id, name FROM classrooms WHERE id = $1`,
+        [classroom_id]
+      );
+
+      classroom = classroomRes.rows[0];
+
+      await logActivityForUser(req, "Student assigned to classroom", `Student ID: ${student.id}`);
+
+    } else if (role === "teacher") {
+      // Assign teacher to classroom
+      await pool.query(
+        `INSERT INTO classroom_teachers (classroom_id, teacher_id)
+         VALUES ($1, $2)
+         ON CONFLICT (classroom_id, teacher_id) DO NOTHING`,
+        [classroom_id, userId]
+      );
+
+      await logActivityForUser(req, "Teacher assigned to classroom", `Teacher ID: ${userId}`);
+      return res.json({ success: true, message: "Teacher assigned to classroom" });
+    }
+
+    res.json({ success: true, student, classroom });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error while assigning classroom" });
+  }
+};
+
 
 
 exports.viewClassroom = async (req, res) => {
@@ -1203,12 +1295,15 @@ exports.deleteClassroom = async (req, res) => {
 // };
 
 
-
-
 exports.addStudentToClassroom = async (req, res) => {
   const classroomId = req.params.id;
   const { student_id } = req.body;
-  const schoolId = req.session.user.school_id;
+  const schoolRes = await pool.query(
+    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+    [req.session.user.id]
+  );
+
+  const schoolId = schoolRes.rows[0].id;
 
   try {
     if (!student_id) {
@@ -1266,7 +1361,12 @@ exports.addStudentToClassroom = async (req, res) => {
 // ------------------ QUOTES ------------------ //
 exports.getQuotes = async (req, res) => {
   try {
-    const schoolId = req.session.user.school_id;
+    const schoolRes = await pool.query(
+      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      [req.session.user.id]
+    );
+
+    const schoolId = schoolRes.rows[0].id;
     const quotes = await pool.query(
       "SELECT id, text, author FROM quotes WHERE school_id=$1 ORDER BY id DESC",
       [schoolId]
@@ -1278,26 +1378,15 @@ exports.getQuotes = async (req, res) => {
   }
 };
 
-// exports.addQuote = async (req, res) => {
-//   try {
-//     const { text, author } = req.body;
-//     const schoolId = req.session.user.school_id;
-
-//     await pool.query(
-//       "INSERT INTO quotes (text, author, school_id) VALUES ($1, $2, $3)",
-//       [text, author, schoolId]
-//     );
-//     res.redirect("/school-admin/dashboard");
-//   } catch (err) {
-//     console.error("Error adding quote:", err);
-//     res.status(500).send("Server Error");
-//   }
-// };
-
 exports.addQuote = async (req, res) => {
   try {
     const { requested_students, price_quote } = req.body;
-    const schoolId = req.session.user.school_id;
+    const schoolRes = await pool.query(
+  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+  [req.session.user.id]
+);
+
+const schoolId = schoolRes.rows[0].id;
 
     await pool.query(
       `INSERT INTO quotes (school_id, requested_students, price_quote, status) 
@@ -1328,7 +1417,12 @@ exports.deleteQuote = async (req, res) => {
 // ------------------ PAYMENTS ------------------ //
 exports.getPayments = async (req, res) => {
   try {
-    const schoolId = req.session.user.school_id;
+    const schoolRes = await pool.query(
+  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+  [req.session.user.id]
+);
+
+const schoolId = schoolRes.rows[0].id;
     const payments = await pool.query(
       `SELECT p.id, u.fullname, p.amount, p.status, p.updated_at
        FROM payments p
@@ -1359,44 +1453,16 @@ exports.updatePayment = async (req, res) => {
 };
 
 // ------------------ CLASSROOM ↔ COURSES ------------------ //
-// exports.getClassroomCourses = async (req, res) => {
-//   try {
-//     const schoolId = req.session.user.school_id;
-
-//     const classrooms = await pool.query(
-//       "SELECT id, name FROM classrooms WHERE school_id=$1",
-//       [schoolId]
-//     );
-
-//     const courses = await pool.query(
-//       "SELECT id, title FROM courses ORDER BY title"
-//     );
-
-//     const classroomCourses = await pool.query(
-//       `SELECT cc.id, c.name AS classroom, cr.title AS course
-//        FROM classroom_courses cc
-//        JOIN classrooms c ON cc.classroom_id = c.id
-//        JOIN courses cr ON cc.course_id = cr.id
-//        WHERE c.school_id=$1
-//        ORDER BY c.name, cr.title`,
-//       [schoolId]
-//     );
-
-//     res.render("partials/classroom-courses", {
-//       classrooms: classrooms.rows,
-//       courses: courses.rows,
-//       classroomCourses: classroomCourses.rows,
-//     });
-//   } catch (err) {
-//     console.error("Error fetching classroom courses:", err);
-//     res.status(500).send("Server Error");
-//   }
-// };
 
 // 📌 School Admin: Manage classroom-course assignments
 exports.getClassroomCourses = async (req, res) => {
   try {
-    const schoolId = req.session.user.school_id;
+    const schoolRes = await pool.query(
+  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+  [req.session.user.id]
+);
+
+const schoolId = schoolRes.rows[0].id;
     console.log("School Admin Dashboard -> School ID:", schoolId);
 
     // ✅ Only classrooms for this school
@@ -1440,35 +1506,15 @@ exports.getClassroomCourses = async (req, res) => {
 };
 
 
-
-// exports.assignCourseToClassroom = async (req, res) => {
-//   try {
-//     const { classroomId, courseId } = req.body;
-
-//     // prevent duplicate assignment
-//     const exists = await pool.query(
-//       "SELECT 1 FROM classroom_courses WHERE classroom_id=$1 AND course_id=$2",
-//       [classroomId, courseId]
-//     );
-
-//     if (exists.rows.length === 0) {
-//       await pool.query(
-//         "INSERT INTO classroom_courses (classroom_id, course_id) VALUES ($1, $2)",
-//         [classroomId, courseId]
-//       );
-//     }
-
-//     res.redirect("/school-admin/dashboard");
-//   } catch (err) {
-//     console.error("Error assigning course:", err);
-//     res.status(500).send("Server Error");
-//   }
-// };
-
 exports.assignCourseToClassroom = async (req, res) => {
   try {
     const { classroomId, courseId } = req.body;
-    const schoolId = req.session.user.school_id;
+    const schoolRes = await pool.query(
+  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+  [req.session.user.id]
+);
+
+const schoolId = schoolRes.rows[0].id;
 
     // ✅ Check that this course actually belongs to the school
     const validCourse = await pool.query(
