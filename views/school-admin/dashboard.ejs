@@ -56,6 +56,14 @@
     document.getElementById("assignSuccessModal").style.display = "none";
   }
 
+  function openStudentSuccessModal() {
+    document.getElementById("studentSuccessModal").style.display = "block";
+  }
+
+  function closeStudentSuccessModal() {
+    document.getElementById("studentSuccessModal").style.display = "none";
+  }
+
   window.addEventListener("click", function(event) {
     const studentModal = document.getElementById("studentModal");
     const assignModal = document.getElementById("assignClassroomModal");
