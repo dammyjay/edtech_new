@@ -305,8 +305,20 @@
 
 <!-- students section  -->
 <div id="students-section" style="display:none;">
-  <button onclick="openUserForm('student')">➕ Add Student</button>
-  <button onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
+  <button class="btn btn-view" onclick="openUserForm('student')">➕ Add Student</button>
+  <button class="btn btn-view" onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
+  <a href="/admin/schools/<%= school.id %>/export-students-excel" class="btn btn-view" target="_blank" style="text-decoration: none;">
+    📥 Export Students (Excel)
+  </a>
+
+  <div style="margin-bottom: 15px;">
+  
+
+  <!-- <a href="/admin/schools/<%= school.id %>/export-students-pdf" 
+     class="btn btn-view" target="_blank" style="text-decoration: none; margin-top: 10px;">
+    📄 Export Students (PDF)
+  </a> -->
+</div>
 
   <!-- 🔽 Classroom filter -->
   <label><strong>Filter by Classroom:</strong></label>

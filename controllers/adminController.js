@@ -4652,6 +4652,68 @@ exports.downloadStudentLoginCards = async (req, res) => {
   }
 };
 
+exports.exportStudentsExcel = async (req, res) => {
+  try {
+    const { id } = req.params; // school id
+
+    const { rows: students } = await pool.query(
+      `
+      SELECT 
+        u.fullname AS full_name,
+        u.email,
+        u.phone,
+        u.gender,
+        u.dob,
+        c.name AS classroom
+      FROM user_school us
+      JOIN users2 u ON us.user_id = u.id
+      LEFT JOIN classrooms c ON us.classroom_id = c.id
+      WHERE us.school_id = $1 AND us.role_in_school = 'student'
+      ORDER BY u.fullname ASC
+    `,
+      [id],
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Students");
+
+    // sheet.columns = [
+    //   { header: "Full Name", key: "full_name", width: 25 },
+    //   { header: "Email", key: "email", width: 30 },
+    //   { header: "Phone", key: "phone", width: 20 },
+    //   { header: "Gender", key: "gender", width: 15 },
+    //   { header: "Date of Birth", key: "dob", width: 20 },
+    //   { header: "Classroom", key: "classroom", width: 20 },
+    // ];
+
+    sheet.columns = [
+      { header: "Full Name", key: "full_name", width: 25 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Gender", key: "gender", width: 15 },
+      { header: "Classroom", key: "classroom", width: 20 },
+    ];
+
+    students.forEach((s) => {
+      sheet.addRow({
+        ...s,
+        dob: s.dob ? new Date(s.dob).toLocaleDateString() : "",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename=students.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Excel export failed");
+  }
+};
+
 exports.createClassroom = async (req, res) => {
   try {
     const { school_id, name, teacher_id } = req.body; // destructure first

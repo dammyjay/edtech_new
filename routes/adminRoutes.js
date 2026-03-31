@@ -410,6 +410,8 @@ router.post(
   adminController.updateSchoolInfo
 );
 router.get("/schools/:id", adminController.getSchoolDetails);
+router.get("/schools/:id/export-students-excel", adminController.exportStudentsExcel);
+// router.get("/admin/schools/:id/export-students-pdf", adminController.exportStudentsPDF);
 
 // for quotes and course assignment
 router.get("/quotes", adminController.getQuotes);
