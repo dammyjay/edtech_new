@@ -77,7 +77,41 @@
     }
   });
 
-  function attachEvents() {
+//   function attachEvents() {
+//   const form = document.getElementById("assignClassForm");
+
+//   if (form) {
+//     form.addEventListener("submit", async function(e) {
+//       e.preventDefault();
+
+//       const studentId = document.getElementById("modalStudentId").value;
+//       const classroomId = document.getElementById("modalClassroomSelect").value;
+
+//       const res = await fetch(`/school-admin/students/${studentId}/assign-classroom`, {
+//         method: "POST",
+//         headers: {"Content-Type": "application/json"},
+//         body: JSON.stringify({ classroom_id: classroomId })
+//       });
+
+//       const data = await res.json();
+
+//       if (data.success) {
+//         // alert("Assigned successfully");
+//         closeAssignClassroomModal();
+//           // Show success modal
+//         openAssignSuccessModal();
+
+//         // Reload after small delay (optional but smooth)
+//         setTimeout(() => {
+//           loadSection("students");
+//         }, 1500);
+//       }
+//     });
+//   }
+// }
+
+function attachEvents() {
+  // EXISTING CODE (keep it)
   const form = document.getElementById("assignClassForm");
 
   if (form) {
@@ -96,19 +130,55 @@
       const data = await res.json();
 
       if (data.success) {
-        // alert("Assigned successfully");
         closeAssignClassroomModal();
-          // Show success modal
         openAssignSuccessModal();
 
-        // Reload after small delay (optional but smooth)
         setTimeout(() => {
           loadSection("students");
         }, 1500);
       }
     });
   }
+
+  // ✅ ADD THIS BLOCK HERE
+  const bulkForm = document.getElementById("bulkUploadForm");
+
+  if (bulkForm) {
+    bulkForm.addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+
+      const res = await fetch("/school-admin/bulk-add-students", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      // ✅ close upload modal
+      closeStudentModal();
+
+      if (data.success) {
+        showBulkModal("✅ Success", data.message);
+
+        setTimeout(() => {
+          closeBulkModal();
+          loadSection("students");
+        }, 2000);
+      } else {
+        let errorText = data.message;
+
+        if (data.errors) {
+          errorText += "<br><br>" + data.errors.join("<br>");
+        }
+
+        showBulkModal("❌ Upload Error", errorText);
+      }
+    });
+  }
 }
+
 </script>
 
 
@@ -185,4 +255,71 @@
     }
   }
 
+  // document.getElementById("bulkUploadForm").addEventListener("submit", async function(e) {
+  //   e.preventDefault();
+
+  //   const formData = new FormData(this);
+
+  //   const res = await fetch("/school-admin/bulk-add-students", {
+  //     method: "POST",
+  //     body: formData
+  //   });
+
+  //   const data = await res.json();
+
+  //   if (data.success) {
+  //     showBulkModal("✅ Success", data.message);
+  //   } else {
+  //     let errorText = data.message;
+
+  //     if (data.errors) {
+  //       errorText += "<br><br>" + data.errors.join("<br>");
+  //     }
+
+  //     showBulkModal("❌ Upload Error", errorText);
+  //   }
+  // });
+
+  document.getElementById("bulkUploadForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    const res = await fetch("/school-admin/bulk-add-students", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+
+    // ✅ CLOSE upload modal FIRST
+    closeStudentModal();
+
+    if (data.success) {
+      showBulkModal("✅ Success", data.message);
+
+      setTimeout(() => {
+        closeBulkModal();
+        loadSection("students"); // refresh table
+      }, 2000);
+    } else {
+      let errorText = data.message;
+
+      if (data.errors) {
+        errorText += "<br><br>" + data.errors.join("<br>");
+      }
+
+      showBulkModal("❌ Upload Error", errorText);
+    }
+  });
+
+  function showBulkModal(title, message) {
+    document.getElementById("bulkModalTitle").innerHTML = title;
+    document.getElementById("bulkModalMessage").innerHTML = message;
+    document.getElementById("bulkModal").style.display = "block";
+  }
+
+  function closeBulkModal() {
+    document.getElementById("bulkModal").style.display = "none";
+  }
 </script>

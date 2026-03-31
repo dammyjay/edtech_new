@@ -51,7 +51,12 @@
 
     <h3>Bulk Upload (CSV)</h3>
 
-    <form action="/school-admin/bulk-add-students" method="POST" enctype="multipart/form-data">
+    <!-- <form action="/school-admin/bulk-add-students" method="POST" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required />
+      <button type="submit">Upload CSV</button>
+    </form> -->
+
+    <form id="bulkUploadForm" enctype="multipart/form-data">
       <input type="file" name="file" accept=".csv" required />
       <button type="submit">Upload CSV</button>
     </form>
@@ -125,3 +130,11 @@
     <button onclick="closeAssignSuccessModal()" class="btn-edit">OK</button>
   </div>
 </div>
+
+<div id="bulkModal" class="modal">
+  <div class="modal-content" style="text-align:center;">
+    <h3 id="bulkModalTitle"></h3>
+    <p id="bulkModalMessage"></p>
+    <button onclick="closeBulkModal()" class="btn-edit">OK</button>
+  </div>
+</div>  

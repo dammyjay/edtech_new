@@ -661,19 +661,120 @@ exports.addStudent = async (req, res) => {
   }
 };
 
+// exports.bulkAddStudents = async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).send("No file uploaded");
+//     }
+
+//     const schoolRes = await pool.query(
+//       "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
+//       [req.session.user.id]
+//     );
+
+//     if (!schoolRes.rows.length) {
+//       return res.status(404).send("School not found");
+//     }
+
+//     const schoolId = schoolRes.rows[0].id;
+//     const schoolName = schoolRes.rows[0].name;
+
+//     const schoolFirstWord = schoolName
+//       .split(" ")[0]
+//       .replace(/[^a-zA-Z]/g, "")
+//       .toLowerCase();
+
+//     const students = [];
+
+//     fs.createReadStream(req.file.path)
+//       .pipe(csv())
+//       .on("data", (row) => {
+//         students.push(row);
+//       })
+//       .on("end", async () => {
+//         for (const s of students) {
+
+//           const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
+//           const email = `${cleanName}@${schoolFirstWord}school.com`;
+
+//           const hashedPassword = await bcrypt.hash("12345678", 10);
+
+//           const userRes = await pool.query(
+//             `INSERT INTO users2 (fullname, email, password, role, gender)
+//              VALUES ($1, $2, $3, 'student', $4)
+//              ON CONFLICT (email) DO NOTHING
+//              RETURNING id`,
+//             [s.fullname, email, hashedPassword, s.gender]
+//           );
+
+//           if (userRes.rows.length > 0) {
+//             const userId = userRes.rows[0].id;
+
+//             await pool.query(
+//               `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+//                VALUES ($1, $2, 'student', true)
+//                ON CONFLICT DO NOTHING`,
+//               [userId, schoolId]
+//             );
+//           }
+//         }
+
+//       //   for (const s of students) {
+//       //     const name = s.fullname || s["Full Name"] || s.name;
+//       //     const gender = s.gender || s.Gender;
+
+//       //     if (!name || !gender) {
+//       //       console.log("Skipping invalid row:", s);
+//       //       continue;
+//       //     }
+
+//       //     const cleanName = name.toLowerCase().replace(/\s+/g, "");
+//       //     const email = `${cleanName}@${schoolFirstWord}school.com`;
+
+//       //     const hashedPassword = await bcrypt.hash("12345678", 10);
+
+//       //     const userRes = await pool.query(
+//       //       `INSERT INTO users2 (fullname, email, password, role, gender)
+//       //         VALUES ($1, $2, $3, 'student', $4)
+//       //         ON CONFLICT (email) DO NOTHING
+//       //         RETURNING id`,
+//       //       [name, email, hashedPassword, gender],
+//       //     );
+
+//       //     if (userRes.rows.length > 0) {
+//       //       const userId = userRes.rows[0].id;
+
+//       //       await pool.query(
+//       //         `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+//       //  VALUES ($1, $2, 'student', true)
+//       //  ON CONFLICT DO NOTHING`,
+//       //         [userId, schoolId],
+//       //       );
+//       //     }
+//       //   }
+
+//         res.redirect("/school-admin/dashboard?section=students");
+//       });
+
+//   } catch (err) {
+//     console.error("Bulk upload error:", err);
+//     res.status(500).send("Bulk upload failed");
+//   }
+// };
+
 exports.bulkAddStudents = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).send("No file uploaded");
+      return res.json({ success: false, message: "No file uploaded" });
     }
 
     const schoolRes = await pool.query(
       "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
-      [req.session.user.id]
+      [req.session.user.id],
     );
 
     if (!schoolRes.rows.length) {
-      return res.status(404).send("School not found");
+      return res.json({ success: false, message: "School not found" });
     }
 
     const schoolId = schoolRes.rows[0].id;
@@ -685,6 +786,7 @@ exports.bulkAddStudents = async (req, res) => {
       .toLowerCase();
 
     const students = [];
+    const errors = [];
 
     fs.createReadStream(req.file.path)
       .pipe(csv())
@@ -692,39 +794,57 @@ exports.bulkAddStudents = async (req, res) => {
         students.push(row);
       })
       .on("end", async () => {
-        for (const s of students) {
+        for (const [index, s] of students.entries()) {
+          try {
+            if (!s.fullname || !s.gender) {
+              errors.push(`Row ${index + 1}: Missing fullname or gender`);
+              continue;
+            }
 
-          const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
-          const email = `${cleanName}@${schoolFirstWord}school.com`;
+            const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
+            const email = `${cleanName}@${schoolFirstWord}school.com`;
 
-          const hashedPassword = await bcrypt.hash("12345678", 10);
+            const hashedPassword = await bcrypt.hash("12345678", 10);
 
-          const userRes = await pool.query(
-            `INSERT INTO users2 (fullname, email, password, role, gender)
-             VALUES ($1, $2, $3, 'student', $4)
-             ON CONFLICT (email) DO NOTHING
-             RETURNING id`,
-            [s.fullname, email, hashedPassword, s.gender]
-          );
-
-          if (userRes.rows.length > 0) {
-            const userId = userRes.rows[0].id;
-
-            await pool.query(
-              `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
-               VALUES ($1, $2, 'student', true)
-               ON CONFLICT DO NOTHING`,
-              [userId, schoolId]
+            const userRes = await pool.query(
+              `INSERT INTO users2 (fullname, email, password, role, gender)
+               VALUES ($1, $2, $3, 'student', $4)
+               ON CONFLICT (email) DO NOTHING
+               RETURNING id`,
+              [s.fullname, email, hashedPassword, s.gender],
             );
+
+            if (userRes.rows.length > 0) {
+              const userId = userRes.rows[0].id;
+
+              await pool.query(
+                `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+                 VALUES ($1, $2, 'student', true)
+                 ON CONFLICT DO NOTHING`,
+                [userId, schoolId],
+              );
+            }
+          } catch (err) {
+            errors.push(`Row ${index + 1}: ${err.message}`);
           }
         }
 
-        res.redirect("/school-admin/dashboard?section=students");
-      });
+        if (errors.length > 0) {
+          return res.json({
+            success: false,
+            message: "Some rows failed",
+            errors,
+          });
+        }
 
+        res.json({
+          success: true,
+          message: "Students uploaded successfully",
+        });
+      });
   } catch (err) {
-    console.error("Bulk upload error:", err);
-    res.status(500).send("Bulk upload failed");
+    console.error(err);
+    res.json({ success: false, message: "Bulk upload failed" });
   }
 };
 
