@@ -306,6 +306,7 @@
 <!-- students section  -->
 <div id="students-section" style="display:none;">
   <button onclick="openUserForm('student')">➕ Add Student</button>
+  <button onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
 
   <!-- 🔽 Classroom filter -->
   <label><strong>Filter by Classroom:</strong></label>
@@ -496,6 +497,26 @@
 </div>
 
 
+<div id="bulkStudentModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeBulkStudentModal()">&times;</span>
+
+    <h3>Bulk Upload Students (CSV)</h3>
+
+    <form id="adminBulkUploadForm" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required />
+      <button type="submit">Upload CSV</button>
+    </form>
+  </div>
+</div>
+
+<div id="adminBulkResultModal" class="modal">
+  <div class="modal-content" style="text-align:center;">
+    <h3 id="adminBulkTitle"></h3>
+    <p id="adminBulkMessage"></p>
+    <button onclick="closeAdminBulkModal()">OK</button>
+  </div>
+</div>
 
 <!-- Create Classroom Modal -->
 <div id="createClassroomModal" class="modal-overlay" style="display:none;">
@@ -678,6 +699,7 @@
       modal.style.display = "none";
     }
   }
+  
 </script>
 
 
@@ -767,7 +789,6 @@
       alert("Delete failed");
     }
   }
-
   
 
   async function toggleStudents(classroomId) {
@@ -922,6 +943,25 @@
 
 <!-- script for user modal -->
 <script>
+
+  function openBulkStudentModal() {
+  document.getElementById("bulkStudentModal").style.display = "block";
+}
+
+function closeBulkStudentModal() {
+  document.getElementById("bulkStudentModal").style.display = "none";
+}
+
+function showAdminBulkModal(title, message) {
+  document.getElementById("adminBulkTitle").innerHTML = title;
+  document.getElementById("adminBulkMessage").innerHTML = message;
+  document.getElementById("adminBulkResultModal").style.display = "block";
+}
+
+function closeAdminBulkModal() {
+  document.getElementById("adminBulkResultModal").style.display = "none";
+}
+
   function openUserModal(user) {
     document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
     document.getElementById("modalFullName").textContent = user.full_name || "—";
@@ -965,6 +1005,47 @@
       alert("Failed: " + (await res.text()));
     }
   };
+
+  document.getElementById("adminBulkUploadForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const schoolId = "<%= school.id %>"; // VERY IMPORTANT
+
+    try {
+      const res = await fetch(`/admin/schools/${schoolId}/bulk-add-users`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      // ✅ close upload modal first
+      closeBulkStudentModal();
+
+      if (data.success) {
+        showAdminBulkModal("✅ Success", data.message);
+
+        setTimeout(() => {
+          closeAdminBulkModal();
+          location.reload(); // refresh table
+        }, 2000);
+      } else {
+        let errorText = data.message;
+
+        if (data.errors) {
+          errorText += "<br><br>" + data.errors.join("<br>");
+        }
+
+        showAdminBulkModal("❌ Upload Error", errorText);
+      }
+
+    } catch (err) {
+      console.error(err);
+      showAdminBulkModal("❌ Error", "Something went wrong");
+    }
+  });
+
 </script>
 
 <!-- close user modal when clicking outside -->

@@ -6,6 +6,7 @@ const sendEmail = require("../utils/sendEmail");
 const cloudinary = require("../utils/cloudinary");
 const buildFeedbackPDF = require("../utils/feedbackPdfTemplate");
 const buildAnalyticsPDF = require("../utils/buildAnalyticsPDF");
+const csv = require("csv-parser");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
@@ -5057,6 +5058,238 @@ exports.addUserToSchool = async (req, res) => {
   } catch (err) {
     console.error("❌ addUserToSchool error:", err.message);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// exports.platformBulkAddUsers = async (req, res) => {
+//   try {
+//     const { schoolId } = req.params;
+
+//     if (!req.file) {
+//       return res.json({ success: false, message: "No file uploaded" });
+//     }
+
+//     // ✅ Check school
+//     const schoolRes = await pool.query("SELECT * FROM schools WHERE id = $1", [
+//       schoolId,
+//     ]);
+
+//     if (!schoolRes.rows.length) {
+//       return res.json({ success: false, message: "Invalid school" });
+//     }
+
+//     const school = schoolRes.rows[0];
+//     const schoolFirstWord = school.name
+//       .split(" ")[0]
+//       .replace(/[^a-zA-Z]/g, "")
+//       .toLowerCase();
+
+//     const students = [];
+//     const errors = [];
+
+//     fs.createReadStream(req.file.path)
+//       .pipe(csv())
+//       .on("data", (row) => {
+//         students.push(row);
+//       })
+//       .on("end", async () => {
+//         for (const [index, s] of students.entries()) {
+//           try {
+//             // ✅ Flexible columns (VERY IMPORTANT)
+//             const name = s.fullname || s.name || s["Full Name"];
+//             const gender = s.gender || s.Gender;
+//             const role = s.role || "student";
+
+//             if (!name || !gender) {
+//               errors.push(`Row ${index + 1}: Missing fullname or gender`);
+//               continue;
+//             }
+
+//             const cleanName = name.toLowerCase().replace(/\s+/g, "");
+//             let email = s.email;
+
+//             // ✅ Auto email for students
+//             if (!email && role === "student") {
+//               email = `${cleanName}@${schoolFirstWord}school.com`;
+//             }
+
+//             const hashedPassword = await bcrypt.hash("12345678", 10);
+
+//             const userRes = await pool.query(
+//               `INSERT INTO users2 (fullname, email, password, role, gender)
+//                VALUES ($1, $2, $3, $4, $5)
+//                ON CONFLICT (email) DO NOTHING
+//                RETURNING id`,
+//               [name, email, hashedPassword, role, gender],
+//             );
+
+//             if (userRes.rows.length > 0) {
+//               const userId = userRes.rows[0].id;
+
+//               await pool.query(
+//                 `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+//                  VALUES ($1, $2, $3, true)
+//                  ON CONFLICT DO NOTHING`,
+//                 [userId, schoolId, role],
+//               );
+//             }
+//           } catch (err) {
+//             errors.push(`Row ${index + 1}: ${err.message}`);
+//           }
+//         }
+
+//         if (errors.length > 0) {
+//           return res.json({
+//             success: false,
+//             message: "Some rows failed",
+//             errors,
+//           });
+//         }
+
+//         res.json({
+//           success: true,
+//           message: "Users uploaded successfully",
+//         });
+//       });
+//   } catch (err) {
+//     console.error(err);
+//     res.json({ success: false, message: "Bulk upload failed" });
+//   }
+// };
+
+exports.platformBulkAddUsers = async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+
+    if (!req.file) {
+      return res.json({ success: false, message: "No file uploaded" });
+    }
+
+    // ✅ Check school
+    const schoolRes = await pool.query("SELECT * FROM schools WHERE id = $1", [
+      schoolId,
+    ]);
+
+    if (!schoolRes.rows.length) {
+      return res.json({ success: false, message: "Invalid school" });
+    }
+
+    const school = schoolRes.rows[0];
+    const schoolFirstWord = school.name
+      .split(" ")[0]
+      .replace(/[^a-zA-Z]/g, "")
+      .toLowerCase();
+
+    const students = [];
+    const errors = [];
+    let successCount = 0;
+
+    // ✅ Normalize keys (fix headers like " Full Name ", "GENDER", etc.)
+    const normalize = (obj) => {
+      const newObj = {};
+      for (let key in obj) {
+        newObj[key.trim().toLowerCase()] = obj[key]?.trim();
+      }
+      return newObj;
+    };
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", (row) => {
+        const cleanRow = normalize(row);
+
+        // ❌ Skip completely empty rows
+        if (Object.values(cleanRow).every((v) => !v)) return;
+
+        students.push(cleanRow);
+      })
+      .on("end", async () => {
+        for (const [index, s] of students.entries()) {
+          try {
+            console.log("Processing row:", s);
+
+            // ✅ Flexible fields
+            const name = s.fullname || s.name || s["full name"];
+            const genderRaw = s.gender;
+            const role = s.role ? s.role.toLowerCase() : "student";
+
+            if (!name || !genderRaw) {
+              errors.push(`Row ${index + 1}: Missing fullname or gender`);
+              continue;
+            }
+
+            // ✅ Normalize gender
+            const genderLower = genderRaw.toLowerCase();
+            const gender =
+              genderLower === "male"
+                ? "Male"
+                : genderLower === "female"
+                  ? "Female"
+                  : "Not Specified";
+
+            const cleanName = name.toLowerCase().replace(/\s+/g, "");
+
+            let email = s.email;
+
+            // ✅ Auto email
+            if (!email && role === "student") {
+              email = `${cleanName}@${schoolFirstWord}school.com`;
+            }
+
+            if (!email) {
+              errors.push(`Row ${index + 1}: Email is required`);
+              continue;
+            }
+
+            const hashedPassword = await bcrypt.hash("12345678", 10);
+
+            const userRes = await pool.query(
+              `INSERT INTO users2 (fullname, email, password, role, gender)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (email) DO NOTHING
+               RETURNING id`,
+              [name, email, hashedPassword, role, gender],
+            );
+
+            // ❌ Detect duplicate email
+            if (userRes.rows.length === 0) {
+              errors.push(`Row ${index + 1}: Email already exists (${email})`);
+              continue;
+            }
+
+            const userId = userRes.rows[0].id;
+
+            await pool.query(
+              `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
+               VALUES ($1, $2, $3, true)
+               ON CONFLICT DO NOTHING`,
+              [userId, schoolId, role],
+            );
+
+            successCount++;
+          } catch (err) {
+            console.error(err);
+            errors.push(`Row ${index + 1}: ${err.message}`);
+          }
+        }
+
+        // ✅ Final response
+        if (errors.length > 0) {
+          return res.json({
+            success: false,
+            message: `${successCount} users uploaded, some failed`,
+            errors,
+          });
+        }
+
+        res.json({
+          success: true,
+          message: `${successCount} users uploaded successfully`,
+        });
+      });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Bulk upload failed" });
   }
 };
 

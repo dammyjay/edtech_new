@@ -77,39 +77,6 @@
     }
   });
 
-//   function attachEvents() {
-//   const form = document.getElementById("assignClassForm");
-
-//   if (form) {
-//     form.addEventListener("submit", async function(e) {
-//       e.preventDefault();
-
-//       const studentId = document.getElementById("modalStudentId").value;
-//       const classroomId = document.getElementById("modalClassroomSelect").value;
-
-//       const res = await fetch(`/school-admin/students/${studentId}/assign-classroom`, {
-//         method: "POST",
-//         headers: {"Content-Type": "application/json"},
-//         body: JSON.stringify({ classroom_id: classroomId })
-//       });
-
-//       const data = await res.json();
-
-//       if (data.success) {
-//         // alert("Assigned successfully");
-//         closeAssignClassroomModal();
-//           // Show success modal
-//         openAssignSuccessModal();
-
-//         // Reload after small delay (optional but smooth)
-//         setTimeout(() => {
-//           loadSection("students");
-//         }, 1500);
-//       }
-//     });
-//   }
-// }
-
 function attachEvents() {
   // EXISTING CODE (keep it)
   const form = document.getElementById("assignClassForm");

@@ -30,6 +30,18 @@ const {
 } = require("../controllers/learningController");
 
 const multer = require("multer");
+const path = require("path");
+
+const storage2 = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/"); // make sure this folder exists
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload2 = multer({ storage: storage2 });
 // const upload = multer({ dest: 'uploads/' }); // temp local storage
 // const upload = require("../middlewares/upload");
 
@@ -420,6 +432,15 @@ router.get("/terms/:termId/students", adminController.getTermStudents);
 router.post(
   "/terms/assign-students",
   adminController.assignStudentsToTerm
+);
+router.post(
+  "/schools/:schoolId/bulk-add-users",
+  upload2.single("file"),
+  activityLoggerMiddleware(
+    "Platform bulk users added by admin",
+    (req) => `School ID: ${req.params.schoolId}`,
+  ),
+  adminController.platformBulkAddUsers,
 );
 
 router.get("/classrooms/:id/students", adminController.getClassroomStudents);
