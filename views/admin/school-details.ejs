@@ -123,81 +123,9 @@
   <% } %>
 </section>
 
-<form action="/admin/terms/create" method="POST">
-  <input type="hidden" name="school_id" value="<%= school.id %>" />
+<button onclick="loadAnalytics()">📊 View Analytics</button>
 
-  <input type="text" name="name" placeholder="2024/2025 - Term 1" required />
-  <input type="date" name="start_date" required />
-  <input type="date" name="end_date" required />
-
-  <button type="submit">Create Term</button>
-</form>
-
-
-
-<form action="/admin/terms/assign-students" method="POST">
-  <input type="hidden" name="school_id" value="<%= school.id %>" />
-
-  <select name="classroom_id" required>
-    <% school.classrooms.forEach(c => { %>
-      <option value="<%= c.id %>"><%= c.name %></option>
-    <% }) %>
-  </select>
-
-  <% school.students.forEach(s => { %>
-    <label style="color: #3498db;">
-      <input type="checkbox" name="student_ids[]" value="<%= s.id %>" />
-      <%= s.full_name %>
-    </label><br/>
-  <% }) %>
-
-  <button type="submit">Assign Students</button>
-</form>
-
-<hr>
-<h3>📅 Academic Terms</h3>
-
-<% if (school.terms.length === 0) { %>
-  <p>No terms created yet.</p>
-<% } else { %>
-  <div class="table-responsive">
-    <table class="user-table" style="border-collapse: collapse; margin-top: 20px;">
-      <thead>
-        <tr>
-          <th>Term</th>
-          <th>Period</th>
-          <th>Students</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% school.terms.forEach(term => { %>
-          <tr>
-            <td><strong><%= term.term_name %></strong></td>
-            <td>
-              <%= term.start_date %> → <%= term.end_date %>
-            </td>
-            <td><%= term.student_count %></td>
-            <td>
-              <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
-                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-                </a>
-            </td>
-          </tr>
-
-          <!-- expandable row -->
-          <tr id="term-row-<%= term.term_id %>" style="display:none;">
-            <td colspan="4">
-              <div id="term-students-<%= term.term_id %>">
-                <em>Loading students...</em>
-              </div>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-<% } %>
+<div id="analyticsBox"></div>
 
 
 <!-- Navigation Tabs -->
@@ -207,10 +135,88 @@
   <button class="tab-btn" onclick="openTab('students-section', this)">🎓 Students</button>
   <button class="tab-btn" onclick="openTab('classrooms-section', this)">🏫 Classrooms</button>
   <button class="tab-btn" onclick="openTab('course-assignment-section', this)">📘 Assign Courses</button>
+  <button class="tab-btn" onclick="openTab('terms-section', this)">📅 Terms</button>
 
 </div>
 
+<div id="terms-section" style="display:none;">
 
+  <div style="display:flex; gap:10px; margin-bottom:15px;">
+    <button class="btn-edit" onclick="openModal('createTermModal')">➕ Create Term</button>
+    <button class="btn-edit" onclick="openModal('assignTermModal')">📌 Assign Students</button>
+  </div>
+
+  <h3>📅 Academic Terms</h3>
+
+  <% if (school.terms.length === 0) { %>
+    <p>No terms created yet.</p>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Term</th>
+            <th>Period</th>
+            <th>Students</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% school.terms.forEach(term => { %>
+            <tr>
+              <td><strong><%= term.term_name %></strong></td>
+              <td><%= term.start_date %> → <%= term.end_date %></td>
+              <td><%= term.student_count %></td>
+              <td>
+                <%= term.is_active ? "🟢 Active" : "🔴 Past" %>
+              </td>
+              <!-- <td>
+                <a href="#" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
+                  👁️ View
+                </a>
+              </td> -->
+              <td>
+                <!-- <a href="#" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">👁️</a> -->
+                <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
+
+                <!-- <a href="#" onclick="openEditTermModal(
+                  '<%= term.term_id %>',
+                  '<%= term.term_name %>',
+                  '<%= term.start_date %>',
+                  '<%= term.end_date %>'
+                ); return false;">✏️</a> -->
+
+                <a href="#" class="no-bg" onclick="openEditTermModal(
+                  '<%= term.term_id %>',
+                  '<%= term.term_name %>',
+                  '<%= term.start_date %>',
+                  '<%= term.end_date %>'
+                ); return false;">
+                  <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
+                </a>
+
+                <!-- <a href="#" onclick="deleteTerm('<%= term.term_id %>'); return false;">🗑️</a> -->
+                <a href="#" class="no-bg" onclick="deleteTerm('<%= term.term_id %>'); return false;">
+                  <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
+              </td>
+            </tr>
+
+            <tr id="term-row-<%= term.term_id %>" style="display:none;">
+              <td colspan="5">
+                <div id="term-students-<%= term.term_id %>"></div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+</div>
 
 <!-- teachers section -->
 <div id="teachers-section" style="display:none;">
@@ -255,8 +261,14 @@
                 <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(teacher) %>)'>👁️ View</button>
               </td> -->
               <td>
-                <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(teacher) %>)'>👁️ View</button>
-                <button class="btn-assign" onclick="openAssignModal('<%= teacher.id %>', 'teacher')">📌 Assign</button>
+                <!-- <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(teacher) %>)'>👁️ View</button>
+                <button class="btn-assign" onclick="openAssignModal('<%= teacher.id %>', 'teacher')">📌 Assign</button> -->
+                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(teacher) %>); return false;'>
+                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
+                </a>
+                <a href="#" class="no-bg" onclick="openAssignModal('<%= teacher.id %>', 'teacher'); return false;">
+                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
+                </a>
               </td>
 
             </tr>
@@ -290,7 +302,10 @@
               <td><%= inst.email %></td>
               <td><%= inst.classrooms %></td>
               <td>
-                <button class="btn-assign" onclick="openAssignModal('<%= inst.id %>', 'instructor')">📌 Assign</button>
+                <!-- <button class="btn-assign" onclick="openAssignModal('<%= inst.id %>', 'instructor')">📌 Assign</button> -->
+                <a href="#" class="no-bg" onclick="openAssignModal('<%= inst.id %>', 'instructor'); return false;">
+                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
+                </a>
               </td>
             </tr>
           <% }) %>
@@ -581,8 +596,6 @@
   </div>
 </div>
 
-
-
 <!-- User Modal -->
 <div id="userModal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; text-align: left;">
@@ -636,9 +649,8 @@
   </div>
 </div>
 
-
 <!-- User Form Modal -->
-<div id="userFormModal" class="modal" style="display:none;">
+<div id="userFormModal" class="modal-overlay" style="display:none;">
   <div class="modal-content" style="max-width: 600px; margin:auto; background:#fff; padding:20px; border-radius:8px;">
     <span onclick="closeUserForm()" class="close" style="float:right;cursor:pointer;">&times;</span>
     <h2 id="userFormTitle">Add User</h2>
@@ -684,11 +696,99 @@
   </div>
 </div>
 
+<div id="createTermModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('createTermModal')">&times;</span>
+
+    <h2>➕ Create Term</h2>
+
+    <form action="/admin/terms/create" method="POST">
+      <input type="hidden" name="school_id" value="<%= school.id %>" />
+
+      <input type="text" name="name" placeholder="2024/2025 - Term 1" required />
+      <input type="date" name="start_date" required />
+      <input type="date" name="end_date" required />
+
+      <button type="submit">Create</button>
+    </form>
+  </div>
+</div>
+
+
+<div id="assignTermModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('assignTermModal')">&times;</span>
+
+    <h2>📌 Assign Students to Current Term</h2>
+
+
+
+    <form action="/admin/terms/assign-students" method="POST">
+      <input type="hidden" name="school_id" value="<%= school.id %>" />
+
+          <label>Select Term</label>
+          <select name="term_id" required>
+            <% school.terms.forEach(t => { %>
+              <option value="<%= t.term_id %>"><%= t.term_name %></option>
+            <% }) %>
+          </select>
+
+      <label>Select Classroom</label>
+      <select name="classroom_id">
+        <option value="">-- All Classrooms --</option>
+        <% school.classrooms.forEach(c => { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+
+      <div style="margin-bottom:10px;">
+        <button type="button" onclick="selectAllStudents()">✅ Select All</button>
+        <button type="button" onclick="clearAllStudents()">❌ Clear All</button>
+      </div>
+
+      <hr>
+
+      <label>Select Students</label>
+      <div style="max-height:200px; overflow:auto; border:1px solid #ddd; padding:10px;">
+
+        <div id="studentList">
+          <% school.students.forEach(s => { %>
+            <label class="student-item" data-classroom="<%= s.classroom_id || '' %>" style="display:block;">
+              <input type="checkbox" name="student_ids[]" value="<%= s.id %>" />
+              <%= s.full_name %>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+
+      <button type="submit" style="margin-top:10px;">Assign</button>
+    </form>
+  </div>
+</div>
+
+<div id="editTermModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('editTermModal')">&times;</span>
+
+    <h2>✏ Edit Term</h2>
+
+    <form id="editTermForm">
+      <input type="hidden" id="edit_term_id">
+
+      <input type="text" id="edit_term_name" required>
+      <input type="date" id="edit_start_date" required>
+      <input type="date" id="edit_end_date" required>
+
+      <button type="submit">Update</button>
+    </form>
+  </div>
+</div>
+
 <!-- script for nav tab  -->
 <script>
   function openTab(sectionId, btn) {
     // Hide all sections
-    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section'];
+    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section'];
     sections.forEach(id => {
       document.getElementById(id).style.display = 'none';
     });
@@ -956,23 +1056,23 @@
 <!-- script for user modal -->
 <script>
 
-  function openBulkStudentModal() {
-  document.getElementById("bulkStudentModal").style.display = "block";
-}
+    function openBulkStudentModal() {
+    document.getElementById("bulkStudentModal").style.display = "block";
+  }
 
-function closeBulkStudentModal() {
-  document.getElementById("bulkStudentModal").style.display = "none";
-}
+  function closeBulkStudentModal() {
+    document.getElementById("bulkStudentModal").style.display = "none";
+  }
 
-function showAdminBulkModal(title, message) {
-  document.getElementById("adminBulkTitle").innerHTML = title;
-  document.getElementById("adminBulkMessage").innerHTML = message;
-  document.getElementById("adminBulkResultModal").style.display = "block";
-}
+  function showAdminBulkModal(title, message) {
+    document.getElementById("adminBulkTitle").innerHTML = title;
+    document.getElementById("adminBulkMessage").innerHTML = message;
+    document.getElementById("adminBulkResultModal").style.display = "block";
+  }
 
-function closeAdminBulkModal() {
-  document.getElementById("adminBulkResultModal").style.display = "none";
-}
+  function closeAdminBulkModal() {
+    document.getElementById("adminBulkResultModal").style.display = "none";
+  }
 
   function openUserModal(user) {
     document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
@@ -1517,55 +1617,223 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-
+<!-- Script for Term students -->
 <script>
-async function toggleTermStudents(termId) {
-  const row = document.getElementById(`term-row-${termId}`);
-  const container = document.getElementById(`term-students-${termId}`);
+  async function toggleTermStudents(termId) {
+    const row = document.getElementById(`term-row-${termId}`);
+    const container = document.getElementById(`term-students-${termId}`);
 
-  if (row.style.display === "none") {
-    row.style.display = "table-row";
+    if (row.style.display === "none") {
+      row.style.display = "table-row";
 
-    if (!container.dataset.loaded) {
-      const res = await fetch(`/admin/terms/${termId}/students`);
-      const students = await res.json();
+      if (!container.dataset.loaded) {
+        const res = await fetch(`/admin/terms/${termId}/students`);
+        const students = await res.json();
 
-      if (students.length === 0) {
-        container.innerHTML = "<p>No students assigned.</p>";
-      } else {
-        let html = `
-          <table class="user-table" style="margin-top:10px;">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Classroom</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-
-        students.forEach(s => {
-          html += `
-            <tr>
-              <td>${s.fullname}</td>
-              <td>${s.email || "—"}</td>
-              <td>${s.classroom || "—"}</td>
-            </tr>
+        if (students.length === 0) {
+          container.innerHTML = "<p>No students assigned.</p>";
+        } else {
+          let html = `
+            <table class="user-table" style="margin-top:10px;">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Classroom</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
           `;
-        });
 
-        html += "</tbody></table>";
-        container.innerHTML = html;
+          students.forEach(s => {
+            html += `
+              <tr>
+                <td>${s.fullname}</td>
+                <td>${s.email || "—"}</td>
+                <td>${s.classroom || "—"}</td>
+                <td>
+                  <button onclick="removeStudentFromTerm('${termId}', '${s.id}')">
+                    ❌ Remove
+                  </button>
+                </td>
+              </tr>
+            `;
+          });
+
+          html += "</tbody></table>";
+          container.innerHTML = html;
+        }
+
+        container.dataset.loaded = "true";
       }
-
-      container.dataset.loaded = "true";
+    } else {
+      row.style.display = "none";
     }
-  } else {
-    row.style.display = "none";
   }
-}
 </script>
 
 
+<script>
+  function selectAllStudents() {
+    document.querySelectorAll(".student-item").forEach(item => {
+      if (item.style.display !== "none") {
+        item.querySelector("input").checked = true;
+      }
+    });
+  }
 
+  function clearAllStudents() {
+    document.querySelectorAll(".student-item input")
+      .forEach(cb => cb.checked = false);
+  }
+</script>
+
+<!-- script for term analytics  -->
+<script>
+  async function loadAnalytics() {
+    const schoolId = "<%= school.id %>";
+
+    const res = await fetch(`/admin/schools/${schoolId}/term-analytics`);
+    const data = await res.json();
+
+    let html = `
+      <h3>📊 Analytics</h3>
+
+      <p><strong>Total Unique Students:</strong> ${data.totals.total_unique_students}</p>
+      <p><strong>Total Enrollments:</strong> ${data.totals.total_enrollments}</p>
+      <p><strong>Retained Students:</strong> ${data.retention.retained_students}</p>
+
+      <h4>Growth Per Term</h4>
+      <ul>
+    `;
+
+    data.growth.forEach(term => {
+      html += `<li>${term.name}: ${term.total_students} students</li>`;
+    });
+
+    html += `</ul>`;
+
+    document.getElementById("analyticsBox").innerHTML = html;
+  }
+</script>
+
+<!-- Script for editing term  -->
+ <script>
+  function openEditTermModal(id, name, start, end) {
+    document.getElementById("edit_term_id").value = id;
+    document.getElementById("edit_term_name").value = name;
+    document.getElementById("edit_start_date").value = start;
+    document.getElementById("edit_end_date").value = end;
+
+    openModal("editTermModal");
+  }
+
+  document.getElementById("editTermForm").onsubmit = async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById("edit_term_id").value;
+
+    const res = await fetch(`/admin/terms/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: document.getElementById("edit_term_name").value,
+        start_date: document.getElementById("edit_start_date").value,
+        end_date: document.getElementById("edit_end_date").value
+      })
+    });
+
+    if (res.ok) {
+      alert("✅ Updated");
+      location.reload();
+    } else {
+      alert("❌ Failed");
+    }
+  };
+</script>
+
+<!-- Script for deleting term -->
+<script>
+  async function deleteTerm(termId) {
+    if (!confirm("Delete this term?")) return;
+
+    const res = await fetch(`/admin/terms/${termId}`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      alert("🗑 Deleted");
+      location.reload();
+    } else {
+      alert("❌ Failed");
+    }
+  }
+</script>
+
+<!-- script for filter student in a classroom to be selectd -->
+<script>
+
+  // document.querySelector("#assignTermModal select[name='classroom_id']")
+  //   .addEventListener("change", function () {
+
+  //     const selectedClass = this.value;
+
+  //     document.querySelectorAll("#assignTermModal .student-item").forEach(item => {
+  //       const studentClass = item.dataset.classroom;
+
+  //       if (!selectedClass) {
+  //         item.style.display = "block";
+  //         return;
+  //       }
+
+  //       if (studentClass && studentClass === selectedClass) {
+  //         item.style.display = "block";
+  //       } else {
+  //         item.style.display = "none";
+  //       }
+  //     });
+
+  // });
+
+   document.querySelector("#assignTermModal select[name='classroom_id']")
+  .addEventListener("change", function () {
+
+    const selectedClass = this.value;
+
+    document.querySelectorAll("#assignTermModal .student-item").forEach(item => {
+      const studentClass = item.dataset.classroom;
+
+      // Show all if "All Classrooms"
+      if (!selectedClass) {
+        item.style.display = "block";
+        return;
+      }
+
+      // Show only matching classroom
+      if (String(studentClass) === String(selectedClass)) {
+        item.style.display = "block";
+      } else {
+        item.style.display = "none";
+      }
+    });
+
+  });
+</script>
+
+
+<!-- script for removing student from term  -->
+ <script>
+  async function removeStudentFromTerm(termId, studentId) {
+    if (!confirm("Remove this student from term?")) return;
+
+    const res = await fetch(`/admin/terms/${termId}/students/${studentId}`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      alert("Removed");
+      location.reload();
+    }
+  }
+</script>

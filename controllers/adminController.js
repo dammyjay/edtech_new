@@ -5670,11 +5670,44 @@ exports.createTerm = async (req, res) => {
       [school_id, name, start_date, end_date]
     );
 
-    res.redirect("/admin/schools/:id");
+    res.redirect(`/admin/schools/${school_id}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error creating term");
   }
+};
+
+exports.deleteTerm = async (req, res) => {
+  const { id } = req.params;
+
+  await pool.query("DELETE FROM academic_terms WHERE id=$1", [id]);
+
+  res.sendStatus(200);
+};
+
+exports.updateTerm = async (req, res) => {
+  const { id } = req.params;
+  const { name, start_date, end_date } = req.body;
+
+  await pool.query(
+    `UPDATE academic_terms
+     SET name=$1, start_date=$2, end_date=$3
+     WHERE id=$4`,
+    [name, start_date, end_date, id],
+  );
+
+  res.sendStatus(200);
+};
+
+exports.removeStudentFromTerm = async (req, res) => {
+  const { termId, studentId } = req.params;
+
+  await pool.query(
+    "DELETE FROM student_term_enrollments WHERE term_id=$1 AND student_id=$2",
+    [termId, studentId]
+  );
+
+  res.sendStatus(200);
 };
 
 exports.getTermStudents = async (req, res) => {
@@ -5688,7 +5721,7 @@ exports.getTermStudents = async (req, res) => {
       c.name AS classroom
     FROM student_term_enrollments ts
     JOIN users2 u ON ts.student_id = u.id
-    LEFT JOIN classrooms c ON ts.classroom_id = c.id
+    LEFT JOIN classrooms c ON c.id = ts.classroom_id
     WHERE ts.term_id = $1
     ORDER BY u.fullname
   `, [termId]);
@@ -5696,41 +5729,195 @@ exports.getTermStudents = async (req, res) => {
   res.json(result.rows);
 };
 
+// exports.assignStudentsToTerm = async (req, res) => {
+//   try {
+//     const { school_id, classroom_id, student_ids } = req.body;
+
+//     const termRes = await pool.query(
+//       "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true",
+//       [school_id],
+//     );
+
+//     if (!termRes.rows.length) {
+//       return res.status(400).send("No active term");
+//     }
+
+//     const term_id = termRes.rows[0].id;
+
+//     const values = student_ids
+//       .map(
+//         (id, i) =>
+//           `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
+//       )
+//       .join(",");
+
+//     const params = student_ids.flatMap((id) => [
+//       id,
+//       school_id,
+//       term_id,
+//       classroom_id,
+//     ]);
+
+//     await pool.query(
+//       `
+//       INSERT INTO student_term_enrollments
+//       (student_id, school_id, term_id, classroom_id)
+//       VALUES ${values}
+//       ON CONFLICT (student_id, term_id)
+//       DO UPDATE SET classroom_id = EXCLUDED.classroom_id
+//     `,
+//       params,
+//     );
+
+//     res.redirect(`/admin/schools/${school_id}`);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error assigning students");
+//   }
+// };
 
 exports.assignStudentsToTerm = async (req, res) => {
   try {
-    const { school_id, classroom_id, student_ids } = req.body;
+    const { school_id, student_ids, term_id } = req.body;
 
-    // 1️⃣ Get active term
-    const termRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true",
-      [school_id]
+    if (!student_ids || student_ids.length === 0) {
+      return res.status(400).send("No students selected");
+    }
+
+    // ✅ Get students with their classrooms
+    const studentRes = await pool.query(
+      `SELECT id, classroom_id FROM students WHERE id = ANY($1)`,
+      [student_ids],
     );
 
-    if (!termRes.rows.length) {
-      return res.status(400).send("No active term for this school");
-    }
+    const students = studentRes.rows;
 
-    const term_id = termRes.rows[0].id;
+    const values = students
+      .map(
+        (_, i) =>
+          `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
+      )
+      .join(",");
 
-    // 2️⃣ Assign each student
-    for (const student_id of student_ids) {
-      await pool.query(
-        `INSERT INTO student_term_enrollments
-         (student_id, school_id, term_id, classroom_id)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (student_id, term_id) DO UPDATE
-         SET classroom_id = EXCLUDED.classroom_id`,
-        [student_id, school_id, term_id, classroom_id]
-      );
-    }
+    const params = students.flatMap((s) => [
+      s.id,
+      school_id,
+      term_id,
+      s.classroom_id || null, // ✅ real classroom
+    ]);
 
-    res.redirect("/admin/schools/:id");
+    await pool.query(
+      `
+      INSERT INTO student_term_enrollments
+      (student_id, school_id, term_id, classroom_id)
+      VALUES ${values}
+      ON CONFLICT (student_id, term_id)
+      DO UPDATE SET classroom_id = EXCLUDED.classroom_id
+      `,
+      params,
+    );
+
+    res.redirect(`/admin/schools/${school_id}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error assigning students");
   }
 };
+
+// exports.assignStudentsToTerm = async (req, res) => {
+//   try {
+//     let { school_id, classroom_id, student_ids, term_id } = req.body;
+
+//     // 🔥 Convert empty classroom_id to null
+//     if (!classroom_id || classroom_id === "") {
+//       classroom_id = null;
+//     }
+
+//     if (!student_ids || student_ids.length === 0) {
+//       return res.status(400).send("No students selected");
+//     }
+
+//     const values = student_ids
+//       .map(
+//         (id, i) =>
+//           `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
+//       )
+//       .join(",");
+
+//     const params = student_ids.flatMap((id) => [
+//       id,
+//       school_id,
+//       term_id,
+//       classroom_id,
+//     ]);
+
+//     await pool.query(
+//       `
+//       INSERT INTO student_term_enrollments
+//       (student_id, school_id, term_id, classroom_id)
+//       VALUES ${values}
+//       ON CONFLICT (student_id, term_id)
+//       DO UPDATE SET classroom_id = EXCLUDED.classroom_id
+//       `,
+//       params,
+//     );
+
+//     res.redirect(`/admin/schools/${school_id}`);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error assigning students");
+//   }
+// };
+
+exports.getTermAnalytics = async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+
+    // 📊 1. Growth per term
+    const growth = await pool.query(`
+      SELECT 
+        t.id,
+        t.name,
+        COUNT(e.student_id) as total_students
+      FROM academic_terms t
+      LEFT JOIN student_term_enrollments e ON e.term_id = t.id
+      WHERE t.school_id = $1
+      GROUP BY t.id
+      ORDER BY t.start_date
+    `, [schoolId]);
+
+    // 🔁 2. Retention (students in multiple terms)
+    const retention = await pool.query(`
+      SELECT COUNT(*) as retained_students FROM (
+        SELECT student_id
+        FROM student_term_enrollments
+        WHERE school_id = $1
+        GROUP BY student_id
+        HAVING COUNT(term_id) > 1
+      ) sub
+    `, [schoolId]);
+
+    // 🧠 3. Total unique students
+    const totals = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT student_id) as total_unique_students,
+        COUNT(*) as total_enrollments
+      FROM student_term_enrollments
+      WHERE school_id = $1
+    `, [schoolId]);
+
+    res.json({
+      growth: growth.rows,
+      retention: retention.rows[0],
+      totals: totals.rows[0]
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Analytics error");
+  }
+};
+
 
 exports.sendChatMessage = async (req, res) => {
   try {

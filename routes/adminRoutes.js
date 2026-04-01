@@ -430,11 +430,19 @@ router.post("/schools/:schoolId/users", upload.single("profile_picture"), adminC
 router.put("/schools/:schoolId/users/:userId", upload.single("profile_picture"), adminController.updateUserInSchool);
 router.delete("/schools/:schoolId/users/:userId", adminController.deleteUserFromSchool);
 router.post("/terms/create", adminController.createTerm);
+router.put("/terms/:id", adminController.updateTerm);
+router.delete("/terms/:id", adminController.deleteTerm);
+router.delete(
+  "/terms/:termId/students/:studentId",
+  adminController.removeStudentFromTerm,
+);
 router.get("/terms/:termId/students", adminController.getTermStudents);
 router.post(
   "/terms/assign-students",
   adminController.assignStudentsToTerm
 );
+router.get("/schools/:schoolId/term-analytics", adminController.getTermAnalytics);
+
 router.post(
   "/schools/:schoolId/bulk-add-users",
   upload2.single("file"),
