@@ -171,23 +171,10 @@
               <td>
                 <%= term.is_active ? "🟢 Active" : "🔴 Past" %>
               </td>
-              <!-- <td>
-                <a href="#" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
-                  👁️ View
-                </a>
-              </td> -->
-              <td>
-                <!-- <a href="#" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">👁️</a> -->
+              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
                 <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
                   <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
                 </a>
-
-                <!-- <a href="#" onclick="openEditTermModal(
-                  '<%= term.term_id %>',
-                  '<%= term.term_name %>',
-                  '<%= term.start_date %>',
-                  '<%= term.end_date %>'
-                ); return false;">✏️</a> -->
 
                 <a href="#" class="no-bg" onclick="openEditTermModal(
                   '<%= term.term_id %>',
@@ -198,9 +185,13 @@
                   <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
                 </a>
 
-                <!-- <a href="#" onclick="deleteTerm('<%= term.term_id %>'); return false;">🗑️</a> -->
+               
                 <a href="#" class="no-bg" onclick="deleteTerm('<%= term.term_id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
+
+                <a href="/admin/terms/<%= term.term_id %>/export-excel" class="no-bg">
+                  <i class="fa-solid fa-file-excel" style="color: green;"></i>
                 </a>
               </td>
             </tr>
@@ -257,12 +248,9 @@
               <td><%= teacher.full_name %></td>
               <td><%= teacher.email %></td>
               <td><%= teacher.classroom_name || '—' %></td>
-              <!-- <td>
-                <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(teacher) %>)'>👁️ View</button>
-              </td> -->
-              <td>
-                <!-- <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(teacher) %>)'>👁️ View</button>
-                <button class="btn-assign" onclick="openAssignModal('<%= teacher.id %>', 'teacher')">📌 Assign</button> -->
+            
+              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
+                
                 <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(teacher) %>); return false;'>
                   <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
                 </a>
@@ -301,7 +289,7 @@
               <td><%= inst.full_name %></td>
               <td><%= inst.email %></td>
               <td><%= inst.classrooms %></td>
-              <td>
+              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
                 <!-- <button class="btn-assign" onclick="openAssignModal('<%= inst.id %>', 'instructor')">📌 Assign</button> -->
                 <a href="#" class="no-bg" onclick="openAssignModal('<%= inst.id %>', 'instructor'); return false;">
                   <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
@@ -1773,29 +1761,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- script for filter student in a classroom to be selectd -->
 <script>
-
-  // document.querySelector("#assignTermModal select[name='classroom_id']")
-  //   .addEventListener("change", function () {
-
-  //     const selectedClass = this.value;
-
-  //     document.querySelectorAll("#assignTermModal .student-item").forEach(item => {
-  //       const studentClass = item.dataset.classroom;
-
-  //       if (!selectedClass) {
-  //         item.style.display = "block";
-  //         return;
-  //       }
-
-  //       if (studentClass && studentClass === selectedClass) {
-  //         item.style.display = "block";
-  //       } else {
-  //         item.style.display = "none";
-  //       }
-  //     });
-
-  // });
-
    document.querySelector("#assignTermModal select[name='classroom_id']")
   .addEventListener("change", function () {
 

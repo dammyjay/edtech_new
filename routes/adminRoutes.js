@@ -441,6 +441,10 @@ router.post(
   "/terms/assign-students",
   adminController.assignStudentsToTerm
 );
+router.get(
+  "/terms/:termId/export-excel",
+  adminController.exportTermStudentsExcel,
+);
 router.get("/schools/:schoolId/term-analytics", adminController.getTermAnalytics);
 
 router.post(

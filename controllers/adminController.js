@@ -13,6 +13,7 @@ const PDFDocument = require("pdfkit");
 const puppeteer = require("puppeteer");
 const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
+const axios = require("axios");
 
 // require at top of file
 const Sentiment = require('sentiment');
@@ -5123,102 +5124,6 @@ exports.addUserToSchool = async (req, res) => {
   }
 };
 
-// exports.platformBulkAddUsers = async (req, res) => {
-//   try {
-//     const { schoolId } = req.params;
-
-//     if (!req.file) {
-//       return res.json({ success: false, message: "No file uploaded" });
-//     }
-
-//     // ✅ Check school
-//     const schoolRes = await pool.query("SELECT * FROM schools WHERE id = $1", [
-//       schoolId,
-//     ]);
-
-//     if (!schoolRes.rows.length) {
-//       return res.json({ success: false, message: "Invalid school" });
-//     }
-
-//     const school = schoolRes.rows[0];
-//     const schoolFirstWord = school.name
-//       .split(" ")[0]
-//       .replace(/[^a-zA-Z]/g, "")
-//       .toLowerCase();
-
-//     const students = [];
-//     const errors = [];
-
-//     fs.createReadStream(req.file.path)
-//       .pipe(csv())
-//       .on("data", (row) => {
-//         students.push(row);
-//       })
-//       .on("end", async () => {
-//         for (const [index, s] of students.entries()) {
-//           try {
-//             // ✅ Flexible columns (VERY IMPORTANT)
-//             const name = s.fullname || s.name || s["Full Name"];
-//             const gender = s.gender || s.Gender;
-//             const role = s.role || "student";
-
-//             if (!name || !gender) {
-//               errors.push(`Row ${index + 1}: Missing fullname or gender`);
-//               continue;
-//             }
-
-//             const cleanName = name.toLowerCase().replace(/\s+/g, "");
-//             let email = s.email;
-
-//             // ✅ Auto email for students
-//             if (!email && role === "student") {
-//               email = `${cleanName}@${schoolFirstWord}school.com`;
-//             }
-
-//             const hashedPassword = await bcrypt.hash("12345678", 10);
-
-//             const userRes = await pool.query(
-//               `INSERT INTO users2 (fullname, email, password, role, gender)
-//                VALUES ($1, $2, $3, $4, $5)
-//                ON CONFLICT (email) DO NOTHING
-//                RETURNING id`,
-//               [name, email, hashedPassword, role, gender],
-//             );
-
-//             if (userRes.rows.length > 0) {
-//               const userId = userRes.rows[0].id;
-
-//               await pool.query(
-//                 `INSERT INTO user_school (user_id, school_id, role_in_school, approved)
-//                  VALUES ($1, $2, $3, true)
-//                  ON CONFLICT DO NOTHING`,
-//                 [userId, schoolId, role],
-//               );
-//             }
-//           } catch (err) {
-//             errors.push(`Row ${index + 1}: ${err.message}`);
-//           }
-//         }
-
-//         if (errors.length > 0) {
-//           return res.json({
-//             success: false,
-//             message: "Some rows failed",
-//             errors,
-//           });
-//         }
-
-//         res.json({
-//           success: true,
-//           message: "Users uploaded successfully",
-//         });
-//       });
-//   } catch (err) {
-//     console.error(err);
-//     res.json({ success: false, message: "Bulk upload failed" });
-//   }
-// };
-
 exports.platformBulkAddUsers = async (req, res) => {
   try {
     const { schoolId } = req.params;
@@ -5713,7 +5618,8 @@ exports.removeStudentFromTerm = async (req, res) => {
 exports.getTermStudents = async (req, res) => {
   const { termId } = req.params;
 
-  const result = await pool.query(`
+  const result = await pool.query(
+    `
     SELECT 
       u.id,
       u.fullname,
@@ -5724,57 +5630,12 @@ exports.getTermStudents = async (req, res) => {
     LEFT JOIN classrooms c ON c.id = ts.classroom_id
     WHERE ts.term_id = $1
     ORDER BY u.fullname
-  `, [termId]);
+  `,
+    [termId],
+  );
 
   res.json(result.rows);
 };
-
-// exports.assignStudentsToTerm = async (req, res) => {
-//   try {
-//     const { school_id, classroom_id, student_ids } = req.body;
-
-//     const termRes = await pool.query(
-//       "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true",
-//       [school_id],
-//     );
-
-//     if (!termRes.rows.length) {
-//       return res.status(400).send("No active term");
-//     }
-
-//     const term_id = termRes.rows[0].id;
-
-//     const values = student_ids
-//       .map(
-//         (id, i) =>
-//           `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
-//       )
-//       .join(",");
-
-//     const params = student_ids.flatMap((id) => [
-//       id,
-//       school_id,
-//       term_id,
-//       classroom_id,
-//     ]);
-
-//     await pool.query(
-//       `
-//       INSERT INTO student_term_enrollments
-//       (student_id, school_id, term_id, classroom_id)
-//       VALUES ${values}
-//       ON CONFLICT (student_id, term_id)
-//       DO UPDATE SET classroom_id = EXCLUDED.classroom_id
-//     `,
-//       params,
-//     );
-
-//     res.redirect(`/admin/schools/${school_id}`);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Error assigning students");
-//   }
-// };
 
 exports.assignStudentsToTerm = async (req, res) => {
   try {
@@ -5784,13 +5645,22 @@ exports.assignStudentsToTerm = async (req, res) => {
       return res.status(400).send("No students selected");
     }
 
-    // ✅ Get students with their classrooms
+    // ✅ CORRECT: get classroom from user_school using user_id + school_id
     const studentRes = await pool.query(
-      `SELECT id, classroom_id FROM students WHERE id = ANY($1)`,
-      [student_ids],
+      `
+      SELECT us.user_id AS id, us.classroom_id
+      FROM user_school us
+      WHERE us.user_id = ANY($1)
+      AND us.school_id = $2
+      `,
+      [student_ids, school_id],
     );
 
     const students = studentRes.rows;
+
+    if (students.length === 0) {
+      return res.status(400).send("No valid students found");
+    }
 
     const values = students
       .map(
@@ -5803,7 +5673,7 @@ exports.assignStudentsToTerm = async (req, res) => {
       s.id,
       school_id,
       term_id,
-      s.classroom_id || null, // ✅ real classroom
+      s.classroom_id || null,
     ]);
 
     await pool.query(
@@ -5824,50 +5694,169 @@ exports.assignStudentsToTerm = async (req, res) => {
   }
 };
 
-// exports.assignStudentsToTerm = async (req, res) => {
-//   try {
-//     let { school_id, classroom_id, student_ids, term_id } = req.body;
+exports.exportTermStudentsExcel = async (req, res) => {
+  try {
+    const { termId } = req.params;
 
-//     // 🔥 Convert empty classroom_id to null
-//     if (!classroom_id || classroom_id === "") {
-//       classroom_id = null;
-//     }
+    // ✅ Get term info
+    const termRes = await pool.query(
+      `SELECT name FROM academic_terms WHERE id = $1`,
+      [termId]
+    );
 
-//     if (!student_ids || student_ids.length === 0) {
-//       return res.status(400).send("No students selected");
-//     }
+    const termName = termRes.rows[0]?.name || "Term";
 
-//     const values = student_ids
-//       .map(
-//         (id, i) =>
-//           `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
-//       )
-//       .join(",");
+    // ✅ Get students in that term
+    const { rows: students } = await pool.query(
+      `
+      SELECT 
+        u.fullname AS full_name,
+        u.email,
+        u.gender,
+        c.name AS classroom
+      FROM student_term_enrollments ts
+      JOIN users2 u ON ts.student_id = u.id
+      LEFT JOIN classrooms c ON ts.classroom_id = c.id
+      WHERE ts.term_id = $1
+      ORDER BY c.name, u.fullname
+      `,
+      [termId]
+    );
 
-//     const params = student_ids.flatMap((id) => [
-//       id,
-//       school_id,
-//       term_id,
-//       classroom_id,
-//     ]);
+    // ✅ Analytics: count per class
+    const { rows: classStats } = await pool.query(
+      `
+      SELECT 
+        c.name AS classroom,
+        COUNT(*) AS total
+      FROM student_term_enrollments ts
+      LEFT JOIN classrooms c ON ts.classroom_id = c.id
+      WHERE ts.term_id = $1
+      GROUP BY c.name
+      ORDER BY c.name
+      `,
+      [termId]
+    );
 
-//     await pool.query(
-//       `
-//       INSERT INTO student_term_enrollments
-//       (student_id, school_id, term_id, classroom_id)
-//       VALUES ${values}
-//       ON CONFLICT (student_id, term_id)
-//       DO UPDATE SET classroom_id = EXCLUDED.classroom_id
-//       `,
-//       params,
-//     );
+    const totalStudents = students.length;
 
-//     res.redirect(`/admin/schools/${school_id}`);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Error assigning students");
-//   }
-// };
+    // =========================
+    // CREATE EXCEL
+    // =========================
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Term Students");
+
+
+    // 🔥 Fetch logo from URL
+    const response = await axios.get(
+      "https://acad.jkthub.com/images/JKT%20logo.png",
+      { responseType: "arraybuffer" }
+    );
+
+    const imageId = workbook.addImage({
+      buffer: response.data,
+      extension: "png",
+    });
+
+    sheet.addImage(imageId, {
+      tl: { col: 0, row: 1 },
+      ext: { width: 80, height: 80 },
+    });
+
+    // ✅ Title
+    sheet.mergeCells("B2:D4");
+    sheet.getCell("C2").value = `${termName} - Student Names`;
+    sheet.getCell("C2").font = { size: 14, bold: true };
+    sheet.getCell("C2").alignment = { horizontal: "center" };
+
+    // ✅ Total count
+    sheet.getCell("A5").value = `Total Students: ${totalStudents}`;
+    sheet.getCell("A5").font = { bold: true };
+
+    // =========================
+    // TABLE HEADER
+    // =========================
+    sheet.columns = [
+      {
+        header: "Full Name",
+        key: "full_name",
+        width: 25,
+        fill: {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFB0E0E6" },
+        },
+        font: { bold: true },
+      },
+      {
+        header: "Email",
+        key: "email",
+        width: 30,
+        fill: {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFB0E0E6" },
+        },
+        font: { bold: true },
+      },
+      { header: "Gender", key: "gender", width: 15, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true }  },
+      { header: "Classroom", key: "classroom", width: 20, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true }  },
+    ];
+
+    const headerRow = sheet.getRow(0);
+    headerRow.font = { bold: true };
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD3D3D3" },
+      };
+    });
+
+    // =========================
+    // DATA
+    // =========================
+    students.forEach((s) => {
+      sheet.addRow({
+        ...s,
+        classroom: s.classroom || "—",
+      });
+    });
+
+    // =========================
+    // ANALYTICS SECTION
+    // =========================
+    const startRow = sheet.rowCount + 6;
+
+    sheet.getCell(`A${startRow}`).value = "Classroom Summary";
+    sheet.getCell(`A${startRow}`).font = { bold: true };
+
+    classStats.forEach((c, index) => {
+      sheet.getCell(`A${startRow + index + 1}`).value = c.classroom || "Unassigned";
+      sheet.getCell(`B${startRow + index + 1}`).value = c.total;
+    });
+
+    // =========================
+    // RESPONSE
+    // =========================
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${termName}_students.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Excel export failed");
+  }
+};
 
 exports.getTermAnalytics = async (req, res) => {
   try {
