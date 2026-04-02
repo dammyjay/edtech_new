@@ -1,54 +1,11 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
 <h3>Search</h3>
-<!-- <form method="GET" action=""> 
-  <input 
-    type="text" 
-    name="search" 
-    value="<%= search %>" 
-    placeholder="Search..."
-  >
-  <button type="submit">Search</button>
-</form> -->
-
 
 
 <h3>Add New Record</h3>
 
 <button onclick="openCreateModal()">+ Add New Record</button>
-
-<!-- <form method="POST" action="/admin/db/<%= table %>">
-  <% columns.forEach(col => { %>
-    <% if(col.column_name !== 'id' && col.column_name !== 'created_at'){ %>
-
-      <div style="margin-bottom:10px;">
-        <label><%= col.column_name %></label><br>
-
-        <% if(col.data_type === 'boolean'){ %>
-          <input type="checkbox" name="<%= col.column_name %>" value="true">
-
-        <% } else if(col.data_type === 'date'){ %>
-          <input type="date" name="<%= col.column_name %>">
-
-        <% } else if(col.data_type.includes('timestamp')){ %>
-          <input type="datetime-local" name="<%= col.column_name %>">
-
-        <% } else if(col.data_type === 'jsonb'){ %>
-          <textarea name="<%= col.column_name %>" rows="4" placeholder='{"key":"value"}'></textarea>
-
-        <% } else if(col.column_name.includes('description') || col.column_name.includes('content')){ %>
-          <textarea class="ckeditor" name="<%= col.column_name %>"></textarea>
-
-        <% } else { %>
-          <input type="text" name="<%= col.column_name %>">
-        <% } %>
-      </div>
-
-    <% } %>
-  <% }) %>
-
-  <button type="submit">Create</button>
-</form> -->
 
 <h2>Table: <%= table %></h2>
 <input 
@@ -214,15 +171,32 @@ function openEditModal(row) {
   const container = document.getElementById("editFields");
   container.innerHTML = "";
 
+  // Object.entries(row).forEach(([key, value]) => {
+  //   if (key !== "id" && key !== "created_at") {
+  //     container.innerHTML += `
+  //       <div>
+  //         <label>${key}</label>
+  //         <input type="text" name="${key}" value="${value || ''}">
+  //       </div>
+  //     `;
+  //   }
+  // });
+
   Object.entries(row).forEach(([key, value]) => {
-    if (key !== "id" && key !== "created_at") {
-      container.innerHTML += `
-        <div>
-          <label>${key}</label>
-          <input type="text" name="${key}" value="${value || ''}">
-        </div>
-      `;
-    }
+
+    // 🚫 Skip derived/display-only fields
+    if (
+      key === "id" ||
+      key === "created_at" ||
+      key.endsWith("_name") // ✅ THIS IS THE FIX
+    ) return;
+
+    container.innerHTML += `
+      <div>
+        <label>${key}</label>
+        <input type="text" name="${key}" value="${value || ''}">
+      </div>
+    `;
   });
 
   document.getElementById("editForm").action =

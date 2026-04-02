@@ -146,34 +146,66 @@ exports.viewTable = async (req, res) => {
 
     let rows = result.rows;
 
+    // for (const col of Object.keys(foreignKeyMap)) {
+
+    //   if (columns.some(c => c.column_name === col)) {
+
+    //     const ids = rows.map(r => r[col]).filter(Boolean);
+
+    //     if (ids.length === 0) continue;
+
+    //     const fk = foreignKeyMap[col];
+
+    //     const nameResult = await pool.query(
+    //       `SELECT id, ${fk.nameColumn} FROM ${fk.table} WHERE id = ANY($1)`,
+    //       [ids]
+    //     );
+
+    //     const map = {};
+    //     nameResult.rows.forEach(r => {
+    //       map[r.id] = r[fk.nameColumn];
+    //     });
+
+    //     rows.forEach(r => {
+    //       if (r[col]) {
+    //         r[col + "_name"] = map[r[col]] || null;
+    //       }
+    //     });
+
+    //   }
+
+    // }
+
     for (const col of Object.keys(foreignKeyMap)) {
 
-      if (columns.some(c => c.column_name === col)) {
+      const columnMeta = columns.find(c => c.column_name === col);
 
-        const ids = rows.map(r => r[col]).filter(Boolean);
+      if (!columnMeta) continue;
 
-        if (ids.length === 0) continue;
+      // 🚨 ONLY process INTEGER foreign keys
+      if (!columnMeta.data_type.includes("integer")) continue;
 
-        const fk = foreignKeyMap[col];
+      const ids = rows.map(r => r[col]).filter(id => typeof id === "number");
 
-        const nameResult = await pool.query(
-          `SELECT id, ${fk.nameColumn} FROM ${fk.table} WHERE id = ANY($1)`,
-          [ids]
-        );
+      if (ids.length === 0) continue;
 
-        const map = {};
-        nameResult.rows.forEach(r => {
-          map[r.id] = r[fk.nameColumn];
-        });
+      const fk = foreignKeyMap[col];
 
-        rows.forEach(r => {
-          if (r[col]) {
-            r[col + "_name"] = map[r[col]] || null;
-          }
-        });
+      const nameResult = await pool.query(
+        `SELECT id, ${fk.nameColumn} FROM ${fk.table} WHERE id = ANY($1)`,
+        [ids]
+      );
 
-      }
+      const map = {};
+      nameResult.rows.forEach(r => {
+        map[r.id] = r[fk.nameColumn];
+      });
 
+      rows.forEach(r => {
+        if (r[col]) {
+          r[col + "_name"] = map[r[col]] || null;
+        }
+      });
     }
 
     res.render("admin/viewTable", {
@@ -260,7 +292,8 @@ exports.updateRecord = async (req, res) => {
         if (data[key] === "true") data[key] = true;
         if (data[key] === "false") data[key] = false;
     });
-    const columns = Object.keys(data);
+    // const columns = Object.keys(data);
+    const columns = Object.keys(data).filter((col) => !col.endsWith("_name"));
     const values = Object.values(data);
 
     const setQuery = columns
@@ -271,6 +304,9 @@ exports.updateRecord = async (req, res) => {
       `UPDATE ${table} SET ${setQuery} WHERE id = $${columns.length + 1}`,
       [...values, id]
     );
+
+    console.log("Updated record in", table, "ID:", id);
+    console.log("Updated data:", data);
 
     res.redirect(`/admin/db/${table}`);
   } catch (err) {
