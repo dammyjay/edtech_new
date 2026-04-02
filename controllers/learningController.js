@@ -341,64 +341,6 @@ exports.getLessonJSON = async (req, res) => {
   }
 };
 
-// exports.createQuiz = async (req, res) => {
-//   const { title, lesson_id } = req.body;
-//   try {
-//     await pool.query("INSERT INTO quizzes (title, lesson_id) VALUES ($1, $2)", [
-//       title,
-//       lesson_id,
-//     ]);
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error creating quiz:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.addQuizQuestion = async (req, res) => {
-//   const { quiz_id, question, options, correct_answer } = req.body;
-//   try {
-//     await pool.query(
-//       "INSERT INTO quiz_questions (quiz_id, question, options, correct_answer) VALUES ($1, $2, $3, $4)",
-//       [quiz_id, question, JSON.stringify(options), correct_answer]
-//     );
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error adding quiz question:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.deleteQuiz = async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     await pool.query("DELETE FROM quizzes WHERE id = $1", [id]);
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error deleting quiz:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// exports.deleteQuizQuestion = async (req, res) => {
-//   const { quizId, questionId } = req.params;
-//   try {
-//     await pool.query(
-//       "DELETE FROM quiz_questions WHERE id = $1 AND quiz_id = $2",
-//       [questionId, quizId]
-//     );
-//     res.redirect("back");
-//   } catch (err) {
-//     console.error("Error deleting quiz question:", err);
-//     res.status(500).send("Server error");
-//   }
-// };
-
-// -------------------- ASSIGNMENTS --------------------
-
-// GET quiz questions for a lesson
-
-// GET or CREATE quiz for a lesson
 exports.getOrCreateLessonQuiz = async (req, res) => {
   const { lessonId } = req.params;
 

@@ -277,39 +277,219 @@ exports.deleteRecord = async (req, res) => {
 };
 
 // Update record
+// exports.updateRecord = async (req, res) => {
+//   const table = req.params.table;
+//   const id = req.params.id;
+//   const data = req.body;
+
+//   if (!allowedTables.includes(table)) {
+//     return res.status(403).send("Unauthorized table");
+//   }
+
+//   try {
+
+//     const columnResult = await pool.query(
+//       `
+//         SELECT column_name, data_type
+//         FROM information_schema.columns
+//         WHERE table_name = $1
+//       `,
+//       [table],
+//     );
+
+//     const columnTypes = {};
+//     columnResult.rows.forEach((col) => {
+//       columnTypes[col.column_name] = col.data_type;
+//     });
+//     // Object.keys(data).forEach(key => {
+//     //     if (data[key] === "true") data[key] = true;
+//     //     if (data[key] === "false") data[key] = false;
+//     // });
+//     // const columns = Object.keys(data);
+    
+//     Object.keys(data).forEach((key) => {
+//       // 🚫 Remove fake frontend fields
+//       if (key.endsWith("_name")) {
+//         delete data[key];
+//         return;
+//       }
+
+//       // ✅ Boolean conversion
+//       if (data[key] === "true") data[key] = true;
+//       if (data[key] === "false") data[key] = false;
+
+//       // ✅ JSON handling (PUT IT HERE 👇)
+//       if (columnTypes[key] === "json" || columnTypes[key] === "jsonb") {
+//         try {
+//           if (typeof data[key] === "string") {
+//             data[key] = data[key].trim();
+
+//             if (data[key] === "") {
+//               data[key] = null;
+//             } else {
+//               data[key] = JSON.parse(data[key]);
+//             }
+//           }
+//         } catch (err) {
+//           console.error("❌ BAD JSON VALUE:", data[key]);
+//           throw new Error(`Invalid JSON format for ${key}`);
+//         }
+//       }
+//     });
+//     const columns = Object.keys(data).filter((col) => !col.endsWith("_name"));
+//     const values = Object.values(data);
+
+//     const setQuery = columns
+//       .map((col, i) => `${col} = $${i + 1}`)
+//       .join(",");
+
+//     console.log("🚨 FINAL DATA SENT TO DB:");
+//     console.log(JSON.stringify(data, null, 2));
+
+//     await pool.query(
+//       `UPDATE ${table} SET ${setQuery} WHERE id = $${columns.length + 1}`,
+//       [...values, id]
+//     );
+
+//     console.log("Updated record in", table, "ID:", id);
+//     console.log("Updated data:", data);
+
+//     res.redirect(`/admin/db/${table}`);
+//   } catch (err) {
+//     res.status(500).send(err.message);
+//   }
+// };
+
 exports.updateRecord = async (req, res) => {
   const table = req.params.table;
   const id = req.params.id;
-  const data = req.body;
+  let data = { ...req.body };
 
   if (!allowedTables.includes(table)) {
     return res.status(403).send("Unauthorized table");
   }
 
   try {
+    // 🔹 1. Get column metadata
+    const columnResult = await pool.query(
+      `
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = $1
+      `,
+      [table]
+    );
 
-    Object.keys(data).forEach(key => {
-        if (data[key] === "true") data[key] = true;
-        if (data[key] === "false") data[key] = false;
+    const columnTypes = {};
+    columnResult.rows.forEach(col => {
+      columnTypes[col.column_name] = col.data_type;
     });
-    // const columns = Object.keys(data);
-    const columns = Object.keys(data).filter((col) => !col.endsWith("_name"));
-    const values = Object.values(data);
+
+    // 🔹 2. Clean + transform data
+    Object.keys(data).forEach(key => {
+
+      // 🚫 Remove frontend-only fields
+      if (key.endsWith("_name")) {
+        delete data[key];
+        return;
+      }
+
+      // 🚫 Skip columns that don't exist in DB
+      if (!columnTypes[key]) {
+        delete data[key];
+        return;
+      }
+
+      // ✅ Convert booleans
+      if (data[key] === "true") data[key] = true;
+      if (data[key] === "false") data[key] = false;
+
+      // ✅ Empty string → NULL
+      if (data[key] === "") {
+        data[key] = null;
+      }
+
+      // ✅ Handle JSON / JSONB
+      if (columnTypes[key] === "json" || columnTypes[key] === "jsonb") {
+        try {
+          if (typeof data[key] === "string") {
+            data[key] = data[key].trim();
+
+            if (data[key] === "") {
+              data[key] = null;
+            } else {
+              data[key] = JSON.parse(data[key]);
+            }
+          }
+        } catch (err) {
+          console.error("❌ BAD JSON VALUE:", data[key]);
+          throw new Error(`Invalid JSON format for ${key}`);
+        }
+      }
+
+      // ✅ Handle INTEGER / NUMERIC
+      if (
+        columnTypes[key]?.includes("integer") ||
+        columnTypes[key]?.includes("numeric")
+      ) {
+        if (data[key] !== null) {
+          const num = Number(data[key]);
+          if (isNaN(num)) {
+            throw new Error(`Invalid number for ${key}`);
+          }
+          data[key] = num;
+        }
+      }
+
+      // ✅ Handle DATE
+      if (columnTypes[key] === "date") {
+        if (data[key]) {
+          const date = new Date(data[key]);
+          if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date for ${key}`);
+          }
+          data[key] = date;
+        }
+      }
+
+      // ✅ Handle TIMESTAMP
+      if (columnTypes[key]?.includes("timestamp")) {
+        if (data[key]) {
+          const date = new Date(data[key]);
+          if (isNaN(date.getTime())) {
+            throw new Error(`Invalid datetime for ${key}`);
+          }
+          data[key] = date;
+        }
+      }
+    });
+
+    // 🔹 3. Build query safely
+    const columns = Object.keys(data);
+
+    if (columns.length === 0) {
+      return res.status(400).send("No valid fields to update");
+    }
+
+    const values = columns.map(col => data[col]);
 
     const setQuery = columns
       .map((col, i) => `${col} = $${i + 1}`)
-      .join(",");
+      .join(", ");
 
+    // 🔹 4. Execute query
     await pool.query(
       `UPDATE ${table} SET ${setQuery} WHERE id = $${columns.length + 1}`,
       [...values, id]
     );
 
-    console.log("Updated record in", table, "ID:", id);
-    console.log("Updated data:", data);
+    console.log("✅ Updated record in", table, "ID:", id);
+    console.log("📦 Final cleaned data:", data);
 
     res.redirect(`/admin/db/${table}`);
+
   } catch (err) {
+    console.error("❌ Update error:", err);
     res.status(500).send(err.message);
   }
 };

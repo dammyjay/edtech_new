@@ -171,32 +171,33 @@ function openEditModal(row) {
   const container = document.getElementById("editFields");
   container.innerHTML = "";
 
-  // Object.entries(row).forEach(([key, value]) => {
-  //   if (key !== "id" && key !== "created_at") {
-  //     container.innerHTML += `
-  //       <div>
-  //         <label>${key}</label>
-  //         <input type="text" name="${key}" value="${value || ''}">
-  //       </div>
-  //     `;
-  //   }
-  // });
-
   Object.entries(row).forEach(([key, value]) => {
 
-    // 🚫 Skip derived/display-only fields
     if (
       key === "id" ||
       key === "created_at" ||
-      key.endsWith("_name") // ✅ THIS IS THE FIX
+      key.endsWith("_name")
     ) return;
 
-    container.innerHTML += `
-      <div>
-        <label>${key}</label>
-        <input type="text" name="${key}" value="${value || ''}">
-      </div>
-    `;
+    let inputValue = value ?? "";
+
+    if (typeof value === "object" && value !== null) {
+      inputValue = JSON.stringify(value, null, 2);
+
+      container.innerHTML += `
+        <div>
+          <label>${key}</label>
+          <textarea name="${key}" rows="4">${inputValue}</textarea>
+        </div>
+      `;
+    } else {
+      container.innerHTML += `
+        <div>
+          <label>${key}</label>
+          <input type="text" name="${key}" value="${inputValue}">
+        </div>
+      `;
+    }
   });
 
   document.getElementById("editForm").action =
