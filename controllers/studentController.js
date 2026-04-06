@@ -1701,7 +1701,7 @@ exports.submitLessonQuiz = async (req, res) => {
     // ✅ Fetch lesson content
     const lessonRes = await pool.query(
       `SELECT id, title, content FROM lessons WHERE id=$1`,
-      [lessonId]
+      [lessonId],
     );
     if (lessonRes.rows.length === 0) {
       return res
@@ -1713,7 +1713,7 @@ exports.submitLessonQuiz = async (req, res) => {
     // ✅ Find the quiz for this lesson
     const quizRes = await pool.query(
       `SELECT id FROM quizzes WHERE lesson_id=$1`,
-      [lessonId]
+      [lessonId],
     );
     if (quizRes.rows.length === 0) {
       return res.json({
@@ -1729,7 +1729,7 @@ exports.submitLessonQuiz = async (req, res) => {
        FROM quiz_questions qq
        WHERE qq.quiz_id = $1
        ORDER BY qq.id ASC`,
-      [quizId]
+      [quizId],
     );
     const questions = qRes.rows;
     if (questions.length === 0) {
@@ -1759,41 +1759,41 @@ exports.submitLessonQuiz = async (req, res) => {
     const percent = Math.round((score / questions.length) * 100);
 
     // ✅ AI Prompt WITH lesson content
-//     const feedbackPrompt = `
-// You are an AI tutor. Use the following LESSON CONTENT to explain quiz answers:
+    //     const feedbackPrompt = `
+    // You are an AI tutor. Use the following LESSON CONTENT to explain quiz answers:
 
-// "${lesson.content}"
+    // "${lesson.content}"
 
-// Now here is a student's quiz attempt for the lesson "${lesson.title}":
+    // Now here is a student's quiz attempt for the lesson "${lesson.title}":
 
-// ${reviewData
-//   .map(
-//     (r) => `
-// QuestionId: ${r.id}
-// Question: ${r.question}
-// Student answered: ${r.yourAnswer || "No answer"}
-// Correct answer: ${r.correctAnswer}
-// Result: ${r.isCorrect ? "✅ Correct" : "❌ Wrong"}
-// `
-//   )
-//   .join("\n\n")}
+    // ${reviewData
+    //   .map(
+    //     (r) => `
+    // QuestionId: ${r.id}
+    // Question: ${r.question}
+    // Student answered: ${r.yourAnswer || "No answer"}
+    // Correct answer: ${r.correctAnswer}
+    // Result: ${r.isCorrect ? "✅ Correct" : "❌ Wrong"}
+    // `
+    //   )
+    //   .join("\n\n")}
 
-// TASK:
-// For EACH question (correct OR wrong):
-// - Use the QuestionId from above in the JSON.
-// - If correct → give a short reinforcement explanation.
-// - If wrong → explain why their answer is incorrect AND what the correct answer means.
-// - Base explanations on the LESSON CONTENT.
-// - Be supportive.
+    // TASK:
+    // For EACH question (correct OR wrong):
+    // - Use the QuestionId from above in the JSON.
+    // - If correct → give a short reinforcement explanation.
+    // - If wrong → explain why their answer is incorrect AND what the correct answer means.
+    // - Base explanations on the LESSON CONTENT.
+    // - Be supportive.
 
-// OUTPUT:
-// Return only valid JSON in this format:
-// [
-//   { "questionId": 12, "feedback": "..." },
-//   { "questionId": 15, "feedback": "..." }
-// ]
+    // OUTPUT:
+    // Return only valid JSON in this format:
+    // [
+    //   { "questionId": 12, "feedback": "..." },
+    //   { "questionId": 15, "feedback": "..." }
+    // ]
     // `;
-    
+
     const feedbackPrompt = `
 You are an AI tutor. Give short, simple feedback for each quiz question.
 
@@ -1809,7 +1809,6 @@ For each item, return JSON like this:
 Student quiz review:
 ${JSON.stringify(reviewData, null, 2)}
 `;
-
 
     let perQuestionFeedback = [];
     try {
@@ -1828,15 +1827,15 @@ ${JSON.stringify(reviewData, null, 2)}
       r.feedback = fb
         ? fb.feedback
         : r.isCorrect
-        ? "✅ Correct! Great understanding."
-        : "❌ Incorrect. Review the lesson content.";
+          ? "✅ Correct! Great understanding."
+          : "❌ Incorrect. Review the lesson content.";
     });
 
     // ✅ Save submission
     await pool.query(
       `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
    VALUES ($1,$2,$3,$4,$5)`,
-      [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
+      [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)],
     );
 
     // ✅ Mark lesson as completed when quiz is submitted
@@ -1844,30 +1843,29 @@ ${JSON.stringify(reviewData, null, 2)}
       `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
    VALUES ($1, $2, NOW())
    ON CONFLICT (user_id, lesson_id) DO NOTHING`,
-      [studentId, lessonId]
+      [studentId, lessonId],
     );
 
     const xpGained = 10;
     await pool.query(
       "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
-      [xpGained, studentId]
+      [xpGained, studentId],
     );
 
     await pool.query(
       `INSERT INTO xp_history (user_id, xp, activity)
    VALUES ($1, $2, $3)`,
-      [studentId, xpGained, `Completed quiz for lesson ${lessonId}`]
+      [studentId, xpGained, `Completed quiz for lesson ${lessonId}`],
     );
 
-
- // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
+    // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
     const nextLessonRes = await pool.query(
       `SELECT id FROM lessons 
        WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
          AND id > $1
        ORDER BY id ASC
        LIMIT 1`,
-      [lessonId]
+      [lessonId],
     );
 
     if (nextLessonRes.rows.length > 0) {
@@ -1877,13 +1875,13 @@ ${JSON.stringify(reviewData, null, 2)}
         `INSERT INTO unlocked_lessons (student_id, lesson_id)
          VALUES ($1, $2)
          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-        [studentId, nextLessonId]
+        [studentId, nextLessonId],
       );
     } else {
       // no more lessons → unlock the assignment
       const moduleIdRes = await pool.query(
         `SELECT module_id FROM lessons WHERE id=$1`,
-        [lessonId]
+        [lessonId],
       );
       const moduleId = moduleIdRes.rows[0].module_id;
 
@@ -1893,22 +1891,106 @@ ${JSON.stringify(reviewData, null, 2)}
          FROM module_assignments 
          WHERE module_id=$2
          ON CONFLICT (student_id, assignment_id) DO NOTHING`,
-        [studentId, moduleId]
+        [studentId, moduleId],
       );
     }
 
-    const { checkAndCompleteModule } = require("../services/moduleCompletionService");
+    const {
+      checkAndCompleteModule,
+    } = require("../services/moduleCompletionService");
 
     // 🔥 Get module ID
     const moduleRes = await pool.query(
       `SELECT module_id FROM lessons WHERE id=$1`,
-      [lessonId]
+      [lessonId],
     );
 
     const moduleId = moduleRes.rows[0].module_id;
 
     // 🔥 Check module completion
     const moduleResult = await checkAndCompleteModule(studentId, moduleId);
+
+    // ✅ Get linked parent (if any)
+    const parentRes = await pool.query(
+      `SELECT u.fullname, u.email
+        FROM users2 u
+        JOIN parent_children pc ON pc.parent_id = u.id
+        WHERE pc.child_id = $1
+        LIMIT 1`,
+      [studentId],
+    );
+
+    const parent = parentRes.rows[0];
+    try {
+      if (parent) {
+        const parentEmail = parent.email;
+        const parentName = parent.fullname;
+
+        // Optional: student name
+        const studentRes = await pool.query(
+          `SELECT fullname FROM users2 WHERE id=$1`,
+          [studentId],
+        );
+        const studentName = studentRes.rows[0]?.fullname || "Your child";
+
+        // Create a link to view result
+        const resultUrl = `${process.env.BASE_URL}/student/quizzes`;
+
+        // Build email HTML
+        const message = `
+          <h2>📊 Quiz Completed</h2>
+
+          <p>Hello ${parentName},</p>
+
+          <p><strong>${studentName}</strong> has just completed a quiz.</p>
+
+          <p><strong>Lesson:</strong> ${lesson.title}</p>
+          <p><strong>Score:</strong> ${percent}%</p>
+          <p><strong>Status:</strong> ${percent >= 50 ? "✅ Passed" : "❌ Failed"}</p>
+
+          <hr>
+
+          <h3>📝 Quiz Breakdown</h3>
+
+          ${reviewData
+            .map(
+              (q) => `
+            <div style="margin-bottom:10px;">
+              <p><strong>Question:</strong> ${q.question}</p>
+              <p>Your Answer: ${q.yourAnswer || "No answer"}</p>
+              <p>Correct Answer: ${q.correctAnswer}</p>
+              <p>${q.isCorrect ? "✅ Correct" : "❌ Wrong"}</p>
+            </div>
+          `,
+            )
+            .join("")}
+
+          <hr>
+
+          <p>You can view the full quiz result and detailed feedback by clicking below:</p>
+
+          <p>
+            <a href="${resultUrl}" style="
+              display:inline-block;
+              padding:10px 15px;
+              background:#007bff;
+              color:#fff;
+              text-decoration:none;
+              border-radius:5px;">
+              View Full Result
+            </a>
+          </p>
+
+          <br>
+          <p>Thank you.</p>
+        `;
+
+        // ✅ Send email
+        await sendEmail(parentEmail, "Your Child Completed a Quiz", message);
+      }
+    } catch (err) {
+      console.error("Error sending parent email:", err.message);
+    }
 
     res.json({
       success: true,
@@ -1919,20 +2001,19 @@ ${JSON.stringify(reviewData, null, 2)}
         percent >= 80
           ? "🌟 Excellent work! You clearly understood this lesson."
           : percent >= 50
-          ? "👍 Good attempt. Review the explanations for the wrong answers."
-          : "📘 Don’t worry! Revisit the lesson content and try again.",
+            ? "👍 Good attempt. Review the explanations for the wrong answers."
+            : "📘 Don’t worry! Revisit the lesson content and try again.",
       // badgeAwarded: moduleResult?.badgeAwarded || false
 
       badgeAwarded: moduleResult?.badgeAwarded || false,
       badgeName: moduleResult?.badgeName || null,
-      badgeImage: moduleResult?.badgeImage || null
-
+      badgeImage: moduleResult?.badgeImage || null,
     });
 
     // ✅ Count completed lessons
     const completedRes = await pool.query(
       `SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1`,
-      [studentId]
+      [studentId],
     );
     const completedCount = parseInt(completedRes.rows[0].count);
 
@@ -1947,7 +2028,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 20) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Beginner', NOW()) 
+    //  VALUES ($1, 'Beginner', NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId]
     //   );
@@ -1955,7 +2036,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 50) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Intermediate', NOW()) 
+    //  VALUES ($1, 'Intermediate', NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId]
     //   );
@@ -1963,7 +2044,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 80) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Advanced', NOW()) 
+    //  VALUES ($1, 'Advanced', NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId]
     //   );
@@ -1971,26 +2052,26 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate === 100) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Master', NOW()) 
+    //  VALUES ($1, 'Master', NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId]
     //   );
     // }
 
     // Get module ID and badge image for the lesson
-  //   const moduleRes = await pool.query(
-  //     `SELECT id, badge_image FROM modules 
-  //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
-  //     [lessonId]
-  //   );
-  //   const moduleId = moduleRes.rows[0]?.id;
-  //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
+    //   const moduleRes = await pool.query(
+    //     `SELECT id, badge_image FROM modules
+    //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
+    //     [lessonId]
+    //   );
+    //   const moduleId = moduleRes.rows[0]?.id;
+    //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
 
     // Award badges with module_id and badge_image
     // if (completionRate >= 20) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Beginner', $2, $3, NOW()) 
+    //  VALUES ($1, 'Beginner', $2, $3, NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId, moduleId, badgeImage]
     //   );
@@ -1998,7 +2079,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 50) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Intermediate', $2, $3, NOW()) 
+    //  VALUES ($1, 'Intermediate', $2, $3, NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId, moduleId, badgeImage]
     //   );
@@ -2007,7 +2088,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 80) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Advance', $2, $3, NOW()) 
+    //  VALUES ($1, 'Advance', $2, $3, NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId, moduleId, badgeImage]
     //   );
@@ -2016,7 +2097,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // if (completionRate >= 100) {
     //   await pool.query(
     //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Master', $2, $3, NOW()) 
+    //  VALUES ($1, 'Master', $2, $3, NOW())
     //  ON CONFLICT DO NOTHING`,
     //     [studentId, moduleId, badgeImage]
     //   );
@@ -2024,8 +2105,6 @@ ${JSON.stringify(reviewData, null, 2)}
     // ... same for Advanced and Master
 
     // ✅ Respond to frontend
-
-    
   } catch (err) {
     console.error("Quiz submit error:", err.message);
     res.status(500).json({ success: false, message: "Failed to submit quiz." });
@@ -2135,13 +2214,6 @@ exports.askAITutor = async (req, res) => {
 
     // ✅ Now ask the tutor safely
     const answer = await askTutor({ question, lessonContext, userName });
-
-    // Optional: log chat
-    // await pool.query(
-    //   `INSERT INTO ai_tutor_logs (user_id, lesson_id, question, answer)
-    //    VALUES ($1,$2,$3,$4)`,
-    //   [userId || null, lessonId || null, question, answer]
-    // );
 
     res.json({ ok: true, answer });
   } catch (e) {

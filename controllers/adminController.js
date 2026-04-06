@@ -1882,35 +1882,6 @@ exports.createCourse = async (req, res) => {
       if (fs.existsSync(certPath)) fs.unlinkSync(certPath);
     }
 
-    // ✅ Insert into DB
-    // await pool.query(
-    //   `INSERT INTO courses (
-    //     title, description, level, career_pathway_id,
-    //     thumbnail_url, curriculum_url, sort_order,
-    //     amount, created_by, instructor_id,
-    //     curriculum_mime, curriculum_name,
-    //     certificate_url, certificate_mime, certificate_name
-    //   )
-    //   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-    //   [
-    //     title,
-    //     description,
-    //     level,
-    //     career_pathway_id || null,
-    //     thumbnail_url,
-    //     curriculum_url,
-    //     sort_order || 0,
-    //     amount || 0,
-    //     req.user.role === "instructor" ? "instructor" : "admin",
-    //     req.user.role === "instructor" ? req.user.id : null,
-    //     curriculum_mime,
-    //     curriculum_name,
-    //     certificate_url,
-    //     certificate_mime,
-    //     certificate_name,
-    //   ]
-    // );
-
     await pool.query(
       `INSERT INTO courses (
         title, description, level, career_pathway_id,
