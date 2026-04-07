@@ -1131,6 +1131,36 @@ exports.downloadCourseSummary = async (req, res) => {
   }
 };
 
+exports.viewQuizResult = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT qs.*, l.title AS lesson_title, u.fullname AS student_name
+      FROM quiz_submissions qs
+      JOIN quizzes q ON qs.quiz_id = q.id
+      JOIN lessons l ON q.lesson_id = l.id
+      JOIN users2 u ON qs.student_id = u.id
+      WHERE qs.id = $1
+    `, [id]);
+
+    if (!result.rows.length) {
+      return res.send("Result not found");
+    }
+
+    const data = result.rows[0];
+
+    res.render("parentQuizView", {
+      submission: data,
+      reviewData: data.review_data
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.send("Error loading result");
+  }
+};
+
 
 
 

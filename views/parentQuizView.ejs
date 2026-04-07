@@ -1,0 +1,22 @@
+<h2>📊 Quiz Result</h2>
+
+<p><strong>Student:</strong> <%= submission.student_name %></p>
+<p><strong>Lesson:</strong> <%= submission.lesson_title %></p>
+<p><strong>Score:</strong> <%= submission.score %>%</p>
+<p><strong>Status:</strong> 
+  <%= submission.passed ? "✅ Passed" : "❌ Failed" %>
+</p>
+
+<hr>
+
+<h3>📝 Breakdown</h3>
+
+<% reviewData.forEach(q => { %>
+  <div style="margin-bottom:15px;">
+    <p><strong>Question:</strong> <%= q.question %></p>
+    <p>Your Answer: <%= q.yourAnswer %></p>
+    <p>Correct Answer: <%= q.correctAnswer %></p>
+    <p><%= q.isCorrect ? "✅ Correct" : "❌ Wrong" %></p>
+    <p><em><%= q.feedback %></em></p>
+  </div>
+<% }) %>

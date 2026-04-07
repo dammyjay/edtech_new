@@ -195,16 +195,12 @@ router.get(
   userController.downloadCourseSummary
 );
 
-// router.get(
-//   "/student/:studentId/quiz/:quizId/report/download",
-//   ensureParent,
-//   userController.downloadQuizReport
-// );
-
 router.get(
   "/student/:studentId/quiz/:quizId/report/download",
   userController.downloadQuizReport
 );
+
+router.get("/parent/quiz/:id", userController.viewQuizResult);
 
 router.get("/auth/check-pending", userController.checkPendingUser);
 

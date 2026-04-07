@@ -1933,58 +1933,119 @@ ${JSON.stringify(reviewData, null, 2)}
           [studentId],
         );
         const studentName = studentRes.rows[0]?.fullname || "Your child";
+        const submissionId = submissionRes.rows[0].id;
 
         // Create a link to view result
-        const resultUrl = `${process.env.BASE_URL}/student/quizzes`;
+        // const resultUrl = `${process.env.BASE_URL}/student/quizzes`;
+        // const resultUrl = `${req.protocol}://${req.get("host")}/student/quizzes`;
+        const resultUrl = `${req.protocol}://${req.get("host")}/parent/quiz/${submissionId}`;
 
         // Build email HTML
+        // const message = `
+        //   <h2>📊 Quiz Completed</h2>
+
+        //   <p>Hello ${parentName},</p>
+
+        //   <p><strong>${studentName}</strong> has just completed a quiz.</p>
+
+        //   <p><strong>Lesson:</strong> ${lesson.title}</p>
+        //   <p><strong>Score:</strong> ${percent}%</p>
+        //   <p><strong>Status:</strong> ${percent >= 50 ? "✅ Passed" : "❌ Failed"}</p>
+
+        //   <hr>
+
+        //   <h3>📝 Quiz Breakdown</h3>
+
+        //   ${reviewData
+        //     .map(
+        //       (q) => `
+        //     <div style="margin-bottom:10px;">
+        //       <p><strong>Question:</strong> ${q.question}</p>
+        //       <p>Your Answer: ${q.yourAnswer || "No answer"}</p>
+        //       <p>Correct Answer: ${q.correctAnswer}</p>
+        //       <p>${q.isCorrect ? "✅ Correct" : "❌ Wrong"}</p>
+        //     </div>
+        //   `,
+        //     )
+        //     .join("")}
+
+        //   <hr>
+
+        //   <p>You can view the full quiz result and detailed feedback by clicking below:</p>
+
+        //   <p>
+        //     <a href="${resultUrl}" style="
+        //       display:inline-block;
+        //       padding:10px 15px;
+        //       background:#007bff;
+        //       color:#fff;
+        //       text-decoration:none;
+        //       border-radius:5px;">
+        //       View Full Result
+        //     </a>
+        //   </p>
+
+        //   <br>
+        //   <p>Thank you.</p>
+        // `;
+
         const message = `
-          <h2>📊 Quiz Completed</h2>
+          <div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:20px;">
+            <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
-          <p>Hello ${parentName},</p>
+              <div style="background:#007bff; color:#fff; padding:15px; text-align:center;">
+                <h2>📊 Quiz Completed</h2>
+              </div>
 
-          <p><strong>${studentName}</strong> has just completed a quiz.</p>
+              <div style="padding:20px;">
+                <p>Hello <strong>${parentName}</strong>,</p>
 
-          <p><strong>Lesson:</strong> ${lesson.title}</p>
-          <p><strong>Score:</strong> ${percent}%</p>
-          <p><strong>Status:</strong> ${percent >= 50 ? "✅ Passed" : "❌ Failed"}</p>
+                <p><strong>${studentName}</strong> has completed a quiz.</p>
 
-          <hr>
+                <div style="background:#f1f5ff; padding:15px; border-radius:8px;">
+                  <p><strong>Lesson:</strong> ${lesson.title}</p>
+                  <p><strong>Score:</strong> ${percent}%</p>
+                  <p>
+                    <strong>Status:</strong> 
+                    <span style="color:${percent >= 50 ? "green" : "red"};">
+                      ${percent >= 50 ? "✅ Passed" : "❌ Failed"}
+                    </span>
+                  </p>
+                </div>
 
-          <h3>📝 Quiz Breakdown</h3>
+                <h3 style="margin-top:20px;">📝 Quick Summary</h3>
 
-          ${reviewData
-            .map(
-              (q) => `
-            <div style="margin-bottom:10px;">
-              <p><strong>Question:</strong> ${q.question}</p>
-              <p>Your Answer: ${q.yourAnswer || "No answer"}</p>
-              <p>Correct Answer: ${q.correctAnswer}</p>
-              <p>${q.isCorrect ? "✅ Correct" : "❌ Wrong"}</p>
+                ${reviewData
+                  .slice(0, 3)
+                  .map(
+                    (q) => `
+                  <div style="border-bottom:1px solid #eee; padding:10px 0;">
+                    <p><strong>${q.question}</strong></p>
+                    <p>${q.isCorrect ? "✅ Correct" : "❌ Wrong"}</p>
+                  </div>
+                `,
+                  )
+                  .join("")}
+
+                <div style="text-align:center; margin-top:20px;">
+                  <a href="${resultUrl}" style="
+                    display:inline-block;
+                    padding:12px 20px;
+                    background:#28a745;
+                    color:#fff;
+                    text-decoration:none;
+                    border-radius:5px;
+                    font-weight:bold;">
+                    View Full Result
+                  </a>
+                </div>
+
+                <p style="margin-top:20px;">Thank you.</p>
+              </div>
+
             </div>
-          `,
-            )
-            .join("")}
-
-          <hr>
-
-          <p>You can view the full quiz result and detailed feedback by clicking below:</p>
-
-          <p>
-            <a href="${resultUrl}" style="
-              display:inline-block;
-              padding:10px 15px;
-              background:#007bff;
-              color:#fff;
-              text-decoration:none;
-              border-radius:5px;">
-              View Full Result
-            </a>
-          </p>
-
-          <br>
-          <p>Thank you.</p>
-        `;
+          </div>
+          `;
 
         // ✅ Send email
       await sendEmail(parentEmail, "QUIZ COMPLETED", message);
