@@ -1831,14 +1831,7 @@ ${JSON.stringify(reviewData, null, 2)}
           ? "✅ Correct! Great understanding."
           : "❌ Incorrect. Review the lesson content.";
     });
-
-    // ✅ Save submission
-  //   await pool.query(
-  //     `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
-  //  VALUES ($1,$2,$3,$4,$5)`,
-  //     [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)],
-  //   );
-
+    
     const submissionRes = await pool.query(
     `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
     VALUES ($1,$2,$3,$4,$5)
@@ -1867,32 +1860,32 @@ ${JSON.stringify(reviewData, null, 2)}
     );
 
     // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
-    // const nextLessonRes = await pool.query(
-    //   `SELECT id FROM lessons 
-    //    WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
-    //      AND id > $1
-    //    ORDER BY id ASC
-    //    LIMIT 1`,
-    //   [lessonId],
-    // );
+    const nextLessonRes = await pool.query(
+      `SELECT id FROM lessons 
+       WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
+         AND id > $1
+       ORDER BY id ASC
+       LIMIT 1`,
+      [lessonId],
+    );
     
     // 🔥 Get current lesson info (module + order)
     
-    const currentLessonRes = await pool.query(
-      `SELECT module_id, order_number FROM lessons WHERE id=$1`,
-      [lessonId]
-    );
+    // const currentLessonRes = await pool.query(
+    //   `SELECT module_id, order_number FROM lessons WHERE id=$1`,
+    //   [lessonId]
+    // );
 
-    const currentLesson = currentLessonRes.rows[0];
+    // const currentLesson = currentLessonRes.rows[0];
 
-    const nextLessonRes = await pool.query(
-      `SELECT id FROM lessons 
-      WHERE module_id = $1
-        AND order_number > $2
-      ORDER BY order_number ASC
-      LIMIT 1`,
-      [currentLesson.module_id, currentLesson.order_number]
-    );
+    // const nextLessonRes = await pool.query(
+    //   `SELECT id FROM lessons 
+    //   WHERE module_id = $1
+    //     AND order_number > $2
+    //   ORDER BY order_number ASC
+    //   LIMIT 1`,
+    //   [currentLesson.module_id, currentLesson.order_number]
+    // );
 
     if (nextLessonRes.rows.length > 0) {
       // unlock the next lesson
