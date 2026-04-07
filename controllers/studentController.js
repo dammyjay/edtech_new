@@ -1,6 +1,7 @@
 const pool = require("../models/db");
 // controllers/studentController.js
 const { askTutor } = require("../utils/ai");
+const sendEmail = require("../utils/sendEmail");
 const PDFDocument = require("pdfkit");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
@@ -1986,7 +1987,7 @@ ${JSON.stringify(reviewData, null, 2)}
         `;
 
         // ✅ Send email
-        await sendEmail(parentEmail, "Your Child Completed a Quiz", message);
+      await sendEmail(parentEmail, "QUIZ COMPLETED", message);
       }
     } catch (err) {
       console.error("Error sending parent email:", err.message);
