@@ -1150,9 +1150,24 @@ exports.viewQuizResult = async (req, res) => {
 
     const data = result.rows[0];
 
+    // res.render("parentQuizView", {
+    //   submission: data,
+    //   reviewData: data.review_data
+    // });
+
+    let parsedReview = [];
+
+    try {
+      parsedReview = typeof data.review_data === "string"
+        ? JSON.parse(data.review_data)
+        : data.review_data;
+    } catch (err) {
+      console.error("JSON parse error:", err.message);
+    }
+
     res.render("parentQuizView", {
       submission: data,
-      reviewData: data.review_data
+      reviewData: parsedReview
     });
 
   } catch (err) {

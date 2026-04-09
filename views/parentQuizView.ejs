@@ -11,12 +11,16 @@
 
 <h3>📝 Breakdown</h3>
 
-<% reviewData.forEach(q => { %>
-  <div style="margin-bottom:15px;">
-    <p><strong>Question:</strong> <%= q.question %></p>
-    <p>Your Answer: <%= q.yourAnswer %></p>
-    <p>Correct Answer: <%= q.correctAnswer %></p>
-    <p><%= q.isCorrect ? "✅ Correct" : "❌ Wrong" %></p>
-    <p><em><%= q.feedback %></em></p>
-  </div>
-<% }) %>
+<% if (reviewData && reviewData.length > 0) { %>
+  <% reviewData.forEach(q => { %>
+    <div style="margin-bottom:15px;">
+      <p><strong>Question:</strong> <%= q.question %></p>
+      <p>Your Answer: <%= q.yourAnswer || "No answer" %></p>
+      <p>Correct Answer: <%= q.correctAnswer %></p>
+      <p><%= q.isCorrect ? "✅ Correct" : "❌ Wrong" %></p>
+      <p><em><%= q.feedback || "" %></em></p>
+    </div>
+  <% }) %>
+<% } else { %>
+  <p>No quiz breakdown available.</p>
+<% } %>
