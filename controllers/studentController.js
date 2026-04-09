@@ -2500,6 +2500,84 @@ Return ONLY valid JSON, e.g.:
       [total, grade, feedbackText, criteria ? JSON.stringify(criteria) : null, submission.id]
     );
 
+    // ✅ Get linked parent
+    const parentRes = await pool.query(
+      `SELECT u.fullname, u.email
+      FROM users2 u
+      JOIN parent_children pc ON pc.parent_id = u.id
+      WHERE pc.child_id = $1
+      LIMIT 1`,
+      [studentId]
+    );
+
+    const parent = parentRes.rows[0];
+
+    try {
+      if (parent) {
+        const parentEmail = parent.email;
+        const parentName = parent.fullname;
+
+        // ✅ Student name
+        const studentRes = await pool.query(
+          `SELECT fullname FROM users2 WHERE id=$1`,
+          [studentId]
+        );
+        const studentName = studentRes.rows[0]?.fullname || "Your child";
+
+        // ✅ Result link
+        const resultUrl = `${req.protocol}://${req.get("host")}/parent/assignment/${submission.id}`;
+
+        // ✅ Email HTML
+        const message = `
+        <div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:20px;">
+          <div style="max-width:600px; margin:auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+
+            <div style="background:#28a745; color:#fff; padding:15px; text-align:center;">
+              <h2>📘 Assignment Submitted</h2>
+            </div>
+
+            <div style="padding:20px;">
+              <p>Hello <strong>${parentName}</strong>,</p>
+
+              <p><strong>${studentName}</strong> has submitted an assignment.</p>
+
+              <div style="background:#f1f5ff; padding:15px; border-radius:8px;">
+                <p><strong>Assignment:</strong> ${assignment.title}</p>
+                <p><strong>Score:</strong> ${total ?? "Pending"}%</p>
+                <p><strong>Grade:</strong> ${grade ?? "Pending"}</p>
+              </div>
+
+              <h3 style="margin-top:20px;">🤖 AI Feedback</h3>
+              <p style="background:#f9f9f9; padding:10px; border-radius:6px;">
+                ${feedbackText || "No feedback available"}
+              </p>
+
+              <div style="text-align:center; margin-top:20px;">
+                <a href="${resultUrl}" style="
+                  display:inline-block;
+                  padding:12px 20px;
+                  background:#007bff;
+                  color:#fff;
+                  text-decoration:none;
+                  border-radius:5px;
+                  font-weight:bold;">
+                  View Full Submission
+                </a>
+              </div>
+
+              <p style="margin-top:20px;">Thank you.</p>
+            </div>
+
+          </div>
+        </div>
+        `;
+
+        await sendEmail(parentEmail, "ASSIGNMENT SUBMITTED", message);
+      }
+    } catch (err) {
+      console.error("Assignment email error:", err.message);
+    }
+
     // 🔥 Get module id from assignment
     const moduleRes = await pool.query(
       `SELECT module_id FROM module_assignments WHERE id=$1`,

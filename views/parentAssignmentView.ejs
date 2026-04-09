@@ -1,0 +1,32 @@
+<h2>📘 Assignment Result</h2>
+
+<p><strong>Student:</strong> <%= submission.student_name %></p>
+<p><strong>Assignment:</strong> <%= submission.assignment_title %></p>
+<p><strong>Score:</strong> <%= submission.score || "Pending" %>%</p>
+<p><strong>Grade:</strong> <%= submission.grade || "Pending" %></p>
+
+<hr>
+
+<h3>📝 Student Submission</h3>
+<p><%= submission.description %></p>
+
+<% if (submission.file_url) { %>
+  <p><a href="<%= submission.file_url %>" target="_blank">📎 View Uploaded File</a></p>
+<% } %>
+
+<hr>
+
+<h3>📊 Criteria Breakdown</h3>
+
+<% if (criteria && Object.keys(criteria).length > 0) { %>
+  <% Object.entries(criteria).forEach(([key, value]) => { %>
+    <p><strong><%= key %>:</strong> <%= value %></p>
+  <% }) %>
+<% } else { %>
+  <p>No criteria available.</p>
+<% } %>
+
+<hr>
+
+<h3>🤖 AI Feedback</h3>
+<p><%= submission.ai_feedback || "No feedback available" %></p>

@@ -201,6 +201,7 @@ router.get(
 );
 
 router.get("/parent/quiz/:id", userController.viewQuizResult);
+router.get("/parent/assignment/:id", userController.viewAssignmentResult);
 
 router.get("/auth/check-pending", userController.checkPendingUser);
 

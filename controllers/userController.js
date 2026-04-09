@@ -1176,6 +1176,48 @@ exports.viewQuizResult = async (req, res) => {
   }
 };
 
+exports.viewAssignmentResult = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT a.title AS assignment_title,
+             s.*,
+             u.fullname AS student_name
+      FROM assignment_submissions s
+      JOIN module_assignments a ON s.assignment_id = a.id
+      JOIN users2 u ON s.student_id = u.id
+      WHERE s.id = $1
+    `,
+      [id],
+    );
+
+    if (!result.rows.length) {
+      return res.send("Assignment not found");
+    }
+
+    const data = result.rows[0];
+
+    // parse criteria if needed
+    let criteria = {};
+    try {
+      criteria =
+        typeof data.criteria === "string"
+          ? JSON.parse(data.criteria)
+          : data.criteria;
+    } catch {}
+
+    res.render("parentAssignmentView", {
+      submission: data,
+      criteria,
+    });
+  } catch (err) {
+    console.error(err);
+    res.send("Error loading assignment");
+  }
+};
+
 
 
 
