@@ -1,4 +1,4 @@
-<h2>📘 Assignment Result</h2>
+<!-- <h2>📘 Assignment Result</h2>
 
 <p><strong>Student:</strong> <%= submission.student_name %></p>
 <p><strong>Assignment:</strong> <%= submission.assignment_title %></p>
@@ -29,4 +29,167 @@
 <hr>
 
 <h3>🤖 AI Feedback</h3>
-<p><%= submission.ai_feedback || "No feedback available" %></p>
+<p><%= submission.ai_feedback || "No feedback available" %></p> -->
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Result</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header img {
+      width: 60px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .card {
+      background: #f9fbff;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 5px solid #007bff;
+    }
+
+    .status-pass {
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .status-fail {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .question {
+      background: #ffffff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .correct {
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .wrong {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .feedback {
+      background: #f1f3f5;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-style: italic;
+    }
+
+    .section-title {
+      margin-top: 25px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    a.file-link {
+      display: inline-block;
+      padding: 8px 12px;
+      background: #007bff;
+      color: white;
+      border-radius: 5px;
+      text-decoration: none;
+      margin-top: 10px;
+    }
+
+    a.file-link:hover {
+      background: #0056b3;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+    <div class="container">
+
+  <div class="header">
+    <img src="https://acad.jkthub.com/images/JKT%20logo.png" alt="Logo">
+    <h2>📘 Assignment Result</h2>
+  </div>
+
+  <div class="content">
+
+    <div class="card">
+      <p><strong>Student:</strong> <%= submission.student_name %></p>
+      <p><strong>Assignment:</strong> <%= submission.assignment_title %></p>
+      <p><strong>Score:</strong> <%= submission.score || "Pending" %>%</p>
+      <p><strong>Grade:</strong> <%= submission.grade || "Pending" %></p>
+    </div>
+
+    <h3 class="section-title">📝 Student Submission</h3>
+    <div class="question">
+      <p><%= submission.description %></p>
+
+      <% if (submission.file_url) { %>
+        <a href="<%= submission.file_url %>" target="_blank" class="file-link">
+          📎 View Uploaded File
+        </a>
+      <% } %>
+    </div>
+
+    <h3 class="section-title">📊 Criteria Breakdown</h3>
+
+    <% if (criteria && Object.keys(criteria).length > 0) { %>
+      <div class="question">
+        <% Object.entries(criteria).forEach(([key, value]) => { %>
+          <p><strong><%= key %>:</strong> <%= value %></p>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p>No criteria available.</p>
+    <% } %>
+
+    <h3 class="section-title">🤖 AI Feedback</h3>
+    <div class="feedback">
+      <%= submission.ai_feedback || "No feedback available" %>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
