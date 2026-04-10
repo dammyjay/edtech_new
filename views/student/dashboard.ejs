@@ -1072,21 +1072,6 @@
       </div>
     </div>
 
-
-    <div class="analytics-wrapper">
-      <div class="analytics-filters">
-        <select>
-          <option selected>This Week</option>
-        </select>
-      </div>
-      <canvas id="engagementChart"></canvas>
-    </div>
-
-    <div class="chart-section">
-      <h3>📊 Course Completion Progress</h3>
-      <canvas id="courseProgressChart"></canvas>
-    </div>
-
     <h2>Continue Learning</h2>
     <div class="course-grid">
       <% enrolledCourses.forEach(course => { %>
@@ -1102,6 +1087,36 @@
       </div>
       <% }) %>
     </div>
+
+    <!-- <div class="analytics-wrapper">
+      <div class="analytics-filters">
+        <select>
+          <option selected>This Week</option>
+        </select>
+      </div>
+      <canvas id="engagementChart"></canvas>
+    </div> -->
+
+    <div class="analytics-wrapper">
+      <div class="analytics-filters">
+        <select onchange="changeRange(this.value)">
+          <option value="week" <%= (query?.range === 'week') ? 'selected' : '' %>>This Week</option>
+          <option value="day" <%= (query?.range === 'day') ? 'selected' : '' %>>Today</option>
+          <option value="month" <%= (query?.range === 'month') ? 'selected' : '' %>>This Month</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <canvas id="engagementChart"></canvas>
+    </div>
+
+
+    <div class="chart-section">
+      <h3>📊 Course Completion Progress</h3>
+      <canvas id="courseProgressChart"></canvas>
+    </div>
+
+    
 
   <% } else { %>
     <!-- PATHWAY VIEW -->
@@ -1717,6 +1732,26 @@ if(classroomId){
 <!-- Script for engagement char -->
 <script>
   const ctx = document.getElementById('engagementChart').getContext('2d');
+  // const chart = new Chart(ctx, {
+  //   type: 'line',
+  //   data: {
+  //     labels: <%- JSON.stringify(engagementData.labels) %>,
+  //     datasets: [{
+  //       label: 'Lessons Completed',
+  //       data: <%- JSON.stringify(engagementData.data) %>,
+  //       borderColor: '#2196f3',
+  //       fill: false,
+  //       tension: 0.3
+  //     }]
+  //   },
+  //   options: {
+  //     responsive: true,
+  //     scales: {
+  //       y: { beginAtZero: true }
+  //     }
+  //   }
+  // });
+
   const chart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1725,18 +1760,38 @@ if(classroomId){
         label: 'Lessons Completed',
         data: <%- JSON.stringify(engagementData.data) %>,
         borderColor: '#2196f3',
-        fill: false,
-        tension: 0.3
+        backgroundColor: 'rgba(33,150,243,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3
       }]
     },
     options: {
       responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw} lessons`
+          }
+        }
+      },
       scales: {
-        y: { beginAtZero: true }
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
       }
     }
   });
 </script>
+
+  <script>
+    function changeRange(range) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("range", range);
+      window.location.href = url.toString();
+    }
+  </script>
 
 <!-- Script for course progress chart -->
 <script>

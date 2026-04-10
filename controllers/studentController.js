@@ -568,130 +568,175 @@ exports.getDashboard = async (req, res) => {
     );
     const totalXP = xpTotalRes.rows[0].total;
 
-    const engagementRes = await pool.query(
-      `SELECT TO_CHAR(completed_at, 'Day') AS day, COUNT(*) AS count
-       FROM user_lesson_progress
-       WHERE user_id = $1 AND completed_at >= NOW() - INTERVAL '6 days'
-       GROUP BY day
-       ORDER BY MIN(completed_at)`,
-      [studentId]
-    );
-    const engagementData = {
-      labels: engagementRes.rows.map((r) => r.day.trim()),
-      data: engagementRes.rows.map((r) => parseInt(r.count)),
-    };
+    // const engagementRes = await pool.query(
+    //   `SELECT TO_CHAR(completed_at, 'Day') AS day, COUNT(*) AS count
+    //    FROM user_lesson_progress
+    //    WHERE user_id = $1 AND completed_at >= NOW() - INTERVAL '6 days'
+    //    GROUP BY day
+    //    ORDER BY MIN(completed_at)`,
+    //   [studentId]
+    // );
 
-    // Module view (kept same, you can later inject unlocked flag here too)
-    // let moduleInfo = null;
-    // let lessons = [];
-    // let selectedLesson = null;
+    const range = req.query.range || "week";
 
-    // if (req.query.section === "module" && req.query.moduleId) {
-    //   const moduleRes = await pool.query(
-    //     `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
-    //     [req.query.moduleId]
-    //   );
-    //   moduleInfo = moduleRes.rows[0] || null;
+    let labels = [];
+    let data = [];
 
-    //   // 🔑 Only keep modules from this course
-    //   if (moduleInfo) {
-    //     const modsRes = await pool.query(
-    //       `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
-    //       [moduleInfo.course_id]
-    //     );
-    //     courseModules = { [moduleInfo.course_id]: modsRes.rows };
-
-    //     // also refetch lessons only for this course
-    //     const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
-    //     if (moduleIdsForThisCourse.length > 0) {
-    //       const lessonsRes2 = await pool.query(
-    //         `SELECT l.*,
-    //                 EXISTS(
-    //                   SELECT 1 FROM unlocked_lessons ul
-    //                   WHERE ul.student_id = $2 AND ul.lesson_id = l.id
-    //                 ) AS unlocked,
-    //                 EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
-    //          FROM lessons l
-    //          WHERE module_id = ANY($1)
-    //          ORDER BY l.order_number ASC`,
-    //         [moduleIdsForThisCourse, studentId]
-    //       );
-
-    //       moduleLessons = {};
-    //       lessonsRes2.rows.forEach((lsn) => {
-    //         if (!moduleLessons[lsn.module_id])
-    //           moduleLessons[lsn.module_id] = [];
-    //         moduleLessons[lsn.module_id].push(lsn);
-    //       });
-    //     }
-    //   }
-    // }
-
-    // Module view
-let moduleInfo = null;
-let lessons = [];
-let selectedLesson = null;
-
-if (req.query.section === "module") {
-
-  // 🔥 If moduleId is NOT provided but courseId is → auto-pick first module
-  if (!req.query.moduleId && req.query.courseId) {
-
-    const firstModuleRes = await pool.query(
-      `SELECT id FROM modules
-       WHERE course_id = $1
-       ORDER BY order_number ASC
-       LIMIT 1`,
-      [req.query.courseId]
-    );
-
-    if (firstModuleRes.rows.length > 0) {
-      req.query.moduleId = firstModuleRes.rows[0].id;
-    }
-  }
-
-  // ✅ Now load module normally
-  if (req.query.moduleId) {
-    const moduleRes = await pool.query(
-      `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
-      [req.query.moduleId]
-    );
-    moduleInfo = moduleRes.rows[0] || null;
-
-    // 🔑 Only keep modules from this course
-    if (moduleInfo) {
-      const modsRes = await pool.query(
-        `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
-        [moduleInfo.course_id]
+    if (range === "day") {
+      // 🔹 TODAY (hourly breakdown)
+      const result = await pool.query(
+        `SELECT EXTRACT(HOUR FROM completed_at) AS hour, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at >= CURRENT_DATE
+     GROUP BY hour
+     ORDER BY hour`,
+        [studentId],
       );
-      courseModules = { [moduleInfo.course_id]: modsRes.rows };
 
-      // also refetch lessons only for this course
-      const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
-      if (moduleIdsForThisCourse.length > 0) {
-        const lessonsRes2 = await pool.query(
-          `SELECT l.*,
-                  EXISTS(
-                    SELECT 1 FROM unlocked_lessons ul
-                    WHERE ul.student_id = $2 AND ul.lesson_id = l.id
-                  ) AS unlocked,
-                  EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
-           FROM lessons l
-           WHERE module_id = ANY($1)
-           ORDER BY l.order_number ASC`,
-          [moduleIdsForThisCourse, studentId]
-        );
+      const map = {};
+      result.rows.forEach((r) => (map[r.hour] = parseInt(r.count)));
 
-        moduleLessons = {};
-        lessonsRes2.rows.forEach((lsn) => {
-          if (!moduleLessons[lsn.module_id])
-            moduleLessons[lsn.module_id] = [];
-          moduleLessons[lsn.module_id].push(lsn);
-        });
+      labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+      data = labels.map((_, i) => map[i] || 0);
+    } else if (range === "week") {
+      // 🔹 LAST 7 DAYS (Sun–Sat)
+      const result = await pool.query(
+        `SELECT EXTRACT(DOW FROM completed_at) AS day, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at >= NOW() - INTERVAL '6 days'
+     GROUP BY day
+     ORDER BY day`,
+        [studentId],
+      );
+
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const map = {};
+      result.rows.forEach((r) => (map[r.day] = parseInt(r.count)));
+
+      labels = days;
+      data = days.map((_, i) => map[i] || 0);
+    } else if (range === "month") {
+      // 🔹 THIS MONTH (1–31)
+      const result = await pool.query(
+        `SELECT EXTRACT(DAY FROM completed_at) AS day, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at >= DATE_TRUNC('month', CURRENT_DATE)
+     GROUP BY day
+     ORDER BY day`,
+        [studentId],
+      );
+
+      const today = new Date().getDate();
+      const map = {};
+      result.rows.forEach((r) => (map[r.day] = parseInt(r.count)));
+
+      labels = Array.from({ length: today }, (_, i) => `${i + 1}`);
+      data = labels.map((_, i) => map[i + 1] || 0);
+    } else if (range === "custom" && req.query.start && req.query.end) {
+      // 🔹 CUSTOM RANGE
+      const result = await pool.query(
+        `SELECT DATE(completed_at) AS date, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at BETWEEN $2 AND $3
+     GROUP BY date
+     ORDER BY date`,
+        [studentId, req.query.start, req.query.end],
+      );
+
+      const map = {};
+      result.rows.forEach((r) => {
+        const d = new Date(r.date).toISOString().split("T")[0];
+        map[d] = parseInt(r.count);
+      });
+
+      // Generate full date range
+      const start = new Date(req.query.start);
+      const end = new Date(req.query.end);
+
+      let current = new Date(start);
+      while (current <= end) {
+        const d = current.toISOString().split("T")[0];
+        labels.push(d);
+        data.push(map[d] || 0);
+        current.setDate(current.getDate() + 1);
       }
     }
-  }
-}
+
+    // const engagementData = {
+    //   labels: engagementRes.rows.map((r) => r.day.trim()),
+    //   data: engagementRes.rows.map((r) => parseInt(r.count)),
+    // };
+
+    const engagementData = { labels, data };
+
+    let moduleInfo = null;
+    let lessons = [];
+    let selectedLesson = null;
+
+    if (req.query.section === "module") {
+
+      // 🔥 If moduleId is NOT provided but courseId is → auto-pick first module
+      if (!req.query.moduleId && req.query.courseId) {
+
+        const firstModuleRes = await pool.query(
+          `SELECT id FROM modules
+          WHERE course_id = $1
+          ORDER BY order_number ASC
+          LIMIT 1`,
+          [req.query.courseId]
+        );
+
+        if (firstModuleRes.rows.length > 0) {
+          req.query.moduleId = firstModuleRes.rows[0].id;
+        }
+      }
+
+      // ✅ Now load module normally
+      if (req.query.moduleId) {
+        const moduleRes = await pool.query(
+          `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
+          [req.query.moduleId]
+        );
+        moduleInfo = moduleRes.rows[0] || null;
+
+        // 🔑 Only keep modules from this course
+        if (moduleInfo) {
+          const modsRes = await pool.query(
+            `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
+            [moduleInfo.course_id]
+          );
+          courseModules = { [moduleInfo.course_id]: modsRes.rows };
+
+          // also refetch lessons only for this course
+          const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
+          if (moduleIdsForThisCourse.length > 0) {
+            const lessonsRes2 = await pool.query(
+              `SELECT l.*,
+                      EXISTS(
+                        SELECT 1 FROM unlocked_lessons ul
+                        WHERE ul.student_id = $2 AND ul.lesson_id = l.id
+                      ) AS unlocked,
+                      EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+              FROM lessons l
+              WHERE module_id = ANY($1)
+              ORDER BY l.order_number ASC`,
+              [moduleIdsForThisCourse, studentId]
+            );
+
+            moduleLessons = {};
+            lessonsRes2.rows.forEach((lsn) => {
+              if (!moduleLessons[lsn.module_id])
+                moduleLessons[lsn.module_id] = [];
+              moduleLessons[lsn.module_id].push(lsn);
+            });
+          }
+        }
+      }
+    }
 
     // Pathway filter (same)
     if (req.query.pathway && pathwayCourses[req.query.pathway]) {
