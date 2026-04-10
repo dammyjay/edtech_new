@@ -852,6 +852,7 @@ exports.getDashboard = async (req, res) => {
       courseProjects,
       courseCompleted,
       courseFinalUnlocked,
+      query: req.query,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
