@@ -1099,12 +1099,27 @@
 
     <div class="analytics-wrapper">
       <div class="analytics-filters">
-        <select onchange="changeRange(this.value)">
+        <!-- <select onchange="changeRange(this.value)">
           <option value="week" <%= (query?.range === 'week') ? 'selected' : '' %>>This Week</option>
           <option value="day" <%= (query?.range === 'day') ? 'selected' : '' %>>Today</option>
           <option value="month" <%= (query?.range === 'month') ? 'selected' : '' %>>This Month</option>
           <option value="custom">Custom</option>
+        </select> -->
+
+        <select onchange="changeRange(this.value)">
+          <option value="week" <%= (query?.range === 'week') ? 'selected' : '' %>>This Week</option>
+          <option value="day" <%= (query?.range === 'day') ? 'selected' : '' %>>Today</option>
+          <option value="month" <%= (query?.range === 'month') ? 'selected' : '' %>>This Month</option>
+          <option value="last_month" <%= (query?.range === 'last_month') ? 'selected' : '' %>>Last Month</option>
+          <option value="last_2_months" <%= (query?.range === 'last_2_months') ? 'selected' : '' %>>Last 2 Months</option>
+          <option value="custom" <%= (query?.range === 'custom') ? 'selected' : '' %>>Custom</option>
         </select>
+
+        <div id="customRangeBox" style="display:none; margin-top:10px;">
+          <input type="date" id="startDate" value="<%= query?.start || '' %>">
+          <input type="date" id="endDate" value="<%= query?.end || '' %>">
+          <button onclick="applyCustomRange()">Apply</button>
+        </div>
       </div>
 
       <canvas id="engagementChart"></canvas>
@@ -1730,27 +1745,7 @@ if(classroomId){
 <!-- Script for engagement char -->
 <script>
   const ctx = document.getElementById('engagementChart').getContext('2d');
-  // const chart = new Chart(ctx, {
-  //   type: 'line',
-  //   data: {
-  //     labels: <%- JSON.stringify(engagementData.labels) %>,
-  //     datasets: [{
-  //       label: 'Lessons Completed',
-  //       data: <%- JSON.stringify(engagementData.data) %>,
-  //       borderColor: '#2196f3',
-  //       fill: false,
-  //       tension: 0.3
-  //     }]
-  //   },
-  //   options: {
-  //     responsive: true,
-  //     scales: {
-  //       y: { beginAtZero: true }
-  //     }
-  //   }
-  // });
-
-  const chart = new Chart(ctx, {
+ const chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: <%- JSON.stringify(engagementData.labels) %>,
@@ -1782,14 +1777,55 @@ if(classroomId){
     }
   });
 </script>
-
-  <script>
+<script>
     function changeRange(range) {
       const url = new URL(window.location.href);
       url.searchParams.set("range", range);
       window.location.href = url.toString();
     }
-  </script>
+</script>
+<script>
+  function changeRange(range) {
+    const url = new URL(window.location.href);
+
+    if (range === "custom") {
+      document.getElementById("customRangeBox").style.display = "block";
+      return; // ❗ don't reload yet
+    }
+
+    url.searchParams.set("range", range);
+    url.searchParams.delete("start");
+    url.searchParams.delete("end");
+
+    window.location.href = url.toString();
+  }
+
+  // show if already selected
+  window.onload = () => {
+    const currentRange = "<%= query?.range || '' %>";
+    if (currentRange === "custom") {
+      document.getElementById("customRangeBox").style.display = "block";
+    }
+  };
+</script>
+<script>
+  function applyCustomRange() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+
+    if (!start || !end) {
+      alert("Please select both dates");
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("range", "custom");
+    url.searchParams.set("start", start);
+    url.searchParams.set("end", end);
+
+    window.location.href = url.toString();
+  }
+</script>
 
 <!-- Script for course progress chart -->
 <script>

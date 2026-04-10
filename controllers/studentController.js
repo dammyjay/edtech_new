@@ -568,14 +568,6 @@ exports.getDashboard = async (req, res) => {
     );
     const totalXP = xpTotalRes.rows[0].total;
 
-    // const engagementRes = await pool.query(
-    //   `SELECT TO_CHAR(completed_at, 'Day') AS day, COUNT(*) AS count
-    //    FROM user_lesson_progress
-    //    WHERE user_id = $1 AND completed_at >= NOW() - INTERVAL '6 days'
-    //    GROUP BY day
-    //    ORDER BY MIN(completed_at)`,
-    //   [studentId]
-    // );
 
     const range = req.query.range || "week";
 
@@ -635,13 +627,48 @@ exports.getDashboard = async (req, res) => {
 
       labels = Array.from({ length: today }, (_, i) => `${i + 1}`);
       data = labels.map((_, i) => map[i + 1] || 0);
-    } else if (range === "custom" && req.query.start && req.query.end) {
+    } else if (range === "last_month") {
+      // 🔹 LAST MONTH
+      const result = await pool.query(
+        `SELECT EXTRACT(DAY FROM completed_at) AS day, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+       AND completed_at < DATE_TRUNC('month', CURRENT_DATE)
+     GROUP BY day
+     ORDER BY day`,
+        [studentId],
+      );
+
+      const map = {};
+      result.rows.forEach((r) => (map[r.day] = parseInt(r.count)));
+
+      labels = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
+      data = labels.map((_, i) => map[i + 1] || 0);
+    } else if (range === "last_2_months") {
+      // 🔹 LAST 2 MONTHS (grouped by week)
+      const result = await pool.query(
+        `SELECT DATE_TRUNC('week', completed_at) AS week, COUNT(*) AS count
+     FROM user_lesson_progress
+     WHERE user_id = $1
+       AND completed_at >= CURRENT_DATE - INTERVAL '2 months'
+     GROUP BY week
+     ORDER BY week`,
+        [studentId],
+      );
+
+      labels = result.rows.map(
+        (r) => new Date(r.week).toISOString().split("T")[0],
+      );
+
+      data = result.rows.map((r) => parseInt(r.count));
+    }  else if (range === "custom" && req.query.start && req.query.end) {
       // 🔹 CUSTOM RANGE
       const result = await pool.query(
         `SELECT DATE(completed_at) AS date, COUNT(*) AS count
      FROM user_lesson_progress
      WHERE user_id = $1
-       AND completed_at BETWEEN $2 AND $3
+       AND completed_at >= $2 AND completed_at < $3::date + INTERVAL '1 day'
      GROUP BY date
      ORDER BY date`,
         [studentId, req.query.start, req.query.end],
