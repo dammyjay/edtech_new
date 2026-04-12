@@ -690,6 +690,11 @@ async function createTables() {
           created_at TIMESTAMP DEFAULT NOW()
         );
 
+        ALTER TABLE activities ADD COLUMN IF NOT EXISTS duration_seconds INT DEFAULT 0;
+        ALTER TABLE activities 
+        ADD COLUMN IF NOT EXISTS start_time TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS end_time TIMESTAMP;
+
       `);
     
     await pool.query(`

@@ -2673,189 +2673,410 @@ exports.viewStudentDetails = async (req, res) => {
 
 exports.viewStudentProgress = async (req, res) => {
   try {
-    const infoResult = await pool.query(
-      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-    );
-    const info = infoResult.rows[0];
     const { id } = req.params;
 
-    // detect where user came from (default admin)
     const from =
       req.query.from ||
       (req.get("referer")?.includes("/parent") ? "parent" : "admin");
 
-    // ✅ Get student info
-    const studentRes = await pool.query(
-      `SELECT id, fullname, email, created_at 
-       FROM users2 WHERE id = $1`,
-      [id]
+    // =========================
+    // 1. COMPANY INFO
+    // =========================
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1",
     );
+    const info = infoResult.rows[0];
+
+    // =========================
+    // 2. STUDENT
+    // =========================
+    const studentRes = await pool.query(
+      `SELECT id, fullname, email, created_at FROM users2 WHERE id = $1`,
+      [id],
+    );
+
     if (!studentRes.rows.length)
       return res.status(404).send("Student not found");
+
     const student = studentRes.rows[0];
 
-    // ✅ Courses (includes both direct enrollment and classroom-assigned)
+    // =========================
+    // 3. COURSES
+    // =========================
     const coursesRes = await pool.query(
       `
-  SELECT DISTINCT
-    c.id,
-    c.title AS course_title,
-    COALESCE(e.enrolled_at, cc.assigned_at) AS enrolled_at
-  FROM courses c
-  LEFT JOIN course_enrollments e 
-    ON e.course_id = c.id AND e.user_id = $1
-  LEFT JOIN classroom_courses cc 
-    ON cc.course_id = c.id
-  LEFT JOIN user_school us 
-    ON us.classroom_id = cc.classroom_id AND us.user_id = $1
-  WHERE e.user_id IS NOT NULL OR us.user_id IS NOT NULL
-  ORDER BY c.title;
-  `,
-      [id]
+      SELECT DISTINCT
+        c.id,
+        c.title AS course_title,
+        COALESCE(e.enrolled_at, cc.assigned_at) AS enrolled_at
+      FROM courses c
+      LEFT JOIN course_enrollments e 
+        ON e.course_id = c.id AND e.user_id = $1
+      LEFT JOIN classroom_courses cc 
+        ON cc.course_id = c.id
+      LEFT JOIN user_school us 
+        ON us.classroom_id = cc.classroom_id AND us.user_id = $1
+      WHERE e.user_id IS NOT NULL OR us.user_id IS NOT NULL
+      ORDER BY c.title;
+      `,
+      [id],
     );
 
-    // ✅ Modules per course
+    // =========================
+    // 4. MODULES
+    // =========================
     const modulesRes = await pool.query(
       `
-      SELECT m.id, m.title AS module_title, m.course_id
+      SELECT 
+        m.id,
+        m.title AS module_title,
+        m.course_id
       FROM modules m
-      LEFT JOIN unlocked_modules um ON um.module_id = m.id AND um.student_id = $1
       ORDER BY m.id;
       `,
-      [id]
     );
 
-    // ✅ Lessons per module
+    // =========================
+    // 5. LESSONS + PROGRESS
+    // =========================
     const lessonsRes = await pool.query(
       `
-      SELECT l.id, l.title AS lesson_title, l.module_id, ulp.completed_at
+      SELECT 
+        l.id,
+        l.title AS lesson_title,
+        l.module_id,
+        ulp.completed_at
       FROM lessons l
       LEFT JOIN user_lesson_progress ulp 
         ON ulp.lesson_id = l.id AND ulp.user_id = $1
       ORDER BY l.order_number;
       `,
-      [id]
+      [id],
     );
 
-    // ✅ Quizzes
+    // =========================
+    // 6. QUIZZES
+    // =========================
     const quizzesRes = await pool.query(
       `
-      SELECT q.id, q.title, l.module_id, qs.score, qs.created_at AS taken_at, l.title AS lesson_title
+      SELECT 
+        q.id,
+        q.title,
+        l.module_id,
+        qs.score,
+        qs.created_at AS taken_at,
+        l.title AS lesson_title
       FROM quiz_submissions qs
       JOIN quizzes q ON qs.quiz_id = q.id
       JOIN lessons l ON q.lesson_id = l.id
       WHERE qs.student_id = $1
       ORDER BY qs.created_at DESC;
       `,
-      [id]
+      [id],
     );
 
-    // ✅ Assignments
+    // =========================
+    // 7. ASSIGNMENTS
+    // =========================
     const assignmentsRes = await pool.query(
       `
-      SELECT ma.id, ma.title, ma.module_id, s.total, s.grade, s.ai_feedback, s.created_at AS submitted_at
+      SELECT 
+        ma.id,
+        ma.title,
+        ma.module_id,
+        s.total,
+        s.grade,
+        s.ai_feedback,
+        s.created_at AS submitted_at
       FROM assignment_submissions s
       JOIN module_assignments ma ON s.assignment_id = ma.id
       WHERE s.student_id = $1
       ORDER BY s.created_at DESC;
       `,
-      [id]
+      [id],
     );
 
-    // --- Build Nested Structure ---
+    // ======================================================
+    // ⚡ OPTIMIZED GROUPING (NO MORE FILTER LOOPS)
+    // ======================================================
+
+    const lessonsByModule = new Map();
+    lessonsRes.rows.forEach((l) => {
+      if (!lessonsByModule.has(l.module_id))
+        lessonsByModule.set(l.module_id, []);
+      lessonsByModule.get(l.module_id).push(l);
+    });
+
+    const quizzesByModule = new Map();
+    quizzesRes.rows.forEach((q) => {
+      if (!quizzesByModule.has(q.module_id))
+        quizzesByModule.set(q.module_id, []);
+      quizzesByModule.get(q.module_id).push(q);
+    });
+
+    const assignmentsByModule = new Map();
+    assignmentsRes.rows.forEach((a) => {
+      if (!assignmentsByModule.has(a.module_id))
+        assignmentsByModule.set(a.module_id, []);
+      assignmentsByModule.get(a.module_id).push(a);
+    });
+
+    const modulesByCourse = new Map();
+    modulesRes.rows.forEach((m) => {
+      if (!modulesByCourse.has(m.course_id))
+        modulesByCourse.set(m.course_id, []);
+      modulesByCourse.get(m.course_id).push(m);
+    });
+
+    // =========================
+    // 8. BUILD COURSE STRUCTURE
+    // =========================
     const courses = coursesRes.rows.map((course) => {
-      const courseModules = modulesRes.rows.filter(
-        (m) => m.course_id === course.id
-      );
+      const modules = modulesByCourse.get(course.id) || [];
 
-      const modules = courseModules.map((module) => {
-        const moduleLessons = lessonsRes.rows.filter(
-          (l) => l.module_id === module.id
-        );
+      const enrichedModules = modules.map((module) => {
+        const moduleLessons = lessonsByModule.get(module.id) || [];
+        const moduleQuizzes = quizzesByModule.get(module.id) || [];
+        const moduleAssignments = assignmentsByModule.get(module.id) || [];
 
-        // Progress calculation
         const totalLessons = moduleLessons.length;
         const completedLessons = moduleLessons.filter(
-          (l) => l.completed_at
+          (l) => l.completed_at,
         ).length;
-        const modulePercent = totalLessons
+
+        const percent = totalLessons
           ? Math.round((completedLessons / totalLessons) * 100)
           : 0;
 
-        // Quizzes & Assignments under this module
-        const moduleQuizzes = quizzesRes.rows.filter(
-          (q) => q.module_id === module.id
-        );
-        const moduleAssignments = assignmentsRes.rows.filter(
-          (a) => a.module_id === module.id
-        );
-
         const quizAvg = moduleQuizzes.length
           ? Math.round(
-              moduleQuizzes.reduce((a, q) => a + q.score, 0) /
-                moduleQuizzes.length
+              moduleQuizzes.reduce((a, b) => a + b.score, 0) /
+                moduleQuizzes.length,
             )
           : null;
 
         const assignmentAvg = moduleAssignments.length
           ? Math.round(
-              moduleAssignments.reduce((a, x) => a + (x.total || 0), 0) /
-                moduleAssignments.length
+              moduleAssignments.reduce((a, b) => a + (b.total || 0), 0) /
+                moduleAssignments.length,
             )
           : null;
 
         return {
           ...module,
           lessons: moduleLessons,
+          quizzes: moduleQuizzes,
+          assignments: moduleAssignments,
           totalLessons,
           completedLessons,
-          percent: modulePercent,
+          percent,
           quizAvg,
           assignmentAvg,
-          assignments: moduleAssignments,
-          role: "admin", // ✅ important
         };
       });
 
-      // Course progress (aggregate of module lessons)
-      const totalLessons = modules.reduce((sum, m) => sum + m.totalLessons, 0);
-      const completedLessons = modules.reduce(
-        (sum, m) => sum + m.completedLessons,
-        0
+      const totalLessons = enrichedModules.reduce(
+        (a, b) => a + b.totalLessons,
+        0,
       );
-      const coursePercent = totalLessons
+
+      const completedLessons = enrichedModules.reduce(
+        (a, b) => a + b.completedLessons,
+        0,
+      );
+
+      const percent = totalLessons
         ? Math.round((completedLessons / totalLessons) * 100)
         : 0;
 
       return {
         ...course,
-        modules,
+        modules: enrichedModules,
         totalLessons,
         completedLessons,
-        percent: coursePercent,
+        percent,
       };
     });
 
-    // --- Compute overall averages ---
+    // =========================
+    // 9. OVERALL METRICS
+    // =========================
     const allQuizzes = quizzesRes.rows;
     const allAssignments = assignmentsRes.rows;
 
-    const quizAvg =
-      allQuizzes.length > 0
-        ? Math.round(
-            allQuizzes.reduce((a, q) => a + q.score, 0) / allQuizzes.length
-          )
-        : null;
+    const quizAvg = allQuizzes.length
+      ? Math.round(
+          allQuizzes.reduce((a, b) => a + b.score, 0) / allQuizzes.length,
+        )
+      : null;
 
-    const assignmentAvg =
-      allAssignments.length > 0
-        ? Math.round(
-            allAssignments.reduce((a, x) => a + (x.total || 0), 0) /
-              allAssignments.length
-          )
-        : null;
+    const assignmentAvg = allAssignments.length
+      ? Math.round(
+          allAssignments.reduce((a, b) => a + (b.total || 0), 0) /
+            allAssignments.length,
+        )
+      : null;
 
-    // ✅ Pass everything to EJS
+    // ================================
+    // 🧠 ENGAGEMENT METRICS (RESTORE)
+    // ================================
+
+    const activityRes = await pool.query(
+      `SELECT 
+    COUNT(*) AS total_activities,
+    COALESCE(SUM(duration_seconds),0) AS total_time,
+    MAX(created_at) AS last_active
+   FROM activities
+   WHERE user_id = $1`,
+      [id],
+    );
+
+    const engagement = activityRes.rows[0];
+
+    const loginFrequencyRes = await pool.query(
+      `SELECT COUNT(DISTINCT DATE(created_at)) AS active_days
+   FROM activities
+   WHERE user_id = $1
+     AND created_at > NOW() - INTERVAL '7 days'`,
+      [id],
+    );
+
+    const activeDays = parseInt(loginFrequencyRes.rows[0].active_days || 0);
+
+    // ================================
+    // 📊 PERFORMANCE
+    // ================================
+
+    const quizScores = allQuizzes.map((q) => q.score);
+    const assignmentScores = allAssignments.map((a) => a.total || 0);
+
+    const quizAvgMetric = quizScores.length
+      ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
+      : 0;
+
+    const assignmentAvgMetric = assignmentScores.length
+      ? Math.round(
+          assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length,
+        )
+      : 0;
+
+    const passRate = allQuizzes.length
+      ? Math.round(
+          (allQuizzes.filter((q) => q.passed).length / allQuizzes.length) * 100,
+        )
+      : 0;
+
+    // ================================
+    // 📈 PROGRESS
+    // ================================
+
+    const totalLessonsCount = courses.reduce((a, c) => a + c.totalLessons, 0);
+    const completedLessonsCount = courses.reduce(
+      (a, c) => a + c.completedLessons,
+      0,
+    );
+
+    const progressPercent = totalLessonsCount
+      ? Math.round((completedLessonsCount / totalLessonsCount) * 100)
+      : 0;
+
+    // ================================
+    // 🎯 BEHAVIOR
+    // ================================
+
+    const consistencyScore = Math.min(100, activeDays * 15);
+
+    const inactivityDays = engagement.last_active
+      ? Math.floor(
+          (Date.now() - new Date(engagement.last_active)) /
+            (1000 * 60 * 60 * 24),
+        )
+      : 999;
+
+    const isInactive = inactivityDays > 3;
+
+    // ================================
+    // 🧠 MASTERY
+    // ================================
+
+    const masteryScore = Math.round(
+      quizAvgMetric * 0.5 + assignmentAvgMetric * 0.3 + passRate * 0.2,
+    );
+
+    // ================================
+    // 🚨 RISK
+    // ================================
+
+    const riskFlags = [];
+
+    if (quizAvgMetric < 50) riskFlags.push("Low quiz performance");
+    if (assignmentAvgMetric < 50) riskFlags.push("Low assignment performance");
+    if (isInactive) riskFlags.push("Inactive student");
+    if (progressPercent < 30) riskFlags.push("Low progress");
+
+    const riskLevel =
+      riskFlags.length >= 3
+        ? "High Risk"
+        : riskFlags.length === 2
+          ? "Medium Risk"
+          : riskFlags.length === 1
+            ? "Low Risk"
+            : "Healthy";
+
+    // ================================
+    // 🏆 PLATFORM SCORE
+    // ================================
+
+    const platformScore = Math.round(
+      progressPercent * 0.25 +
+        quizAvgMetric * 0.2 +
+        assignmentAvgMetric * 0.15 +
+        consistencyScore * 0.15 +
+        masteryScore * 0.25,
+    );
+
+    // ================================
+    // FINAL METRICS OBJECT
+    // ================================
+
+    const metrics = {
+      engagement: {
+        totalActivities: engagement.total_activities,
+        totalTimeSpent: engagement.total_time,
+        lastActive: engagement.last_active,
+        activeDays,
+        consistencyScore,
+      },
+      performance: {
+        quizAvg: quizAvgMetric,
+        assignmentAvg: assignmentAvgMetric,
+        passRate,
+      },
+      progress: {
+        totalLessons: totalLessonsCount,
+        completedLessons: completedLessonsCount,
+        progressPercent,
+      },
+      completion: {
+        completionRate: progressPercent,
+        assignmentSubmissionRate: allAssignments.length,
+      },
+      mastery: {
+        masteryScore,
+      },
+      behavior: {
+        inactivityDays,
+        isInactive,
+      },
+      risk: {
+        riskLevel,
+        flags: riskFlags,
+      },
+      overall: {
+        platformScore,
+      },
+    };
+
     res.render("admin/studentProgress", {
       student,
       courses,
@@ -2865,6 +3086,7 @@ exports.viewStudentProgress = async (req, res) => {
       assignmentAvg,
       info,
       from,
+      metrics,
     });
   } catch (err) {
     console.error("View student progress error:", err.message);

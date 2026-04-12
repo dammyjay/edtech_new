@@ -4,7 +4,7 @@ const multer = require("multer");
 // const upload = multer({ dest: 'uploads/' }); // temp local storage
 // const upload = require("../middlewares/upload");
 const { upload, lessonUpload } = require("../middlewares/upload");
-
+const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 const studentController = require("../controllers/studentController");
 
 const { ensureAuthenticated } = require("../middlewares/auth");
@@ -32,8 +32,57 @@ router.post(
 router.get(
   "/lessons/:lessonId",
   ensureAuthenticated,
-  studentController.viewLesson
+  activityLoggerMiddleware(
+    "Viewed Lesson",
+    (req) => `Lesson ${req.params.lessonId}`,
+  ),
+  studentController.viewLesson,
 );
+
+// router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
+//   try {
+//     const { lessonId, duration } = req.body;
+//     const userId = req.user.id;
+
+//     await pool.query(
+//       `INSERT INTO activities
+//         (user_id, action, details, duration_seconds)
+//         VALUES ($1, $2, $3, $4)`,
+//       [userId, "Lesson Time Spent", `Lesson ${lessonId}`, duration],
+//     );
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false });
+//   }
+// });
+
+router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
+  try {
+    const { lessonId, duration, startTime, endTime } = req.body;
+    const userId = req.user.id;
+
+    await pool.query(
+      `INSERT INTO activities 
+        (user_id, action, details, duration_seconds, start_time, end_time)
+        VALUES ($1, $2, $3, $4, to_timestamp($5/1000.0), to_timestamp($6/1000.0))`,
+      [
+        userId,
+        "Lesson Time Spent",
+        `Lesson ${lessonId}`,
+        duration,
+        startTime,
+        endTime,
+      ],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
 
 router.get(
   "/modules/:moduleId",
@@ -46,7 +95,10 @@ router.get('/lessons/:id/quiz', studentController.getLessonQuiz);
 
 router.post(
   "/lessons/:id/quiz/submit",
-  express.json(),
+  express.json(),activityLoggerMiddleware(
+      "Student submitted Quiz",
+      (req) => `Lesson: ${req.params.id}, Score: ${req.body.score}`
+    ),
   studentController.submitLessonQuiz
 );
 
@@ -76,6 +128,7 @@ router.post("/ai/ask", ensureAuthenticated, studentController.askAITutor);
 router.get(
   "/assignments/:id",
   ensureAuthenticated, // 🔑 protect
+  activityLoggerMiddleware("Viewed Assignment", (req) => `Assignment ${req.params.id}`),
   studentController.viewAssignment
 );
 
@@ -83,6 +136,7 @@ router.post(
   "/assignments/:id/submit",
   ensureAuthenticated, // 🔑 protect
   upload.single("file"),
+    activityLoggerMiddleware("Submitted Assignment", (req) => `Assignment ${req.params.id}`),
   studentController.submitAssignment
 );
 
