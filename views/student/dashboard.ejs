@@ -2128,6 +2128,18 @@ window.closeEditModal = function (id) {
         window.currentLessonId = lessonId; // ✅ Keep track
         // ⏱ Start tracking time
         lessonStartTime = Date.now();
+
+        // 🔥 SAVE START
+        fetch("/student/lesson-start", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            lessonId: lessonId,
+            startTime: lessonStartTime
+          })
+        });
         let html = `<h2>${lesson.title}</h2>`;
 
         // 🎥 VIDEO SECTION
@@ -2473,18 +2485,41 @@ window.closeEditModal = function (id) {
       });
   }
 
+// function sendLessonDuration() {
+//   if (!lessonStartTime || !window.currentLessonId) return;
+
+//   const endTime = Date.now();
+//   const duration = Math.floor((endTime - lessonStartTime) / 1000);
+
+//   console.log("Sending:", {
+//     lessonId: window.currentLessonId,
+//     duration,
+//     startTime: lessonStartTime,
+//     endTime
+//   });
+
+//   fetch("/student/lesson-time", {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json"
+//     },
+//     body: JSON.stringify({
+//       lessonId: window.currentLessonId,
+//       duration,
+//       startTime: lessonStartTime,
+//       endTime
+//     })
+//   });
+
+//   lessonStartTime = null;
+// }
+
+
 function sendLessonDuration() {
   if (!lessonStartTime || !window.currentLessonId) return;
 
   const endTime = Date.now();
   const duration = Math.floor((endTime - lessonStartTime) / 1000);
-
-  console.log("Sending:", {
-    lessonId: window.currentLessonId,
-    duration,
-    startTime: lessonStartTime,
-    endTime
-  });
 
   fetch("/student/lesson-time", {
     method: "POST",
@@ -2494,14 +2529,12 @@ function sendLessonDuration() {
     body: JSON.stringify({
       lessonId: window.currentLessonId,
       duration,
-      startTime: lessonStartTime,
       endTime
     })
   });
 
   lessonStartTime = null;
 }
-
   // // When user switches lesson
   // window.addEventListener("beforeunload", sendLessonDuration);
 

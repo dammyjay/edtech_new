@@ -41,14 +41,25 @@ router.get(
 
 // router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
 //   try {
-//     const { lessonId, duration } = req.body;
+//     const { lessonId, duration, startTime, endTime } = req.body;
 //     const userId = req.user.id;
 
 //     await pool.query(
 //       `INSERT INTO activities
-//         (user_id, action, details, duration_seconds)
-//         VALUES ($1, $2, $3, $4)`,
-//       [userId, "Lesson Time Spent", `Lesson ${lessonId}`, duration],
+//    (user_id, action, details, duration_seconds, start_time, end_time)
+//    VALUES ($1, $2, $3, $4, to_timestamp($5/1000.0), to_timestamp($6/1000.0))
+//    ON CONFLICT (user_id, action, details)
+//    DO UPDATE SET
+//      duration_seconds = activities.duration_seconds + EXCLUDED.duration_seconds,
+//      end_time = EXCLUDED.end_time`,
+//       [
+//         userId,
+//         "Lesson Time Spent",
+//         `Lesson ${lessonId}`,
+//         duration,
+//         startTime,
+//         endTime,
+//       ],
 //     );
 
 //     res.json({ success: true });
@@ -60,25 +71,42 @@ router.get(
 
 router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
   try {
-    const { lessonId, duration, startTime, endTime } = req.body;
+    const { lessonId, duration, endTime } = req.body;
+    const userId = req.user.id;
+
+    await pool.query(
+      `UPDATE activities
+       SET 
+         duration_seconds = $1,
+         end_time = to_timestamp($2/1000.0)
+       WHERE id = (
+         SELECT id FROM activities
+         WHERE user_id = $3
+           AND action = 'Lesson Session'
+           AND details = $4
+         ORDER BY created_at DESC
+         LIMIT 1
+       )`,
+      [duration, endTime, userId, `Lesson ${lessonId}`],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+router.post("/lesson-start", ensureAuthenticated, async (req, res) => {
+  try {
+    const { lessonId, startTime } = req.body;
     const userId = req.user.id;
 
     await pool.query(
       `INSERT INTO activities 
-   (user_id, action, details, duration_seconds, start_time, end_time)
-   VALUES ($1, $2, $3, $4, to_timestamp($5/1000.0), to_timestamp($6/1000.0))
-   ON CONFLICT (user_id, action, details)
-   DO UPDATE SET
-     duration_seconds = activities.duration_seconds + EXCLUDED.duration_seconds,
-     end_time = EXCLUDED.end_time`,
-      [
-        userId,
-        "Lesson Time Spent",
-        `Lesson ${lessonId}`,
-        duration,
-        startTime,
-        endTime,
-      ],
+       (user_id, action, details, start_time)
+       VALUES ($1, $2, $3, to_timestamp($4/1000.0))`,
+      [userId, "Lesson Session", `Lesson ${lessonId}`, startTime],
     );
 
     res.json({ success: true });
