@@ -65,8 +65,12 @@ router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
 
     await pool.query(
       `INSERT INTO activities 
-        (user_id, action, details, duration_seconds, start_time, end_time)
-        VALUES ($1, $2, $3, $4, to_timestamp($5/1000.0), to_timestamp($6/1000.0))`,
+   (user_id, action, details, duration_seconds, start_time, end_time)
+   VALUES ($1, $2, $3, $4, to_timestamp($5/1000.0), to_timestamp($6/1000.0))
+   ON CONFLICT (user_id, action, details)
+   DO UPDATE SET
+     duration_seconds = activities.duration_seconds + EXCLUDED.duration_seconds,
+     end_time = EXCLUDED.end_time`,
       [
         userId,
         "Lesson Time Spent",

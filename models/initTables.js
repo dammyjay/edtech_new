@@ -695,6 +695,12 @@ async function createTables() {
         ADD COLUMN IF NOT EXISTS start_time TIMESTAMP,
         ADD COLUMN IF NOT EXISTS end_time TIMESTAMP;
 
+        ALTER TABLE activities ADD COLUMN IF NOT EXISTS lesson_id INTEGER;
+
+        ALTER TABLE activities
+        ADD CONSTRAINT unique_user_lesson_action
+        UNIQUE (user_id, action, details);
+
       `);
     
     await pool.query(`
