@@ -4910,13 +4910,23 @@ exports.exportStudentsExcel = async (req, res) => {
 
 exports.createClassroom = async (req, res) => {
   try {
-    const { school_id, name, teacher_id } = req.body; // destructure first
+    const { school_id, name, teacher_id } = req.body;
+
+    const user = req.session?.user; // safer access
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authenticated: session missing",
+      });
+    }
 
     let schoolId;
-    if (req.session.user.role === "admin") {
-      schoolId = school_id; // from hidden input
+
+    if (user.role === "admin") {
+      schoolId = school_id;
     } else {
-      schoolId = req.session.user.school_id; // from session
+      schoolId = user.school_id;
     }
 
     if (!schoolId || !name) {
@@ -4926,7 +4936,6 @@ exports.createClassroom = async (req, res) => {
       });
     }
 
-    // Insert classroom
     const result = await pool.query(
       `INSERT INTO classrooms (school_id, name) 
        VALUES ($1, $2) 
@@ -4936,7 +4945,6 @@ exports.createClassroom = async (req, res) => {
 
     const classroomId = result.rows[0].id;
 
-    // Assign teachers if provided
     let teacherCount = 0;
     if (teacher_id) {
       const teacherIds = Array.isArray(teacher_id) ? teacher_id : [teacher_id];
@@ -4952,7 +4960,6 @@ exports.createClassroom = async (req, res) => {
       }
     }
 
-    // ✅ Return JSON
     return res.json({
       success: true,
       classroom: {
@@ -4964,6 +4971,7 @@ exports.createClassroom = async (req, res) => {
         instructor_count: 0,
       },
     });
+
   } catch (err) {
     console.error("Error creating classroom:", err);
     return res.status(500).json({
