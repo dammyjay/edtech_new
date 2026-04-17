@@ -162,7 +162,7 @@
 
     <h3 class="section-title">📝 Student Submission</h3>
     <div class="question">
-      <p><%= submission.description %></p>
+      <p><%- submission.description %></p>
 
       <% if (submission.file_url) { %>
         <a href="<%= submission.file_url %>" target="_blank" class="file-link">
