@@ -2102,7 +2102,7 @@ window.closeEditModal = function (id) {
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
 
-  function handleLessonClick(lessonId, unlocked) {
+  window.handleLessonClick = function (lessonId, unlocked) {
     if (!unlocked) {
       alert("This lesson is locked. Complete previous lessons first.");
       return;
@@ -2110,11 +2110,19 @@ window.closeEditModal = function (id) {
     toggleLessonMenu(lessonId);
   }
 
-  function toggleLessonMenu(lessonId) {
+  // function toggleLessonMenu(lessonId) {
+  //   const menu = document.getElementById("lesson-menu-" + lessonId);
+  //   if (!menu) return;
+  //   menu.style.display = (menu.style.display === "none" || !menu.style.display) ? "block" : "none";
+  // }
+
+  window.toggleLessonMenu = function (lessonId) {
     const menu = document.getElementById("lesson-menu-" + lessonId);
     if (!menu) return;
     menu.style.display = (menu.style.display === "none" || !menu.style.display) ? "block" : "none";
-  }
+  };
+
+  window.loadLessonPart = loadLessonPart;
   // let lessonStartTime = null;
   // if (lessonStartTime && window.currentLessonId) {
   //   sendLessonDuration();
@@ -2164,8 +2172,7 @@ window.closeEditModal = function (id) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             lessonId: lessonId,
-            startTime: lessonStartTime
-            console.log("Starting lesson:", lessonId);
+            startTime: lessonStartTime,
           })
         })
         .then(res => res.json())
