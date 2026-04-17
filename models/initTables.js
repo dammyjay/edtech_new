@@ -698,7 +698,7 @@ async function createTables() {
         ALTER TABLE activities ADD COLUMN IF NOT EXISTS lesson_id INTEGER;
 
         ALTER TABLE activities DROP CONSTRAINT IF EXISTS unique_user_lesson_action;
-        ALTER TABLE activities ADD COLUMN session_id UUID DEFAULT gen_random_uuid();
+        ALTER TABLE activities ADD COLUMN IF NOT EXISTS session_id UUID DEFAULT gen_random_uuid();
 
       `);
     

@@ -302,6 +302,80 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   margin-bottom: 10px;
 }
 
+/* =========================
+   RISK CARD BASE
+========================= */
+.risk-card {
+  border-left: 5px solid transparent;
+  transition: all 0.3s ease;
+}
+
+/* TEXT */
+.risk-text {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 5px 0 10px 0;
+}
+
+/* =========================
+   HEALTHY (GREEN)
+========================= */
+.risk-healthy {
+  border-left-color: #2ecc71;
+  background: #f4fff7;
+}
+
+.risk-healthy .risk-text {
+  color: #1e7e34;
+}
+
+/* =========================
+   LOW RISK (YELLOW)
+========================= */
+.risk-low {
+  border-left-color: #f1c40f;
+  background: #fffdf2;
+}
+
+.risk-low .risk-text {
+  color: #b8860b;
+}
+
+/* =========================
+   MEDIUM RISK (ORANGE)
+========================= */
+.risk-medium {
+  border-left-color: #e67e22;
+  background: #fff7f0;
+}
+
+.risk-medium .risk-text {
+  color: #c05621;
+}
+
+/* =========================
+   HIGH RISK (RED)
+========================= */
+.risk-high {
+  border-left-color: #e74c3c;
+  background: #fff5f5;
+  animation: pulseRisk 1.5s infinite;
+}
+
+.risk-high .risk-text {
+  color: #c0392b;
+}
+
+.risk-text::after {
+  content: " ●";
+  font-size: 18px;
+}
+
+@keyframes pulseRisk {
+  0% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(231,76,60,0); }
+  100% { box-shadow: 0 0 0 0 rgba(231,76,60,0); }
+}
 /* Mobile: convert table into cards */
 @media (max-width: 768px) {
   table, thead, tbody, th, td, tr {
@@ -335,6 +409,114 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   }
 }
 
+/* SECTION TITLE */
+.section-title {
+  font-size: 20px;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: #111;
+}
+
+/* GRID */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+/* CARD BASE */
+.metric-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  transition: 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+}
+
+/* CARD TITLE */
+.metric-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  color: #333;
+}
+
+/* TEXT */
+.metric-card p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #444;
+}
+
+/* HIGHLIGHT TEXT */
+.highlight {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #2980b9;
+}
+
+/* DANGER CARD */
+.metric-card.danger {
+  border-left: 4px solid #e74c3c;
+}
+
+.metric-card.danger .risk {
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+/* LIST */
+.metric-card ul {
+  margin: 10px 0 0 18px;
+  font-size: 13px;
+  color: #555;
+}
+
+.active-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.active-box {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  border-radius: 10px;
+  text-align: center;
+  /* font-weight: 600; */
+  font-size: 13px;
+  color: #555;
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(53, 12px); /* weeks */
+  gap: 3px;
+  margin-top: 15px;
+}
+
+.heat-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #ebedf0;
+}
+
+/* intensity levels */
+.level-0 { background: #ebedf0; }
+.level-1 { background: #9be9a8; }
+.level-2 { background: #40c463; }
+.level-3 { background: #30a14e; }
+.level-4 { background: #216e39; }
 
   /* Responsive Adjustments */
   @media (max-width: 768px) {
@@ -409,95 +591,100 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     <div class="tab" onclick="openTab('assignments')">Assignments</div>
   </div>
 
-  <!-- Tab Contents -->
-<!-- <div id="summary" class="tab-content active">
-  <h2>📌 Summary</h2>
-  <p><strong>Student:</strong> <%= student.fullname %></p>
-  <p><strong>Email:</strong> <%= student.email %></p>
-  <p><strong>Registered:</strong> <%= new Date(student.created_at).toLocaleDateString() %></p>
-
-  <% if (courses.length) { %>
-    <% courses.forEach((c, ci) => { %>
-      <div class="course-card">
-        <div class="course-header" onclick="toggleExpand('course-<%= ci %>')">
-          <h3>🎓 <%= c.course_title %> — <%= c.percent %>% complete</h3>
-          <div class="progress-container">
-            <div class="progress-bar progress-green" style="width:<%= c.percent %>%"><%= c.percent %>%</div>
-          </div>
-
-          <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/course-summary/<%= c.id %>/download">
-            <i class="fa-solid fa-download" style="color: #4CAF50;"></i>
-          </a>
-          
-          <span class="toggle-btn" id="toggle-btn-course-<%= ci %>">➕</span>
-        </div>
-
-        <div class="course-body" id="course-<%= ci %>" style="display:none;">
-          <% c.modules.forEach((m, mi) => { %>
-            <div class="module-card">
-              <div class="module-header" onclick="toggleExpand('module-<%= ci %>-<%= mi %>')">
-                <h4>📦 <%= m.module_title %> — <%= m.percent %>% complete</h4>
-                <div class="progress-container">
-                  <div class="progress-bar progress-blue" style="width:<%= m.percent %>%"><%= m.percent %>%</div>
-                </div>
-                <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download">
-                  <i class="fa-solid fa-download" style="color: #2980b9;"></i>
-                </a>
-                
-                <span class="toggle-btn" id="toggle-btn-module-<%= ci %>-<%= mi %>">➕</span>
-              </div>
-
-              <div class="module-body" id="module-<%= ci %>-<%= mi %>" style="display:none;">
-                <p>Quiz Avg: <%= m.quizAvg ?? "N/A" %>, Assignment Avg: <%= m.assignmentAvg ?? "N/A" %></p>
-                <ul>
-                  <% m.lessons.forEach(l => { %>
-                        <li>
-                          📚 <%= l.lesson_title %> — 
-                          <%= l.completed_at ? "✅ Completed" : "❌ Not completed" %>
-                          
-                        </li>
-                    
-                  <% }) %>
-                </ul>
-              </div>
-            </div>
-          <% }) %>
-        </div>
-      </div>
-    <% }) %>
-  <% } else { %>
-    <p>No enrolled courses yet.</p>
-  <% } %>
-</div> -->
-
 <div id="summary" class="tab-content active">
-  <h2>📌 Summary</h2>
+
+  <h2 class="section-title">📌 Summary Dashboard</h2>
   <h2>🔥 Platform Score: <%= metrics.overall.platformScore %>%</h2>
 
-  <p>Total Time Spent: <%= metrics.engagement.totalTimeSpent %> sec</p>
-    <p>Active Days: <%= metrics.engagement.activeDays %></p>
-    <p>Consistency Score: <%= metrics.engagement.consistencyScore %>%</p>
-    <p>Last Active: <%= metrics.engagement.lastActive %></p>
+  <div class="metrics-grid">
 
-<p>Quiz Avg: <%= metrics.performance.quizAvg %>%</p>
-<p>Assignment Avg: <%= metrics.performance.assignmentAvg %>%</p>
-<p>Pass Rate: <%= metrics.performance.passRate %>%</p>
+    <!-- PLATFORM DURATION -->
+    <div class="metric-card">
+      <div><h3>📅 Platform Duration</h3></div>
+      <p><strong>Years:</strong> <%= membershipDuration.years %></p>
+      <p><strong>Months:</strong> <%= membershipDuration.months %></p>
+      <p><strong>Weeks:</strong> <%= membershipDuration.weeks %></p>
+      <p><strong>Days:</strong> <%= membershipDuration.days %></p>
+      <p><strong>Hours:</strong> <%= membershipDuration.hours %></p>
+      <p class="highlight"><%= membershipDuration.readable %> ago</p>
+    </div>
 
-<p>Completed Lessons: <%= metrics.progress.completedLessons %> / <%= metrics.progress.totalLessons %></p>
-<p>Progress: <%= metrics.progress.progressPercent %>%</p>
+    <!-- ENGAGEMENT -->
+    <div class="metric-card">
+      <h3>⏱ Engagement</h3>
+      <p><strong>Total Time:</strong> <%= metrics.engagement.totalTimeSpent.hours %> sec</p>
+      <p><strong>Lesson Time:</strong> <%= metrics.engagement.lessonTime %> sec</p>
+      <p><strong>Module Time:</strong> <%= metrics.engagement.assignmentTime %> sec</p>
+      <!-- <p><strong>Active Days:</strong> <%= metrics.engagement.activeDays %></p> -->
+       <p>Active Days</p>
+       <div class="active-grid">
+        
+        <div class="active-box">
+          7 Days: <%= metrics.engagement.activeDays.week.count %>
+        </div>
 
-<p>Completion Rate: <%= metrics.completion.completionRate %>%</p>
-<p>Assignment Submission Rate: <%= metrics.completion.assignmentSubmissionRate %>%</p>
+        <div class="active-box">
+          30 Days: <%= metrics.engagement.activeDays.month.count %>
+        </div>
 
-<p>Mastery Score: <%= metrics.mastery.masteryScore %>%</p>
+        <div class="active-box">
+          1 Year: <%= metrics.engagement.activeDays.year.count %>
+        </div>
 
-<p>Risk Level: <%= metrics.risk.riskLevel %></p>
+        <div class="active-box">
+          All: <%= metrics.engagement.activeDays.all.count %>
+        </div>
+      </div>
 
-<ul>
-  <% metrics.risk.flags.forEach(flag => { %>
-    <li><%= flag %></li>
-  <% }) %>
-</ul>
+      <div class="active-box">
+      <h4>Active Dates (Last 7 Days)</h4>
+
+      <% metrics.engagement.activeDays.week.dates.forEach(day => { %>
+        <div class="date-item">
+          <%= day.date %> 
+          (<%= day.count %> activities)
+        </div>
+      <% }) %>
+    </div>
+      <p><strong>Last Active:</strong> <%= metrics.engagement.lastActive %></p>
+    </div>
+
+    <!-- PERFORMANCE -->
+    <div class="metric-card">
+      <h3>📊 Performance</h3>
+      <p><strong>Quiz Avg:</strong> <%= metrics.performance.quizAvg %>%</p>
+      <p><strong>Assignment Avg:</strong> <%= metrics.performance.assignmentAvg %>%</p>
+      <p><strong>Pass Rate:</strong> <%= metrics.performance.passRate %>%</p>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="metric-card">
+      <h3>📈 Progress</h3>
+      <p><strong>Completed:</strong> <%= metrics.progress.completedLessons %> / <%= metrics.progress.totalLessons %></p>
+      <p><strong>Progress:</strong> <%= metrics.progress.progressPercent %>%</p>
+    </div>
+
+    <%
+      let riskClass = "risk-healthy";
+
+      if (metrics.risk.riskLevel === "Low Risk") riskClass = "risk-low";
+      else if (metrics.risk.riskLevel === "Medium Risk") riskClass = "risk-medium";
+      else if (metrics.risk.riskLevel === "High Risk") riskClass = "risk-high";
+    %>
+
+    <div class="metric-card risk-card <%= riskClass %>">
+      <h3>⚠ Risk Level</h3>
+
+      <p class="risk-text"><%= metrics.risk.riskLevel %></p>
+
+      <ul>
+        <% metrics.risk.flags.forEach(flag => { %>
+          <li><%= flag %></li>
+        <% }) %>
+      </ul>
+    </div>
+
+  </div>
 
   <div class="student-info">
     <p><strong>Student:</strong> <%= student.fullname %></p>
@@ -583,22 +770,7 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 
 <div id="courses" class="tab-content">
   <h2>🎓 Courses Enrolled</h2>
-  <% if (courses.length) { %>
-    <!-- <table>
-      <thead>
-        <tr><th>Course</th><th>Progress</th><th>Enrolled At</th></tr>
-      </thead>
-      <tbody>
-        <% courses.forEach(c => { %>
-          <tr>
-            <td data-label="Course"><%= c.course_title %></td>
-            <td data-label="Progress"><%= c.percent %>%</td>
-            <td data-label="Enrolled At"><%= c.enrolled_at ? new Date(c.enrolled_at).toLocaleDateString() : "N/A" %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table> -->
- 
+  <% if (courses.length) { %> 
     <div class="course-grid-cards">
       <% courses.forEach(c => { %>
         

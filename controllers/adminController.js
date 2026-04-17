@@ -2765,7 +2765,8 @@ exports.viewStudentProgress = async (req, res) => {
         l.module_id,
         qs.score,
         qs.created_at AS taken_at,
-        l.title AS lesson_title
+        l.title AS lesson_title,
+        qs.passed
       FROM quiz_submissions qs
       JOIN quizzes q ON qs.quiz_id = q.id
       JOIN lessons l ON q.lesson_id = l.id
@@ -2797,7 +2798,7 @@ exports.viewStudentProgress = async (req, res) => {
     );
 
     // ======================================================
-    // ⚡ OPTIMIZED GROUPING (NO MORE FILTER LOOPS)
+    // GROUPING
     // ======================================================
 
     const lessonsByModule = new Map();
@@ -2829,7 +2830,7 @@ exports.viewStudentProgress = async (req, res) => {
     });
 
     // =========================
-    // 8. BUILD COURSE STRUCTURE
+    // COURSE STRUCTURE
     // =========================
     const courses = coursesRes.rows.map((course) => {
       const modules = modulesByCourse.get(course.id) || [];
@@ -2899,54 +2900,271 @@ exports.viewStudentProgress = async (req, res) => {
     });
 
     // =========================
-    // 9. OVERALL METRICS
+    // QUIZ + ASSIGNMENT METRICS
     // =========================
     const allQuizzes = quizzesRes.rows;
     const allAssignments = assignmentsRes.rows;
 
     const quizAvg = allQuizzes.length
-      ? Math.round(
-          allQuizzes.reduce((a, b) => a + b.score, 0) / allQuizzes.length,
-        )
+      ? Math.round(allQuizzes.reduce((a, b) => a + b.score, 0) / allQuizzes.length)
       : null;
 
     const assignmentAvg = allAssignments.length
-      ? Math.round(
-          allAssignments.reduce((a, b) => a + (b.total || 0), 0) /
-            allAssignments.length,
-        )
+      ? Math.round(allAssignments.reduce((a, b) => a + (b.total || 0), 0) / allAssignments.length)
       : null;
+// =========================
+// ENGAGEMENT (FIXED LOGIC)
+// =========================
 
-    // ================================
-    // 🧠 ENGAGEMENT METRICS (RESTORE)
-    // ================================
+    function formatTime(seconds) {
+      const sec = Math.floor(seconds % 60);
+      const min = Math.floor((seconds / 60) % 60);
+      const hr = Math.floor(seconds / 3600);
+
+      return {
+        seconds: sec,
+        minutes: min,
+        hours: hr,
+        totalHours: +(seconds / 3600).toFixed(2),
+      };
+    }
+
+    function formatDuration(startDate) {
+      const now = new Date();
+      const start = new Date(startDate);
+
+      const diffMs = now - start;
+
+      const seconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      const weeks = Math.floor(days / 7);
+      const months = Math.floor(days / 30);
+      const years = Math.floor(days / 365);
+
+      return {
+        seconds,
+        minutes,
+        hours,
+        days,
+        weeks,
+        months,
+        years,
+        readable:
+          years > 0
+            ? `${years} year(s)`
+            : months > 0
+            ? `${months} month(s)`
+            : weeks > 0
+            ? `${weeks} week(s)`
+            : days > 0
+            ? `${days} day(s)`
+            : hours > 0
+            ? `${hours} hour(s)`
+            : `${minutes} minute(s)`,
+      };
+    }
+
+    const membershipDuration = formatDuration(student.created_at);
 
     const activityRes = await pool.query(
-      `SELECT 
-    COUNT(*) AS total_activities,
-    COALESCE(SUM(duration_seconds),0) AS total_time,
-    MAX(created_at) AS last_active
-   FROM activities
-   WHERE user_id = $1`,
+      `
+      SELECT action, details, created_at, duration_seconds
+      FROM activities
+      WHERE user_id = $1
+      ORDER BY created_at ASC
+      `,
       [id],
     );
 
-    const engagement = activityRes.rows[0];
+    const logs = activityRes.rows;
+
+    let totalLessonTime = 0;
+    let totalAssignmentTime = 0;
+
+    const lessonStart = {};
+    const assignmentStart = {};
+
+    for (const log of logs) {
+      const time = new Date(log.created_at);
+      const id = log.details;
+
+      // LESSON START
+      if (log.action === "Viewed Lesson") {
+        lessonStart[id] = time;
+      }
+
+      // LESSON END
+      if (log.action === "Student submitted Quiz") {
+        if (lessonStart[id]) {
+          totalLessonTime += (time - lessonStart[id]) / 1000;
+          delete lessonStart[id];
+        }
+      }
+
+      // ASSIGNMENT START
+      if (log.action === "Viewed Assignment") {
+        assignmentStart[id] = time;
+      }
+
+      // ASSIGNMENT END
+      if (log.action === "Submitted Assignment") {
+        if (assignmentStart[id]) {
+          totalAssignmentTime += (time - assignmentStart[id]) / 1000;
+          delete assignmentStart[id];
+        }
+      }
+    }
+
+    // fallback calculation if duration is missing
+    let lastLessonStart = null;
+    let lastAssignmentStart = null;
+
+    logs.forEach((log) => {
+      const time = new Date(log.created_at);
+
+      if (log.action === "Viewed Lesson") {
+        lastLessonStart = time;
+      }
+
+      if (log.action === "Student submitted Quiz") {
+        if (lastLessonStart) {
+          totalLessonTime += (time - lastLessonStart) / 1000;
+          lastLessonStart = null;
+        }
+      }
+
+      if (log.action === "Viewed Assignment") {
+        lastAssignmentStart = time;
+      }
+
+      if (log.action === "Submitted Assignment") {
+        if (lastAssignmentStart) {
+          totalAssignmentTime += (time - lastAssignmentStart) / 1000;
+          lastAssignmentStart = null;
+        }
+      }
+    });
+
+    // engagement summary
+    const engagementRes = await pool.query(
+      `
+      SELECT COUNT(*) AS total_activities,
+            MAX(created_at) AS last_active
+      FROM activities
+      WHERE user_id = $1
+      `,
+      [id],
+    );
+
+    const engagementBase = engagementRes.rows[0];
 
     const loginFrequencyRes = await pool.query(
-      `SELECT COUNT(DISTINCT DATE(created_at)) AS active_days
-   FROM activities
-   WHERE user_id = $1
-     AND created_at > NOW() - INTERVAL '7 days'`,
+      `
+      SELECT COUNT(DISTINCT DATE(created_at)) AS active_days
+      FROM activities
+      WHERE user_id = $1
+        AND created_at > NOW() - INTERVAL '7 days'
+      `,
       [id],
     );
 
-    const activeDays = parseInt(loginFrequencyRes.rows[0].active_days || 0);
+    async function getActiveDaysWithDates(userId, interval = null) {
+      let query = `
+        SELECT 
+          DATE(created_at) AS date,
+          COUNT(*) AS count
+        FROM activities
+        WHERE user_id = $1
+      `;
 
-    // ================================
-    // 📊 PERFORMANCE
-    // ================================
+          const params = [userId];
 
+          if (interval) {
+            query += ` AND created_at > NOW() - INTERVAL '${interval}'`;
+          }
+
+          query += `
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+      `;
+
+      const result = await pool.query(query, params);
+
+      return result.rows.map((r) => ({
+        date: r.date.toISOString().split("T")[0],
+        count: Number(r.count),
+      }));
+    }
+
+    const activeDaysWeek = await getActiveDaysWithDates(id, "7 days");
+    const activeDaysMonth = await getActiveDaysWithDates(id, "1 month");
+    const activeDaysYear = await getActiveDaysWithDates(id, "1 year");
+    const activeDaysAll = await getActiveDaysWithDates(id, null);
+
+    const totalTime = totalLessonTime + totalAssignmentTime;
+
+    const consistencyBase = (activeDaysWeek + activeDaysMonth) / 2;
+
+    function summarizeDays(data) {
+      return {
+        count: data.length,
+        dates: data,
+      };
+    }
+
+    const engagement = {
+      totalActivities: Number(engagementBase.total_activities || 0),
+
+      lessonTime: Math.round(totalLessonTime),
+      assignmentTime: Math.round(totalAssignmentTime),
+
+      totalTimeSpent: Math.round(totalTime),
+      totalTimeFormatted: formatTime(totalTime),
+
+      lastActive: engagementBase.last_active || null,
+
+      activeDays: {
+        week: summarizeDays(activeDaysWeek),
+        month: summarizeDays(activeDaysMonth),
+        year: summarizeDays(activeDaysYear),
+        all: summarizeDays(activeDaysAll),
+      },
+
+      consistencyScore: Math.min(100, ((activeDaysWeek.length + activeDaysMonth.length) / 2) * 15),
+    };
+
+    // const engagement = {
+    //   totalActivities: Number(engagementBase.total_activities || 0),
+
+    //   lessonTime: Math.round(totalLessonTime),
+    //   assignmentTime: Math.round(totalAssignmentTime),
+
+    //   totalTimeSpent: Math.round(totalTime),
+
+    //   totalTimeFormatted: formatTime(totalTime),
+
+    //   lastActive: engagementBase.last_active || null,
+
+    //   // activeDays: {
+    //   //   week: activeDaysWeek,
+    //   //   month: activeDaysMonth,
+    //   //   year: activeDaysYear,
+    //   //   all: activeDaysAll,
+    //   // },
+
+    //   activeDays: {
+    //     week: activeDaysWeek,
+    //     month: activeDaysMonth,
+    //     year: activeDaysYear,
+    //     all: activeDaysAll,
+    //   },
+
+    //   consistencyScore: Math.min(100, consistencyBase * 15),
+    // };
+
+    
     const quizScores = allQuizzes.map((q) => q.score);
     const assignmentScores = allAssignments.map((a) => a.total || 0);
 
@@ -2955,58 +3173,42 @@ exports.viewStudentProgress = async (req, res) => {
       : 0;
 
     const assignmentAvgMetric = assignmentScores.length
-      ? Math.round(
-          assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length,
-        )
+      ? Math.round(assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length)
       : 0;
 
     const passRate = allQuizzes.length
-      ? Math.round(
-          (allQuizzes.filter((q) => q.passed).length / allQuizzes.length) * 100,
-        )
+      ? Math.round((allQuizzes.filter((q) => q.passed).length / allQuizzes.length) * 100)
       : 0;
 
-    // ================================
-    // 📈 PROGRESS
-    // ================================
-
+    // =========================
+    // PROGRESS
+    // =========================
     const totalLessonsCount = courses.reduce((a, c) => a + c.totalLessons, 0);
-    const completedLessonsCount = courses.reduce(
-      (a, c) => a + c.completedLessons,
-      0,
-    );
+    const completedLessonsCount = courses.reduce((a, c) => a + c.completedLessons, 0);
 
     const progressPercent = totalLessonsCount
       ? Math.round((completedLessonsCount / totalLessonsCount) * 100)
       : 0;
 
-    // ================================
-    // 🎯 BEHAVIOR
-    // ================================
-
-    const consistencyScore = Math.min(100, activeDays * 15);
-
-    const inactivityDays = engagement.last_active
-      ? Math.floor(
-          (Date.now() - new Date(engagement.last_active)) /
-            (1000 * 60 * 60 * 24),
-        )
+    // =========================
+    // BEHAVIOR
+    // =========================
+    const inactivityDays = engagement.lastActive
+      ? Math.floor((Date.now() - new Date(engagement.lastActive)) / (1000 * 60 * 60 * 24))
       : 999;
 
     const isInactive = inactivityDays > 3;
 
-    // ================================
-    // 🧠 MASTERY
-    // ================================
-
+    // =========================
+    // MASTERY
+    // =========================
     const masteryScore = Math.round(
       quizAvgMetric * 0.5 + assignmentAvgMetric * 0.3 + passRate * 0.2,
     );
 
-    // ================================
-    // 🚨 RISK
-    // ================================
-
+    // =========================
+    // RISK
+    // =========================
     const riskFlags = [];
 
     if (quizAvgMetric < 50) riskFlags.push("Low quiz performance");
@@ -3018,35 +3220,27 @@ exports.viewStudentProgress = async (req, res) => {
       riskFlags.length >= 3
         ? "High Risk"
         : riskFlags.length === 2
-          ? "Medium Risk"
-          : riskFlags.length === 1
-            ? "Low Risk"
-            : "Healthy";
+        ? "Medium Risk"
+        : riskFlags.length === 1
+        ? "Low Risk"
+        : "Healthy";
 
-    // ================================
-    // 🏆 PLATFORM SCORE
-    // ================================
-
+    // =========================
+    // PLATFORM SCORE
+    // =========================
     const platformScore = Math.round(
       progressPercent * 0.25 +
         quizAvgMetric * 0.2 +
         assignmentAvgMetric * 0.15 +
-        consistencyScore * 0.15 +
+        engagement.consistencyScore * 0.15 +
         masteryScore * 0.25,
     );
 
-    // ================================
-    // FINAL METRICS OBJECT
-    // ================================
-
+    // =========================
+    // FINAL METRICS
+    // =========================
     const metrics = {
-      engagement: {
-        totalActivities: engagement.total_activities,
-        totalTimeSpent: engagement.total_time,
-        lastActive: engagement.last_active,
-        activeDays,
-        consistencyScore,
-      },
+      engagement,
       performance: {
         quizAvg: quizAvgMetric,
         assignmentAvg: assignmentAvgMetric,
@@ -3087,7 +3281,9 @@ exports.viewStudentProgress = async (req, res) => {
       info,
       from,
       metrics,
+      membershipDuration,
     });
+
   } catch (err) {
     console.error("View student progress error:", err.message);
     res.status(500).send("Failed to fetch progress");
