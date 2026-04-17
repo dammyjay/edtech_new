@@ -91,7 +91,7 @@ router.get(
 router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
   try {
     const { activityId, duration, endTime } = req.body;
-
+    console.log("UPDATE:", { activityId, duration, endTime });
     const result = await pool.query(
       `UPDATE activities
        SET duration_seconds = $1,

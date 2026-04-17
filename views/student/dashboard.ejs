@@ -2128,6 +2128,7 @@ window.closeEditModal = function (id) {
       .then(res => res.json())
       // .then(lesson => {
       .then(data => {
+       
         if (!data.success) {
           document.getElementById("lessonMainArea").innerHTML =
             `<p>⚠️ ${data.message || "Failed to load lesson."}</p>`;
@@ -2138,6 +2139,7 @@ window.closeEditModal = function (id) {
         const lesson = data;
         // 🔴 VERY IMPORTANT: save previous lesson first
         if (lessonStartTime && window.currentLessonId) {
+          
           sendLessonDuration();
         }
 
@@ -2163,6 +2165,7 @@ window.closeEditModal = function (id) {
           body: JSON.stringify({
             lessonId: lessonId,
             startTime: lessonStartTime
+            console.log("Starting lesson:", lessonId);
           })
         })
         .then(res => res.json())
@@ -2514,36 +2517,27 @@ window.closeEditModal = function (id) {
       });
   }
 
-  // function sendLessonDuration() {
-  //   if (!lessonStartTime || !window.currentLessonId) return;
+    // function sendLessonDuration() {
+    //   if (!lessonStartTime || !currentActivityId) return;
 
-  //   const endTime = Date.now();
-  //   const duration = Math.max(
-  //     1,
-  //     Math.floor((endTime - lessonStartTime) / 1000)
-  //   );
+    //   const endTime = Date.now();
+    //   const duration = Math.max(1, Math.floor((endTime - lessonStartTime) / 1000));
 
-  //   console.log("SENDING:", {
-  //     lessonId: window.currentLessonId,
-  //     duration,
-  //     startTime: lessonStartTime,
-  //     endTime
-  //   });
+    //   fetch("/student/lesson-time", {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json"
+    //     },
+    //     body: JSON.stringify({
+    //       activityId: currentActivityId,
+    //       duration,
+    //       endTime
+    //     })
+    //   });
 
-  //   fetch("/student/lesson-time", {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json"
-  //     },
-  //     body: JSON.stringify({
-  //       lessonId: window.currentLessonId,
-  //       duration,
-  //       endTime
-  //     })
-  //   });
-
-  //   lessonStartTime = null;
-  // }
+    //   // lessonStartTime = null;
+    //   // currentActivityId = null;
+    // }
 
     function sendLessonDuration() {
       if (!lessonStartTime || !currentActivityId) return;
@@ -2551,20 +2545,13 @@ window.closeEditModal = function (id) {
       const endTime = Date.now();
       const duration = Math.max(1, Math.floor((endTime - lessonStartTime) / 1000));
 
-      fetch("/student/lesson-time", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          activityId: currentActivityId,
-          duration,
-          endTime
-        })
+      const data = JSON.stringify({
+        activityId: currentActivityId,
+        duration,
+        endTime
       });
 
-      lessonStartTime = null;
-      currentActivityId = null;
+      navigator.sendBeacon("/student/lesson-time", data);
     }
 
   window.addEventListener("beforeunload", sendLessonDuration);
@@ -3065,6 +3052,7 @@ function submitQuizInline(e, lessonId) {
     body: JSON.stringify({
       lessonId: lessonId,
       answers: answers
+
     })
   })
     .then(res => {
