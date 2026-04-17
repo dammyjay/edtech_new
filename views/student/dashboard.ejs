@@ -2095,6 +2095,8 @@ window.closeEditModal = function (id) {
 
 <!-- script for loading lesson content and assignment loading and submission review -->
 <script>
+  let lessonStartTime = null;
+  let currentActivityId = null; // ✅ move here
   function toggleModule(moduleId) {
     const el = document.getElementById(`module-${moduleId}`);
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
@@ -2124,7 +2126,16 @@ window.closeEditModal = function (id) {
     
     fetch(`/student/lessons/${lessonId}`)
       .then(res => res.json())
-      .then(lesson => {
+      // .then(lesson => {
+      .then(data => {
+        if (!data.success) {
+          document.getElementById("lessonMainArea").innerHTML =
+            `<p>⚠️ ${data.message || "Failed to load lesson."}</p>`;
+          hideLoading();
+          return;
+        }
+
+        const lesson = data;
         // 🔴 VERY IMPORTANT: save previous lesson first
         if (lessonStartTime && window.currentLessonId) {
           sendLessonDuration();
@@ -2134,7 +2145,6 @@ window.closeEditModal = function (id) {
         lessonStartTime = Date.now();
         window.currentLessonId = lessonId;
 
-        let currentActivityId = null;
         // 🔥 SAVE START
         // fetch("/student/lesson-start", {
         //   method: "POST",
@@ -2875,6 +2885,7 @@ document.addEventListener("visibilitychange", () => {
 
         if (!data.success) {
           container.innerHTML = "<p>No quiz available.</p>";
+          hideLoading();
           return;
         }
 

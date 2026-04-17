@@ -1556,7 +1556,8 @@ exports.editProfile = async (req, res) => {
 };
 
 exports.viewLesson = async (req, res) => {
-  const lessonId = req.params.lessonId;
+  // const lessonId = req.params.lessonId;
+  const lessonId = req.params.id;
 
   try {
     const lessonRes = await pool.query(
@@ -1656,6 +1657,7 @@ exports.getModuleDetails = async (req, res) => {
 
 exports.getLessonQuiz = async (req, res) => {
   const lessonId = req.params.id;
+  // const lessonId = req.params.lessonId;
   const studentId = req.session?.student?.id || req.user?.id;
 
   try {
