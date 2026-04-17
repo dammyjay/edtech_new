@@ -44,74 +44,69 @@ router.get(
 //     const { lessonId, duration, endTime } = req.body;
 //     const userId = req.user.id;
 
-//     await pool.query(
+//     const result = await pool.query(
 //       `UPDATE activities
 //        SET
 //          duration_seconds = $1,
 //          end_time = to_timestamp($2/1000.0)
-//        WHERE id = (
-//          SELECT id FROM activities
-//          WHERE user_id = $3
-//            AND action = 'Lesson Session'
-//            AND details = $4
-//          ORDER BY created_at DESC
-//          LIMIT 1
-//        )`,
+//        WHERE user_id = $3
+//          AND action = 'Lesson Session'
+//          AND details = $4
+//          AND end_time IS NULL
+//        RETURNING *`,
 //       [duration, endTime, userId, `Lesson ${lessonId}`],
 //     );
 
+//     console.log("UPDATED ROW:", result.rows);
+
 //     res.json({ success: true });
 //   } catch (err) {
-//     console.error(err);
+//     console.error("LESSON TIME ERROR:", err);
 //     res.status(500).json({ success: false });
 //   }
 // });
-
-router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
-  try {
-    const { lessonId, duration, endTime } = req.body;
-    const userId = req.user.id;
-
-    const result = await pool.query(
-      `UPDATE activities
-       SET 
-         duration_seconds = $1,
-         end_time = to_timestamp($2/1000.0)
-       WHERE user_id = $3
-         AND action = 'Lesson Session'
-         AND details = $4
-         AND end_time IS NULL
-       RETURNING *`,
-      [duration, endTime, userId, `Lesson ${lessonId}`],
-    );
-
-    console.log("UPDATED ROW:", result.rows);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("LESSON TIME ERROR:", err);
-    res.status(500).json({ success: false });
-  }
-});
 
 // router.post("/lesson-start", ensureAuthenticated, async (req, res) => {
 //   try {
 //     const { lessonId, startTime } = req.body;
 //     const userId = req.user.id;
 
-//     await pool.query(
+//     const result = await pool.query(
 //       `INSERT INTO activities
-//        (user_id, action, details, start_time)
-//        VALUES ($1, $2, $3, to_timestamp($4/1000.0))`,
+//        (user_id, action, details, start_time, duration_seconds)
+//        VALUES ($1, $2, $3, to_timestamp($4/1000.0), 0)
+//        RETURNING *`,
 //       [userId, "Lesson Session", `Lesson ${lessonId}`, startTime],
 //     );
 
+//     console.log("START INSERTED:", result.rows);
+
 //     res.json({ success: true });
 //   } catch (err) {
-//     console.error(err);
+//     console.error("LESSON START ERROR:", err);
 //     res.status(500).json({ success: false });
 //   }
 // });
+
+router.post("/lesson-time", ensureAuthenticated, async (req, res) => {
+  try {
+    const { activityId, duration, endTime } = req.body;
+
+    const result = await pool.query(
+      `UPDATE activities
+       SET duration_seconds = $1,
+           end_time = to_timestamp($2/1000.0)
+       WHERE id = $3
+       RETURNING *`,
+      [duration, endTime, activityId],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
 
 router.post("/lesson-start", ensureAuthenticated, async (req, res) => {
   try {
@@ -120,17 +115,15 @@ router.post("/lesson-start", ensureAuthenticated, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO activities 
-       (user_id, action, details, start_time, duration_seconds)
+       (user_id, action, lesson_id, start_time, duration_seconds)
        VALUES ($1, $2, $3, to_timestamp($4/1000.0), 0)
-       RETURNING *`,
-      [userId, "Lesson Session", `Lesson ${lessonId}`, startTime],
+       RETURNING id`,
+      [userId, "Lesson Session", lessonId, startTime],
     );
 
-    console.log("START INSERTED:", result.rows);
-
-    res.json({ success: true });
+    res.json({ success: true, activityId: result.rows[0].id });
   } catch (err) {
-    console.error("LESSON START ERROR:", err);
+    console.error(err);
     res.status(500).json({ success: false });
   }
 });

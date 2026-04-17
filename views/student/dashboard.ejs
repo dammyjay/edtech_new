@@ -2134,16 +2134,30 @@ window.closeEditModal = function (id) {
         lessonStartTime = Date.now();
         window.currentLessonId = lessonId;
 
+        let currentActivityId = null;
         // 🔥 SAVE START
+        // fetch("/student/lesson-start", {
+        //   method: "POST",
+        //   headers: {
+        //     "Content-Type": "application/json"
+        //   },
+        //   body: JSON.stringify({
+        //     lessonId: lessonId,
+        //     startTime: lessonStartTime
+        //   })
+        // });
+
         fetch("/student/lesson-start", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             lessonId: lessonId,
             startTime: lessonStartTime
           })
+        })
+        .then(res => res.json())
+        .then(data => {
+          currentActivityId = data.activityId; // 🔥 VERY IMPORTANT
         });
         let html = `<h2>${lesson.title}</h2>`;
 
@@ -2490,77 +2504,58 @@ window.closeEditModal = function (id) {
       });
   }
 
+  // function sendLessonDuration() {
+  //   if (!lessonStartTime || !window.currentLessonId) return;
 
-// function sendLessonDuration() {
-//   if (!lessonStartTime || !window.currentLessonId) return;
+  //   const endTime = Date.now();
+  //   const duration = Math.max(
+  //     1,
+  //     Math.floor((endTime - lessonStartTime) / 1000)
+  //   );
 
-//   const endTime = Date.now();
-//   const duration = Math.floor((endTime - lessonStartTime) / 1000);
+  //   console.log("SENDING:", {
+  //     lessonId: window.currentLessonId,
+  //     duration,
+  //     startTime: lessonStartTime,
+  //     endTime
+  //   });
 
-//   fetch("/student/lesson-time", {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json"
-//     },
-//     body: JSON.stringify({
-//       lessonId: window.currentLessonId,
-//       duration,
-//       endTime
-//     })
-//   });
+  //   fetch("/student/lesson-time", {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json"
+  //     },
+  //     body: JSON.stringify({
+  //       lessonId: window.currentLessonId,
+  //       duration,
+  //       endTime
+  //     })
+  //   });
 
-//   lessonStartTime = null;
-// }
- 
+  //   lessonStartTime = null;
+  // }
 
-// // When user switches lesson
-  // window.addEventListener("beforeunload", sendLessonDuration);
+    function sendLessonDuration() {
+      if (!lessonStartTime || !currentActivityId) return;
 
-  // // When navigating inside app
-  // document.addEventListener("click", (e) => {
-  //   if (e.target.matches("[onclick*='loadLessonPart']")) {
-  //     sendLessonDuration();
-  //   }
-  // });
+      const endTime = Date.now();
+      const duration = Math.max(1, Math.floor((endTime - lessonStartTime) / 1000));
 
-  // // document.addEventListener("visibilitychange", () => {
-  // //   if (document.hidden) {
-  // //     sendLessonDuration();
-  // //   }
-  // // });
+      fetch("/student/lesson-time", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          activityId: currentActivityId,
+          duration,
+          endTime
+        })
+      });
 
-  // When user leaves page
-
-  function sendLessonDuration() {
-    if (!lessonStartTime || !window.currentLessonId) return;
-
-    const endTime = Date.now();
-    const duration = Math.max(
-      1,
-      Math.floor((endTime - lessonStartTime) / 1000)
-    );
-
-    console.log("SENDING:", {
-      lessonId: window.currentLessonId,
-      duration,
-      startTime: lessonStartTime,
-      endTime
-    });
-
-    fetch("/student/lesson-time", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        lessonId: window.currentLessonId,
-        duration,
-        endTime
-      })
-    });
-
-    lessonStartTime = null;
-  }
+      lessonStartTime = null;
+      currentActivityId = null;
+    }
 
   window.addEventListener("beforeunload", sendLessonDuration);
 
