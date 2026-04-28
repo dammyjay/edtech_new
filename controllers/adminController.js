@@ -4808,256 +4808,256 @@ exports.getSchoolDetails = async (req, res) => {
   }
 };
 
-exports.downloadSchoolProgressReport = async (req, res) => {
-  const { schoolId } = req.params;
+  exports.downloadSchoolProgressReport = async (req, res) => {
+    const { schoolId } = req.params;
 
-  try {
-    // --- 1. Get school info
-    const schoolRes = await pool.query(
-      `SELECT id, name, address, email, phone, created_at 
-       FROM schools WHERE id = $1`,
-      [schoolId]
-    );
-    const school = schoolRes.rows[0];
-    if (!school) return res.status(404).send("School not found");
+    try {
+      // --- 1. Get school info
+      const schoolRes = await pool.query(
+        `SELECT id, name, address, email, phone, created_at 
+        FROM schools WHERE id = $1`,
+        [schoolId]
+      );
+      const school = schoolRes.rows[0];
+      if (!school) return res.status(404).send("School not found");
 
-    // --- 2. Get classrooms
-    const classRes = await pool.query(
-      `SELECT id, name FROM classrooms WHERE school_id = $1 ORDER BY name`,
-      [schoolId]
-    );
-    const classrooms = classRes.rows;
+      // --- 2. Get classrooms
+      const classRes = await pool.query(
+        `SELECT id, name FROM classrooms WHERE school_id = $1 ORDER BY name`,
+        [schoolId]
+      );
+      const classrooms = classRes.rows;
 
-    // --- 3. Get students
-    const studentRes = await pool.query(
-      `SELECT 
-          u.id, 
-          u.fullname AS full_name, 
-          u.email, 
-          c.name AS classroom_name
-       FROM user_school us
-       JOIN users2 u ON us.user_id = u.id
-       LEFT JOIN classrooms c ON us.classroom_id = c.id
-       WHERE us.role_in_school = 'student' 
-         AND us.school_id = $1
-       ORDER BY c.name, u.fullname`,
-      [schoolId]
-    );
-    const students = studentRes.rows;
+      // --- 3. Get students
+      const studentRes = await pool.query(
+        `SELECT 
+            u.id, 
+            u.fullname AS full_name, 
+            u.email, 
+            c.name AS classroom_name
+        FROM user_school us
+        JOIN users2 u ON us.user_id = u.id
+        LEFT JOIN classrooms c ON us.classroom_id = c.id
+        WHERE us.role_in_school = 'student' 
+          AND us.school_id = $1
+        ORDER BY c.name, u.fullname`,
+        [schoolId]
+      );
+      const students = studentRes.rows;
 
-    // --- 4. Get teachers
-    const teacherRes = await pool.query(
-      `SELECT 
-          u.id, 
-          u.fullname AS full_name, 
-          u.email
-       FROM user_school us
-       JOIN users2 u ON us.user_id = u.id
-       WHERE us.role_in_school = 'teacher'
-         AND us.school_id = $1
-       ORDER BY u.fullname`,
-      [schoolId]
-    );
-    const teachers = teacherRes.rows;
+      // --- 4. Get teachers
+      const teacherRes = await pool.query(
+        `SELECT 
+            u.id, 
+            u.fullname AS full_name, 
+            u.email
+        FROM user_school us
+        JOIN users2 u ON us.user_id = u.id
+        WHERE us.role_in_school = 'teacher'
+          AND us.school_id = $1
+        ORDER BY u.fullname`,
+        [schoolId]
+      );
+      const teachers = teacherRes.rows;
 
-    // --- 5. Get progress data
-const progressRes = await pool.query(`
-  SELECT 
-    us.user_id,
-    COUNT(DISTINCT l.id) AS total_lessons,
-    COUNT(DISTINCT ulp.lesson_id) AS completed_lessons
-  FROM user_school us
-  LEFT JOIN classrooms cls ON us.classroom_id = cls.id
-  LEFT JOIN classroom_courses cc ON cc.classroom_id = cls.id
-  LEFT JOIN courses c ON c.id = cc.course_id
-  LEFT JOIN modules m ON m.course_id = c.id
-  LEFT JOIN lessons l ON l.module_id = m.id
-  LEFT JOIN user_lesson_progress ulp
-    ON ulp.user_id = us.user_id 
-    AND ulp.lesson_id = l.id 
-    AND ulp.completed_at IS NOT NULL
-  WHERE us.role_in_school = 'student'
-  GROUP BY us.user_id
-`);
+      // --- 5. Get progress data
+  const progressRes = await pool.query(`
+    SELECT 
+      us.user_id,
+      COUNT(DISTINCT l.id) AS total_lessons,
+      COUNT(DISTINCT ulp.lesson_id) AS completed_lessons
+    FROM user_school us
+    LEFT JOIN classrooms cls ON us.classroom_id = cls.id
+    LEFT JOIN classroom_courses cc ON cc.classroom_id = cls.id
+    LEFT JOIN courses c ON c.id = cc.course_id
+    LEFT JOIN modules m ON m.course_id = c.id
+    LEFT JOIN lessons l ON l.module_id = m.id
+    LEFT JOIN user_lesson_progress ulp
+      ON ulp.user_id = us.user_id 
+      AND ulp.lesson_id = l.id 
+      AND ulp.completed_at IS NOT NULL
+    WHERE us.role_in_school = 'student'
+    GROUP BY us.user_id
+  `);
 
 
 
-    const progressMap = Object.fromEntries(
-      progressRes.rows.map((p) => [p.user_id, p])
-    );
+      const progressMap = Object.fromEntries(
+        progressRes.rows.map((p) => [p.user_id, p])
+      );
 
-    const quizRes = await pool.query(
-      `SELECT student_id, AVG(score) AS avg_quiz
-       FROM quiz_submissions
-       GROUP BY student_id`
-    );
-    const quizMap = Object.fromEntries(
-      quizRes.rows.map((q) => [q.student_id, Math.round(q.avg_quiz)])
-    );
+      const quizRes = await pool.query(
+        `SELECT student_id, AVG(score) AS avg_quiz
+        FROM quiz_submissions
+        GROUP BY student_id`
+      );
+      const quizMap = Object.fromEntries(
+        quizRes.rows.map((q) => [q.student_id, Math.round(q.avg_quiz)])
+      );
 
-    const assignmentRes = await pool.query(
-      `SELECT student_id, AVG(total) AS avg_assignment
-       FROM assignment_submissions
-       GROUP BY student_id`
-    );
-    const assignmentMap = Object.fromEntries(
-      assignmentRes.rows.map((a) => [
-        a.student_id,
-        Math.round(a.avg_assignment),
-      ])
-    );
+      const assignmentRes = await pool.query(
+        `SELECT student_id, AVG(total) AS avg_assignment
+        FROM assignment_submissions
+        GROUP BY student_id`
+      );
+      const assignmentMap = Object.fromEntries(
+        assignmentRes.rows.map((a) => [
+          a.student_id,
+          Math.round(a.avg_assignment),
+        ])
+      );
 
-    // --- 6. Build School Summary
-    const summaryHTML = `
-      <div class="summary">
-        <h2>🏫 School Summary</h2>
-        <table>
-          <tr><th>School Name</th><td>${school.name}</td></tr>
-          <tr><th>Email</th><td>${school.email || "N/A"}</td></tr>
-          <tr><th>Phone</th><td>${school.phone || "N/A"}</td></tr>
-          <tr><th>Address</th><td>${school.address || "N/A"}</td></tr>
-          <tr><th>Total Classrooms</th><td>${classrooms.length}</td></tr>
-          <tr><th>Total Teachers</th><td>${teachers.length}</td></tr>
-          <tr><th>Total Students</th><td>${students.length}</td></tr>
-          <tr><th>Date Created</th><td>${new Date(
-            school.created_at
-          ).toLocaleDateString()}</td></tr>
-        </table>
-      </div>
-    `;
-
-    // --- 7. Teacher List
-    const teachersHTML = `
-      <div class="teachers">
-        <h2>👨‍🏫 Teachers</h2>
-        ${
-          teachers.length
-            ? `
+      // --- 6. Build School Summary
+      const summaryHTML = `
+        <div class="summary">
+          <h2>🏫 School Summary</h2>
           <table>
-            <thead><tr><th>Name</th><th>Email</th></tr></thead>
-            <tbody>
-              ${teachers
-                .map(
-                  (t) => `<tr><td>${t.full_name}</td><td>${t.email}</td></tr>`
-                )
-                .join("")}
-            </tbody>
-          </table>`
-            : "<p><em>No teachers registered.</em></p>"
-        }
-      </div>
-    `;
+            <tr><th>School Name</th><td>${school.name}</td></tr>
+            <tr><th>Email</th><td>${school.email || "N/A"}</td></tr>
+            <tr><th>Phone</th><td>${school.phone || "N/A"}</td></tr>
+            <tr><th>Address</th><td>${school.address || "N/A"}</td></tr>
+            <tr><th>Total Classrooms</th><td>${classrooms.length}</td></tr>
+            <tr><th>Total Teachers</th><td>${teachers.length}</td></tr>
+            <tr><th>Total Students</th><td>${students.length}</td></tr>
+            <tr><th>Date Created</th><td>${new Date(
+              school.created_at
+            ).toLocaleDateString()}</td></tr>
+          </table>
+        </div>
+      `;
 
-    // --- 8. Class & Student Progress Section
-    const classesHTML = classrooms
-      .map((cls) => {
-        const classStudents = students.filter(
-          (s) => s.classroom_name === cls.name
-        );
-
-        if (classStudents.length === 0)
-          return `<div class="class-block"><h2>${cls.name}</h2><p><em>No students enrolled.</em></p></div>`;
-
-        return `
-          <div class="class-block">
-            <h2>📘 ${cls.name}</h2>
+      // --- 7. Teacher List
+      const teachersHTML = `
+        <div class="teachers">
+          <h2>👨‍🏫 Teachers</h2>
+          ${
+            teachers.length
+              ? `
             <table>
-              <thead>
-                <tr>
-                  <th>Student Name</th>
-                  <th>Email</th>
-                  <th>Lessons Completed</th>
-                  <th>Quiz Avg</th>
-                  <th>Assignment Avg</th>
-                  <th>Progress %</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Name</th><th>Email</th></tr></thead>
               <tbody>
-                ${classStudents
-                  .map((stu) => {
-                    const prog = progressMap[stu.id] || {
-                      total_lessons: 0,
-                      completed_lessons: 0,
-                    };
-                    const percent =
-                      prog.total_lessons > 0
-                        ? Math.round(
-                            (prog.completed_lessons / prog.total_lessons) * 100
-                          )
-                        : 0;
-                    return `
-                      <tr>
-                        <td>${stu.full_name}</td>
-                        <td>${stu.email}</td>
-                        <td>${prog.completed_lessons}/${prog.total_lessons}</td>
-                        <td>${quizMap[stu.id] ?? "N/A"}</td>
-                        <td>${assignmentMap[stu.id] ?? "N/A"}</td>
-                        <td>${percent}%</td>
-                      </tr>`;
-                  })
+                ${teachers
+                  .map(
+                    (t) => `<tr><td>${t.full_name}</td><td>${t.email}</td></tr>`
+                  )
                   .join("")}
               </tbody>
-            </table>
-          </div>
-        `;
-      })
-      .join("");
+            </table>`
+              : "<p><em>No teachers registered.</em></p>"
+          }
+        </div>
+      `;
 
-    // --- 9. Combine all HTML
-    const html = `
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #2c3e50; }
-          h1, h2 { color: #2c3e50; }
-          h1 { text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #ccc; padding: 6px; font-size: 12px; }
-          th { background-color: #34495e; color: white; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          .class-block, .teachers, .summary { margin-top: 30px; }
-          .footer { margin-top: 30px; text-align: center; font-size: 10px; color: gray; }
-        </style>
-      </head>
-      <body>
-        <h1>${school.name} — School Progress Report</h1>
-        <p style="text-align:center; color:gray;">Generated on ${new Date().toLocaleString()}</p>
-        ${summaryHTML}
-        ${teachersHTML}
-        ${classesHTML}
-        <div class="footer">© ${new Date().getFullYear()} School Progress Report</div>
-      </body>
-      </html>
-    `;
+      // --- 8. Class & Student Progress Section
+      const classesHTML = classrooms
+        .map((cls) => {
+          const classStudents = students.filter(
+            (s) => s.classroom_name === cls.name
+          );
 
-    // --- 10. Puppeteer PDF generation
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
-    });
-    await browser.close();
+          if (classStudents.length === 0)
+            return `<div class="class-block"><h2>${cls.name}</h2><p><em>No students enrolled.</em></p></div>`;
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${school.name.replace(
-        /\s+/g,
-        "_"
-      )}_Summary_Report.pdf`
-    );
-    res.send(pdfBuffer);
-  } catch (err) {
-    console.error("Error generating report:", err);
-    res.status(500).send("Error generating report PDF");
-  }
-};
+          return `
+            <div class="class-block">
+              <h2>📘 ${cls.name}</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student Name</th>
+                    <th>Email</th>
+                    <th>Lessons Completed</th>
+                    <th>Quiz Avg</th>
+                    <th>Assignment Avg</th>
+                    <th>Progress %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${classStudents
+                    .map((stu) => {
+                      const prog = progressMap[stu.id] || {
+                        total_lessons: 0,
+                        completed_lessons: 0,
+                      };
+                      const percent =
+                        prog.total_lessons > 0
+                          ? Math.round(
+                              (prog.completed_lessons / prog.total_lessons) * 100
+                            )
+                          : 0;
+                      return `
+                        <tr>
+                          <td>${stu.full_name}</td>
+                          <td>${stu.email}</td>
+                          <td>${prog.completed_lessons}/${prog.total_lessons}</td>
+                          <td>${quizMap[stu.id] ?? "N/A"}</td>
+                          <td>${assignmentMap[stu.id] ?? "N/A"}</td>
+                          <td>${percent}%</td>
+                        </tr>`;
+                    })
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        })
+        .join("");
+
+      // --- 9. Combine all HTML
+      const html = `
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #2c3e50; }
+            h1, h2 { color: #2c3e50; }
+            h1 { text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 6px; font-size: 12px; }
+            th { background-color: #34495e; color: white; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .class-block, .teachers, .summary { margin-top: 30px; }
+            .footer { margin-top: 30px; text-align: center; font-size: 10px; color: gray; }
+          </style>
+        </head>
+        <body>
+          <h1>${school.name} — School Progress Report</h1>
+          <p style="text-align:center; color:gray;">Generated on ${new Date().toLocaleString()}</p>
+          ${summaryHTML}
+          ${teachersHTML}
+          ${classesHTML}
+          <div class="footer">© ${new Date().getFullYear()} School Progress Report</div>
+        </body>
+        </html>
+      `;
+
+      // --- 10. Puppeteer PDF generation
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "networkidle0" });
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
+      });
+      await browser.close();
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${school.name.replace(
+          /\s+/g,
+          "_"
+        )}_Summary_Report.pdf`
+      );
+      res.send(pdfBuffer);
+    } catch (err) {
+      console.error("Error generating report:", err);
+      res.status(500).send("Error generating report PDF");
+    }
+  };
 
 // 📄 Download Student Login Cards (PDF with Logo)
 exports.downloadStudentLoginCards = async (req, res) => {
@@ -5516,11 +5516,25 @@ exports.getClassroomCourses = async (req, res) => {
 // 📌 GET: Quotes
 exports.getQuotes = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT q.*, s.name AS school_name 
-       FROM quotes q 
-       JOIN schools s ON q.school_id = s.id`
-    );
+
+    const result = await pool.query(`
+      SELECT 
+        q.id,
+        q.school_id,
+        s.name AS school_name,
+        t.name AS term_name,
+        q.price_per_student,
+        COUNT(ts.student_id) AS total_students,
+        (COUNT(ts.student_id) * COALESCE(q.price_per_student, 0)) AS total_amount,
+        q.status
+      FROM quotes q
+      JOIN schools s ON q.school_id = s.id
+      JOIN academic_terms t ON q.term_id = t.id
+      LEFT JOIN student_term_enrollments ts 
+        ON ts.term_id = q.term_id
+      GROUP BY q.id, s.name, t.name
+      ORDER BY q.created_at DESC
+    `);
     const quotes = result.rows;
 
     res.render("admin/quotes", {
@@ -5538,46 +5552,762 @@ exports.getQuotes = async (req, res) => {
 exports.downloadQuotePDF = async (req, res) => {
   const { id } = req.params;
 
-  const result = await pool.query(`
-    SELECT q.*, s.name AS school_name, t.name AS term_name
-    FROM quotes q
-    JOIN schools s ON q.school_id = s.id
-    JOIN academic_terms t ON q.term_id = t.id
-    WHERE q.id = $1
-  `, [id]);
+  try {
+    const result = await pool.query(`
+      SELECT 
+        q.id,
+        q.price_per_student,
+        q.status,
+        s.name AS school_name,
+        s.address,
+        t.name AS term_name,
+        COUNT(ts.student_id) AS total_students,
+        (COUNT(ts.student_id) * COALESCE(q.price_per_student, 0)) AS total_amount
+      FROM quotes q
+      JOIN schools s ON q.school_id = s.id
+      JOIN academic_terms t ON q.term_id = t.id
+      LEFT JOIN student_term_enrollments ts 
+        ON ts.term_id = q.term_id
+      WHERE q.id = $1
+      GROUP BY q.id, s.name, s.address, t.name
+    `, [id]);
 
-  const q = result.rows[0];
+    const q = result.rows[0];
 
-  const html = `
-    <h1>${q.school_name}</h1>
-    <p>Term: ${q.term_name}</p>
-    <p>Students: ${q.total_students}</p>
-    <p>Price per Student: ₦${q.price_per_student}</p>
-    <h2>Total: ₦${q.total_amount}</h2>
-    <p>Status: ${q.status}</p>
-  `;
+    // const total = q.total_amount || q.total_students * q.price_per_student;
 
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.setContent(html);
-  const pdf = await page.pdf({ format: "A4" });
-  await browser.close();
+    // // split payments (60/40 like your design)
+    // const firstPayment = Math.round(total * 0.6);
+    // const secondPayment = total - firstPayment;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename=quote.pdf`);
-  res.send(pdf);
+    // const html = `
+    // <html>
+    // <head>
+    //   <style>
+    //     body {
+    //       font-family: Arial, sans-serif;
+    //       padding: 30px;
+    //       color: #000;
+    //     }
+
+    //     .header {
+    //       text-align: center;
+    //     }
+
+    //     .header h2 {
+    //       margin: 0;
+    //       font-weight: bold;
+    //     }
+
+    //     .header p {
+    //       margin: 2px;
+    //       font-size: 12px;
+    //     }
+
+    //     .top-section {
+    //       display: flex;
+    //       justify-content: space-between;
+    //       margin-top: 30px;
+    //     }
+
+    //     .invoice-box {
+    //       font-size: 13px;
+    //     }
+
+    //     .bank {
+    //       text-align: right;
+    //       font-weight: bold;
+    //     }
+
+    //     table {
+    //       width: 100%;
+    //       border-collapse: collapse;
+    //       margin-top: 30px;
+    //     }
+
+    //     th, td {
+    //       border: 1px solid #000;
+    //       padding: 8px;
+    //       text-align: center;
+    //       font-size: 13px;
+    //     }
+
+    //     th {
+    //       background: #d4af37;
+    //       color: #000;
+    //     }
+
+    //     .total {
+    //       margin-top: 10px;
+    //       text-align: right;
+    //       font-weight: bold;
+    //     }
+
+    //     .amount-words {
+    //       margin-top: 10px;
+    //       font-size: 12px;
+    //     }
+
+    //     .payment-box {
+    //       margin-top: 10px;
+    //       font-size: 13px;
+    //     }
+
+    //     .signatures {
+    //       margin-top: 60px;
+    //       display: flex;
+    //       justify-content: space-between;
+    //     }
+
+    //     .sign {
+    //       text-align: center;
+    //     }
+
+    //     .line {
+    //       border-top: 1px solid black;
+    //       width: 200px;
+    //       margin: 20px auto 5px;
+    //     }
+    //   </style>
+    // </head>
+
+    // <body>
+
+    //   <div class="header">
+    //     <h2>JAYKIRCH TECHNOLOGY HUB</h2>
+    //     <p>18, Moshood Bakare Street, Adaranijo Gbagada Phase 1</p>
+    //     <p>Tel: 09166767242, 07087522295</p>
+    //   </div>
+
+    //   <div class="top-section">
+    //     <div class="invoice-box">
+    //       <p><strong>Invoice to:</strong></p>
+    //       <p>${q.school_name}</p>
+    //       <p>${q.address || ""}</p>
+
+    //       <p><strong>Payment for:</strong></p>
+    //       <p>${q.term_name}</p>
+    //     </div>
+
+    //     <div class="bank">
+    //       <p>Jaykirch Tech Hub</p>
+    //       <p>Access Bank</p>
+    //       <p>1582579748</p>
+    //     </div>
+    //   </div>
+
+    //   <p style="text-align:right; font-size:12px;">
+    //     Date: ${new Date().toDateString()}
+    //   </p>
+
+    //   <h3 style="text-align:center;">CLASS INVOICE</h3>
+
+    //   <table>
+    //     <thead>
+    //       <tr>
+    //         <th>S/N</th>
+    //         <th>Course</th>
+    //         <th>No. of Students</th>
+    //         <th>Amount / Student</th>
+    //         <th>Total Price (₦)</th>
+    //       </tr>
+    //     </thead>
+    //     <tbody>
+    //       <tr>
+    //         <td>1</td>
+    //         <td>CODING</td>
+    //         <td>${q.total_students}</td>
+    //         <td>₦${q.price_per_student}</td>
+    //         <td>₦${total.toLocaleString()}</td>
+    //       </tr>
+    //     </tbody>
+    //   </table>
+
+    //   <div class="total">
+    //     Total: ₦${total.toLocaleString()}
+    //   </div>
+
+    //   <div class="amount-words">
+    //     <strong>Amount in words:</strong> ₦${total.toLocaleString()} NAIRA ONLY
+    //   </div>
+
+    //   <div class="payment-box">
+    //     <p>1st payment (60%): ₦${firstPayment.toLocaleString()}</p>
+    //     <p>2nd payment (40%): ₦${secondPayment.toLocaleString()}</p>
+    //   </div>
+
+    //   <div class="signatures">
+    //     <div class="sign">
+    //       <div class="line"></div>
+    //       <p>School Director</p>
+    //       <p>Signature & Date</p>
+    //     </div>
+
+    //     <div class="sign">
+    //       <div class="line"></div>
+    //       <p>CEO</p>
+    //       <p>Signature & Date</p>
+    //     </div>
+    //   </div>
+
+    // </body>
+    // </html>
+    // `;
+
+    const numberToWords = require('number-to-words');
+
+    const total = Number(q.total_amount);
+    const firstPayment = Math.round(total * 0.6);
+    const secondPayment = total - firstPayment;
+
+    // Convert to words
+    const words = numberToWords.toWords(total).toUpperCase();
+
+    const today = new Date().toDateString();
+
+    // const html = `
+    // <html>
+    // <head>
+    // <style>
+    //   body {
+    //     font-family: Arial;
+    //     padding: 40px;
+    //     background: #f5f5f5;
+    //   }
+
+    //   .container {
+    //     width: 100%;
+    //     margin: auto;
+    //     background: #fff;
+    //     padding: 30px;
+    //   }
+
+    //   .header {
+    //     text-align: center;
+    //   }
+
+    //   .header img {
+    //     width: 80px;
+    //   }
+
+    //   .title {
+    //     font-weight: bold;
+    //     font-size: 20px;
+    //   }
+
+    //   .sub {
+    //     font-size: 12px;
+    //   }
+
+    //   .top {
+    //     display: flex;
+    //     justify-content: space-between;
+    //     margin-top: 30px;
+    //     font-size: 13px;
+    //   }
+
+    //   .bank {
+    //     text-align: right;
+    //     font-weight: bold;
+    //   }
+
+    //   .date {
+    //     text-align: right;
+    //     margin-top: 10px;
+    //     font-size: 12px;
+    //   }
+
+    //   .section-title {
+    //     text-align: center;
+    //     margin-top: 20px;
+    //     color: #b89b5e;
+    //     font-weight: bold;
+    //   }
+
+    //   table {
+    //     width: 100%;
+    //     border-collapse: collapse;
+    //     margin-top: 15px;
+    //   }
+
+    //   th {
+    //     background: #b89b5e;
+    //     color: #fff;
+    //     font-size: 12px;
+    //     padding: 8px;
+    //   }
+
+    //   td {
+    //     border: 1px solid #000;
+    //     text-align: center;
+    //     padding: 6px;
+    //     font-size: 12px;
+    //   }
+
+    //   .total-row {
+    //     background: #000;
+    //     color: #fff;
+    //     font-weight: bold;
+    //   }
+
+    //   .amount-words {
+    //     margin-top: 10px;
+    //     font-size: 12px;
+    //   }
+
+    //   .payments {
+    //     margin-top: 10px;
+    //     font-size: 12px;
+    //   }
+
+    //   .highlight {
+    //     background: #b89b5e;
+    //     padding: 4px 10px;
+    //     font-weight: bold;
+    //     float: right;
+    //   }
+
+    //   .highlight2 {
+    //     background: #000;
+    //     color: #fff;
+    //     padding: 4px 10px;
+    //     float: right;
+    //   }
+
+    //   .signatures {
+    //     margin-top: 60px;
+    //     display: flex;
+    //     justify-content: space-between;
+    //   }
+
+    //   .sign {
+    //     text-align: center;
+    //   }
+
+    //   .line {
+    //     width: 200px;
+    //     border-top: 1px solid #000;
+    //     margin: auto;
+    //     margin-bottom: 5px;
+    //   }
+    // </style>
+    // </head>
+
+    // <body>
+
+    // <div class="container">
+
+    //   <div class="header">
+    //     <img src="https://acad.jkthub.com/images/JKT%20logo.png" /> <!-- 🔥 replace with your logo URL -->
+    //     <div class="title">JAYKIRCH TECHNOLOGY HUB</div>
+    //     <div class="sub">18, Moshood Bakare Street, Gbagada Phase 1</div>
+    //     <div class="sub">Tel: 09166767242, 07087522295</div>
+    //   </div>
+
+    //   <div class="top">
+    //     <div>
+    //       <b>Invoice to:</b><br/>
+    //       ${q.school_name}<br/>
+    //       ${q.address || ""}
+    //       <br/><br/>
+    //       <b>Payment for:</b><br/>
+    //       ${q.term_name}
+    //     </div>
+
+    //     <div class="bank">
+    //       Jaykirch Tech Hub<br/>
+    //       Access Bank<br/>
+    //       1582579748
+    //     </div>
+    //   </div>
+
+    //   <div class="date">Date: ${today}</div>
+
+    //   <div class="section-title">CODING</div>
+    //   <div class="section-title">CLASS INVOICE</div>
+
+    //   <table>
+    //     <tr>
+    //       <th>S/N</th>
+    //       <th>COURSE</th>
+    //       <th>NUMBER OF STUDENTS</th>
+    //       <th>AMOUNT PER STUDENT</th>
+    //       <th>TOTAL PRICE (₦)</th>
+    //     </tr>
+
+    //     <tr>
+    //       <td>1</td>
+    //       <td>CODING</td>
+    //       <td>${q.total_students}</td>
+    //       <td>₦${Number(q.price_per_student).toLocaleString()}</td>
+    //       <td>₦${total.toLocaleString()}</td>
+    //     </tr>
+
+    //     <tr class="total-row">
+    //       <td colspan="4">Total</td>
+    //       <td>₦${total.toLocaleString()}</td>
+    //     </tr>
+    //   </table>
+
+    //   <div class="amount-words">
+    //     <b>AMOUNT IN WORDS:</b> ${words} NAIRA ONLY
+    //   </div>
+
+    //   <div class="payments">
+    //     <p>1st payment 60% week after midterm <span class="highlight">${firstPayment.toLocaleString()}</span></p>
+    //     <p>Balance 40% end of week before exam <span class="highlight2">${secondPayment.toLocaleString()}</span></p>
+    //   </div>
+
+    //   <div class="signatures">
+    //     <div class="sign">
+    //       <div class="line"></div>
+    //       School Director<br/>
+    //       Signature & Date
+    //     </div>
+
+    //     <div class="sign">
+    //       <div class="line"></div>
+    //       CEO<br/>
+    //       Signature & Date
+    //     </div>
+    //   </div>
+
+    // </div>
+
+    // </body>
+    // </html>
+    // `;
+
+    const midTermDate = new Date();
+    midTermDate.setDate(midTermDate.getDate() + 14);
+
+    const examDate = new Date();
+    examDate.setDate(examDate.getDate() + 30);
+
+    const html = `
+    <html>
+    <head>
+    <style>
+      body {
+        font-family: Calibri;
+        margin: 0;
+        padding: 0;
+        background: #ffffff; /* REMOVE GRAY for PDF */
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        margin-top: 30px;
+        width: 80%;
+        max-width: 800px;
+        background: #fff;
+        padding: 30px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .header img {
+        width: 70px;
+      }
+
+      .header-text {
+        text-align: center;
+      }
+
+      .title {
+        font-weight: bold;
+        font-size: 18px;
+      }
+
+      .sub {
+        font-size: 12px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+        font-size: 13px;
+      }
+
+      .bank {
+        text-align: right;
+        font-weight: bold;
+      }
+
+      .date {
+        text-align: right;
+        margin-top: 10px;
+        font-size: 12px;
+      }
+
+      .section-title {
+        text-align: right;
+        margin-top: 15px;
+        color: #b89b5e;
+        font-weight: bold;
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      th {
+        background: #b89b5e;
+        color: white;
+        font-size: 11px;
+        padding: 6px;
+      }
+
+      td {
+        border: 1px solid #000;
+        text-align: center;
+        padding: 6px;
+        font-size: 11px;
+      }
+
+      .total-row {
+        background: #000;
+        color: #fff;
+        font-weight: bold;
+      }
+
+      .amount-words {
+        margin-top: 10px;
+        font-size: 12px;
+      }
+
+      .payments {
+        margin-top: 10px;
+        font-size: 12px;
+      }
+
+      .payments p {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .highlight {
+        background: #b89b5e;
+        padding: 5px 15px;
+        font-weight: bold;
+        width: 40px
+      }
+
+      .highlight2 {
+        background: #000;
+        color: #fff;
+        padding: 5px 15px;
+        width: 40px
+      }
+
+      .signatures {
+        margin-top: 60px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .sign {
+        text-align: center;
+        width: 45%;
+      }
+
+      .signature-box {
+        position: relative;
+        height: 0px; /* space for signature */
+      }
+
+      .signature-img {
+        position: absolute;
+        bottom: 10px;   /* sits just above the line */
+        left: 20%;
+        transform: translateX(-50%);
+        height: 40px;   /* adjust size */
+        z-index: 2;
+      }
+
+      .line {
+        border-top: 1px solid #000;
+        margin-top: 40px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .sign-date {
+        font-size: 11px;
+        position: absolute;
+        bottom: 10px;   /* sits just above the line */
+        right: 20%;
+      }
+
+    </style>
+    </head>
+
+    <body>
+
+    <div class="container">
+
+      <div class="header">
+        <img src="https://acad.jkthub.com/images/JKT%20logo.png" />
+        <div class="header-text">
+          <div class="title">JAYKIRCH TECHNOLOGY HUB</div>
+          <div class="sub">18, Moshood Bakare Street, Gbagada Phase 1</div>
+          <div class="sub">Tel: 09166767242, 07087522295</div>
+        </div>
+      </div>
+
+      <div class="top">
+        <div>
+          <b>Invoice to:</b><br/>
+          <p style="margin: 0; font-weight: bold; font-size: 25px;">${q.school_name}</p>
+          <p style="margin: 5px 0; font-size: 12px;">${q.address || ""}</p>
+          <br/><br/>
+          <b>Payment for:</b><br/>
+          ${q.term_name}
+        </div>
+
+        <div class="bank">
+          <p style="font-size: 30px; color: #b89b5e; margin: 0;">Jaykirch Tech Hub</p>
+          <p style="font-size: 18px;">Access Bank</p>
+          <p style="font-size: 30px;">1582579748</p>
+        </div>
+      </div>
+
+      <div class="date">Date: ${today}</div>
+
+      <div class="section-title">CODING</div>
+      <div class="section-title">CLASS INVOICE</div>
+
+      <table>
+        <tr>
+          <th>S/N</th>
+          <th>COURSE</th>
+          <th>NO. OF STUDENTS</th>
+          <th>AMOUNT PER STUDENT</th>
+          <th>TOTAL (₦)</th>
+        </tr>
+
+        <tr>
+          <td>1</td>
+          <td>CODING</td>
+          <td>${q.total_students}</td>
+          <td>₦${Number(q.price_per_student).toLocaleString()}</td>
+          <td>₦${total.toLocaleString()}</td>
+        </tr>
+
+        <tr class="total-row">
+          <td colspan="4">TOTAL</td>
+          <td>₦${total.toLocaleString()}</td>
+        </tr>
+      </table>
+
+      <div class="amount-words">
+        <b>AMOUNT IN WORDS:</b> ${words} NAIRA ONLY
+      </div>
+
+      <div class="payments">
+        <p>
+          <span>1st payment 60% (after midterm - ${midTermDate.toDateString()})</span>
+          <span class="highlight">${firstPayment.toLocaleString()}</span>
+        </p>
+
+        <p>
+          <span>Balance 40% (before exam - ${examDate.toDateString()})</span>
+          <span class="highlight2">${secondPayment.toLocaleString()}</span>
+        </p>
+      </div>
+
+      <div class="signatures">
+
+        <div class="sign">
+          <div class="signature-box">
+            <div class="line"></div>
+          </div>
+          School Director<br/>
+          Signature & Date
+        </div>
+
+        <div class="sign">
+          <div class="signature-box">
+            <img src="https://acad.jkthub.com/images/Signature.jpg" class="signature-img" />
+            <div class="sign-date">${today}</div>
+            <div class="line"></div>
+          </div>
+          CEO<br/>
+          Signature & Date
+        </div>
+
+      </div>
+
+    </div>
+
+    </body>
+    </html>
+    `;
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${q.school_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+    );
+
+    res.send(pdf);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating invoice");
+  }
 };
 
 exports.updateQuoteStatus = async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-  await pool.query(
-    "UPDATE quotes SET status = $1 WHERE id = $2",
-    [status, id]
-  );
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
+    }
 
-  res.redirect("/admin/quotes");
+    await pool.query("UPDATE quotes SET status = $1 WHERE id = $2", [
+      status,
+      id,
+    ]);
+
+    // ✅ If request is from fetch (AJAX)
+    if (req.headers.accept && req.headers.accept.includes("application/json")) {
+      return res.json({ success: true, status });
+    }
+
+    // ✅ If request is from form
+    res.redirect("/admin/quotes");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error updating status");
+  }
 };
 
 // 📌 GET: School Courses (assignments)

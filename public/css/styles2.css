@@ -2885,6 +2885,24 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
       color: white;
       border-color: #007bff;
   }
+
+  .payment-toggle {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+  }
+
+  .payment-toggle.paid {
+      background: #d4edda;
+      color: #155724;
+  }
+
+  .payment-toggle.unpaid {
+      background: #f8d7da;
+      color: #721c24;
+  }
 /* Tablet screens (≤1024px) */
 @media (max-width: 1024px) {
     .slide-box {

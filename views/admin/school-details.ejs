@@ -212,9 +212,9 @@
                 ₦<%= term.quote?.total_amount || 0 %>
               </td>
 
-              <td>
+              <!-- <td>
                 <% if (term.quote) { %>
-                  <form action="/admin/quotes/<%= term.quote.id %>/status" method="POST">
+                  <form action="/admin/quotes/<%= term.quote.id %>/status" class="no-bg" method="POST">
                     <select name="status" onchange="this.form.submit()">
                       <option value="unpaid" <%= term.quote.status === 'unpaid' ? 'selected' : '' %>>
                         ❌ Not Paid
@@ -224,6 +224,19 @@
                       </option>
                     </select>
                   </form>
+                <% } else { %>
+                  -
+                <% } %>
+              </td> -->
+
+              <td>
+                <% if (term.quote) { %>
+                  <button 
+                    class="payment-toggle <%= term.quote.status %>" 
+                    onclick="togglePayment('<%= term.quote.id %>', '<%= term.quote.status %>')">
+                    
+                    <%= term.quote.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %>
+                  </button>
                 <% } else { %>
                   -
                 <% } %>
@@ -1839,4 +1852,25 @@ document.addEventListener("DOMContentLoaded", () => {
       location.reload();
     }
   }
+</script>
+
+
+<!-- script for toggling payment status -->
+
+<script>
+async function togglePayment(quoteId, currentStatus) {
+  const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+
+  const res = await fetch(`/admin/quotes/${quoteId}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus })
+  });
+
+  if (res.ok) {
+    location.reload(); // simple refresh
+  } else {
+    alert('Failed to update');
+  }
+}
 </script>
