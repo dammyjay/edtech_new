@@ -612,9 +612,9 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     <!-- ENGAGEMENT -->
     <div class="metric-card">
       <h3>⏱ Engagement</h3>
-      <p><strong>Total Time:</strong> <%= metrics.engagement.totalTimeSpent.hours %> sec</p>
-      <p><strong>Lesson Time:</strong> <%= metrics.engagement.lessonTime %> sec</p>
-      <p><strong>Module Time:</strong> <%= metrics.engagement.assignmentTime %> sec</p>
+      <p><strong>Total Time:</strong> <%= metrics.engagement.totalTimeSpent %></p>
+      <p><strong>Lesson Time:</strong> <%= metrics.engagement.lessonTime %></p>
+      <p><strong>Assignment Time:</strong> <%= metrics.engagement.assignmentTime %></p>
       <!-- <p><strong>Active Days:</strong> <%= metrics.engagement.activeDays %></p> -->
        <p>Active Days</p>
        <div class="active-grid">
@@ -748,6 +748,9 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
                   <% m.lessons.forEach(l => { %>
                     <div class="lesson-item">
                       <span>📚 <%= l.lesson_title %></span>
+                      <span style="font-size:12px; color:#888;">
+                        ⏱ <%= l.timeSpent %>
+                      </span>
                       <span class="<%= l.completed_at ? 'done' : 'not-done' %>">
                         <%= l.completed_at ? '✔' : '✖' %>
                       </span>
@@ -806,7 +809,7 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   <% if (courses.length) { %>
     <table>
       <thead>
-        <tr><th>Module</th><th>Course</th><th>Progress</th><th>Quiz Avg</th><th>Assignment Avg</th><th>Action</th></tr>
+        <tr><th>Module</th><th>Course</th><th>Progress</th><th>Quiz Avg</th><th>Assignment Avg</th><th>Time Spent</th><th>Action</th></tr>
       </thead>
       <tbody>
         <% courses.forEach(c => { %>
@@ -817,6 +820,8 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
               <td data-label="Progress"><%= m.percent %>%</td>
               <td data-label="Quiz Average"><%= m.quizAvg ?? "N/A" %></td>
               <td data-label="Assignment Average"><%= m.assignmentAvg ?? "N/A" %></td>
+              <td ><%= m.moduleTime %></td>
+              
               <td data-label="Actions">
                 <!-- <a href="/<%= from === 'parent' ? '' : 'admin/' %>student/<%= student.id %>/module-summary/<%= m.id %>/download"
                   style="display:inline-block; margin:5px; padding:6px 10px; background:#2980b9; color:white; border-radius:5px; text-decoration:none;">

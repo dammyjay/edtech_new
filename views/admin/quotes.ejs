@@ -4,7 +4,7 @@
 <h2>All Quotes</h2>
 <div class="table-responsive">
   <table class="user-table" style="width:100%; margin-top:20px;">
-    <thead>
+    <!-- <thead>
       <tr>
         <th>School Name</th>
         <th>Requested Students</th>
@@ -13,15 +13,22 @@
         <th>Actions</th>
       </tr>
     </thead>
+    
     <tbody>
       <% quotes.forEach(q => { %>
         <tr>
           <td><%= q.school_name %></td>
           <td><%= q.requested_students %></td>
           <td><%= q.price_quote %></td>
-          <td><%= q.status %></td>
+           <td>
+          <form action="/admin/quotes/<%= q.id %>/status" method="POST">
+            <select name="status" onchange="this.form.submit()">
+              <option value="unpaid" <%= q.status === 'unpaid' ? 'selected' : '' %>>❌ Not Paid</option>
+              <option value="paid" <%= q.status === 'paid' ? 'selected' : '' %>>✅ Paid</option>
+            </select>
+          </form>
+        </td>
           <td>
-            <!-- Approve/Reject -->
             <% if (q.status === 'pending') { %>
               <form action="/admin/quotes/<%= q.id %>/approve" method="POST" style="display:inline;">
                 <button type="submit" class="btn-approve">✅ Approve</button>
@@ -31,10 +38,44 @@
               </form>
             <% } %>
 
-            <!-- Assign Courses -->
             <a href="/admin/school-courses?school_id=<%= q.school_id %>" class="btn-assign">
               🎓 Assign Courses
             </a>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody> -->
+
+    <thead>
+      <tr>
+        <th>School</th>
+        <th>Term</th>
+        <th>Students</th>
+        <th>Price / Student</th>
+        <th>Total Amount</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <% quotes.forEach(q => { %>
+        <tr>
+          <td><%= q.school_name %></td>
+          <td><%= q.term_name %></td>
+          <td><%= q.total_students %></td>
+          <td>₦<%= q.price_per_student %></td>
+          <td>₦<%= q.total_amount %></td>
+          <td>
+            <form action="/admin/quotes/<%= q.id %>/status" method="POST">
+              <select name="status" onchange="this.form.submit()">
+                <option value="unpaid" <%= q.status === 'unpaid' ? 'selected' : '' %>>❌ Not Paid</option>
+                <option value="paid" <%= q.status === 'paid' ? 'selected' : '' %>>✅ Paid</option>
+              </select>
+            </form>
+          </td>
+          <td>
+            <a href="/admin/quotes/<%= q.id %>/download">📄 PDF</a>
           </td>
         </tr>
       <% }) %>

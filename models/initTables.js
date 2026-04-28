@@ -583,11 +583,15 @@ async function createTables() {
       CREATE TABLE IF NOT EXISTS quotes (
         id SERIAL PRIMARY KEY,
         school_id INT REFERENCES schools(id) ON DELETE CASCADE,
-        requested_students INT NOT NULL,
-        price_quote NUMERIC(12,2),
         status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected, negotiated
         created_at TIMESTAMP DEFAULT NOW()
       );
+      ALTER TABLE quotes
+      ADD COLUMN IF NOT EXISTS term_id INT,
+      ADD COLUMN IF NOT EXISTS price_per_student NUMERIC DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_students INT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_amount NUMERIC DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'unpaid';
     `);
 
     // table for school payments

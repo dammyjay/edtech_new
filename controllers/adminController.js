@@ -2829,14 +2829,173 @@ exports.viewStudentProgress = async (req, res) => {
       modulesByCourse.get(m.course_id).push(m);
     });
 
-    // =========================
+    const lessonTimeMap = {}; // ✅ ADD THIS
+    const activityRes = await pool.query(
+      `
+      SELECT action, details, created_at, duration_seconds
+      FROM activities
+      WHERE user_id = $1
+      ORDER BY created_at ASC
+      `,
+      [id],
+    );
+
+    const logs = activityRes.rows;
+
+    let totalLessonTime = 0;
+    let totalAssignmentTime = 0;
+
+    const lessonStart = {};
+    const assignmentStart = {};
+
+    // for (const log of logs) {
+    //   const time = new Date(log.created_at);
+
+    //   const match = log.details.match(/\d+/);
+    //   const match2 = log.action.match(/\d+/);
+    //       const lessonId = match ? Number(match[0]) : null;
+    //       const lessonId2 = match2 ? Number(match2[0]) : null;
+
+    //   // LESSON START
+    //   if (log.action === "Viewed Lesson") {
+    //     lessonStart[lessonId] = time;
+    //   }
+
+    //   // LESSON END
+    //   if ((log.action === "Student submitted Quiz") ) {
+    //     if (lessonStart[lessonId2]) {
+    //       const duration = (time - lessonStart[lessonId2]) / 1000;
+
+    //       totalLessonTime += duration;
+
+    //       lessonTimeMap[lessonId2] =
+    //         (lessonTimeMap[lessonId2] || 0) + duration;
+
+    //       delete lessonStart[lessonId2];
+    //     }
+    //   }
+
+    //   // ASSIGNMENT START
+    //   if (log.action === "Viewed Assignment") {
+    //     assignmentStart[log.details] = time;
+    //   }
+
+    //   // ASSIGNMENT END
+    //   if (log.action === "Submitted Assignment") {
+    //     if (assignmentStart[log.details]) {
+    //       totalAssignmentTime +=
+    //         (time - assignmentStart[log.details]) / 1000;
+
+    //       delete assignmentStart[log.details];
+    //     }
+    //   }
+    // }
+
+    // fallback calculation if duration is missing
+    
+    for (const log of logs) {
+      const time = new Date(log.created_at);
+
+      const match = log.details?.match(/\d+/);
+      const lessonId = match ? Number(match[0]) : null;
+
+      // =========================
+      // LESSON START
+      // =========================
+      if (log.action === "Viewed Lesson" && lessonId) {
+        lessonStart[lessonId] = time;
+      }
+
+      // =========================
+      // LESSON END (QUIZ SUBMIT)
+      // =========================
+      if (log.action === "Student submitted Quiz" && lessonId) {
+        if (lessonStart[lessonId]) {
+          const duration = (time - lessonStart[lessonId]) / 1000;
+
+          totalLessonTime += duration;
+
+          lessonTimeMap[lessonId] = (lessonTimeMap[lessonId] || 0) + duration;
+
+          delete lessonStart[lessonId];
+        }
+      }
+
+      // =========================
+      // ASSIGNMENT START
+      // =========================
+      if (log.action === "Viewed Assignment" && lessonId) {
+        assignmentStart[lessonId] = time;
+      }
+
+      // =========================
+      // ASSIGNMENT END
+      // =========================
+      if (log.action === "Submitted Assignment" && lessonId) {
+        if (assignmentStart[lessonId]) {
+          totalAssignmentTime += (time - assignmentStart[lessonId]) / 1000;
+
+          delete assignmentStart[lessonId];
+        }
+      }
+    }
+    
+    let lastLessonStart = null;
+    let lastAssignmentStart = null;
+
+    logs.forEach((log) => {
+      const time = new Date(log.created_at);
+
+      if (log.action === "Viewed Lesson") {
+        lastLessonStart = time;
+      }
+
+      if (log.action === "Student submitted Quiz") {
+        if (lastLessonStart) {
+          totalLessonTime += (time - lastLessonStart) / 1000;
+          lastLessonStart = null;
+        }
+      }
+
+      if (log.action === "Viewed Assignment") {
+        lastAssignmentStart = time;
+      }
+
+      if (log.action === "Submitted Assignment") {
+        if (lastAssignmentStart) {
+          totalAssignmentTime += (time - lastAssignmentStart) / 1000;
+          lastAssignmentStart = null;
+        }
+      }
+    });
+
+    // ========================
     // COURSE STRUCTURE
-    // =========================
+    // ========================
     const courses = coursesRes.rows.map((course) => {
       const modules = modulesByCourse.get(course.id) || [];
 
       const enrichedModules = modules.map((module) => {
-        const moduleLessons = lessonsByModule.get(module.id) || [];
+        // const moduleLessons = lessonsByModule.get(module.id) || [];
+        const rawLessons = lessonsByModule.get(module.id) || [];
+
+        const moduleLessons = rawLessons.map((l) => {
+          const seconds = lessonTimeMap[l.id] || 0;
+
+          return {
+            ...l,
+            timeSpent: formatTimeReadable(seconds),
+            rawTime: seconds,
+          };
+        });
+
+        // ✅ calculate module total time AFTER mapping
+        const moduleTimeSeconds = moduleLessons.reduce(
+          (sum, l) => sum + (l.rawTime || 0),
+          0,
+        );
+
+        const moduleTime = formatTimeReadable(moduleTimeSeconds);
         const moduleQuizzes = quizzesByModule.get(module.id) || [];
         const moduleAssignments = assignmentsByModule.get(module.id) || [];
 
@@ -2873,6 +3032,7 @@ exports.viewStudentProgress = async (req, res) => {
           percent,
           quizAvg,
           assignmentAvg,
+          moduleTime,
         };
       });
 
@@ -2906,27 +3066,46 @@ exports.viewStudentProgress = async (req, res) => {
     const allAssignments = assignmentsRes.rows;
 
     const quizAvg = allQuizzes.length
-      ? Math.round(allQuizzes.reduce((a, b) => a + b.score, 0) / allQuizzes.length)
+      ? Math.round(
+          allQuizzes.reduce((a, b) => a + b.score, 0) / allQuizzes.length,
+        )
       : null;
 
     const assignmentAvg = allAssignments.length
-      ? Math.round(allAssignments.reduce((a, b) => a + (b.total || 0), 0) / allAssignments.length)
+      ? Math.round(
+          allAssignments.reduce((a, b) => a + (b.total || 0), 0) /
+            allAssignments.length,
+        )
       : null;
-// =========================
-// ENGAGEMENT (FIXED LOGIC)
-// =========================
+    // =========================
+    // ENGAGEMENT (FIXED LOGIC)
+    // =========================
 
-    function formatTime(seconds) {
+    // function formatTime(seconds) {
+    //   const sec = Math.floor(seconds % 60);
+    //   const min = Math.floor((seconds / 60) % 60);
+    //   const hr = Math.floor(seconds / 3600);
+
+    //   return {
+    //     seconds: sec,
+    //     minutes: min,
+    //     hours: hr,
+    //     totalHours: +(seconds / 3600).toFixed(2),
+    //   };
+    // }
+
+    function formatTimeReadable(seconds) {
       const sec = Math.floor(seconds % 60);
       const min = Math.floor((seconds / 60) % 60);
       const hr = Math.floor(seconds / 3600);
 
-      return {
-        seconds: sec,
-        minutes: min,
-        hours: hr,
-        totalHours: +(seconds / 3600).toFixed(2),
-      };
+      let result = "";
+
+      if (hr > 0) result += `${hr}hr `;
+      if (min > 0) result += `${min}min `;
+      if (sec > 0 || result === "") result += `${sec}sec`;
+
+      return result.trim();
     }
 
     function formatDuration(startDate) {
@@ -2955,97 +3134,18 @@ exports.viewStudentProgress = async (req, res) => {
           years > 0
             ? `${years} year(s)`
             : months > 0
-            ? `${months} month(s)`
-            : weeks > 0
-            ? `${weeks} week(s)`
-            : days > 0
-            ? `${days} day(s)`
-            : hours > 0
-            ? `${hours} hour(s)`
-            : `${minutes} minute(s)`,
+              ? `${months} month(s)`
+              : weeks > 0
+                ? `${weeks} week(s)`
+                : days > 0
+                  ? `${days} day(s)`
+                  : hours > 0
+                    ? `${hours} hour(s)`
+                    : `${minutes} minute(s)`,
       };
     }
 
     const membershipDuration = formatDuration(student.created_at);
-
-    const activityRes = await pool.query(
-      `
-      SELECT action, details, created_at, duration_seconds
-      FROM activities
-      WHERE user_id = $1
-      ORDER BY created_at ASC
-      `,
-      [id],
-    );
-
-    const logs = activityRes.rows;
-
-    let totalLessonTime = 0;
-    let totalAssignmentTime = 0;
-
-    const lessonStart = {};
-    const assignmentStart = {};
-
-    for (const log of logs) {
-      const time = new Date(log.created_at);
-      const id = log.details;
-
-      // LESSON START
-      if (log.action === "Viewed Lesson") {
-        lessonStart[id] = time;
-      }
-
-      // LESSON END
-      if (log.action === "Student submitted Quiz") {
-        if (lessonStart[id]) {
-          totalLessonTime += (time - lessonStart[id]) / 1000;
-          delete lessonStart[id];
-        }
-      }
-
-      // ASSIGNMENT START
-      if (log.action === "Viewed Assignment") {
-        assignmentStart[id] = time;
-      }
-
-      // ASSIGNMENT END
-      if (log.action === "Submitted Assignment") {
-        if (assignmentStart[id]) {
-          totalAssignmentTime += (time - assignmentStart[id]) / 1000;
-          delete assignmentStart[id];
-        }
-      }
-    }
-
-    // fallback calculation if duration is missing
-    let lastLessonStart = null;
-    let lastAssignmentStart = null;
-
-    logs.forEach((log) => {
-      const time = new Date(log.created_at);
-
-      if (log.action === "Viewed Lesson") {
-        lastLessonStart = time;
-      }
-
-      if (log.action === "Student submitted Quiz") {
-        if (lastLessonStart) {
-          totalLessonTime += (time - lastLessonStart) / 1000;
-          lastLessonStart = null;
-        }
-      }
-
-      if (log.action === "Viewed Assignment") {
-        lastAssignmentStart = time;
-      }
-
-      if (log.action === "Submitted Assignment") {
-        if (lastAssignmentStart) {
-          totalAssignmentTime += (time - lastAssignmentStart) / 1000;
-          lastAssignmentStart = null;
-        }
-      }
-    });
 
     // engagement summary
     const engagementRes = await pool.query(
@@ -3079,13 +3179,13 @@ exports.viewStudentProgress = async (req, res) => {
         WHERE user_id = $1
       `;
 
-          const params = [userId];
+      const params = [userId];
 
-          if (interval) {
-            query += ` AND created_at > NOW() - INTERVAL '${interval}'`;
-          }
+      if (interval) {
+        query += ` AND created_at > NOW() - INTERVAL '${interval}'`;
+      }
 
-          query += `
+      query += `
         GROUP BY DATE(created_at)
         ORDER BY date DESC
       `;
@@ -3117,11 +3217,10 @@ exports.viewStudentProgress = async (req, res) => {
     const engagement = {
       totalActivities: Number(engagementBase.total_activities || 0),
 
-      lessonTime: Math.round(totalLessonTime),
-      assignmentTime: Math.round(totalAssignmentTime),
+      lessonTime: formatTimeReadable(totalLessonTime),
+      assignmentTime: formatTimeReadable(totalAssignmentTime),
 
-      totalTimeSpent: Math.round(totalTime),
-      totalTimeFormatted: formatTime(totalTime),
+      totalTimeSpent: formatTimeReadable(totalTime),
 
       lastActive: engagementBase.last_active || null,
 
@@ -3132,39 +3231,12 @@ exports.viewStudentProgress = async (req, res) => {
         all: summarizeDays(activeDaysAll),
       },
 
-      consistencyScore: Math.min(100, ((activeDaysWeek.length + activeDaysMonth.length) / 2) * 15),
+      consistencyScore: Math.min(
+        100,
+        ((activeDaysWeek.length + activeDaysMonth.length) / 2) * 15,
+      ),
     };
 
-    // const engagement = {
-    //   totalActivities: Number(engagementBase.total_activities || 0),
-
-    //   lessonTime: Math.round(totalLessonTime),
-    //   assignmentTime: Math.round(totalAssignmentTime),
-
-    //   totalTimeSpent: Math.round(totalTime),
-
-    //   totalTimeFormatted: formatTime(totalTime),
-
-    //   lastActive: engagementBase.last_active || null,
-
-    //   // activeDays: {
-    //   //   week: activeDaysWeek,
-    //   //   month: activeDaysMonth,
-    //   //   year: activeDaysYear,
-    //   //   all: activeDaysAll,
-    //   // },
-
-    //   activeDays: {
-    //     week: activeDaysWeek,
-    //     month: activeDaysMonth,
-    //     year: activeDaysYear,
-    //     all: activeDaysAll,
-    //   },
-
-    //   consistencyScore: Math.min(100, consistencyBase * 15),
-    // };
-
-    
     const quizScores = allQuizzes.map((q) => q.score);
     const assignmentScores = allAssignments.map((a) => a.total || 0);
 
@@ -3173,18 +3245,25 @@ exports.viewStudentProgress = async (req, res) => {
       : 0;
 
     const assignmentAvgMetric = assignmentScores.length
-      ? Math.round(assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length)
+      ? Math.round(
+          assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length,
+        )
       : 0;
 
     const passRate = allQuizzes.length
-      ? Math.round((allQuizzes.filter((q) => q.passed).length / allQuizzes.length) * 100)
+      ? Math.round(
+          (allQuizzes.filter((q) => q.passed).length / allQuizzes.length) * 100,
+        )
       : 0;
 
     // =========================
     // PROGRESS
     // =========================
     const totalLessonsCount = courses.reduce((a, c) => a + c.totalLessons, 0);
-    const completedLessonsCount = courses.reduce((a, c) => a + c.completedLessons, 0);
+    const completedLessonsCount = courses.reduce(
+      (a, c) => a + c.completedLessons,
+      0,
+    );
 
     const progressPercent = totalLessonsCount
       ? Math.round((completedLessonsCount / totalLessonsCount) * 100)
@@ -3194,7 +3273,10 @@ exports.viewStudentProgress = async (req, res) => {
     // BEHAVIOR
     // =========================
     const inactivityDays = engagement.lastActive
-      ? Math.floor((Date.now() - new Date(engagement.lastActive)) / (1000 * 60 * 60 * 24))
+      ? Math.floor(
+          (Date.now() - new Date(engagement.lastActive)) /
+            (1000 * 60 * 60 * 24),
+        )
       : 999;
 
     const isInactive = inactivityDays > 3;
@@ -3220,10 +3302,10 @@ exports.viewStudentProgress = async (req, res) => {
       riskFlags.length >= 3
         ? "High Risk"
         : riskFlags.length === 2
-        ? "Medium Risk"
-        : riskFlags.length === 1
-        ? "Low Risk"
-        : "Healthy";
+          ? "Medium Risk"
+          : riskFlags.length === 1
+            ? "Low Risk"
+            : "Healthy";
 
     // =========================
     // PLATFORM SCORE
@@ -3283,7 +3365,6 @@ exports.viewStudentProgress = async (req, res) => {
       metrics,
       membershipDuration,
     });
-
   } catch (err) {
     console.error("View student progress error:", err.message);
     res.status(500).send("Failed to fetch progress");
@@ -4591,14 +4672,104 @@ exports.getSchoolDetails = async (req, res) => {
       ORDER BY t.created_at DESC
     `, [id]);
 
-    school.terms = termsResult.rows;
+    // school.terms = termsResult.rows;
+
+    const today = new Date();
+
+    school.terms = termsResult.rows.map(term => {
+      const start = new Date(term.start_date);
+      const end = new Date(term.end_date);
+
+      let status = "past"; // default
+      let label = "🔴 Past";
+
+      if (today < start) {
+        status = "upcoming";
+        label = "🟡 Not yet resumed";
+      } else if (today >= start && today <= end) {
+        status = "active";
+        label = "🟢 Active";
+      }
+
+      return {
+        ...term,
+        status,
+        statusLabel: label
+      };
+    });
 
 
     // Fetch quotes
+    // const quotesResult = await pool.query(
+    //   `SELECT * FROM quotes WHERE school_id = $1 ORDER BY created_at DESC`,
+    //   [id]
+    // );
+
     const quotesResult = await pool.query(
-      `SELECT * FROM quotes WHERE school_id = $1 ORDER BY created_at DESC`,
+      `SELECT 
+        q.*, 
+        t.name AS term_name
+      FROM quotes q
+      JOIN academic_terms t ON q.term_id = t.id
+      WHERE q.school_id = $1
+      ORDER BY q.created_at DESC`,
       [id]
     );
+
+    const quotes = quotesResult.rows;
+
+    // ✅ Ensure every term has a quote
+    for (const term of school.terms) {
+      const existingQuote = quotes.find(q => q.term_id === term.term_id);
+
+      if (!existingQuote) {
+        await pool.query(
+          `INSERT INTO quotes 
+          (school_id, term_id, price_per_student, total_students, total_amount, status)
+          VALUES ($1, $2, $3, $4, $5, 'unpaid')`,
+          [id, term.term_id, 0, 0, 0],
+        );
+      }
+    }
+
+    // 🔁 Re-fetch updated quotes
+    const updatedQuotesResult = await pool.query(
+      `SELECT 
+        q.*, 
+        t.name AS term_name
+      FROM quotes q
+      JOIN academic_terms t ON q.term_id = t.id
+      WHERE q.school_id = $1`,
+      [id]
+    );
+
+    const updatedQuotes = updatedQuotesResult.rows;
+
+    // school.terms = school.terms.map(term => {
+    //   const quote = quotes.find(q => q.term_id === term.term_id);
+
+    //   return {
+    //     ...term,
+    //     quote: quote || null
+    //   };
+    // });
+
+    school.terms = school.terms.map((term) => {
+      const quote = updatedQuotes.find((q) => q.term_id === term.term_id);
+
+      const totalStudents = term.student_count || 0;
+      const price = quote?.price_per_student || 0;
+
+      return {
+        ...term,
+        quote: quote
+          ? {
+              ...quote,
+              total_amount: totalStudents * price,
+            }
+          : null,
+      };
+    });
 
     const totalsResult = await pool.query(
       `
@@ -5364,6 +5535,51 @@ exports.getQuotes = async (req, res) => {
   }
 };
 
+exports.downloadQuotePDF = async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(`
+    SELECT q.*, s.name AS school_name, t.name AS term_name
+    FROM quotes q
+    JOIN schools s ON q.school_id = s.id
+    JOIN academic_terms t ON q.term_id = t.id
+    WHERE q.id = $1
+  `, [id]);
+
+  const q = result.rows[0];
+
+  const html = `
+    <h1>${q.school_name}</h1>
+    <p>Term: ${q.term_name}</p>
+    <p>Students: ${q.total_students}</p>
+    <p>Price per Student: ₦${q.price_per_student}</p>
+    <h2>Total: ₦${q.total_amount}</h2>
+    <p>Status: ${q.status}</p>
+  `;
+
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.setContent(html);
+  const pdf = await page.pdf({ format: "A4" });
+  await browser.close();
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=quote.pdf`);
+  res.send(pdf);
+};
+
+exports.updateQuoteStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  await pool.query(
+    "UPDATE quotes SET status = $1 WHERE id = $2",
+    [status, id]
+  );
+
+  res.redirect("/admin/quotes");
+};
+
 // 📌 GET: School Courses (assignments)
 exports.getSchoolCourses = async (req, res) => {
   try {
@@ -5954,22 +6170,64 @@ exports.assignUsersToClassroom = async (req, res) => {
   }
 };
 
+// exports.createTerm = async (req, res) => {
+//   try {
+//     const { school_id, name, start_date, end_date } = req.body;
+
+//     // Make all other terms inactive for this school
+//     await pool.query(
+//       "UPDATE academic_terms SET is_active = false WHERE school_id = $1",
+//       [school_id]
+//     );
+
+//     // Create new active term
+//     await pool.query(
+//       `INSERT INTO academic_terms 
+//        (school_id, name, start_date, end_date, is_active)
+//        VALUES ($1, $2, $3, $4, true)`,
+//       [school_id, name, start_date, end_date]
+//     );
+
+//     res.redirect(`/admin/schools/${school_id}`);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error creating term");
+//   }
+// };
+
 exports.createTerm = async (req, res) => {
   try {
-    const { school_id, name, start_date, end_date } = req.body;
+    const { school_id, name, start_date, end_date, price_per_student } =
+      req.body;
 
-    // Make all other terms inactive for this school
+    // deactivate old terms
     await pool.query(
       "UPDATE academic_terms SET is_active = false WHERE school_id = $1",
-      [school_id]
+      [school_id],
     );
 
-    // Create new active term
-    await pool.query(
+    // create term
+    const termResult = await pool.query(
       `INSERT INTO academic_terms 
        (school_id, name, start_date, end_date, is_active)
-       VALUES ($1, $2, $3, $4, true)`,
-      [school_id, name, start_date, end_date]
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id`,
+      [school_id, name, start_date, end_date],
+    );
+
+    const termId = termResult.rows[0].id;
+
+    // count students (initially 0)
+    const studentCount = 0;
+
+    const totalAmount = studentCount * price_per_student;
+
+    // ✅ create quote automatically
+    await pool.query(
+      `INSERT INTO quotes 
+       (school_id, term_id, price_per_student, total_students, total_amount, status)
+       VALUES ($1, $2, $3, $4, $5, 'unpaid')`,
+      [school_id, termId, price_per_student, studentCount, totalAmount],
     );
 
     res.redirect(`/admin/schools/${school_id}`);
@@ -5987,15 +6245,58 @@ exports.deleteTerm = async (req, res) => {
   res.sendStatus(200);
 };
 
+// exports.updateTerm = async (req, res) => {
+//   const { id } = req.params;
+//   // const { name, start_date, end_date } = req.body;
+
+//   // await pool.query(
+//   //   `UPDATE academic_terms
+//   //    SET name=$1, start_date=$2, end_date=$3
+//   //    WHERE id=$4`,
+//   //   [name, start_date, end_date, id],
+//   // );
+
+//   const { name, start_date, end_date, price_per_student } = req.body;
+//   console.log("PRICE:", price_per_student, typeof price_per_student);
+//   await pool.query(
+//     `UPDATE academic_terms
+//     SET name=$1, start_date=$2, end_date=$3
+//     WHERE id=$4`,
+//     [name, start_date, end_date, id]
+//   );
+
+//   const price = parseFloat(price_per_student) || 0;
+
+//   await pool.query(
+//     `UPDATE quotes 
+//     SET price_per_student = $1::numeric,
+//         total_amount = total_students * $1::numeric
+//     WHERE term_id = $2`,
+//     [price, id]
+//   );
+
+//   res.sendStatus(200);
+// };
+
 exports.updateTerm = async (req, res) => {
   const { id } = req.params;
-  const { name, start_date, end_date } = req.body;
+  const { name, start_date, end_date, price_per_student } = req.body;
+
+  const price = parseFloat(price_per_student) || 0;
 
   await pool.query(
     `UPDATE academic_terms
      SET name=$1, start_date=$2, end_date=$3
      WHERE id=$4`,
     [name, start_date, end_date, id],
+  );
+
+  await pool.query(
+    `UPDATE quotes 
+     SET price_per_student = $1::numeric,
+         total_amount = total_students * $1::numeric
+     WHERE term_id = $2`,
+    [price, id],
   );
 
   res.sendStatus(200);
@@ -6021,10 +6322,14 @@ exports.getTermStudents = async (req, res) => {
       u.id,
       u.fullname,
       u.email,
-      c.name AS classroom
+      c.name AS classroom,
+      q.price_per_student,
+      q.total_amount,
+      q.status
     FROM student_term_enrollments ts
     JOIN users2 u ON ts.student_id = u.id
     LEFT JOIN classrooms c ON c.id = ts.classroom_id
+    LEFT JOIN quotes q ON q.term_id = ts.term_id
     WHERE ts.term_id = $1
     ORDER BY u.fullname
   `,
@@ -6082,6 +6387,31 @@ exports.assignStudentsToTerm = async (req, res) => {
       DO UPDATE SET classroom_id = EXCLUDED.classroom_id
       `,
       params,
+    );
+
+    // count students in this term
+    const countRes = await pool.query(
+      `SELECT COUNT(*) FROM student_term_enrollments WHERE term_id = $1`,
+      [term_id]
+    );
+
+    const studentCount = Number(countRes.rows[0].count);
+
+    // get price
+    const quoteRes = await pool.query(
+      `SELECT price_per_student FROM quotes WHERE term_id = $1`,
+      [term_id]
+    );
+
+    const price = quoteRes.rows[0].price_per_student;
+    const total = studentCount * price;
+
+    // update quote
+    await pool.query(
+      `UPDATE quotes 
+      SET total_students = $1, total_amount = $2
+      WHERE term_id = $3`,
+      [studentCount, total, term_id]
     );
 
     res.redirect(`/admin/schools/${school_id}`);

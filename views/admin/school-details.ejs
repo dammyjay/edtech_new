@@ -160,6 +160,9 @@
             <th>Students</th>
             <th>Status</th>
             <th>Action</th>
+            <th>Price/Student</th>
+            <th>Total Amount</th>
+            <th>Payment</th>
           </tr>
         </thead>
         <tbody>
@@ -169,7 +172,7 @@
               <td><%= term.start_date %> → <%= term.end_date %></td>
               <td><%= term.student_count %></td>
               <td>
-                <%= term.is_active ? "🟢 Active" : "🔴 Past" %>
+                <%= term.statusLabel %>
               </td>
               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
                 <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
@@ -193,6 +196,37 @@
                 <a href="/admin/terms/<%= term.term_id %>/export-excel" class="no-bg">
                   <i class="fa-solid fa-file-excel" style="color: green;"></i>
                 </a>
+                <% if (term.quote) { %>
+                  <a href="/admin/quotes/<%= term.quote.id %>/download" class="no-bg">
+                    <i class="fa-solid fa-file-pdf" style="color: red;"></i>
+                  </a>
+                <% } else { %>
+                  -
+                <% } %>
+              </td>
+              <td>
+                ₦<%= term.quote?.price_per_student || 0 %>
+              </td>
+
+              <td>
+                ₦<%= term.quote?.total_amount || 0 %>
+              </td>
+
+              <td>
+                <% if (term.quote) { %>
+                  <form action="/admin/quotes/<%= term.quote.id %>/status" method="POST">
+                    <select name="status" onchange="this.form.submit()">
+                      <option value="unpaid" <%= term.quote.status === 'unpaid' ? 'selected' : '' %>>
+                        ❌ Not Paid
+                      </option>
+                      <option value="paid" <%= term.quote.status === 'paid' ? 'selected' : '' %>>
+                        ✅ Paid
+                      </option>
+                    </select>
+                  </form>
+                <% } else { %>
+                  -
+                <% } %>
               </td>
             </tr>
 
@@ -696,6 +730,7 @@
       <input type="text" name="name" placeholder="2024/2025 - Term 1" required />
       <input type="date" name="start_date" required />
       <input type="date" name="end_date" required />
+      <input type="number" name="price_per_student" placeholder="Price per student" required />
 
       <button type="submit">Create</button>
     </form>
@@ -766,6 +801,7 @@
       <input type="text" id="edit_term_name" required>
       <input type="date" id="edit_start_date" required>
       <input type="date" id="edit_end_date" required>
+      <input type="number" id="edit_price_per_student" required min="0" step="0.01">
 
       <button type="submit">Update</button>
     </form>
@@ -1708,11 +1744,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- Script for editing term  -->
  <script>
-  function openEditTermModal(id, name, start, end) {
+  function openEditTermModal(id, name, start, end, price) {
     document.getElementById("edit_term_id").value = id;
     document.getElementById("edit_term_name").value = name;
     document.getElementById("edit_start_date").value = start;
     document.getElementById("edit_end_date").value = end;
+    document.getElementById("edit_price_per_student").value = price || 0; // ✅ ADD
 
     openModal("editTermModal");
   }
@@ -1728,7 +1765,8 @@ document.addEventListener("DOMContentLoaded", () => {
       body: JSON.stringify({
         name: document.getElementById("edit_term_name").value,
         start_date: document.getElementById("edit_start_date").value,
-        end_date: document.getElementById("edit_end_date").value
+        end_date: document.getElementById("edit_end_date").value,
+        price_per_student: Number(document.getElementById("edit_price_per_student").value) // ✅ ADD THIS
       })
     });
 

@@ -415,6 +415,8 @@ router.get("/schools/:id/export-students-excel", adminController.exportStudentsE
 
 // for quotes and course assignment
 router.get("/quotes", adminController.getQuotes);
+router.get("/quotes/:id/download", adminController.downloadQuotePDF);
+router.post("/quotes/:id/status", adminController.updateQuoteStatus);
 router.get("/school-courses", adminController.getSchoolCourses);
 router.post("/school-courses/assign", adminController.assignSchoolCourses);
 

@@ -1169,19 +1169,65 @@ exports.addStudentToClassroom = async (req, res) => {
 
 
 // ------------------ QUOTES ------------------ //
+// exports.getQuotes = async (req, res) => {
+//   try {
+//     const schoolRes = await pool.query(
+//       `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+//       [req.session.user.id]
+//     );
+
+//     const schoolId = schoolRes.rows[0].id;
+//     const quotes = await pool.query(
+//       "SELECT id, text, author FROM quotes WHERE school_id=$1 ORDER BY id DESC",
+//       [schoolId]
+//     );
+//     res.render("partials/quotes", { quotes: quotes.rows });
+//   } catch (err) {
+//     console.error("Error fetching quotes:", err);
+//     res.status(500).send("Server Error");
+//   }
+// };
+
 exports.getQuotes = async (req, res) => {
   try {
+    // get school created by this admin
     const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      `SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1`,
       [req.session.user.id]
     );
 
+    if (schoolRes.rows.length === 0) {
+      return res.status(404).send("No school found");
+    }
+
     const schoolId = schoolRes.rows[0].id;
-    const quotes = await pool.query(
-      "SELECT id, text, author FROM quotes WHERE school_id=$1 ORDER BY id DESC",
+
+    // ✅ NEW QUERY (term-based quotes)
+    const quotesResult = await pool.query(
+      `SELECT 
+        q.id,
+        q.term_id,
+        q.price_per_student,
+        q.total_students,
+        q.total_amount,
+        q.status,
+        q.created_at,
+        s.name AS school_name,
+        t.name AS term_name
+      FROM quotes q
+      JOIN schools s ON q.school_id = s.id
+      JOIN academic_terms t ON q.term_id = t.id
+      WHERE q.school_id = $1
+      ORDER BY q.created_at DESC`,
       [schoolId]
     );
-    res.render("partials/quotes", { quotes: quotes.rows });
+
+    res.render("admin/quotes", {
+      quotes: quotesResult.rows,
+      currentPage: "quotes",
+      role: "admin"
+    });
+
   } catch (err) {
     console.error("Error fetching quotes:", err);
     res.status(500).send("Server Error");
@@ -1211,7 +1257,6 @@ const schoolId = schoolRes.rows[0].id;
     res.status(500).send("Server Error");
   }
 };
-
 
 exports.deleteQuote = async (req, res) => {
   try {
