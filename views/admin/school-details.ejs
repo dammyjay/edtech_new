@@ -212,30 +212,19 @@
                 ₦<%= term.quote?.total_amount || 0 %>
               </td>
 
-              <!-- <td>
-                <% if (term.quote) { %>
-                  <form action="/admin/quotes/<%= term.quote.id %>/status" class="no-bg" method="POST">
-                    <select name="status" onchange="this.form.submit()">
-                      <option value="unpaid" <%= term.quote.status === 'unpaid' ? 'selected' : '' %>>
-                        ❌ Not Paid
-                      </option>
-                      <option value="paid" <%= term.quote.status === 'paid' ? 'selected' : '' %>>
-                        ✅ Paid
-                      </option>
-                    </select>
-                  </form>
-                <% } else { %>
-                  -
-                <% } %>
-              </td> -->
-
               <td>
                 <% if (term.quote) { %>
                   <button 
                     class="payment-toggle <%= term.quote.status %>" 
                     onclick="togglePayment('<%= term.quote.id %>', '<%= term.quote.status %>')">
                     
-                    <%= term.quote.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %>
+                    <% if (term.quote.status === 'paid') { %>
+                      ✅ Paid
+                    <% } else if (term.quote.status === 'partial') { %>
+                      ⚠️ Part Payment
+                    <% } else { %>
+                      ❌ Not Paid
+                    <% } %>
                   </button>
                 <% } else { %>
                   -

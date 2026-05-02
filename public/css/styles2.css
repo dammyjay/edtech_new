@@ -2903,6 +2903,17 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
       background: #f8d7da;
       color: #721c24;
   }
+
+  .payment-toggle.partial {
+      background: rgb(253, 238, 209);
+      color: orange;
+  }
+
+  .analytics-container {
+      width: 95%;
+      margin: 20px auto;
+      padding: 20px;
+  }
 /* Tablet screens (≤1024px) */
 @media (max-width: 1024px) {
     .slide-box {

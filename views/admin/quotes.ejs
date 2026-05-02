@@ -1,58 +1,141 @@
 
 <%- include('../partials/adminHeader', { title: 'Quotes' }) %>
 
+  <style>
+    /* small local styles — integrate into your style.css later */
+    .analytics-container { width: 95%; margin: 20px auto; padding: 20px;}
+    .cards { display:flex; gap:16px; flex-wrap:wrap; }
+    .card { background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.08); flex:1 1 220px; min-width:180px; }
+    .charts { display:flex; gap:16px; margin-top:16px; flex-wrap:wrap; }
+    .chart-card { flex:1 1 480px; background:#fff; padding:16px; border-radius:8px; }
+    .table-responsive { margin-top:20px; }
+    .filter-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+    .activity-feed { max-height:360px; overflow:auto; background:#fff; padding:12px; border-radius:8px; }
+  </style>
+
 <h2>All Quotes</h2>
+
+<div class="analytics-container">
+  <h1>Financial Analytics</h1>
+
+  <div class="filter-row">
+    <label>Range:
+      <select id="rangeSelect">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </label>
+
+    <label style="margin-left:8px;">School:
+      <select id="schoolFilter"><option value="">All Schools</option></select>
+    </label>
+
+    <button id="refreshBtn">Refresh</button>
+  </div>
+
+  <!-- 🔥 FINANCE CARDS -->
+  <section class="engagement-section">
+    <div class="engagement-grid">
+
+      <!-- TOTAL EXPECTED -->
+      <div class="metric-card" style="border-bottom: 6px solid #1079f2;">
+        <div class="card-icon" style="background-color: #1079f2;">
+          <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div class="card-content">
+          <h4>Total Expected</h4>
+          <h3 id="cardTotalExpected">₦0</h3>
+        </div>
+      </div>
+
+      <!-- TOTAL PAID -->
+      <div class="metric-card" style="border-bottom: 6px solid #025a10;">
+        <div class="card-icon" style="background-color: #025a10;">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <div class="card-content">
+          <h4>Total Collected</h4>
+          <h3 id="cardTotalPaid">₦0</h3>
+        </div>
+      </div>
+
+      <!-- OUTSTANDING -->
+      <div class="metric-card" style="border-bottom: 6px solid #c70404;">
+        <div class="card-icon" style="background-color: #c70404;">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="card-content">
+          <h4>Outstanding</h4>
+          <h3 id="cardOutstanding">₦0</h3>
+        </div>
+      </div>
+
+      <!-- COLLECTION RATE -->
+      <div class="metric-card" style="border-bottom: 6px solid #6610f2;">
+        <div class="card-icon" style="background-color: #6610f2;">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="card-content">
+          <h4>Collection Rate</h4>
+          <h3 id="cardCollectionRate">0%</h3>
+        </div>
+      </div>
+
+      <!-- PAID QUOTES -->
+      <div class="metric-card" style="border-bottom: 6px solid #29c50a;">
+        <div class="card-icon" style="background-color: #29c50a;">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="card-content">
+          <h4>Paid Quotes</h4>
+          <h3 id="cardPaidQuotes">0</h3>
+        </div>
+      </div>
+
+      <!-- PARTIAL -->
+      <div class="metric-card" style="border-bottom: 6px solid orange;">
+        <div class="card-icon" style="background-color: orange;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="card-content">
+          <h4>Partial Payments</h4>
+          <h3 id="cardPartialQuotes">0</h3>
+        </div>
+      </div>
+
+      <!-- UNPAID -->
+      <div class="metric-card" style="border-bottom: 6px solid red;">
+        <div class="card-icon" style="background-color: red;">
+          <i class="fa-solid fa-xmark"></i>
+        </div>
+        <div class="card-content">
+          <h4>Unpaid Quotes</h4>
+          <h3 id="cardUnpaidQuotes">0</h3>
+        </div>
+      </div>
+
+    </div>
+  </section>
+  <div class="chart-card">
+    <h4>Payment Trends</h4>
+    <canvas id="paymentChart" height="150"></canvas>
+  </div>
+</div>
+
+
 <div class="table-responsive">
   <table class="user-table" style="width:100%; margin-top:20px;">
-    <!-- <thead>
-      <tr>
-        <th>School Name</th>
-        <th>Requested Students</th>
-        <th>Price Quote</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    
-    <tbody>
-      <% quotes.forEach(q => { %>
-        <tr>
-          <td><%= q.school_name %></td>
-          <td><%= q.requested_students %></td>
-          <td><%= q.price_quote %></td>
-           <td>
-          <form action="/admin/quotes/<%= q.id %>/status" method="POST">
-            <select name="status" onchange="this.form.submit()">
-              <option value="unpaid" <%= q.status === 'unpaid' ? 'selected' : '' %>>❌ Not Paid</option>
-              <option value="paid" <%= q.status === 'paid' ? 'selected' : '' %>>✅ Paid</option>
-            </select>
-          </form>
-        </td>
-          <td>
-            <% if (q.status === 'pending') { %>
-              <form action="/admin/quotes/<%= q.id %>/approve" method="POST" style="display:inline;">
-                <button type="submit" class="btn-approve">✅ Approve</button>
-              </form>
-              <form action="/admin/quotes/<%= q.id %>/reject" method="POST" style="display:inline;">
-                <button type="submit" class="btn-reject">❌ Reject</button>
-              </form>
-            <% } %>
-
-            <a href="/admin/school-courses?school_id=<%= q.school_id %>" class="btn-assign">
-              🎓 Assign Courses
-            </a>
-          </td>
-        </tr>
-      <% }) %>
-    </tbody> -->
-
     <thead>
       <tr>
+        <th>ID</th>
         <th>School</th>
         <th>Term</th>
         <th>Students</th>
         <th>Price / Student</th>
         <th>Total Amount</th>
+        <th>Total Paid</th>
+        <th>Balance</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
@@ -61,11 +144,14 @@
     <tbody>
       <% quotes.forEach(q => { %>
         <tr>
+          <td><%= q.id %></td>
           <td><%= q.school_name %></td>
           <td><%= q.term_name %></td>
           <td><%= q.total_students %></td>
           <td>₦<%= q.price_per_student %></td>
           <td>₦<%= q.total_amount %></td>
+          <td>₦<%= q.total_paid.toLocaleString() %></td>
+          <td>₦<%= q.balance.toLocaleString() %></td>
           <td>
             <!-- <form action="/admin/quotes/<%= q.id %>/status" class="no-bg" method="POST">
               <select name="status" onchange="this.form.submit()">
@@ -74,17 +160,121 @@
               </select>
             </form> -->
             <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
-              <%= q.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %>
+              <!-- <%= q.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %> -->
+               <% if(q.status === 'paid') { %>
+                <span style="color:green;">✅ Paid</span>
+              <% } else if(q.status === 'partial') { %>
+                <span style="color:orange;">⚠️ Part Payment</span>
+              <% } else { %>
+                <span style="color:red;">❌ Not Paid</span>
+              <% } %>
             </button>
           </td>
           <td>
-            <a href="/admin/quotes/<%= q.id %>/download">📄 PDF</a>
+            <!-- <a href="/admin/quotes/<%= q.id %>/download">📄 PDF</a> -->
+            <a href="/admin/quotes/<%= q.id %>/download" class="no-bg">
+              <i class="fa-solid fa-file-pdf" style="color: red;"></i>
+            </a>
+            <a href="#" onclick="openPaymentModal('<%= q.id %>', '<%= q.school_id %>'); return false;" class="no-bg">
+              <i class="fa-solid fa-credit-card" style="color: green;"></i>
+            </a>
           </td>
         </tr>
       <% }) %>
     </tbody>
   </table>
 </div>
+
+
+<!-- Payment modal -->
+<div id="paymentModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('paymentModal')">&times;</span>
+
+    <h2>💳 Add Payment</h2>
+    <p id="quoteInfo"></p>
+    <form action="/admin/payments" method="POST">
+      <input type="hidden" name="quote_id" id="modalQuoteId">
+      <input type="hidden" name="school_id" id="modalSchoolId">
+
+      <label>Amount</label>
+      <input type="number" name="amount" placeholder="Enter amount" required>
+
+      <button type="submit">Submit Payment</button>
+    </form>
+  </div>
+</div>
+
+<!-- chart script -->
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const trend = <%- JSON.stringify(trend || []) %>;
+
+  const labels = trend.map(t => t.day);
+  const data = trend.map(t => Number(t.total));
+
+  new Chart(document.getElementById("paymentChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Payments",
+        data,
+        fill: true
+      }]
+    }
+  });
+</script>
+
+<!-- Analytics script -->
+<script>
+  const summary = <%- JSON.stringify(summary || {}) %>;
+
+  const totalExpected = Number(summary.total_expected || 0);
+  const totalPaid = Number(summary.total_paid || 0);
+  const outstanding = Number(summary.outstanding || 0);
+
+  const rate = totalExpected > 0 
+    ? ((totalPaid / totalExpected) * 100).toFixed(1)
+    : 0;
+
+  // Fill cards
+  document.getElementById("cardTotalExpected").innerText = "₦" + totalExpected.toLocaleString();
+  document.getElementById("cardTotalPaid").innerText = "₦" + totalPaid.toLocaleString();
+  document.getElementById("cardOutstanding").innerText = "₦" + outstanding.toLocaleString();
+  document.getElementById("cardCollectionRate").innerText = rate + "%";
+
+  document.getElementById("cardPaidQuotes").innerText = summary.paid_quotes || 0;
+  document.getElementById("cardPartialQuotes").innerText = summary.partial_quotes || 0;
+  document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
+</script>
+
+<!-- Payment modal script -->
+<script>
+
+  function openPaymentModal(quoteId, schoolId) {
+    document.getElementById('modalQuoteId').value = quoteId;
+    document.getElementById('modalSchoolId').value = schoolId;
+
+    document.getElementById('quoteInfo').innerText =
+      "Adding payment for Quote #" + quoteId;
+
+    document.getElementById('paymentModal').style.display = 'flex';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  // optional: close when clicking outside
+  window.onclick = function(e) {
+    const modal = document.getElementById('paymentModal');
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  }
+</script>
 
 <script>
   async function togglePayment(id, currentStatus) {

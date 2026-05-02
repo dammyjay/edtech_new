@@ -608,6 +608,15 @@ async function createTables() {
           created_at TIMESTAMP DEFAULT NOW()
         );
 
+        ALTER TABLE school_payments
+        DROP COLUMN IF EXISTS student_limit,
+        DROP COLUMN IF EXISTS start_date,
+        DROP COLUMN IF EXISTS end_date,
+        DROP COLUMN IF EXISTS status;
+
+        ALTER TABLE school_payments
+        ADD COLUMN IF NOT EXISTS payment_date TIMESTAMP DEFAULT NOW();
+
       `);
     
     // table for school payment adjustments

@@ -5513,33 +5513,162 @@ exports.getClassroomCourses = async (req, res) => {
   }
 };
 
+// exports.addPayment = async (req, res) => {
+//   try {
+//     const { quote_id, amount, school_id } = req.body;
+//     const amountValue = parseFloat(amount) || 0;
+
+//     await pool.query(
+//       `INSERT INTO school_payments (school_id, quote_id, amount)
+//        VALUES ($1, $2, $3)`,
+//       [school_id, quote_id, amountValue],
+//     );
+
+//     res.redirect("/admin/quotes");
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error adding payment");
+//   }
+// };
+
 // 📌 GET: Quotes
+
+exports.addPayment = async (req, res) => {
+  try {
+    const { quote_id, amount, school_id } = req.body;
+
+    const amountValue = parseFloat(amount) || 0;
+
+    // ✅ 1. Insert payment
+    await pool.query(
+      `INSERT INTO school_payments (school_id, quote_id, amount)
+       VALUES ($1, $2, $3)`,
+      [school_id, quote_id, amountValue]
+    );
+
+    // ✅ 2. Get total paid
+    const paidRes = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS total_paid
+       FROM school_payments
+       WHERE quote_id = $1`,
+      [quote_id]
+    );
+
+    const totalPaid = parseFloat(paidRes.rows[0].total_paid);
+
+    // ✅ 3. Get total amount from quote
+    const quoteRes = await pool.query(
+      `SELECT total_amount FROM quotes WHERE id = $1`,
+      [quote_id]
+    );
+
+    const totalAmount = parseFloat(quoteRes.rows[0].total_amount);
+
+    // ✅ 4. Determine status
+    let status = "unpaid";
+
+    if (totalPaid === 0) {
+      status = "unpaid";
+    } else if (totalPaid < totalAmount) {
+      status = "partial";
+    } else {
+      status = "paid";
+    }
+
+    // ✅ 5. Update quote status
+    await pool.query(
+      `UPDATE quotes SET status = $1 WHERE id = $2`,
+      [status, quote_id]
+    );
+
+    res.redirect("/admin/quotes");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error adding payment");
+  }
+};
+
 exports.getQuotes = async (req, res) => {
   try {
 
     const result = await pool.query(`
-      SELECT 
-        q.id,
-        q.school_id,
-        s.name AS school_name,
-        t.name AS term_name,
-        q.price_per_student,
-        COUNT(ts.student_id) AS total_students,
-        (COUNT(ts.student_id) * COALESCE(q.price_per_student, 0)) AS total_amount,
-        q.status
-      FROM quotes q
-      JOIN schools s ON q.school_id = s.id
-      JOIN academic_terms t ON q.term_id = t.id
-      LEFT JOIN student_term_enrollments ts 
-        ON ts.term_id = q.term_id
-      GROUP BY q.id, s.name, t.name
-      ORDER BY q.created_at DESC
-    `);
+     SELECT 
+      q.id,
+      q.school_id,
+      s.name AS school_name,
+      t.name AS term_name,
+      q.price_per_student,
+
+      COALESCE(st.total_students, 0) AS total_students,
+
+      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) AS total_amount,
+
+      COALESCE(p.total_paid, 0) AS total_paid,
+
+      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+        - COALESCE(p.total_paid, 0) AS balance,
+
+      CASE 
+        WHEN COALESCE(p.total_paid, 0) = 0 THEN 'unpaid'
+        WHEN COALESCE(p.total_paid, 0) < (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) THEN 'partial'
+        ELSE 'paid'
+      END AS status
+
+    FROM quotes q
+    JOIN schools s ON q.school_id = s.id
+    JOIN academic_terms t ON q.term_id = t.id
+
+    -- ✅ students counted separately
+    LEFT JOIN (
+      SELECT term_id, COUNT(*) AS total_students
+      FROM student_term_enrollments
+      GROUP BY term_id
+    ) st ON st.term_id = q.term_id
+
+    -- ✅ payments summed separately
+    LEFT JOIN (
+      SELECT quote_id, SUM(amount) AS total_paid
+      FROM school_payments
+      GROUP BY quote_id
+    ) p ON p.quote_id = q.id
+
+    ORDER BY q.created_at DESC;
+      `);
+    
     const quotes = result.rows;
+
+    const summary = await pool.query(`
+      SELECT 
+        SUM(q.total_amount) AS total_expected,
+        COALESCE(SUM(p.total_paid), 0) AS total_paid,
+        SUM(q.total_amount) - COALESCE(SUM(p.total_paid), 0) AS outstanding,
+
+        COUNT(*) FILTER (WHERE q.status = 'paid') AS paid_quotes,
+        COUNT(*) FILTER (WHERE q.status = 'partial') AS partial_quotes,
+        COUNT(*) FILTER (WHERE q.status = 'unpaid') AS unpaid_quotes
+
+      FROM quotes q
+      LEFT JOIN (
+        SELECT quote_id, SUM(amount) AS total_paid
+        FROM school_payments
+        GROUP BY quote_id
+      ) p ON p.quote_id = q.id
+    `);
+
+    const trend = await pool.query(`
+      SELECT 
+        DATE(created_at) as day,
+        SUM(amount) as total
+      FROM school_payments
+      GROUP BY day
+      ORDER BY day ASC
+    `);
 
     res.render("admin/quotes", {
       info: req.companyInfo || {},
       quotes,
+      summary: summary.rows[0],
+      trend: trend.rows,
       currentPage: "quotes",
       role: "admin", // ✅ important
     });
@@ -5574,186 +5703,6 @@ exports.downloadQuotePDF = async (req, res) => {
 
     const q = result.rows[0];
 
-    // const total = q.total_amount || q.total_students * q.price_per_student;
-
-    // // split payments (60/40 like your design)
-    // const firstPayment = Math.round(total * 0.6);
-    // const secondPayment = total - firstPayment;
-
-    // const html = `
-    // <html>
-    // <head>
-    //   <style>
-    //     body {
-    //       font-family: Arial, sans-serif;
-    //       padding: 30px;
-    //       color: #000;
-    //     }
-
-    //     .header {
-    //       text-align: center;
-    //     }
-
-    //     .header h2 {
-    //       margin: 0;
-    //       font-weight: bold;
-    //     }
-
-    //     .header p {
-    //       margin: 2px;
-    //       font-size: 12px;
-    //     }
-
-    //     .top-section {
-    //       display: flex;
-    //       justify-content: space-between;
-    //       margin-top: 30px;
-    //     }
-
-    //     .invoice-box {
-    //       font-size: 13px;
-    //     }
-
-    //     .bank {
-    //       text-align: right;
-    //       font-weight: bold;
-    //     }
-
-    //     table {
-    //       width: 100%;
-    //       border-collapse: collapse;
-    //       margin-top: 30px;
-    //     }
-
-    //     th, td {
-    //       border: 1px solid #000;
-    //       padding: 8px;
-    //       text-align: center;
-    //       font-size: 13px;
-    //     }
-
-    //     th {
-    //       background: #d4af37;
-    //       color: #000;
-    //     }
-
-    //     .total {
-    //       margin-top: 10px;
-    //       text-align: right;
-    //       font-weight: bold;
-    //     }
-
-    //     .amount-words {
-    //       margin-top: 10px;
-    //       font-size: 12px;
-    //     }
-
-    //     .payment-box {
-    //       margin-top: 10px;
-    //       font-size: 13px;
-    //     }
-
-    //     .signatures {
-    //       margin-top: 60px;
-    //       display: flex;
-    //       justify-content: space-between;
-    //     }
-
-    //     .sign {
-    //       text-align: center;
-    //     }
-
-    //     .line {
-    //       border-top: 1px solid black;
-    //       width: 200px;
-    //       margin: 20px auto 5px;
-    //     }
-    //   </style>
-    // </head>
-
-    // <body>
-
-    //   <div class="header">
-    //     <h2>JAYKIRCH TECHNOLOGY HUB</h2>
-    //     <p>18, Moshood Bakare Street, Adaranijo Gbagada Phase 1</p>
-    //     <p>Tel: 09166767242, 07087522295</p>
-    //   </div>
-
-    //   <div class="top-section">
-    //     <div class="invoice-box">
-    //       <p><strong>Invoice to:</strong></p>
-    //       <p>${q.school_name}</p>
-    //       <p>${q.address || ""}</p>
-
-    //       <p><strong>Payment for:</strong></p>
-    //       <p>${q.term_name}</p>
-    //     </div>
-
-    //     <div class="bank">
-    //       <p>Jaykirch Tech Hub</p>
-    //       <p>Access Bank</p>
-    //       <p>1582579748</p>
-    //     </div>
-    //   </div>
-
-    //   <p style="text-align:right; font-size:12px;">
-    //     Date: ${new Date().toDateString()}
-    //   </p>
-
-    //   <h3 style="text-align:center;">CLASS INVOICE</h3>
-
-    //   <table>
-    //     <thead>
-    //       <tr>
-    //         <th>S/N</th>
-    //         <th>Course</th>
-    //         <th>No. of Students</th>
-    //         <th>Amount / Student</th>
-    //         <th>Total Price (₦)</th>
-    //       </tr>
-    //     </thead>
-    //     <tbody>
-    //       <tr>
-    //         <td>1</td>
-    //         <td>CODING</td>
-    //         <td>${q.total_students}</td>
-    //         <td>₦${q.price_per_student}</td>
-    //         <td>₦${total.toLocaleString()}</td>
-    //       </tr>
-    //     </tbody>
-    //   </table>
-
-    //   <div class="total">
-    //     Total: ₦${total.toLocaleString()}
-    //   </div>
-
-    //   <div class="amount-words">
-    //     <strong>Amount in words:</strong> ₦${total.toLocaleString()} NAIRA ONLY
-    //   </div>
-
-    //   <div class="payment-box">
-    //     <p>1st payment (60%): ₦${firstPayment.toLocaleString()}</p>
-    //     <p>2nd payment (40%): ₦${secondPayment.toLocaleString()}</p>
-    //   </div>
-
-    //   <div class="signatures">
-    //     <div class="sign">
-    //       <div class="line"></div>
-    //       <p>School Director</p>
-    //       <p>Signature & Date</p>
-    //     </div>
-
-    //     <div class="sign">
-    //       <div class="line"></div>
-    //       <p>CEO</p>
-    //       <p>Signature & Date</p>
-    //     </div>
-    //   </div>
-
-    // </body>
-    // </html>
-    // `;
-
     const numberToWords = require('number-to-words');
 
     const total = Number(q.total_amount);
@@ -5764,219 +5713,6 @@ exports.downloadQuotePDF = async (req, res) => {
     const words = numberToWords.toWords(total).toUpperCase();
 
     const today = new Date().toDateString();
-
-    // const html = `
-    // <html>
-    // <head>
-    // <style>
-    //   body {
-    //     font-family: Arial;
-    //     padding: 40px;
-    //     background: #f5f5f5;
-    //   }
-
-    //   .container {
-    //     width: 100%;
-    //     margin: auto;
-    //     background: #fff;
-    //     padding: 30px;
-    //   }
-
-    //   .header {
-    //     text-align: center;
-    //   }
-
-    //   .header img {
-    //     width: 80px;
-    //   }
-
-    //   .title {
-    //     font-weight: bold;
-    //     font-size: 20px;
-    //   }
-
-    //   .sub {
-    //     font-size: 12px;
-    //   }
-
-    //   .top {
-    //     display: flex;
-    //     justify-content: space-between;
-    //     margin-top: 30px;
-    //     font-size: 13px;
-    //   }
-
-    //   .bank {
-    //     text-align: right;
-    //     font-weight: bold;
-    //   }
-
-    //   .date {
-    //     text-align: right;
-    //     margin-top: 10px;
-    //     font-size: 12px;
-    //   }
-
-    //   .section-title {
-    //     text-align: center;
-    //     margin-top: 20px;
-    //     color: #b89b5e;
-    //     font-weight: bold;
-    //   }
-
-    //   table {
-    //     width: 100%;
-    //     border-collapse: collapse;
-    //     margin-top: 15px;
-    //   }
-
-    //   th {
-    //     background: #b89b5e;
-    //     color: #fff;
-    //     font-size: 12px;
-    //     padding: 8px;
-    //   }
-
-    //   td {
-    //     border: 1px solid #000;
-    //     text-align: center;
-    //     padding: 6px;
-    //     font-size: 12px;
-    //   }
-
-    //   .total-row {
-    //     background: #000;
-    //     color: #fff;
-    //     font-weight: bold;
-    //   }
-
-    //   .amount-words {
-    //     margin-top: 10px;
-    //     font-size: 12px;
-    //   }
-
-    //   .payments {
-    //     margin-top: 10px;
-    //     font-size: 12px;
-    //   }
-
-    //   .highlight {
-    //     background: #b89b5e;
-    //     padding: 4px 10px;
-    //     font-weight: bold;
-    //     float: right;
-    //   }
-
-    //   .highlight2 {
-    //     background: #000;
-    //     color: #fff;
-    //     padding: 4px 10px;
-    //     float: right;
-    //   }
-
-    //   .signatures {
-    //     margin-top: 60px;
-    //     display: flex;
-    //     justify-content: space-between;
-    //   }
-
-    //   .sign {
-    //     text-align: center;
-    //   }
-
-    //   .line {
-    //     width: 200px;
-    //     border-top: 1px solid #000;
-    //     margin: auto;
-    //     margin-bottom: 5px;
-    //   }
-    // </style>
-    // </head>
-
-    // <body>
-
-    // <div class="container">
-
-    //   <div class="header">
-    //     <img src="https://acad.jkthub.com/images/JKT%20logo.png" /> <!-- 🔥 replace with your logo URL -->
-    //     <div class="title">JAYKIRCH TECHNOLOGY HUB</div>
-    //     <div class="sub">18, Moshood Bakare Street, Gbagada Phase 1</div>
-    //     <div class="sub">Tel: 09166767242, 07087522295</div>
-    //   </div>
-
-    //   <div class="top">
-    //     <div>
-    //       <b>Invoice to:</b><br/>
-    //       ${q.school_name}<br/>
-    //       ${q.address || ""}
-    //       <br/><br/>
-    //       <b>Payment for:</b><br/>
-    //       ${q.term_name}
-    //     </div>
-
-    //     <div class="bank">
-    //       Jaykirch Tech Hub<br/>
-    //       Access Bank<br/>
-    //       1582579748
-    //     </div>
-    //   </div>
-
-    //   <div class="date">Date: ${today}</div>
-
-    //   <div class="section-title">CODING</div>
-    //   <div class="section-title">CLASS INVOICE</div>
-
-    //   <table>
-    //     <tr>
-    //       <th>S/N</th>
-    //       <th>COURSE</th>
-    //       <th>NUMBER OF STUDENTS</th>
-    //       <th>AMOUNT PER STUDENT</th>
-    //       <th>TOTAL PRICE (₦)</th>
-    //     </tr>
-
-    //     <tr>
-    //       <td>1</td>
-    //       <td>CODING</td>
-    //       <td>${q.total_students}</td>
-    //       <td>₦${Number(q.price_per_student).toLocaleString()}</td>
-    //       <td>₦${total.toLocaleString()}</td>
-    //     </tr>
-
-    //     <tr class="total-row">
-    //       <td colspan="4">Total</td>
-    //       <td>₦${total.toLocaleString()}</td>
-    //     </tr>
-    //   </table>
-
-    //   <div class="amount-words">
-    //     <b>AMOUNT IN WORDS:</b> ${words} NAIRA ONLY
-    //   </div>
-
-    //   <div class="payments">
-    //     <p>1st payment 60% week after midterm <span class="highlight">${firstPayment.toLocaleString()}</span></p>
-    //     <p>Balance 40% end of week before exam <span class="highlight2">${secondPayment.toLocaleString()}</span></p>
-    //   </div>
-
-    //   <div class="signatures">
-    //     <div class="sign">
-    //       <div class="line"></div>
-    //       School Director<br/>
-    //       Signature & Date
-    //     </div>
-
-    //     <div class="sign">
-    //       <div class="line"></div>
-    //       CEO<br/>
-    //       Signature & Date
-    //     </div>
-    //   </div>
-
-    // </div>
-
-    // </body>
-    // </html>
-    // `;
 
     const midTermDate = new Date();
     midTermDate.setDate(midTermDate.getDate() + 14);
@@ -6226,6 +5962,9 @@ exports.downloadQuotePDF = async (req, res) => {
           <span class="highlight2">${secondPayment.toLocaleString()}</span>
         </p>
       </div>
+
+      <p><b>Total Paid:</b> ₦${totalPaid}</p>
+      <p><b>Balance:</b> ₦${balance}</p>
 
       <div class="signatures">
 
@@ -6900,31 +6639,6 @@ exports.assignUsersToClassroom = async (req, res) => {
   }
 };
 
-// exports.createTerm = async (req, res) => {
-//   try {
-//     const { school_id, name, start_date, end_date } = req.body;
-
-//     // Make all other terms inactive for this school
-//     await pool.query(
-//       "UPDATE academic_terms SET is_active = false WHERE school_id = $1",
-//       [school_id]
-//     );
-
-//     // Create new active term
-//     await pool.query(
-//       `INSERT INTO academic_terms 
-//        (school_id, name, start_date, end_date, is_active)
-//        VALUES ($1, $2, $3, $4, true)`,
-//       [school_id, name, start_date, end_date]
-//     );
-
-//     res.redirect(`/admin/schools/${school_id}`);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Error creating term");
-//   }
-// };
-
 exports.createTerm = async (req, res) => {
   try {
     const { school_id, name, start_date, end_date, price_per_student } =
@@ -6974,39 +6688,6 @@ exports.deleteTerm = async (req, res) => {
 
   res.sendStatus(200);
 };
-
-// exports.updateTerm = async (req, res) => {
-//   const { id } = req.params;
-//   // const { name, start_date, end_date } = req.body;
-
-//   // await pool.query(
-//   //   `UPDATE academic_terms
-//   //    SET name=$1, start_date=$2, end_date=$3
-//   //    WHERE id=$4`,
-//   //   [name, start_date, end_date, id],
-//   // );
-
-//   const { name, start_date, end_date, price_per_student } = req.body;
-//   console.log("PRICE:", price_per_student, typeof price_per_student);
-//   await pool.query(
-//     `UPDATE academic_terms
-//     SET name=$1, start_date=$2, end_date=$3
-//     WHERE id=$4`,
-//     [name, start_date, end_date, id]
-//   );
-
-//   const price = parseFloat(price_per_student) || 0;
-
-//   await pool.query(
-//     `UPDATE quotes 
-//     SET price_per_student = $1::numeric,
-//         total_amount = total_students * $1::numeric
-//     WHERE term_id = $2`,
-//     [price, id]
-//   );
-
-//   res.sendStatus(200);
-// };
 
 exports.updateTerm = async (req, res) => {
   const { id } = req.params;
