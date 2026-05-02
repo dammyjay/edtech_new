@@ -5643,25 +5643,34 @@ exports.getQuotes = async (req, res) => {
         COALESCE(SUM(p.total_paid), 0) AS total_paid,
         SUM(q.total_amount) - COALESCE(SUM(p.total_paid), 0) AS outstanding,
 
-        COUNT(*) FILTER (WHERE q.status = 'paid') AS paid_quotes,
-        COUNT(*) FILTER (WHERE q.status = 'partial') AS partial_quotes,
-        COUNT(*) FILTER (WHERE q.status = 'unpaid') AS unpaid_quotes
+        COUNT(*) FILTER (
+          WHERE COALESCE(p.total_paid, 0) = 0
+        ) AS unpaid_quotes,
+
+        COUNT(*) FILTER (
+          WHERE COALESCE(p.total_paid, 0) > 0 
+          AND COALESCE(p.total_paid, 0) < q.total_amount
+        ) AS partial_quotes,
+
+        COUNT(*) FILTER (
+          WHERE COALESCE(p.total_paid, 0) >= q.total_amount
+        ) AS paid_quotes
 
       FROM quotes q
       LEFT JOIN (
         SELECT quote_id, SUM(amount) AS total_paid
         FROM school_payments
         GROUP BY quote_id
-      ) p ON p.quote_id = q.id
+      ) p ON p.quote_id = q.id;
     `);
 
     const trend = await pool.query(`
       SELECT 
-        DATE(created_at) as day,
+        TO_CHAR(created_at, 'YYYY-MM-DD') as day,
         SUM(amount) as total
       FROM school_payments
       GROUP BY day
-      ORDER BY day ASC
+      ORDER BY day ASC;
     `);
 
     res.render("admin/quotes", {

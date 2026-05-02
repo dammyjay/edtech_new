@@ -19,13 +19,13 @@
   <h1>Financial Analytics</h1>
 
   <div class="filter-row">
-    <label>Range:
+    <!-- <label>Range:
       <select id="rangeSelect">
         <option value="7">Last 7 days</option>
         <option value="30" selected>Last 30 days</option>
         <option value="90">Last 90 days</option>
       </select>
-    </label>
+    </label> -->
 
     <label style="margin-left:8px;">School:
       <select id="schoolFilter"><option value="">All Schools</option></select>
@@ -123,12 +123,20 @@
   </div>
 </div>
 
+<input type="text" id="searchInput" placeholder="Search quotes..." />
+
+    <select id="statusFilter">
+      <option value="">All</option>
+      <option value="paid">Paid</option>
+      <option value="partial">Partial</option>
+      <option value="unpaid">Unpaid</option>
+    </select>
 
 <div class="table-responsive">
   <table class="user-table" style="width:100%; margin-top:20px;">
     <thead>
       <tr>
-        <th>ID</th>
+        <!-- <th>ID</th>
         <th>School</th>
         <th>Term</th>
         <th>Students</th>
@@ -137,7 +145,18 @@
         <th>Total Paid</th>
         <th>Balance</th>
         <th>Status</th>
-        <th>Actions</th>
+        <th>Actions</th> -->
+
+        <th style="cursor: pointer;" onclick="sortTable(0)">ID ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(1)">School ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(2)">Term ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(3)">Students ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(4)">Price / Student ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(5)">Total Amount ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(6)">Paid ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(7)">Balance ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(8)">Status ⬍</th>
+        <th style="cursor: pointer;" onclick="sortTable(9)">Actions ⬍</th>
       </tr>
     </thead>
 
@@ -208,7 +227,7 @@
 <!-- chart script -->
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
+<!-- <script>
   const trend = <%- JSON.stringify(trend || []) %>;
 
   const labels = trend.map(t => t.day);
@@ -225,6 +244,30 @@
       }]
     }
   });
+</script> -->
+
+<script>
+  const trend = <%- JSON.stringify(trend || []) %>;
+
+  const labels = trend.map(t => t.day);
+  const data = trend.map(t => Number(t.total || 0));
+
+  const ctx = document.getElementById("paymentChart");
+
+  if (ctx) {
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Payments",
+          data,
+          tension: 0.3,
+          fill: true
+        }]
+      }
+    });
+  }
 </script>
 
 <!-- Analytics script -->
@@ -289,4 +332,58 @@
   if (res.ok) location.reload();
 }
 </script>
+
+<!-- Script Filter by status -->
+ <script>
+  document.getElementById("statusFilter").addEventListener("change", function () {
+    const value = this.value;
+    const rows = document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+      const status = row.querySelector(".payment-toggle").className;
+
+      if (!value || status.includes(value)) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  });
+</script>
+
+<!-- Search script -->
+ <script>
+  document.getElementById("searchInput").addEventListener("keyup", function () {
+    const value = this.value.toLowerCase();
+    const rows = document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(value) ? "" : "none";
+    });
+  });
+</script>
+
+<!-- Script for sorting table -->
+ <script>
+    function sortTable(colIndex) {
+      const table = document.querySelector("table tbody");
+      const rows = Array.from(table.rows);
+
+      const asc = table.classList.toggle("asc");
+
+      rows.sort((a, b) => {
+        let A = a.cells[colIndex].innerText.replace(/[₦,]/g, "");
+        let B = b.cells[colIndex].innerText.replace(/[₦,]/g, "");
+
+        A = isNaN(A) ? A : Number(A);
+        B = isNaN(B) ? B : Number(B);
+
+        return asc ? (A > B ? 1 : -1) : (A < B ? 1 : -1);
+      });
+
+      rows.forEach(row => table.appendChild(row));
+    }
+</script>
+
 
