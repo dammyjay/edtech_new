@@ -110,7 +110,7 @@
           <i class="fa-solid fa-xmark"></i>
         </div>
         <div class="card-content">
-          <h4>Unpaid Quotes</h4>
+          <h4>Overdue Payment</h4>
           <h3 id="cardUnpaidQuotes">0</h3>
         </div>
       </div>
@@ -125,11 +125,20 @@
 
 <input type="text" id="searchInput" placeholder="Search quotes..." />
 
-    <select id="statusFilter">
+    <!-- <select id="statusFilter">
       <option value="">All</option>
       <option value="paid">Paid</option>
       <option value="partial">Partial</option>
       <option value="unpaid">Unpaid</option>
+    </select> -->
+
+    <select id="statusFilter">
+      <option value="">All</option>
+      <option value="paid">Paid</option>
+      <option value="partial">Partial</option>
+      <option value="overdue">Overdue</option>
+      <option value="pending">Ongoing</option>
+      <option value="upcoming">Upcoming</option>
     </select>
 
 <div class="table-responsive">
@@ -180,12 +189,49 @@
             </form> -->
             <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
               <!-- <%= q.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %> -->
-               <% if(q.status === 'paid') { %>
+               <!-- <% if(q.status === 'paid') { %>
                 <span style="color:green;">✅ Paid</span>
               <% } else if(q.status === 'partial') { %>
                 <span style="color:orange;">⚠️ Part Payment</span>
               <% } else { %>
                 <span style="color:red;">❌ Not Paid</span>
+              <% } %> -->
+
+              <% if(q.status === 'paid') { %>
+                <span style="color:green;">✅ Paid</span>
+
+              <% } else if(q.status === 'partial') { %>
+                <span style="color:orange;">⚠️ Part Payment</span>
+
+              <% } else if(q.status === 'overdue') { %>
+                <span style="background: rgb(253, 209, 251);
+                      color: purple;  
+                      border: none;
+                      padding: 6px 12px;
+                      border-radius: 20px;
+                      cursor: pointer;
+                      font-size: 13px;">🚨 Overdue</span>
+
+              <% } else if(q.status === 'pending') { %>
+                <span style="background: rgb(216, 209, 253);
+                      color: blue;  
+                      border: none;
+                      padding: 6px 12px;
+                      border-radius: 20px;
+                      cursor: pointer;
+                      font-size: 13px;">⏳ Ongoing</span>
+
+              <% } else if(q.status === 'upcoming') { %>
+                <span style="background: rgb(252, 246, 246);
+                      color: black;  
+                      border: none;
+                      padding: 6px 12px;
+                      border-radius: 20px;
+                      cursor: pointer;
+                      font-size: 13px;">📅 Upcoming</span>
+
+              <% } else { %>
+                <span style="color:red;">❌ Unpaid</span>
               <% } %>
             </button>
           </td>
@@ -299,6 +345,7 @@
 
   document.getElementById("cardPaidQuotes").innerText = summary.paid_quotes || 0;
   document.getElementById("cardPartialQuotes").innerText = summary.partial_quotes || 0;
+  // document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
 </script>
 

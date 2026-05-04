@@ -5648,11 +5648,35 @@ exports.getQuotes = async (req, res) => {
       (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
         - COALESCE(p.total_paid, 0) AS balance,
 
-      CASE 
-        WHEN COALESCE(p.total_paid, 0) = 0 THEN 'unpaid'
-        WHEN COALESCE(p.total_paid, 0) < (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) THEN 'partial'
-        ELSE 'paid'
-      END AS status
+     CASE 
+      -- FULLY PAID
+      WHEN COALESCE(p.total_paid, 0) >= 
+          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+        THEN 'paid'
+
+      -- OVERDUE (IMPORTANT FIX 🔥)
+      WHEN COALESCE(p.total_paid, 0) < 
+          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0))
+          AND t.end_date < CURRENT_DATE
+        THEN 'overdue'
+
+      -- PARTIAL (ONLY IF TERM STILL ONGOING)
+      WHEN COALESCE(p.total_paid, 0) > 0 
+          AND t.end_date >= CURRENT_DATE
+        THEN 'partial'
+
+      -- UPCOMING
+      WHEN t.start_date > CURRENT_DATE 
+        THEN 'upcoming'
+
+      -- ONGOING BUT NO PAYMENT
+      WHEN t.start_date <= CURRENT_DATE 
+          AND t.end_date >= CURRENT_DATE 
+          AND COALESCE(p.total_paid, 0) = 0
+        THEN 'pending'
+
+      ELSE 'unpaid'
+    END AS status
 
     FROM quotes q
     JOIN schools s ON q.school_id = s.id
@@ -5677,44 +5701,78 @@ exports.getQuotes = async (req, res) => {
     
     const quotes = result.rows;
 
-    // const summary = await pool.query(`
-    //   SELECT 
-    //     SUM(q.total_amount) AS total_expected,
-    //     COALESCE(SUM(p.total_paid), 0) AS total_paid,
-    //     SUM(q.total_amount) - COALESCE(SUM(p.total_paid), 0) AS outstanding,
-
-    //     COUNT(*) FILTER (
-    //       WHERE COALESCE(p.total_paid, 0) = 0
-    //     ) AS unpaid_quotes,
-
-    //     COUNT(*) FILTER (
-    //       WHERE COALESCE(p.total_paid, 0) > 0 
-    //       AND COALESCE(p.total_paid, 0) < q.total_amount
-    //     ) AS partial_quotes,
-
-    //     COUNT(*) FILTER (
-    //       WHERE COALESCE(p.total_paid, 0) >= q.total_amount
-    //     ) AS paid_quotes
-
-    //   FROM quotes q
-    //   LEFT JOIN (
-    //     SELECT quote_id, SUM(amount) AS total_paid
-    //     FROM school_payments
-    //     GROUP BY quote_id
-    //   ) p ON p.quote_id = q.id;
-    // `);
-    
     const summary = await pool.query(`
-      SELECT 
-        COALESCE(SUM(total_amount),0) AS total_expected,
-        COALESCE(SUM(total_paid),0) AS total_paid,
-        COALESCE(SUM(balance),0) AS outstanding,
+          SELECT 
+            COALESCE(SUM(total_amount),0) AS total_expected,
+            COALESCE(SUM(total_paid),0) AS total_paid,
+            COALESCE(SUM(balance),0) AS outstanding,
 
-        COUNT(*) FILTER (WHERE status = 'paid') AS paid_quotes,
-        COUNT(*) FILTER (WHERE status = 'partial') AS partial_quotes,
-        COUNT(*) FILTER (WHERE status = 'unpaid') AS unpaid_quotes
+            COUNT(*) FILTER (WHERE status = 'paid') AS paid_quotes,
+            COUNT(*) FILTER (WHERE status = 'partial') AS partial_quotes,
 
-      FROM quotes;
+            -- ✅ THIS IS YOUR REAL UNPAID
+            COUNT(*) FILTER (WHERE status = 'overdue') AS unpaid_quotes,
+
+            -- OPTIONAL (if you want later)
+            COUNT(*) FILTER (WHERE status = 'pending') AS pending_quotes,
+            COUNT(*) FILTER (WHERE status = 'upcoming') AS upcoming_quotes
+
+          FROM (
+            SELECT 
+              q.id,
+
+              -- reuse SAME calculation
+              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) AS total_amount,
+              COALESCE(p.total_paid, 0) AS total_paid,
+
+              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+                - COALESCE(p.total_paid, 0) AS balance,
+
+              CASE 
+                -- ✅ PAID
+                WHEN COALESCE(p.total_paid, 0) >= 
+                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+                  THEN 'paid'
+
+                -- ✅ PARTIAL
+                WHEN COALESCE(p.total_paid, 0) > 0 
+                  THEN 'partial'
+
+                -- ✅ UPCOMING
+                WHEN COALESCE(p.total_paid, 0) = 0 
+                    AND t.start_date > CURRENT_DATE 
+                  THEN 'upcoming'
+
+                -- ✅ ONGOING
+                WHEN COALESCE(p.total_paid, 0) = 0 
+                    AND t.start_date <= CURRENT_DATE 
+                    AND t.end_date >= CURRENT_DATE 
+                  THEN 'pending'
+
+                -- ✅ OVERDUE (THIS IS YOUR UNPAID)
+                WHEN COALESCE(p.total_paid, 0) = 0 
+                    AND t.end_date < CURRENT_DATE 
+                  THEN 'overdue'
+
+                ELSE 'unpaid'
+              END AS status
+
+            FROM quotes q
+            JOIN academic_terms t ON q.term_id = t.id
+
+            LEFT JOIN (
+              SELECT term_id, COUNT(*) AS total_students
+              FROM student_term_enrollments
+              GROUP BY term_id
+            ) st ON st.term_id = q.term_id
+
+            LEFT JOIN (
+              SELECT quote_id, SUM(amount) AS total_paid
+              FROM school_payments
+              GROUP BY quote_id
+            ) p ON p.quote_id = q.id
+
+          ) sub;
     `);
 
     const trend = await pool.query(`

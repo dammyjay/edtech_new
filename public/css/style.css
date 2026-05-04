@@ -2236,6 +2236,16 @@ i {
         color: orange;
     }
 
+    .payment-toggle.ongoing {
+        background: rgb(216, 209, 253);
+        color: blue;
+    }
+
+    .payment-toggle.overdue {
+        background: rgb(253, 209, 251);
+        color: purple;
+    }
+
 .analytics-container {
     width: 95%;
     margin: 20px auto;
