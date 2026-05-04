@@ -204,22 +204,10 @@
                 <span style="color:orange;">⚠️ Part Payment</span>
 
               <% } else if(q.status === 'overdue') { %>
-                <span style="background: rgb(253, 209, 251);
-                      color: purple;  
-                      border: none;
-                      padding: 6px 12px;
-                      border-radius: 20px;
-                      cursor: pointer;
-                      font-size: 13px;">🚨 Overdue</span>
+                <span style="color: red;">🚨 Overdue</span>
 
               <% } else if(q.status === 'pending') { %>
-                <span style="background: rgb(216, 209, 253);
-                      color: blue;  
-                      border: none;
-                      padding: 6px 12px;
-                      border-radius: 20px;
-                      cursor: pointer;
-                      font-size: 13px;">⏳ Ongoing</span>
+                <span style="color: blue;">⏳ Ongoing</span>
 
               <% } else if(q.status === 'upcoming') { %>
                 <span style="background: rgb(252, 246, 246);
