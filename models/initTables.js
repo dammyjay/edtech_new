@@ -592,6 +592,9 @@ async function createTables() {
       ADD COLUMN IF NOT EXISTS total_students INT DEFAULT 0,
       ADD COLUMN IF NOT EXISTS total_amount NUMERIC DEFAULT 0,
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'unpaid';
+      ALTER TABLE quotes
+      ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS balance NUMERIC DEFAULT 0;
     `);
 
     // table for school payments

@@ -5516,12 +5516,49 @@ exports.getClassroomCourses = async (req, res) => {
 // exports.addPayment = async (req, res) => {
 //   try {
 //     const { quote_id, amount, school_id } = req.body;
+
 //     const amountValue = parseFloat(amount) || 0;
 
+//     // ✅ 1. Insert payment
 //     await pool.query(
 //       `INSERT INTO school_payments (school_id, quote_id, amount)
 //        VALUES ($1, $2, $3)`,
-//       [school_id, quote_id, amountValue],
+//       [school_id, quote_id, amountValue]
+//     );
+
+//     // ✅ 2. Get total paid
+//     const paidRes = await pool.query(
+//       `SELECT COALESCE(SUM(amount), 0) AS total_paid
+//        FROM school_payments
+//        WHERE quote_id = $1`,
+//       [quote_id]
+//     );
+
+//     const totalPaid = parseFloat(paidRes.rows[0].total_paid);
+
+//     // ✅ 3. Get total amount from quote
+//     const quoteRes = await pool.query(
+//       `SELECT total_amount FROM quotes WHERE id = $1`,
+//       [quote_id]
+//     );
+
+//     const totalAmount = parseFloat(quoteRes.rows[0].total_amount);
+
+//     // ✅ 4. Determine status
+//     let status = "unpaid";
+
+//     if (totalPaid === 0) {
+//       status = "unpaid";
+//     } else if (totalPaid < totalAmount) {
+//       status = "partial";
+//     } else {
+//       status = "paid";
+//     }
+
+//     // ✅ 5. Update quote status
+//     await pool.query(
+//       `UPDATE quotes SET status = $1 WHERE id = $2`,
+//       [status, quote_id]
 //     );
 
 //     res.redirect("/admin/quotes");
@@ -5531,40 +5568,41 @@ exports.getClassroomCourses = async (req, res) => {
 //   }
 // };
 
-// 📌 GET: Quotes
-
 exports.addPayment = async (req, res) => {
   try {
     const { quote_id, amount, school_id } = req.body;
 
     const amountValue = parseFloat(amount) || 0;
 
-    // ✅ 1. Insert payment
+    // 1. Insert payment
     await pool.query(
       `INSERT INTO school_payments (school_id, quote_id, amount)
        VALUES ($1, $2, $3)`,
-      [school_id, quote_id, amountValue]
+      [school_id, quote_id, amountValue],
     );
 
-    // ✅ 2. Get total paid
+    // 2. Get updated total paid
     const paidRes = await pool.query(
       `SELECT COALESCE(SUM(amount), 0) AS total_paid
        FROM school_payments
        WHERE quote_id = $1`,
-      [quote_id]
+      [quote_id],
     );
 
-    const totalPaid = parseFloat(paidRes.rows[0].total_paid);
+    const totalPaid = Number(paidRes.rows[0].total_paid);
 
-    // ✅ 3. Get total amount from quote
+    // 3. Get quote total
     const quoteRes = await pool.query(
       `SELECT total_amount FROM quotes WHERE id = $1`,
-      [quote_id]
+      [quote_id],
     );
 
-    const totalAmount = parseFloat(quoteRes.rows[0].total_amount);
+    const totalAmount = Number(quoteRes.rows[0].total_amount);
 
-    // ✅ 4. Determine status
+    // 4. Calculate balance
+    const balance = totalAmount - totalPaid;
+
+    // 5. Determine status
     let status = "unpaid";
 
     if (totalPaid === 0) {
@@ -5575,10 +5613,12 @@ exports.addPayment = async (req, res) => {
       status = "paid";
     }
 
-    // ✅ 5. Update quote status
+    // ✅ 6. SAVE EVERYTHING INTO QUOTES
     await pool.query(
-      `UPDATE quotes SET status = $1 WHERE id = $2`,
-      [status, quote_id]
+      `UPDATE quotes 
+       SET total_paid = $1, balance = $2, status = $3
+       WHERE id = $4`,
+      [totalPaid, balance, status, quote_id],
     );
 
     res.redirect("/admin/quotes");
@@ -5637,31 +5677,44 @@ exports.getQuotes = async (req, res) => {
     
     const quotes = result.rows;
 
+    // const summary = await pool.query(`
+    //   SELECT 
+    //     SUM(q.total_amount) AS total_expected,
+    //     COALESCE(SUM(p.total_paid), 0) AS total_paid,
+    //     SUM(q.total_amount) - COALESCE(SUM(p.total_paid), 0) AS outstanding,
+
+    //     COUNT(*) FILTER (
+    //       WHERE COALESCE(p.total_paid, 0) = 0
+    //     ) AS unpaid_quotes,
+
+    //     COUNT(*) FILTER (
+    //       WHERE COALESCE(p.total_paid, 0) > 0 
+    //       AND COALESCE(p.total_paid, 0) < q.total_amount
+    //     ) AS partial_quotes,
+
+    //     COUNT(*) FILTER (
+    //       WHERE COALESCE(p.total_paid, 0) >= q.total_amount
+    //     ) AS paid_quotes
+
+    //   FROM quotes q
+    //   LEFT JOIN (
+    //     SELECT quote_id, SUM(amount) AS total_paid
+    //     FROM school_payments
+    //     GROUP BY quote_id
+    //   ) p ON p.quote_id = q.id;
+    // `);
+    
     const summary = await pool.query(`
       SELECT 
-        SUM(q.total_amount) AS total_expected,
-        COALESCE(SUM(p.total_paid), 0) AS total_paid,
-        SUM(q.total_amount) - COALESCE(SUM(p.total_paid), 0) AS outstanding,
+        COALESCE(SUM(total_amount),0) AS total_expected,
+        COALESCE(SUM(total_paid),0) AS total_paid,
+        COALESCE(SUM(balance),0) AS outstanding,
 
-        COUNT(*) FILTER (
-          WHERE COALESCE(p.total_paid, 0) = 0
-        ) AS unpaid_quotes,
+        COUNT(*) FILTER (WHERE status = 'paid') AS paid_quotes,
+        COUNT(*) FILTER (WHERE status = 'partial') AS partial_quotes,
+        COUNT(*) FILTER (WHERE status = 'unpaid') AS unpaid_quotes
 
-        COUNT(*) FILTER (
-          WHERE COALESCE(p.total_paid, 0) > 0 
-          AND COALESCE(p.total_paid, 0) < q.total_amount
-        ) AS partial_quotes,
-
-        COUNT(*) FILTER (
-          WHERE COALESCE(p.total_paid, 0) >= q.total_amount
-        ) AS paid_quotes
-
-      FROM quotes q
-      LEFT JOIN (
-        SELECT quote_id, SUM(amount) AS total_paid
-        FROM school_payments
-        GROUP BY quote_id
-      ) p ON p.quote_id = q.id;
+      FROM quotes;
     `);
 
     const trend = await pool.query(`
