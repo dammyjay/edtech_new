@@ -2924,11 +2924,36 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
       color: red;
   }
 
-  .analytics-container {
+  /* .analytics-container {
       width: 95%;
       margin: 20px auto;
       padding: 20px;
+  } */
+
+  .analytics-container {
+      width: 100%;
+      max-width: 1200px;
+      /* prevents it from stretching too wide on large screens */
+      margin: 20px auto;
+      padding: 20px;
+      box-sizing: border-box;
   }
+
+    .filter-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        /* 🔥 important */
+    }
+
+@media (max-width: 992px) {
+    .analytics-container {
+        padding: 15px;
+    }
+}
+
 /* Tablet screens (≤1024px) */
 @media (max-width: 1024px) {
     .slide-box {
@@ -2951,6 +2976,26 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
 
 /* Mobile screens (≤600px) */
 @media (max-width: 600px) {
+     .analytics-container {
+        padding: 10px;
+        margin: 10px auto;
+    }
+
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-row select,
+    .filter-row button {
+        width: 100%;
+    }
+
+    .analytics-container h1 {
+        font-size: 18px;
+        text-align: center;
+    }
+
     .lesson-view-mode {
         flex-direction: column;
         align-items: stretch;

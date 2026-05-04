@@ -234,6 +234,7 @@ header {
     padding: 40px 20px;
     background-color: #fff;
     margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
     width: fit-content;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -2246,10 +2247,19 @@ i {
         color: red;
     }
 
-.analytics-container {
+/* .analytics-container {
     width: 95%;
     margin: 20px auto;
     padding: 20px;
+} */
+
+.analytics-container {
+    width: 100%;
+    max-width: 1200px;
+    /* prevents it from stretching too wide on large screens */
+    margin: 20px auto;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .announcement-coming-soon {
@@ -2406,6 +2416,12 @@ i {
                                                         .view-announcement-btn:hover {
                                                             background: #a38833;
                                                             transform: scale(1.12);                             }
+
+.chart-card {
+    width: 100%;
+    overflow-x: auto;
+}
+
 /* Optional: reduce padding on very small screens */
 @media screen and (max-width: 480px) {
     .main-content {
@@ -2838,6 +2854,52 @@ width:100%;
     } }
 
 @media (max-width: 600px) {
+.chart-card canvas {
+    height: 200px;
+}
+
+.metric-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .card-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+
+    .card-content h3 {
+        font-size: 16px;
+        text-align: left;
+    }
+
+    .card-content h4 {
+        font-size: 13px;
+        text-align: left;
+    }
+    .analytics-container {
+        padding: 10px;
+        margin: 10px auto;
+    }
+
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-row select,
+    .filter-row button {
+        width: 100%;
+    }
+
+    .analytics-container h1 {
+        font-size: 18px;
+        text-align: center;
+    }
+
     .hero-carousel {
             position: relative;
             width: 100%;
