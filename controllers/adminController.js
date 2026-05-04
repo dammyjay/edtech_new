@@ -5777,7 +5777,7 @@ exports.getQuotes = async (req, res) => {
 
     const trend = await pool.query(`
       SELECT 
-        TO_CHAR(created_at, 'YYYY-MM-DD') as day,
+        TO_CHAR(payment_date, 'YYYY-MM-DD') as day,
         SUM(amount) as total
       FROM school_payments
       GROUP BY day
