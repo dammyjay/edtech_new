@@ -115,6 +115,16 @@
         </div>
       </div>
 
+      <!-- Pending -->
+      <div class="metric-card" style="border-bottom: 6px solid rgb(110, 1, 110);">
+        <div class="card-icon" style="background-color: rgb(110, 1, 110);">
+          <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <div class="card-content">
+          <h4>Ongoing Quotes</h4>
+          <h3 id="cardPendingQuotes">0</h3>
+        </div>  
+
     </div>
   </section>
   <div class="chart-card">
@@ -335,6 +345,7 @@
   document.getElementById("cardPartialQuotes").innerText = summary.partial_quotes || 0;
   // document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
+  document.getElementById("cardPendingQuotes").innerText = summary.pending_quotes || 0;
 </script>
 
 <!-- Payment modal script -->

@@ -5628,7 +5628,7 @@ exports.addPayment = async (req, res) => {
   }
 };
 
-exports.getQuotes = async (req, res) => {
+  exports.getQuotes = async (req, res) => {
   try {
 
     const result = await pool.query(`
@@ -5729,30 +5729,31 @@ exports.getQuotes = async (req, res) => {
                 - COALESCE(p.total_paid, 0) AS balance,
 
               CASE 
-                -- ✅ PAID
+                -- FULLY PAID
                 WHEN COALESCE(p.total_paid, 0) >= 
                     (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
                   THEN 'paid'
 
-                -- ✅ PARTIAL
+                -- OVERDUE (🔥 FIX)
+                WHEN COALESCE(p.total_paid, 0) < 
+                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0))
+                    AND t.end_date < CURRENT_DATE
+                  THEN 'overdue'
+
+                -- PARTIAL (ONLY IF STILL ACTIVE)
                 WHEN COALESCE(p.total_paid, 0) > 0 
+                    AND t.end_date >= CURRENT_DATE
                   THEN 'partial'
 
-                -- ✅ UPCOMING
-                WHEN COALESCE(p.total_paid, 0) = 0 
-                    AND t.start_date > CURRENT_DATE 
+                -- UPCOMING
+                WHEN t.start_date > CURRENT_DATE 
                   THEN 'upcoming'
 
-                -- ✅ ONGOING
-                WHEN COALESCE(p.total_paid, 0) = 0 
-                    AND t.start_date <= CURRENT_DATE 
+                -- ONGOING NO PAYMENT
+                WHEN t.start_date <= CURRENT_DATE 
                     AND t.end_date >= CURRENT_DATE 
+                    AND COALESCE(p.total_paid, 0) = 0
                   THEN 'pending'
-
-                -- ✅ OVERDUE (THIS IS YOUR UNPAID)
-                WHEN COALESCE(p.total_paid, 0) = 0 
-                    AND t.end_date < CURRENT_DATE 
-                  THEN 'overdue'
 
                 ELSE 'unpaid'
               END AS status
@@ -5777,11 +5778,11 @@ exports.getQuotes = async (req, res) => {
 
     const trend = await pool.query(`
       SELECT 
-        TO_CHAR(payment_date, 'YYYY-MM-DD') as day,
+        TO_CHAR(payment_date, 'FMMonth FMDD YYYY') as day,
         SUM(amount) as total
       FROM school_payments
       GROUP BY day
-      ORDER BY day ASC;
+      ORDER BY MIN(payment_date) ASC;
     `);
 
     res.render("admin/quotes", {
