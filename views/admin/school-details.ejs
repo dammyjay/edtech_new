@@ -319,6 +319,7 @@
           <th>Classroom</th>
           <th>Session Type</th>
           <th>Taken By</th>
+          <th>Students</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -1033,144 +1034,171 @@
       });
     }
 
-// async function loadAttendanceStats() {
-//   const termId = document.getElementById("attendanceFilterTerm").value;
+    async function loadAttendanceStats() {
+      const termId = document.getElementById("attendanceFilterTerm").value;
 
-//   const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
-//   const data = await res.json();
+      const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
+      const data = await res.json();
 
-//   const labels = data.map(d => `Week ${d.week_number}`);
-//   const present = data.map(d => d.present);
-//   const absent = data.map(d => d.absent);
+      const labels = data.map(d => `Week ${d.week_number}`);
+      const present = data.map(d => d.present);
+      const absent = data.map(d => d.absent);
+      const percent = data.map(d => d.attendance_percent);
 
-//   new Chart(document.getElementById("attendanceChart"), {
-//     type: "bar",
-//     data: {
-//       labels,
-//       datasets: [
-//         { label: "Present", data: present },
-//         { label: "Absent", data: absent }
-//       ]
-//     }
-//   });
-// }
-
-async function loadAttendanceStats() {
-  const termId = document.getElementById("attendanceFilterTerm").value;
-
-  const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
-  const data = await res.json();
-
-  const labels = data.map(d => `Week ${d.week_number}`);
-  const present = data.map(d => d.present);
-  const absent = data.map(d => d.absent);
-  const percent = data.map(d => d.attendance_percent);
-
-  new Chart(document.getElementById("attendanceChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        { label: "Present", data: present },
-        { label: "Absent", data: absent }
-      ]
-    }
-  });
-
-  let avg = percent.reduce((a,b)=>a+b,0)/percent.length;
-
-  document.getElementById("attendanceSummary").innerHTML = `
-    <h3>Average Attendance: ${avg.toFixed(1)}%</h3>
-  `;
-}
-
-document.getElementById("attendanceForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const form = e.target;
-
-  const records = [];
-
-  document.querySelectorAll("#attendanceStudentList select").forEach(sel => {
-    records.push({
-      student_id: sel.dataset.id,
-      status: sel.value
-    });
-  });
-
-  const payload = {
-    school_id: form.school_id.value,
-    term_id: form.term_id.value,
-    classroom_id: form.classroom_id.value,
-    date: form.date.value,
-    week_number: form.week_number.value,
-    session_status: document.getElementById("sessionStatus").value, // ✅ ADD
-    note: document.getElementById("note").value || "",
-    records
-  };
-
-  const res = await fetch("/admin/attendance/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-
-  if (data.success) {
-    alert("Attendance saved!");
-    closeModal("attendanceModal");
-  }
-});
-
-  async function toggleAttendanceDetails(sessionId) {
-    const row = document.getElementById(`attendance-row-${sessionId}`);
-    const container = document.getElementById(`attendance-details-${sessionId}`);
-
-    if (row.style.display === "none") {
-      row.style.display = "table-row";
-
-      if (!container.dataset.loaded) {
-        const res = await fetch(`/admin/attendance/session/${sessionId}`);
-        const data = await res.json();
-
-        if (data.length === 0) {
-          container.innerHTML = "<p>No attendance records</p>";
-        } else {
-          let html = `
-            <table class="user-table" style="margin-top:10px;">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-          `;
-
-          data.forEach(s => {
-            html += `
-              <tr>
-                <td>${s.fullname}</td>
-                <td>${formatSessionStatus(s.status)}</td>
-              </tr>
-            `;
-          });
-
-          html += "</tbody></table>";
-          container.innerHTML = html;
+      new Chart(document.getElementById("attendanceChart"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Present", data: present },
+            { label: "Absent", data: absent }
+          ]
         }
+      });
 
-        container.dataset.loaded = "true";
-      }
+      let avg = percent.reduce((a,b)=>a+b,0)/percent.length;
 
-    } else {
-      row.style.display = "none";
+      document.getElementById("attendanceSummary").innerHTML = `
+        <h3>Average Attendance: ${avg.toFixed(1)}%</h3>
+      `;
     }
-  }
+
+    document.getElementById("attendanceForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+
+      const records = [];
+
+      document.querySelectorAll("#attendanceStudentList select").forEach(sel => {
+        records.push({
+          student_id: sel.dataset.id,
+          status: sel.value
+        });
+      });
+
+      const payload = {
+        school_id: form.school_id.value,
+        term_id: form.term_id.value,
+        classroom_id: form.classroom_id.value,
+        date: form.date.value,
+        week_number: form.week_number.value,
+        session_status: document.getElementById("sessionStatus").value, // ✅ ADD
+        note: document.getElementById("note").value || "",
+        records
+      };
+
+      const res = await fetch("/admin/attendance/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Attendance saved!");
+        closeModal("attendanceModal");
+      }
+    });
+
+  // async function toggleAttendanceDetails(sessionId) {
+  //   const row = document.getElementById(`attendance-row-${sessionId}`);
+  //   const container = document.getElementById(`attendance-details-${sessionId}`);
+
+  //   if (row.style.display === "none") {
+  //     row.style.display = "table-row";
+
+  //     if (!container.dataset.loaded) {
+  //       const res = await fetch(`/admin/attendance/session/${sessionId}`);
+  //       const data = await res.json();
+
+  //       if (data.length === 0) {
+  //         container.innerHTML = "<p>No attendance records</p>";
+  //       } else {
+  //         let html = `
+  //           <table class="user-table" style="margin-top:10px;">
+  //             <thead>
+  //               <tr>
+  //                 <th>Student</th>
+  //                 <th>Status</th>
+  //               </tr>
+  //             </thead>
+  //             <tbody>
+  //         `;
+
+  //         data.forEach(s => {
+  //           html += `
+  //             <tr>
+  //               <td>${s.fullname}</td>
+  //               <td>${formatSessionStatus(s.status)}</td>
+  //             </tr>
+  //           `;
+  //         });
+
+  //         html += "</tbody></table>";
+  //         container.innerHTML = html;
+  //       }
+
+  //       container.dataset.loaded = "true";
+  //     }
+
+  //   } else {
+  //     row.style.display = "none";
+  //   }
+  // }
   
 //  Attendance History
-  async function loadAttendanceHistory() {
+  
+async function toggleAttendanceDetails(sessionId) {
+  const row = document.getElementById(`attendance-row-${sessionId}`);
+  const container = document.getElementById(`attendance-details-${sessionId}`);
+
+  if (!row || !container) return; // ✅ prevents crash
+
+  if (row.style.display === "none") {
+    row.style.display = "table-row";
+
+    if (!container.dataset.loaded) {
+      const res = await fetch(`/admin/attendance/session/${sessionId}`);
+      const data = await res.json();
+
+      if (data.length === 0) {
+        container.innerHTML = "<p>No attendance records</p>";
+      } else {
+        let html = `
+          <table class="user-table" style="margin-top:10px;">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        data.forEach(s => {
+          html += `
+            <tr>
+              <td>${s.fullname}</td>
+              <td>${formatSessionStatus(s.status)}</td>
+            </tr>
+          `;
+        });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      }
+
+      container.dataset.loaded = "true";
+    }
+
+  } else {
+    row.style.display = "none";
+  }
+}
+
+async function loadAttendanceHistory() {
     const termId = document.getElementById("attendanceFilterTerm").value;
     const classroomId = document.getElementById("attendanceFilterClassroom").value;
 
@@ -1192,6 +1220,10 @@ document.getElementById("attendanceForm").addEventListener("submit", async (e) =
           <td>${a.classroom}</td>
           <td>${formatSession(a.session_status)}</td>
           <td>${a.taken_by || '-'}</td>
+
+          <!-- ✅ ADD THIS -->
+          <td>${a.student_count || 0} students</td>
+
           <td class="actions-col">
             <i class="fa fa-eye action-icon" style="cursor:pointer; color:blue;" onclick="toggleAttendanceDetails(${a.id})"></i>
             <i class="fa fa-eye action-icon" style="cursor:pointer; color:green;" onclick="viewAttendance(${a.id})"></i>
@@ -1203,86 +1235,154 @@ document.getElementById("attendanceForm").addEventListener("submit", async (e) =
             <i class="fa fa-file-excel action-icon" style="cursor:pointer; color:green;" onclick="exportExcel()"></i>
           </td>
         </tr>
-        <tr id="attendance-row-${a.id}" style="display:none;">
-          <td colspan="5">
-            <div id="attendance-details-${a.id}"></div>
-          </td>
-        </tr>
+
+         <tr id="attendance-row-${a.id}" style="display:none;">
+            <td colspan="6">
+              <div id="attendance-details-${a.id}"></div>
+            </td>
+          </tr>
       `;
     });
   }
 
-async function editSession(id) {
-  openModal("editAttendanceModal");
+  // async function editSession(id) {
+  //   openModal("editAttendanceModal");
 
-  const res = await fetch(`/admin/attendance/session/full/${id}`);
-  const data = await res.json();
+  //   const res = await fetch(`/admin/attendance/session/full/${id}`);
+  //   const data = await res.json();
 
-  document.getElementById("editSessionId").value = id;
-  document.getElementById("editStatus").value = data.session.session_status;
-  document.getElementById("editWeek").value = data.session.week_number;
-  document.getElementById("editDate").value = data.session.date;
-  document.getElementById("editNote").value = data.session.note || "";
+  //   document.getElementById("editSessionId").value = id;
+  //   document.getElementById("editStatus").value = data.session.session_status;
+  //   document.getElementById("editWeek").value = data.session.week_number;
+  //   document.getElementById("editDate").value = data.session.date;
+  //   document.getElementById("editNote").value = data.session.note || "";
 
-  // Load students for editing
-  let html = "";
+  //   // Load students for editing
+  //   let html = "";
 
-  data.records.forEach(r => {
-    html += `
-      <div class="student-row">
-        <input type="hidden" value="${r.id}" class="record-id" />
-        <span>${r.student_id}</span>
-        <select class="record-status">
-          <option value="present" ${r.status === "present" ? "selected" : ""}>Present</option>
-          <option value="absent" ${r.status === "absent" ? "selected" : ""}>Absent</option>
-          <option value="late" ${r.status === "late" ? "selected" : ""}>Late</option>
-        </select>
-      </div>
-    `;
-  });
+  //   data.records.forEach(r => {
+  //     html += `
+  //       <div class="student-row">
+  //         <input type="hidden" value="${r.id}" class="record-id" />
+  //         <span>${r.student_id}</span>
+  //         <select class="record-status">
+  //           <option value="present" ${r.status === "present" ? "selected" : ""}>Present</option>
+  //           <option value="absent" ${r.status === "absent" ? "selected" : ""}>Absent</option>
+  //           <option value="late" ${r.status === "late" ? "selected" : ""}>Late</option>
+  //         </select>
+  //       </div>
+  //     `;
+  //   });
 
-  document.getElementById("editStudentList").innerHTML = html;
-}
+  //   document.getElementById("editStudentList").innerHTML = html;
+  // }
 
-document.getElementById("editAttendanceForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+  async function editSession(id) {
+    openModal("editAttendanceModal");
 
-  const id = document.getElementById("editSessionId").value;
+    const res = await fetch(`/admin/attendance/session/full/${id}`);
+    const data = await res.json();
 
-  // update session
-  await fetch(`/admin/attendance/session/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session_status: document.getElementById("editStatus").value,
-      week_number: document.getElementById("editWeek").value,
-      date: document.getElementById("editDate").value,
-      note: document.getElementById("editNote").value
-    })
-  });
+    document.getElementById("editSessionId").value = id;
+    document.getElementById("editStatus").value = data.session.session_status;
+    document.getElementById("editWeek").value = data.session.week_number;
+    document.getElementById("editDate").value = data.session.date;
+    document.getElementById("editNote").value = data.session.note || "";
 
-  // update students
-  const updates = [];
+    let html = "";
 
-  document.querySelectorAll(".student-row").forEach(row => {
-    updates.push({
-      id: row.querySelector(".record-id").value,
-      status: row.querySelector(".record-status").value
-    });
-  });
+    // ✅ CASE 1: records exist
+    if (data.records.length > 0) {
+      data.records.forEach(r => {
+        html += `
+          <div class="student-row">
+            <input type="hidden" value="${r.id}" class="record-id" />
+            <span>${r.fullname}</span>
+            <select class="record-status">
+              <option value="present" ${r.status === "present" ? "selected" : ""}>Present</option>
+              <option value="absent" ${r.status === "absent" ? "selected" : ""}>Absent</option>
+              <option value="late" ${r.status === "late" ? "selected" : ""}>Late</option>
+            </select>
+          </div>
+        `;
+      });
 
-  for (const u of updates) {
-    await fetch(`/admin/attendance/record/${u.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: u.status })
-    });
+    } else {
+      // ✅ CASE 2: no records → fetch students
+      const res2 = await fetch(`/admin/attendance/students?term_id=${data.session.term_id}&classroom_id=${data.session.classroom_id}`);
+      const students = await res2.json();
+
+      students.forEach(s => {
+        html += `
+          <div class="student-row">
+            <input type="hidden" value="" class="record-id" />
+            <span>${s.fullname}</span>
+            <select class="record-status">
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+            </select>
+          </div>
+        `;
+      });
+    }
+
+    document.getElementById("editStudentList").innerHTML = html;
   }
 
-  alert("Updated successfully");
-  closeModal("editAttendanceModal");
-  loadAttendanceHistory();
-});
+  document.getElementById("editStatus").addEventListener("change", async function () {
+    const status = this.value;
+    const id = document.getElementById("editSessionId").value;
+
+    if (status !== "held") {
+      document.getElementById("editStudentList").innerHTML =
+        "<p>No attendance required</p>";
+      return;
+    }
+
+    // reload students
+    editSession(id);
+  });
+
+  document.getElementById("editAttendanceForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById("editSessionId").value;
+
+    // update session
+    await fetch(`/admin/attendance/session/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_status: document.getElementById("editStatus").value,
+        week_number: document.getElementById("editWeek").value,
+        date: document.getElementById("editDate").value,
+        note: document.getElementById("editNote").value
+      })
+    });
+
+    // update students
+    const updates = [];
+
+    document.querySelectorAll(".student-row").forEach(row => {
+      updates.push({
+        id: row.querySelector(".record-id").value,
+        status: row.querySelector(".record-status").value
+      });
+    });
+
+    for (const u of updates) {
+      await fetch(`/admin/attendance/record/${u.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: u.status })
+      });
+    }
+
+    alert("Updated successfully");
+    closeModal("editAttendanceModal");
+    loadAttendanceHistory();
+  });
 
   async function deleteSession(id) {
     if (!confirm("Delete this attendance session?")) return;

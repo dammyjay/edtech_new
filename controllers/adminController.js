@@ -7171,22 +7171,27 @@ exports.getAttendanceStudents = async (req, res) => {
 
   try {
     if (!term_id || !classroom_id) {
-      return res.status(400).json({ error: "term_id and classroom_id are required" });
+      return res
+        .status(400)
+        .json({ error: "term_id and classroom_id are required" });
     }
 
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         u.id,
         u.fullname
       FROM student_term_enrollments ts
       JOIN users2 u ON ts.student_id = u.id
+      JOIN user_school us ON us.user_id = u.id
       WHERE ts.term_id = $1 
-      AND ts.classroom_id = $2
+      AND us.classroom_id = $2
       ORDER BY u.fullname ASC
-    `, [term_id, classroom_id]);
+    `,
+      [term_id, classroom_id],
+    );
 
     res.json(result.rows);
-
   } catch (err) {
     console.error("Error fetching attendance students:", err);
     res.status(500).json({ error: "Server error" });
@@ -7269,11 +7274,43 @@ exports.saveAttendance = async (req, res) => {
   }
 };
 
+// exports.updateAttendanceSession = async (req, res) => {
+//   const { id } = req.params;
+//   const { session_status, note, week_number, date } = req.body;
+
+//   try {
+//     await pool.query(
+//       `
+//       UPDATE attendance_sessions
+//       SET session_status = $1,
+//           note = $2,
+//           week_number = $3,
+//           date = $4
+//       WHERE id = $5
+//     `,
+//       [session_status, note, week_number, date, id],
+//     );
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Update failed");
+//   }
+// };
+
 exports.updateAttendanceSession = async (req, res) => {
   const { id } = req.params;
   const { session_status, note, week_number, date } = req.body;
 
   try {
+    // 🔥 Get existing session first
+    const existing = await pool.query(
+      `SELECT term_id, classroom_id, session_status FROM attendance_sessions WHERE id = $1`,
+      [id],
+    );
+
+    const session = existing.rows[0];
+
     await pool.query(
       `
       UPDATE attendance_sessions
@@ -7282,9 +7319,67 @@ exports.updateAttendanceSession = async (req, res) => {
           week_number = $3,
           date = $4
       WHERE id = $5
-    `,
+      `,
       [session_status, note, week_number, date, id],
     );
+
+    // ✅ IF changed to "held" AND no records exist → recreate students
+    if (session_status === "held") {
+      const check = await pool.query(
+        `SELECT COUNT(*) FROM attendance_records WHERE session_id = $1`,
+        [id],
+      );
+
+      const count = Number(check.rows[0].count);
+
+      // if (count === 0) {
+      //   // 🔥 fetch students in that class + term
+      //   const students = await pool.query(
+      //     `
+      //     SELECT student_id
+      //     FROM student_term_enrollments
+      //     WHERE term_id = $1 AND classroom_id = $2
+      //     `,
+      //     [session.term_id, session.classroom_id],
+      //   );
+
+      //   // insert default records
+      //   for (const s of students.rows) {
+      //     await pool.query(
+      //       `
+      //       INSERT INTO attendance_records (session_id, student_id, status)
+      //       VALUES ($1, $2, 'present')
+      //       ON CONFLICT DO NOTHING
+      //       `,
+      //       [id, s.student_id],
+      //     );
+      //   }
+      // }
+
+      if (session_status === "held") {
+        // get all students in class
+        const students = await pool.query(
+          `
+          SELECT student_id
+          FROM student_term_enrollments
+          WHERE term_id = $1 AND classroom_id = $2
+          `,
+          [session.term_id, session.classroom_id],
+        );
+
+        for (const s of students.rows) {
+          await pool.query(
+            `
+      INSERT INTO attendance_records (session_id, student_id, status)
+      VALUES ($1, $2, 'present')
+      ON CONFLICT (session_id, student_id)
+      DO NOTHING
+      `,
+            [id, s.student_id],
+          );
+        }
+      }
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -7360,6 +7455,35 @@ exports.getWeeklyAttendanceStats = async (req, res) => {
   }
 };
 
+// exports.getAttendanceHistory = async (req, res) => {
+//   const { term_id, classroom_id } = req.query;
+
+//   try {
+//     const result = await pool.query(
+//       `
+//       SELECT
+//         s.id,
+//         s.date,
+//         s.session_status,
+//         c.name AS classroom,
+//         u.fullname AS taken_by
+//       FROM attendance_sessions s
+//       LEFT JOIN classrooms c ON s.classroom_id = c.id
+//       LEFT JOIN users2 u ON s.taken_by = u.id
+//       WHERE s.term_id = $1
+//       ${classroom_id ? "AND s.classroom_id = $2" : ""}
+//       ORDER BY s.date DESC
+//     `,
+//       classroom_id ? [term_id, classroom_id] : [term_id],
+//     );
+
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error loading attendance history");
+//   }
+// };
+
 exports.getAttendanceHistory = async (req, res) => {
   const { term_id, classroom_id } = req.query;
 
@@ -7371,12 +7495,25 @@ exports.getAttendanceHistory = async (req, res) => {
         s.date,
         s.session_status,
         c.name AS classroom,
-        u.fullname AS taken_by
+        u.fullname AS taken_by,
+
+        -- ✅ ADD THIS
+        COUNT(ar.id) AS student_count
+
       FROM attendance_sessions s
+
       LEFT JOIN classrooms c ON s.classroom_id = c.id
       LEFT JOIN users2 u ON s.taken_by = u.id
+
+      -- ✅ JOIN attendance records
+      LEFT JOIN attendance_records ar ON ar.session_id = s.id
+
       WHERE s.term_id = $1
       ${classroom_id ? "AND s.classroom_id = $2" : ""}
+
+      -- ✅ IMPORTANT for COUNT
+      GROUP BY s.id, c.name, u.fullname
+
       ORDER BY s.date DESC
     `,
       classroom_id ? [term_id, classroom_id] : [term_id],
