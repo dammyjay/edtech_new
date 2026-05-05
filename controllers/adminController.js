@@ -7166,6 +7166,466 @@ exports.getTermAnalytics = async (req, res) => {
   }
 };
 
+exports.getAttendanceStudents = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+
+  try {
+    if (!term_id || !classroom_id) {
+      return res.status(400).json({ error: "term_id and classroom_id are required" });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.fullname
+      FROM student_term_enrollments ts
+      JOIN users2 u ON ts.student_id = u.id
+      WHERE ts.term_id = $1 
+      AND ts.classroom_id = $2
+      ORDER BY u.fullname ASC
+    `, [term_id, classroom_id]);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error("Error fetching attendance students:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.saveAttendance = async (req, res) => {
+  // const { term_id, classroom_id, date, records, session_status, note } =
+  //   req.body;
+  const {
+    term_id,
+    classroom_id,
+    date,
+    records,
+    session_status,
+    note,
+    week_number,
+  } = req.body;
+  const userId = req.session.user.id;
+
+  try {
+    // 1. Create session
+    const sessionResult = await pool.query(
+      `
+      INSERT INTO attendance_sessions 
+      (school_id, term_id, classroom_id, taken_by, date, session_status, note, week_number)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (term_id, classroom_id, date)
+      DO UPDATE SET 
+        taken_by = EXCLUDED.taken_by,
+        session_status = EXCLUDED.session_status,
+        note = EXCLUDED.note
+      RETURNING id, session_status
+    `,
+      [
+        req.body.school_id,
+        term_id,
+        classroom_id,
+        userId,
+        date,
+        session_status,
+        note || null,
+        week_number
+      ],
+    );
+
+    const sessionId = sessionResult.rows[0].id;
+
+    if (session_status !== "held") {
+
+      // 🔥 CLEAR OLD RECORDS
+      await pool.query(
+        `DELETE FROM attendance_records WHERE session_id = $1`,
+        [sessionId]
+      );
+
+      return res.json({
+        success: true,
+        message: "Session saved without attendance",
+      });
+    }
+
+    // 2. Save student attendance
+    for (const r of records) {
+      await pool.query(
+        `
+        INSERT INTO attendance_records (session_id, student_id, status)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (session_id, student_id)
+        DO UPDATE SET status = EXCLUDED.status
+      `,
+        [sessionId, r.student_id, r.status],
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error saving attendance");
+  }
+};
+
+exports.updateAttendanceSession = async (req, res) => {
+  const { id } = req.params;
+  const { session_status, note, week_number, date } = req.body;
+
+  try {
+    await pool.query(
+      `
+      UPDATE attendance_sessions
+      SET session_status = $1,
+          note = $2,
+          week_number = $3,
+          date = $4
+      WHERE id = $5
+    `,
+      [session_status, note, week_number, date, id],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Update failed");
+  }
+};
+
+exports.deleteAttendanceSession = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await pool.query(`DELETE FROM attendance_records WHERE session_id=$1`, [
+      id,
+    ]);
+    await pool.query(`DELETE FROM attendance_sessions WHERE id=$1`, [id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).send("Delete failed");
+  }
+};
+
+exports.updateAttendanceRecord = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await pool.query(`
+      UPDATE attendance_records
+      SET status = $1
+      WHERE id = $2
+    `, [status, id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).send("Update failed");
+  }
+};
+
+exports.getWeeklyAttendanceStats = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        s.week_number,
+
+        COUNT(r.id) FILTER (WHERE r.status='present') AS present,
+        COUNT(r.id) FILTER (WHERE r.status='absent') AS absent,
+        COUNT(r.id) FILTER (WHERE r.status='late') AS late,
+        COUNT(r.id) AS total,
+
+        ROUND(
+          (COUNT(r.id) FILTER (WHERE r.status='present') * 100.0) / NULLIF(COUNT(r.id),0),
+          2
+        ) AS attendance_percent
+
+      FROM attendance_sessions s
+      LEFT JOIN attendance_records r ON r.session_id = s.id
+      WHERE s.term_id = $1
+      ${classroom_id ? "AND s.classroom_id = $2" : ""}
+      GROUP BY s.week_number
+      ORDER BY s.week_number
+      `,
+      classroom_id ? [term_id, classroom_id] : [term_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).send("Error");
+  }
+};
+
+exports.getAttendanceHistory = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        s.id,
+        s.date,
+        s.session_status,
+        c.name AS classroom,
+        u.fullname AS taken_by
+      FROM attendance_sessions s
+      LEFT JOIN classrooms c ON s.classroom_id = c.id
+      LEFT JOIN users2 u ON s.taken_by = u.id
+      WHERE s.term_id = $1
+      ${classroom_id ? "AND s.classroom_id = $2" : ""}
+      ORDER BY s.date DESC
+    `,
+      classroom_id ? [term_id, classroom_id] : [term_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance history");
+  }
+};
+
+exports.getAttendanceSessionDetails = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.fullname,
+        ar.status
+      FROM attendance_records ar
+      JOIN users2 u ON ar.student_id = u.id
+      WHERE ar.session_id = $1
+      ORDER BY u.fullname
+    `, [id]);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance details");
+  }
+};
+
+exports.getAttendanceSession = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const session = await pool.query(
+      `SELECT * FROM attendance_sessions WHERE id=$1`,
+      [id]
+    );
+
+    const records = await pool.query(
+      `SELECT id, student_id, status FROM attendance_records WHERE session_id=$1`,
+      [id]
+    );
+
+    res.json({
+      session: session.rows[0],
+      records: records.rows
+    });
+
+  } catch (err) {
+    res.status(500).send("Error");
+  }
+};
+
+exports.exportAttendancePDF = async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    const session = await pool.query(
+      `SELECT * FROM attendance_sessions WHERE id=$1`,
+      [sessionId]
+    );
+
+    const students = await pool.query(
+      `SELECT u.fullname, r.status
+       FROM attendance_records r
+       JOIN users2 u ON r.student_id = u.id
+       WHERE r.session_id=$1`,
+      [sessionId]
+    );
+
+    // const html = `
+    // <html>
+    // <body style="font-family:Calibri;">
+    //   <div style="text-align:center;">
+    //     <h2>ATTENDANCE REPORT</h2>
+    //     <p>Week ${session.rows[0].week_number}</p>
+    //     <p>${session.rows[0].date}</p>
+    //   </div>
+
+    //   <table width="100%" border="1" cellspacing="0">
+    //     <tr>
+    //       <th>Student</th>
+    //       <th>Status</th>
+    //     </tr>
+
+    //     ${students.rows.map(s => `
+    //       <tr>
+    //         <td>${s.fullname}</td>
+    //         <td>${s.status}</td>
+    //       </tr>
+    //     `).join("")}
+    //   </table>
+    // </body>
+    // </html>
+    // `;
+
+    const html = `
+      <html>
+      <head>
+      <style>
+      body {
+        font-family: Arial;
+        padding: 30px;
+      }
+
+      .header {
+        text-align: center;
+        border-bottom: 2px solid #333;
+        margin-bottom: 20px;
+      }
+
+      .header h2 {
+        margin: 0;
+      }
+
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        font-size: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        background: #222;
+        color: white;
+        padding: 10px;
+      }
+
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .status-present { color: green; }
+      .status-absent { color: red; }
+      .status-late { color: orange; }
+      </style>
+      </head>
+
+      <body>
+
+      <div class="header">
+        <h2>ATTENDANCE REPORT</h2>
+      </div>
+
+      <div class="meta">
+        <div>Week: ${session.rows[0].week_number}</div>
+        <div>Date: ${session.rows[0].date}</div>
+      </div>
+
+      <table>
+      <tr>
+        <th>Student</th>
+        <th>Status</th>
+      </tr>
+
+      ${students.rows
+        .map(
+          (s) => `
+      <tr>
+        <td>${s.fullname}</td>
+        <td class="status-${s.status}">${s.status}</td>
+      </tr>
+      `,
+        )
+        .join("")}
+
+      </table>
+
+      </body>
+      </html>
+      `;
+
+    const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.setContent(html);
+
+    const pdf = await page.pdf({ format: "A4" });
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdf);
+
+  } catch (err) {
+    res.status(500).send("PDF error");
+  }
+};
+
+exports.exportAttendanceExcel = async (req, res) => {
+  const { termId } = req.params;
+
+  const ExcelJS = require("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Attendance");
+
+  const data = await pool.query(
+    `
+    SELECT 
+      s.week_number,
+      s.date,
+      c.name AS classroom,
+      COUNT(r.id) FILTER (WHERE r.status='present') AS present,
+      COUNT(r.id) FILTER (WHERE r.status='absent') AS absent
+    FROM attendance_sessions s
+    LEFT JOIN attendance_records r ON r.session_id=s.id
+    LEFT JOIN classrooms c ON s.classroom_id=c.id
+    WHERE s.term_id=$1
+    GROUP BY s.id, c.name
+    ORDER BY s.week_number
+    `,
+    [termId]
+  );
+
+  sheet.columns = [
+    { header: "Week", key: "week" },
+    { header: "Date", key: "date" },
+    { header: "Class", key: "class" },
+    { header: "Present", key: "present" },
+    { header: "Absent", key: "absent" }
+  ];
+
+  data.rows.forEach(r => {
+    sheet.addRow({
+      week: r.week_number,
+      date: r.date,
+      class: r.classroom,
+      present: r.present,
+      absent: r.absent
+    });
+  });
+
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=attendance.xlsx"
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
+};
 
 exports.sendChatMessage = async (req, res) => {
   try {

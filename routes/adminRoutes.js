@@ -450,6 +450,48 @@ router.get(
 );
 router.get("/schools/:schoolId/term-analytics", adminController.getTermAnalytics);
 
+
+router.get("/attendance/history", adminController.getAttendanceHistory);
+router.get("/attendance/students", adminController.getAttendanceStudents);
+router.get(
+  "/attendance/session/:id",
+  adminController.getAttendanceSessionDetails,
+);
+router.get(
+  "/attendance/session/full/:id",
+  adminController.getAttendanceSession,
+);
+// CREATE
+router.post("/attendance/save", adminController.saveAttendance);
+
+// UPDATE SESSION
+router.put("/attendance/session/:id", adminController.updateAttendanceSession);
+
+// DELETE SESSION
+router.delete(
+  "/attendance/session/:id",
+  adminController.deleteAttendanceSession,
+);
+
+// UPDATE SINGLE STUDENT RECORD
+router.put("/attendance/record/:id", adminController.updateAttendanceRecord);
+
+// ANALYTICS
+router.get(
+  "/attendance/stats/weekly",
+  adminController.getWeeklyAttendanceStats,
+);
+
+// EXPORTS
+router.get(
+  "/attendance/export/pdf/:sessionId",
+  adminController.exportAttendancePDF,
+);
+router.get(
+  "/attendance/export/excel/:termId",
+  adminController.exportAttendanceExcel,
+);
+
 router.post(
   "/schools/:schoolId/bulk-add-users",
   upload2.single("file"),

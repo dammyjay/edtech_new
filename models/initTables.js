@@ -694,6 +694,56 @@ async function createTables() {
 
           `)
 
+    // Attendance sessions
+    await pool.query(`
+     CREATE TABLE IF NOT EXISTS attendance_sessions (
+        id SERIAL PRIMARY KEY,
+
+        school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+        term_id INT REFERENCES academic_terms(id) ON DELETE CASCADE,
+        classroom_id INT REFERENCES classrooms(id) ON DELETE CASCADE,
+
+        taken_by INT REFERENCES users2(id), -- admin or instructor
+
+        -- ✅ FIXED COLUMN (this caused your error)
+        session_status TEXT DEFAULT 'held'
+          CHECK (session_status IN ('held', 'holiday', 'no_class', 'cancelled')),
+
+        note TEXT,
+
+        date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+
+        -- prevents duplicate attendance per class per day
+        UNIQUE(term_id, classroom_id, date)
+      );
+
+      
+      ALTER TABLE attendance_sessions
+      ADD COLUMN IF NOT EXISTS week_number INT DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT false;
+    `);
+
+    // Attendance records
+    await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_records (
+      id SERIAL PRIMARY KEY,
+
+      session_id INT REFERENCES attendance_sessions(id) ON DELETE CASCADE,
+      student_id INT REFERENCES users2(id) ON DELETE CASCADE,
+
+      status TEXT DEFAULT 'present'
+        CHECK (status IN ('present', 'absent', 'late')),
+
+      marked_at TIMESTAMP DEFAULT NOW(),
+
+      -- prevents duplicate marking per student per session
+      UNIQUE(session_id, student_id)
+    );
+
+    `);
+
+    // Activities
     await pool.query(`
         CREATE TABLE IF NOT EXISTS activities (
           id SERIAL PRIMARY KEY,

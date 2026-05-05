@@ -30,6 +30,29 @@
   color: white;
   border-bottom: 2px solid white;
 }
+
+.status-held { color: green; font-weight: bold; }
+.status-holiday { color: orange; font-weight: bold; }
+.status-cancelled { color: red; font-weight: bold; }
+.status-no_class { color: gray; font-weight: bold; }
+
+.actions-col {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.action-icon {
+  cursor: pointer;
+  font-size: 16px;
+  color: #333;
+  transition: 0.2s;
+}
+
+.action-icon:hover {
+  color: #007bff;
+  transform: scale(1.2);
+}
 </style>
 
 
@@ -136,9 +159,12 @@
   <button class="tab-btn" onclick="openTab('classrooms-section', this)">🏫 Classrooms</button>
   <button class="tab-btn" onclick="openTab('course-assignment-section', this)">📘 Assign Courses</button>
   <button class="tab-btn" onclick="openTab('terms-section', this)">📅 Terms</button>
+  <button class="tab-btn" onclick="openTab('attendance-section', this)">📋 Attendance</button>  
 
 </div>
 
+
+<!-- Terms Section  -->
 <div id="terms-section" style="display:none;">
 
   <div style="display:flex; gap:10px; margin-bottom:15px;">
@@ -242,6 +268,65 @@
       </table>
     </div>
   <% } %>
+
+</div>
+
+<!-- Attendance Section -->
+ <div id="attendance-section" style="display:none;">
+
+  <h3>📋 Attendance Management</h3>
+  <!-- <canvas id="attendanceChart"></canvas> -->
+   <canvas id="attendanceChart"></canvas>
+  <div id="attendanceSummary"></div>
+
+  <div style="display:flex; gap:10px; margin-bottom:15px;">
+    <!-- <button class="btn-edit" onclick="openModal('attendanceModal')">
+      ➕ Take Attendance
+    </button> -->
+    <button onclick="openAttendanceModal()">➕ Take Attendance</button>
+
+    <button class="btn-edit" onclick="loadAttendanceHistory()">
+      📊 View History
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div style="margin-bottom:15px;">
+    <label>Term:</label>
+    <select id="attendanceFilterTerm">
+      <% school.terms.forEach(t => { %>
+        <option value="<%= t.term_id %>"><%= t.term_name %></option>
+      <% }) %>
+    </select>
+
+    <label>Classroom:</label>
+    <select id="attendanceFilterClassroom">
+      <option value="">All</option>
+      <% school.classrooms.forEach(c => { %>
+        <option value="<%= c.id %>"><%= c.name %></option>
+      <% }) %>
+    </select>
+
+    <button onclick="loadAttendanceHistory()">Filter</button>
+  </div>
+
+  <!-- Attendance Table -->
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Classroom</th>
+          <th>Session Type</th>
+          <th>Taken By</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceTableBody">
+        <tr><td colspan="5" style="text-align:center;">No data yet</td></tr>
+      </tbody>
+    </table>
+  </div>
 
 </div>
 
@@ -810,11 +895,494 @@
   </div>
 </div>
 
+
+
+<div id="attendanceModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeModal('attendanceModal')" class="close-btn">&times;</span>
+
+    <h2>📋 Take Attendance</h2>
+
+    <form id="attendanceForm">
+
+      <input type="hidden" name="school_id" value="<%= school.id %>" />
+
+      <label>Select Term</label>
+      <select name="term_id" required>
+        <% school.terms.forEach(t => { %>
+          <option value="<%= t.term_id %>"><%= t.term_name %></option>
+        <% }) %>
+      </select>
+
+      <label>Select Classroom</label>
+      <select name="classroom_id" id="attendanceClassroom" required>
+        <% school.classrooms.forEach(c => { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+
+      <input type="date" name="date" value="<%= new Date().toISOString().split('T')[0] %>" />
+
+      <label>Academic Week</label>
+      <select name="week_number" required>
+        <option value="1">Week 1</option>
+        <option value="2">Week 2</option>
+        <option value="3">Week 3</option>
+        <option value="4">Week 4</option>
+        <option value="5">Week 5</option>
+        <option value="6">Week 6</option>
+        <option value="7">Week 7</option>
+        <option value="8">Week 8</option>
+        <option value="9">Week 9</option>
+        <option value="10">Week 10</option>
+      </select>
+
+      <label>Session Type</label>
+      <select name="session_status" id="sessionStatus" onchange="toggleAttendanceUI()">
+        <option value="held">✅ Class Held</option>
+        <option value="holiday">🎉 Public Holiday</option>
+        <option value="no_class">📭 No Class</option>
+        <option value="cancelled">❌ Cancelled</option>
+      </select>
+
+      <textarea id="note" name="note" placeholder="Optional note (e.g. Eid holiday, strike, etc)"></textarea>
+
+      <div id="attendanceStudentList"></div>
+      
+
+      <button type="submit">Save Attendance</button>
+    </form>
+  </div>
+</div>
+
+<div id="attendanceViewModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeModal('attendanceViewModal')" class="close-btn">&times;</span>
+
+    <div id="attendanceViewContent"></div>
+  </div>
+</div>
+
+<div id="editAttendanceModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeModal('editAttendanceModal')" class="close-btn">&times;</span>
+
+    <h2>Edit Attendance Session</h2>
+
+    <form id="editAttendanceForm">
+
+      <input type="hidden" name="id" id="editSessionId" />
+
+      <label>Session Status</label>
+      <select name="session_status" id="editStatus">
+        <option value="held">Held</option>
+        <option value="holiday">Holiday</option>
+        <option value="no_class">No Class</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+
+      <label>Week</label>
+      <input type="number" name="week_number" id="editWeek" />
+
+      <label>Date</label>
+      <input type="date" name="date" id="editDate" />
+
+      <textarea name="note" id="editNote"></textarea>
+
+      <button type="submit">Update</button>
+    </form>
+  </div>
+</div>
+
+<!-- script for attendance modal -->
+ <script>
+  function openAttendanceModal() {
+    openModal("attendanceModal");
+    loadStudentsForAttendance();
+  }
+// submit attendance
+    async function loadStudentsForAttendance() {
+      const status = document.getElementById("sessionStatus").value;
+      const container = document.getElementById("attendanceStudentList");
+
+      // 🚫 If not held → stop here
+      if (status !== "held") {
+        container.innerHTML = "<p>⚠️ No attendance required for this session</p>";
+        return;
+      }
+
+      const classroomId = document.getElementById("attendanceClassroom").value;
+      const termId = document.querySelector('[name="term_id"]').value;
+
+      const res = await fetch(`/admin/attendance/students?term_id=${termId}&classroom_id=${classroomId}`);
+      const students = await res.json();
+
+      container.innerHTML = "";
+
+      students.forEach(s => {
+        container.innerHTML += `
+          <div class="student-row">
+            <span>${s.fullname}</span>
+            <select data-id="${s.id}">
+              <option value="present">✅ Present</option>
+              <option value="absent">❌ Absent</option>
+              <option value="late">⏰ Late</option>
+            </select>
+          </div>
+        `;
+      });
+    }
+
+// async function loadAttendanceStats() {
+//   const termId = document.getElementById("attendanceFilterTerm").value;
+
+//   const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
+//   const data = await res.json();
+
+//   const labels = data.map(d => `Week ${d.week_number}`);
+//   const present = data.map(d => d.present);
+//   const absent = data.map(d => d.absent);
+
+//   new Chart(document.getElementById("attendanceChart"), {
+//     type: "bar",
+//     data: {
+//       labels,
+//       datasets: [
+//         { label: "Present", data: present },
+//         { label: "Absent", data: absent }
+//       ]
+//     }
+//   });
+// }
+
+async function loadAttendanceStats() {
+  const termId = document.getElementById("attendanceFilterTerm").value;
+
+  const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
+  const data = await res.json();
+
+  const labels = data.map(d => `Week ${d.week_number}`);
+  const present = data.map(d => d.present);
+  const absent = data.map(d => d.absent);
+  const percent = data.map(d => d.attendance_percent);
+
+  new Chart(document.getElementById("attendanceChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label: "Present", data: present },
+        { label: "Absent", data: absent }
+      ]
+    }
+  });
+
+  let avg = percent.reduce((a,b)=>a+b,0)/percent.length;
+
+  document.getElementById("attendanceSummary").innerHTML = `
+    <h3>Average Attendance: ${avg.toFixed(1)}%</h3>
+  `;
+}
+
+document.getElementById("attendanceForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+
+  const records = [];
+
+  document.querySelectorAll("#attendanceStudentList select").forEach(sel => {
+    records.push({
+      student_id: sel.dataset.id,
+      status: sel.value
+    });
+  });
+
+  const payload = {
+    school_id: form.school_id.value,
+    term_id: form.term_id.value,
+    classroom_id: form.classroom_id.value,
+    date: form.date.value,
+    week_number: form.week_number.value,
+    session_status: document.getElementById("sessionStatus").value, // ✅ ADD
+    note: document.getElementById("note").value || "",
+    records
+  };
+
+  const res = await fetch("/admin/attendance/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    alert("Attendance saved!");
+    closeModal("attendanceModal");
+  }
+});
+
+  async function toggleAttendanceDetails(sessionId) {
+    const row = document.getElementById(`attendance-row-${sessionId}`);
+    const container = document.getElementById(`attendance-details-${sessionId}`);
+
+    if (row.style.display === "none") {
+      row.style.display = "table-row";
+
+      if (!container.dataset.loaded) {
+        const res = await fetch(`/admin/attendance/session/${sessionId}`);
+        const data = await res.json();
+
+        if (data.length === 0) {
+          container.innerHTML = "<p>No attendance records</p>";
+        } else {
+          let html = `
+            <table class="user-table" style="margin-top:10px;">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          data.forEach(s => {
+            html += `
+              <tr>
+                <td>${s.fullname}</td>
+                <td>${formatSessionStatus(s.status)}</td>
+              </tr>
+            `;
+          });
+
+          html += "</tbody></table>";
+          container.innerHTML = html;
+        }
+
+        container.dataset.loaded = "true";
+      }
+
+    } else {
+      row.style.display = "none";
+    }
+  }
+  
+//  Attendance History
+  async function loadAttendanceHistory() {
+    const termId = document.getElementById("attendanceFilterTerm").value;
+    const classroomId = document.getElementById("attendanceFilterClassroom").value;
+
+    const res = await fetch(`/admin/attendance/history?term_id=${termId}&classroom_id=${classroomId}`);
+    const data = await res.json();
+
+    const tbody = document.getElementById("attendanceTableBody");
+    tbody.innerHTML = "";
+
+    if (data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No attendance found</td></tr>`;
+      return;
+    }
+
+    data.forEach(a => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${new Date(a.date).toDateString()}</td>
+          <td>${a.classroom}</td>
+          <td>${formatSession(a.session_status)}</td>
+          <td>${a.taken_by || '-'}</td>
+          <td class="actions-col">
+            <i class="fa fa-eye action-icon" style="cursor:pointer; color:blue;" onclick="toggleAttendanceDetails(${a.id})"></i>
+            <i class="fa fa-eye action-icon" style="cursor:pointer; color:green;" onclick="viewAttendance(${a.id})"></i>
+            <i class="fa fa-edit action-icon" style="cursor:pointer; color:orange;" onclick="editSession(${a.id})"></i>
+            <i class="fa fa-trash action-icon" style="cursor:pointer; color:red;" onclick="deleteSession(${a.id})"></i>
+            <a href="/admin/attendance/export/pdf/${a.id}" target="_blank">
+              <i class="fa fa-file-pdf action-icon" style="cursor:pointer; color:red;"></i>
+            </a>
+            <i class="fa fa-file-excel action-icon" style="cursor:pointer; color:green;" onclick="exportExcel()"></i>
+          </td>
+        </tr>
+        <tr id="attendance-row-${a.id}" style="display:none;">
+          <td colspan="5">
+            <div id="attendance-details-${a.id}"></div>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+async function editSession(id) {
+  openModal("editAttendanceModal");
+
+  const res = await fetch(`/admin/attendance/session/full/${id}`);
+  const data = await res.json();
+
+  document.getElementById("editSessionId").value = id;
+  document.getElementById("editStatus").value = data.session.session_status;
+  document.getElementById("editWeek").value = data.session.week_number;
+  document.getElementById("editDate").value = data.session.date;
+  document.getElementById("editNote").value = data.session.note || "";
+
+  // Load students for editing
+  let html = "";
+
+  data.records.forEach(r => {
+    html += `
+      <div class="student-row">
+        <input type="hidden" value="${r.id}" class="record-id" />
+        <span>${r.student_id}</span>
+        <select class="record-status">
+          <option value="present" ${r.status === "present" ? "selected" : ""}>Present</option>
+          <option value="absent" ${r.status === "absent" ? "selected" : ""}>Absent</option>
+          <option value="late" ${r.status === "late" ? "selected" : ""}>Late</option>
+        </select>
+      </div>
+    `;
+  });
+
+  document.getElementById("editStudentList").innerHTML = html;
+}
+
+document.getElementById("editAttendanceForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById("editSessionId").value;
+
+  // update session
+  await fetch(`/admin/attendance/session/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_status: document.getElementById("editStatus").value,
+      week_number: document.getElementById("editWeek").value,
+      date: document.getElementById("editDate").value,
+      note: document.getElementById("editNote").value
+    })
+  });
+
+  // update students
+  const updates = [];
+
+  document.querySelectorAll(".student-row").forEach(row => {
+    updates.push({
+      id: row.querySelector(".record-id").value,
+      status: row.querySelector(".record-status").value
+    });
+  });
+
+  for (const u of updates) {
+    await fetch(`/admin/attendance/record/${u.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: u.status })
+    });
+  }
+
+  alert("Updated successfully");
+  closeModal("editAttendanceModal");
+  loadAttendanceHistory();
+});
+
+  async function deleteSession(id) {
+    if (!confirm("Delete this attendance session?")) return;
+
+    const res = await fetch(`/admin/attendance/session/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("Deleted");
+      loadAttendanceHistory();
+    }
+  }
+
+  function formatSessionStatus(status) {
+    if (status === "present") return "✅ Present";
+    if (status === "absent") return "❌ Absent";
+    if (status === "late") return "⏰ Late";
+  }
+ 
+  function formatSession(status) {
+    if (status === "held") return "✅ Held";
+    if (status === "holiday") return "🎉 Holiday";
+    if (status === "no_class") return "📭 No Class";
+    if (status === "cancelled") return "❌ Cancelled";
+    return status;
+  }
+
+  // function viewAttendance(sessionId) {
+  //   openModal("attendanceViewModal");
+
+  //   const container = document.getElementById("attendanceViewContent");
+
+  //   fetch(`/admin/attendance/session/${sessionId}`)
+  //     .then(res => res.json())
+  //     .then(data => {
+  //       let html = "<h3>Attendance</h3>";
+
+  //       data.forEach(s => {
+  //         html += `<p>${s.fullname} - ${formatSessionStatus(s.status)}</p>`;
+  //       });
+
+  //       container.innerHTML = html;
+  //     });
+  // }
+
+  function viewAttendance(sessionId) {
+    openModal("attendanceViewModal");
+
+    fetch(`/admin/attendance/session/${sessionId}`)
+      .then(res => res.json())
+      .then(data => {
+        let html = `
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        data.forEach(s => {
+          html += `
+            <tr>
+              <td>${s.fullname}</td>
+              <td>${formatSessionStatus(s.status)}</td>
+            </tr>
+          `;
+        });
+
+        html += "</tbody></table>";
+
+        document.getElementById("attendanceViewContent").innerHTML = html;
+      });
+  }
+
+function exportExcel() {
+  const termId = document.getElementById("attendanceFilterTerm").value;
+  window.open(`/admin/attendance/export/excel/${termId}`, "_blank");
+}
+
+  document.getElementById("attendanceClassroom")
+  .addEventListener("change", loadStudentsForAttendance);
+
+  document.querySelector('[name="term_id"]')
+    .addEventListener("change", loadStudentsForAttendance);
+
+  document.getElementById("sessionStatus")
+  .addEventListener("change", loadStudentsForAttendance);
+ </script>
+
 <!-- script for nav tab  -->
 <script>
   function openTab(sectionId, btn) {
     // Hide all sections
-    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section'];
+    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section', 'attendance-section'];
     sections.forEach(id => {
       document.getElementById(id).style.display = 'none';
     });

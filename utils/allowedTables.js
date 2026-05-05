@@ -4,6 +4,8 @@ module.exports = [
     "activities",
     "ai_tutor_logs",
     "assignment_submissions",
+    "attendance_records",
+    "attendance_sessions",
     "benefits",
     "career_pathways",
     "categories",
