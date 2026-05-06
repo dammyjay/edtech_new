@@ -1,0 +1,209 @@
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        }
+
+        .modal-content {
+        background: #fff;
+        padding: 20px;
+        width: 400px;
+        border-radius: 10px;
+        max-height: 80vh;
+        overflow-y: auto;
+        }
+
+        .close-btn {
+        float: right;
+        cursor: pointer;
+        font-size: 20px;
+        }
+</style>
+
+<h3>📋 Attendance</h3>
+
+<div style="margin-bottom:15px;">
+  <label>Term:</label>
+  <select id="attendanceFilterTerm">
+    <% (school?.terms || []).forEach(t => { %>
+      <option value="<%= t.term_id %>"><%= t.term_name %></option>
+    <% }) %>
+  </select>
+
+  <label>Classroom:</label>
+  <select id="attendanceFilterClassroom">
+    <option value="">All</option>
+    <% classes.forEach(c => { %>
+      <option value="<%= c.id %>"><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <button onclick="loadAttendanceHistory()">Load</button>
+</div>
+
+<button onclick="openAttendanceModal()">➕ Take Attendance</button>
+
+<div id="studentList" style="margin-top:15px;"></div>
+
+<table class="user-table">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Classroom</th>
+      <th>Status</th>
+      <th>Students</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
+  <tbody id="attendanceTableBody">
+    <tr>
+      <td colspan="5">No data yet</td>
+    </tr>
+  </tbody>
+</table>
+
+<div id="attendanceModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeModal('attendanceModal')" class="close-btn">&times;</span>
+
+    <h3>📋 Take Attendance</h3>
+
+    <div id="attendanceStudentList"></div>
+  </div>
+</div>
+
+<script>
+    async function loadAttendanceStudents() {
+        const term_id = document.getElementById("attendanceFilterTerm").value;
+        const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+
+        const res = await fetch(`/instructor/attendance/students?term_id=${term_id}&classroom_id=${classroom_id}`);
+        const data = await res.json();
+
+        let html = "<h3>Mark Attendance</h3>";
+
+        data.forEach(s => {
+            html += `
+            <div style="margin:5px 0;">
+                <span>${s.fullname}</span>
+                <select data-id="${s.id}">
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+                </select>
+            </div>
+            `;
+        });
+
+        html += `<button onclick="saveAttendance()">Save</button>`;
+
+        document.getElementById("attendanceStudentList").innerHTML = html;
+    }
+
+    async function saveAttendance() {
+        // const term_id = document.getElementById("attendanceFilterTerm").value;
+        // const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+
+        const term_id = document.getElementById("attendanceFilterTerm").value;
+        const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+
+        const records = [];
+
+        document.querySelectorAll("#studentList select").forEach(sel => {
+            records.push({
+            student_id: sel.dataset.id,
+            status: sel.value
+            });
+        });
+
+        const payload = {
+            school_id: "<%= school.id %>",
+            term_id,
+            classroom_id,
+            date: new Date().toISOString().split("T")[0],
+            session_status: "held",
+            week_number: 1,
+            records
+        };
+
+        const res = await fetch("/instructor/attendance/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        alert(data.success ? "Saved!" : "Error saving");
+        }
+
+    //     async function loadAttendanceHistory() {
+    //     const term_id = document.getElementById("attendanceFilterTerm").value;
+    //     const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+
+    //     const res = await fetch(`/instructor/attendance/history?term_id=${term_id}&classroom_id=${classroom_id}`);
+    //     const data = await res.json();
+
+    //     let html = "";
+
+    //     data.forEach(a => {
+    //         html += `
+    //         <tr>
+    //             <td>${a.date}</td>
+    //             <td>${a.classroom}</td>
+    //             <td>${a.session_status}</td>
+    //             <td>${a.student_count}</td>
+    //         </tr>
+    //         `;
+    //     });
+
+    //     document.getElementById("attendanceTableBody").innerHTML = html;
+    // }
+
+
+    async function loadAttendanceHistory() {
+    const term_id = document.getElementById("attendanceFilterTerm").value;
+    const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+
+    console.log("term:", term_id, "classroom:", classroom_id);
+
+    const res = await fetch(`/instructor/attendance/history?term_id=${term_id}&classroom_id=${classroom_id}`);
+    const data = await res.json();
+
+    let html = "";
+
+    if (data.length === 0) {
+        html = `<tr><td colspan="5">No attendance found</td></tr>`;
+    } else {
+        data.forEach(a => {
+        html += `
+        <tr>
+            <td>${new Date(a.date).toDateString()}</td>
+            <td>${a.classroom}</td>
+            <td>${a.session_status}</td>
+            <td>${a.student_count}</td>
+        </tr>
+        `;
+        });
+    }
+
+    document.getElementById("attendanceTableBody").innerHTML = html;
+    }
+
+    function openAttendanceModal() {
+    document.getElementById("attendanceModal").style.display = "flexI. ";
+    loadAttendanceStudents();
+    }
+
+    function closeModal(id) {
+    document.getElementById(id).style.display = "none";
+    }
+</script>

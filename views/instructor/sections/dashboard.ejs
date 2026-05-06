@@ -7,10 +7,19 @@
     <p>Select a school and section</p>
     <form id="schoolForm">
       <select name="school_id" id="schoolSelect">
-        <% schools.forEach(s => { %>
+        <!-- <% schools.forEach(s => { %>
           <option value="<%= s.id %>" <%= selectedSchoolId == s.id ? "selected" : "" %>><%= s.name %></option>
-        <% }) %>
-      </select>
+        <% }) %> -->
+        <% if (schools && schools.length > 0) { %>
+          <% schools.forEach(s => { %>
+            <option value="<%= s.id %>" <%= selectedSchoolId == s.id ? "selected" : "" %>>
+              <%= s.name %>
+            </option>
+          <% }) %>
+        <% } else { %>
+          <option disabled>No schools available</option>
+        <% } %>
+              </select>
     </form>
 
         <h2>🏫 School</h2>
@@ -364,18 +373,55 @@ async function sendReply() {
 
     
 <script>
+// const schoolSelect = document.getElementById("schoolSelect");
+
+// schoolSelect.addEventListener("change", async () => {
+//   const schoolId = schoolSelect.value;
+//   // load dashboard section with selected school
+//   await loadSection("dashboard?school_id=" + schoolId);
+// });
+
+// schoolSelect.addEventListener("change", async () => {
+//   const schoolId = schoolSelect.value;
+
+//   await fetch("/instructor/set-school", {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({ school_id: schoolId })
+//   });
+
+//   loadSection("dashboard");
+// });
+
 const schoolSelect = document.getElementById("schoolSelect");
 
-schoolSelect.addEventListener("change", async () => {
-  const schoolId = schoolSelect.value;
-  // load dashboard section with selected school
-  await loadSection("dashboard?school_id=" + schoolId);
-});
+if (schoolSelect) {
+  schoolSelect.addEventListener("change", async () => {
+    const schoolId = schoolSelect.value;
+
+    await fetch("/instructor/set-school", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ school_id: schoolId })
+    });
+
+    // loadSection("dashboard");
+    loadSection("dashboard?school_id=" + schoolId);
+  });
+}
 
 async function loadSection(section) {
   const res = await fetch(`/instructor/section/${section}`);
   const html = await res.text();
+
   document.getElementById("main-content").innerHTML = html;
+
+  // re-sync dropdown after reload
+  const schoolSelect = document.getElementById("schoolSelect");
+  if (schoolSelect) {
+    const saved = schoolSelect.dataset.selected;
+    if (saved) schoolSelect.value = saved;
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {

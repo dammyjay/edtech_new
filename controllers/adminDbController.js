@@ -77,7 +77,12 @@ exports.viewTable = async (req, res) => {
     term_id: {
       table: "academic_terms",
       nameColumn: "name"
-    } 
+    }, 
+
+    instructor_id: {
+      table: "users2",
+      nameColumn: "fullname"
+    }
   };
 
   const infoResult = await pool.query(

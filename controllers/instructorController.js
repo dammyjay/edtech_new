@@ -75,63 +75,6 @@ exports.getChatMessages = async (req, res) => {
   }
 };
 
-// ✅ Get all chat conversations (students who have messaged instructor)
-// exports.getInstructorChats = async (req, res) => {
-//   try {
-
-//     const infoResult = await pool.query(
-//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//     );
-//     const info = infoResult.rows[0] || {};
-
-//     const instructorId = req.user.id;
-
-//     // 🔹 Get student chat list
-//     const { rows } = await pool.query(
-//       `
-//       SELECT DISTINCT 
-//         u.id AS student_id,
-//         u.fullname AS student_name,
-//         u.email,
-//         MAX(m.created_at) AS last_message_time
-//       FROM messages m
-//       JOIN users2 u ON 
-//         (u.id = m.sender_id AND m.receiver_id = $1)
-//         OR (u.id = m.receiver_id AND m.sender_id = $1)
-//       WHERE u.role = 'student'
-//       GROUP BY u.id, u.fullname, u.email
-//       ORDER BY last_message_time DESC
-//       `,
-//       [instructorId]
-//     );
-
-//     // 🔹 Get instructor classes
-//     const classResult = await pool.query(`
-//       SELECT DISTINCT c.id, c.name
-//       FROM classrooms c
-//       JOIN user_school us ON us.classroom_id = c.id
-//       WHERE us.role_in_school = 'student'
-//     `);
-
-//     const profilePic = req.session.user
-//       ? req.session.user.profile_picture
-//       : null;
-
-//     res.render("instructor/chatList", {
-//       chats: rows,
-//       classes: classResult.rows,   // ✅ IMPORTANT
-//       info,
-//       profilePic,
-//       role: "instructor",
-//       user: req.session.user,
-//     });
-
-//   } catch (err) {
-//     console.error("Get instructor chats error:", err);
-//     res.status(500).send("Error loading chats");
-//   }
-// };
-
 exports.getInstructorChats = async (req, res) => {
   try {
     const infoResult = await pool.query(
@@ -140,6 +83,7 @@ exports.getInstructorChats = async (req, res) => {
     const info = infoResult.rows[0] || {};
 
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
 
     // 🔹 Get student chat list
     const { rows } = await pool.query(
@@ -207,6 +151,7 @@ exports.getChatWithStudent = async (req, res) => {
     );
     const info = infoResult.rows[0] || {};
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
     const studentId = req.params.studentId;
 
     const { rows } = await pool.query(
@@ -268,6 +213,7 @@ exports.markMessagesAsRead = async (req, res) => {
 exports.searchStudent = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
     const query = req.query.q ? req.query.q.trim() : "";
 
     if (!query) return res.json([]);
@@ -302,6 +248,7 @@ exports.searchStudent = async (req, res) => {
 exports.getUnreadMessages = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
 
     // ✅ Fetch unread (unopened) messages only
     const { rows } = await pool.query(
@@ -504,59 +451,6 @@ exports.sendClassMessage = async (req, res) => {
   }
 };
 
-// exports.sendClassMessage = async (req, res) => { 
-//   try {
-
-//     const { classroomId, message } = req.body
-//     const senderId = req.session.user?.id
-
-//     if (!senderId) {
-//       return res.status(401).json({ success:false })
-//     }
-
-//     /* CHECK CHAT LOCK */
-
-//     const classCheck = await pool.query(
-//       `SELECT chat_locked FROM classrooms WHERE id=$1`,
-//       [classroomId]
-//     )
-
-//     if(classCheck.rows[0].chat_locked){
-//       return res.json({
-//         success:false,
-//         message:"Chat is currently locked by instructor"
-//       })
-//     }
-
-//     /* MUTE CHECK */
-
-//     const muteCheck = await pool.query(
-//       `SELECT * FROM muted_students
-//        WHERE classroom_id=$1 AND student_id=$2`,
-//       [classroomId, senderId]
-//     )
-
-//     if(muteCheck.rows.length>0){
-//       return res.json({
-//         success:false,
-//         message:"You are muted in this class"
-//       })
-//     }
-
-//     await pool.query(
-//       `INSERT INTO class_messages (classroom_id, sender_id, message)
-//        VALUES ($1,$2,$3)`,
-//       [classroomId, senderId, message]
-//     )
-
-//     res.json({success:true})
-
-//   } catch (err) {
-//     console.error(err)
-//     res.status(500).json({success:false})
-//   }
-// }
-
 exports.deleteClassMessage = async (req,res)=>{
   try{
 
@@ -625,7 +519,6 @@ exports.lockClassChat = async (req,res)=>{
   }
 }
 
-
 exports.unlockClassChat = async (req,res)=>{
   try{
 
@@ -667,28 +560,105 @@ exports.getInstructorClasses = async (req,res)=>{
   }
 }
 
+// exports.setActiveSchool = (req, res) => {
+//   req.session.activeSchoolId = req.body.school_id;
+//   res.json({ success: true });
+// };
+
+exports.setActiveSchool = (req, res) => {
+  req.session.activeSchoolId = req.body.school_id;
+
+  req.session.save((err) => {
+    if (err) {
+      console.error("Session save error:", err);
+      return res.status(500).json({ success: false });
+    }
+    res.json({ success: true });
+  });
+};
+
 // controllers/instructorController.js
 exports.getInstructorDashboard = async (req, res) => {
-  const instructorId = req.user.id;
+
+
+  // const instructorId = req.user.id;
+  const instructorId = req.session.user.id;
+  // const schoolId = req.session.activeSchoolId;
+  // let schoolId = req.session.activeSchoolId;
+  let schoolId = req.query.school_id || req.session.activeSchoolId;
+
+  if (req.query.school_id) {
+    req.session.activeSchoolId = req.query.school_id;
+  }
+
+  console.log("INSTRUCTOR ID:", instructorId);
+  console.log("ACTIVE SCHOOL:", schoolId);
 
   try {
     // --- Company Info
-    const info = (await pool.query(
-      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-    )).rows[0] || {};
+    const info =
+      (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"))
+        .rows[0] || {};
 
     const profilePic = req.session.user?.profile_picture || null;
 
-    // --- Classrooms instructor teaches
-    const classroomsRes = await pool.query(
-      `
-      SELECT c.id, c.name
-      FROM classrooms c
-      JOIN classroom_instructors ci ON ci.classroom_id = c.id
+    // --- Schools instructor has access to
+   const schoolsRes = await pool.query(
+     `
+      SELECT DISTINCT 
+        s.id,
+        s.name
+      FROM classroom_instructors ci
+      JOIN classrooms c ON c.id = ci.classroom_id
+      JOIN schools s ON s.id = c.school_id
       WHERE ci.instructor_id = $1
-      `,
+    `,
+     [instructorId],
+   );
+
+    console.log("RAW SCHOOL DEBUG:", schoolsRes.rows);
+
+    const schools = schoolsRes.rows;
+    const selectedSchoolId = schoolId || schools[0]?.id || null;
+
+    if (!schoolId) {
+      schoolId = req.session.activeSchoolId || null;
+    }
+
+    const test = await pool.query(
+      `SELECT * FROM classroom_instructors WHERE instructor_id = $1`,
       [instructorId]
     );
+
+    console.log("Instructor classrooms:", test.rows);
+
+    // --- Classrooms instructor teaches
+    // const classroomsRes = await pool.query(
+    //   `
+    //   SELECT c.id, c.name
+    //   FROM classrooms c
+    //   JOIN classroom_instructors ci ON ci.classroom_id = c.id
+    //   WHERE ci.instructor_id = $1
+    //   AND c.school_id = $2
+    //   `,
+    //   [instructorId, schoolId]
+    // );
+
+    let classroomQuery = `
+  SELECT c.id, c.name
+  FROM classrooms c
+  JOIN classroom_instructors ci ON ci.classroom_id = c.id
+  WHERE ci.instructor_id = $1
+`;
+
+    let params = [instructorId];
+
+    if (schoolId) {
+      classroomQuery += ` AND c.school_id = $2`;
+      params.push(schoolId);
+    }
+
+    const classroomsRes = await pool.query(classroomQuery, params);
 
     const classrooms = classroomsRes.rows;
 
@@ -707,7 +677,7 @@ exports.getInstructorDashboard = async (req, res) => {
         WHERE cc.classroom_id = $1
         ORDER BY cr.title
         `,
-        [req.query.classroom]
+        [req.query.classroom],
       );
       courses = coursesRes.rows;
     }
@@ -720,7 +690,7 @@ exports.getInstructorDashboard = async (req, res) => {
         WHERE course_id = $1
         ORDER BY order_number ASC
         `,
-        [req.query.course]
+        [req.query.course],
       );
       modules = modulesRes.rows;
     }
@@ -735,11 +705,14 @@ exports.getInstructorDashboard = async (req, res) => {
         WHERE l.module_id = $1
         ORDER BY order_number ASC
         `,
-        [req.query.module]
+        [req.query.module],
       );
       lessons = lessonsRes.rows;
     }
 
+    console.log("Instructor ID:", instructorId);
+    console.log("Schools:", schools);
+    console.log("Active School:", schoolId);
     res.render("instructor/dashboard", {
       info,
       profilePic,
@@ -747,28 +720,50 @@ exports.getInstructorDashboard = async (req, res) => {
       courses,
       modules,
       lessons,
+      schools,
+      selectedSchoolId,
       selected: req.query,
       user: req.session.user,
       role: "instructor",
     });
-
   } catch (err) {
     console.error("Instructor dashboard error:", err);
     res.status(500).send("Server error");
   }
 };
 
+// exports.ajaxCourses = async (req, res) => {
+//   const instructorId = req.user.id;
+
+//   const result = await pool.query(`
+//     SELECT c.id, c.title,
+//     COUNT(ce.user_id) AS student_count
+//     FROM courses c
+//     LEFT JOIN course_enrollments ce ON ce.course_id = c.id
+//     WHERE c.instructor_id = $1
+//     GROUP BY c.id
+//   `, [instructorId]);
+
+//   res.json(result.rows);
+// };
+
 exports.ajaxCourses = async (req, res) => {
   const instructorId = req.user.id;
+  const schoolId = req.session.activeSchoolId;
 
-  const result = await pool.query(`
+  const result = await pool.query(
+    `
     SELECT c.id, c.title,
     COUNT(ce.user_id) AS student_count
     FROM courses c
     LEFT JOIN course_enrollments ce ON ce.course_id = c.id
+    JOIN classrooms cl ON cl.course_id = c.id
     WHERE c.instructor_id = $1
+      AND cl.school_id = $2
     GROUP BY c.id
-  `, [instructorId]);
+  `,
+    [instructorId, schoolId],
+  );
 
   res.json(result.rows);
 };
@@ -779,6 +774,13 @@ exports.loadSection = async (req, res) => {
     const { section } = req.params;
     const instructorId = req.user.id;
 
+    if (req.query.school_id) {
+      req.session.activeSchoolId = req.query.school_id;
+    }
+
+    // const schoolId = req.session.activeSchoolId;
+    let schoolId = req.session.activeSchoolId;
+
     // Fetch shared data
     const info =
       (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"))
@@ -786,17 +788,24 @@ exports.loadSection = async (req, res) => {
 
     const profilePic = req.session.user?.profile_picture || null;
 
-    // Fetch schools
     const schoolsRes = await pool.query(`
       SELECT DISTINCT s.id, s.name
       FROM classroom_instructors ci
-      JOIN classrooms c ON ci.classroom_id = c.id
-      JOIN schools s ON c.school_id = s.id
+      JOIN classrooms c ON c.id = ci.classroom_id
+      JOIN schools s ON s.id = c.school_id
       WHERE ci.instructor_id = $1
-      ORDER BY s.name
     `, [instructorId]);
+
     const schools = schoolsRes.rows;
-    const activeSchoolId = req.query.school_id || (schools[0] ? schools[0].id : null);
+    if (!schoolId) {
+      schoolId = req.session.activeSchoolId || null;
+    }
+    // const activeSchoolId = req.query.school_id || (schools[0] ? schools[0].id : null);
+    let activeSchoolId = req.session.activeSchoolId;
+
+    if (!activeSchoolId) {
+      activeSchoolId = null;
+    }
 
     let school = null;
     let classes = [];
@@ -808,9 +817,23 @@ exports.loadSection = async (req, res) => {
     let total_submissions = 0;
     let overview = {};
     let lessonsPerClass = [];
+    let terms = [];
 
     if (activeSchoolId) {
-      school = schools.find(s => String(s.id) === String(activeSchoolId));
+      
+      const termsRes = await pool.query(`
+        SELECT id AS term_id, name AS term_name
+        FROM academic_terms
+        WHERE school_id = $1
+        ORDER BY id DESC
+      `, [activeSchoolId]);
+      terms = termsRes.rows;
+
+      // school = schools.find(s => String(s.id) === String(activeSchoolId));
+      // school.terms = terms;
+      
+      school = schools.find(s => String(s.id) === String(activeSchoolId)) || {};
+      school.terms = terms;
 
       // Load classrooms as `classes`
       const classesRes = await pool.query(`
@@ -874,34 +897,59 @@ exports.loadSection = async (req, res) => {
       total_lessons = Number(lessonsCountRes.rows[0].count);
 
 
+      // if (section === "students" || section === "reports") {
+      //   const classroomId = req.query.classroom_id || null;
+
+      //   const studentsQuery = `
+      //     SELECT u.id, u.fullname, u.email, c.name AS classroom_name
+      //     FROM user_school us
+      //     JOIN users2 u ON u.id = us.user_id
+      //     JOIN classrooms c ON c.id = us.classroom_id
+      //     JOIN classroom_instructors ci ON ci.classroom_id = c.id
+      //     WHERE ci.instructor_id = $1
+      //       AND us.role_in_school = 'student'
+      //       AND us.approved = true
+      //       ${classroomId ? "AND c.id = $2" : ""}
+      //     ORDER BY u.fullname
+      //   `;
+
+      //   const params = classroomId
+      //     ? [instructorId, classroomId]
+      //     : [instructorId];
+
+      //   const studentsRes = await pool.query(studentsQuery, params);
+      //   students = studentsRes.rows;
+      // }
+
       if (section === "students" || section === "reports") {
         const classroomId = req.query.classroom_id || null;
 
         const studentsQuery = `
-          SELECT u.id, u.fullname, u.email, c.name AS classroom_name
+          SELECT DISTINCT u.id, u.fullname, u.email, c.name AS classroom_name
           FROM user_school us
           JOIN users2 u ON u.id = us.user_id
           JOIN classrooms c ON c.id = us.classroom_id
           JOIN classroom_instructors ci ON ci.classroom_id = c.id
           WHERE ci.instructor_id = $1
+            AND c.school_id = $2
             AND us.role_in_school = 'student'
             AND us.approved = true
-            ${classroomId ? "AND c.id = $2" : ""}
+            ${classroomId ? "AND c.id = $3" : ""}
           ORDER BY u.fullname
         `;
 
         const params = classroomId
-          ? [instructorId, classroomId]
-          : [instructorId];
+          ? [instructorId, activeSchoolId, classroomId]
+          : [instructorId, activeSchoolId];
 
         const studentsRes = await pool.query(studentsQuery, params);
         students = studentsRes.rows;
       }
 
-
       // If section is classes, get lessons per class and student counts per class
       if (section === "classes") {
-        const studentCountsPerClassRes = await pool.query(`
+        const studentCountsPerClassRes = await pool.query(
+          `
           SELECT c.id, COUNT(us.user_id) AS student_count
           FROM classrooms c
           JOIN classroom_instructors ci ON ci.classroom_id = c.id
@@ -910,8 +958,11 @@ exports.loadSection = async (req, res) => {
             AND us.role_in_school = 'student' 
             AND us.approved = true
           WHERE ci.instructor_id = $1
+          AND c.school_id = $2
           GROUP BY c.id
-        `, [instructorId]);
+        `,
+          [instructorId, schoolId],
+        );
 
         const lessonsPerClassResDB = await pool.query(`
           SELECT c.id, COUNT(l.id) AS lesson_count
@@ -922,8 +973,9 @@ exports.loadSection = async (req, res) => {
           LEFT JOIN modules m ON m.course_id = co.id
           LEFT JOIN lessons l ON l.module_id = m.id
           WHERE ci.instructor_id = $1
+            AND c.school_id = $2
           GROUP BY c.id
-        `, [instructorId]);
+        `, [instructorId, schoolId]);
 
         lessonsPerClass = lessonsPerClassResDB.rows;
 
@@ -1031,7 +1083,8 @@ exports.loadSection = async (req, res) => {
       receivedMessages,
       selectedSchoolId: activeSchoolId,
       overview,
-      lessonsPerClass
+      lessonsPerClass,
+      terms
     };
 
     // Render section
@@ -1043,6 +1096,7 @@ exports.loadSection = async (req, res) => {
       case "reports":
       case "messages":
       case "assigned_courses":
+      case "attendance":
         return res.render(`instructor/sections/${section}`, data);
       default:
         return res.send("<p>Section not found</p>");
@@ -1057,14 +1111,15 @@ exports.loadSection = async (req, res) => {
 exports.getInstructorClassesSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
 
     // Fetch instructor's classes
     const classesRes = await pool.query(
       `SELECT c.id, c.name
        FROM classrooms c
        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       WHERE ci.instructor_id = $1`,
-      [instructorId]
+       WHERE ci.instructor_id = $1 AND c.school_id = $2`,
+      [instructorId, schoolId]
     );
     const classes = classesRes.rows;
 
@@ -1077,9 +1132,9 @@ exports.getInstructorClassesSection = async (req, res) => {
          ON us.classroom_id = c.id 
         AND us.role_in_school = 'student' 
         AND us.approved = true
-       WHERE ci.instructor_id = $1
+       WHERE ci.instructor_id = $1 AND c.school_id = $2
        GROUP BY c.id`,
-      [instructorId]
+      [instructorId, schoolId]
     );
 
     // Lessons per class
@@ -1091,9 +1146,9 @@ exports.getInstructorClassesSection = async (req, res) => {
        LEFT JOIN courses co ON co.id = cc.course_id
        LEFT JOIN modules m ON m.course_id = co.id
        LEFT JOIN lessons l ON l.module_id = m.id
-       WHERE ci.instructor_id = $1
+       WHERE ci.instructor_id = $1 AND c.school_id = $2
        GROUP BY c.id`,
-      [instructorId]
+      [instructorId, schoolId]
     );
 
     // Build overview
@@ -1129,14 +1184,31 @@ exports.getInstructorClassesSection = async (req, res) => {
 exports.getInstructorStudentsSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
+    // const studentsRes = await pool.query(
+    //   `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
+    //    FROM user_school us
+    //    JOIN users2 u ON u.id = us.user_id
+    //    JOIN classrooms c ON c.id = us.classroom_id
+    //    JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+    //    WHERE ci.instructor_id = $1 AND us.role_in_school = 'student' AND us.approved = true AND c.school_id = $2`,
+    //   [instructorId, schoolId]
+    // );
+
     const studentsRes = await pool.query(
-      `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
-       FROM user_school us
-       JOIN users2 u ON u.id = us.user_id
-       JOIN classrooms c ON c.id = us.classroom_id
-       JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
-       WHERE ci.instructor_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
-      [instructorId]
+      `
+      SELECT DISTINCT u.id, u.fullname, u.email, c.name AS classroom_name
+      FROM user_school us
+      JOIN users2 u ON u.id = us.user_id
+      JOIN classrooms c ON c.id = us.classroom_id
+      JOIN classroom_instructors ci ON ci.classroom_id = c.id
+      WHERE ci.instructor_id = $1
+        AND c.school_id = $2
+        AND us.role_in_school = 'student'
+        AND us.approved = true
+      ORDER BY u.fullname
+      `,
+      [instructorId, schoolId]
     );
 
     res.render("instructor/sections/students", { students: studentsRes.rows });
@@ -1149,14 +1221,31 @@ exports.getInstructorStudentsSection = async (req, res) => {
 exports.getInstructorReportsSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
+    // const reportsRes = await pool.query(
+    //   `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
+    //    FROM user_school us
+    //    JOIN users2 u ON u.id = us.user_id
+    //    JOIN classrooms c ON c.id = us.classroom_id
+    //    JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+    //    WHERE ci.instructor_id = $1 AND us.role_in_school = 'student' AND us.approved = true AND c.school_id = $2`,
+    //   [instructorId, schoolId]
+    // );
+
     const reportsRes = await pool.query(
-      `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
-       FROM user_school us
-       JOIN users2 u ON u.id = us.user_id
-       JOIN classrooms c ON c.id = us.classroom_id
-       JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
-       WHERE ci.instructor_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
-      [instructorId]
+      `
+      SELECT DISTINCT u.id, u.fullname, u.email, c.name AS classroom_name
+      FROM user_school us
+      JOIN users2 u ON u.id = us.user_id
+      JOIN classrooms c ON c.id = us.classroom_id
+      JOIN classroom_instructors ci ON ci.classroom_id = c.id
+      WHERE ci.instructor_id = $1
+        AND c.school_id = $2
+        AND us.role_in_school = 'student'
+        AND us.approved = true
+      ORDER BY u.fullname
+      `,
+      [instructorId, schoolId]
     );
 
     res.render("instructor/sections/reports", { students: reportsRes.rows });
@@ -1169,6 +1258,7 @@ exports.getInstructorReportsSection = async (req, res) => {
 exports.viewStudentProgress = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    const schoolId = req.session.activeSchoolId;
     const studentId = req.params.id;
 
     /* 🔒 1. Authorization: instructor must teach this student */
@@ -1182,8 +1272,9 @@ exports.viewStudentProgress = async (req, res) => {
         AND ci.instructor_id = $2
         AND us.role_in_school = 'student'
         AND us.approved = true
+        AND c.school_id = $3
       `,
-      [studentId, instructorId]
+      [studentId, instructorId, schoolId]
     );
 
     if (!accessCheck.rowCount) {
@@ -1212,9 +1303,10 @@ exports.viewStudentProgress = async (req, res) => {
       JOIN user_school us ON us.classroom_id = cc.classroom_id
       WHERE us.user_id = $1
         AND ci.instructor_id = $2
+        AND c.school_id = $3
       ORDER BY c.title
       `,
-      [studentId, instructorId]
+      [studentId, instructorId, schoolId]
     );
 
     if (!coursesRes.rows.length) {
@@ -1810,95 +1902,6 @@ ${module.assignments.length ? `<table><tr><th>Assignment</th><th>Score</th></tr>
   }
 };
 
-// exports.previewContent = async (req, res) => {
-//   const { type, id } = req.params; // type = lesson | assignment | quiz, id = lessonId/assignId/quizId
-
-//   try {
-    
-//     if (type === "lesson") {
-//       const lesson = (await pool.query("SELECT * FROM lessons WHERE id = $1", [id])).rows[0];
-//       if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-
-//       const lessonType = req.query.part; // video | content | quiz
-
-//       if (lessonType === "video") {
-//         return res.json({ type: "video", title: lesson.title, video_url: lesson.video_url });
-//       } else if (lessonType === "content") {
-//         return res.json({ type: "content", title: lesson.title, content: lesson.content });
-//       } else if (lessonType === "lesson plan") {
-//         return res.json({ type: "lesson plan", title: lesson.title, lesson_plan: lesson.lesson_plan });
-//       } else if (lessonType === "quiz") {
-//         // Fetch lesson quiz
-//         const quizRes = await pool.query(
-//           "SELECT * FROM quizzes WHERE lesson_id = $1",
-//           [id]
-//         );
-//         const quiz = quizRes.rows[0];
-//         if (!quiz) return res.status(404).json({ error: "No quiz found for this lesson" });
-
-//         const questionsRes = await pool.query(
-//           "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
-//           [quiz.id]
-//         );
-
-//         const questions = questionsRes.rows.map(q => ({
-//           id: q.id,
-//           question: q.question,
-//           options: q.options || [],
-//           correct_option: q.correct_option,
-//           question_type: q.question_type
-//         }));
-
-//         return res.json({ type: "quiz", title: quiz.title, questions });
-//       } else {
-//         return res.status(400).json({ error: "Invalid lesson part type" });
-//       }
-
-//     } else if (type === "assignment") {
-//       const assignmentRes = await pool.query(
-//         "SELECT * FROM module_assignments WHERE id = $1",
-//         [id]
-//       );
-//       const assignment = assignmentRes.rows[0];
-//       if (!assignment) return res.status(404).json({ error: "Assignment not found" });
-
-//       return res.json({
-//         type: "assignment",
-//         title: assignment.title,
-//         description: assignment.instructions,
-//         file_url: assignment.file_url || null
-//       });
-
-//     } else if (type === "quiz") {
-//       const quizRes = await pool.query("SELECT * FROM quizzes WHERE id = $1", [id]);
-//       const quiz = quizRes.rows[0];
-//       if (!quiz) return res.status(404).json({ error: "Quiz not found" });
-
-//       const questionsRes = await pool.query(
-//         "SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC",
-//         [id]
-//       );
-
-//       const questions = questionsRes.rows.map(q => ({
-//         id: q.id,
-//         question: q.question,
-//         options: q.options || [],
-//         correct_option: q.correct_option,
-//         question_type: q.question_type
-//       }));
-
-//       return res.json({ type: "quiz", title: quiz.title, questions });
-
-//     } else {
-//       return res.status(400).json({ error: "Invalid content type" });
-//     }
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Failed to load content" });
-//   }
-// };
-
 exports.previewContent = async (req, res) => {
   const { type, id } = req.params; // lesson | assignment | quiz
   const { part } = req.query;      // lesson_plan | video | content | quiz
@@ -2039,7 +2042,6 @@ exports.previewContent = async (req, res) => {
   }
 };
 
-
 exports.viewCourseAsStudent = async (req, res) => {
   const courseId = req.params.courseId;
   const instructor = req.user;
@@ -2117,15 +2119,19 @@ exports.viewCourseAsStudent = async (req, res) => {
   });
 };
 
-
 exports.assignedCoursesSection = async (req, res) => {
   const instructorId = req.user.id;
-  const schoolId = parseInt(req.query.school_id, 10);
+  // const schoolId = parseInt(req.query.school_id, 10);
+  const schoolId = req.session.activeSchoolId;
+
+  // if (!schoolId) {
+  //   return res.send("<p>Please select a school</p>");
+  // }
 
   if (!schoolId) {
-    return res.send("<p>Please select a school</p>");
+  return res.send("<p>No school selected. Please choose a school first.</p>");
   }
-
+  
   try {
     // 1️⃣ Get instructor classrooms in this school
     const classroomsResult = await pool.query(`
@@ -2168,3 +2174,594 @@ exports.assignedCoursesSection = async (req, res) => {
     res.send("<p>Error loading assigned courses</p>");
   }
 };
+
+
+exports.getAttendanceStudents = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+
+  try {
+    if (!term_id || !classroom_id) {
+      return res
+        .status(400)
+        .json({ error: "term_id and classroom_id are required" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT 
+        u.id,
+        u.fullname
+      FROM student_term_enrollments ts
+      JOIN users2 u ON ts.student_id = u.id
+      JOIN user_school us ON us.user_id = u.id
+      WHERE ts.term_id = $1 
+      AND us.classroom_id = $2
+      ORDER BY u.fullname ASC
+    `,
+      [term_id, classroom_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching attendance students:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.saveAttendance = async (req, res) => {
+  // const { term_id, classroom_id, date, records, session_status, note } =
+  //   req.body;
+  const {
+    term_id,
+    classroom_id,
+    date,
+    records,
+    session_status,
+    note,
+    week_number,
+  } = req.body;
+  const userId = req.session.user.id;
+
+  try {
+    // 1. Create session
+    const sessionResult = await pool.query(
+      `
+      INSERT INTO attendance_sessions 
+      (school_id, term_id, classroom_id, taken_by, date, session_status, note, week_number)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (term_id, classroom_id, date)
+      DO UPDATE SET 
+        taken_by = EXCLUDED.taken_by,
+        session_status = EXCLUDED.session_status,
+        note = EXCLUDED.note
+      RETURNING id, session_status
+    `,
+      [
+        req.body.school_id,
+        term_id,
+        classroom_id,
+        userId,
+        date,
+        session_status,
+        note || null,
+        week_number
+      ],
+    );
+
+    const sessionId = sessionResult.rows[0].id;
+
+    if (session_status !== "held") {
+
+      // 🔥 CLEAR OLD RECORDS
+      await pool.query(
+        `DELETE FROM attendance_records WHERE session_id = $1`,
+        [sessionId]
+      );
+
+      return res.json({
+        success: true,
+        message: "Session saved without attendance",
+      });
+    }
+
+    // 2. Save student attendance
+    for (const r of records) {
+      await pool.query(
+        `
+        INSERT INTO attendance_records (session_id, student_id, status)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (session_id, student_id)
+        DO UPDATE SET status = EXCLUDED.status
+      `,
+        [sessionId, r.student_id, r.status],
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error saving attendance");
+  }
+};
+
+exports.getWeeklyAttendanceStats = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        s.week_number,
+
+        COUNT(r.id) FILTER (WHERE r.status='present') AS present,
+        COUNT(r.id) FILTER (WHERE r.status='absent') AS absent,
+        COUNT(r.id) FILTER (WHERE r.status='late') AS late,
+        COUNT(r.id) AS total,
+
+        ROUND(
+          (COUNT(r.id) FILTER (WHERE r.status='present') * 100.0) / NULLIF(COUNT(r.id),0),
+          2
+        ) AS attendance_percent
+
+      FROM attendance_sessions s
+      LEFT JOIN attendance_records r ON r.session_id = s.id
+      WHERE s.term_id = $1
+      ${classroom_id ? "AND s.classroom_id = $2" : ""}
+      GROUP BY s.week_number
+      ORDER BY s.week_number
+      `,
+      classroom_id ? [term_id, classroom_id] : [term_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).send("Error");
+  }
+};
+
+// exports.getAttendanceHistory = async (req, res) => {
+//   const { term_id, classroom_id } = req.query;
+
+//   try {
+//     const result = await pool.query(
+//       `
+//       SELECT
+//         s.id,
+//         s.date,
+//         s.session_status,
+//         c.name AS classroom,
+//         u.fullname AS taken_by,
+
+//         -- ✅ ADD THIS
+//         COUNT(ar.id) AS student_count
+
+//       FROM attendance_sessions s
+
+//       LEFT JOIN classrooms c ON s.classroom_id = c.id
+//       LEFT JOIN users2 u ON s.taken_by = u.id
+
+//       -- ✅ JOIN attendance records
+//       LEFT JOIN attendance_records ar ON ar.session_id = s.id
+
+//       WHERE s.term_id = $1
+//       ${classroom_id ? "AND s.classroom_id = $2" : ""}
+
+//       -- ✅ IMPORTANT for COUNT
+//       GROUP BY s.id, c.name, u.fullname
+
+//       ORDER BY s.date DESC
+//     `,
+//       classroom_id ? [term_id, classroom_id] : [term_id],
+//     );
+
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error loading attendance history");
+//   }
+// };
+
+exports.getAttendanceHistory = async (req, res) => {
+  const { term_id, classroom_id } = req.query;
+  const instructorId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        s.id,
+        s.date,
+        s.session_status,
+        c.name AS classroom,
+        u.fullname AS taken_by,
+        COUNT(ar.id) AS student_count
+
+      FROM attendance_sessions s
+
+      -- ✅ ONLY instructor classes
+      JOIN classroom_instructors ci 
+        ON ci.classroom_id = s.classroom_id
+
+      LEFT JOIN classrooms c ON s.classroom_id = c.id
+      LEFT JOIN users2 u ON s.taken_by = u.id
+      LEFT JOIN attendance_records ar ON ar.session_id = s.id
+
+      WHERE s.term_id = $1
+      AND ci.instructor_id = $2
+      ${classroom_id ? "AND s.classroom_id = $3" : ""}
+
+      GROUP BY s.id, c.name, u.fullname
+      ORDER BY s.date DESC
+      `,
+      classroom_id
+        ? [term_id, instructorId, classroom_id]
+        : [term_id, instructorId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance history");
+  }
+};
+
+exports.getAttendanceSessionDetails = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.fullname,
+        ar.status
+      FROM attendance_records ar
+      JOIN users2 u ON ar.student_id = u.id
+      WHERE ar.session_id = $1
+      ORDER BY u.fullname
+    `, [id]);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance details");
+  }
+};
+
+exports.getAttendanceSession = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const session = await pool.query(
+      `SELECT * FROM attendance_sessions WHERE id=$1`,
+      [id]
+    );
+
+    const records = await pool.query(
+      `SELECT id, student_id, status FROM attendance_records WHERE session_id=$1`,
+      [id]
+    );
+
+    res.json({
+      session: session.rows[0],
+      records: records.rows
+    });
+
+  } catch (err) {
+    res.status(500).send("Error");
+  }
+};
+
+exports.exportAttendancePDF = async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    const session = await pool.query(
+      `SELECT * FROM attendance_sessions WHERE id=$1`,
+      [sessionId]
+    );
+
+    const students = await pool.query(
+      `SELECT u.fullname, r.status
+       FROM attendance_records r
+       JOIN users2 u ON r.student_id = u.id
+       WHERE r.session_id=$1`,
+      [sessionId]
+    );
+
+    // const html = `
+    // <html>
+    // <body style="font-family:Calibri;">
+    //   <div style="text-align:center;">
+    //     <h2>ATTENDANCE REPORT</h2>
+    //     <p>Week ${session.rows[0].week_number}</p>
+    //     <p>${session.rows[0].date}</p>
+    //   </div>
+
+    //   <table width="100%" border="1" cellspacing="0">
+    //     <tr>
+    //       <th>Student</th>
+    //       <th>Status</th>
+    //     </tr>
+
+    //     ${students.rows.map(s => `
+    //       <tr>
+    //         <td>${s.fullname}</td>
+    //         <td>${s.status}</td>
+    //       </tr>
+    //     `).join("")}
+    //   </table>
+    // </body>
+    // </html>
+    // `;
+
+    const html = `
+      <html>
+      <head>
+      <style>
+      body {
+        font-family: Arial;
+        padding: 30px;
+      }
+
+      .header {
+        text-align: center;
+        border-bottom: 2px solid #333;
+        margin-bottom: 20px;
+      }
+
+      .header h2 {
+        margin: 0;
+      }
+
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        font-size: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        background: #222;
+        color: white;
+        padding: 10px;
+      }
+
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .status-present { color: green; }
+      .status-absent { color: red; }
+      .status-late { color: orange; }
+      </style>
+      </head>
+
+      <body>
+
+      <div class="header">
+        <h2>ATTENDANCE REPORT</h2>
+      </div>
+
+      <div class="meta">
+        <div>Week: ${session.rows[0].week_number}</div>
+        <div>Date: ${session.rows[0].date}</div>
+      </div>
+
+      <table>
+      <tr>
+        <th>Student</th>
+        <th>Status</th>
+      </tr>
+
+      ${students.rows
+        .map(
+          (s) => `
+      <tr>
+        <td>${s.fullname}</td>
+        <td class="status-${s.status}">${s.status}</td>
+      </tr>
+      `,
+        )
+        .join("")}
+
+      </table>
+
+      </body>
+      </html>
+      `;
+
+    const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.setContent(html);
+
+    const pdf = await page.pdf({ format: "A4" });
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdf);
+
+  } catch (err) {
+    res.status(500).send("PDF error");
+  }
+};
+
+exports.exportAttendanceExcel = async (req, res) => {
+  const { termId } = req.params;
+
+  const ExcelJS = require("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Attendance");
+
+  const data = await pool.query(
+    `
+    SELECT 
+      s.week_number,
+      s.date,
+      c.name AS classroom,
+      COUNT(r.id) FILTER (WHERE r.status='present') AS present,
+      COUNT(r.id) FILTER (WHERE r.status='absent') AS absent
+    FROM attendance_sessions s
+    LEFT JOIN attendance_records r ON r.session_id=s.id
+    LEFT JOIN classrooms c ON s.classroom_id=c.id
+    WHERE s.term_id=$1
+    GROUP BY s.id, c.name
+    ORDER BY s.week_number
+    `,
+    [termId]
+  );
+
+  sheet.columns = [
+    { header: "Week", key: "week" },
+    { header: "Date", key: "date" },
+    { header: "Class", key: "class" },
+    { header: "Present", key: "present" },
+    { header: "Absent", key: "absent" }
+  ];
+
+  data.rows.forEach(r => {
+    sheet.addRow({
+      week: r.week_number,
+      date: r.date,
+      class: r.classroom,
+      present: r.present,
+      absent: r.absent
+    });
+  });
+
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=attendance.xlsx"
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
+};
+
+
+// exports.updateAttendanceSession = async (req, res) => {
+//   const { id } = req.params;
+//   const { session_status, note, week_number, date } = req.body;
+
+//   try {
+//     // 🔥 Get existing session first
+//     const existing = await pool.query(
+//       `SELECT term_id, classroom_id, session_status FROM attendance_sessions WHERE id = $1`,
+//       [id],
+//     );
+
+//     const session = existing.rows[0];
+
+//     await pool.query(
+//       `
+//       UPDATE attendance_sessions
+//       SET session_status = $1,
+//           note = $2,
+//           week_number = $3,
+//           date = $4
+//       WHERE id = $5
+//       `,
+//       [session_status, note, week_number, date, id],
+//     );
+
+//     // ✅ IF changed to "held" AND no records exist → recreate students
+//     if (session_status === "held") {
+//       const check = await pool.query(
+//         `SELECT COUNT(*) FROM attendance_records WHERE session_id = $1`,
+//         [id],
+//       );
+
+//       const count = Number(check.rows[0].count);
+
+//       // if (count === 0) {
+//       //   // 🔥 fetch students in that class + term
+//       //   const students = await pool.query(
+//       //     `
+//       //     SELECT student_id
+//       //     FROM student_term_enrollments
+//       //     WHERE term_id = $1 AND classroom_id = $2
+//       //     `,
+//       //     [session.term_id, session.classroom_id],
+//       //   );
+
+//       //   // insert default records
+//       //   for (const s of students.rows) {
+//       //     await pool.query(
+//       //       `
+//       //       INSERT INTO attendance_records (session_id, student_id, status)
+//       //       VALUES ($1, $2, 'present')
+//       //       ON CONFLICT DO NOTHING
+//       //       `,
+//       //       [id, s.student_id],
+//       //     );
+//       //   }
+//       // }
+
+//       if (session_status === "held") {
+//         // get all students in class
+//         const students = await pool.query(
+//           `
+//           SELECT student_id
+//           FROM student_term_enrollments
+//           WHERE term_id = $1 AND classroom_id = $2
+//           `,
+//           [session.term_id, session.classroom_id],
+//         );
+
+//         for (const s of students.rows) {
+//           await pool.query(
+//             `
+//       INSERT INTO attendance_records (session_id, student_id, status)
+//       VALUES ($1, $2, 'present')
+//       ON CONFLICT (session_id, student_id)
+//       DO NOTHING
+//       `,
+//             [id, s.student_id],
+//           );
+//         }
+//       }
+//     }
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Update failed");
+//   }
+// };
+
+// exports.deleteAttendanceSession = async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     await pool.query(`DELETE FROM attendance_records WHERE session_id=$1`, [
+//       id,
+//     ]);
+//     await pool.query(`DELETE FROM attendance_sessions WHERE id=$1`, [id]);
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     res.status(500).send("Delete failed");
+//   }
+// };
+
+// exports.updateAttendanceRecord = async (req, res) => {
+//   const { id } = req.params;
+//   const { status } = req.body;
+
+//   try {
+//     await pool.query(`
+//       UPDATE attendance_records
+//       SET status = $1
+//       WHERE id = $2
+//     `, [status, id]);
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     res.status(500).send("Update failed");
+//   }
+// };

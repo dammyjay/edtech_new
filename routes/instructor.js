@@ -16,7 +16,7 @@ router.post("/login", adminController.login);
 //   });
 // });
 
-
+router.post("/set-school", instructorController.setActiveSchool);
 router.get("/dashboard", adminController.instructorDashboard);
 router.get("/ajax/courses", instructorController.ajaxCourses);
 // routes/instructorRoutes.js
@@ -34,6 +34,19 @@ router.get(
   "/section/assigned-courses",
   instructorController.assignedCoursesSection
 );
+
+// Attendance section
+// router.get("/attendance", instructorController.loadAttendanceSection);
+
+router.get("/attendance/students", instructorController.getAttendanceStudents);
+
+router.post("/attendance/save", instructorController.saveAttendance);
+
+router.get("/attendance/history", instructorController.getAttendanceHistory);
+
+router.get("/attendance/session/:id", instructorController.getAttendanceSessionDetails);
+
+router.get("/attendance/export/pdf/:sessionId", instructorController.exportAttendancePDF);
 
 // Courses
 router.post(

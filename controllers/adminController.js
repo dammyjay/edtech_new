@@ -7274,30 +7274,6 @@ exports.saveAttendance = async (req, res) => {
   }
 };
 
-// exports.updateAttendanceSession = async (req, res) => {
-//   const { id } = req.params;
-//   const { session_status, note, week_number, date } = req.body;
-
-//   try {
-//     await pool.query(
-//       `
-//       UPDATE attendance_sessions
-//       SET session_status = $1,
-//           note = $2,
-//           week_number = $3,
-//           date = $4
-//       WHERE id = $5
-//     `,
-//       [session_status, note, week_number, date, id],
-//     );
-
-//     res.json({ success: true });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Update failed");
-//   }
-// };
-
 exports.updateAttendanceSession = async (req, res) => {
   const { id } = req.params;
   const { session_status, note, week_number, date } = req.body;
@@ -7454,35 +7430,6 @@ exports.getWeeklyAttendanceStats = async (req, res) => {
     res.status(500).send("Error");
   }
 };
-
-// exports.getAttendanceHistory = async (req, res) => {
-//   const { term_id, classroom_id } = req.query;
-
-//   try {
-//     const result = await pool.query(
-//       `
-//       SELECT
-//         s.id,
-//         s.date,
-//         s.session_status,
-//         c.name AS classroom,
-//         u.fullname AS taken_by
-//       FROM attendance_sessions s
-//       LEFT JOIN classrooms c ON s.classroom_id = c.id
-//       LEFT JOIN users2 u ON s.taken_by = u.id
-//       WHERE s.term_id = $1
-//       ${classroom_id ? "AND s.classroom_id = $2" : ""}
-//       ORDER BY s.date DESC
-//     `,
-//       classroom_id ? [term_id, classroom_id] : [term_id],
-//     );
-
-//     res.json(result.rows);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Error loading attendance history");
-//   }
-// };
 
 exports.getAttendanceHistory = async (req, res) => {
   const { term_id, classroom_id } = req.query;

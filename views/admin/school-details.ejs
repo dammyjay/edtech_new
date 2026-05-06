@@ -1101,55 +1101,7 @@
         closeModal("attendanceModal");
       }
     });
-
-  // async function toggleAttendanceDetails(sessionId) {
-  //   const row = document.getElementById(`attendance-row-${sessionId}`);
-  //   const container = document.getElementById(`attendance-details-${sessionId}`);
-
-  //   if (row.style.display === "none") {
-  //     row.style.display = "table-row";
-
-  //     if (!container.dataset.loaded) {
-  //       const res = await fetch(`/admin/attendance/session/${sessionId}`);
-  //       const data = await res.json();
-
-  //       if (data.length === 0) {
-  //         container.innerHTML = "<p>No attendance records</p>";
-  //       } else {
-  //         let html = `
-  //           <table class="user-table" style="margin-top:10px;">
-  //             <thead>
-  //               <tr>
-  //                 <th>Student</th>
-  //                 <th>Status</th>
-  //               </tr>
-  //             </thead>
-  //             <tbody>
-  //         `;
-
-  //         data.forEach(s => {
-  //           html += `
-  //             <tr>
-  //               <td>${s.fullname}</td>
-  //               <td>${formatSessionStatus(s.status)}</td>
-  //             </tr>
-  //           `;
-  //         });
-
-  //         html += "</tbody></table>";
-  //         container.innerHTML = html;
-  //       }
-
-  //       container.dataset.loaded = "true";
-  //     }
-
-  //   } else {
-  //     row.style.display = "none";
-  //   }
-  // }
-  
-//  Attendance History
-  
+ 
 async function toggleAttendanceDetails(sessionId) {
   const row = document.getElementById(`attendance-row-${sessionId}`);
   const container = document.getElementById(`attendance-details-${sessionId}`);
