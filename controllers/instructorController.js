@@ -732,20 +732,6 @@ exports.getInstructorDashboard = async (req, res) => {
   }
 };
 
-// exports.ajaxCourses = async (req, res) => {
-//   const instructorId = req.user.id;
-
-//   const result = await pool.query(`
-//     SELECT c.id, c.title,
-//     COUNT(ce.user_id) AS student_count
-//     FROM courses c
-//     LEFT JOIN course_enrollments ce ON ce.course_id = c.id
-//     WHERE c.instructor_id = $1
-//     GROUP BY c.id
-//   `, [instructorId]);
-
-//   res.json(result.rows);
-// };
 
 exports.ajaxCourses = async (req, res) => {
   const instructorId = req.user.id;
@@ -2208,9 +2194,84 @@ exports.getAttendanceStudents = async (req, res) => {
   }
 };
 
+// exports.saveAttendance = async (req, res) => {
+//   // const { term_id, classroom_id, date, records, session_status, note } =
+//   //   req.body;
+//   const {
+//     term_id,
+//     classroom_id,
+//     date,
+//     records,
+//     session_status,
+//     note,
+//     week_number,
+//   } = req.body;
+//   const userId = req.session.user.id;
+  
+
+//   try {
+//     // 1. Create session
+//     const sessionResult = await pool.query(
+//       `
+//       INSERT INTO attendance_sessions
+//       (school_id, term_id, classroom_id, taken_by, date, session_status, note, week_number)
+//       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+//       ON CONFLICT (term_id, classroom_id, date)
+//       DO UPDATE SET
+//         taken_by = EXCLUDED.taken_by,
+//         session_status = EXCLUDED.session_status,
+//         note = EXCLUDED.note
+//       RETURNING id, session_status
+//     `,
+//       [
+//         req.body.school_id,
+//         term_id,
+//         classroom_id,
+//         userId,
+//         date,
+//         session_status,
+//         note || null,
+//         week_number
+//       ],
+//     );
+
+//     const sessionId = sessionResult.rows[0].id;
+
+//     if (session_status !== "held") {
+
+//       // 🔥 CLEAR OLD RECORDS
+//       await pool.query(
+//         `DELETE FROM attendance_records WHERE session_id = $1`,
+//         [sessionId]
+//       );
+
+//       return res.json({
+//         success: true,
+//         message: "Session saved without attendance",
+//       });
+//     }
+
+//     // 2. Save student attendance
+//     for (const r of records) {
+//       await pool.query(
+//         `
+//         INSERT INTO attendance_records (session_id, student_id, status)
+//         VALUES ($1, $2, $3)
+//         ON CONFLICT (session_id, student_id)
+//         DO UPDATE SET status = EXCLUDED.status
+//       `,
+//         [sessionId, r.student_id, r.status],
+//       );
+//     }
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error saving attendance");
+//   }
+// };
+
 exports.saveAttendance = async (req, res) => {
-  // const { term_id, classroom_id, date, records, session_status, note } =
-  //   req.body;
   const {
     term_id,
     classroom_id,
@@ -2220,10 +2281,11 @@ exports.saveAttendance = async (req, res) => {
     note,
     week_number,
   } = req.body;
+
   const userId = req.session.user.id;
+  const schoolId = req.session.activeSchoolId; // ✅ FIX
 
   try {
-    // 1. Create session
     const sessionResult = await pool.query(
       `
       INSERT INTO attendance_sessions 
@@ -2237,26 +2299,23 @@ exports.saveAttendance = async (req, res) => {
       RETURNING id, session_status
     `,
       [
-        req.body.school_id,
+        schoolId, // ✅ FIXED
         term_id,
         classroom_id,
         userId,
         date,
         session_status,
         note || null,
-        week_number
+        week_number,
       ],
     );
 
     const sessionId = sessionResult.rows[0].id;
 
     if (session_status !== "held") {
-
-      // 🔥 CLEAR OLD RECORDS
-      await pool.query(
-        `DELETE FROM attendance_records WHERE session_id = $1`,
-        [sessionId]
-      );
+      await pool.query(`DELETE FROM attendance_records WHERE session_id = $1`, [
+        sessionId,
+      ]);
 
       return res.json({
         success: true,
@@ -2264,7 +2323,6 @@ exports.saveAttendance = async (req, res) => {
       });
     }
 
-    // 2. Save student attendance
     for (const r of records) {
       await pool.query(
         `
@@ -2363,9 +2421,43 @@ exports.getWeeklyAttendanceStats = async (req, res) => {
 
 exports.getAttendanceHistory = async (req, res) => {
   const { term_id, classroom_id } = req.query;
-  const instructorId = req.user.id;
+  // const instructorId = req.user.id;
+  const instructorId = req.session.user.id;
+  const schoolId = req.session.activeSchoolId;
 
   try {
+    // const result = await pool.query(
+    //   `
+    //   SELECT 
+    //     s.id,
+    //     s.date,
+    //     s.session_status,
+    //     c.name AS classroom,
+    //     u.fullname AS taken_by,
+    //     COUNT(ar.id) AS student_count
+
+    //   FROM attendance_sessions s
+
+    //   -- ✅ ONLY instructor classes
+    //   JOIN classroom_instructors ci 
+    //     ON ci.classroom_id = s.classroom_id
+
+    //   LEFT JOIN classrooms c ON s.classroom_id = c.id
+    //   LEFT JOIN users2 u ON s.taken_by = u.id
+    //   LEFT JOIN attendance_records ar ON ar.session_id = s.id
+
+    //   WHERE s.term_id = $1
+    //   AND ci.instructor_id = $2
+    //   ${classroom_id ? "AND s.classroom_id = $3" : ""}
+
+    //   GROUP BY s.id, c.name, u.fullname
+    //   ORDER BY s.date DESC
+    //   `,
+    //   classroom_id
+    //     ? [term_id, instructorId, classroom_id]
+    //     : [term_id, instructorId],
+    // );
+
     const result = await pool.query(
       `
       SELECT 
@@ -2378,7 +2470,6 @@ exports.getAttendanceHistory = async (req, res) => {
 
       FROM attendance_sessions s
 
-      -- ✅ ONLY instructor classes
       JOIN classroom_instructors ci 
         ON ci.classroom_id = s.classroom_id
 
@@ -2388,16 +2479,17 @@ exports.getAttendanceHistory = async (req, res) => {
 
       WHERE s.term_id = $1
       AND ci.instructor_id = $2
-      ${classroom_id ? "AND s.classroom_id = $3" : ""}
+      AND s.school_id = $3
+      ${classroom_id ? "AND s.classroom_id = $4" : ""}
 
       GROUP BY s.id, c.name, u.fullname
       ORDER BY s.date DESC
       `,
       classroom_id
-        ? [term_id, instructorId, classroom_id]
-        : [term_id, instructorId],
+        ? [term_id, instructorId, schoolId, classroom_id]
+        : [term_id, instructorId, schoolId]
     );
-
+    
     res.json(result.rows);
   } catch (err) {
     console.error(err);

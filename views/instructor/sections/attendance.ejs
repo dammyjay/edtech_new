@@ -1,4 +1,6 @@
-<style>
+<link rel="stylesheet" href="/css/style3.css">
+
+<!-- <style>
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -25,7 +27,7 @@
         cursor: pointer;
         font-size: 20px;
         }
-</style>
+</style> -->
 
 <h3>📋 Attendance</h3>
 
@@ -70,7 +72,7 @@
   </tbody>
 </table>
 
-<div id="attendanceModal" class="modal-overlay" style="display:none;">
+<!-- <div id="attendanceModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <span onclick="closeModal('attendanceModal')" class="close-btn">&times;</span>
 
@@ -78,9 +80,38 @@
 
     <div id="attendanceStudentList"></div>
   </div>
+</div> -->
+
+<div id="attendanceModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <span onclick="closeModal('attendanceModal')" class="close-btn">&times;</span>
+
+    <h3>📋 Take Attendance</h3>
+
+    <label>Session Type</label>
+    <select id="sessionStatus">
+      <option value="held">✅ Class Held</option>
+      <option value="holiday">🎉 Holiday</option>
+      <option value="no_class">📭 No Class</option>
+      <option value="cancelled">❌ Cancelled</option>
+    </select>
+
+    <label>Date</label>
+    <input type="date" id="attendanceDate"
+    value="<%= new Date().toISOString().split('T')[0] %>" />
+
+    <label>Week</label>
+    <select id="week_number">
+      <% for(let i = 1; i <= 10; i++) { %>
+        <option value="<%= i %>">Week <%= i %></option>
+      <% } %>
+    </select>
+
+    <div id="attendanceStudentList"></div>
+  </div>
 </div>
 
-<script>
+<!-- <script>
     async function loadAttendanceStudents() {
         const term_id = document.getElementById("attendanceFilterTerm").value;
         const classroom_id = document.getElementById("attendanceFilterClassroom").value;
@@ -117,7 +148,7 @@
 
         const records = [];
 
-        document.querySelectorAll("#studentList select").forEach(sel => {
+        document.querySelectorAll("#attendanceStudentList select").forEach(sel => {
             records.push({
             student_id: sel.dataset.id,
             status: sel.value
@@ -199,11 +230,11 @@
     }
 
     function openAttendanceModal() {
-    document.getElementById("attendanceModal").style.display = "flexI. ";
+    document.getElementById("attendanceModal").style.display = "flex";
     loadAttendanceStudents();
     }
 
     function closeModal(id) {
     document.getElementById(id).style.display = "none";
     }
-</script>
+</script> -->

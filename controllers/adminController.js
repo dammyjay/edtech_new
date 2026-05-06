@@ -1319,205 +1319,357 @@ exports.deleteFeedback = async (req, res) => {
 
 
 // Admincontroller.js
-exports.instructorDashboard = async (req, res) => {
-  try {
-    const instructorId = req.user.id;
+// exports.instructorDashboard = async (req, res) => {
+//   try {
+//     const instructorId = req.user.id;
 
-    /* ------------------------------------
-       Company Info
-    ------------------------------------ */
+//     /* ------------------------------------
+//        Company Info
+//     ------------------------------------ */
+//     const info =
+//       (await pool.query(
+//         "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+//       )).rows[0] || {};
+
+//     const profilePic = req.session.user?.profile_picture || null;
+
+//     /* ------------------------------------
+//        1️⃣ Schools instructor belongs to
+//     ------------------------------------ */
+//     const schoolsRes = await pool.query(
+//       `
+//       SELECT DISTINCT s.id, s.name
+//       FROM classroom_instructors ci
+//       JOIN classrooms c ON ci.classroom_id = c.id
+//       JOIN schools s ON c.school_id = s.id
+//       WHERE ci.instructor_id = $1
+//       ORDER BY s.name
+//       `,
+//       [instructorId]
+//     );
+
+//     const schools = schoolsRes.rows;
+
+//     // ✅ Persist selected school
+//     const activeSchoolId =
+//       req.query.school_id || (schools[0] ? schools[0].id : null);
+
+//     let school = null;
+//     let classrooms = [];
+
+//     let total_students = 0;
+//     let total_courses = 0;
+//     let total_modules = 0;
+//     let total_lessons = 0;
+//     let total_submissions = 0;
+
+//     /* ------------------------------------
+//        2️⃣ Load school-specific data
+//     ------------------------------------ */
+//     if (activeSchoolId) {
+//       school = schools.find(s => String(s.id) === String(activeSchoolId));
+
+//       // 📚 Classrooms
+//       const classroomsRes = await pool.query(
+//         `
+//         SELECT c.id, c.name
+//         FROM classroom_instructors ci
+//         JOIN classrooms c ON ci.classroom_id = c.id
+//         WHERE ci.instructor_id = $1
+//           AND c.school_id = $2
+//         ORDER BY c.name
+//         `,
+//         [instructorId, activeSchoolId]
+//       );
+//       classrooms = classroomsRes.rows;
+
+//       // 👩‍🎓 Students
+//       const studentsCountRes = await pool.query(
+//         `
+//         SELECT COUNT(DISTINCT us.user_id)
+//         FROM user_school us
+//         JOIN classrooms c ON us.classroom_id = c.id
+//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
+//         WHERE ci.instructor_id = $1
+//           AND c.school_id = $2
+//           AND us.role_in_school = 'student'
+//           AND us.approved = true
+//         `,
+//         [instructorId, activeSchoolId]
+//       );
+//       total_students = Number(studentsCountRes.rows[0].count);
+
+//       // 📘 Courses
+//       const coursesCountRes = await pool.query(
+//         `
+//         SELECT COUNT(DISTINCT cc.course_id)
+//         FROM classroom_courses cc
+//         JOIN classrooms c ON cc.classroom_id = c.id
+//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
+//         WHERE ci.instructor_id = $1
+//           AND c.school_id = $2
+//         `,
+//         [instructorId, activeSchoolId]
+//       );
+//       total_courses = Number(coursesCountRes.rows[0].count);
+
+//       // 📦 Modules
+//       const modulesCountRes = await pool.query(
+//         `
+//         SELECT COUNT(DISTINCT m.id)
+//         FROM modules m
+//         JOIN courses cr ON m.course_id = cr.id
+//         JOIN classroom_courses cc ON cc.course_id = cr.id
+//         JOIN classrooms c ON cc.classroom_id = c.id
+//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
+//         WHERE ci.instructor_id = $1
+//           AND c.school_id = $2
+//         `,
+//         [instructorId, activeSchoolId]
+//       );
+//       total_modules = Number(modulesCountRes.rows[0].count);
+
+//       // 📖 Lessons
+//       const lessonsCountRes = await pool.query(
+//         `
+//         SELECT COUNT(DISTINCT l.id)
+//         FROM lessons l
+//         JOIN modules m ON l.module_id = m.id
+//         JOIN classroom_courses cc ON cc.course_id = m.course_id
+//         JOIN classrooms c ON cc.classroom_id = c.id
+//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
+//         WHERE ci.instructor_id = $1
+//           AND c.school_id = $2
+//         `,
+//         [instructorId, activeSchoolId]
+//       );
+//       total_lessons = Number(lessonsCountRes.rows[0].count);
+//     }
+
+//     /* ------------------------------------
+//        3️⃣ Messages
+//     ------------------------------------ */
+//     const receivedMessages =
+//       (await pool.query(
+//         `
+//         SELECT 
+//           m.id,
+//           m.sender_id,
+//           m.message,
+//           m.created_at,
+//           u.fullname AS sender_name,
+//           u.email AS sender_email
+//         FROM messages m
+//         JOIN users2 u ON u.id = m.sender_id
+//         WHERE m.receiver_id = $1
+//         ORDER BY m.created_at DESC
+//         LIMIT 10
+//         `,
+//         [instructorId]
+//       )).rows;
+
+//     /* ------------------------------------
+//        4️⃣ Instructor Courses (table)
+//     ------------------------------------ */
+//     const courses =
+//       (await pool.query(
+//         `
+//         SELECT c.id, c.title,
+//                COUNT(DISTINCT ce.user_id) AS student_count
+//         FROM courses c
+//         LEFT JOIN course_enrollments ce ON ce.course_id = c.id
+//         WHERE c.instructor_id = $1
+//         GROUP BY c.id
+//         ORDER BY c.title
+//         `,
+//         [instructorId]
+//       )).rows;
+
+//     /* ------------------------------------
+//        5️⃣ Render
+//     ------------------------------------ */
+//     res.render("instructor/dashboard", {
+//       info,
+//       role: "instructor",
+//       user: req.session.user,
+//       profilePic,
+
+//       schools,
+//       school,
+//       classrooms,
+
+//       courses,
+
+//       total_courses,
+//       total_modules,
+//       total_lessons,
+//       total_students,
+//       total_submissions,
+
+//       receivedMessages,
+
+//       // 🔑 VERY IMPORTANT for persistence
+//       selectedSchoolId: activeSchoolId,
+//     });
+//   } catch (err) {
+//     console.error("Instructor Dashboard Error:", err);
+//     res.status(500).send("Error loading dashboard");
+//   }
+// };
+
+exports.instructorDashboard = async (req, res) => {
+
+
+  // const instructorId = req.user.id;
+  const instructorId = req.session.user.id;
+  // const schoolId = req.session.activeSchoolId;
+  // let schoolId = req.session.activeSchoolId;
+  let schoolId = req.query.school_id || req.session.activeSchoolId;
+
+  if (req.query.school_id) {
+    req.session.activeSchoolId = req.query.school_id;
+  }
+
+  console.log("INSTRUCTOR ID:", instructorId);
+  console.log("ACTIVE SCHOOL:", schoolId);
+
+  try {
+    // --- Company Info
     const info =
-      (await pool.query(
-        "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-      )).rows[0] || {};
+      (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"))
+        .rows[0] || {};
 
     const profilePic = req.session.user?.profile_picture || null;
 
-    /* ------------------------------------
-       1️⃣ Schools instructor belongs to
-    ------------------------------------ */
-    const schoolsRes = await pool.query(
-      `
-      SELECT DISTINCT s.id, s.name
+    // --- Schools instructor has access to
+   const schoolsRes = await pool.query(
+     `
+      SELECT DISTINCT 
+        s.id,
+        s.name
       FROM classroom_instructors ci
-      JOIN classrooms c ON ci.classroom_id = c.id
-      JOIN schools s ON c.school_id = s.id
+      JOIN classrooms c ON c.id = ci.classroom_id
+      JOIN schools s ON s.id = c.school_id
       WHERE ci.instructor_id = $1
-      ORDER BY s.name
-      `,
+    `,
+     [instructorId],
+   );
+
+    console.log("RAW SCHOOL DEBUG:", schoolsRes.rows);
+
+    const schools = schoolsRes.rows;
+    const selectedSchoolId = schoolId || schools[0]?.id || null;
+
+    if (!schoolId) {
+      schoolId = req.session.activeSchoolId || null;
+    }
+
+    const test = await pool.query(
+      `SELECT * FROM classroom_instructors WHERE instructor_id = $1`,
       [instructorId]
     );
 
-    const schools = schoolsRes.rows;
+    console.log("Instructor classrooms:", test.rows);
 
-    // ✅ Persist selected school
-    const activeSchoolId =
-      req.query.school_id || (schools[0] ? schools[0].id : null);
+    // --- Classrooms instructor teaches
+    // const classroomsRes = await pool.query(
+    //   `
+    //   SELECT c.id, c.name
+    //   FROM classrooms c
+    //   JOIN classroom_instructors ci ON ci.classroom_id = c.id
+    //   WHERE ci.instructor_id = $1
+    //   AND c.school_id = $2
+    //   `,
+    //   [instructorId, schoolId]
+    // );
 
-    let school = null;
-    let classrooms = [];
+    let classroomQuery = `
+  SELECT c.id, c.name
+  FROM classrooms c
+  JOIN classroom_instructors ci ON ci.classroom_id = c.id
+  WHERE ci.instructor_id = $1
+`;
 
-    let total_students = 0;
-    let total_courses = 0;
-    let total_modules = 0;
-    let total_lessons = 0;
-    let total_submissions = 0;
+    let params = [instructorId];
 
-    /* ------------------------------------
-       2️⃣ Load school-specific data
-    ------------------------------------ */
-    if (activeSchoolId) {
-      school = schools.find(s => String(s.id) === String(activeSchoolId));
-
-      // 📚 Classrooms
-      const classroomsRes = await pool.query(
-        `
-        SELECT c.id, c.name
-        FROM classroom_instructors ci
-        JOIN classrooms c ON ci.classroom_id = c.id
-        WHERE ci.instructor_id = $1
-          AND c.school_id = $2
-        ORDER BY c.name
-        `,
-        [instructorId, activeSchoolId]
-      );
-      classrooms = classroomsRes.rows;
-
-      // 👩‍🎓 Students
-      const studentsCountRes = await pool.query(
-        `
-        SELECT COUNT(DISTINCT us.user_id)
-        FROM user_school us
-        JOIN classrooms c ON us.classroom_id = c.id
-        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-        WHERE ci.instructor_id = $1
-          AND c.school_id = $2
-          AND us.role_in_school = 'student'
-          AND us.approved = true
-        `,
-        [instructorId, activeSchoolId]
-      );
-      total_students = Number(studentsCountRes.rows[0].count);
-
-      // 📘 Courses
-      const coursesCountRes = await pool.query(
-        `
-        SELECT COUNT(DISTINCT cc.course_id)
-        FROM classroom_courses cc
-        JOIN classrooms c ON cc.classroom_id = c.id
-        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-        WHERE ci.instructor_id = $1
-          AND c.school_id = $2
-        `,
-        [instructorId, activeSchoolId]
-      );
-      total_courses = Number(coursesCountRes.rows[0].count);
-
-      // 📦 Modules
-      const modulesCountRes = await pool.query(
-        `
-        SELECT COUNT(DISTINCT m.id)
-        FROM modules m
-        JOIN courses cr ON m.course_id = cr.id
-        JOIN classroom_courses cc ON cc.course_id = cr.id
-        JOIN classrooms c ON cc.classroom_id = c.id
-        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-        WHERE ci.instructor_id = $1
-          AND c.school_id = $2
-        `,
-        [instructorId, activeSchoolId]
-      );
-      total_modules = Number(modulesCountRes.rows[0].count);
-
-      // 📖 Lessons
-      const lessonsCountRes = await pool.query(
-        `
-        SELECT COUNT(DISTINCT l.id)
-        FROM lessons l
-        JOIN modules m ON l.module_id = m.id
-        JOIN classroom_courses cc ON cc.course_id = m.course_id
-        JOIN classrooms c ON cc.classroom_id = c.id
-        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-        WHERE ci.instructor_id = $1
-          AND c.school_id = $2
-        `,
-        [instructorId, activeSchoolId]
-      );
-      total_lessons = Number(lessonsCountRes.rows[0].count);
+    if (schoolId) {
+      classroomQuery += ` AND c.school_id = $2`;
+      params.push(schoolId);
     }
 
-    /* ------------------------------------
-       3️⃣ Messages
-    ------------------------------------ */
-    const receivedMessages =
-      (await pool.query(
-        `
-        SELECT 
-          m.id,
-          m.sender_id,
-          m.message,
-          m.created_at,
-          u.fullname AS sender_name,
-          u.email AS sender_email
-        FROM messages m
-        JOIN users2 u ON u.id = m.sender_id
-        WHERE m.receiver_id = $1
-        ORDER BY m.created_at DESC
-        LIMIT 10
-        `,
-        [instructorId]
-      )).rows;
+    const classroomsRes = await pool.query(classroomQuery, params);
 
-    /* ------------------------------------
-       4️⃣ Instructor Courses (table)
-    ------------------------------------ */
-    const courses =
-      (await pool.query(
-        `
-        SELECT c.id, c.title,
-               COUNT(DISTINCT ce.user_id) AS student_count
-        FROM courses c
-        LEFT JOIN course_enrollments ce ON ce.course_id = c.id
-        WHERE c.instructor_id = $1
-        GROUP BY c.id
-        ORDER BY c.title
-        `,
-        [instructorId]
-      )).rows;
+    const classrooms = classroomsRes.rows;
 
-    /* ------------------------------------
-       5️⃣ Render
-    ------------------------------------ */
+    // --- Courses in selected classroom
+    let courses = [];
+    let modules = [];
+    let lessons = [];
+
+    if (req.query.classroom) {
+      const coursesRes = await pool.query(
+        `
+        SELECT cr.*, p.title AS pathway_name
+        FROM classroom_courses cc
+        JOIN courses cr ON cc.course_id = cr.id
+        LEFT JOIN career_pathways p ON cr.career_pathway_id = p.id
+        WHERE cc.classroom_id = $1
+        ORDER BY cr.title
+        `,
+        [req.query.classroom],
+      );
+      courses = coursesRes.rows;
+    }
+
+    // --- Modules (no unlock checks)
+    if (req.query.course) {
+      const modulesRes = await pool.query(
+        `
+        SELECT * FROM modules
+        WHERE course_id = $1
+        ORDER BY order_number ASC
+        `,
+        [req.query.course],
+      );
+      modules = modulesRes.rows;
+    }
+
+    // --- Lessons (no unlock checks)
+    if (req.query.module) {
+      const lessonsRes = await pool.query(
+        `
+        SELECT l.*,
+               EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+        FROM lessons l
+        WHERE l.module_id = $1
+        ORDER BY order_number ASC
+        `,
+        [req.query.module],
+      );
+      lessons = lessonsRes.rows;
+    }
+
+    console.log("Instructor ID:", instructorId);
+    console.log("Schools:", schools);
+    console.log("Active School:", schoolId);
     res.render("instructor/dashboard", {
       info,
-      role: "instructor",
-      user: req.session.user,
       profilePic,
-
-      schools,
-      school,
       classrooms,
-
       courses,
-
-      total_courses,
-      total_modules,
-      total_lessons,
-      total_students,
-      total_submissions,
-
-      receivedMessages,
-
-      // 🔑 VERY IMPORTANT for persistence
-      selectedSchoolId: activeSchoolId,
+      modules,
+      lessons,
+      schools,
+      selectedSchoolId,
+      selected: req.query,
+      user: req.session.user,
+      role: "instructor",
     });
   } catch (err) {
-    console.error("Instructor Dashboard Error:", err);
-    res.status(500).send("Error loading dashboard");
+    console.error("Instructor dashboard error:", err);
+    res.status(500).send("Server error");
   }
 };
-
-
 
 exports.editUserForm = async (req, res) => {
   const userId = req.params.id;
