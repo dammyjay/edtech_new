@@ -53,24 +53,25 @@
 <button onclick="openAttendanceModal()">➕ Take Attendance</button>
 
 <div id="studentList" style="margin-top:15px;"></div>
+<div class="table-responsive">
+  <table class="user-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Classroom</th>
+        <th>Status</th>
+        <th>Students</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
 
-<table class="user-table">
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Classroom</th>
-      <th>Status</th>
-      <th>Students</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-
-  <tbody id="attendanceTableBody">
-    <tr>
-      <td colspan="5">No data yet</td>
-    </tr>
-  </tbody>
-</table>
+    <tbody id="attendanceTableBody">
+      <tr>
+        <td colspan="5">No data yet</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 <!-- <div id="attendanceModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">

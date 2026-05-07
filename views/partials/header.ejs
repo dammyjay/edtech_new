@@ -13,23 +13,57 @@
 <body>
     <!-- Loading Spinner Overlay -->
 <header class="header">
-      <div class="logo-title">
-        <% if (info?.logo_url) { %>
-        <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
-        <% } %>
-        <p><%= info?.company_name || 'JKT Hub' %></p>
-         <!-- <p>Fasttrack IT Innovations</p> -->
-      </div>
+  <div class="logo-title">
+    <% if (info?.logo_url) { %>
+      <a href="/">
+        <img src="<%= info.logo_url %>" alt="Logo" />
+      </a>
+    <% } %>
 
-      <button class="nav-toggle" onclick="toggleNav()">☰</button>
-      <nav id="main-nav">
-        <a href="/">Home</a>
-        <% if (users) { %>
-          <a href="/<%= users.role %>/dashboard">Dashboard</a>
-        <% } %> 
-        <a href="/profile">View Profile</a>
-          <a style="background-color: red;" href="/admin/logout" class="login-button">Logout</a>
-      </nav>
+    <p><%= info?.company_name || 'JKT Hub' %></p>
+  </div>
+
+  <!-- MOBILE TOGGLE -->
+  <button
+    id="nav-toggle-btn"
+    class="nav-toggle"
+    onclick="toggleNav()"
+    aria-expanded="false"
+    aria-controls="main-nav"
+  >
+    ☰
+  </button>
+
+  <nav id="main-nav">
+    <a href="/">Home</a>
+
+    <% if (users) { %>
+      <% if (users.role === "school_admin") { %>
+
+        <a href="/school-admin/dashboard">Dashboard</a>
+
+      <% } else if (users.role === "user") { %>
+
+        <a href="/student/dashboard">Dashboard</a>
+
+      <% } else { %>
+
+        <a href="/<%= users.role %>/dashboard">Dashboard</a>
+
+      <% } %>
+      
+    <% } %>
+
+    <a href="/profile">View Profile</a>
+
+    <a
+      style="background-color:red;"
+      href="/admin/logout"
+      class="login-button"
+    >
+      Logout
+    </a>
+  </nav>
 </header>
     
 <div id="loadingOverlay">
@@ -47,6 +81,49 @@ function hideLoading() {
   document.getElementById("loadingOverlay").style.display = "none";
 }
 
+</script>
+
+<script>
+  function toggleNav() {
+    const nav = document.getElementById("main-nav");
+    const btn = document.getElementById("nav-toggle-btn");
+
+    nav.classList.toggle("open");
+
+    btn.setAttribute(
+      "aria-expanded",
+      nav.classList.contains("open")
+    );
+  }
+
+  // CLOSE WHEN CLICKING OUTSIDE
+  document.addEventListener("click", function (event) {
+
+    const nav = document.getElementById("main-nav");
+    const btn = document.getElementById("nav-toggle-btn");
+
+    if (!nav || !btn) return;
+
+    if (
+      nav.classList.contains("open") &&
+      !nav.contains(event.target) &&
+      !btn.contains(event.target)
+    ) {
+      nav.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  // ESC KEY CLOSE
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      const nav = document.getElementById("main-nav");
+      const btn = document.getElementById("nav-toggle-btn");
+
+      nav.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
 </script>
     
 </body>
