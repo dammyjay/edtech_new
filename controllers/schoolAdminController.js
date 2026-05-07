@@ -4,6 +4,9 @@ const { logActivityForUser } = require("../utils/activityLogger");
 const csv = require("csv-parser");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
+const puppeteer = require("puppeteer");
+const ExcelJS = require("exceljs");
+const axios = require("axios");
 
 
 exports.getDashboard = async (req, res) => {
@@ -258,20 +261,6 @@ exports.loadSection = async (req, res) => {
     );
     return res.render("partials/teachers", { teachers: teachers.rows });
   }
-
-  // if (section === "students") {
-  //     const students = await pool.query(
-  //       `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
-  //               COALESCE(c.name, 'Not assigned') AS classroom_name
-  //       FROM users2 u
-  //       JOIN user_school us ON u.id = us.user_id
-  //       LEFT JOIN classrooms c ON us.classroom_id = c.id
-  //       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
-  //       ORDER BY u.fullname`,
-  //       [schoolId]  
-  //     );
-  //   return res.render("partials/students", { students: students.rows });
-  // }
 
   if (section === "students") {
 
@@ -605,6 +594,126 @@ ORDER BY engagement_rate DESC;
       recentActivities: recentActivities.rows, // ✅ pass it
       teacherPerformance: teacherPerformance.rows, // ✅ add this
       studentEngagement: studentEngagement.rows, // ✅ add this
+    });
+  }
+
+  // if (section === "terms") {
+  //   const terms = await pool.query(
+  //     `SELECT 
+  //       t.id AS term_id,
+  //       t.name AS term_name,
+  //       t.start_date,
+  //       t.end_date,
+  //       t.is_active,
+  //       t.created_at,
+  //       COUNT(DISTINCT ste.student_id) AS student_count
+  //    FROM academic_terms t
+  //    LEFT JOIN student_term_enrollments ste 
+  //       ON ste.term_id = t.id
+  //    WHERE t.school_id = $1
+  //    GROUP BY t.id
+  //    ORDER BY t.created_at DESC`,
+  //     [schoolId],
+  //   );
+
+  //   const classrooms = await pool.query(
+  //     `SELECT id, name 
+  //    FROM classrooms 
+  //    WHERE school_id = $1`,
+  //     [schoolId],
+  //   );
+
+  //   const students = await pool.query(
+  //     `SELECT 
+  //       u.id,
+  //       u.fullname,
+  //       us.classroom_id
+  //    FROM users2 u
+  //    JOIN user_school us ON us.user_id = u.id
+  //    WHERE us.school_id = $1 
+  //      AND us.role_in_school = 'student' 
+  //      AND us.approved = true`,
+  //     [schoolId],
+  //   );
+
+  //   return res.render("partials/terms", {
+  //     school: {
+  //       id: schoolId,
+  //       terms: terms.rows,
+  //       classrooms: classrooms.rows,
+  //       students: students.rows,
+  //     },
+  //   });
+  // }
+  
+  if (section === "terms") {
+    const terms = await pool.query(
+      `SELECT 
+          t.id AS term_id,
+          t.name AS term_name,
+          t.start_date,
+          t.end_date,
+          t.is_active,
+          COUNT(DISTINCT ste.student_id) AS student_count
+      FROM academic_terms t
+      LEFT JOIN student_term_enrollments ste 
+          ON ste.term_id = t.id
+      WHERE t.school_id = $1
+      GROUP BY t.id
+      ORDER BY t.created_at DESC`,
+      [schoolId]
+    );
+
+    return res.send(`
+      <div id="terms-section">
+        <h3>📅 Academic Terms</h3>
+
+        <div class="table-responsive">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Term</th>
+                <th>Period</th>
+                <th>Students</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${terms.rows.map(t => `
+                <tr>
+                  <td><strong>${t.term_name}</strong></td>
+                  <td>${t.start_date || '-'} → ${t.end_date || '-'}</td>
+                  <td>${t.student_count || 0}</td>
+                  <td>${t.is_active ? '🟢 Active' : '⚪ Inactive'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `);
+  }
+
+  if (section === "attendance") {
+    const terms = await pool.query(
+      `SELECT id AS term_id, name AS term_name
+     FROM academic_terms
+     WHERE school_id = $1`,
+      [schoolId],
+    );
+
+    const classrooms = await pool.query(
+      `SELECT id, name
+     FROM classrooms
+     WHERE school_id = $1`,
+      [schoolId],
+    );
+
+    return res.render("partials/attendance", {
+      school: {
+        terms: terms.rows,
+        classrooms: classrooms.rows,
+      },
     });
   }
 
@@ -1005,8 +1114,6 @@ exports.assignToClassroomB = async (req, res) => {
   }
 };
 
-
-
 exports.viewClassroom = async (req, res) => {
   const { id } = req.params;
 
@@ -1096,7 +1203,6 @@ exports.updateClassroom = async (req, res) => {
   }
 };
 
-
 // Delete classroom
 exports.deleteClassroom = async (req, res) => {
   const { id } = req.params;
@@ -1167,21 +1273,48 @@ exports.addStudentToClassroom = async (req, res) => {
   }
 };
 
-
 // ------------------ QUOTES ------------------ //
+
 // exports.getQuotes = async (req, res) => {
 //   try {
+//     // get school created by this admin
 //     const schoolRes = await pool.query(
-//       `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+//       `SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1`,
 //       [req.session.user.id]
 //     );
 
+//     if (schoolRes.rows.length === 0) {
+//       return res.status(404).send("No school found");
+//     }
+
 //     const schoolId = schoolRes.rows[0].id;
-//     const quotes = await pool.query(
-//       "SELECT id, text, author FROM quotes WHERE school_id=$1 ORDER BY id DESC",
+
+//     // ✅ NEW QUERY (term-based quotes)
+//     const quotesResult = await pool.query(
+//       `SELECT
+//         q.id,
+//         q.term_id,
+//         q.price_per_student,
+//         q.total_students,
+//         q.total_amount,
+//         q.status,
+//         q.created_at,
+//         s.name AS school_name,
+//         t.name AS term_name
+//       FROM quotes q
+//       JOIN schools s ON q.school_id = s.id
+//       JOIN academic_terms t ON q.term_id = t.id
+//       WHERE q.school_id = $1
+//       ORDER BY q.created_at DESC`,
 //       [schoolId]
 //     );
-//     res.render("partials/quotes", { quotes: quotes.rows });
+
+//     res.render("admin/quotes", {
+//       quotes: quotesResult.rows,
+//       currentPage: "quotes",
+//       role: "admin"
+//     });
+
 //   } catch (err) {
 //     console.error("Error fetching quotes:", err);
 //     res.status(500).send("Server Error");
@@ -1190,47 +1323,63 @@ exports.addStudentToClassroom = async (req, res) => {
 
 exports.getQuotes = async (req, res) => {
   try {
-    // get school created by this admin
-    const schoolRes = await pool.query(
-      `SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
+    const schoolId = req.session.user.school_id;
 
-    if (schoolRes.rows.length === 0) {
-      return res.status(404).send("No school found");
-    }
-
-    const schoolId = schoolRes.rows[0].id;
-
-    // ✅ NEW QUERY (term-based quotes)
-    const quotesResult = await pool.query(
-      `SELECT 
+    const result = await pool.query(
+      `
+      SELECT 
         q.id,
-        q.term_id,
+        t.name AS term_name,
         q.price_per_student,
-        q.total_students,
-        q.total_amount,
+
+        COALESCE(st.total_students, 0) AS total_students,
+
+        (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student,0))
+          AS total_amount,
+
+        COALESCE(p.total_paid,0) AS total_paid,
+
+        (
+          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student,0))
+          - COALESCE(p.total_paid,0)
+        ) AS balance,
+
         q.status,
-        q.created_at,
-        s.name AS school_name,
-        t.name AS term_name
+
+        t.start_date,
+        t.end_date
+
       FROM quotes q
-      JOIN schools s ON q.school_id = s.id
-      JOIN academic_terms t ON q.term_id = t.id
+
+      JOIN academic_terms t
+        ON t.id = q.term_id
+
+      LEFT JOIN (
+        SELECT term_id, COUNT(*) AS total_students
+        FROM student_term_enrollments
+        GROUP BY term_id
+      ) st ON st.term_id = q.term_id
+
+      LEFT JOIN (
+        SELECT quote_id, SUM(amount) AS total_paid
+        FROM school_payments
+        GROUP BY quote_id
+      ) p ON p.quote_id = q.id
+
       WHERE q.school_id = $1
-      ORDER BY q.created_at DESC`,
-      [schoolId]
+
+      ORDER BY t.start_date DESC
+      `,
+      [schoolId],
     );
 
-    res.render("admin/quotes", {
-      quotes: quotesResult.rows,
+    res.render("schoolAdmin/quotes", {
+      quotes: result.rows,
       currentPage: "quotes",
-      role: "admin"
     });
-
   } catch (err) {
-    console.error("Error fetching quotes:", err);
-    res.status(500).send("Server Error");
+    console.error(err);
+    res.status(500).send("Error loading quotes");
   }
 };
 
@@ -1304,6 +1453,31 @@ exports.updatePayment = async (req, res) => {
   } catch (err) {
     console.error("Error updating payment:", err);
     res.status(500).send("Server Error");
+  }
+};
+
+exports.getPaymentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT 
+        amount,
+        payment_date
+      FROM school_payments
+      WHERE quote_id = $1
+      ORDER BY payment_date DESC
+      `,
+      [id],
+    );
+
+    res.render("schoolAdmin/paymentHistory", {
+      payments: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error");
   }
 };
 
@@ -1400,7 +1574,6 @@ const schoolId = schoolRes.rows[0].id;
   }
 };
 
-
 exports.updateClassroomCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -1432,7 +1605,6 @@ exports.deleteClassroomCourse = async (req, res) => {
   }
 };
 
-
 // POST /school/payments/:paymentId/adjustments
 exports.addPaymentAdjustment = async (req, res) => {
   const { paymentId } = req.params;
@@ -1448,4 +1620,1244 @@ exports.addPaymentAdjustment = async (req, res) => {
   res.json({ success: true, adjustment: result.rows[0] });
 };
 
+exports.getTerms = async (req, res) => {
+  try {
+    const schoolId = req.session.user.school_id;
 
+    const result = await pool.query(
+      `
+      SELECT *
+      FROM academic_terms
+      WHERE school_id = $1
+      ORDER BY start_date DESC
+      `,
+      [schoolId],
+    );
+
+    res.render("schoolAdmin/terms", {
+      terms: result.rows,
+      currentPage: "terms",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error");
+  }
+};
+
+// =============================
+// ATTENDANCE PAGE
+// =============================
+exports.attendancePage = async (req, res) => {
+  try {
+    const schoolId = req.session.user.school_id;
+
+    const terms = await pool.query(
+      `
+      SELECT *
+      FROM academic_terms
+      WHERE school_id = $1
+      ORDER BY start_date DESC
+      `,
+      [schoolId],
+    );
+
+    const classrooms = await pool.query(
+      `
+      SELECT *
+      FROM classrooms
+      WHERE school_id = $1
+      ORDER BY name ASC
+      `,
+      [schoolId],
+    );
+
+    res.render("schoolAdmin/attendance", {
+      terms: terms.rows,
+      classrooms: classrooms.rows,
+      currentPage: "attendance",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance page");
+  }
+};
+
+// =============================
+// QUOTE DETAILS
+// =============================
+exports.getQuoteDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schoolId = req.session.user.school_id;
+
+    const result = await pool.query(
+      `
+      SELECT 
+        q.id,
+        q.price_per_student,
+        q.total_students,
+        q.total_amount,
+        q.total_paid,
+        q.balance,
+        q.status,
+
+        t.name AS term_name,
+        t.start_date,
+        t.end_date,
+
+        s.name AS school_name,
+        s.address
+
+      FROM quotes q
+
+      JOIN academic_terms t
+        ON t.id = q.term_id
+
+      JOIN schools s
+        ON s.id = q.school_id
+
+      WHERE q.id = $1
+      AND q.school_id = $2
+      `,
+      [id, schoolId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("Quote not found");
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading quote");
+  }
+};
+
+// =============================
+// PAYMENT HISTORY
+// =============================
+exports.getPaymentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schoolId = req.session.user.school_id;
+
+    const result = await pool.query(
+      `
+      SELECT 
+        sp.id,
+        sp.amount,
+        sp.payment_date
+
+      FROM school_payments sp
+
+      JOIN quotes q
+        ON q.id = sp.quote_id
+
+      WHERE sp.quote_id = $1
+      AND q.school_id = $2
+
+      ORDER BY sp.payment_date DESC
+      `,
+      [id, schoolId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading payment history");
+  }
+};
+
+// =============================
+// DOWNLOAD QUOTE PDF
+// =============================
+exports.downloadQuotePDF = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const schoolId = req.session.user.school_id;
+
+    const result = await pool.query(
+      `
+      SELECT 
+        q.id,
+        q.price_per_student,
+        q.total_students,
+        q.total_amount,
+        q.total_paid,
+        q.balance,
+        q.status,
+
+        s.name AS school_name,
+        s.address,
+
+        t.name AS term_name
+
+      FROM quotes q
+
+      JOIN schools s
+        ON q.school_id = s.id
+
+      JOIN academic_terms t
+        ON q.term_id = t.id
+
+      WHERE q.id = $1
+      AND q.school_id = $2
+      `,
+      [id, schoolId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("Quote not found");
+    }
+
+    const q = result.rows[0];
+
+    const numberToWords = require("number-to-words");
+
+    const total = Number(q.total_amount || 0);
+    const totalPaid = Number(q.total_paid || 0);
+    const balance = Number(q.balance || 0);
+
+    const words = numberToWords.toWords(total).toUpperCase();
+
+    const today = new Date().toDateString();
+
+    const html = `
+    <html>
+    <head>
+    <style>
+      body{
+        font-family: Arial;
+        padding:40px;
+      }
+
+      .header{
+        text-align:center;
+        margin-bottom:30px;
+      }
+
+      .title{
+        font-size:28px;
+        font-weight:bold;
+      }
+
+      table{
+        width:100%;
+        border-collapse:collapse;
+        margin-top:20px;
+      }
+
+      th{
+        background:#000;
+        color:#fff;
+        padding:10px;
+      }
+
+      td{
+        border:1px solid #ccc;
+        padding:10px;
+        text-align:center;
+      }
+
+      .total-row{
+        background:#f2f2f2;
+        font-weight:bold;
+      }
+
+      .summary{
+        margin-top:30px;
+        font-size:14px;
+      }
+
+    </style>
+    </head>
+
+    <body>
+
+      <div class="header">
+        <div class="title">SCHOOL INVOICE</div>
+
+        <p>
+          <b>${q.school_name}</b><br/>
+          ${q.address || ""}
+        </p>
+
+        <p>
+          <b>Term:</b> ${q.term_name}
+        </p>
+
+        <p>
+          Date: ${today}
+        </p>
+      </div>
+
+      <table>
+        <tr>
+          <th>Students</th>
+          <th>Price Per Student</th>
+          <th>Total Amount</th>
+        </tr>
+
+        <tr>
+          <td>${q.total_students}</td>
+          <td>₦${Number(q.price_per_student).toLocaleString()}</td>
+          <td>₦${total.toLocaleString()}</td>
+        </tr>
+
+        <tr class="total-row">
+          <td colspan="2">TOTAL</td>
+          <td>₦${total.toLocaleString()}</td>
+        </tr>
+      </table>
+
+      <div class="summary">
+        <p><b>Total Paid:</b> ₦${totalPaid.toLocaleString()}</p>
+
+        <p><b>Balance:</b> ₦${balance.toLocaleString()}</p>
+
+        <p><b>Status:</b> ${q.status}</p>
+
+        <p>
+          <b>Amount in Words:</b>
+          ${words} NAIRA ONLY
+        </p>
+      </div>
+
+    </body>
+    </html>
+    `;
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${q.school_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+    );
+
+    res.send(pdf);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating PDF");
+  }
+};
+
+// =============================
+// CREATE TERM
+// =============================
+exports.createTerm = async (req, res) => {
+  try {
+    const schoolId = req.session.user.school_id;
+
+    const {
+      name,
+      start_date,
+      end_date,
+      price_per_student,
+    } = req.body;
+
+    const termResult = await pool.query(
+      `
+      INSERT INTO academic_terms (
+        school_id,
+        name,
+        start_date,
+        end_date
+      )
+      VALUES ($1,$2,$3,$4)
+      RETURNING *
+      `,
+      [schoolId, name, start_date, end_date],
+    );
+
+    const term = termResult.rows[0];
+
+    await pool.query(
+      `
+      INSERT INTO quotes (
+        school_id,
+        term_id,
+        price_per_student,
+        status
+      )
+      VALUES ($1,$2,$3,'unpaid')
+      `,
+      [schoolId, term.id, price_per_student || 0],
+    );
+
+    res.json({
+      success: true,
+      term,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Error creating term",
+    });
+  }
+};
+
+// =============================
+// UPDATE TERM
+// =============================
+exports.updateTerm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      start_date,
+      end_date,
+      price_per_student,
+    } = req.body;
+
+    await pool.query(
+      `
+      UPDATE academic_terms
+      SET
+        name = $1,
+        start_date = $2,
+        end_date = $3
+      WHERE id = $4
+      `,
+      [name, start_date, end_date, id],
+    );
+
+    if (price_per_student !== undefined) {
+      await pool.query(
+        `
+        UPDATE quotes
+        SET price_per_student = $1
+        WHERE term_id = $2
+        `,
+        [price_per_student, id],
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Term updated",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Error updating term",
+    });
+  }
+};
+
+// =============================
+// DELETE TERM
+// =============================
+exports.deleteTerm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.query(
+      `DELETE FROM student_term_enrollments WHERE term_id = $1`,
+      [id],
+    );
+
+    await pool.query(
+      `DELETE FROM quotes WHERE term_id = $1`,
+      [id],
+    );
+
+    await pool.query(
+      `DELETE FROM attendance_sessions WHERE term_id = $1`,
+      [id],
+    );
+
+    await pool.query(
+      `DELETE FROM academic_terms WHERE id = $1`,
+      [id],
+    );
+
+    res.json({
+      success: true,
+      message: "Term deleted",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting term",
+    });
+  }
+};
+
+// =============================
+// ASSIGN STUDENTS TO TERM
+// =============================
+exports.assignStudentsToTerm = async (req, res) => {
+  try {
+    const { term_id, student_ids } = req.body;
+
+    if (!student_ids || !student_ids.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No students selected",
+      });
+    }
+
+    for (const studentId of student_ids) {
+      await pool.query(
+        `
+        INSERT INTO student_term_enrollments (
+          term_id,
+          student_id
+        )
+        VALUES ($1,$2)
+        ON CONFLICT DO NOTHING
+        `,
+        [term_id, studentId],
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Students assigned successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Error assigning students",
+    });
+  }
+};
+
+// =============================
+// GET TERM STUDENTS
+// =============================
+exports.getTermStudents = async (req, res) => {
+  try {
+    // const { termId } = req.params;
+    const { sessionId } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.fullname,
+        u.email,
+        u.gender,
+        c.name AS classroom
+
+      FROM student_term_enrollments ste
+
+      JOIN users2 u
+        ON u.id = ste.student_id
+
+      LEFT JOIN user_school us
+        ON us.user_id = u.id
+
+      LEFT JOIN classrooms c
+        ON c.id = us.classroom_id
+
+      WHERE ste.term_id = $1
+
+      ORDER BY u.fullname ASC
+      `,
+      [termId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading students");
+  }
+};
+
+// =============================
+// EXPORT TERM STUDENTS EXCEL
+// =============================
+exports.exportTermStudentsExcel = async (req, res) => {
+  try {
+    // const { termId } = req.params;
+    const { sessionId } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        u.fullname,
+        u.email,
+        u.gender,
+        c.name AS classroom
+
+      FROM student_term_enrollments ste
+
+      JOIN users2 u
+        ON u.id = ste.student_id
+
+      LEFT JOIN user_school us
+        ON us.user_id = u.id
+
+      LEFT JOIN classrooms c
+        ON c.id = us.classroom_id
+
+      WHERE ste.term_id = $1
+
+      ORDER BY u.fullname ASC
+      `,
+      [termId],
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Students");
+
+    sheet.columns = [
+      { header: "Full Name", key: "fullname", width: 30 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Gender", key: "gender", width: 15 },
+      { header: "Classroom", key: "classroom", width: 25 },
+    ];
+
+    result.rows.forEach((row) => {
+      sheet.addRow(row);
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=term_students.xlsx",
+    );
+
+    await workbook.xlsx.write(res);
+
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error exporting excel");
+  }
+};
+
+// =============================
+// GET ATTENDANCE STUDENTS
+// =============================
+exports.getAttendanceStudents = async (req, res) => {
+  try {
+    const { classroom_id } = req.query;
+
+    const result = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.fullname
+
+      FROM user_school us
+
+      JOIN users2 u
+        ON u.id = us.user_id
+
+      WHERE us.classroom_id = $1
+      AND us.role_in_school = 'student'
+      AND us.approved = true
+
+      ORDER BY u.fullname ASC
+      `,
+      [classroom_id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading students");
+  }
+};
+
+// =============================
+// SAVE ATTENDANCE
+// =============================
+exports.saveAttendance = async (req, res) => {
+  try {
+    const {
+      term_id,
+      classroom_id,
+      attendance_date,
+      records,
+    } = req.body;
+
+    const sessionResult = await pool.query(
+      `
+      INSERT INTO attendance_sessions (
+        term_id,
+        classroom_id,
+        attendance_date
+      )
+      VALUES ($1,$2,$3)
+      RETURNING id
+      `,
+      [term_id, classroom_id, attendance_date],
+    );
+
+    const sessionId = sessionResult.rows[0].id;
+
+    for (const record of records) {
+      await pool.query(
+        `
+        INSERT INTO attendance_records (
+          session_id,
+          student_id,
+          status
+        )
+        VALUES ($1,$2,$3)
+        `,
+        [
+          sessionId,
+          record.student_id,
+          record.status,
+        ],
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Attendance saved",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error saving attendance");
+  }
+};
+
+// =============================
+// ATTENDANCE HISTORY
+// =============================
+exports.getAttendanceHistory = async (req, res) => {
+  try {
+    const schoolRes = await pool.query(
+      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      [req.session.user.id],
+    );
+
+    if (!schoolRes.rows.length) {
+      return res.status(404).json({ error: "School not found" });
+    }
+
+    const schoolId = schoolRes.rows[0].id;
+    const { term_id, classroom_id } = req.query;
+
+    let query = `
+      SELECT
+        a.id,
+        a.date,
+        a.term_id,
+        c.name AS classroom,
+        t.name AS term_name,
+        COUNT(ar.id) AS student_count
+      FROM attendance_sessions a
+      JOIN classrooms c ON c.id = a.classroom_id
+      JOIN academic_terms t ON t.id = a.term_id
+      LEFT JOIN attendance_records ar ON ar.session_id = a.id
+      WHERE t.school_id = $1
+    `;
+
+    const params = [schoolId];
+
+    // build WHERE conditions properly
+    if (term_id) {
+      params.push(term_id);
+      query += ` AND a.term_id = $${params.length}`;
+    }
+
+    if (classroom_id) {
+      params.push(classroom_id);
+      query += ` AND a.classroom_id = $${params.length}`;
+    }
+
+    // ONLY ONE GROUP BY (at the end)
+    query += `
+      GROUP BY a.id, a.term_id, c.name, t.name
+      ORDER BY a.date DESC
+    `;
+
+    const result = await pool.query(query, params);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading history");
+  }
+};
+
+// =============================
+// WEEKLY ATTENDANCE STATS
+// =============================
+exports.getWeeklyAttendanceStats = async (req, res) => {
+  try {
+    const schoolId = req.session.user.school_id;
+
+    const result = await pool.query(
+      `
+      SELECT
+        DATE(a.attendance_date) AS day,
+
+        COUNT(*) FILTER (
+          WHERE ar.status = 'present'
+        ) AS present,
+
+        COUNT(*) FILTER (
+          WHERE ar.status = 'absent'
+        ) AS absent
+
+      FROM attendance_records ar
+
+      JOIN attendance_sessions a
+        ON a.id = ar.session_id
+
+      JOIN academic_terms t
+        ON t.id = a.term_id
+
+      WHERE t.school_id = $1
+      AND a.attendance_date >= NOW() - INTERVAL '7 days'
+
+      GROUP BY DATE(a.attendance_date)
+
+      ORDER BY day ASC
+      `,
+      [schoolId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading stats");
+  }
+};
+
+// =============================
+// GET ATTENDANCE SESSION
+// =============================
+exports.getAttendanceSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const session = await pool.query(
+      `
+      SELECT
+        a.*,
+        c.name AS classroom,
+        t.name AS term_name
+
+      FROM attendance_sessions a
+
+      JOIN classrooms c
+        ON c.id = a.classroom_id
+
+      JOIN academic_terms t
+        ON t.id = a.term_id
+
+      WHERE a.id = $1
+      `,
+      [id],
+    );
+
+    const records = await pool.query(
+      `
+      SELECT
+        u.fullname,
+        ar.status
+
+      FROM attendance_records ar
+
+      JOIN users2 u
+        ON u.id = ar.student_id
+
+      WHERE ar.session_id = $1
+
+      ORDER BY u.fullname ASC
+      `,
+      [id],
+    );
+
+    res.json({
+      session: session.rows[0],
+      records: records.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading attendance session");
+  }
+};
+
+// =============================
+// EXPORT ATTENDANCE PDF
+// =============================
+exports.exportAttendancePDF = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    // const session = await pool.query(
+    //   `
+    //   SELECT
+    //     a.*,
+    //     c.name AS classroom,
+    //     t.name AS term_name
+
+    //   FROM attendance_sessions a
+
+    //   JOIN classrooms c
+    //     ON c.id = a.classroom_id
+
+    //   JOIN academic_terms t
+    //     ON t.id = a.term_id
+
+    //   WHERE a.id = $1
+    //   `,
+    //   [sessionId],
+    // );
+
+
+    const session = await pool.query(
+      `
+      SELECT
+        a.*,
+        c.name AS classroom,
+        t.name AS term_name,
+        s.name AS school_name,
+        s.logo_url AS school_logo,
+        a.date AS attendance_date
+      FROM attendance_sessions a
+      JOIN classrooms c ON c.id = a.classroom_id
+      JOIN academic_terms t ON t.id = a.term_id
+      JOIN schools s ON s.id = t.school_id
+      WHERE a.id = $1
+      `,
+      [sessionId],
+    );
+    
+    const records = await pool.query(
+      `
+      SELECT
+        u.fullname,
+        ar.status
+
+      FROM attendance_records ar
+
+      JOIN users2 u
+        ON u.id = ar.student_id
+
+      WHERE ar.session_id = $1
+      `,
+      [sessionId],
+    );
+
+    const s = session.rows[0];
+
+    let rows = "";
+
+    records.rows.forEach((r) => {
+      rows += `
+      <tr>
+        <td>${r.fullname}</td>
+        <td>${r.status}</td>
+      </tr>
+      `;
+    });
+    
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 30px;
+          color: #333;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 5px solid #1f4e79;
+          padding-bottom: 15px;
+          margin-bottom: 25px;
+        }
+
+        .logo {
+          height: 80px;
+          width: 80px;
+          object-fit: contain;
+        }
+
+        .title h2 {
+          margin: 0;
+          font-size: 22px;
+          color: #1f4e79;
+          text-transform: uppercase;
+        }
+
+        .title p {
+          margin: 2px 0;
+          font-size: 13px;
+        }
+
+        .title {
+          text-align: center;
+          flex: 1;
+        }
+
+        .info {
+          margin-bottom: 20px;
+          padding: 10px;
+          background: #f4f6f8;
+          border-radius: 6px;
+          font-size: 14px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+
+        th {
+          background: #2c3e50;
+          color: white;
+          padding: 10px;
+          text-align: left;
+        }
+
+        td {
+          padding: 10px;
+          border-bottom: 1px solid #ddd;
+        }
+
+        .present {
+          color: green;
+          font-weight: bold;
+        }
+
+        .absent {
+          color: red;
+          font-weight: bold;
+        }
+
+        .footer {
+          margin-top: 30px;
+          font-size: 12px;
+          text-align: center;
+          color: #888;
+        }
+      </style>
+    </head>
+
+    <body>
+
+      <div class="header">
+
+        <img class="logo" src="${s.school_logo || "https://via.placeholder.com/80"}" />
+
+        <div class="title">
+          <h2>${s.school_name} - Attendance Report</h2>
+          <p>${s.classroom} | ${s.term_name}</p>
+          <p><b>Attendance Date:</b> ${new Date(s.attendance_date).toDateString()}</p>
+        </div>
+
+        <img class="logo" src="https://acad.jkthub.com/images/JKT%20logo.png" />
+
+      </div>
+
+      <div class="info">
+        <b>Classroom:</b> ${s.classroom} <br/>
+        <b>Term:</b> ${s.term_name} <br/>
+        <b>Total Students:</b> ${records.rows.length}
+      </div>
+
+      <div style="
+        position: fixed;
+        top: 40%;
+        left: 25%;
+        opacity: 0.06;
+        font-size: 80px;
+        transform: rotate(-30deg);
+        color: #000;
+      ">
+        ${s.school_name}
+      </div>
+
+      <table>
+        <tr>
+          <th>Student Name</th>
+          <th>Status</th>
+        </tr>
+
+        ${records.rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.fullname}</td>
+            <td class="${r.status === "Present" ? "present" : "absent"}">
+              ${r.status}
+            </td>
+          </tr>
+        `,
+          )
+          .join("")}
+      </table>
+
+      <div class="footer">
+        Generated by JKT Hub School Management System • ${new Date().getFullYear()}
+      </div>
+
+    </body>
+    </html>
+    `;
+    
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox"],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html);
+
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+
+    const safeClass = s.classroom.replace(/\s+/g, "_");
+    const safeDate = new Date(s.attendance_date)
+      .toISOString()
+      .split("T")[0]; // YYYY-MM-DD format
+
+    const fileName = `attendance_${safeClass}_${s.term_name.replace(/\s+/g, "_")}_${safeDate}.pdf`;
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${fileName}`,
+    );
+
+    res.send(pdf);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error exporting pdf");
+  }
+};
+
+exports.exportAttendanceExcel = async (req, res) => {
+  try {
+    const { termId } = req.params;
+
+    if (!termId) {
+      return res.status(400).send("Missing term ID");
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        a.date,
+        c.name AS classroom,
+        u.fullname,
+        ar.status
+      FROM attendance_sessions a
+      JOIN attendance_records ar ON ar.session_id = a.id
+      JOIN users2 u ON u.id = ar.student_id
+      JOIN classrooms c ON c.id = a.classroom_id
+      WHERE a.term_id = $1
+      ORDER BY a.date DESC
+      `,
+      [termId],
+    );
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Attendance Report");
+
+    // HEADER ROW STYLE
+    sheet.columns = [
+      { header: "Date", key: "date", width: 20 },
+      { header: "Classroom", key: "classroom", width: 25 },
+      { header: "Student Name", key: "fullname", width: 30 },
+      { header: "Status", key: "status", width: 15 },
+    ];
+
+    // HEADER STYLE
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "2C3E50" },
+      };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+
+    // DATA ROWS
+    result.rows.forEach((row) => {
+      const added = sheet.addRow(row);
+
+      const statusCell = added.getCell(4);
+
+      if (row.status === "Present") {
+        statusCell.font = { color: { argb: "00AA00" }, bold: true };
+      } else {
+        statusCell.font = { color: { argb: "CC0000" }, bold: true };
+      }
+    });
+
+    // ADD BORDER TO ALL CELLS
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+
+    // AUTO FILTER
+    sheet.autoFilter = {
+      from: "A1",
+      to: "D1",
+    };
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=attendance.xlsx",
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error exporting excel");
+  }
+};

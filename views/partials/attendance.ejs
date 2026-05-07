@@ -1,0 +1,51 @@
+
+      <div id="attendance-section">
+
+        <h3>📋 Attendance Management</h3>
+
+        <div style="margin-bottom:15px;">
+          <button onclick="openAttendanceModal()">➕ Take Attendance</button>
+          <button onclick="loadAttendanceHistory()">📊 View History</button>
+        </div>
+
+        <div style="margin-bottom:15px;">
+          <label>Term:</label>
+
+          <select id="attendanceFilterTerm">
+            <% school.terms.forEach(t => { %>
+            <option value="<%= t.term_id %>"><%= t.term_name %></option>
+            <% }) %>
+          </select>
+
+            <select id="attendanceFilterClassroom">
+                <option value="">All</option>
+                <% school.classrooms.forEach(c => { %>
+                    <option value="<%= c.id %>"><%= c.name %></option>
+                <% }) %>
+            </select>
+          <button onclick="loadAttendanceHistory()">Filter</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Classroom</th>
+                <th>Session Type</th>
+                <th>Taken By</th>
+                <th>Students</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+              <tr><td colspan="6" style="text-align:center;">No data yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <canvas id="attendanceChart"></canvas>
+
+        <div id="attendanceSummary"></div>
+
+      </div>

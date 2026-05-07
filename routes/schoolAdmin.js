@@ -124,7 +124,7 @@ router.post(
 
 
 // Quotes
-router.get("/section/quotes", schoolAdminController.getQuotes);
+// router.get("/section/quotes", schoolAdminController.getQuotes);
 router.post(
   "/quotes/add",
   activityLoggerMiddleware(
@@ -168,11 +168,99 @@ router.post(
   ),
   schoolAdminController.deleteClassroomCourse
 );
-// router.post(
-//   "/classroom-courses/assign",
-//   schoolAdminController.addPaymentAdjustment
-// );
 
+router.get("/terms", schoolAdminController.getTerms);
+
+router.post("/terms/create", schoolAdminController.createTerm);
+
+router.post(
+  "/terms/:id/update",
+  schoolAdminController.updateTerm,
+);
+
+router.delete(
+  "/terms/:id/delete",
+  schoolAdminController.deleteTerm,
+);
+
+router.post(
+  "/terms/assign-students",
+  schoolAdminController.assignStudentsToTerm,
+);
+
+router.get(
+  "/terms/:termId/students",
+  schoolAdminController.getTermStudents,
+);
+
+router.get(
+  "/terms/:termId/export",
+  schoolAdminController.exportTermStudentsExcel,
+);
+
+router.get(
+  "/attendance",
+  
+  schoolAdminController.attendancePage,
+);
+
+router.get(
+  "/attendance/students",
+  
+  schoolAdminController.getAttendanceStudents,
+);
+
+router.post(
+  "/attendance/save",
+  
+  schoolAdminController.saveAttendance,
+);
+
+router.get(
+  "/attendance/history",
+  schoolAdminController.getAttendanceHistory,
+);
+
+router.get(
+  "/attendance/stats",
+  
+  schoolAdminController.getWeeklyAttendanceStats,
+);
+
+router.get(
+  "/attendance/:id",
+  schoolAdminController.getAttendanceSession,
+);
+
+router.get(
+  "/attendance/:sessionId/pdf",
+  schoolAdminController.exportAttendancePDF,
+);
+
+router.get(
+  "/attendance/:termId/excel",
+  schoolAdminController.exportAttendanceExcel,
+);
+
+router.get("/quotes", schoolAdminController.getQuotes);
+
+router.get(
+  "/quotes/:id",
+  
+  schoolAdminController.getQuoteDetails,
+);
+
+router.get(
+  "/quotes/:id/download",
+  
+  schoolAdminController.downloadQuotePDF,
+);
+
+router.get(
+  "/quotes/:id/payments",
+  
+  schoolAdminController.getPaymentHistory,
+);
 
 
 module.exports = router;

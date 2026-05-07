@@ -135,12 +135,7 @@
 
 <input type="text" id="searchInput" placeholder="Search quotes..." />
 
-    <!-- <select id="statusFilter">
-      <option value="">All</option>
-      <option value="paid">Paid</option>
-      <option value="partial">Partial</option>
-      <option value="unpaid">Unpaid</option>
-    </select> -->
+
 
     <select id="statusFilter">
       <option value="">All</option>
@@ -155,16 +150,6 @@
   <table class="user-table" style="width:100%; margin-top:20px;">
     <thead>
       <tr>
-        <!-- <th>ID</th>
-        <th>School</th>
-        <th>Term</th>
-        <th>Students</th>
-        <th>Price / Student</th>
-        <th>Total Amount</th>
-        <th>Total Paid</th>
-        <th>Balance</th>
-        <th>Status</th>
-        <th>Actions</th> -->
 
         <th style="cursor: pointer;" onclick="sortTable(0)">ID ⬍</th>
         <th style="cursor: pointer;" onclick="sortTable(1)">School ⬍</th>
@@ -270,30 +255,6 @@
 
 <!-- chart script -->
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- <script>
-  const trend = <%- JSON.stringify(trend || []) %>;
-
-  const labels = trend.map(t => t.day);
-  const data = trend.map(t => Number(t.total || 0));
-
-  const ctx = document.getElementById("paymentChart");
-
-  if (ctx) {
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label: "Payments",
-          data,
-          tension: 0.3,
-          fill: true
-        }]
-      }
-    });
-  }
-</script> -->
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {

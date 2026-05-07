@@ -5665,61 +5665,6 @@ exports.getClassroomCourses = async (req, res) => {
   }
 };
 
-// exports.addPayment = async (req, res) => {
-//   try {
-//     const { quote_id, amount, school_id } = req.body;
-
-//     const amountValue = parseFloat(amount) || 0;
-
-//     // ✅ 1. Insert payment
-//     await pool.query(
-//       `INSERT INTO school_payments (school_id, quote_id, amount)
-//        VALUES ($1, $2, $3)`,
-//       [school_id, quote_id, amountValue]
-//     );
-
-//     // ✅ 2. Get total paid
-//     const paidRes = await pool.query(
-//       `SELECT COALESCE(SUM(amount), 0) AS total_paid
-//        FROM school_payments
-//        WHERE quote_id = $1`,
-//       [quote_id]
-//     );
-
-//     const totalPaid = parseFloat(paidRes.rows[0].total_paid);
-
-//     // ✅ 3. Get total amount from quote
-//     const quoteRes = await pool.query(
-//       `SELECT total_amount FROM quotes WHERE id = $1`,
-//       [quote_id]
-//     );
-
-//     const totalAmount = parseFloat(quoteRes.rows[0].total_amount);
-
-//     // ✅ 4. Determine status
-//     let status = "unpaid";
-
-//     if (totalPaid === 0) {
-//       status = "unpaid";
-//     } else if (totalPaid < totalAmount) {
-//       status = "partial";
-//     } else {
-//       status = "paid";
-//     }
-
-//     // ✅ 5. Update quote status
-//     await pool.query(
-//       `UPDATE quotes SET status = $1 WHERE id = $2`,
-//       [status, quote_id]
-//     );
-
-//     res.redirect("/admin/quotes");
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Error adding payment");
-//   }
-// };
-
 exports.addPayment = async (req, res) => {
   try {
     const { quote_id, amount, school_id } = req.body;
@@ -7671,143 +7616,350 @@ exports.getAttendanceSession = async (req, res) => {
   }
 };
 
+// exports.exportAttendancePDF = async (req, res) => {
+//   const { sessionId } = req.params;
+
+//   try {
+//     const session = await pool.query(
+//       `SELECT * FROM attendance_sessions WHERE id=$1`,
+//       [sessionId]
+//     );
+
+//     const students = await pool.query(
+//       `SELECT u.fullname, r.status
+//        FROM attendance_records r
+//        JOIN users2 u ON r.student_id = u.id
+//        WHERE r.session_id=$1`,
+//       [sessionId]
+//     );
+
+//     // const html = `
+//     // <html>
+//     // <body style="font-family:Calibri;">
+//     //   <div style="text-align:center;">
+//     //     <h2>ATTENDANCE REPORT</h2>
+//     //     <p>Week ${session.rows[0].week_number}</p>
+//     //     <p>${session.rows[0].date}</p>
+//     //   </div>
+
+//     //   <table width="100%" border="1" cellspacing="0">
+//     //     <tr>
+//     //       <th>Student</th>
+//     //       <th>Status</th>
+//     //     </tr>
+
+//     //     ${students.rows.map(s => `
+//     //       <tr>
+//     //         <td>${s.fullname}</td>
+//     //         <td>${s.status}</td>
+//     //       </tr>
+//     //     `).join("")}
+//     //   </table>
+//     // </body>
+//     // </html>
+//     // `;
+
+//     const html = `
+//       <html>
+//       <head>
+//       <style>
+//       body {
+//         font-family: Arial;
+//         padding: 30px;
+//       }
+
+//       .header {
+//         text-align: center;
+//         border-bottom: 2px solid #333;
+//         margin-bottom: 20px;
+//       }
+
+//       .header h2 {
+//         margin: 0;
+//       }
+
+//       .meta {
+//         display: flex;
+//         justify-content: space-between;
+//         margin-bottom: 20px;
+//         font-size: 14px;
+//       }
+
+//       table {
+//         width: 100%;
+//         border-collapse: collapse;
+//       }
+
+//       th {
+//         background: #222;
+//         color: white;
+//         padding: 10px;
+//       }
+
+//       td {
+//         padding: 8px;
+//         border-bottom: 1px solid #ddd;
+//       }
+
+//       .status-present { color: green; }
+//       .status-absent { color: red; }
+//       .status-late { color: orange; }
+//       </style>
+//       </head>
+
+//       <body>
+
+//       <div class="header">
+//         <h2>ATTENDANCE REPORT</h2>
+//       </div>
+
+//       <div class="meta">
+//         <div>Week: ${session.rows[0].week_number}</div>
+//         <div>Date: ${session.rows[0].date}</div>
+//       </div>
+
+//       <table>
+//       <tr>
+//         <th>Student</th>
+//         <th>Status</th>
+//       </tr>
+
+//       ${students.rows
+//         .map(
+//           (s) => `
+//       <tr>
+//         <td>${s.fullname}</td>
+//         <td class="status-${s.status}">${s.status}</td>
+//       </tr>
+//       `,
+//         )
+//         .join("")}
+
+//       </table>
+
+//       </body>
+//       </html>
+//       `;
+
+//     const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+//     const page = await browser.newPage();
+//     await page.setContent(html);
+
+//     const pdf = await page.pdf({ format: "A4" });
+//     await browser.close();
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.send(pdf);
+
+//   } catch (err) {
+//     res.status(500).send("PDF error");
+//   }
+// };
+
 exports.exportAttendancePDF = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
-    const session = await pool.query(
-      `SELECT * FROM attendance_sessions WHERE id=$1`,
-      [sessionId]
+    const sessionRes = await pool.query(
+      `
+      SELECT
+        a.*,
+        c.name AS classroom,
+        t.name AS term_name,
+        s.name AS school_name,
+        s.logo_url AS school_logo
+      FROM attendance_sessions a
+      JOIN classrooms c ON c.id = a.classroom_id
+      JOIN academic_terms t ON t.id = a.term_id
+      JOIN schools s ON s.id = t.school_id
+      WHERE a.id = $1
+      `,
+      [sessionId],
     );
 
-    const students = await pool.query(
-      `SELECT u.fullname, r.status
-       FROM attendance_records r
-       JOIN users2 u ON r.student_id = u.id
-       WHERE r.session_id=$1`,
-      [sessionId]
+    const studentsRes = await pool.query(
+      `
+      SELECT u.fullname, r.status
+      FROM attendance_records r
+      JOIN users2 u ON r.student_id = u.id
+      WHERE r.session_id = $1
+      `,
+      [sessionId],
     );
 
-    // const html = `
-    // <html>
-    // <body style="font-family:Calibri;">
-    //   <div style="text-align:center;">
-    //     <h2>ATTENDANCE REPORT</h2>
-    //     <p>Week ${session.rows[0].week_number}</p>
-    //     <p>${session.rows[0].date}</p>
-    //   </div>
-
-    //   <table width="100%" border="1" cellspacing="0">
-    //     <tr>
-    //       <th>Student</th>
-    //       <th>Status</th>
-    //     </tr>
-
-    //     ${students.rows.map(s => `
-    //       <tr>
-    //         <td>${s.fullname}</td>
-    //         <td>${s.status}</td>
-    //       </tr>
-    //     `).join("")}
-    //   </table>
-    // </body>
-    // </html>
-    // `;
+    const s = sessionRes.rows[0];
 
     const html = `
-      <html>
-      <head>
+    <!DOCTYPE html>
+    <html>
+    <head>
       <style>
-      body {
-        font-family: Arial;
-        padding: 30px;
-      }
+        body {
+          font-family: Arial, sans-serif;
+          padding: 30px;
+          color: #333;
+        }
 
-      .header {
-        text-align: center;
-        border-bottom: 2px solid #333;
-        margin-bottom: 20px;
-      }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 5px solid #1f4e79;
+          padding-bottom: 15px;
+          margin-bottom: 25px;
+        }
 
-      .header h2 {
-        margin: 0;
-      }
+        .logo {
+          height: 80px;
+          width: 80px;
+          object-fit: contain;
+        }
 
-      .meta {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-        font-size: 14px;
-      }
+        .title {
+          text-align: center;
+          flex: 1;
+        }
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
+        .title h2 {
+          margin: 0;
+          font-size: 22px;
+          color: #1f4e79;
+          text-transform: uppercase;
+        }
 
-      th {
-        background: #222;
-        color: white;
-        padding: 10px;
-      }
+        .title p {
+          margin: 3px 0;
+          font-size: 13px;
+        }
 
-      td {
-        padding: 8px;
-        border-bottom: 1px solid #ddd;
-      }
+        .info {
+          margin-bottom: 20px;
+          padding: 12px;
+          background: #f4f6f8;
+          border-radius: 6px;
+          font-size: 14px;
+        }
 
-      .status-present { color: green; }
-      .status-absent { color: red; }
-      .status-late { color: orange; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        th {
+          background: #1f4e79;
+          color: white;
+          padding: 10px;
+          text-align: left;
+        }
+
+        td {
+          padding: 10px;
+          border-bottom: 1px solid #ddd;
+        }
+
+        .present { color: green; font-weight: bold; }
+        .absent { color: red; font-weight: bold; }
+        .late { color: orange; font-weight: bold; }
+
+        .watermark {
+          position: fixed;
+          top: 40%;
+          left: 25%;
+          opacity: 0.06;
+          font-size: 80px;
+          transform: rotate(-30deg);
+          color: #000;
+        }
+
+        .footer {
+          margin-top: 30px;
+          font-size: 12px;
+          text-align: center;
+          color: #888;
+        }
       </style>
-      </head>
+    </head>
 
-      <body>
+    <body>
 
       <div class="header">
-        <h2>ATTENDANCE REPORT</h2>
+        <img class="logo" src="${s.school_logo || "https://via.placeholder.com/80"}" />
+
+        <div class="title">
+          <h2>${s.school_name} - Attendance Report</h2>
+          <p>${s.classroom} | ${s.term_name}</p>
+          <p><b>Date Taken:</b> ${new Date(s.date).toDateString()}</p>
+        </div>
+
+        <img class="logo" src="https://acad.jkthub.com/images/JKT%20logo.png" />
       </div>
 
-      <div class="meta">
-        <div>Week: ${session.rows[0].week_number}</div>
-        <div>Date: ${session.rows[0].date}</div>
+      <div class="info">
+        <b>Classroom:</b> ${s.classroom} <br/>
+        <b>Term:</b> ${s.term_name} <br/>
+        <b>Total Students:</b> ${studentsRes.rows.length}
+      </div>
+
+      <div class="watermark">
+        ${s.school_name}
       </div>
 
       <table>
-      <tr>
-        <th>Student</th>
-        <th>Status</th>
-      </tr>
+        <tr>
+          <th>Student Name</th>
+          <th>Status</th>
+        </tr>
 
-      ${students.rows
-        .map(
-          (s) => `
-      <tr>
-        <td>${s.fullname}</td>
-        <td class="status-${s.status}">${s.status}</td>
-      </tr>
-      `,
-        )
-        .join("")}
-
+        ${studentsRes.rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.fullname}</td>
+            <td class="${r.status === "present" ? "present" : r.status === "late" ? "late" : "absent"}">
+              ${r.status}
+            </td>
+          </tr>
+        `,
+          )
+          .join("")}
       </table>
 
-      </body>
-      </html>
-      `;
+      <div class="footer">
+        Generated by School Management System • ${new Date().getFullYear()}
+      </div>
 
-    const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+    </body>
+    </html>
+    `;
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox"],
+    });
+
     const page = await browser.newPage();
-    await page.setContent(html);
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({ format: "A4" });
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
     await browser.close();
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.send(pdf);
+    // ✅ filename with class + date
+    const safeClass = s.classroom.replace(/\s+/g, "_");
+    const safeDate = new Date(s.date).toISOString().split("T")[0];
 
+    const fileName = `attendance_${safeClass}_${safeDate}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+
+    res.send(pdf);
   } catch (err) {
-    res.status(500).send("PDF error");
+    console.error(err);
+    res.status(500).send("Error exporting pdf");
   }
 };
 

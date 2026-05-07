@@ -27,6 +27,223 @@
       document.getElementById("dashboard-content").innerHTML = "<p>Error loading section.</p>";
     }
   }
+
+//   window.loadAttendanceHistory = async function () {
+//   const termId = document.getElementById("attendanceFilterTerm")?.value;
+//   const classroomId = document.getElementById("attendanceFilterClassroom")?.value;
+
+//   const res = await fetch(
+//     `/admin/attendance/history?term_id=${termId}&classroom_id=${classroomId || ""}`
+//   );
+
+//   const data = await res.json();
+
+//   const tbody = document.getElementById("attendanceTableBody");
+//   if (!tbody) return;
+
+//   tbody.innerHTML = "";
+
+//   if (!data.length) {
+//     tbody.innerHTML = `<tr><td colspan="6">No attendance found</td></tr>`;
+//     return;
+//   }
+
+//   data.forEach(a => {
+//     tbody.innerHTML += `
+//       <tr>
+//         <td>${new Date(a.attendance_date).toDateString()}</td>
+//         <td>${a.classroom}</td>
+//         <td>${a.term_name}</td>
+//         <td>${a.student_count || 0}</td>
+//         <td>
+//           <i onclick="toggleAttendanceDetails(${a.id})" class="fa fa-eye"></i>
+//         </td>
+//       </tr>
+//     `;
+//   });
+// };
+
+</script>
+
+<script>
+
+// async function loadAttendanceHistory() {
+//   try {
+//     const termId = document.getElementById("attendanceFilterTerm")?.value;
+//     const classroomId = document.getElementById("attendanceFilterClassroom")?.value;
+
+//     const url = `/school-admin/attendance/history?term_id=${termId || ""}&classroom_id=${classroomId || ""}`;
+
+//     const res = await fetch(url);
+//     const data = await res.json();
+
+//     const tbody = document.getElementById("attendanceTableBody");
+
+//     if (!data.length) {
+//       tbody.innerHTML = `<tr><td colspan="6">No history found</td></tr>`;
+//       return;
+//     }
+
+//     // tbody.innerHTML = data.map(a => `
+//     //   <tr>
+//     //     <td>${a.date}</td>
+//     //     <td>${a.classroom}</td>
+//     //     <td>${a.term_name}</td>
+//     //     <td>${a.student_count || 0}</td>
+
+//     //     <!-- ✅ ACTIONS COLUMN -->
+//     //     <td>
+//     //       <button onclick="viewAttendance(${a.id})">👁 View</button>
+
+//     //       <a href="/school-admin/attendance/export/pdf/${a.id}" target="_blank">
+//     //         📄 PDF
+//     //       </a>
+
+//     //       <a href="/school-admin/attendance/export/excel/${a.term_id}">
+//     //         📊 Excel
+//     //       </a>
+//     //     </td>
+//     //   </tr>
+//     // `).join("");
+
+//     tbody.innerHTML = data.map(a => `
+//       <tr>
+//         <td>${a.date}</td>
+//         <td>${a.classroom}</td>
+//         <td>${a.term_name}</td>
+
+//         <!-- You don't return "taken_by" so placeholder -->
+//         <td>Admin</td>
+
+//         <td>${a.student_count || 0}</td>
+
+//         <td>
+          
+//           <button onclick="viewAttendance(${a.id})">👁 View</button>
+
+//           <a href="/school-admin/attendance/${a.id}/pdf" target="_blank">
+//             📄 PDF
+//           </a>
+
+//           <a href="/school-admin/attendance/${a.term_id}/excel">
+//             📊 Excel
+//           </a>
+//         </td>
+        
+//       </tr>
+//     `).join("");
+
+//   } catch (err) {
+//     console.error(err);
+//     alert("Failed to load attendance history");
+//   }
+// }
+
+async function loadAttendanceHistory() {
+  try {
+    const termId = document.getElementById("attendanceFilterTerm")?.value;
+    const classroomId = document.getElementById("attendanceFilterClassroom")?.value;
+
+    const url = `/school-admin/attendance/history?term_id=${termId || ""}&classroom_id=${classroomId || ""}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const tbody = document.getElementById("attendanceTableBody");
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="6">No history found</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(a => `
+      <tr>
+        <td>${a.date}</td>
+        <td>${a.classroom}</td>
+        <td>${a.term_name}</td>
+
+        <td>Admin</td>
+
+        <td>${a.student_count || 0}</td>
+
+        <td class="actions-col">
+
+          <i class="fa fa-eye action-icon"
+             title="View Attendance"
+             style="cursor:pointer; color:blue;"
+             onclick="viewAttendance(${a.id})"></i>
+
+          <i class="fa fa-file-pdf action-icon"
+             title="Download PDF"
+             style="cursor:pointer; color:#d9534f;"
+             onclick="exportPDF(${a.id})"></i>
+
+          <i class="fa fa-file-excel action-icon"
+             title="Download Excel"
+             style="cursor:pointer; color:green;"
+             onclick="exportExcel(${a.term_id})"></i>
+
+        </td>
+      </tr>
+    `).join("");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load attendance history");
+  }
+}
+
+function exportPDF(sessionId) {
+  window.open(`/school-admin/attendance/${sessionId}/pdf`, "_blank");
+}
+
+function exportExcel(termId) {
+  if (!termId) {
+    alert("Missing term ID");
+    return;
+  }
+
+  window.open(`/school-admin/attendance/${termId}/excel`, "_blank");
+}
+
+async function viewAttendance(sessionId) {
+  try {
+    const res = await fetch(`/school-admin/attendance/${sessionId}`);
+    const data = await res.json();
+
+    const records = data.records;
+
+    let html = `
+      <h3>📋 Attendance Details</h3>
+      <p><b>Class:</b> ${data.session.classroom}</p>
+
+      <table border="1" width="100%" cellpadding="5">
+        <tr>
+          <th>Student</th>
+          <th>Status</th>
+        </tr>
+    `;
+
+    records.forEach(r => {
+      html += `
+        <tr>
+          <td>${r.fullname}</td>
+          <td>${r.status}</td>
+        </tr>
+      `;
+    });
+
+    html += `</table>`;
+
+    // simple modal (you can replace with your modal system)
+    const win = window.open("", "_blank");
+    win.document.write(html);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load attendance details");
+  }
+}
 </script>
 
 <script>
@@ -147,7 +364,6 @@ function attachEvents() {
 }
 
 </script>
-
 
 <script>
   async function addStudent(event, classroomId) {

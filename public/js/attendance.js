@@ -146,14 +146,6 @@ async function saveAttendance() {
     });
   });
 
-  //   const payload = {
-  //     term_id,
-  //     classroom_id,
-  //     date: new Date().toISOString().split("T")[0],
-  //     session_status: "held",
-  //     week_number: 1,
-  //     records,
-  //   };
 
 const payload = {
   term_id,
