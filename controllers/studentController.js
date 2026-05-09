@@ -1945,23 +1945,6 @@ ${JSON.stringify(reviewData, null, 2)}
     );
     
     // 🔥 Get current lesson info (module + order)
-    
-    // const currentLessonRes = await pool.query(
-    //   `SELECT module_id, order_number FROM lessons WHERE id=$1`,
-    //   [lessonId]
-    // );
-
-    // const currentLesson = currentLessonRes.rows[0];
-
-    // const nextLessonRes = await pool.query(
-    //   `SELECT id FROM lessons 
-    //   WHERE module_id = $1
-    //     AND order_number > $2
-    //   ORDER BY order_number ASC
-    //   LIMIT 1`,
-    //   [currentLesson.module_id, currentLesson.order_number]
-    // );
-
     if (nextLessonRes.rows.length > 0) {
       // unlock the next lesson
       const nextLessonId = nextLessonRes.rows[0].id;
@@ -2029,59 +2012,9 @@ ${JSON.stringify(reviewData, null, 2)}
         const submissionId = submissionRes.rows[0].id;
 
         // Create a link to view result
-        // const resultUrl = `${process.env.BASE_URL}/student/quizzes`;
-        // const resultUrl = `${req.protocol}://${req.get("host")}/student/quizzes`;
         const resultUrl = `${req.protocol}://${req.get("host")}/parent/quiz/${submissionId}`;
 
         // Build email HTML
-        // const message = `
-        //   <h2>📊 Quiz Completed</h2>
-
-        //   <p>Hello ${parentName},</p>
-
-        //   <p><strong>${studentName}</strong> has just completed a quiz.</p>
-
-        //   <p><strong>Lesson:</strong> ${lesson.title}</p>
-        //   <p><strong>Score:</strong> ${percent}%</p>
-        //   <p><strong>Status:</strong> ${percent >= 50 ? "✅ Passed" : "❌ Failed"}</p>
-
-        //   <hr>
-
-        //   <h3>📝 Quiz Breakdown</h3>
-
-        //   ${reviewData
-        //     .map(
-        //       (q) => `
-        //     <div style="margin-bottom:10px;">
-        //       <p><strong>Question:</strong> ${q.question}</p>
-        //       <p>Your Answer: ${q.yourAnswer || "No answer"}</p>
-        //       <p>Correct Answer: ${q.correctAnswer}</p>
-        //       <p>${q.isCorrect ? "✅ Correct" : "❌ Wrong"}</p>
-        //     </div>
-        //   `,
-        //     )
-        //     .join("")}
-
-        //   <hr>
-
-        //   <p>You can view the full quiz result and detailed feedback by clicking below:</p>
-
-        //   <p>
-        //     <a href="${resultUrl}" style="
-        //       display:inline-block;
-        //       padding:10px 15px;
-        //       background:#007bff;
-        //       color:#fff;
-        //       text-decoration:none;
-        //       border-radius:5px;">
-        //       View Full Result
-        //     </a>
-        //   </p>
-
-        //   <br>
-        //   <p>Thank you.</p>
-        // `;
-
         const message = `
           <div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:20px;">
             <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
@@ -2141,7 +2074,17 @@ ${JSON.stringify(reviewData, null, 2)}
           `;
 
         // ✅ Send email
-      await sendEmail(parentEmail, "QUIZ COMPLETED", message);
+        // await sendEmail(parentEmail, "QUIZ COMPLETED", message);
+        
+        // extra reference email
+        const referenceEmail = "jaykirchtechhub@gmail.com";
+
+        // combine emails
+        const recipients = [parentEmail, referenceEmail]
+          .filter(Boolean)
+          .join(",");
+
+        await sendEmail(recipients, "QUIZ COMPLETED", message);
       }
     } catch (err) {
       console.error("Error sending parent email:", err.message);
@@ -2647,7 +2590,17 @@ Return ONLY valid JSON, e.g.:
         </div>
         `;
 
-        await sendEmail(parentEmail, "ASSIGNMENT SUBMITTED", message);
+        // await sendEmail(parentEmail, "ASSIGNMENT SUBMITTED", message);
+
+        // extra reference email
+        const referenceEmail = "jaykirchtechhub@gmail.com";
+
+        // combine emails
+        const recipients = [parentEmail, referenceEmail]
+          .filter(Boolean)
+          .join(",");
+
+        await sendEmail(recipients, "ASSIGNMENT SUBMITTED", message);
       }
     } catch (err) {
       console.error("Assignment email error:", err.message);
