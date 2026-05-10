@@ -387,8 +387,15 @@ router.get("/students/:id/progress", adminController.viewStudentProgress);
 router.get("/students/:id/enrollments", adminController.viewStudentEnrollments);
 
 // Admin
-router.post("/admin/assign-child", adminController.assignChildToParent);
-
+router.post("/assign-child", adminController.assignChildToParent);
+// router.get("/parents/:parentId/children",
+//   adminController.getParentChildren,
+// );
+router.get(
+  "/parents/:parentId/children-json",
+  adminController.getParentChildrenJSON,
+);
+router.get("/search-users", adminController.searchUsers);
 
 // Download student course summary
 router.get(
@@ -400,7 +407,6 @@ router.get(
   "/student/:studentId/module-summary/:moduleId/download",
   adminController.downloadModuleSummary,
 );
-
 
 // routes/admin.js
 router.get("/schools", adminController.getSchools);

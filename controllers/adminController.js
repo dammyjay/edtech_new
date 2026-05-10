@@ -2794,7 +2794,21 @@ exports.listStudents = async (req, res) => {
        FROM users2 WHERE role='user'
        ORDER BY created_at DESC`
     );
-    res.render("admin/students", { users: users.rows, info });
+    const parentsRes = await pool.query(
+      `
+      SELECT
+        id,
+        fullname,
+        email,
+        phone,
+        profile_picture,
+        created_at
+      FROM users2
+      WHERE role='parent'
+      ORDER BY created_at DESC
+      `
+    );
+    res.render("admin/students", { users: users.rows, parents: parentsRes.rows, info });
   } catch (err) {
     console.error("List students error:", err.message);
     res.status(500).send("Failed to fetch students");
@@ -3550,42 +3564,128 @@ exports.viewStudentEnrollments = async (req, res) => {
   }
 };
 
+// exports.assignChildToParent = async (req, res) => {
+//   const { parentEmail, childEmail } = req.body;
+
+//   try {
+//     // Verify parent exists
+//     const parentRes = await pool.query(
+//       "SELECT email FROM users2 WHERE id = $1 AND role = 'parent'",
+//       [parentEmail]
+//     );
+//     if (parentRes.rows.length === 0) {
+//       return res.status(404).send("Parent not found");
+//     }
+
+//     // Verify child exists
+//     const childRes = await pool.query(
+//       "SELECT id FROM users2 WHERE email = $1 AND role = 'user'",
+//       [childEmail]
+//     );
+//     if (childRes.rows.length === 0) {
+//       return res.status(404).send("Child not found");
+//     }
+
+//     const child = childRes.rows[0];
+//     const parentId = parentRes.rows[0].id;
+
+//     // Create link
+//     await pool.query(
+//       `INSERT INTO parent_children (parent_id, child_id)
+//        VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+//       [parentId, child.id]
+//     );
+
+//     // res.redirect(`/admin/parents/${parentId}/children`);
+//     res.redirect(`/admin/parents/${parentId}/children`);
+//   } catch (err) {
+//     console.error("Error assigning child:", err);
+//     res.status(500).send("Failed to assign child");
+//   }
+// };
+
 exports.assignChildToParent = async (req, res) => {
   const { parentEmail, childEmail } = req.body;
 
   try {
-    // Verify parent exists
+
+    // ✅ Find parent by EMAIL
     const parentRes = await pool.query(
-      "SELECT email FROM users2 WHERE id = $1 AND role = 'parent'",
+      `SELECT id, fullname, email
+       FROM users2
+       WHERE LOWER(email) = LOWER($1)
+       AND role = 'parent'`,
       [parentEmail]
     );
+
     if (parentRes.rows.length === 0) {
       return res.status(404).send("Parent not found");
     }
 
-    // Verify child exists
+    // ✅ Find child by EMAIL
     const childRes = await pool.query(
-      "SELECT id FROM users2 WHERE email = $1 AND role = 'user'",
+      `SELECT id, fullname, email
+       FROM users2
+       WHERE LOWER(email) = LOWER($1)
+       AND role = 'user'`,
       [childEmail]
     );
+
     if (childRes.rows.length === 0) {
       return res.status(404).send("Child not found");
     }
 
+    const parent = parentRes.rows[0];
     const child = childRes.rows[0];
-    const parentId = parentRes.rows[0].id;
 
-    // Create link
+    // ✅ Insert relationship
     await pool.query(
       `INSERT INTO parent_children (parent_id, child_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [parentId, child.id]
+       VALUES ($1, $2)
+       ON CONFLICT (parent_id, child_id) DO NOTHING`,
+      [parent.id, child.id]
     );
 
-    res.redirect(`/admin/parents/${parentId}/children`);
+    // res.redirect(`/admin/parents/${parent.id}/children`);
+    res.redirect(`/admin/students`);
+
   } catch (err) {
-    console.error("Error assigning child:", err);
-    res.status(500).send("Failed to assign child");
+    console.error("Assign child error:", err);
+    res.status(500).send("Server error");
+  }
+}; 
+
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q, role } = req.query;
+
+    if (!q) {
+      return res.json([]);
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        fullname,
+        email,
+        role
+      FROM users2
+      WHERE role = $1
+      AND (
+        fullname ILIKE $2
+        OR email ILIKE $2
+      )
+      ORDER BY fullname ASC
+      LIMIT 10
+      `,
+      [role, `%${q}%`],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
   }
 };
 
@@ -8164,5 +8264,73 @@ exports.getChatWithStudent = async (req, res) => {
   } catch (err) {
     console.error("Get chat with student error:", err);
     res.status(500).send("Error loading chat conversation");
+  }
+};
+
+
+exports.getParentChildren = async (req, res) => {
+  const { parentId } = req.params;
+
+  try {
+    // parent info
+    const parentRes = await pool.query(
+      `SELECT id, fullname, email
+       FROM users2
+       WHERE id = $1`,
+      [parentId],
+    );
+
+    const infoResult = await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1");
+    const info = infoResult.rows[0] || {};
+
+    // children
+    const childrenRes = await pool.query(
+      `SELECT
+          u.id,
+          u.fullname,
+          u.email
+       FROM parent_children pc
+       JOIN users2 u
+         ON u.id = pc.child_id
+       WHERE pc.parent_id = $1`,
+      [parentId],
+    );
+
+    res.render("admin/parentChildren", {
+      parent: parentRes.rows[0],
+      children: childrenRes.rows,
+      info,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading children");
+  }
+};
+
+exports.getParentChildrenJSON = async (req, res) => {
+  const { parentId } = req.params;
+
+  try {
+    const childrenRes = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.fullname,
+        u.email
+      FROM parent_children pc
+      JOIN users2 u
+        ON u.id = pc.child_id
+      WHERE pc.parent_id = $1
+      `,
+      [parentId],
+    );
+
+    res.json(childrenRes.rows);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Failed to load children",
+    });
   }
 };

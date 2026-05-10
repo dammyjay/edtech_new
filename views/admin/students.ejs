@@ -106,20 +106,195 @@
       </table>
     </div>
 
+    <h1 style="margin-top:50px;">👨‍👩‍👧 All Parents</h1>
+
+    <!-- Parents Table -->
+  <div class="table-responsive">
+
+    <table class="user-table" style="width:90%; margin-top:20px;">
+
+      <thead>
+        <tr>
+          <th>Profile</th>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Registered</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        <% parents.forEach(parent => { %>
+
+          <tr>
+
+            <td>
+              <img
+                src="<%= parent.profile_picture || '/profile.webp' %>"
+                style="
+                  width:50px;
+                  height:50px;
+                  border-radius:50%;
+                  object-fit:cover;
+                "
+              >
+            </td>
+
+            <td><%= parent.fullname %></td>
+
+            <td><%= parent.email %></td>
+
+            <td><%= parent.phone || 'N/A' %></td>
+
+            <td>
+              <%= new Date(parent.created_at).toLocaleDateString() %>
+            </td>
+
+            <td>
+
+              <button
+                onclick="openChildrenModal(<%= parent.id %>, '<%= parent.fullname %>')"
+                style="
+                  background:#007bff;
+                  color:#fff;
+                  border:none;
+                  padding:8px 12px;
+                  border-radius:5px;
+                  cursor:pointer;
+                "
+              >
+                View Children
+              </button>
+
+            </td>
+
+          </tr>
+
+        <% }) %>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+  <!-- CHILDREN MODAL -->
+<div
+  id="childrenModal"
+  class="modal"
+  style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+    z-index:9999;
+  "
+>
+
+  <div
+    style="
+      background:#fff;
+      width:90%;
+      max-width:700px;
+      margin:50px auto;
+      padding:20px;
+      border-radius:10px;
+      max-height:85vh;
+      overflow-y:auto;
+    "
+  >
+
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+
+      <h2 id="childrenModalTitle">
+        Parent Children
+      </h2>
+
+      <span
+        onclick="closeChildrenModal()"
+        style="
+          cursor:pointer;
+          font-size:24px;
+          font-weight:bold;
+        "
+      >
+        &times;
+      </span>
+
+    </div>
+
+    <div class="table-responsive">
+
+      <table class="user-table" width="100%">
+
+        <thead>
+          <tr>
+            <th>Student Name</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+
+        <tbody id="childrenTableBody">
+
+          <tr>
+            <td colspan="2">Loading...</td>
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
     <!-- Assign Child to Parent -->
   <h2 style="margin-top:40px;">👨‍👩‍👧 Assign Child to Parent</h2>
-  <form method="POST" action="/admin/assign-child" style="margin-top:15px;">
-    <label>Parent ID:</label>
-    <input type="number" name="parentEmail" placeholder="Parent user ID" required />
+  <form action="/admin/assign-child" method="POST">
 
-    <label>Child Email:</label>
-    <input type="email" name="childEmail" placeholder="Student email" required />
+  <div class="field">
+    <label>Parent Email</label>
 
-    <button type="submit" style="margin-left:10px;">Link</button>
-  </form>
+    <input
+      type="text"
+      name="parentEmail"
+      id="parentEmail"
+      autocomplete="off"
+      required
+    >
+
+    <div id="parentSuggestions" class="suggestions"></div>
+  </div>
+
+  <div class="field">
+    <label>Child Email</label>
+
+    <input
+      type="text"
+      name="childEmail"
+      id="childEmail"
+      autocomplete="off"
+      required
+    >
+
+    <div id="childSuggestions" class="suggestions"></div>
+  </div>
+
+  <button type="submit">
+    Assign Child
+  </button>
+
+</form>
 
   <!-- Remove Child from Parent -->
-  <h2 style="margin-top:30px;">❌ Remove Child from Parent</h2>
+  <!-- <h2 style="margin-top:30px;">❌ Remove Child from Parent</h2> -->
   <!-- <form method="POST" action="/admin/remove-child" style="margin-top:15px;">
     <label>Parent ID:</label>
     <input type="number" name="parentId" placeholder="Parent user ID" required />
@@ -173,6 +348,129 @@
   function closeAddUserModal() {
     document.getElementById("addUserModal").style.display = "none";
   }
+</script>
+
+<!-- script for autocomplete -->
+ <script>
+
+  async function setupAutocomplete(inputId, suggestionId, role) {
+
+    const input = document.getElementById(inputId);
+    const suggestions = document.getElementById(suggestionId);
+
+    input.addEventListener("input", async () => {
+
+      const q = input.value.trim();
+
+      if (!q) {
+        suggestions.innerHTML = "";
+        return;
+      }
+
+      const res = await fetch(
+        `/admin/search-users?q=${encodeURIComponent(q)}&role=${role}`
+      );
+
+      const users = await res.json();
+
+      suggestions.innerHTML = users.map(user => `
+        <div class="suggestion-item"
+          onclick="selectSuggestion(
+            '${inputId}',
+            '${suggestionId}',
+            '${user.email}'
+          )">
+
+          <strong>${user.fullname}</strong><br>
+          <small>${user.email}</small>
+
+        </div>
+      `).join("");
+
+    });
+
+  }
+
+  function selectSuggestion(inputId, suggestionId, value) {
+
+    document.getElementById(inputId).value = value;
+
+    document.getElementById(suggestionId).innerHTML = "";
+
+  }
+
+  setupAutocomplete(
+    "parentEmail",
+    "parentSuggestions",
+    "parent"
+  );
+
+  setupAutocomplete(
+    "childEmail",
+    "childSuggestions",
+    "user"
+  );
+
+</script>
+
+<script>
+
+async function openChildrenModal(parentId, parentName) {
+
+  document.getElementById("childrenModal").style.display = "block";
+
+  document.getElementById("childrenModalTitle").innerText =
+    `${parentName}'s Children`;
+
+  document.getElementById("childrenTableBody").innerHTML = `
+    <tr>
+      <td colspan="2">Loading...</td>
+    </tr>
+  `;
+
+  try {
+
+    const res = await fetch(
+      `/admin/parents/${parentId}/children-json`
+    );
+
+    const children = await res.json();
+
+    if (!children.length) {
+
+      document.getElementById("childrenTableBody").innerHTML = `
+        <tr>
+          <td colspan="2">No children assigned</td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    document.getElementById("childrenTableBody").innerHTML =
+      children.map(child => `
+        <tr>
+          <td>${child.fullname}</td>
+          <td>${child.email}</td>
+        </tr>
+      `).join("");
+
+  } catch (err) {
+
+    console.error(err);
+
+    document.getElementById("childrenTableBody").innerHTML = `
+      <tr>
+        <td colspan="2">Error loading children</td>
+      </tr>
+    `;
+  }
+}
+
+function closeChildrenModal() {
+  document.getElementById("childrenModal").style.display = "none";
+}
+
 </script>
 
   </body>

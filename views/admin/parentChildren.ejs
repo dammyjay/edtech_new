@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parent - Children</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style2.css">
+  <link rel="stylesheet" href="/css/style3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <header class="header">
+      <div class="logo-title">
+          <% info = info || {}; %> <% if (info.logo_url) { %>
+          <img src="<%= info.logo_url %>" alt="Logo" />
+          <% } %>
+          <p><%= info?.company_name || 'Jaykirch Tech Hub' %></p>
+      </div>
+      <a style="text-decoration: none; color: white;" href="/admin/dashboard">⬅ Back to Dashboard</a>
+    </header>
+  <h2><%= parent.fullname %>'s Children</h2>
+
+  <div class="table-responsive">
+    <table class="user-table"></table>>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+      </tr>
+
+    <% children.forEach(child => { %>
+      <tr>
+        <td><%= child.fullname %></td>
+        <td><%= child.email %></td>
+      </tr>
+    <% }) %>
+  </table>
+  </div>
+</body>
+</html>
+
