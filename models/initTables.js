@@ -77,6 +77,20 @@ async function createTables() {
       )`
     );
 
+  await pool.query(`
+    ALTER TABLE users2
+    ADD COLUMN IF NOT EXISTS login_type TEXT DEFAULT 'email',
+    ADD COLUMN IF NOT EXISTS pin VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+    ADD COLUMN IF NOT EXISTS avatar_seed TEXT,
+    ADD COLUMN IF NOT EXISTS is_lower_primary BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS qr_code TEXT,
+    ADD COLUMN IF NOT EXISTS classroom_login_enabled BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS school_level TEXT,
+    ADD COLUMN IF NOT EXISTS login_method TEXT DEFAULT 'email';
+  `);
+
+
     // table for career pathways
     await pool.query(
       `CREATE TABLE IF NOT EXISTS career_pathways(
@@ -221,7 +235,7 @@ async function createTables() {
       ALTER TABLE feedback ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false;
 
      `);
-
+    
     // table for faqs
     await pool.query(`
       CREATE TABLE IF NOT EXISTS faqs (
@@ -576,6 +590,8 @@ async function createTables() {
 
         ALTER TABLE classrooms
         ADD COLUMN IF NOT EXISTS chat_locked BOOLEAN DEFAULT false;
+        ALTER TABLE classrooms
+        ADD COLUMN IF NOT EXISTS login_mode TEXT DEFAULT 'standard';
       `);
 
       // junction table for quotes

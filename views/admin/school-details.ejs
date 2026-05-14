@@ -447,6 +447,13 @@
     style="margin-left:10px; padding:5px;"
   />
 
+  <button class="btn btn-view" onclick="bulkEnableAvatarLogin()">
+  🚀 Enable Avatar Login (All Students)
+</button>
+
+<button class="btn btn-warning" onclick="runMigration()">
+  🔧 Migrate Student Login Fields
+</button>
   
 
   <!-- tabe for students -->
@@ -457,6 +464,10 @@
           <th>Name</th>
           <th>Email</th>
           <th>Classroom</th>
+          <th>Login Type</th>
+          <th>Pin</th>
+          <th>Log Enabled</th>
+          <th>Avatar</th>
           <th>Actions</th>
           <th>Progress</th>
         </tr>
@@ -468,6 +479,16 @@
               <td><%= student.full_name %></td>
               <td><%= student.email %></td>
               <td><%= student.classroom_name || '—' %></td>
+              <td><%= student.login_type || '—' %></td>
+              <td><%= student.pin || '—' %></td>
+              <td><%= student.classroom_login_enabled ? 'Yes' : 'No' %></td>
+              <td>
+                <% if (student.avatar_url) { %>
+                  <img src="<%= student.avatar_url %>" alt="Avatar" style="width:40px; height:40px; border-radius:50%;">
+                <% } else { %>
+                  —
+                <% } %>
+              </td>
               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
                 <!-- <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(student) %>)'>👁️ View</button> -->
                 <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(student) %>); return false;'>
@@ -478,6 +499,11 @@
                 </a>
                 <a href="#" class="no-bg" onclick="deleteUser('<%= student.id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
+                <a href="#" class="no-bg" onclick="toggleAvatarLogin('<%= student.id %>', this); return false;" title="Toggle Avatar Login">
+                  <i class="fa-solid fa-user-astronaut"
+                    style="color: <%= student.classroom_login_enabled ? 'green' : 'gray' %>">
+                  </i>
                 </a>
               </td>
               <td>
@@ -706,6 +732,11 @@
     <p><strong>Classroom:</strong> <span id="modalClassroom"></span></p>
     <p><strong>walletBalance:</strong> ₦<span id="modalWalletBalance"></span></p>
     <p><strong>Date Registered:</strong> <span id="modalDate"></span></p>
+    <p><strong>Login Type:</strong> <span id="modalLoginType"></span></p>
+    <p><strong>Pin:</strong> <span id="modalPin"></span></p>
+    <p><strong>Avatar URL:</strong> <span id="modalAvatarUrl"></span></p>
+    <p><strong>Avatar Seed:</strong> <span id="modalAvatarSeed"></span></p>
+    <p><strong>Classroom Enabled:</strong> <span id="modalClassroomEnabled"></span></p>
 
     <hr>
     <!-- 🔑 Reset Password Form -->
@@ -975,6 +1006,60 @@
     </form>
   </div>
 </div>
+
+
+<script>
+  async function toggleAvatarLogin(userId, el) {
+    const res = await fetch(`/admin/users/${userId}/toggle-avatar-login`, {
+      method: "POST"
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert(
+        data.enabled
+          ? `Avatar Login ENABLED\nPIN: ${data.user.pin}`
+          : "Avatar Login DISABLED"
+      );
+
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  }
+
+  async function bulkEnableAvatarLogin() {
+    const schoolId = "<%= school.id %>";
+
+    if (!confirm("Enable avatar login for ALL students in this school?")) return;
+
+    const res = await fetch(`/admin/schools/${schoolId}/bulk-enable-avatar-login`, {
+      method: "POST"
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert(data.message);
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  }
+
+  async function runMigration() {
+    if (!confirm("Run migration for all students?")) return;
+
+    const res = await fetch("/admin/migrate-student-login", {
+      method: "POST"
+    });
+
+    const data = await res.json();
+
+    alert(data.message);
+  }
+</script>
 
 <!-- script for attendance modal -->
  <script>
@@ -1711,6 +1796,11 @@ function exportExcel() {
     document.getElementById("modalClassroom").textContent = user.classroom_name || "—";
     document.getElementById("modalWalletBalance").textContent = user.wallet_balance || 0;
     document.getElementById("modalDate").textContent = user.created_at ? new Date(user.created_at).toDateString() : "—";
+    document.getElementById("modalLoginType").textContent = user.login_type || "—";
+    document.getElementById("modalPin").textContent = user.pin || "—";
+    document.getElementById("modalAvatarUrl").textContent = user.avatar_url || "—";
+    document.getElementById("modalAvatarSeed").textContent = user.avatar_seed || "—";
+    document.getElementById("modalClassroomEnabled").textContent = user.classroom_login_enabled ? "Yes" : "No";
 
     // 🔑 set userId for reset password
     document.getElementById("resetUserId").value = user.id;

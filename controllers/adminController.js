@@ -261,6 +261,121 @@ exports.login = async (req, res) => {
   }
 };
 
+// exports.avatarPinLogin = async (req, res) => {
+//   const { studentId, pin } = req.body;
+
+//   try {
+//     const result = await pool.query(
+//       `
+//       SELECT *
+//       FROM users2
+//       WHERE id = $1
+//       AND pin = $2
+//       `,
+//       [studentId, pin],
+//     );
+
+//     if (result.rows.length === 0) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Invalid PIN",
+//       });
+//     }
+
+//     const user = result.rows[0];
+
+//     req.session.user = {
+//       id: user.id,
+//       email: user.email,
+//       role: user.role,
+//       profile_pic: user.profile_picture,
+//     };
+
+//     return res.json({
+//       success: true,
+//       redirect: "/student/dashboard",
+//     });
+//   } catch (err) {
+//     console.error(err);
+
+//     res.status(500).json({
+//       success: false,
+//     });
+//   }
+// };
+
+exports.avatarPinLogin = async (req, res) => {
+  const { studentId, pin } = req.body;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT *
+      FROM users2
+      WHERE id = $1
+      AND pin = $2
+      AND role = 'student'
+      AND classroom_login_enabled = true
+      `,
+      [studentId, pin],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid PIN or classroom login disabled",
+      });
+    }
+
+    const user = result.rows[0];
+
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      profile_pic: user.profile_picture,
+    };
+
+    return res.json({
+      success: true,
+      redirect: "/student/dashboard",
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+exports.getClassroomStudents = async (req, res) => {
+  const { classroomId } = req.params;
+
+  try {
+    const students = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.fullname,
+        u.avatar_url
+      FROM user_school us
+      JOIN users2 u
+        ON u.id = us.user_id
+      WHERE us.classroom_id = $1
+      AND u.role = 'student'
+      `,
+      [classroomId],
+    );
+
+    res.json(students.rows);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json([]);
+  }
+};
 
 exports.logout = (req, res) => {
   req.session.destroy();
@@ -4719,6 +4834,47 @@ body > * {
   }
 };
 
+exports.getSchoolsApi = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        name
+      FROM schools
+      ORDER BY name ASC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json([]);
+  }
+};
+
+exports.getSchoolClassrooms = async (req, res) => {
+  const { schoolId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        name
+      FROM classrooms
+      WHERE school_id = $1
+      ORDER BY name ASC
+    `,
+      [schoolId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json([]);
+  }
+};
 
 exports.getSchools = async (req, res) => {
   try {
@@ -4827,7 +4983,8 @@ exports.getSchoolDetails = async (req, res) => {
     const studentsResult = await pool.query(
       `
       SELECT u.id, u.fullname AS full_name, u.email, u.phone, u.dob, u.gender,
-             u.role, u.wallet_balance, u.created_at,
+             u.role, u.wallet_balance, u.pin, u.avatar_url, u.avatar_seed, u.classroom_login_enabled,
+             u.login_type, u.created_at,
              c.name AS classroom_name
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
@@ -4950,13 +5107,6 @@ exports.getSchoolDetails = async (req, res) => {
       };
     });
 
-
-    // Fetch quotes
-    // const quotesResult = await pool.query(
-    //   `SELECT * FROM quotes WHERE school_id = $1 ORDER BY created_at DESC`,
-    //   [id]
-    // );
-
     const quotesResult = await pool.query(
       `SELECT 
         q.*, 
@@ -4996,15 +5146,6 @@ exports.getSchoolDetails = async (req, res) => {
     );
 
     const updatedQuotes = updatedQuotesResult.rows;
-
-    // school.terms = school.terms.map(term => {
-    //   const quote = quotes.find(q => q.term_id === term.term_id);
-
-    //   return {
-    //     ...term,
-    //     quote: quote || null
-    //   };
-    // });
 
     school.terms = school.terms.map((term) => {
       const quote = updatedQuotes.find((q) => q.term_id === term.term_id);
@@ -6460,6 +6601,157 @@ exports.assignSchoolCourses = async (req, res) => {
   } catch (err) {
     console.error("Error assigning courses:", err);
     res.status(500).send("Error assigning courses");
+  }
+};
+
+exports.enableAvatarPinLogin = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    const avatarSeed = `user-${userId}`;
+
+    const result = await pool.query(
+      `
+      UPDATE users2
+      SET 
+        pin = $1,
+        avatar_seed = $2,
+        login_type = 'avatar_pin',
+        classroom_login_enabled = true
+      WHERE id = $3
+      RETURNING id, fullname, pin, avatar_seed
+    `,
+      [pin, avatarSeed, userId],
+    );
+
+    return res.json({
+      success: true,
+      message: "Avatar login enabled",
+      user: result.rows[0],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to enable avatar login" });
+  }
+};
+
+exports.toggleAvatarLogin = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // get current state
+    const userRes = await pool.query(
+      `SELECT classroom_login_enabled FROM users2 WHERE id = $1`,
+      [userId],
+    );
+
+    if (!userRes.rows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const current = userRes.rows[0].classroom_login_enabled;
+
+    let newState = !current;
+    let pin = null;
+    let avatarSeed = null;
+
+    // IF TURNING ON → generate credentials
+    if (newState) {
+      pin = Math.floor(1000 + Math.random() * 9000).toString();
+      avatarSeed = `user-${userId}`;
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE users2
+      SET 
+        classroom_login_enabled = $1,
+        pin = COALESCE($2, pin),
+        avatar_seed = COALESCE($3, avatar_seed),
+        login_type = CASE 
+          WHEN $1 = true THEN 'avatar_pin'
+          ELSE 'email'
+        END
+      WHERE id = $4
+      RETURNING id, fullname, classroom_login_enabled, pin
+    `,
+      [newState, pin, avatarSeed, userId],
+    );
+
+    res.json({
+      success: true,
+      enabled: newState,
+      user: result.rows[0],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Toggle failed" });
+  }
+};
+
+exports.bulkEnableAvatarLogin = async (req, res) => {
+  const { schoolId } = req.params;
+
+  try {
+    const students = await pool.query(`
+      SELECT u.id
+      FROM users2 u
+      JOIN user_school us ON us.user_id = u.id
+      WHERE us.school_id = $1
+      AND us.role_in_school = 'student'
+    `, [schoolId]);
+
+    let updated = [];
+
+    for (const s of students.rows) {
+      const pin = Math.floor(1000 + Math.random() * 9000).toString();
+      const avatarSeed = `user-${s.id}`;
+
+      await pool.query(`
+        UPDATE users2
+        SET 
+          pin = $1,
+          avatar_seed = $2,
+          login_type = 'avatar_pin',
+          classroom_login_enabled = true
+        WHERE id = $3
+      `, [pin, avatarSeed, s.id]);
+
+      updated.push(s.id);
+    }
+
+    res.json({
+      success: true,
+      message: `${updated.length} students enabled for avatar login`,
+      updated
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Bulk enable failed" });
+  }
+};
+
+exports.migrateStudentLoginFeatures = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      UPDATE users2
+      SET 
+        login_type = COALESCE(login_type, 'email'),
+        classroom_login_enabled = COALESCE(classroom_login_enabled, false),
+        login_method = COALESCE(login_method, 'email')
+      WHERE role = 'student'
+    `);
+
+    return res.json({
+      success: true,
+      message: "Student login fields migrated successfully",
+      rowsUpdated: result.rowCount,
+    });
+  } catch (err) {
+    console.error("Migration error:", err);
+    res.status(500).json({ message: "Migration failed" });
   }
 };
 

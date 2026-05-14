@@ -45,8 +45,34 @@ const upload2 = multer({ storage: storage2 });
 // const upload = multer({ dest: 'uploads/' }); // temp local storage
 // const upload = require("../middlewares/upload");
 
+// router.get("/login", adminController.showLogin);
+// router.post("/login", adminController.login);
+// router.post("/student/avatar-login", adminController.avatarPinLogin);
+// router.get(
+//   "/classroom/:classroomId/students",
+//   adminController.getClassroomStudents,
+// );
+// router.get("/api/schools", adminController.getSchools);
+// router.get("/api/schools", adminController.getSchoolsApi);
+
 router.get("/login", adminController.showLogin);
 router.post("/login", adminController.login);
+
+router.post("/student/avatar-login", adminController.avatarPinLogin);
+
+router.get(
+  "/classroom/:classroomId/students",
+  adminController.getClassroomStudents,
+);
+
+// NEW API ROUTES
+router.get("/api/schools", adminController.getSchoolsApi);
+
+router.get(
+  "/api/schools/:schoolId/classrooms",
+  adminController.getSchoolClassrooms,
+);
+
   router.get("/forgot-password", adminController.showForgotPasswordForm);
   router.post("/forgot-password", adminController.handleForgotPassword);
   router.get("/reset-password/:token", adminController.showResetPasswordForm);
@@ -60,6 +86,20 @@ router.get("/users/filter", adminController.filterUsersAjax);
 router.get("/analytics/export", adminController.exportAnalyticsPDF);
 router.get("/analytics", adminController.analyticsPage);
 router.get("/stats/overview", adminController.overview);
+// Enable avatar/PIN for one student
+// router.post("/users/:userId/enable-avatar-login", adminController.enableAvatarPinLogin);
+router.post(
+  "/users/:userId/toggle-avatar-login",
+  adminController.toggleAvatarLogin,
+);
+
+// Bulk enable for school students
+router.post("/schools/:schoolId/bulk-enable-avatar-login", adminController.bulkEnableAvatarLogin);
+
+router.post(
+  "/migrate-student-login",
+  adminController.migrateStudentLoginFeatures,
+);
 router.post("/add-user", adminController.addUser);
 router.get("/stats/users", adminController.users);
 router.get("/stats/courses", adminController.courses);

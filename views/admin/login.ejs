@@ -1,28 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Admin Login</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
 
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/styles2.css" />
-    <link rel="stylesheet" href="/css/styles3.css" />
-    <link rel="icon" type="image/x-icon" href="/logo.png" />
-  </head>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/styles2.css" />
+  <link rel="stylesheet" href="/css/styles3.css" />
+
+  <style>
+
+    .login-tabs{
+      display:flex;
+      margin-bottom:20px;
+      border-radius:10px;
+      overflow:hidden;
+      border:1px solid #ddd;
+    }
+
+    .login-tab{
+      flex:1;
+      padding:12px;
+      border:none;
+      cursor:pointer;
+      background:#f5f5f5;
+      font-weight:bold;
+      color: black;
+    }
+
+    .login-tab.active{
+      background:#000000;
+      color:white;
+    }
+
+    .login-section{
+      display:none;
+    }
+
+    .login-section.active{
+      display:block;
+    }
+
+    .student-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
+      gap:15px;
+      margin-top:20px;
+    }
+
+    .student-card{
+      text-align:center;
+      cursor:pointer;
+      padding:10px;
+      border-radius:10px;
+      background:#f5f5f5;
+      transition:.3s;
+    }
+
+    .student-card:hover{
+      background:#e3f2fd;
+      transform:scale(1.03);
+    }
+
+    .student-card img{
+      width:70px;
+      height:70px;
+      border-radius:50%;
+      object-fit:cover;
+      margin-bottom:5px;
+    }
+
+    .pin-modal{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.6);
+      display:none;
+      justify-content:center;
+      align-items:center;
+      z-index:999;
+    }
+
+    .pin-box{
+      background:white;
+      padding:25px;
+      border-radius:10px;
+      width:300px;
+      text-align:center;
+    }
+
+    .pin-box input{
+      width:100%;
+      padding:12px;
+      margin:15px 0;
+      text-align:center;
+      font-size:22px;
+      letter-spacing:5px;
+    }
+    .pin-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+}
+
+.pin-close:hover {
+  color: red;
+  cursor: pointer;
+}
+
+  </style>
+</head>
 
   <body class="signup-body">
-    <div class="form-container">
-      <h2>Login</h2>
-      <p>Please enter your login details</p>
 
-      <% if (typeof error !== "undefined" && error) { %>
-        <p style="color: red;"><%= error %></p>
-      <% } %>
+  <div class="form-container">
+
+    <h2>Login</h2>
+    <p>Please enter your login details</p>
+
+    <% if (typeof error !== "undefined" && error) { %>
+      <p style="color:red;"><%= error %></p>
+    <% } %>
+
+    <!-- TABS -->
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchTab('normal')">
+        Normal Login
+      </button>
+
+      <button class="login-tab" onclick="switchTab('student')">
+        Student Login
+      </button>
+    </div>
+
+    <!-- NORMAL LOGIN -->
+    <div id="normal-login" class="login-section active">
 
       <form
         action="/admin/login<%= redirect ? ('?redirect=' + encodeURIComponent(redirect)) : '' %>"
         method="POST"
       >
+
         <input
           type="email"
           name="email"
@@ -30,7 +153,7 @@
           required
         />
 
-        <br /><br />
+        <br><br>
 
         <input
           type="password"
@@ -40,154 +163,492 @@
           required
         />
 
-        <br />
+        <br>
 
         <label>
-          <input type="checkbox" onclick="togglePassword()" />
+          <input type="checkbox" onclick="togglePassword()">
           Show Password
         </label>
 
-        <br /><br />
+        <br><br>
 
-        <p style="text-align: center;">
+        <p style="text-align:center;">
           <a href="/admin/forgot-password">Forgot Password?</a>
         </p>
 
-        <button type="submit" style="width: 100%;">Login</button>
+        <button type="submit" style="width:100%;">
+          Login
+        </button>
 
-        <p style="text-align: center;">
-          Don't have an account?
-          <a href="/signup">Signup</a>
-        </p>
       </form>
+
     </div>
 
-    <!-- OTP Modal on login page -->
-    <div id="otp-modal" class="otp-modal" style="display: none;">
-      <div>
-        <p style="color: #218838">
-          Please check your email for verification OTP and enter it below.
-        </p>
-        <p style="color: #e73f07">
-          Check spam folder if you don't see it in your inbox.
-        </p>
-        <input id="otp-input" placeholder="Enter OTP" />
-        <button id="verifyBtn" onclick="verifyOtp()">Verify OTP</button>
-        <span id="spinner2" style="display:none; margin-left:10px;">⏳ Sending...</span>
+    <!-- STUDENT LOGIN -->
+    <div id="student-login" class="login-section">
 
-        <button id="resendBtn">Resend OTP</button>
-        <span id="resendTimer" style="margin-left:10px;"></span>
-      </div>
+      <select id="schoolSelect">
+        <option value="">Select School</option>
+      </select>
+
+      <br><br>
+
+      <select id="classroomSelect">
+        <option value="">Select Classroom</option>
+      </select>
+
+      <div id="studentGrid" class="student-grid"></div>
+
     </div>
 
+    <p style="text-align:center;margin-top:20px;">
+      Don't have an account?
+      <a href="/signup">Signup</a>
+    </p>
 
-    <script>
-      function togglePassword() {
-        const pwd = document.getElementById("password");
-        pwd.type = pwd.type === "password" ? "text" : "password";
-      }
-    </script>
+  </div>
 
-    <% if (pendingEmail && pendingEmail.length > 0) { %>
-      <script>
-        localStorage.setItem("pendingEmail", "<%= pendingEmail %>");
-        document.querySelector(".form-container").style.display = "none"; // hide login form
-        document.getElementById("otp-modal").style.display = "flex";
-      </script>
-    <% } %>
+  <!-- PIN MODAL -->
 
+  <div id="pinModal" class="pin-modal">
 
+    <div class="pin-box">
+      <button type="button" class="pin-close" onclick="closePinModal()">
+        &times;
+      </button>
 
-    <script>
-const verifyBtn = document.getElementById("verifyBtn");
-const resendBtn = document.getElementById("resendBtn");
-const resendTimer = document.getElementById("resendTimer");
+      <h3 id="studentName"></h3>
 
-// Trigger OTP modal if pendingEmail exists
-// window.addEventListener("DOMContentLoaded", async () => {
-//   const pendingEmail = "<%= pendingEmail || '' %>"; // From server render
+      <img
+        id="studentAvatar"
+        src=""
+        width="80"
+        height="80"
+        style="border-radius:50%;object-fit:cover;"
+      >
 
-//   if (!pendingEmail) return;
+      <input
+        type="password"
+        maxlength="4"
+        id="studentPin"
+        placeholder="Enter PIN"
+      >
 
-//   console.log("✅ Pending email:", pendingEmail);
-//   localStorage.setItem("pendingEmail", pendingEmail);
+      <button onclick="submitStudentLogin()">
+        Login
+      </button>
 
-//   document.getElementById("otp-modal").style.display = "flex";
-// });
+    </div>
 
-// Verify OTP function
-async function verifyOtp() {
-  const otp = document.getElementById("otp-input").value;
-  const email = localStorage.getItem("pendingEmail");
+  </div>
 
-  if (!email) {
-    alert("Email not found. Please login again.");
-    return;
+  <!-- OTP MODAL -->
+
+  <div id="otp-modal" class="otp-modal" style="display:none;">
+
+    <div>
+
+      <p style="color:#218838">
+        Please check your email for verification OTP.
+      </p>
+
+      <input id="otp-input" placeholder="Enter OTP" />
+
+      <button id="verifyBtn" onclick="verifyOtp()">
+        Verify OTP
+      </button>
+
+      <button id="resendBtn">
+        Resend OTP
+      </button>
+
+      <span id="resendTimer"></span>
+
+    </div>
+
+  </div>
+
+  <% if (pendingEmail && pendingEmail.length > 0) { %>
+  <script>
+
+    localStorage.setItem(
+      "pendingEmail",
+      "<%= pendingEmail %>"
+    );
+
+    document.getElementById("otp-modal")
+      .style.display = "flex";
+
+  </script>
+  <% } %>
+
+<script>
+  function closePinModal() {
+    document.getElementById("pinModal").style.display = "none";
+
+    // optional cleanup
+    document.getElementById("studentPin").value = "";
   }
 
-  verifyBtn.disabled = true;
-  document.getElementById("spinner2").style.display = "inline-block";
+  window.addEventListener("click", function (e) {
+    const modal = document.getElementById("pinModal");
 
+    if (e.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+
+    // =========================
+    // TAB SWITCHING
+    // =========================
+
+    function switchTab(type){
+
+      document
+        .querySelectorAll(".login-tab")
+        .forEach(tab => tab.classList.remove("active"));
+
+      document
+        .querySelectorAll(".login-section")
+        .forEach(sec => sec.classList.remove("active"));
+
+      if(type === "normal"){
+        document
+          .querySelectorAll(".login-tab")[0]
+          .classList.add("active");
+
+        document
+          .getElementById("normal-login")
+          .classList.add("active");
+      }
+
+      if(type === "student"){
+        document
+          .querySelectorAll(".login-tab")[1]
+          .classList.add("active");
+
+        document
+          .getElementById("student-login")
+          .classList.add("active");
+      }
+    }
+
+    // =========================
+    // SHOW PASSWORD
+    // =========================
+
+    function togglePassword(){
+      const pwd = document.getElementById("password");
+
+      pwd.type =
+        pwd.type === "password"
+        ? "text"
+        : "password";
+    }
+
+    // =========================
+    // LOAD SCHOOLS
+    // =========================
+
+    // async function loadSchools(){
+
+    //   try{
+
+    //     const res = await fetch("/admin/api/schools");
+    //     const schools = await res.json();
+
+    //     const select =
+    //       document.getElementById("schoolSelect");
+
+    //     schools.forEach(school => {
+
+    //       select.innerHTML += `
+    //         <option value="${school.id}">
+    //           ${school.name}
+    //         </option>
+    //       `;
+
+    //     });
+
+    //   }catch(err){
+    //     console.error(err);
+    //   }
+
+    // }
+
+    async function loadSchools(){
   try {
-    const res = await fetch("/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
+    console.log("Loading schools..."); // 👈 ADD THIS
+
+    const res = await fetch("/admin/api/schools");
+    console.log("Status:", res.status); // 👈 ADD THIS
+
+    const schools = await res.json();
+    console.log("Schools:", schools); // 👈 ADD THIS
+
+    const select = document.getElementById("schoolSelect");
+
+    schools.forEach(school => {
+      select.innerHTML += `
+        <option value="${school.id}">
+          ${school.name}
+        </option>
+      `;
     });
 
-    const data = await res.json();
-    alert(data.message);
-
-    if (data.success) {
-      localStorage.removeItem("pendingEmail");
-      window.location.href = "/admin/login"; // or redirect somewhere
-    } else {
-      verifyBtn.disabled = false;
-      document.getElementById("spinner2").style.display = "none";
-    }
-  } catch (err) {
-    console.error(err);
-    alert("OTP verification failed");
-    verifyBtn.disabled = false;
-    document.getElementById("spinner2").style.display = "none";
+  } catch(err){
+    console.error("School load error:", err);
   }
 }
 
-// Resend OTP logic with 30s timer
-let resendCooldown = 30;
-resendBtn.addEventListener("click", async () => {
-  const email = localStorage.getItem("pendingEmail");
-  if (!email) return;
+    loadSchools();
 
-  try {
-    const res = await fetch("/resend-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await res.json();
-    alert(data.message);
+    // =========================
+    // SCHOOL -> CLASSROOMS
+    // =========================
 
-    // Disable resend button for 30s
-    resendBtn.disabled = true;
-    resendTimer.textContent = `Wait ${resendCooldown}s`;
-    const timerInterval = setInterval(() => {
-      resendCooldown--;
-      resendTimer.textContent = `Wait ${resendCooldown}s`;
-      if (resendCooldown <= 0) {
-        clearInterval(timerInterval);
-        resendBtn.disabled = false;
-        resendTimer.textContent = "";
-        resendCooldown = 30; // reset for next
-      }
-    }, 1000);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to resend OTP");
+    document
+      .getElementById("schoolSelect")
+      .addEventListener("change", async function(){
+
+        const schoolId = this.value;
+
+        const classroomSelect =
+          document.getElementById("classroomSelect");
+
+        classroomSelect.innerHTML =
+          `<option value="">Select Classroom</option>`;
+
+        document.getElementById("studentGrid").innerHTML = "";
+
+        if(!schoolId) return;
+
+        const res =
+          await fetch(`/admin/api/schools/${schoolId}/classrooms`);
+
+        const classrooms = await res.json();
+
+        classrooms.forEach(classroom => {
+
+          classroomSelect.innerHTML += `
+            <option value="${classroom.id}">
+              ${classroom.name}
+            </option>
+          `;
+
+        });
+
+      });
+
+    // =========================
+    // CLASSROOM -> STUDENTS
+    // =========================
+
+    document
+      .getElementById("classroomSelect")
+      .addEventListener("change", async function(){
+
+        const classroomId = this.value;
+
+        if(!classroomId) return;
+
+        const res =
+          await fetch(`/admin/classrooms/${classroomId}/students`);
+
+        const students = await res.json();
+
+        const grid =
+          document.getElementById("studentGrid");
+
+        grid.innerHTML = "";
+
+        students.forEach(student => {
+
+          grid.innerHTML += `
+            <div
+              class="student-card"
+              onclick="openPinModal(
+                '${student.id}',
+                '${student.fullname}',
+                '${student.avatar_url || '/profile.webp'}'
+              )"
+            >
+
+              <img src="${student.avatar_url || '/profile.webp'}">
+
+              <p>${student.fullname}</p>
+
+            </div>
+          `;
+
+        });
+
+      });
+
+    // =========================
+    // OPEN PIN MODAL
+    // =========================
+
+    let selectedStudentId = null;
+
+    // function openPinModal(id,name,avatar){
+
+    //   selectedStudentId = id;
+
+    //   document.getElementById("studentName").innerText = name;
+
+    //   document.getElementById("studentAvatar").src = avatar;
+
+    //   document.getElementById("pinModal").style.display = "flex";
+    // }
+
+  function openPinModal(id,name,avatar){
+
+    selectedStudentId = id;
+
+    document.getElementById("studentName").innerText = name;
+
+    document.getElementById("studentAvatar").src = avatar;
+
+    document.getElementById("studentPin").value = "";
+
+    document.getElementById("pinModal").style.display = "flex";
   }
-});
-</script>
 
+    // =========================
+    // STUDENT LOGIN
+    // =========================
+
+    async function submitStudentLogin(){
+
+      const pin =
+        document.getElementById("studentPin").value;
+
+      if(!pin){
+        return alert("Enter PIN");
+      }
+
+      try{
+
+        const res =
+          await fetch("/admin/student/avatar-login",{
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+              studentId:selectedStudentId,
+              pin
+            })
+          });
+
+        const data = await res.json();
+
+        if(data.success){
+
+          window.location.href =
+            data.redirect;
+
+        }else{
+
+          alert(data.message || "Login failed");
+
+        }
+
+      }catch(err){
+
+        console.error(err);
+
+        alert("Server error");
+
+      }
+
+    }
+
+    // =========================
+    // VERIFY OTP
+    // =========================
+
+    async function verifyOtp(){
+
+      const otp =
+        document.getElementById("otp-input").value;
+
+      const email =
+        localStorage.getItem("pendingEmail");
+
+      if(!email){
+        alert("Email not found");
+        return;
+      }
+
+      try{
+
+        const res =
+          await fetch("/verify-otp",{
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+              email,
+              otp
+            })
+          });
+
+        const data = await res.json();
+
+        alert(data.message);
+
+        if(data.success){
+
+          localStorage.removeItem("pendingEmail");
+
+          window.location.href =
+            "/admin/login";
+
+        }
+
+      }catch(err){
+
+        console.error(err);
+
+        alert("OTP verification failed");
+
+      }
+
+    }
+
+    // =========================
+    // RESEND OTP
+    // =========================
+
+    const resendBtn =
+      document.getElementById("resendBtn");
+
+    resendBtn.addEventListener("click", async ()=>{
+
+      const email =
+        localStorage.getItem("pendingEmail");
+
+      if(!email) return;
+
+      const res =
+        await fetch("/resend-otp",{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({email})
+        });
+
+      const data = await res.json();
+
+      alert(data.message);
+
+    });
+
+  </script>
 
   </body>
 </html>

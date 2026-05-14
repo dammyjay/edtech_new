@@ -109,12 +109,61 @@ exports.signup = async (req, res) => {
       const school = schoolCheck.rows[0];
 
       // insert directly into users2 with "pending_admin_approval"
+      // const newUser = await pool.query(
+      //   `INSERT INTO users2 (fullname, email, phone, gender, password, profile_picture, role, created_at, dob) 
+      //    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      //   [
+      //     username,
+      //     email,
+      //     phone,
+      //     gender,
+      //     hashed,
+      //     profile_picture,
+      //     role,
+      //     created_at,
+      //     dob,
+      //   ]
+      // );
+      
+      const avatarSeed = username + Date.now();
+
+      const avatarUrl = `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(avatarSeed)}`;
+
+      const pin = Math.floor(1000 + Math.random() * 9000).toString();
+
+      const isLowerPrimary =
+        classroomName?.toLowerCase().includes("pry 1") ||
+        classroomName?.toLowerCase().includes("pry 2") ||
+        classroomName?.toLowerCase().includes("pry 3");
+
       const newUser = await pool.query(
-        `INSERT INTO users2 (fullname, email, phone, gender, password, profile_picture, role, created_at, dob) 
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        `
+          INSERT INTO users2 (
+            fullname,
+            email,
+            phone,
+            gender,
+            password,
+            profile_picture,
+            role,
+            created_at,
+            dob,
+            avatar_url,
+            avatar_seed,
+            pin,
+            login_type,
+            is_lower_primary,
+            classroom_login_enabled
+          )
+          VALUES (
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,
+            $10,$11,$12,$13,$14,$15
+          )
+          RETURNING *
+          `,
         [
           username,
-          email,
+          emailGenerated,
           phone,
           gender,
           hashed,
@@ -122,7 +171,13 @@ exports.signup = async (req, res) => {
           role,
           created_at,
           dob,
-        ]
+          avatarUrl,
+          avatarSeed,
+          pin,
+          "avatar_pin",
+          isLowerPrimary,
+          true,
+        ],
       );
 
       // link user to school
@@ -145,7 +200,7 @@ exports.signup = async (req, res) => {
       if (!schoolId) {
         return res.status(400).send("School ID is required for students");
       }
-
+      
       // check school exists
       const schoolCheck = await pool.query(
         "SELECT * FROM schools WHERE school_id = $1",
@@ -198,7 +253,7 @@ exports.signup = async (req, res) => {
 };
 
 
-  exports.verifyOtp = async (req, res) => {
+exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
   const created_at = new Date();
 
@@ -330,43 +385,6 @@ exports.checkPendingUser = async (req, res) => {
   });
 };
 
-// exports.resendOtp = async (req, res) => {
-//   const { email } = req.body;
-
-//   const user = await pool.query(
-//     "SELECT * FROM pending_users WHERE email = $1",
-//     [email]
-//   );
-
-//   // if (user.rowCount === 0)
-//   //   return res.status(400).send("No pending account");
-
-//   // const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//   // const expires = new Date(Date.now() + 10 * 60 * 1000);
-
-//   // await pool.query(
-//   //   "UPDATE pending_users SET otp_code=$1, otp_expires=$2 WHERE email=$3",
-//   //   [otp, expires, email]
-//   // );
-
-//   // await sendEmail(email, "Your new OTP", `Your OTP is ${otp}`);
-
-//   // res.json({ message: "OTP resent" });
-
-//   if (user.rowCount === 0)
-//     return res.status(400).json({ success: false, message: "No pending account" });
-
-//   try {
-//     await sendEmail(email, "Your new OTP", `Your OTP is ${otp}`);
-//   } catch (err) {
-//     console.error("Error sending OTP email:", err);
-//     return res.status(500).json({ success: false, message: "Failed to send OTP email" });
-//   }
-
-//   res.json({ success: true, message: "OTP resent successfully" });
-
-// };
-
 exports.resendOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -425,7 +443,6 @@ exports.resendOtp = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 exports.getUserProfile = async (req, res) => {
   const user = req.session.user;
