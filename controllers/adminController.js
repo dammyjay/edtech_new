@@ -5468,7 +5468,7 @@ exports.downloadStudentLoginCards = async (req, res) => {
     const studentRes = await pool.query(
       `SELECT 
         u.fullname AS full_name, 
-        u.email, 
+        u.email, u.pin, u.avatar_url, u.avatar_seed, 
         c.name AS classroom_name
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
@@ -5504,8 +5504,8 @@ exports.downloadStudentLoginCards = async (req, res) => {
             border: 2px solid #c8b209ff;
             border-radius: 12px;
             padding: 14px;
-            width: 260px;
-            height: 200px;
+            width: 300px;
+            height: 270px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -5567,6 +5567,10 @@ exports.downloadStudentLoginCards = async (req, res) => {
                 <p><strong>Class:</strong> ${s.classroom_name || "—"}</p>
                 <p><strong>Email:</strong> ${s.email}</p>
                 <p><strong>Password:</strong> 12345678</p>
+                <p style="font-size: 0.85em; color: #07af2b;">
+                  You can also Login with your PIN by Select your school and class
+                </p>
+                <p><strong>PIN:</strong> ${s.pin || "N/A"}</p>
                 <p><a class="login-link" href="https://acad.jkthub.com/admin/login">acad.jkthub.com/admin/login</a></p>
               </div>
               <div class="footer">
@@ -5618,6 +5622,7 @@ exports.exportStudentsExcel = async (req, res) => {
         u.phone,
         u.gender,
         u.dob,
+        u.pin,
         c.name AS classroom
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
@@ -5631,20 +5636,12 @@ exports.exportStudentsExcel = async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Students");
 
-    // sheet.columns = [
-    //   { header: "Full Name", key: "full_name", width: 25 },
-    //   { header: "Email", key: "email", width: 30 },
-    //   { header: "Phone", key: "phone", width: 20 },
-    //   { header: "Gender", key: "gender", width: 15 },
-    //   { header: "Date of Birth", key: "dob", width: 20 },
-    //   { header: "Classroom", key: "classroom", width: 20 },
-    // ];
-
     sheet.columns = [
       { header: "Full Name", key: "full_name", width: 25 },
       { header: "Email", key: "email", width: 30 },
       { header: "Gender", key: "gender", width: 15 },
       { header: "Classroom", key: "classroom", width: 20 },
+      { header: "PIN", key: "pin", width: 15 },
     ];
 
     students.forEach((s) => {
@@ -5941,13 +5938,23 @@ exports.addPayment = async (req, res) => {
     const balance = totalAmount - totalPaid;
 
     // 5. Determine status
+    // let status = "unpaid";
+
+    // if (totalPaid === 0) {
+    //   status = "unpaid";
+    // } else if (totalPaid < totalAmount) {
+    //   status = "partial";
+    // } else {
+    //   status = "paid";
+    // }
+
     let status = "unpaid";
 
-    if (totalPaid === 0) {
+    if (totalPaid <= 0) {
       status = "unpaid";
     } else if (totalPaid < totalAmount) {
       status = "partial";
-    } else {
+    } else if (totalPaid >= totalAmount) {
       status = "paid";
     }
 
@@ -6146,6 +6153,8 @@ exports.downloadQuotePDF = async (req, res) => {
         q.id,
         q.price_per_student,
         q.status,
+        q.total_paid,
+        q.balance,
         s.name AS school_name,
         s.address,
         t.name AS term_name,
@@ -6157,10 +6166,20 @@ exports.downloadQuotePDF = async (req, res) => {
       LEFT JOIN student_term_enrollments ts 
         ON ts.term_id = q.term_id
       WHERE q.id = $1
-      GROUP BY q.id, s.name, s.address, t.name
+      GROUP BY 
+        q.id,
+        q.price_per_student,
+        q.status,
+        q.total_paid,
+        q.balance,
+        s.name,
+        s.address,
+        t.name
     `, [id]);
 
     const q = result.rows[0];
+    const totalPaid = Number(q.total_paid || 0);
+    const balance = Number(q.balance || 0);
 
     const numberToWords = require('number-to-words');
 
@@ -7442,169 +7461,218 @@ exports.assignStudentsToTerm = async (req, res) => {
   }
 };
 
-exports.exportTermStudentsExcel = async (req, res) => {
-  try {
-    const { termId } = req.params;
+  exports.exportTermStudentsExcel = async (req, res) => {
+    try {
+      const { termId } = req.params;
 
-    // ✅ Get term info
-    const termRes = await pool.query(
-      `SELECT name FROM academic_terms WHERE id = $1`,
-      [termId]
-    );
+      // ✅ Get term info
+      const termRes = await pool.query(
+        `SELECT name FROM academic_terms WHERE id = $1`,
+        [termId]
+      );
 
-    const termName = termRes.rows[0]?.name || "Term";
+      const termName = termRes.rows[0]?.name || "Term";
 
-    // ✅ Get students in that term
-    const { rows: students } = await pool.query(
-      `
-      SELECT 
-        u.fullname AS full_name,
-        u.email,
-        u.gender,
-        c.name AS classroom
-      FROM student_term_enrollments ts
-      JOIN users2 u ON ts.student_id = u.id
-      LEFT JOIN classrooms c ON ts.classroom_id = c.id
-      WHERE ts.term_id = $1
-      ORDER BY c.name, u.fullname
-      `,
-      [termId]
-    );
+      // ✅ Get students in that term
+      // const { rows: students } = await pool.query(
+      //   `
+      //   SELECT 
+      //     u.fullname AS full_name,
+      //     u.email,
+      //     u.gender,
+      //     u.pin,
+      //     c.name AS classroom
+      //   FROM student_term_enrollments ts
+      //   JOIN users2 u ON ts.student_id = u.id
+      //   LEFT JOIN classrooms c ON ts.classroom_id = c.id
+      //   WHERE ts.term_id = $1
+      //   ORDER BY c.name, u.fullname
+      //   `,
+      //   [termId]
+      // );
+      const { rows: students } = await pool.query(
+        `
+        SELECT 
+          u.fullname AS full_name,
+          u.email,
+          u.gender,
+          u.pin,
 
-    // ✅ Analytics: count per class
-    const { rows: classStats } = await pool.query(
-      `
-      SELECT 
-        c.name AS classroom,
-        COUNT(*) AS total
-      FROM student_term_enrollments ts
-      LEFT JOIN classrooms c ON ts.classroom_id = c.id
-      WHERE ts.term_id = $1
-      GROUP BY c.name
-      ORDER BY c.name
-      `,
-      [termId]
-    );
+          COALESCE(tc.name, uc.name) AS classroom
 
-    const totalStudents = students.length;
+        FROM student_term_enrollments ts
 
-    // =========================
-    // CREATE EXCEL
-    // =========================
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Term Students");
+        JOIN users2 u 
+          ON ts.student_id = u.id
+
+        -- classroom from term enrollment
+        LEFT JOIN classrooms tc 
+          ON ts.classroom_id = tc.id
+
+        -- fallback classroom from user_school
+        LEFT JOIN user_school us
+          ON us.user_id = u.id
+
+        LEFT JOIN classrooms uc
+          ON us.classroom_id = uc.id
+
+        WHERE ts.term_id = $1
+
+        ORDER BY classroom, u.fullname
+        `,
+        [termId]
+      );
+
+      // ✅ Analytics: count per class
+      const { rows: classStats } = await pool.query(
+        `
+        SELECT 
+          COALESCE(tc.name, uc.name, 'Unassigned') AS classroom,
+          COUNT(*) AS total
+
+        FROM student_term_enrollments ts
+
+        JOIN users2 u
+          ON ts.student_id = u.id
+
+        LEFT JOIN classrooms tc
+          ON ts.classroom_id = tc.id
+
+        LEFT JOIN user_school us
+          ON us.user_id = u.id
+
+        LEFT JOIN classrooms uc
+          ON us.classroom_id = uc.id
+
+        WHERE ts.term_id = $1
+
+        GROUP BY COALESCE(tc.name, uc.name, 'Unassigned')
+
+        ORDER BY classroom
+        `,
+        [termId],
+      );
+
+      const totalStudents = students.length;
+
+      // =========================
+      // CREATE EXCEL
+      // =========================
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Term Students");
 
 
-    // 🔥 Fetch logo from URL
-    const response = await axios.get(
-      "https://acad.jkthub.com/images/JKT%20logo.png",
-      { responseType: "arraybuffer" }
-    );
+      // 🔥 Fetch logo from URL
+      const response = await axios.get(
+        "https://acad.jkthub.com/images/JKT%20logo.png",
+        { responseType: "arraybuffer" }
+      );
 
-    const imageId = workbook.addImage({
-      buffer: response.data,
-      extension: "png",
-    });
-
-    sheet.addImage(imageId, {
-      tl: { col: 0, row: 1 },
-      ext: { width: 80, height: 80 },
-    });
-
-    // ✅ Title
-    sheet.mergeCells("B2:D4");
-    sheet.getCell("C2").value = `${termName} - Student Names`;
-    sheet.getCell("C2").font = { size: 14, bold: true };
-    sheet.getCell("C2").alignment = { horizontal: "center" };
-
-    // ✅ Total count
-    sheet.getCell("A5").value = `Total Students: ${totalStudents}`;
-    sheet.getCell("A5").font = { bold: true };
-
-    // =========================
-    // TABLE HEADER
-    // =========================
-    sheet.columns = [
-      {
-        header: "Full Name",
-        key: "full_name",
-        width: 25,
-        fill: {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFB0E0E6" },
-        },
-        font: { bold: true },
-      },
-      {
-        header: "Email",
-        key: "email",
-        width: 30,
-        fill: {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFB0E0E6" },
-        },
-        font: { bold: true },
-      },
-      { header: "Gender", key: "gender", width: 15, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true }  },
-      { header: "Classroom", key: "classroom", width: 20, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true }  },
-    ];
-
-    const headerRow = sheet.getRow(0);
-    headerRow.font = { bold: true };
-    headerRow.eachCell(cell => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFD3D3D3" },
-      };
-    });
-
-    // =========================
-    // DATA
-    // =========================
-    students.forEach((s) => {
-      sheet.addRow({
-        ...s,
-        classroom: s.classroom || "—",
+      const imageId = workbook.addImage({
+        buffer: response.data,
+        extension: "png",
       });
-    });
 
-    // =========================
-    // ANALYTICS SECTION
-    // =========================
-    const startRow = sheet.rowCount + 6;
+      sheet.addImage(imageId, {
+        tl: { col: 0, row: 1 },
+        ext: { width: 80, height: 80 },
+      });
 
-    sheet.getCell(`A${startRow}`).value = "Classroom Summary";
-    sheet.getCell(`A${startRow}`).font = { bold: true };
+      // ✅ Title
+      sheet.mergeCells("B2:D4");
+      sheet.getCell("C2").value = `${termName} - Student Names`;
+      sheet.getCell("C2").font = { size: 14, bold: true };
+      sheet.getCell("C2").alignment = { horizontal: "center" };
 
-    classStats.forEach((c, index) => {
-      sheet.getCell(`A${startRow + index + 1}`).value = c.classroom || "Unassigned";
-      sheet.getCell(`B${startRow + index + 1}`).value = c.total;
-    });
+      // ✅ Total count
+      sheet.getCell("A5").value = `Total Students: ${totalStudents}`;
+      sheet.getCell("A5").font = { bold: true };
 
-    // =========================
-    // RESPONSE
-    // =========================
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+      // =========================
+      // TABLE HEADER
+      // =========================
+      sheet.columns = [
+        {
+          header: "Full Name",
+          key: "full_name",
+          width: 25,
+          fill: {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFB0E0E6" },
+          },
+          font: { bold: true },
+        },
+        {
+          header: "Email",
+          key: "email",
+          width: 30,
+          fill: {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFB0E0E6" },
+          },
+          font: { bold: true },
+        },
+        { header: "Gender", key: "gender", width: 15, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true }  },
+        { header: "Classroom", key: "classroom", width: 20, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true } },
+        { header: "PIN", key: "pin", width: 10, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB0E0E6" } }, font: { bold: true } },
+      ];
 
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${termName}_students.xlsx`
-    );
+      const headerRow = sheet.getRow(0);
+      headerRow.font = { bold: true };
+      headerRow.eachCell(cell => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFD3D3D3" },
+        };
+      });
 
-    await workbook.xlsx.write(res);
-    res.end();
+      // =========================
+      // DATA
+      // =========================
+      students.forEach((s) => {
+        sheet.addRow({
+          ...s,
+          classroom: s.classroom || "—",
+        });
+      });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Excel export failed");
-  }
-};
+      // =========================
+      // ANALYTICS SECTION
+      // =========================
+      const startRow = sheet.rowCount + 6;
+
+      sheet.getCell(`A${startRow}`).value = "Classroom Summary";
+      sheet.getCell(`A${startRow}`).font = { bold: true };
+
+      classStats.forEach((c, index) => {
+        sheet.getCell(`A${startRow + index + 1}`).value = c.classroom || "Unassigned";
+        sheet.getCell(`B${startRow + index + 1}`).value = c.total;
+      });
+
+      // =========================
+      // RESPONSE
+      // =========================
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${termName}_students.xlsx`
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Excel export failed");
+    }
+  };
 
 exports.getTermAnalytics = async (req, res) => {
   try {
