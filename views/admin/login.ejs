@@ -9,114 +9,308 @@
   <link rel="stylesheet" href="/css/styles2.css" />
   <link rel="stylesheet" href="/css/styles3.css" />
 
-  <style>
+ <style>
+
+  /* =========================
+    TABS
+  ========================= */
+
+  .login-tabs{
+    display:flex;
+    gap:15px;
+    margin-bottom:25px;
+  }
+
+  .login-tab{
+    flex:1;
+    border:none;
+    border-radius:18px;
+    padding:18px;
+    cursor:pointer;
+    background:#f5f5f5;
+    transition:.3s;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    font-weight:bold;
+    box-shadow:0 4px 12px rgba(0,0,0,.08);
+    color:#000;
+  }
+
+  .login-tab:hover{
+    transform:translateY(-3px);
+  }
+
+  .login-tab.active{
+    background:#000;
+    color:#fff;
+  }
+
+  .tab-icon{
+    font-size:30px;
+  }
+
+  /* =========================
+    LOGIN SECTION
+  ========================= */
+
+  .login-section{
+    display:none;
+  }
+
+  .login-section.active{
+    display:block;
+  }
+
+  /* =========================
+    SELECT BUTTONS
+  ========================= */
+
+  .selection-launcher{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    background:#fff;
+    border-radius:18px;
+    padding:15px;
+    margin-bottom:18px;
+    cursor:pointer;
+    transition:.3s;
+    box-shadow:0 4px 12px rgba(0,0,0,.08);
+  }
+
+  .selection-launcher:hover{
+    transform:translateY(-3px);
+  }
+
+  .selection-launcher img{
+    width:65px;
+    height:65px;
+    object-fit:cover;
+    border-radius:15px;
+  }
+
+  .selection-launcher h3{
+    margin:0;
+    font-size:18px;
+    color:#111;
+  }
+
+  .selection-launcher p{
+    margin-top:4px;
+    color:#666;
+    font-size:14px;
+  }
+
+  /* =========================
+    MODALS
+  ========================= */
+
+  .pin-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.6);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:9999;
+    padding:20px;
+  }
+
+  .selection-modal-box{
+    width:100%;
+    max-width:700px;
+    background:#fff;
+    border-radius:25px;
+    padding:25px;
+    position:relative;
+    max-height:85vh;
+    overflow-y:auto;
+  }
+
+  .selection-modal-box h3{
+    margin-bottom:20px;
+    text-align:center;
+  }
+
+  /* =========================
+    SCHOOL & CLASSROOM GRID
+  ========================= */
+
+  .selection-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+    gap:18px;
+  }
+
+  .selection-card{
+    background:#f9f9f9;
+    border-radius:18px;
+    padding:18px 12px;
+    text-align:center;
+    cursor:pointer;
+    transition:.3s;
+    border:2px solid transparent;
+  }
+
+  .selection-card:hover{
+    transform:translateY(-4px);
+    border-color:#000;
+    background:#fff;
+  }
+
+  .selection-card img{
+    width:70px;
+    height:70px;
+    object-fit:cover;
+    border-radius:16px;
+    margin-bottom:10px;
+  }
+
+  .selection-card p{
+    font-size:14px;
+    font-weight:600;
+    color:#222;
+    margin:0;
+  }
+
+  /* =========================
+    STUDENTS
+  ========================= */
+
+  .student-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+    gap:18px;
+    margin-top:25px;
+  }
+
+  .student-card{
+    background:#fff;
+    border-radius:20px;
+    padding:18px 10px;
+    text-align:center;
+    cursor:pointer;
+    transition:.3s;
+    box-shadow:0 4px 12px rgba(0,0,0,.08);
+  }
+
+  .student-card:hover{
+    transform:translateY(-4px);
+    background:#f9f9f9;
+  }
+
+  .student-card img{
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    object-fit:cover;
+    margin-bottom:10px;
+    border:3px solid #eee;
+  }
+
+  .student-card p{
+    font-size:14px;
+    font-weight:600;
+    margin:0;
+    color:#222;
+  }
+
+  /* =========================
+    PIN MODAL
+  ========================= */
+
+  .pin-box{
+    background:#fff;
+    padding:30px;
+    border-radius:25px;
+    width:100%;
+    max-width:340px;
+    text-align:center;
+    position:relative;
+    box-shadow:0 10px 30px rgba(0,0,0,.2);
+  }
+
+  .pin-box h3{
+    margin-bottom:10px;
+  }
+
+  .pin-box input{
+    width:100%;
+    padding:14px;
+    margin:20px 0;
+    text-align:center;
+    font-size:24px;
+    letter-spacing:5px;
+    border-radius:12px;
+    border:1px solid #ddd;
+    outline:none;
+  }
+
+  .pin-box button:not(.pin-close){
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:#000;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+  }
+
+  /* =========================
+    CLOSE BUTTON
+  ========================= */
+
+  .pin-close{
+    position:absolute;
+    top:10px;
+    right:14px;
+    background:none;
+    border:none;
+    font-size:28px;
+    cursor:pointer;
+    color:#555;
+  }
+
+  .pin-close:hover{
+    color:red;
+  }
+
+  /* =========================
+    MOBILE
+  ========================= */
+
+  @media(max-width:768px){
 
     .login-tabs{
-      display:flex;
-      margin-bottom:20px;
-      border-radius:10px;
-      overflow:hidden;
-      border:1px solid #ddd;
+      flex-direction:column;
     }
 
-    .login-tab{
-      flex:1;
+    .selection-launcher{
       padding:12px;
-      border:none;
-      cursor:pointer;
-      background:#f5f5f5;
-      font-weight:bold;
-      color: black;
     }
 
-    .login-tab.active{
-      background:#000000;
-      color:white;
-    }
-
-    .login-section{
-      display:none;
-    }
-
-    .login-section.active{
-      display:block;
+    .selection-launcher img{
+      width:55px;
+      height:55px;
     }
 
     .student-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
-      gap:15px;
-      margin-top:20px;
+      grid-template-columns:repeat(2,1fr);
     }
 
-    .student-card{
-      text-align:center;
-      cursor:pointer;
-      padding:10px;
-      border-radius:10px;
-      background:#f5f5f5;
-      transition:.3s;
+    .selection-grid{
+      grid-template-columns:repeat(2,1fr);
     }
 
-    .student-card:hover{
-      background:#e3f2fd;
-      transform:scale(1.03);
-    }
+  }
 
-    .student-card img{
-      width:70px;
-      height:70px;
-      border-radius:50%;
-      object-fit:cover;
-      margin-bottom:5px;
-    }
-
-    .pin-modal{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.6);
-      display:none;
-      justify-content:center;
-      align-items:center;
-      z-index:999;
-    }
-
-    .pin-box{
-      background:white;
-      padding:25px;
-      border-radius:10px;
-      width:300px;
-      text-align:center;
-    }
-
-    .pin-box input{
-      width:100%;
-      padding:12px;
-      margin:15px 0;
-      text-align:center;
-      font-size:22px;
-      letter-spacing:5px;
-    }
-    .pin-close {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  background: transparent;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #333;
-}
-
-.pin-close:hover {
-  color: red;
-  cursor: pointer;
-}
-
-  </style>
+</style>
 </head>
 
-  <body class="signup-body">
+<body class="signup-body">
 
   <div class="form-container">
 
@@ -127,18 +321,36 @@
       <p style="color:red;"><%= error %></p>
     <% } %>
 
-    <!-- TABS -->
+    <!-- =========================
+      TABS
+    ========================== -->
+
     <div class="login-tabs">
-      <button class="login-tab active" onclick="switchTab('normal')">
-        Normal Login
+
+      <button
+        type="button"
+        class="login-tab active"
+        onclick="switchTab('normal', this)"
+      >
+        <div class="tab-icon">🔐</div>
+        <span>Email Login</span>
       </button>
 
-      <button class="login-tab" onclick="switchTab('student')">
-        Student Login
+      <button
+        type="button"
+        class="login-tab"
+        onclick="switchTab('student', this)"
+      >
+        <div class="tab-icon">🎓</div>
+        <span>School Student Login</span>
       </button>
+
     </div>
 
-    <!-- NORMAL LOGIN -->
+    <!-- =========================
+      NORMAL LOGIN
+    ========================== -->
+
     <div id="normal-login" class="login-section active">
 
       <form
@@ -173,7 +385,9 @@
         <br><br>
 
         <p style="text-align:center;">
-          <a href="/admin/forgot-password">Forgot Password?</a>
+          <a href="/admin/forgot-password">
+            Forgot Password?
+          </a>
         </p>
 
         <button type="submit" style="width:100%;">
@@ -184,18 +398,43 @@
 
     </div>
 
-    <!-- STUDENT LOGIN -->
+    <!-- =========================
+      STUDENT LOGIN
+    ========================== -->
+
     <div id="student-login" class="login-section">
 
-      <select id="schoolSelect">
-        <option value="">Select School</option>
-      </select>
+      <!-- SCHOOL BUTTON -->
 
-      <br><br>
+      <div
+        class="selection-launcher"
+        onclick="openSchoolModal()"
+      >
+        <img src="/images/school.png" alt="">
+        <div>
+          <h3>Select School</h3>
+          <p id="selectedSchoolText">
+            Tap to choose school
+          </p>
+        </div>
+      </div>
 
-      <select id="classroomSelect">
-        <option value="">Select Classroom</option>
-      </select>
+      <!-- CLASSROOM BUTTON -->
+
+      <div
+        class="selection-launcher"
+        onclick="openClassroomModal()"
+      >
+        <img src="/images/classroom.png" alt="">
+        <div>
+          <h3>Select Classroom</h3>
+          <p id="selectedClassroomText">
+            Tap to choose classroom
+          </p>
+        </div>
+      </div>
+
+      <!-- STUDENTS -->
 
       <div id="studentGrid" class="student-grid"></div>
 
@@ -208,12 +447,71 @@
 
   </div>
 
-  <!-- PIN MODAL -->
+  <!-- =========================
+    SCHOOL MODAL
+  ========================== -->
+
+  <div id="schoolModal" class="pin-modal">
+
+    <div class="selection-modal-box">
+
+      <button
+        class="pin-close"
+        onclick="closeSchoolModal()"
+      >
+        &times;
+      </button>
+
+      <h3>Select School</h3>
+
+      <div
+        id="schoolGrid"
+        class="selection-grid"
+      ></div>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+    CLASSROOM MODAL
+  ========================== -->
+
+  <div id="classroomModal" class="pin-modal">
+
+    <div class="selection-modal-box">
+
+      <button
+        class="pin-close"
+        onclick="closeClassroomModal()"
+      >
+        &times;
+      </button>
+
+      <h3>Select Classroom</h3>
+
+      <div
+        id="classroomGrid"
+        class="selection-grid"
+      ></div>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+    PIN MODAL
+  ========================== -->
 
   <div id="pinModal" class="pin-modal">
 
     <div class="pin-box">
-      <button type="button" class="pin-close" onclick="closePinModal()">
+
+      <button
+        type="button"
+        class="pin-close"
+        onclick="closePinModal()"
+      >
         &times;
       </button>
 
@@ -222,9 +520,13 @@
       <img
         id="studentAvatar"
         src=""
-        width="80"
-        height="80"
-        style="border-radius:50%;object-fit:cover;"
+        width="90"
+        height="90"
+        style="
+          border-radius:50%;
+          object-fit:cover;
+          margin-top:10px;
+        "
       >
 
       <input
@@ -242,9 +544,15 @@
 
   </div>
 
-  <!-- OTP MODAL -->
+  <!-- =========================
+    OTP MODAL
+  ========================== -->
 
-  <div id="otp-modal" class="otp-modal" style="display:none;">
+  <div
+    id="otp-modal"
+    class="otp-modal"
+    style="display:none;"
+  >
 
     <div>
 
@@ -252,9 +560,15 @@
         Please check your email for verification OTP.
       </p>
 
-      <input id="otp-input" placeholder="Enter OTP" />
+      <input
+        id="otp-input"
+        placeholder="Enter OTP"
+      />
 
-      <button id="verifyBtn" onclick="verifyOtp()">
+      <button
+        id="verifyBtn"
+        onclick="verifyOtp()"
+      >
         Verify OTP
       </button>
 
@@ -269,44 +583,42 @@
   </div>
 
   <% if (pendingEmail && pendingEmail.length > 0) { %>
-  <script>
 
-    localStorage.setItem(
-      "pendingEmail",
-      "<%= pendingEmail %>"
-    );
+    <script>
 
-    document.getElementById("otp-modal")
-      .style.display = "flex";
+      localStorage.setItem(
+        "pendingEmail",
+        "<%= pendingEmail %>"
+      );
 
-  </script>
+      document.getElementById("otp-modal")
+        .style.display = "flex";
+
+    </script>
+
   <% } %>
 
-<script>
-  function closePinModal() {
-    document.getElementById("pinModal").style.display = "none";
+  <!-- =========================
+    JAVASCRIPT
+  ========================== -->
 
-    // optional cleanup
-    document.getElementById("studentPin").value = "";
-  }
+  <script>
 
-  window.addEventListener("click", function (e) {
-    const modal = document.getElementById("pinModal");
-
-    if (e.target === modal) {
-      modal.style.display = "none";
-    }
-  });
+    let selectedStudentId = null;
+    let selectedSchoolId = null;
+    let selectedClassroomId = null;
 
     // =========================
-    // TAB SWITCHING
+    // TAB SWITCH
     // =========================
 
-    function switchTab(type){
+    function switchTab(type, btn){
 
       document
         .querySelectorAll(".login-tab")
         .forEach(tab => tab.classList.remove("active"));
+
+      btn.classList.add("active");
 
       document
         .querySelectorAll(".login-section")
@@ -314,23 +626,16 @@
 
       if(type === "normal"){
         document
-          .querySelectorAll(".login-tab")[0]
-          .classList.add("active");
-
-        document
           .getElementById("normal-login")
           .classList.add("active");
       }
 
       if(type === "student"){
         document
-          .querySelectorAll(".login-tab")[1]
-          .classList.add("active");
-
-        document
           .getElementById("student-login")
           .classList.add("active");
       }
+
     }
 
     // =========================
@@ -338,124 +643,231 @@
     // =========================
 
     function togglePassword(){
-      const pwd = document.getElementById("password");
+
+      const pwd =
+        document.getElementById("password");
 
       pwd.type =
         pwd.type === "password"
         ? "text"
         : "password";
+
     }
+
+    // =========================
+    // SCHOOL MODAL
+    // =========================
+
+    function openSchoolModal(){
+      document.getElementById("schoolModal")
+        .style.display = "flex";
+    }
+
+    function closeSchoolModal(){
+      document.getElementById("schoolModal")
+        .style.display = "none";
+    }
+
+    // =========================
+    // CLASSROOM MODAL
+    // =========================
+
+    function openClassroomModal(){
+
+      if(!selectedSchoolId){
+        return alert("Please select a school first");
+      }
+
+      document.getElementById("classroomModal")
+        .style.display = "flex";
+    }
+
+    function closeClassroomModal(){
+      document.getElementById("classroomModal")
+        .style.display = "none";
+    }
+
+    // =========================
+    // PIN MODAL
+    // =========================
+
+    function openPinModal(id, name, avatar){
+
+      selectedStudentId = id;
+
+      document.getElementById("studentName")
+        .innerText = name;
+
+      document.getElementById("studentAvatar")
+        .src = avatar;
+
+      document.getElementById("studentPin")
+        .value = "";
+
+      document.getElementById("pinModal")
+        .style.display = "flex";
+
+    }
+
+    function closePinModal(){
+
+      document.getElementById("pinModal")
+        .style.display = "none";
+
+      document.getElementById("studentPin")
+        .value = "";
+
+    }
+
+    // =========================
+    // CLOSE MODALS ON BACKDROP
+    // =========================
+
+    window.addEventListener("click", function(e){
+
+      ["schoolModal","classroomModal","pinModal"]
+        .forEach(id => {
+
+          const modal =
+            document.getElementById(id);
+
+          if(e.target === modal){
+            modal.style.display = "none";
+          }
+
+        });
+
+    });
 
     // =========================
     // LOAD SCHOOLS
     // =========================
 
-    // async function loadSchools(){
-
-    //   try{
-
-    //     const res = await fetch("/admin/api/schools");
-    //     const schools = await res.json();
-
-    //     const select =
-    //       document.getElementById("schoolSelect");
-
-    //     schools.forEach(school => {
-
-    //       select.innerHTML += `
-    //         <option value="${school.id}">
-    //           ${school.name}
-    //         </option>
-    //       `;
-
-    //     });
-
-    //   }catch(err){
-    //     console.error(err);
-    //   }
-
-    // }
-
     async function loadSchools(){
-  try {
-    console.log("Loading schools..."); // 👈 ADD THIS
 
-    const res = await fetch("/admin/api/schools");
-    console.log("Status:", res.status); // 👈 ADD THIS
-
-    const schools = await res.json();
-    console.log("Schools:", schools); // 👈 ADD THIS
-
-    const select = document.getElementById("schoolSelect");
-
-    schools.forEach(school => {
-      select.innerHTML += `
-        <option value="${school.id}">
-          ${school.name}
-        </option>
-      `;
-    });
-
-  } catch(err){
-    console.error("School load error:", err);
-  }
-}
-
-    loadSchools();
-
-    // =========================
-    // SCHOOL -> CLASSROOMS
-    // =========================
-
-    document
-      .getElementById("schoolSelect")
-      .addEventListener("change", async function(){
-
-        const schoolId = this.value;
-
-        const classroomSelect =
-          document.getElementById("classroomSelect");
-
-        classroomSelect.innerHTML =
-          `<option value="">Select Classroom</option>`;
-
-        document.getElementById("studentGrid").innerHTML = "";
-
-        if(!schoolId) return;
+      try{
 
         const res =
-          await fetch(`/admin/api/schools/${schoolId}/classrooms`);
+          await fetch("/admin/api/schools");
 
-        const classrooms = await res.json();
+        const schools =
+          await res.json();
 
-        classrooms.forEach(classroom => {
+        const grid =
+          document.getElementById("schoolGrid");
 
-          classroomSelect.innerHTML += `
-            <option value="${classroom.id}">
-              ${classroom.name}
-            </option>
+        grid.innerHTML = "";
+
+        schools.forEach(school => {
+
+          grid.innerHTML += `
+            <div
+              class="selection-card"
+              onclick="selectSchool(
+                '${school.id}',
+                '${school.name}'
+              )"
+            >
+
+              <img src="/images/school.png">
+
+              <p>${school.name}</p>
+
+            </div>
           `;
 
         });
 
-      });
+      }catch(err){
+
+        console.error(err);
+
+      }
+
+    }
+
+    loadSchools();
 
     // =========================
-    // CLASSROOM -> STUDENTS
+    // SELECT SCHOOL
     // =========================
 
-    document
-      .getElementById("classroomSelect")
-      .addEventListener("change", async function(){
+    async function selectSchool(id, name){
 
-        const classroomId = this.value;
+      selectedSchoolId = id;
 
-        if(!classroomId) return;
+      document.getElementById("selectedSchoolText")
+        .innerText = name;
+
+      document.getElementById("selectedClassroomText")
+        .innerText = "Tap to choose classroom";
+
+      document.getElementById("studentGrid")
+        .innerHTML = "";
+
+      closeSchoolModal();
+
+      try{
 
         const res =
-          await fetch(`/admin/classrooms/${classroomId}/students`);
+          await fetch(`/admin/api/schools/${id}/classrooms`);
 
-        const students = await res.json();
+        const classrooms =
+          await res.json();
+
+        const grid =
+          document.getElementById("classroomGrid");
+
+        grid.innerHTML = "";
+
+        classrooms.forEach(classroom => {
+
+          grid.innerHTML += `
+            <div
+              class="selection-card"
+              onclick="selectClassroom(
+                '${classroom.id}',
+                '${classroom.name}'
+              )"
+            >
+
+              <img src="/images/classroom.png">
+
+              <p>${classroom.name}</p>
+
+            </div>
+          `;
+
+        });
+
+      }catch(err){
+
+        console.error(err);
+
+      }
+
+    }
+
+    // =========================
+    // SELECT CLASSROOM
+    // =========================
+
+    async function selectClassroom(id, name){
+
+      selectedClassroomId = id;
+
+      document.getElementById("selectedClassroomText")
+        .innerText = name;
+
+      closeClassroomModal();
+
+      try{
+
+        const res =
+          await fetch(`/admin/classrooms/${id}/students`);
+
+        const students =
+          await res.json();
 
         const grid =
           document.getElementById("studentGrid");
@@ -469,12 +881,14 @@
               class="student-card"
               onclick="openPinModal(
                 '${student.id}',
-                '${student.fullname}',
-                '${student.avatar_url || '/profile.webp'}'
+                \`${student.fullname}\`,
+                '${student.avatar_url || "/profile.webp"}'
               )"
             >
 
-              <img src="${student.avatar_url || '/profile.webp'}">
+              <img
+                src="${student.avatar_url || "/profile.webp"}"
+              >
 
               <p>${student.fullname}</p>
 
@@ -483,37 +897,13 @@
 
         });
 
-      });
+      }catch(err){
 
-    // =========================
-    // OPEN PIN MODAL
-    // =========================
+        console.error(err);
 
-    let selectedStudentId = null;
+      }
 
-    // function openPinModal(id,name,avatar){
-
-    //   selectedStudentId = id;
-
-    //   document.getElementById("studentName").innerText = name;
-
-    //   document.getElementById("studentAvatar").src = avatar;
-
-    //   document.getElementById("pinModal").style.display = "flex";
-    // }
-
-  function openPinModal(id,name,avatar){
-
-    selectedStudentId = id;
-
-    document.getElementById("studentName").innerText = name;
-
-    document.getElementById("studentAvatar").src = avatar;
-
-    document.getElementById("studentPin").value = "";
-
-    document.getElementById("pinModal").style.display = "flex";
-  }
+    }
 
     // =========================
     // STUDENT LOGIN
@@ -522,7 +912,8 @@
     async function submitStudentLogin(){
 
       const pin =
-        document.getElementById("studentPin").value;
+        document.getElementById("studentPin")
+        .value;
 
       if(!pin){
         return alert("Enter PIN");
@@ -542,7 +933,8 @@
             })
           });
 
-        const data = await res.json();
+        const data =
+          await res.json();
 
         if(data.success){
 
@@ -572,14 +964,14 @@
     async function verifyOtp(){
 
       const otp =
-        document.getElementById("otp-input").value;
+        document.getElementById("otp-input")
+        .value;
 
       const email =
         localStorage.getItem("pendingEmail");
 
       if(!email){
-        alert("Email not found");
-        return;
+        return alert("Email not found");
       }
 
       try{
@@ -596,7 +988,8 @@
             })
           });
 
-        const data = await res.json();
+        const data =
+          await res.json();
 
         alert(data.message);
 
@@ -623,32 +1016,33 @@
     // RESEND OTP
     // =========================
 
-    const resendBtn =
-      document.getElementById("resendBtn");
+    document
+      .getElementById("resendBtn")
+      .addEventListener("click", async ()=>{
 
-    resendBtn.addEventListener("click", async ()=>{
+        const email =
+          localStorage.getItem("pendingEmail");
 
-      const email =
-        localStorage.getItem("pendingEmail");
+        if(!email) return;
 
-      if(!email) return;
+        const res =
+          await fetch("/resend-otp",{
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json"
+            },
+            body:JSON.stringify({ email })
+          });
 
-      const res =
-        await fetch("/resend-otp",{
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({email})
-        });
+        const data =
+          await res.json();
 
-      const data = await res.json();
+        alert(data.message);
 
-      alert(data.message);
-
-    });
+      });
 
   </script>
 
-  </body>
+</body>
+
 </html>
