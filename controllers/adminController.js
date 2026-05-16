@@ -720,23 +720,25 @@ exports.exportAnalyticsPDF = async (req, res) => {
     });
 
     // Launch Puppeteer with sandbox flags
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // Generate PDF
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+    // // Generate PDF
+    // const pdf = await page.pdf({ format: "A4", printBackground: true });
 
-    await browser.close();
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     // Send PDF to client
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "inline; filename=analytics.pdf");
-    res.send(pdfBuffer);
+    res.send(pdf);
 
    
 
@@ -749,7 +751,7 @@ exports.exportAnalyticsPDF = async (req, res) => {
 
     // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // const pdfBuffer = await page.pdf({
+    // const pdf = await page.pdf({
     //   format: "A4",
     //   printBackground: true,
     // });
@@ -758,7 +760,7 @@ exports.exportAnalyticsPDF = async (req, res) => {
 
     // res.setHeader("Content-Type", "application/pdf");
     // res.setHeader("Content-Disposition", "inline; filename=analytics.pdf");
-    // res.send(pdfBuffer);
+    // res.send(pdf);
 
   } catch (err) {
     console.error("Analytics PDF Export Error:", err);
@@ -1286,21 +1288,23 @@ exports.exportFeedbackPDF = async (req, res) => {
 
     const html = buildFeedbackPDF(feedback);
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "20px", bottom: "20px" },
-    });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    //   margin: { top: "20px", bottom: "20px" },
+    // });
 
-    await browser.close();
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -2456,26 +2460,28 @@ exports.downloadCurriculum = async (req, res) => {
   </html>
   `;
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  // const browser = await puppeteer.launch({
+  //   headless: true,
+  //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  // });
 
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "networkidle0" });
+  // const page = await browser.newPage();
+  // await page.setContent(html, { waitUntil: "networkidle0" });
 
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: "1cm",
-      bottom: "1cm",
-      left: "1cm",
-      right: "1cm",
-    },
-  });
+  // const pdf = await page.pdf({
+  //   format: "A4",
+  //   printBackground: true,
+  //   margin: {
+  //     top: "1cm",
+  //     bottom: "1cm",
+  //     left: "1cm",
+  //     right: "1cm",
+  //   },
+  // });
 
-  await browser.close();
+  // await browser.close();
+
+  const pdf = await generatePdf(html);
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
@@ -2483,7 +2489,7 @@ exports.downloadCurriculum = async (req, res) => {
     `attachment; filename="${course.title.replace(/\s+/g, "_")}_Curriculum.pdf"`
   );
 
-  res.send(pdfBuffer);
+  res.send(pdf);
 };
 
 exports.showCoursesByPathway = async (req, res) => {
@@ -5427,18 +5433,20 @@ exports.getSchoolDetails = async (req, res) => {
       `;
 
       // --- 10. Puppeteer PDF generation
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        printBackground: true,
-        margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
-      });
-      await browser.close();
+      // const browser = await puppeteer.launch({
+      //   headless: true,
+      //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      // });
+      // const page = await browser.newPage();
+      // await page.setContent(html, { waitUntil: "networkidle0" });
+      // const pdf = await page.pdf({
+      //   format: "A4",
+      //   printBackground: true,
+      //   margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
+      // });
+      // await browser.close();
+
+      const pdf = await generatePdf(html);
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
@@ -5448,7 +5456,7 @@ exports.getSchoolDetails = async (req, res) => {
           "_"
         )}_Summary_Report.pdf`
       );
-      res.send(pdfBuffer);
+      res.send(pdf);
     } catch (err) {
       console.error("Error generating report:", err);
       res.status(500).send("Error generating report PDF");
@@ -5587,18 +5595,20 @@ exports.downloadStudentLoginCards = async (req, res) => {
     `;
 
     // 4️⃣ Generate PDF using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
-    });
-    await browser.close();
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    //   margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
+    // });
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     // 5️⃣ Send file
     res.setHeader("Content-Type", "application/pdf");
@@ -5606,7 +5616,7 @@ exports.downloadStudentLoginCards = async (req, res) => {
       "Content-Disposition",
       `attachment; filename=${school.name.replace(/\s+/g, "_")}_Login_Cards.pdf`
     );
-    res.send(pdfBuffer);
+    res.send(pdf);
   } catch (err) {
     console.error("Error generating login cards PDF:", err);
     res.status(500).send("Error generating student login cards PDF");
@@ -6475,20 +6485,22 @@ exports.downloadQuotePDF = async (req, res) => {
     </html>
     `;
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    // });
 
-    await browser.close();
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -8380,21 +8392,23 @@ exports.exportAttendancePDF = async (req, res) => {
     </html>
     `;
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox"],
-    });
+        // const browser = await puppeteer.launch({
+        //   headless: true,
+        //   args: ["--no-sandbox"],
+        // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+        // const page = await browser.newPage();
+        // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+        // const pdf = await page.pdf({
+        //   format: "A4",
+        //   printBackground: true,
+        // });
 
-    await browser.close();
+        // await browser.close();
 
+    const pdf = await generatePdf(html);
+    
     // ✅ filename with class + date
     const safeClass = s.classroom.replace(/\s+/g, "_");
     const safeDate = new Date(s.date).toISOString().split("T")[0];

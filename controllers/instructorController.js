@@ -1,6 +1,6 @@
 const pool = require("../models/db");
-const puppeteer = require("puppeteer");
-
+// const puppeteer = require("puppeteer");
+const generatePdf = require("../utils/generatePdf");
 
 exports.sendChatMessage = async (req, res) => {
   try {
@@ -1605,14 +1605,7 @@ exports.downloadQuizReport = async (req, res) => {
 `;
 
     // --- Generate PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    const pdf = await generatePdf(html);
 
     // --- File name with student + quiz
     res.setHeader(
@@ -1622,7 +1615,7 @@ exports.downloadQuizReport = async (req, res) => {
       }_Quiz_Report.pdf`
     );
     res.setHeader("Content-Type", "application/pdf");
-    res.send(pdfBuffer);
+    res.send(pdf);
   } catch (err) {
     console.error("Quiz PDF Error:", err);
     res.status(500).send("Error generating quiz report");
@@ -1871,7 +1864,7 @@ ${module.assignments.length ? `<table><tr><th>Assignment</th><th>Score</th></tr>
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+    const pdf = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
 
     // 1️⃣3️⃣ Send PDF
@@ -1880,7 +1873,7 @@ ${module.assignments.length ? `<table><tr><th>Assignment</th><th>Score</th></tr>
       "Content-Disposition",
       `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_Progress_Report.pdf`
     );
-    res.send(pdfBuffer);
+    res.send(pdf);
 
   } catch (err) {
     console.error("Download Student Report Error:", err);
@@ -2668,12 +2661,14 @@ exports.exportAttendancePDF = async (req, res) => {
       </html>
       `;
 
-    const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
-    const page = await browser.newPage();
-    await page.setContent(html);
+    // const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
+    // const page = await browser.newPage();
+    // await page.setContent(html);
 
-    const pdf = await page.pdf({ format: "A4" });
-    await browser.close();
+    // const pdf = await page.pdf({ format: "A4" });
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
     res.send(pdf);

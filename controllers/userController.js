@@ -2,7 +2,8 @@ const bcrypt = require("bcrypt");
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
 const PDFDocument = require("pdfkit");
-const puppeteer = require("puppeteer");
+// const puppeteer = require("puppeteer");
+const generatePdf = require("../utils/generatePdf");
 const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
 
@@ -823,14 +824,15 @@ exports.downloadQuizReport = async (req, res) => {
 `;
 
     // --- Generate PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
+    // const pdf = await page.pdf({ format: "A4", printBackground: true });
+    // await browser.close();
+    const pdf = await generatePdf(html);
 
     // --- File name with student + quiz
     res.setHeader(
@@ -840,17 +842,17 @@ exports.downloadQuizReport = async (req, res) => {
       }_Quiz_Report.pdf`
     );
     res.setHeader("Content-Type", "application/pdf");
-    res.send(pdfBuffer);
+    res.send(pdf);
   } catch (err) {
     console.error("Quiz PDF Error:", err);
     res.status(500).send("Error generating quiz report");
   }
 };
 
-let browserPromise = puppeteer.launch({
-  headless: true,
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
-});
+// let browserPromise = puppeteer.launch({
+//   headless: true,
+//   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+// });
 
 exports.downloadCourseSummary = async (req, res) => {
   const { studentId, courseId } = req.params;
@@ -1127,7 +1129,7 @@ exports.downloadCourseSummary = async (req, res) => {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 0 });
 
-    const pdfBuffer = await page.pdf({
+    const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
       margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
@@ -1141,7 +1143,7 @@ exports.downloadCourseSummary = async (req, res) => {
       `attachment; filename=${course.title.replace(/\s+/g, "_")}_report.pdf`
     );
     res.setHeader("Content-Type", "application/pdf");
-    res.send(pdfBuffer);
+    res.send(pdf);
   } catch (err) {
     console.error("PDF Error:", err);
     res.status(500).send("Error generating summary PDF");

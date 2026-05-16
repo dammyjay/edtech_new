@@ -1,4 +1,5 @@
 const pool = require("../models/db");
+const generatePdf = require("../utils/generatePdf");
 
 exports.getClassroomDashboard = async (req, res) => {
   try {
@@ -203,7 +204,8 @@ exports.getClassroomDashboard = async (req, res) => {
    EXPORT FUNCTION (Basic JSON)
 ============================ */
 
-const puppeteer = require("puppeteer");
+// const puppeteer = require("puppeteer");
+
 
 exports.exportClassroomSummary = async (req, res) => {
   try {
@@ -516,21 +518,22 @@ exports.exportClassroomSummary = async (req, res) => {
        10️⃣ Generate PDF
     ============================ */
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-    });
+    // const pdfBuffer = await page.pdf({
+    //   format: "A4",
+    //   landscape: true,
+    //   printBackground: true,
+    // });
 
-    await browser.close();
+    // await browser.close();
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -538,7 +541,7 @@ exports.exportClassroomSummary = async (req, res) => {
       `attachment; filename=${classroom.name}-analytics.pdf`
     );
 
-    res.send(pdfBuffer);
+    res.send(pdf);
 
   } catch (err) {
     console.error(err);

@@ -4,7 +4,8 @@ const { logActivityForUser } = require("../utils/activityLogger");
 const csv = require("csv-parser");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
-const puppeteer = require("puppeteer");
+// const puppeteer = require("puppeteer");
+const generatePdf = require("../utils/generatePdf");
 const ExcelJS = require("exceljs");
 const axios = require("axios");
 
@@ -1928,23 +1929,25 @@ exports.downloadQuotePDF = async (req, res) => {
     </html>
     `;
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
+    // const page = await browser.newPage();
 
-    await page.setContent(html, {
-      waitUntil: "networkidle0",
-    });
+    // await page.setContent(html, {
+    //   waitUntil: "networkidle0",
+    // });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    // });
 
-    await browser.close();
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
 
@@ -2730,21 +2733,23 @@ exports.exportAttendancePDF = async (req, res) => {
     </html>
     `;
     
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox"],
+    // });
 
-    const page = await browser.newPage();
+    // const page = await browser.newPage();
 
-    await page.setContent(html);
+    // await page.setContent(html);
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    // });
 
-    await browser.close();
+    // await browser.close();
+
+    const pdf = await generatePdf(html);
 
     res.setHeader("Content-Type", "application/pdf");
 

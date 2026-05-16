@@ -1,7 +1,7 @@
 const pool = require("../models/db");
 const userController = require("./userController");
-
-const puppeteer = require("puppeteer");
+const generatePdf = require("../utils/generatePdf");
+// const puppeteer = require("puppeteer");
 
 
 // ----------------- DASHBOARD WRAPPER -----------------
