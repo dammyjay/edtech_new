@@ -10,7 +10,8 @@ const csv = require("csv-parser");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
-const puppeteer = require("puppeteer");
+// const puppeteer = require("puppeteer");
+const generatePdf = require("../utils/generatePdf");
 const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
 const axios = require("axios");
@@ -4394,20 +4395,21 @@ ${assignments
        GENERATE PDF
     ========================== */
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+    // const pdf = await page.pdf({
+    //   format: "A4",
+    //   printBackground: true,
+    // });
 
-    await browser.close();
+    // await browser.close();
+    const pdf = await generatePdf(html);
 
     res.setHeader(
       "Content-Disposition",
@@ -4811,16 +4813,17 @@ body > * {
     </html>
     `;
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // });
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdf = await page.pdf({ format: "A4", printBackground: true });
+    // const page = await browser.newPage();
+    // await page.setContent(html, { waitUntil: "networkidle0" });
+    // const pdf = await page.pdf({ format: "A4", printBackground: true });
 
-    await browser.close();
+    // await browser.close();
+    const pdf = await generatePdf(html);
 
     res.setHeader(
       "Content-Disposition",
@@ -7474,22 +7477,7 @@ exports.assignStudentsToTerm = async (req, res) => {
       const termName = termRes.rows[0]?.name || "Term";
 
       // ✅ Get students in that term
-      // const { rows: students } = await pool.query(
-      //   `
-      //   SELECT 
-      //     u.fullname AS full_name,
-      //     u.email,
-      //     u.gender,
-      //     u.pin,
-      //     c.name AS classroom
-      //   FROM student_term_enrollments ts
-      //   JOIN users2 u ON ts.student_id = u.id
-      //   LEFT JOIN classrooms c ON ts.classroom_id = c.id
-      //   WHERE ts.term_id = $1
-      //   ORDER BY c.name, u.fullname
-      //   `,
-      //   [termId]
-      // );
+
       const { rows: students } = await pool.query(
         `
         SELECT 
