@@ -6645,8 +6645,11 @@ exports.generateStudentAvatar = async (req, res) => {
   try {
     const seed = `student-${userId}-${Date.now()}`;
 
+    // const avatarUrl =
+    //   `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+
     const avatarUrl =
-      `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+      `https://api.dicebear.com/7.x/adventurer/png?seed=${seed}`;
 
     await pool.query(`
       UPDATE users2
@@ -6689,7 +6692,8 @@ exports.bulkGenerateAvatars = async (req, res) => {
     for (const student of students.rows) {
       const seed = `student-${student.id}-${Date.now()}`;
 
-      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+      // const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/png?seed=${seed}`;
 
       await pool.query(
         `
