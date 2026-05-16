@@ -88,6 +88,17 @@ router.get("/analytics", adminController.analyticsPage);
 router.get("/stats/overview", adminController.overview);
 // Enable avatar/PIN for one student
 // router.post("/users/:userId/enable-avatar-login", adminController.enableAvatarPinLogin);
+
+router.post(
+  "/students/:userId/generate-avatar",
+  adminController.generateStudentAvatar,
+);
+
+router.post(
+  "/schools/:schoolId/generate-avatars",
+  adminController.bulkGenerateAvatars,
+);
+
 router.post(
   "/users/:userId/toggle-avatar-login",
   adminController.toggleAvatarLogin,

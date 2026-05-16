@@ -3,7 +3,6 @@ const userController = require("./userController");
 const generatePdf = require("../utils/generatePdf");
 // const puppeteer = require("puppeteer");
 
-
 // ----------------- DASHBOARD WRAPPER -----------------
 exports.getDashboard = (req, res) => {
   // Only render the shell with sidenav + empty main-content
@@ -176,7 +175,6 @@ exports.getDashboardSection = async (req, res) => {
   }
 };
 
-
 exports.getDashboardData = async (req, res) => {
   try {
     const teacherId = req.user.id;
@@ -340,8 +338,6 @@ exports.getDashboardData = async (req, res) => {
     res.status(500).send("<p>Error loading dashboard data</p>");
   }
 };
-
-
 
 // ----------------- CLASSES SECTION -----------------
 // exports.getClassesSection = async (req, res) => {

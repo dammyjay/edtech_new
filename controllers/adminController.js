@@ -262,49 +262,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// exports.avatarPinLogin = async (req, res) => {
-//   const { studentId, pin } = req.body;
-
-//   try {
-//     const result = await pool.query(
-//       `
-//       SELECT *
-//       FROM users2
-//       WHERE id = $1
-//       AND pin = $2
-//       `,
-//       [studentId, pin],
-//     );
-
-//     if (result.rows.length === 0) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Invalid PIN",
-//       });
-//     }
-
-//     const user = result.rows[0];
-
-//     req.session.user = {
-//       id: user.id,
-//       email: user.email,
-//       role: user.role,
-//       profile_pic: user.profile_picture,
-//     };
-
-//     return res.json({
-//       success: true,
-//       redirect: "/student/dashboard",
-//     });
-//   } catch (err) {
-//     console.error(err);
-
-//     res.status(500).json({
-//       success: false,
-//     });
-//   }
-// };
-
 exports.avatarPinLogin = async (req, res) => {
   const { studentId, pin } = req.body;
 
@@ -351,32 +308,32 @@ exports.avatarPinLogin = async (req, res) => {
   }
 };
 
-exports.getClassroomStudents = async (req, res) => {
-  const { classroomId } = req.params;
+// exports.getClassroomStudents = async (req, res) => {
+//   const { classroomId } = req.params;
 
-  try {
-    const students = await pool.query(
-      `
-      SELECT
-        u.id,
-        u.fullname,
-        u.avatar_url
-      FROM user_school us
-      JOIN users2 u
-        ON u.id = us.user_id
-      WHERE us.classroom_id = $1
-      AND u.role = 'student'
-      `,
-      [classroomId],
-    );
+//   try {
+//     const students = await pool.query(
+//       `
+//       SELECT
+//         u.id,
+//         u.fullname,
+//         u.avatar_url
+//       FROM user_school us
+//       JOIN users2 u
+//         ON u.id = us.user_id
+//       WHERE us.classroom_id = $1
+//       AND u.role = 'student'
+//       `,
+//       [classroomId],
+//     );
 
-    res.json(students.rows);
-  } catch (err) {
-    console.error(err);
+//     res.json(students.rows);
+//   } catch (err) {
+//     console.error(err);
 
-    res.status(500).json([]);
-  }
-};
+//     res.status(500).json([]);
+//   }
+// };
 
 exports.logout = (req, res) => {
   req.session.destroy();
@@ -5839,23 +5796,67 @@ exports.deleteClassroom = async (req, res) => {
 };
 
 // 📌 GET: Students in a classroom (AJAX)
+// exports.getClassroomStudents = async (req, res) => {
+//   try {
+//     const { id } = req.params; // classroom_id
+
+//     const studentsResult = await pool.query(
+//       `SELECT u.id, u.fullname, u.email, u.phone, u.gender, u.dob, u.created_at
+//        FROM user_school us
+//        JOIN users2 u ON us.user_id = u.id
+//        WHERE us.classroom_id = $1 AND us.role_in_school = 'student'
+//        ORDER BY u.fullname ASC`,
+//       [id]
+//     );
+
+//     res.json(studentsResult.rows);
+//   } catch (err) {
+//     console.error("Error fetching classroom students:", err);
+//     res.status(500).json({ error: "Error loading classroom students" });
+//   }
+// };
+
 exports.getClassroomStudents = async (req, res) => {
   try {
-    const { id } = req.params; // classroom_id
+
+    // supports both :id and :classroomId
+    const classroomId =
+      req.params.classroomId || req.params.id;
 
     const studentsResult = await pool.query(
-      `SELECT u.id, u.fullname, u.email, u.phone, u.gender, u.dob, u.created_at
-       FROM user_school us
-       JOIN users2 u ON us.user_id = u.id
-       WHERE us.classroom_id = $1 AND us.role_in_school = 'student'
-       ORDER BY u.fullname ASC`,
-      [id]
+      `
+      SELECT
+        u.id,
+        u.fullname,
+        u.email,
+        u.phone,
+        u.gender,
+        u.dob,
+        u.created_at,
+        u.avatar_url,
+        u.avatar_seed,
+        u.pin,
+        u.classroom_login_enabled
+      FROM user_school us
+      JOIN users2 u
+        ON us.user_id = u.id
+      WHERE us.classroom_id = $1
+      AND u.role = 'student'
+      ORDER BY u.fullname ASC
+      `,
+      [classroomId]
     );
 
     res.json(studentsResult.rows);
+
   } catch (err) {
+
     console.error("Error fetching classroom students:", err);
-    res.status(500).json({ error: "Error loading classroom students" });
+
+    res.status(500).json({
+      error: "Error loading classroom students"
+    });
+
   }
 };
 
@@ -6635,6 +6636,85 @@ exports.assignSchoolCourses = async (req, res) => {
   } catch (err) {
     console.error("Error assigning courses:", err);
     res.status(500).send("Error assigning courses");
+  }
+};
+
+exports.generateStudentAvatar = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const seed = `student-${userId}-${Date.now()}`;
+
+    const avatarUrl =
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+
+    await pool.query(`
+      UPDATE users2
+      SET avatar_seed = $1,
+          avatar_url = $2
+      WHERE id = $3
+    `, [seed, avatarUrl, userId]);
+
+    res.json({
+      success: true,
+      avatarUrl
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false
+    });
+  }
+};
+
+exports.bulkGenerateAvatars = async (req, res) => {
+  const { schoolId } = req.params;
+
+  try {
+    const students = await pool.query(
+      `
+      SELECT u.id
+      FROM users2 u
+      JOIN user_school us
+        ON us.user_id = u.id
+      WHERE us.school_id = $1
+      AND us.role_in_school = 'student'
+    `,
+      [schoolId],
+    );
+
+    let updated = 0;
+
+    for (const student of students.rows) {
+      const seed = `student-${student.id}-${Date.now()}`;
+
+      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+
+      await pool.query(
+        `
+        UPDATE users2
+        SET avatar_seed = $1,
+            avatar_url = $2
+        WHERE id = $3
+      `,
+        [seed, avatarUrl, student.id],
+      );
+
+      updated++;
+    }
+
+    res.json({
+      success: true,
+      message: `${updated} avatars generated`,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Bulk avatar generation failed",
+    });
   }
 };
 

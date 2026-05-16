@@ -69,14 +69,14 @@
       <p>📌 Total Instructors: <%= school.totals.total_instructors %></p>
     </div>
 
-    <a href="/admin/schools/<%= school.id %>/download-progress" class="btn-edit">
+    <a href="/admin/schools/<%= school.id %>/download-progress" class="btn-edit" style="text-decoration: none;">
       📄 Download School Summary PDF
     </a>
 
     <div style="margin-top: 20px;">
       <a
         href="/admin/schools/<%= school.id %>/download-login-cards"
-        class="btn-download"
+        class="btn-view" style="text-decoration: none;"
         target="_blank"
       >
         📥 Download Student Login Cards (PDF)
@@ -87,6 +87,7 @@
     <hr>
 
     <h3>Classrooms</h3>
+    <p>Click on the classroom name to view its details:</p>
 <ul>
   <% if (school.classrooms.length > 0) { %>
     <% school.classrooms.forEach(classroom => { %>
@@ -454,6 +455,11 @@
 <button class="btn btn-warning" onclick="runMigration()">
   🔧 Migrate Student Login Fields
 </button>
+
+<button class="btn btn-view"
+onclick="bulkGenerateAvatars()">
+🎭 Generate Student Avatars
+</button>
   
 
   <!-- tabe for students -->
@@ -504,6 +510,11 @@
                   <i class="fa-solid fa-user-astronaut"
                     style="color: <%= student.classroom_login_enabled ? 'green' : 'gray' %>">
                   </i>
+                </a>
+                <a href="#"
+                  class="no-bg"
+                  onclick="generateStudentAvatar('<%= student.id %>'); return false;">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </a>
               </td>
               <td>
@@ -1007,8 +1018,85 @@
   </div>
 </div>
 
+<script>
+  async function generateStudentAvatar(userId) {
+
+    try {
+
+      const res = await fetch(
+        `/admin/students/${userId}/generate-avatar`,
+        {
+          method: "POST"
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+
+        alert("Avatar generated successfully");
+
+        location.reload();
+
+      } else {
+
+        alert(data.message || "Failed");
+
+      }
+
+    } catch (err) {
+
+      console.error(err);
+      alert("Something went wrong");
+
+    }
+  }
+
+  async function bulkGenerateAvatars() {
+
+    const confirmBulk = confirm(
+      "Generate avatars for all students?"
+    );
+
+    if (!confirmBulk) return;
+
+    try {
+
+      const schoolId = "<%= school.id %>";
+
+      const res = await fetch(
+        `/admin/schools/${schoolId}/generate-avatars`,
+        {
+          method: "POST"
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+
+        alert(data.message);
+
+        location.reload();
+
+      } else {
+
+        alert(data.message || "Failed");
+
+      }
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert("Something went wrong");
+
+    }
+  }
+</script>
 
 <script>
+  
   async function toggleAvatarLogin(userId, el) {
     const res = await fetch(`/admin/users/${userId}/toggle-avatar-login`, {
       method: "POST"
