@@ -762,7 +762,7 @@
       <% courseModules[courseId].forEach(module => { %>
         <div class="module-block">
           <button style="text-align: left;" class="module-toggle no-bg" onclick="toggleModule(<%= module.id %>)">
-            📦 <%= module.title %> ▾
+           <span><%= module.order_number %> </span>📦 <%= module.title %> ▾
           </button>
 
           <ul id="module-<%= module.id %>" class="lesson-list" style="display:none;">
