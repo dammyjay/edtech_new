@@ -6,24 +6,27 @@ const pool = require("../models/db");
 const LAB_TEMPLATES = {
   web: {
     title: "Web Development Lab",
-    starter: { html: "<h1>Hello World</h1>", css: "", js: "" }
+    starter: { html: "<h1>Hello World</h1>", css: "", js: "" },
   },
   blockly: {
     title: "Blockly Lab",
-    starter: {}
+    starter: {
+      workspace: "",
+      generatedCode: "",
+    },
   },
   arduino: {
     title: "Arduino Lab",
-    starter: {}
+    starter: {},
   },
   appinventor: {
     title: "App Inventor Lab",
-    starter: {}
+    starter: {},
   },
   ai: {
     title: "AI Lab",
-    starter: {}
-  }
+    starter: {},
+  },
 };
 
 exports.getLabDashboard = async (req, res) => {
@@ -118,25 +121,54 @@ exports.initProject = async (req, res) => {
   }
 };
 
+// exports.saveProject = async (req, res) => {
+//   try {
+//     const studentId = req.user.id;
+//     const { projectId, html, css, js } = req.body;
+
+//     await pool.query(
+//       `UPDATE lab_projects
+//        SET project_data = $1,
+//            updated_at = NOW()
+//        WHERE id = $2 AND student_id = $3`,
+//       [{ html, css, js }, projectId, studentId],
+//     );
+
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.log("SAVE ERROR:", err);
+//     res.status(500).json({ success: false });
+//   }
+// };
 exports.saveProject = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const { projectId, html, css, js } = req.body;
+
+    const { projectId, projectData } = req.body;
 
     await pool.query(
-      `UPDATE lab_projects
-       SET project_data = $1,
-           updated_at = NOW()
-       WHERE id = $2 AND student_id = $3`,
-      [{ html, css, js }, projectId, studentId],
+      `
+      UPDATE lab_projects
+      SET project_data = $1,
+          updated_at = NOW()
+      WHERE id = $2
+      AND student_id = $3
+      `,
+      [projectData, projectId, studentId],
     );
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+    });
   } catch (err) {
     console.log("SAVE ERROR:", err);
-    res.status(500).json({ success: false });
+
+    res.status(500).json({
+      success: false,
+    });
   }
 };
+
 
 exports.loadProject = async (req, res) => {
   try {

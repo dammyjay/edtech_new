@@ -72,19 +72,19 @@
 
   <% if (isLoggedIn && !isEnrolled) { %>
     <br>
-    <button class="btn-primary" 
+    <button type="button" class="btn-pri" 
     onclick="window.location.href='/courses/<%= course.id %>/curriculum/download'">
     Download Curriculum</button>
 
     <% if (course.amount == 0) { %>
       <!-- Free course -->
       <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-        <button type="submit" class="btn-create">Enroll for Free</button>
+        <button type="submit" class="btn-sec">Enroll for Free</button>
       </form>
     <% } else if (walletBalance >= course.amount) { %>
       <!-- Paid course and balance is enough -->
       <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-        <button type="submit" class="btn-create">
+        <button type="submit" class="btn-sec">
           Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
         </button>
       </form>
@@ -93,13 +93,13 @@
       <p style="color:red;font-weight:bold;">
         ❌ Not sufficient funds. 
       </p><br>
-      <button class="btn-primary" onclick="window.location.href='/make-payment'">Fund Wallet</button>
+      <button class="btn-sec" onclick="window.location.href='/make-payment'">Fund Wallet</button>
     <% } %>
   <% } else if (isLoggedIn && isEnrolled) { %>
     <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
   <% } else { %>
     <div class="enroll-cta">
-      <button class="btn-create" onclick="promptLogin()">Login to Enroll</button>
+      <button class="btn-sec" onclick="promptLogin()">Login to Enroll</button>
       <p class="cta-subtext">Also available: download curriculum</p>
     </div>
   <% } %>

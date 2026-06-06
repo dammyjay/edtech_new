@@ -90,23 +90,6 @@ require(["vs/editor/editor.main"], function () {
       document.querySelector(".editor-grid").requestFullscreen();
     });
 
-    // document.getElementById("saveBtn").addEventListener("click", async () => {
-    //   const payload = {
-    //     projectId: window.currentProjectId,
-    //     html: htmlEditor.getValue(),
-    //     css: cssEditor.getValue(),
-    //     js: jsEditor.getValue(),
-    //   };
-
-    //   await fetch("/labs/project/save", {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify(payload),
-    //   });
-    // });
-
     document.getElementById("saveBtn").addEventListener("click", async () => {
 
         if (!window.currentProjectId) {

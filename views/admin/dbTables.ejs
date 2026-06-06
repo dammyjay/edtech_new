@@ -7,6 +7,17 @@
     <% tables.forEach(table => { %>
         <a href="/admin/db/<%= table.name %>" style="text-decoration:none;color:inherit;">
             <div class="metric-card">
+          <div class="card-title black-bg">
+            <p><%= table.name %></p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon black-bg">
+              <i class="fa-solid fa-database"></i>
+            </div>
+              <p style="color: #555;"><%= table.count %> Records</p>
+          </div>
+        </div>
+            <!-- <div class="metric-card">
                 <div class="card-icon">
                     <i style="color: black;" class="fa-solid fa-database"></i>
                 </div>
@@ -16,7 +27,7 @@
                     <p><%= table.count %> Records</p>
                 </div>
                 
-            </div>
+            </div> -->
         </a>
     <% }) %>
 </div>

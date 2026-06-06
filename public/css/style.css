@@ -282,6 +282,10 @@ header {
 }
 
 /* COLORS */
+.black-bg {
+    background: var(--neutral1);
+}
+
 .blue-bg {
     background: #4e73df;
 }
@@ -1162,7 +1166,7 @@ button:hover {
     /* darker gold */
 }
 
-form button {
+/* form button {
     background-color: #bfa046;
     color: #fff;
     font-weight: 600;
@@ -1174,7 +1178,7 @@ form button {
     margin-top: 25px;
     transition: background-color 0.3s ease;
     width: 100%;
-}
+} */
 
 .video-grid {
     display: grid;
@@ -2356,14 +2360,14 @@ i {
      border: 1px solid #aaa;
  }
 
- .faq-form button {
+ /* .faq-form button {
      padding: 8px 12px;
      background-color: #009966;
      color: white;
      border: none;
      border-radius: 4px;
      cursor: pointer;
- }
+ } */
  .faq-badge {
      position: absolute;
      top: -5px;

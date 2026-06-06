@@ -1,0 +1,434 @@
+<!-- views/labs/blockly/editor.ejs -->
+
+<link rel="stylesheet" href="/labs/css/blockly.css" />
+
+<script src="https://unpkg.com/blockly/blockly.min.js"></script>
+<script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
+
+
+<script src="/labs/js/blockly/blocks/motion.js"></script>
+<script src="/labs/js/blockly/blocks/looks.js"></script>
+<script src="/labs/js/blockly/blocks/events.js"></script>
+<script src="/labs/js/blockly/blocks/console.js"></script>
+<script src="/labs/js/blockly/blocks/sensors.js"></script>
+<script src="/labs/js/blockly/blocks/control.js"></script>
+
+<script src="/labs/js/blockly/generators/motion.js"></script>
+<script src="/labs/js/blockly/generators/looks.js"></script>
+<script src="/labs/js/blockly/generators/events.js"></script>
+<script src="/labs/js/blockly/generators/console.js"></script>
+<script src="/labs/js/blockly/generators/sensors.js"></script>
+<script src="/labs/js/blockly/generators/control.js"></script>
+
+<script src="/labs/js/blockly/engine.js"></script>
+
+<script src="/labs/js/blocklyLab.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<div class="editor-toolbar">
+  <button id="runBtn">▶ Run</button>
+
+  <button id="saveBtn">💾 Save</button>
+
+  <button id="resetBtn">🔄 Reset</button>
+</div>
+
+<div class="blockly-container">
+  <div id="blocklyDiv"></div>
+
+  <!-- <iframe id="preview"></iframe> -->
+  <div class="stage-panel">
+    <!-- <div id="stage">
+      <img id="sprite" src="/labs/images/sprites/cat.png" />
+    </div> -->
+    <div class="stage-area">
+
+        <!-- Stage -->
+        <div id="stage">
+            <img id="sprite" src="/labs/images/sprites/cat.png">
+        </div>
+
+        <!-- Sprite Panel -->
+        <div class="sprite-panel">
+
+            <button id="addSpriteBtn">
+                + Add Sprite
+            </button>
+
+            <div id="spriteList"></div>
+
+        </div>
+
+        <!-- Background Panel -->
+        <div class="background-panel">
+
+            <button id="addBackgroundBtn">
+                + Add Background
+            </button>
+
+            <div id="backgroundList"></div>
+
+        </div>
+
+    </div>
+    <div id="console"></div>
+  </div>
+  
+</div>
+
+<xml id="toolbox" style="display: none">
+  <!-- EVENTS -->
+   <category name="Events" colour="#ff9800">
+
+    <block type="when_run_clicked"></block>
+
+</category>
+
+  <category name="Events" colour="#ff9800">
+    <block type="text_print"></block>
+    <block type="when_run_clicked"></block>
+  </category>
+
+  <!-- CONTROL -->
+  <category name="Control" colour="#ffab19">
+    <block type="wait_seconds">
+      <value name="SECONDS">
+        <shadow type="math_number">
+          <field name="NUM">1</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="forever"></block>
+
+    <block type="repeat_times">
+      <value name="TIMES">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="controls_if"></block>
+
+    <block type="controls_repeat_ext"></block>
+
+    <block type="controls_whileUntil"></block>
+
+    <block type="controls_for"></block>
+
+    <block type="controls_forEach"></block>
+
+    <block type="controls_flow_statements"></block>
+  </category>
+
+  <!-- LOGIC -->
+  <category name="Logic" colour="#5c81a6">
+    <block type="logic_compare"></block>
+
+    <block type="logic_operation"></block>
+
+    <block type="logic_negate"></block>
+
+    <block type="logic_boolean"></block>
+
+    <block type="logic_null"></block>
+
+    <block type="logic_ternary"></block>
+  </category>
+
+  <category name="Loops" colour="#ffab19">
+    <block type="controls_repeat_ext"></block>
+
+    <block type="controls_whileUntil"></block>
+
+    <block type="controls_for"></block>
+
+    <block type="controls_forEach"></block>
+
+</category>
+  <!-- MATH -->
+  <category name="Math" colour="#5ca65c">
+
+    <block type="random_number">
+      <value name="MIN">
+        <shadow type="math_number">
+          <field name="NUM">1</field>
+        </shadow>
+      </value>
+
+      <value name="MAX">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+    
+    <block type="math_number"></block>
+
+    <block type="math_arithmetic"></block>
+
+    <block type="math_single"></block>
+
+    <block type="math_trig"></block>
+
+    <block type="math_constant"></block>
+
+    <block type="math_number_property"></block>
+
+    <block type="math_round"></block>
+
+    <block type="math_modulo"></block>
+
+    <block type="math_constrain"></block>
+
+    <block type="math_random_int"></block>
+
+    <block type="math_random_float"></block>
+  </category>
+
+  <!-- TEXT -->
+  <category name="Text" colour="#5ca68d">
+    <block type="text"></block>
+
+    <block type="text_join"></block>
+
+    <block type="text_append"></block>
+
+    <block type="text_length"></block>
+
+    <block type="text_isEmpty"></block>
+
+    <block type="text_indexOf"></block>
+
+    <block type="text_charAt"></block>
+
+    <block type="text_getSubstring"></block>
+
+    <block type="text_changeCase"></block>
+
+    <block type="text_trim"></block>
+
+    <block type="text_print"></block>
+
+    <block type="text_prompt_ext"></block>
+  </category>
+
+  <!-- LISTS -->
+  <category name="Lists" colour="#745ca6">
+    <block type="lists_create_with"></block>
+
+    <block type="lists_repeat"></block>
+
+    <block type="lists_length"></block>
+
+    <block type="lists_isEmpty"></block>
+
+    <block type="lists_indexOf"></block>
+
+    <block type="lists_getIndex"></block>
+
+    <block type="lists_setIndex"></block>
+
+    <block type="lists_sort"></block>
+  </category>
+
+  <!-- VARIABLES -->
+  <category name="Variables" colour="#a65c81" custom="VARIABLE"> </category>
+
+  <!-- FUNCTIONS -->
+  <category name="Functions" colour="#995ba5" custom="PROCEDURE"> </category>
+
+  <category name="Motion" colour="#4C97FF">
+    <block type="move_sprite">
+      <value name="STEPS">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="turn_sprite">
+      <value name="ANGLE">
+        <shadow type="math_number">
+          <field name="NUM">15</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="point_direction">
+      <value name="DIRECTION">
+        <shadow type="math_number">
+          <field name="NUM">90</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="go_to_position">
+      <value name="X">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+
+      <value name="Y">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_speed">
+      <value name="SPEED">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="change_x">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="change_y">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="change_background"></block>
+  </category>
+
+    <!-- LOOKS -->
+  <category name="Looks" colour="#9966FF">
+
+    <block type="change_background"></block>
+
+    <block type="add_sprite">
+    <value name="X">
+        <shadow type="math_number">
+        <field name="NUM">100</field>
+        </shadow>
+    </value>
+
+    <value name="Y">
+        <shadow type="math_number">
+        <field name="NUM">100</field>
+        </shadow>
+    </value>
+    </block>
+
+    <block type="move_added_sprite">
+    <value name="ID">
+        <shadow type="math_number">
+        <field name="NUM">0</field>
+        </shadow>
+    </value>
+
+    <value name="X">
+        <shadow type="math_number">
+        <field name="NUM">200</field>
+        </shadow>
+    </value>
+
+    <value name="Y">
+        <shadow type="math_number">
+        <field name="NUM">200</field>
+        </shadow>
+    </value>
+    </block>
+
+    <block type="set_sprite"></block>
+
+    <block type="show_sprite"></block>
+
+    <block type="hide_sprite"></block>
+
+  </category>
+
+    <!-- SENSING -->
+  <category name="Sensing" colour="#5CB1D6">
+
+    <block type="touching_edge"></block>
+
+    <block type="when_touching_edge"></block>
+
+    <block type="touching_sprite"></block>
+
+  </category>
+
+  <!-- CONSOLE -->
+    <category name="Console" colour="#4caf50">
+
+    <block type="print_message">
+
+        <value name="TEXT">
+        <shadow type="text">
+            <field name="TEXT">Hello World</field>
+        </shadow>
+        </value>
+
+    </block>
+
+    </category>
+</xml>
+
+
+<div id="spriteModal" class="modal">
+
+    <div class="modal-content">
+
+        <h3>Choose Sprite</h3>
+
+        <div class="sprite-grid">
+
+            <img
+                src="/labs/images/sprites/cat.png"
+                onclick="createSprite('cat')"
+            >
+
+            <img
+                src="/labs/images/sprites/dog.png"
+                onclick="createSprite('dog')"
+            >
+
+            <img
+                src="/labs/images/sprites/robot.png"
+                onclick="createSprite('robot')"
+            >
+
+        </div>
+
+    </div>
+
+</div>
+
+<div id="backgroundModal" class="modal">
+
+    <div class="modal-content">
+
+        <h3>Choose Background</h3>
+
+        <div class="background-grid">
+
+            <img
+                src="/labs/images/backgrounds/underwater.webp"
+                onclick="addBackground('forest.jpg')"
+            >
+
+            <img
+                src="/labs/images/backgrounds/beach.webp"
+                onclick="addBackground('beach.jpg')"
+            >
+
+        </div>
+
+    </div>
+
+</div>
