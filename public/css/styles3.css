@@ -1,35 +1,8 @@
 @media screen and (max-width: 600px) {
-    /* .learning-container {
-        flex-direction: column;
-    }
-    .lesson-sidebar {
-        width: 100%;
-        height: auto;
-        position: static;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
-        display: block;
-        padding: 10px 0;
-        overflow-y: visible;
-    } */
-
- .learning-container {
+.learning-container {
         position: relative;
         flex-direction: column;
     }
-
-    /* .lesson-sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 220px;
-        z-index: 2000;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        box-shadow: 2px 0 10px rgba(0,0,0,0.2);
-    } */
-
         .lesson-sidebar {
         position: static;
         height: auto;
@@ -75,7 +48,7 @@
             object-fit: contain;
         }
 
-        .benefits-grid {
+        .card_thumbnail_horizontals-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
             /* grid-template-columns: repeat(2, 450px); */
@@ -99,106 +72,106 @@
         z-index: 1; 
     }
 
-        /* Inputs and textarea */
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="number"],
-        input[type="file"],
-        input[type="date"],
-        textarea {
-            width: 100%;
-            padding: 10px 12px;
-            font-size: 12px;
-            border: 1.8px solid #ccc;
-            border-radius: 5px;
-            transition: border-color 0.3s ease;
-            resize: vertical;
-            box-sizing: border-box;
-            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.2);
-            margin-bottom: 10px;
-        }
-    
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        input[type="password"]:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #bfa046;
-            /* gold */
-            background-color: #fff9e6;
-            /* light gold background */
-        }
-    
-        /* Textarea specific height */
-        textarea {
-            min-height: 120px;
-        }
-    
-        .container {
-            position: relative;
-            width: 100%;
-            padding-right: 10px;
-        }
+/* Inputs and textarea */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="file"],
+input[type="date"],
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 12px;
+    border: 1.8px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease;
+    resize: vertical;
+    box-sizing: border-box;
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.2);
+    margin-bottom: 10px;
+}
 
-    
-        .icon {
-            position: absolute;
-            top: 50%;
-            left: 10px;
-            transform: translateY(-50%);
-            color: #000000;
-        }
-    
-        .password-container {
-            /* position: relative; */
-            position: relative;
-            width: 100%;
-            padding-right: 10px;
-        }
-    
-        .toggle-password {
-            position: absolute;
-            top: 50%;
-            right: 30px;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #666;
-        }
-    
-        .gender-box {
-            display: flex;
-            align-items: center;
-            /* justify-content: center; */
-            width: 100%;
-            /* margin: 10px 0 20px; */
-            border: 1.8px solid #ccc;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0px 10px rgba(0, 0, 0, 0.2);
-        }
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: #bfa046;
+    /* gold */
+    background-color: #fff9e6;
+    /* light gold background */
+}
 
-        .gender-details {
-            margin: 7px;
-            padding: 4px;
-        }
-        
-    
-        /* eview Image */
-        .preview-container {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            margin-top: 15px;
-        }
-    
-        .preview-container img {
-            max-width: 100%;
-            max-height: 150px;
-            border-radius: 8px;
-            margin-top: 10px;
-        
-    }
+/* Textarea specific height */
+textarea {
+    min-height: 120px;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+    padding-right: 10px;
+}
+
+
+.icon {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: #000000;
+}
+
+.password-container {
+    /* position: relative; */
+    position: relative;
+    width: 100%;
+    padding-right: 10px;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 30px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #666;
+}
+
+.gender-box {
+    display: flex;
+    align-items: center;
+    /* justify-content: center; */
+    width: 100%;
+    /* margin: 10px 0 20px; */
+    border: 1.8px solid #ccc;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.2);
+}
+
+.gender-details {
+    margin: 7px;
+    padding: 4px;
+}
+
+
+/* eview Image */
+.preview-container {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.preview-container img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 8px;
+    margin-top: 10px;
+
+}
 
     .event_container{
         width: 100%;
@@ -256,46 +229,9 @@
   }
   
 
- /* .dashboard-container {
-     flex-direction: column;
- }
-
- .sidebar {
-     flex: 1 1 100%;
-     text-align: center;
- }
-
- .sidebar ul li a {
-     display: inline-block;
-     margin: 5px 10px;
- }
-
- .main-content {
-     flex: 1 1 100%;
- }
-
- .hamburger {
-     display: block;
- }
-
- .sidebar {
-     display: none;
- }
-
- .sidebar.open {
-     display: block;
- } */
-
   .dashboard-container {
       flex-direction: column;
   }
-
-  /* .sidebar {
-      width: 100%;
-      height: auto;
-      position: relative;
-  } */
-
   .sidebar {
       position: fixed;
       left: -240px;
@@ -305,11 +241,6 @@
     .sidebar.open {
     left: 0;
   }
-
-  /* .main-content {
-      padding: 15px;
-      width: 100%;
-  } */
 
     .main-content {
     margin-left: 0;

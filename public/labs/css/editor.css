@@ -1,0 +1,27 @@
+#htmlEditor,
+#cssEditor,
+#jsEditor{
+    height:300px;
+    border:1px solid #ddd;
+}
+
+.editor-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.editor-grid {
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 10px;
+    width: 50%;
+    
+}
+
+#preview {
+    width: 100%;
+    height: 500px;
+    border: none;
+    margin-top: 20px;
+}

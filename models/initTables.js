@@ -839,7 +839,98 @@ async function createTables() {
         UNIQUE(student_id, course_id)
       );
 
-      `);
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lesson_labs (
+          id SERIAL PRIMARY KEY,
+          lesson_id INTEGER NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          lab_type VARCHAR(50),
+          instructions TEXT,
+          starter_code JSONB,
+          grading_type VARCHAR(20),
+          passing_score INTEGER DEFAULT 70,
+          points INTEGER DEFAULT 10,
+          created_by INTEGER,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+      
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lab_projects (
+          id SERIAL PRIMARY KEY,
+          lab_id INTEGER REFERENCES lesson_labs(id),
+          student_id INTEGER REFERENCES users(id),
+          project_name VARCHAR(255),
+          project_data JSONB,
+          status VARCHAR(30) DEFAULT 'draft',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE lab_projects 
+      ADD COLUMN IF NOT EXISTS lab_type VARCHAR(50);
+      ALTER TABLE lab_projects
+      DROP CONSTRAINT IF EXISTS lab_projects_student_id_fkey;
+      ALTER TABLE lab_projects
+      ADD CONSTRAINT lab_projects_student_id_fkey
+      FOREIGN KEY (student_id)
+      REFERENCES users2(id)
+      ON DELETE CASCADE;
+    `);
+
+    
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lab_submissions (
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES lab_projects(id),
+          submitted_by INTEGER,
+          score INTEGER,
+          feedback TEXT,
+          graded_by INTEGER,
+          submitted_at TIMESTAMP DEFAULT NOW()
+      );
+      
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS playground_projects (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id),
+          lab_type VARCHAR(50),
+          project_name VARCHAR(255),
+          project_data JSONB,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      );
+      
+    `);
+
+    await pool.query(`
+      
+      
+    `);
+
+    await pool.query(`
+      
+      
+    `);
+
+    await pool.query(`
+      
+      
+    `);
+
+    await pool.query(`
+      
+      
+    `);
 
     console.log("✅ All tables are updated and ready.");
   } catch (err) {

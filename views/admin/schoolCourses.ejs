@@ -1,33 +1,3 @@
-<!-- 
-
- <%- include('../partials/adminHeader', { title: 'Assign Courses' }) %>
-
-<h2>Assign Courses to Schools</h2>
-
-<form method="POST" action="/admin/school-courses/assign">
-  <% schools.forEach(school => { %>
-    <div class="school-section">
-      <h3><%= school.name %></h3>
-
-      <% courses.forEach(course => { %>
-        <label>
-          <input 
-            type="checkbox" 
-            name="school_<%= school.id %>[]" 
-            value="<%= course.id %>"
-            <% if (schoolCoursesMap[school.id] && schoolCoursesMap[school.id].includes(course.id)) { %> checked <% } %>
-          >
-          <%= course.title %>
-        </label><br>
-      <% }) %>
-
-      <button type="submit" name="school_id" value="<%= school.id %>">Assign Courses</button>
-      <hr>
-    </div>
-  <% }) %>
-</form>
- -->
-
 
  <%- include('../partials/adminHeader', { title: 'Assign Courses' }) %>
 

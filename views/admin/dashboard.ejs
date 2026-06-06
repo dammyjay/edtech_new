@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style2.css" />
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="icon" type="image/x-icon" href="/logo.png" />
   </head>
@@ -13,31 +14,32 @@
     <p>You are logged in.</p>
     <!-- <a href="/admin/logout">Logout</a> -->
     <h2>All Registered Users</h2>
-    <section class="stats-overview"> 
-      
-      <div class="metric-card" style="border-left: 6px solid blue;"> 
-        <div class="card-icon" style="background-color: blue;">
-          <i class="fas fa-user"></i>
-        </div>
-        <div class="card-content">
-          <h3>Total Users</h3> 
-          <p><%= totalUsers %></p> 
-        </div>
-        
-      </div> 
+    <section class="engagement-grid"> 
 
-      <div class="metric-card" style="border-left: 6px solid #29c50a;"> 
-        <div class="card-icon" style="background-color: #29c50a;">
-          <i class="fa-solid fa-arrow-trend-up"></i>
+      <div class="metric-card" style="max-width: 300px;">
+          <div class="card-title blue-bg">
+            <p>Total Users</p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon blue-bg">
+              <i class="fas fa-user"></i>
+            </div>
+              <h4><%= totalUsers %></h4>
+          </div>
         </div>
-        <div class="card-content">
-          <h3>New This Week</h3> 
-          <p><%= recentUsers %> (<%= percentageNew %>% of total)</p> 
-        </div>
-        
-      </div> 
 
-      <!-- <a href="/admin/feedback" class="admin-link">View Feedback</a> -->
+        <div class="metric-card" style="max-width: 300px;">
+          <div class="card-title green-bg">
+            <p>New This Week</p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon green-bg">
+              <i class="fas fa-user-plus"></i>
+            </div>
+              <h4><%= recentUsers %> (<%= percentageNew %>% of total)</h4>
+          </div>
+        </div>
+    
 
       
     </section>

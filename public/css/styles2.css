@@ -140,7 +140,7 @@
     /* fixed width */
     background-color: #fff;
     border-radius: 8px;
-    padding: 1rem;
+    /* padding: 1rem; */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     /* min-height: 350px; */
 }
@@ -243,17 +243,16 @@
     border-radius: 4px;
 }
 
-.benefits-grid {
+.card_thumbnail_horizontals-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
-    /* grid-template-columns: repeat(2, 450px); */
     gap: 20px;
     margin: 40px auto;
     /* max-width: 1100px; */
     width: 100%;
 }
 
-.benefit-card {
+.card_thumbnail_horizontal-card {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
@@ -269,7 +268,7 @@
     transition: transform 0.2s ease-in-out;
 }
 
-.benefit-crud{
+.card_thumbnail_horizontal-crud{
     display: flex;
     flex-direction: column;
     /* align-items: center; */
@@ -279,7 +278,7 @@
     padding: 10px 10px;
     margin-bottom: 10px;
 }
-.benefit-card:hover {
+.card_thumbnail_horizontal-card:hover {
     transform: translateY(-4px);
      /* box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38)) */
     box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38));
@@ -289,7 +288,7 @@
     transition: transform 0.2s ease-in-out;
 }
 
-.benefit-profile img {
+.card_thumbnail_horizontal-profile img {
     width: 40px;
     height: 40px;
     object-fit: cover;
@@ -297,14 +296,14 @@
     margin-right: 15px;
 }
 
-.benefit-details h4 {
+.card_thumbnail_horizontal-details h4 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
     color: white;
 }
 
-.benefit-details p {
+.card_thumbnail_horizontal-details p {
     margin-top: 4px;
     font-size: 14px;
     color: #dab40c;
@@ -1162,24 +1161,44 @@ canvas {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
-/* CARD */
+/* METRIC CARD */
 .metric-card {
     background: #ffffff;
-    border-radius: 14px;
-    padding: 30px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
+    flex-direction: column;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    border-radius: 0 0 14px 14px;
 }
 
 .metric-card:hover {
     transform: translateY(-6px);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.metric-card-content{
+    display: flex;
+    justify-content: space-between;
+    width:90%;
+    padding: 10px 8px
+}
+
+.metric-card-content h4{
+    font-size: 24px;
+    margin: 0;
+    font-weight: bold;
+} 
+
+.card-title{
+    width: 100%;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--neutral2);
 }
 
 /* ICON CIRCLE */
@@ -1259,10 +1278,10 @@ canvas {
     background: #1cc88a;
 }
 
-.card-content {
+/* .card-content {
     text-align: right;
     width: 50%;
-}
+} */
 
 /* TEXT */
 .card-content h3 {
@@ -3058,16 +3077,44 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
 
 .metric-card {
     background: #ffffff;
-    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    box-shadow: 0 0px 18px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    border-radius: 0 0 14px 14px;
 }
+
+.metric-card-content {
+    display: flex;
+    justify-content: space-between;
+    width: 90%;
+    padding: 10px 8px
+}
+
+.metric-card-content h4 {
+    font-size: 18px;
+    margin: 0;
+    font-weight: bold;
+}
+
+.card-title {
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--neutral2);
+}
+
+.card-title p {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--neutral2);
+}
+
 
 .card-icon {
     width: 25px;
@@ -3080,6 +3127,11 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
     font-size: 15px;
 }
 
+.card-icon i {
+    color: white;
+    font-size: 12px;
+    text-align: center;
+}
 
 .card-content h3 {
     font-size: 15px;
@@ -3156,7 +3208,7 @@ g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : 
         object-fit: contain;
     }
 
-    .benefit-card:hover {
+    .card_thumbnail_horizontal-card:hover {
         transform: translateY(-4px);
         /* box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38)) */
         box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38));

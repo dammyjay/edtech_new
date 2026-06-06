@@ -53,67 +53,64 @@
           <div id="level-<%= pathway %>-<%= level %>" class="collapsible-content">
             <section class="course-scroll-container">
               <% groupedCourses[pathway][level].forEach(course => { %>
-                <div class="scroll-card">
+                <div class="card-thumbnail2 scroll-card">
                   
                   <% if (course.thumbnail_url) { %>
-                    <a href="/courses/<%= course.id %>">
-                      <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
-                    </a>
+                    <div class="card-thumbnail2-img">
+                      <a href="/courses/<%= course.id %>">
+                        <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
+                      </a>
+                    </div>
                   <% } %>
                 
-                  <h4><%= course.title %></h4>
-                  <div class="article-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
-                    
-                    <%- course.description.length > 60 ? course.description.substring(0, 60) + '...' : course.description %>
-                  </div>
+                  <div class="card-content">
+                    <h4><%= course.title %></h4>
 
+                    <div class="article-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
+                      
+                      <%- course.description.length > 60 ? course.description.substring(0, 60) + '...' : course.description %>
+                    </div>
 
-                  <% if (course.description.length > 60) { %>
-                    <a href="javascript:void(0);" class="toggle-article" onclick="toggleDescription(<%= course.id %>, `<%- course.description.replace(/`/g, '\\`').replace(/"/g, '&quot;') %>`)">
-                      Show More
-                    </a>
-                  <% } %>
-                  <!-- <div class="article-buttons">
-                    <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
-                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return confirm('Delete this course?');">
-                      <button class="btn-delete" type="submit">Delete</button>
-                    </form>
-                  </div> -->
-
-                  <% if (course.amount == 0) { %>
-                    <p><strong>This is a free course</strong></p>
-                  <% } else { %>
-                    <p><strong>Price:</strong> ₦<%= course.amount %></p>
-                  <% } %>
-
-                  <div style="display: flex; width: 100%;">
-                  <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
-
-                    <% if (isLoggedIn && !isEnrolled) { %>
-                      <% if (course.amount == 0) { %>
-                        <!-- Free course -->
-                        <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-                          <button type="submit" class="btn-black">Enroll for Free</button>
-                        </form>
-                      <% } else if (walletBalance >= course.amount) { %>
-                        <!-- Paid course and balance is enough -->
-                        <form action="/student/courses/enroll/<%= course.id %>" method="POST">
-                          <button type="submit" class="btn-black">
-                            Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
-                          </button>
-                        </form>
-                      <% } else { %>
-                        <!-- Not enough balance -->
-                        <p style="color:red;font-weight:bold;">❌ Not sufficient funds. <a class="btn-black" href="/make-payment">Fund wallet</a></p>
-                      <% } %>
-                    <% } else if (isLoggedIn && isEnrolled) { %>
-                      <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
-                    <% } else { %>
-                      <button class="btn-black" onclick="promptLogin()">Login to Enroll</button>
+                    <% if (course.description.length > 60) { %>
+                      <a href="javascript:void(0);" class="toggle-article" onclick="toggleDescription(<%= course.id %>, `<%- course.description.replace(/`/g, '\\`').replace(/"/g, '&quot;') %>`)">
+                        Show More
+                      </a>
                     <% } %>
+                    <% if (course.amount == 0) { %>
+                      <p><strong>This is a free course</strong></p>
+                    <% } else { %>
+                      <p><strong>Price:</strong> ₦<%= course.amount %></p>
+                    <% } %>
+
+                    <div style="display: flex; width: 100%;">
+                    <% const isEnrolled = enrolledCourseIds?.includes(course.id); %>
+
+                      <% if (isLoggedIn && !isEnrolled) { %>
+                        <% if (course.amount == 0) { %>
+                          <!-- Free course -->
+                          <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+                            <button type="submit" class="btn-black">Enroll for Free</button>
+                          </form>
+                        <% } else if (walletBalance >= course.amount) { %>
+                          <!-- Paid course and balance is enough -->
+                          <form action="/student/courses/enroll/<%= course.id %>" method="POST">
+                            <button type="submit" class="btn-black">
+                              Enroll (₦<%= course.amount.toLocaleString() %> from wallet)
+                            </button>
+                          </form>
+                        <% } else { %>
+                          <!-- Not enough balance -->
+                          <p style="color:red;font-weight:bold;">❌ Not sufficient funds. <a class="btn-black" href="/make-payment">Fund wallet</a></p>
+                        <% } %>
+                      <% } else if (isLoggedIn && isEnrolled) { %>
+                        <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>
+                      <% } else { %>
+                        <button class="btn-black" onclick="promptLogin()">Login to Enroll</button>
+                      <% } %>
 
                     </div>
                     <p><strong>Click on image to view course details</strong></p>
+                  </div>
                 </div>
 
                 <!-- Edit Modal for this course -->

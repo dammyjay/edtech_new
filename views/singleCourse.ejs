@@ -72,9 +72,9 @@
 
   <% if (isLoggedIn && !isEnrolled) { %>
     <br>
-    <a href="/courses/<%= course.id %>/curriculum/download">
-      📥 Download Curriculum  
-    </a>
+    <button class="btn-primary" 
+    onclick="window.location.href='/courses/<%= course.id %>/curriculum/download'">
+    Download Curriculum</button>
 
     <% if (course.amount == 0) { %>
       <!-- Free course -->
@@ -91,8 +91,9 @@
     <% } else { %>
       <!-- Not enough balance -->
       <p style="color:red;font-weight:bold;">
-        ❌ Not sufficient funds. <a class="btn-create" href="/make-payment">Fund wallet</a>
-      </p>
+        ❌ Not sufficient funds. 
+      </p><br>
+      <button class="btn-primary" onclick="window.location.href='/make-payment'">Fund Wallet</button>
     <% } %>
   <% } else if (isLoggedIn && isEnrolled) { %>
     <p style="color: green;"><i class="fas fa-check-circle"></i> Already Enrolled</p>

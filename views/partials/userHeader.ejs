@@ -3,49 +3,49 @@
         <% if (info?.logo_url) { %>
         <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
         <% } %>
-        <p><%= info?.company_name || 'JKT Hub' %></p>
+        <h4><%= info?.company_name || 'JKT Hub' %></h4>
          <!-- <p>Fasttrack IT Innovations</p> -->
       </div>
 
       <button class="nav-toggle" onclick="toggleNav()">☰</button>
-      <nav id="main-nav">
-        <a class="<%= activePage === 'home' ? 'active' : '' %>" href="/">Home</a>
-        <!-- <a href="/pathways">Pathways</a> -->
-        <a class="<%= activePage === 'courses' ? 'active' : '' %>" href="/courses">Courses</a>
-        <a class="<%= activePage === 'about' ? 'active' : '' %>" href="/about">About Us</a>
-        <a class="<%= activePage === 'gallery' ? 'active' : '' %>" href="/gallery">Gallery</a>
-        <a class="<%= activePage === 'faq' ? 'active' : '' %>" href="/gallery">FAQ</a>
-        <a class="<%= activePage === 'testimony' ? 'active' : '' %>" href="/gallery">Gallery</a>
-        <!-- <a href="#faq">FAQ</a> -->
-        <% if (isLoggedIn) { %>
-          <% if (users?.profile_picture) { %>
-            <img src="<%= users.profile_picture %>" alt="Profile" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">
-          <% } %>
-          <a href="/feedback">Give Feedback</a>
-          <div class="dropdown">
-            <button class="dropbtn" onclick="toggleDropdown('profileMenu')">Profile ▾</button>
-            <div class="dropdown-content" id="profileMenu">
-              <p style="color: black;">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
-              <a  href="/make-payment">Fund wallet</a>
-              <a href="/profile">View Profile</a>
+      <div id="main-nav" class="main-nav">
+        <nav >
+          <a class="<%= activePage === 'home' ? 'active' : '' %>" href="/">Home</a>
+          <!-- <a href="/pathways">Pathways</a> -->
+          <a class="<%= activePage === 'courses' ? 'active' : '' %>" href="/courses">Courses</a>
+          <a class="<%= activePage === 'about' ? 'active' : '' %>" href="/about">About</a>
+          <a class="<%= activePage === 'gallery' ? 'active' : '' %>" href="/gallery">Gallery</a>
+          <a class="<%= activePage === 'faq' ? 'active' : '' %>" href="/faq">FAQ</a>
+          <a class="<%= activePage === 'testimony' ? 'active' : '' %>" href="/testimony">Testimony</a>
+          <!-- <a href="#faq">FAQ</a> -->
+        </nav>
+        
+        <div class="user-actions">
+          <% if (isLoggedIn) { %>
+              <% if (users?.profile_picture) { %>
+                <img src="<%= users.profile_picture %>" alt="Profile" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+              <% } %>
+              <a href="/feedback">Give Feedback</a>
+              <div class="dropdown">
+                <button class="dropbtn" onclick="toggleDropdown('profileMenu')">Profile ▾</button>
+                <div class="dropdown-content" id="profileMenu">
+                  <p style="color: black;">💰 Wallet: ₦<%= walletBalance.toLocaleString() %></p>
+                  <a style="color: black;" href="/make-payment">Fund wallet</a>
+                  <a style="color: black;" href="/profile">View Profile</a>
+                  
+                  <% if (users) { %>
+                  <a style="color: black;" href="/<%= users.role %>/dashboard">Dashboard</a>
+                  <% } %>   
+                </div>
+              </div>
               
-              <% if (users) { %>
-              <a href="/<%= users.role %>/dashboard">Dashboard</a>
-              <% } %>   
-            </div>
-          </div>
-          
-          <a style="background-color: red;" href="/admin/logout" class="login-button">Logout</a>
-          
-          
-          
-        <% } else { %>
-          <a href="/admin/login" style="background-color: #bfa046; color: rgb(255, 255, 255)">Login</a>
-          <a
-            href="/signup"
-            style="background-color: rgb(0, 0, 0); color: rgb(255, 255, 255)"
-          >Signup</a>
-          
-        <% } %>
-      </nav>
+              <button type="button" class="btn-red" onclick="window.location.href='/admin/logout'">Logout</button>
+            <% } else { %>
+              <button type="button" class="btn-sec" onclick="window.location.href='/admin/login'">Login</button>
+              
+              <button type="button" class="btn-pri" onclick="window.location.href='/signup'">Signup</button>
+              
+            <% } %>
+        </div>
+      </div>  
 </header>

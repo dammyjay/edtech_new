@@ -1,0 +1,88 @@
+<!-- Web editor for web lab -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+<link rel="stylesheet" href="/labs/css/editor.css">
+
+<select id="templateSelect">
+
+<option value="">
+Choose Template
+</option>
+
+<option value="basic">
+Basic HTML
+</option>
+
+<option value="portfolio">
+Portfolio Website
+</option>
+
+<option value="landing">
+Landing Page
+</option>
+
+<option value="calculator">
+Calculator
+</option>
+
+</select>
+
+<div class="editor-toolbar">
+
+    <button id="runBtn">
+        ▶ Run
+    </button>
+
+    <button id="saveBtn">
+        💾 Save
+    </button>
+
+    <button id="resetBtn">
+        🔄 Reset
+    </button>
+
+    <button id="fullscreenBtn">
+        ⛶ Fullscreen
+    </button>
+
+</div>
+
+<div class="editor-container"> 
+    <div class="editor-grid">
+        <div class="editor-card">
+
+            <div class="editor-header">
+                HTML
+            </div>
+
+            <div id="htmlEditor"></div>
+
+        </div>
+
+        <div class="editor-card">
+
+            <div class="editor-header">
+                CSS
+            </div>
+
+            <div id="cssEditor"></div>
+
+        </div>
+
+        <div class="editor-card">
+
+            <div class="editor-header">
+                JS
+            </div>
+
+            <div id="jsEditor"></div>
+
+        </div>
+    </div>
+
+    <iframe id="preview"></iframe>
+</div>
+
+
+
+<script src="/labs/js/webLab.js"></script>

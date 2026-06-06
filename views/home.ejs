@@ -42,9 +42,11 @@
         <div class="hero-overlay">
           <h1>Welcome to <%= info?.company_name || 'Jaykirch Tech Hub' %></h1>
           <p><%= info?.vision || 'Empowering lives through the gospel of Christ.' %></p>
-          <a href="/about" class="cta-btn">Know more about us</a>
-          <a style="background-color: white; color: black;" href="/admin/login" class="cta-btn">Get started</a>
           
+          <div class="cta-actions" style="display: flex; justify-content: center; gap: 10px;">
+            <button onclick="window.location.href='/courses'" class="btn-sec">Know more about us</button>
+            <button onclick="window.location.href='/admin/login'" class="btn-pri">Get Started</button>
+          </div>
         </div>
         
       </section>
@@ -97,33 +99,30 @@
        <!-- <h2 style="color: black;">What we Offer</h2> -->
       <div class="card-grid">
         <% career_pathways.forEach((pathway, idx) => { %>
-          <div class="article-card">
-            <div class="pathway-img">
-              <% if (pathway.thumbnail_url) { %>
-                <a href="/pathways/<%= pathway.id %>">
-                  <img
-                    src="<%= pathway.thumbnail_url %>"
-                    alt="Career_pathway Image"
-                    style="width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background-color: #d6a740;"
-                  />
-                </a>
-              <% } %>
-            </div>
-            <br>
-            <!-- <h3><%- pathway.title %></h3>  -->
-             <a href="/pathways/<%= pathway.id %>">
-              <h3><%- pathway.title %></h3>
-            </a>
-             <!-- <h3 style="color: #1660E8;"><%- pathway.title %></h3>  -->
-            <div class="article-body">
-              <span id="article-short-<%= idx %>" style="display: block;">
-                <%- pathway.description.substring(0, 100) %>...
-              </span>
+            <div class="card-thumbnail" onclick="window.location.href='/pathways/<%= pathway.id %>'">
+              <div >
+                <% if (pathway.thumbnail_url) { %>
+                  
+                    <img
+                      src="<%= pathway.thumbnail_url %>"
+                      alt="Career_pathway Image"
+                      style="width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background-color: #d6a740;"
+                    />
+                  
+                <% } %>
+              </div>
+              <div class="card-content">
+                <h4><%- pathway.title %></h4>
               
+                <div class="card-body">
+                  <span id="card-short-<%= idx %>" style="display: block;">
+                    <%- pathway.description.substring(0, 150) %>...
+                  </span>
+                  
+                </div>
+                <!-- <small><strong style="color: #1660E8;">Click on the Image to view more</strong></small> -->
+              </div>
             </div>
-            
-              <small><strong style="color: #1660E8;">Click on the Image to view more</strong></small>
-          </div>
         <% }) %>
       </div>
       <div style="text-align: center; margin-top: 20px">
@@ -131,17 +130,17 @@
       </div>
     </section>
 
-    <!-- scripts for benefits display  -->
-    <section id="benefits" class="section" style="background-color: rgb(0, 0, 0);">
+    <!-- for benefits cards  -->
+    <section id="card_thumbnail_horizontals" class="section" style="background-color: rgb(0, 0, 0);">
       
        <h2 style="text-align: center; color: rgb(249, 249, 249);">Benefits</h2>
-      <div class="benefits-grid">
+      <div class="card_thumbnail_horizontals-grid">
         <% benefits.forEach(benefit => { %>
-          <div class="benefit-card">
-            <div class="benefit-profile">
+          <div class="card_thumbnail_horizontal-card">
+            <div class="card_thumbnail_horizontal-profile">
               <img src="<%= benefit.icon || '/images/default-user.png' %>" alt="Icon" />
             </div>
-            <div class="benefit-details">
+            <div class="card_thumbnail_horizontal-details">
               <h4><%= benefit.title %></h4>
               <p><%= benefit.description %></p>
             </div>
@@ -150,151 +149,172 @@
       </div>
     </section>
 
+    <!-- Categories of Users on the Platform -->
     <section class="section">
       <h2>Users Category</h2>
+
       <div class="engagement-grid">
-        <div class="metric-card" style="border-bottom: 6px solid #6610f2; ">
-          <div class="card-icon" style="background-color: rgb(30, 30, 206);">
-            <i class="fas fa-school"></i>
-          </div>
-          
-          <div class="card-content">
-            <h2 class="count" data-target="<%= stats.schools %>">0</h2>
+        <div class="metric-card">
+          <div class="card-title blue-bg">
             <p>Schools</p>
           </div>
-          
+          <div class="metric-card-content">
+            <div class="card-icon blue-bg">
+              <i class="fas fa-school"></i>
+            </div>
+              <h4 class="count" data-target="<%= stats.schools %>">0</h4>
+          </div>
         </div>
 
-        <div class="metric-card" style="border-top: 6px solid #1e8604; ">
-          <div class="card-icon" style="background-color: #1e8604;;">
-            <i class="fas fa-chalkboard-teacher"></i>
-          </div>
-          
-          <div class="card-content">
-            <h2 class="count" data-target="<%= stats.teachers %>">0</h2>
+        <div class="metric-card">
+          <div class="card-title green-bg">
             <p>Teachers</p>
           </div>
-          
+          <div class="metric-card-content">
+            <div class="card-icon green-bg">
+              <i class="fas fa-chalkboard-teacher"></i>
+            </div>
+              <h4 class="count" data-target="<%= stats.teachers %>">0</h4>
+          </div>
         </div>
 
-        <div class="metric-card" style="border-bottom: 6px solid #dba309; ">
-          <div class="card-icon" style="background-color: #dba309;">
-            <i class="fas fa-user-graduate"></i>
-          </div>
-          
-          <div class="card-content">
-            <h2 class="count" data-target="<%= stats.students %>">0</h2>
+        <div class="metric-card">
+          <div class="card-title orange-bg">
             <p>Students</p>
           </div>
-          
+          <div class="metric-card-content">
+            <div class="card-icon orange-bg">
+              <i class="fas fa-user-graduate"></i>
+            </div>
+              <h4 class="count" data-target="<%= stats.students %>">0</h4>
+          </div>
         </div>
 
-        <div class="metric-card" style="border-top: 6px solid #db098b; ">
-          <div class="card-icon" style="background-color: #db098b;">
-            <i class="fas fa-users"></i>
-          </div>
-          
-          <div class="card-content">
-            <h2 class="count" data-target="<%= stats.totalUsers %>">0</h2>
+        <div class="metric-card">
+          <div class="card-title pink-bg">
             <p>Total Users</p>
           </div>
-        
+          <div class="metric-card-content">
+            <div class="card-icon pink-bg">
+              <i class="fas fa-users"></i>
+            </div>
+              <h4 class="count" data-target="<%= stats.totalUsers %>">0</h4>
+          </div>
         </div>
       </div>
     </section>
 
+    <!-- Platfor Engagement Statistics -->
     <section class="section">
       <h2>Platform Engagement</h2>
 
       <div class="engagement-grid">
 
-        <div class="metric-card blue">
-          <div class="card-icon blue-bg">
-            <i class="fas fa-book"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.courses %></h3>
+        <div class="metric-card">
+          <div class="card-title blue-bg">
             <p>Courses</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon blue-bg">
+              <i class="fas fa-book"></i>
+            </div>
+              <h4><%= engagementStats.courses %></h4>
+          </div>
         </div>
 
-        <div class="metric-card purple">
-          <div class="card-icon purple-bg">
-            <i class="fas fa-layer-group"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.modules %></h3>
+        <div class="metric-card">
+          <div class="card-title purple-bg">
             <p>Modules</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon purple-bg">
+              <i class="fas fa-layer-group"></i>
+            </div>
+              <h4><%= engagementStats.modules %></h4>
+          </div>
         </div>
 
-        <div class="metric-card teal">
-          <div class="card-icon teal-bg">
-            <i class="fas fa-video"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.lessons %></h3>
+        <div class="metric-card">
+          <div class="card-title teal-bg">
             <p>Lessons</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon teal-bg">
+              <i class="fas fa-video"></i>
+            </div>
+              <h4><%= engagementStats.lessons %></h4>
+          </div>
         </div>
 
-        <div class="metric-card orange">
-          <div class="card-icon orange-bg">
-            <i class="fas fa-question-circle"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.quizzes %></h3>
+        <div class="metric-card">
+          <div class="card-title orange-bg">
             <p>Quizzes</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon orange-bg">
+              <i class="fas fa-question-circle"></i>
+            </div>
+              <h4><%= engagementStats.quizzes %></h4>
+          </div>
         </div>
 
-        <div class="metric-card green">
-          <div class="card-icon green-bg">
-            <i class="fas fa-user-graduate"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.enrollments %></h3>
+        <div class="metric-card">
+          <div class="card-title green-bg">
             <p>Enrollments</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon green-bg">
+              <i class="fas fa-user-graduate"></i>
+            </div>
+              <h4><%= engagementStats.enrollments %></h4>
+          </div>
         </div>
 
-        <div class="metric-card pink">
-          <div class="card-icon pink-bg">
-            <i class="fas fa-edit"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.quizAttempts %></h3>
+        <div class="metric-card">
+          <div class="card-title pink-bg">
             <p>Quiz Attempts</p>
           </div>
+          <div class="metric-card-content">
+            <div class="card-icon pink-bg">
+              <i class="fas fa-edit"></i>
+            </div>
+              <h4><%= engagementStats.quizAttempts %></h4>
+          </div>
         </div>
 
-        <div class="metric-card success">
-          <div class="card-icon success-bg">
-            <i class="fas fa-check-circle"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.quizPassed %></h3>
+        <div class="metric-card">
+          <div class="card-title success-bg">
             <p>Passed (≥70%)</p>
           </div>
-        </div>
-
-        <div class="metric-card indigo">
-          <div class="card-icon indigo-bg">
-            <i class="fas fa-file-alt"></i>
-          </div>
-          <div class="card-content">
-            <h3><%= engagementStats.assignmentsSubmitted %></h3>
-            <p>Assignments</p>
+          <div class="metric-card-content">
+            <div class="card-icon success-bg">
+              <i class="fas fa-check-circle"></i>
+            </div>
+              <h4><%= engagementStats.quizPassed %></h4>
           </div>
         </div>
 
-        <div class="metric-card dark">
-          <div class="card-icon dark-bg">
-            <i class="fas fa-project-diagram"></i>
+        <div class="metric-card">
+          <div class="card-title indigo-bg">
+            <p>Assignments Submission</p>
           </div>
-          <div class="card-content">
-            <h3><%= engagementStats.projects %></h3>
+          <div class="metric-card-content">
+            <div class="card-icon indigo-bg">
+              <i class="fas fa-file-alt"></i>
+            </div>
+              <h4><%= engagementStats.assignmentsSubmitted %></h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title dark-bg">
             <p>Projects</p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon dark-bg">
+              <i class="fas fa-project-diagram"></i>
+            </div>
+              <h4><%= engagementStats.projects %></h4>
           </div>
         </div>
 
@@ -302,13 +322,10 @@
     </section>
 
 
-    <section id="parents" class="section" style="text-align:center; margin: 40px 0;">
+    <section id="parents" class="section" style="text-align:center;">
         <h2>👨‍👩‍👧 For Parents</h2>
         <p>Stay connected to your child’s learning journey. Monitor progress, assignments, and achievements.</p>
-        <a href="/signup?role=parent" class="login-button" 
-          style="background-color:#1660E8; color:white; padding:10px 20px; border-radius:5px;">
-          Register as a Parent
-        </a>
+        <button onclick="window.location.href='/signup?role=parent'" class="btn-blue">Register as a Parent</button>
         <br>
     </section>
 
@@ -318,14 +335,35 @@
          <h2 style="text-align: center; color: black;">Featured Courses</h2>
         <div class="horizontal-scroll-container" id="courseScroll">
           <% courses.forEach(course => { %>
-            <div class="course-card scroll-card">
+            <div class="card-thumbnail2 scroll-card">
+              <div class="card-thumbnail2-img">
+                <a href="/courses/<%= course.id %>">
+                  <% if (course.thumbnail_url) { %>
+                    <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />
+                  <% } %>
+                </a>
+              </div>
+
+              <div class="card-content">
+                <h4><%= course.title %></h4>
+                <!-- <p><%- course.description.substring(0, 50) %>...</p> -->
+                <small><strong><%= course.level %></strong> | <%= course.pathway_name || 'General' %></small>
+
+                <% if (course.amount == 0) { %>
+                    <p><strong>This is a free course</strong></p>
+                  <% } else { %>
+                    <p><strong>Price:</strong> ₦<%= course.amount %></p>
+                  <% } %>
+              </div>
+            </div>
+
+            <!-- <div class="course-card scroll-card">
               <a href="/courses/<%= course.id %>">
               <% if (course.thumbnail_url) { %>
                 <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />
               <% } %>
               </a>
               <h4><%= course.title %></h4>
-              <!-- <p><%- course.description.substring(0, 50) %>...</p> -->
               <small><strong><%= course.level %></strong> | <%= course.pathway_name || 'General' %></small>
 
               <% if (course.amount == 0) { %>
@@ -333,7 +371,7 @@
                 <% } else { %>
                   <p><strong>Price:</strong> ₦<%= course.amount %></p>
                 <% } %>
-            </div>
+            </div> -->
           <% }) %>
         </div>
          <div style="text-align: center; margin-top: 1rem;">
@@ -656,12 +694,12 @@
 <!-- script for continue reading and check if user is logged in -->
 <script>
   function showMore(idx) {
-  document.getElementById('article-short-' + idx).style.display = 'none';
-  document.getElementById('article-long-' + idx).style.display = 'block';
+  document.getElementById('card-short-' + idx).style.display = 'none';
+  document.getElementById('card-long-' + idx).style.display = 'block';
 }
 function showLess(idx) {
-  document.getElementById('article-long-' + idx).style.display = 'none';
-  document.getElementById('article-short-' + idx).style.display = 'block';
+  document.getElementById('card-long-' + idx).style.display = 'none';
+  document.getElementById('card-short-' + idx).style.display = 'block';
 }
   function continueReading(articleId) {
     if (<%= isLoggedIn ? 'true' : 'false' %>) {
