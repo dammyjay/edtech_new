@@ -69,39 +69,29 @@
       <p>📌 Total Instructors: <%= school.totals.total_instructors %></p>
     </div>
 
-    <a href="/admin/schools/<%= school.id %>/download-progress" class="btn-edit" style="text-decoration: none;">
-      📄 Download School Summary PDF
-    </a>
-
-    <div style="margin-top: 20px;">
-      <a
-        href="/admin/schools/<%= school.id %>/download-login-cards"
-        class="btn-view" style="text-decoration: none;"
-        target="_blank"
-      >
-        📥 Download Student Login Cards (PDF)
-      </a>
+    <div class="multi-btn">
+      <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= school.id %>/download-progress'">📄 Download School Summary</button>
+      <button class="btn-pri" onclick="window.location.href='/admin/schools/<%= school.id %>/download-login-cards'">📥Student Login Cards</button>
     </div>
-
 
     <hr>
 
     <h3>Classrooms</h3>
     <p>Click on the classroom name to view its details:</p>
-<ul>
-  <% if (school.classrooms.length > 0) { %>
-    <% school.classrooms.forEach(classroom => { %>
-      <li>
-        <a href="/admin/classrooms/<%= classroom.id %>/dashboard" 
-           style="color:#3498db; font-weight:600; text-decoration:none;">
-          🏫 <%= classroom.name %>
-        </a>
-      </li>
-    <% }) %>
-  <% } else { %>
-    <p>No classrooms available.</p>
-  <% } %>
-</ul>
+    <ul>
+      <% if (school.classrooms.length > 0) { %>
+        <% school.classrooms.forEach(classroom => { %>
+          <li>
+            <a href="/admin/classrooms/<%= classroom.id %>/dashboard" 
+              style="color:#3498db; font-weight:600; text-decoration:none;">
+              🏫 <%= classroom.name %>
+            </a>
+          </li>
+        <% }) %>
+      <% } else { %>
+        <p>No classrooms available.</p>
+      <% } %>
+    </ul>
 
 
     <hr>
@@ -136,13 +126,13 @@
   <% } %>
 </section>
 
-<button onclick="loadAnalytics()">📊 View Analytics</button>
+<button class="btn-sec" onclick="loadAnalytics()">📊 View Analytics</button>
 
 <div id="analyticsBox"></div>
 
 
 <!-- Navigation Tabs -->
-<div class="nav-tabs">
+<!-- <div class="nav-tabs">
   <button class="tab-btn active" onclick="openTab('teachers-section', this)">👩‍🏫 Teachers</button>
   <button class="tab-btn" onclick="openTab('instructors-section', this)">🧑‍🏫 Instructors</button>
   <button class="tab-btn" onclick="openTab('students-section', this)">🎓 Students</button>
@@ -151,15 +141,26 @@
   <button class="tab-btn" onclick="openTab('terms-section', this)">📅 Terms</button>
   <button class="tab-btn" onclick="openTab('attendance-section', this)">📋 Attendance</button>  
 
+</div> -->
+
+<div class="login-tabs">
+  <button class="login-tab active" onclick="openTab('teachers-section', this)">👩‍🏫 Teachers</button>
+  <button class="login-tab" onclick="openTab('instructors-section', this)">🧑‍🏫 Instructors</button>
+  <button class="login-tab" onclick="openTab('students-section', this)">🎓 Students</button>
+  <button class="login-tab" onclick="openTab('classrooms-section', this)">🏫 Classrooms</button>
+  <button class="login-tab" onclick="openTab('course-assignment-section', this)">📘 Assign Courses</button>
+  <button class="login-tab" onclick="openTab('terms-section', this)">📅 Terms</button>
+  <button class="login-tab" onclick="openTab('attendance-section', this)">📋 Attendance</button>  
+
 </div>
 
 
 <!-- Terms Section  -->
 <div id="terms-section" style="display:none;">
 
-  <div style="display:flex; gap:10px; margin-bottom:15px;">
-    <button class="btn-edit" onclick="openModal('createTermModal')">➕ Create Term</button>
-    <button class="btn-edit" onclick="openModal('assignTermModal')">📌 Assign Students</button>
+  <div class="multi-btn">
+    <button class="btn-blue" onclick="openModal('createTermModal')">➕ Create Term</button>
+    <button class="btn-green" onclick="openModal('assignTermModal')">📌 Assign Students</button>
   </div>
 
   <h3>📅 Academic Terms</h3>
@@ -175,10 +176,10 @@
             <th>Period</th>
             <th>Students</th>
             <th>Status</th>
-            <th>Action</th>
             <th>Price/Student</th>
             <th>Total Amount</th>
             <th>Payment</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -190,6 +191,33 @@
               <td>
                 <%= term.statusLabel %>
               </td>
+              <td>
+                ₦<%= term.quote?.price_per_student || 0 %>
+              </td>
+
+              <td>
+                ₦<%= term.quote?.total_amount || 0 %>
+              </td>
+
+              <td>
+                <% if (term.quote) { %>
+                  <button 
+                    class="payment-toggle <%= term.quote.status %>" 
+                    onclick="togglePayment('<%= term.quote.id %>', '<%= term.quote.status %>')">
+                    
+                    <% if (term.quote.status === 'paid') { %>
+                      ✅ Paid
+                    <% } else if (term.quote.status === 'partial') { %>
+                      ⚠️ Part Payment
+                    <% } else { %>
+                      ❌ Not Paid
+                    <% } %>
+                  </button>
+                <% } else { %>
+                  -
+                <% } %>
+              </td>
+              
               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
                 <a href="#" class="no-bg" onclick="toggleTermStudents('<%= term.term_id %>'); return false;">
                   <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
@@ -220,32 +248,6 @@
                   -
                 <% } %>
               </td>
-              <td>
-                ₦<%= term.quote?.price_per_student || 0 %>
-              </td>
-
-              <td>
-                ₦<%= term.quote?.total_amount || 0 %>
-              </td>
-
-              <td>
-                <% if (term.quote) { %>
-                  <button 
-                    class="payment-toggle <%= term.quote.status %>" 
-                    onclick="togglePayment('<%= term.quote.id %>', '<%= term.quote.status %>')">
-                    
-                    <% if (term.quote.status === 'paid') { %>
-                      ✅ Paid
-                    <% } else if (term.quote.status === 'partial') { %>
-                      ⚠️ Part Payment
-                    <% } else { %>
-                      ❌ Not Paid
-                    <% } %>
-                  </button>
-                <% } else { %>
-                  -
-                <% } %>
-              </td>
             </tr>
 
             <tr id="term-row-<%= term.term_id %>" style="display:none;">
@@ -269,13 +271,10 @@
    <canvas id="attendanceChart"></canvas>
   <div id="attendanceSummary"></div>
 
-  <div style="display:flex; gap:10px; margin-bottom:15px;">
-    <!-- <button class="btn-edit" onclick="openModal('attendanceModal')">
-      ➕ Take Attendance
-    </button> -->
-    <button onclick="openAttendanceModal()">➕ Take Attendance</button>
+  <div class="multi-btn">
+    <button class="btn-blue" onclick="openAttendanceModal()">➕ Take Attendance</button>
 
-    <button class="btn-edit" onclick="loadAttendanceHistory()">
+    <button class="btn-green" onclick="loadAttendanceHistory()">
       📊 View History
     </button>
   </div>
@@ -297,7 +296,7 @@
       <% }) %>
     </select>
 
-    <button onclick="loadAttendanceHistory()">Filter</button>
+    <button class="btn-blue" onclick="loadAttendanceHistory()">Filter</button>
   </div>
 
   <!-- Attendance Table -->
@@ -308,6 +307,7 @@
           <th>Date</th>
           <th>Classroom</th>
           <th>Session Type</th>
+          <th>Week</th>
           <th>Taken By</th>
           <th>Students</th>
           <th>Actions</th>
@@ -323,7 +323,7 @@
 
 <!-- teachers section -->
 <div id="teachers-section" style="display:none;">
-  <button onclick="openUserForm('teacher')">➕ Add Teacher</button>
+  <button class="btn-blue" onclick="openUserForm('teacher')">➕ Add Teacher</button>
 
   <!-- 🔽 Classroom filter -->
   <label><strong>Filter by Classroom:</strong></label>
@@ -402,7 +402,6 @@
               <td><%= inst.email %></td>
               <td><%= inst.classrooms %></td>
               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
-                <!-- <button class="btn-assign" onclick="openAssignModal('<%= inst.id %>', 'instructor')">📌 Assign</button> -->
                 <a href="#" class="no-bg" onclick="openAssignModal('<%= inst.id %>', 'instructor'); return false;">
                   <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
                 </a>
@@ -420,15 +419,13 @@
 
 <!-- students section  -->
 <div id="students-section" style="display:none;">
-  <button class="btn btn-view" onclick="openUserForm('student')">➕ Add Student</button>
-  <button class="btn btn-view" onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
-  <a href="/admin/schools/<%= school.id %>/export-students-excel" class="btn btn-view" target="_blank" style="text-decoration: none;">
-    📥 Export Students (Excel)
-  </a>
-
-  <div style="margin-bottom: 15px;">
-
+  <div class="multi-btn">
+  <button class="btn-blue" onclick="openUserForm('student')">➕ Add Student</button>
+  <button class="btn-pri" onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
+  <button class="btn-green" onclick="window.location.href='/admin/schools/<%= school.id %>/export-students-excel'" target="_blank">📥 Export Students (Excel)</button>
 </div>
+  <div style="margin-bottom: 15px;">
+  </div>
 
   <!-- 🔽 Classroom filter -->
   <label><strong>Filter by Classroom:</strong></label>
@@ -448,19 +445,20 @@
     style="margin-left:10px; padding:5px;"
   />
 
-  <button class="btn btn-view" onclick="bulkEnableAvatarLogin()">
-  🚀 Enable Avatar Login (All Students)
-</button>
+  <div class="multi-btn">
+    <button class="btn-sec" onclick="bulkEnableAvatarLogin()">
+      🚀 Enable Avatar Login (All Students)
+    </button>
 
-<button class="btn btn-warning" onclick="runMigration()">
-  🔧 Migrate Student Login Fields
-</button>
+    <button class="btn-pri" onclick="runMigration()">
+      🔧 Migrate Student Login Fields
+    </button>
 
-<button class="btn btn-view"
-onclick="bulkGenerateAvatars()">
-🎭 Generate Student Avatars
-</button>
-  
+    <button class="btn-blue"
+      onclick="bulkGenerateAvatars()">
+      🎭 Generate Student Avatars
+    </button>
+  </div>
 
   <!-- tabe for students -->
   <div class="table-responsive">
@@ -507,14 +505,14 @@ onclick="bulkGenerateAvatars()">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
                 </a>
                 <a href="#" class="no-bg" onclick="toggleAvatarLogin('<%= student.id %>', this); return false;" title="Toggle Avatar Login">
-                  <i class="fa-solid fa-user-astronaut"
+                  <i class="fa-solid fa-wand-magic-sparkles"
                     style="color: <%= student.classroom_login_enabled ? 'green' : 'gray' %>">
                   </i>
                 </a>
                 <a href="#"
                   class="no-bg"
                   onclick="generateStudentAvatar('<%= student.id %>'); return false;">
-                  <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  <i class="fa-solid fa-user-astronaut"></i>
                 </a>
               </td>
               <td>
@@ -537,7 +535,7 @@ onclick="bulkGenerateAvatars()">
 
 <!-- classrooms section  -->
 <div id="classrooms-section" style="display:none;">
-  <button class="btn-edit" onclick="openModal('createClassroomModal')" style="margin-bottom:15px;">
+  <button class="btn-blue" onclick="openModal('createClassroomModal')" style="margin-bottom:15px;">
     ➕ Create Classroom
   </button>
 
@@ -596,7 +594,7 @@ onclick="bulkGenerateAvatars()">
                         <option value="<%= s.id %>"><%= s.full_name %> (<%= s.email %>)</option>
                     <% }) %>
                   </select>
-                  <button type="submit" style="margin-top:10px; background:#3498db; color:#fff; border:none; padding:8px 12px; border-radius:5px;">
+                  <button type="submit" class="btn-sec">
                     Assign Selected Students
                   </button>
                 </form>
@@ -641,7 +639,7 @@ onclick="bulkGenerateAvatars()">
       <% }) %>
     </select>
 
-    <button type="submit" style="background:#3498db; color:#fff; border:none; padding:10px 15px; border-radius:5px;">
+    <button type="submit" class="btn-sec">
       Assign Selected Courses
     </button>
   </form>
@@ -663,7 +661,7 @@ onclick="bulkGenerateAvatars()">
 
     <form id="adminBulkUploadForm" enctype="multipart/form-data">
       <input type="file" name="file" accept=".csv" required />
-      <button type="submit">Upload CSV</button>
+      <button class="btn-sec" type="submit">Upload CSV</button>
     </form>
   </div>
 </div>
@@ -672,7 +670,7 @@ onclick="bulkGenerateAvatars()">
   <div class="modal-content" style="text-align:center;">
     <h3 id="adminBulkTitle"></h3>
     <p id="adminBulkMessage"></p>
-    <button onclick="closeAdminBulkModal()">OK</button>
+    <button class="btn-red" onclick="closeAdminBulkModal()">OK</button>
   </div>
 </div>
 
@@ -694,7 +692,7 @@ onclick="bulkGenerateAvatars()">
           <option value="<%= t.id %>"><%= t.full_name %> (<%= t.email %>)</option>
         <% }) %>
       </select>
-      <button type="submit">Create</button>
+      <button class="btn-sec" type="submit">Create</button>
     </form>
 
 
@@ -722,7 +720,7 @@ onclick="bulkGenerateAvatars()">
 
       <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
 
-      <button type="submit" class="btn-edit">Update</button>
+      <button type="submit" class="btn-sec">Update</button>
     </form>
   </div>
 </div>
@@ -757,7 +755,7 @@ onclick="bulkGenerateAvatars()">
       <div class="container">
         <input type="password" id="newPassword" placeholder="Enter new password" required />
       </div>
-      <button type="submit" style="margin-top:10px; background:#f39c12; color:white; padding:8px 15px; border:none; border-radius:5px;">Reset Password</button>
+      <button type="submit" class="btn-sec">Reset Password</button>
     </form>
   </div>
 </div>
@@ -780,7 +778,7 @@ onclick="bulkGenerateAvatars()">
         <% }) %>
       </select>
 
-      <button type="submit" style="margin-top:15px; background:#3498db; color:white; padding:8px 15px; border:none; border-radius:5px;">Save</button>
+      <button type="submit" class="btn-sec">Save</button>
     </form>
   </div>
 </div>
@@ -846,7 +844,7 @@ onclick="bulkGenerateAvatars()">
       <input type="date" name="end_date" required />
       <input type="number" name="price_per_student" placeholder="Price per student" required />
 
-      <button type="submit">Create</button>
+      <button class="btn-sec" type="submit">Create</button>
     </form>
   </div>
 </div>
@@ -877,9 +875,9 @@ onclick="bulkGenerateAvatars()">
         <% }) %>
       </select>
 
-      <div style="margin-bottom:10px;">
-        <button type="button" onclick="selectAllStudents()">✅ Select All</button>
-        <button type="button" onclick="clearAllStudents()">❌ Clear All</button>
+      <div class="multi-btn">
+        <button class="btn-green" type="button" onclick="selectAllStudents()">✅ Select All</button>
+        <button class="btn-red" type="button" onclick="clearAllStudents()">❌ Clear All</button>
       </div>
 
       <hr>
@@ -897,7 +895,7 @@ onclick="bulkGenerateAvatars()">
         </div>
       </div>
 
-      <button type="submit" style="margin-top:10px;">Assign</button>
+      <button class="btn-sec" type="submit" style="margin-top:10px;">Assign</button>
     </form>
   </div>
 </div>
@@ -916,7 +914,7 @@ onclick="bulkGenerateAvatars()">
       <input type="date" id="edit_end_date" required>
       <input type="number" id="edit_price_per_student" required min="0" step="0.01">
 
-      <button type="submit">Update</button>
+      <button class="btn-sec" type="submit">Update</button>
     </form>
   </div>
 </div>
@@ -974,7 +972,7 @@ onclick="bulkGenerateAvatars()">
       <div id="attendanceStudentList"></div>
       
 
-      <button type="submit">Save Attendance</button>
+      <button class="btn-sec" type="submit">Save Attendance</button>
     </form>
   </div>
 </div>
@@ -1013,7 +1011,7 @@ onclick="bulkGenerateAvatars()">
 
       <textarea name="note" id="editNote"></textarea>
 
-      <button type="submit">Update</button>
+      <button class="btn-sec" type="submit">Update</button>
     </form>
   </div>
 </div>
@@ -1325,6 +1323,7 @@ async function loadAttendanceHistory() {
           <td>${new Date(a.date).toDateString()}</td>
           <td>${a.classroom}</td>
           <td>${formatSession(a.session_status)}</td>
+          <td>${a.week_number}</td>
           <td>${a.taken_by || '-'}</td>
 
           <!-- ✅ ADD THIS -->
@@ -1336,7 +1335,7 @@ async function loadAttendanceHistory() {
             <i class="fa fa-edit action-icon" style="cursor:pointer; color:orange;" onclick="editSession(${a.id})"></i>
             <i class="fa fa-trash action-icon" style="cursor:pointer; color:red;" onclick="deleteSession(${a.id})"></i>
             <a href="/admin/attendance/export/pdf/${a.id}" target="_blank">
-              <i class="fa fa-file-pdf action-icon" style="cursor:pointer; color:red;"></i>
+              <i class="fa fa-file-pdf action-icon" style="cursor:pointer; color:orange;"></i>
             </a>
             <i class="fa fa-file-excel action-icon" style="cursor:pointer; color:green;" onclick="exportExcel()"></i>
           </td>
@@ -1598,7 +1597,8 @@ function exportExcel() {
     document.getElementById(sectionId).style.width = '100%';
 
     // Update active tab
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    // document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.login-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
 </script>
@@ -2205,8 +2205,10 @@ function exportExcel() {
         <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
         <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
         <td>
-          <button class="btn-edit" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
-          <button class="btn-edit" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
+          <div class="multi-btn">
+            <button class="btn-blue" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
+            <button class="btn-green" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);

@@ -8082,6 +8082,7 @@ exports.getAttendanceHistory = async (req, res) => {
         s.id,
         s.date,
         s.session_status,
+        s.week_number,
         c.name AS classroom,
         u.fullname AS taken_by,
 

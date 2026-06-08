@@ -1153,13 +1153,27 @@ button {
     background-color: var(--blue);
     color: #fff;
 }
+
 .btn-blue:hover {
     background-color: #0d04a8;
+}
+.btn-green {
+    background-color: var(--success);
+    color: #fff;
+}
+
+.btn-green:hover {
+    background-color: #1cc88a;
 }
 
 button:hover {
     background-color: #614f15;
     /* darker gold */
+}
+
+.multi-btn{
+    display: flex;
+    gap: 5px
 }
 
 .video-grid {
@@ -3000,8 +3014,13 @@ i {
 
 /* Optional: reduce padding on very small screens */
 @media screen and (max-width: 480px) {
+.multi-btn{
+    display: flex;
+    flex-direction: column;
+    gap: 5px
+}
     .login-tabs{
-      flex-direction:row;
+      flex-direction:column;
     }
 
     .selection-launcher{

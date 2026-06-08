@@ -35,7 +35,7 @@
   </div>
 
   <!-- 🔥 FINANCE CARDS -->
-  <section class="engagement-section">
+  <section class="section">
     <div class="engagement-grid">
 
       <!-- TOTAL EXPECTED -->
@@ -48,6 +48,17 @@
           <h3 id="cardTotalExpected">₦0</h3>
         </div>
       </div>
+      <div class="metric-card">
+            <div class="card-title blue-bg">
+                <p>Total Expected</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon blue-bg">
+                  <i class="fa-solid fa-money-bill-wave"></i>
+                </div>
+                <h4 id="cardTotalExpected">₦0</h4>
+            </div>
+        </div>
 
       <!-- TOTAL PAID -->
       <div class="metric-card" style="border-bottom: 6px solid #025a10;">
@@ -183,14 +194,7 @@
               </select>
             </form> -->
             <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
-              <!-- <%= q.status === 'paid' ? '✅ Paid' : '❌ Not Paid' %> -->
-               <!-- <% if(q.status === 'paid') { %>
-                <span style="color:green;">✅ Paid</span>
-              <% } else if(q.status === 'partial') { %>
-                <span style="color:orange;">⚠️ Part Payment</span>
-              <% } else { %>
-                <span style="color:red;">❌ Not Paid</span>
-              <% } %> -->
+            
 
               <% if(q.status === 'paid') { %>
                 <span style="color:green;">✅ Paid</span>

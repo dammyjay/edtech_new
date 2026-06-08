@@ -2,80 +2,59 @@
 
 
 <section class="section">
-    <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+    <div style="background:var(--grey);padding:20px;border-radius:8px;margin-bottom:20px;">
         <img src="<%= classroom.school_logo %>" alt="School Logo" style="width:100px;height:100px;object-fit:cover;">
-    <h2>🏫 <%= classroom.school_name %></h2>
-    <p><strong>Email:</strong> <%= classroom.school_email %></p>
-    <p><strong>Phone:</strong> <%= classroom.school_phone %></p>
-    <p><strong>Address:</strong> <%= classroom.school_address %></p>
+        <h2><%= classroom.school_name %></h2>
+        <p><strong>Email:</strong> <%= classroom.school_email %></p>
+        <p><strong>Phone:</strong> <%= classroom.school_phone %></p>
+        <p><strong>Address:</strong> <%= classroom.school_address %></p>
 
-    <a href="/admin/schools/<%= classroom.school_id %>" 
-        style="color:#3498db;font-weight:600;">
-        ← Back to School Details
-    </a>
-
-    <a href="/admin/classrooms/<%= classroom.id %>/dashboard/export"
-        class="btn-download">
-        Download Classroom PDF
-    </a>
+        <div class="multi-btn">
+            <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= classroom.school_id %>'">← Back to School Details</button>
+            <button class="btn-pri" onclick="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard/export'">Download Classroom PDF</button>
+        </div>
     </div>
 </section>
 
 <h2>📊 <%= classroom.name %> - Classroom Analytics</h2>
 
-<!-- <section class="section">
-    <div class="engagement-grid">
-        <div class="metric-card">
-            <h3><%= totalStudents %></h3>
-            <p>Total Students</p>
-        </div>
-
-        <div class="metric-card">
-            <h3><%= averageCompletion %>%</h3>
-            <p>Average Completion</p>
-        </div>
-
-        <div class="metric-card">
-            <h3><%= averageQuiz %>%</h3>
-            <p>Average Quiz Score</p>
-        </div>
-        </div>
-</section> -->
-
 <section class="section">
     <div class="engagement-grid">
-
         <div class="metric-card">
-            <div class="card-icon">
-                <i class="fa-solid fa-users"></i>
-            </div>
-            <div class="card-content">
-                <h3><%= totalStudents %></h3>
+            <div class="card-title blue-bg">
                 <p>Total Students</p>
             </div>
+            <div class="metric-card-content">
+                <div class="card-icon blue-bg">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <h4><%= totalStudents %></h4>
+            </div>
         </div>
 
         <div class="metric-card">
-            <div class="card-icon">
-                <i class="fa-solid fa-book-open"></i>
-            </div>
-            <div class="card-content">
-                <h3><%= averageCompletion %>%</h3>
+            <div class="card-title green-bg">
                 <p>Average Completion</p>
             </div>
+            <div class="metric-card-content">
+                <div class="card-icon green-bg">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h4><%= averageCompletion %>%</h4>
+            </div>
         </div>
 
         <div class="metric-card">
-            <div class="card-icon">
-                <i class="fa-solid fa-chart-line"></i>
-            </div>
-            <div class="card-content">
-                <h3><%= averageQuiz %>%</h3>
+            <div class="card-title pink-bg">
                 <p>Average Quiz Score</p>
             </div>
+            <div class="metric-card-content">
+                <div class="card-icon pink-bg">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h4><%= averageQuiz %>%</h4>
+            </div>
         </div>
-        </div>
-
     </div>
 </section>
 
