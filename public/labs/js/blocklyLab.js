@@ -125,9 +125,10 @@ window.renderBackgroundList = function () {
 window.addEventListener("load", async () => {
   try {
     // Initialize Blockly
+    console.log("toolbox", document.getElementById("toolbox"));
+
     workspace = Blockly.inject("blocklyDiv", {
       toolbox: document.getElementById("toolbox"),
-
       trashcan: true,
 
       grid: {
@@ -146,6 +147,19 @@ window.addEventListener("load", async () => {
         scaleSpeed: 1.2,
       },
     });
+
+    window.addEventListener("resize", () => {
+      if (workspace) {
+        Blockly.svgResize(workspace);
+      }
+    });
+
+    setTimeout(() => {
+      Blockly.svgResize(workspace);
+      workspace.resize();
+      workspace.render();
+    }, 3000);
+
 
     // Load project
     await initLab("blockly");
@@ -380,6 +394,7 @@ window.addEventListener("click", (e) => {
     backgroundModal.classList.remove("show");
   }
 });
+
 
 function createSprite(name) {
   addSprite(name, 100, 100);
