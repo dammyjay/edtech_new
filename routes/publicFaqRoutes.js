@@ -3,16 +3,6 @@ const router = express.Router();
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
 
-// Show FAQ page
-// router.get('/faq', async (req, res) => {
-//     const infoResult = await pool.query(
-//         'SELECT * FROM ministry_info ORDER BY id DESC LIMIT 1',
-//       );
-//       const info = infoResult.rows[0] || {};
-// const result = await pool.query('SELECT * FROM faqs WHERE is_published = true ORDER BY created_at DESC');
-// res.render('faq', { info, faqs: result.rows, title:'FAQS' });
-// });
-
 router.get("/faq", async (req, res) => {
   try {
     const search = req.query.search || "";
@@ -60,13 +50,17 @@ router.post("/faq/ask", async (req, res) => {
     [question, email, created_at]
   );
   // Email notification to admin
-  const adminEmail = "imoledayoimmanuel@gmail.com"; // change to your actual admin email
+  const adminEmail = "Jakirchtechhub@gmail.com"; // change to your actual admin email
   const subject = "New FAQ Question Submitted";
+  const subject2 = "FAQ Question Received";
   const message =
     "<h3>New FAQ Submitted</h3> <p><strong>Question:</strong> ${question}</p> <p><strong>User Email:</strong> ${email}</p> <p>Please log in to the dashboard to answer it</p>";
+  const message2 =
+    "<h3>FAQ Question Received</h3> <p>Thank you for submitting your question. We will review it and get back to you as soon as possible.</p>";
 
   try {
     await sendEmail(adminEmail, subject, message);
+    await sendEmail(email, subject2, message2);
     console.log("Admin notified about new FAQ.");
   } catch (err) {
     console.error("Failed to send FAQ notification email:", err.message);

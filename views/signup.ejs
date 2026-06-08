@@ -36,191 +36,176 @@
     100% { transform: rotate(360deg); }
   }
 </style>
-  <body class="signup-body">
-    <!-- <img class="mask" src="logo.png" alt="" /> -->
-    <img
-      src="logo.png"
-      class="background-image"
-      alt="Background"
-      style="margin: auto;"
-    />
-    <div class="form-container">
-      <!-- <img src="/Images/calicare logo.png" alt="Logo" class="logo" /> -->
-      <div class="log-details">
-        <h2>Welcome Onboard!</h2>
-        <p>PLEASE ENTER YOUR DETAILS</p>
-      </div>
+  <body>
+    <div class="login-container">
+      <div class="form-container">
+        <!-- <img src="/Images/calicare logo.png" alt="Logo" class="logo" /> -->
+        <div class="log-details">
+          <!-- <h2>Welcome Onboard!</h2> -->
+          <p>PLEASE ENTER YOUR DETAILS</p>
+        </div>
 
-      <form
-        id="signup-form"
-        action="/signup"
-        method="post"
-        enctype="multipart/form-data"
-      >
+        <form
+          id="signup-form"
+          action="/signup"
+          method="post"
+          enctype="multipart/form-data"
+        >
 
-      <div class="container">
-          <label for="">Role</label>
-          <select name="role" id="role" required>
-            <option value="">-- Select Role --</option>
-            <option value="school_admin">School Admin</option>
-            <option value="teacher">Teacher</option>
-            <option value="student">School Student</option>
-            <option value="user">Individual User</option>
-            <option value="parent">Parent</option>
-          </select>
-        </div> <br>
-        
-        <!-- <input type="email" name="email" required placeholder="Email" /> -->
-         <div class="emailcheck" id="emailcheck" style="display: block;">
+        <div class="container">
+            <label for="">Role</label>
+            <select name="role" id="role" required>
+              <option value="">-- Select Role --</option>
+              <option value="school_admin">School Admin</option>
+              <option value="teacher">Teacher</option>
+              <option value="student">School Student</option>
+              <option value="user">Individual User</option>
+              <option value="parent">Parent</option>
+            </select>
+          </div> <br>
+          
+          <!-- <input type="email" name="email" required placeholder="Email" /> -->
+          <div class="emailcheck" id="emailcheck" style="display: block;">
+            <div class="container">
+              <input type="text" name="email" placeholder="Email" required />
+              <span class="toggle-password">
+                <i class="fa fa-envelope"></i>
+              </span>
+            </div>
+          </div>
+
+
+          <!-- <input type="text" name="username" required placeholder="Username" />
+          -->
           <div class="container">
-            <input type="text" name="email" placeholder="Email" required />
+            <input type="text" name="username" placeholder="Full name" required />
             <span class="toggle-password">
-              <i class="fa fa-envelope"></i>
+              <i class="fa fa-user"></i>
             </span>
           </div>
-        </div>
 
+          <!-- <input type="number" name="phone" required placeholder="Phone" /> -->
+          <div class="container">
+            <input type="number" name="phone" placeholder="Phone" required />
+            <span class="toggle-password">
+              <i class="fa fa-phone"></i>
+            </span>
+          </div>
 
-        <!-- <input type="text" name="username" required placeholder="Username" />
-        -->
-        <div class="container">
-          <input type="text" name="username" placeholder="Full name" required />
-          <span class="toggle-password">
-            <i class="fa fa-user"></i>
-          </span>
-        </div>
+          <div class="container">
+            <!-- <label for="">Date of Birth</label> -->
+            <input type="date" name="dob" placeholder="Date of birth" required/>
+            <span class="toggle-password">
+              <!-- <i class="fa fa-calendar"></i> -->
+            </span>
+          </div>
 
-        <!-- <input type="number" name="phone" required placeholder="Phone" /> -->
-        <div class="container">
-          <input type="number" name="phone" placeholder="Phone" required />
-          <span class="toggle-password">
-            <i class="fa fa-phone"></i>
-          </span>
-        </div>
+          <div class="gender-box">
+            <select class="gender-details" name="gender" required>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Not Specified</option>
+            </select>
+          </div>
 
-        <div class="container">
-          <!-- <label for="">Date of Birth</label> -->
-          <input type="date" name="dob" placeholder="Date of birth" required/>
-          <span class="toggle-password">
-            <!-- <i class="fa fa-calendar"></i> -->
-          </span>
-        </div>
+          <div class="password-container">
+            <input
+              id="password"
+              type="password"
+              name="password"
+              placeholder="Password"
+              required
+            />
+            <span id="togglePassword" class="toggle-password">
+              <i class="fa fa-eye"></i>
+            </span>
+          </div>
 
-        <div class="gender-box">
-          <!-- <label style="font-size: 13px; color: grey; padding: 4px;" for=""
-            >Gender</label
-          > -->
-          <select class="gender-details" name="gender" required>
-            <option>Male</option>
-            <option>Female</option>
-            <option>Not Specified</option>
-          </select>
-        </div>
+          <!-- Extra fields for School Admin -->
+          <div id="school-admin-fields" style="display:none;">
+            <div class="container">
+              <input type="text" name="schoolName" placeholder="School Name" />
+            </div>
+            <div class="container">
+              <input type="text" name="schoolAddress" placeholder="School Address" />
+            </div>
+            <div class="container">
+              <label for="schoolLogo">Upload School Logo:</label>
+              <input type="file" id="schoolLogo" name="schoolLogo" accept="image/*" />
+            </div>
+            <!-- Optional: Preview -->
+            <div class="preview-container">
+              <img id="schoolLogoPreview" style="display:none;width:80px;height:80px;border-radius:50%;" alt="School Logo Preview">
+            </div>
+          </div>
 
-        <div class="password-container">
+          <!-- Extra fields for Teacher/School Student -->
+          <div id="school-id-field" style="display:none;">
+            <div class="container">
+              <input type="text" id="schoolId" name="schoolId" placeholder="Enter School ID" />
+            </div>
+            <p id="school-name-display" style="color:green; font-size:13px;"></p>
+          </div>
+
+          <!-- File input for image upload -->
+          <label style="font-size: 12px" for="profile-pic"
+            >Upload Profile Picture:</label
+          >
           <input
-            id="password"
-            type="password"
-            name="password"
-            placeholder="Password"
-            required
+            type="file"
+            id="file-input"
+            name="profile_picture"
+            accept="image/*"
           />
-          <span id="togglePassword" class="toggle-password">
-            <i class="fa fa-eye"></i>
-          </span>
-        </div>
-        
-        <!-- <div class="container">
-          <label for="">Role</label>
-          <select name="role" required>
-            <option value="user">Student</option>
-            <option value="parent">Parent</option>
-          </select>
-        </div> -->
 
-
-        <!-- Extra fields for School Admin -->
-        <!-- <div id="school-admin-fields" style="display:none;">
-          <div class="container">
-            <input type="text" name="schoolName" placeholder="School Name" />
+          <!-- Preview image container -->
+          <div class="preview-container" id="preview-container">
+            <img id="preview-image" alt="Image Preview" />
           </div>
-          <div class="container">
-            <input type="text" name="schoolAddress" placeholder="School Address" />
-          </div>
-        </div> -->
 
-        <!-- Extra fields for School Admin -->
-<div id="school-admin-fields" style="display:none;">
-  <div class="container">
-    <input type="text" name="schoolName" placeholder="School Name" />
-  </div>
-  <div class="container">
-    <input type="text" name="schoolAddress" placeholder="School Address" />
-  </div>
-  <div class="container">
-    <label for="schoolLogo">Upload School Logo:</label>
-    <input type="file" id="schoolLogo" name="schoolLogo" accept="image/*" />
-  </div>
-  <!-- Optional: Preview -->
-  <div class="preview-container">
-    <img id="schoolLogoPreview" style="display:none;width:80px;height:80px;border-radius:50%;" alt="School Logo Preview">
-  </div>
-</div>
+          <button id="signupBtn" class="btn-sec" style="width: 100%;" type="submit">Sign Up</button>
+          <span id="spinner" style="display:none; margin-left:10px;">⏳ Sending...</span>
+        </form>
+        <p style="text-align: center;">Already have an account? <a href="/admin/login">Login</a></p>
 
-
-        <!-- Extra fields for Teacher/School Student -->
-        <div id="school-id-field" style="display:none;">
-          <div class="container">
-            <input type="text" id="schoolId" name="schoolId" placeholder="Enter School ID" />
-          </div>
-          <p id="school-name-display" style="color:green; font-size:13px;"></p>
-        </div>
-
-        <!-- File input for image upload -->
-        <label style="font-size: 12px" for="profile-pic"
-          >Upload Profile Picture:</label
-        >
-        <input
-          type="file"
-          id="file-input"
-          name="profile_picture"
-          accept="image/*"
+        <!-- OTP Modal -->
+        <div id="otp-modal" class="otp-modal" style="display: none">
+          <div
           
-        />
-
-        <!-- Preview image container -->
-        <div class="preview-container" id="preview-container">
-          <img id="preview-image" alt="Image Preview" />
-        </div>
-
-        <button id="signupBtn" style="width: 100%;" type="submit">Sign Up</button>
-        <span id="spinner" style="display:none; margin-left:10px;">⏳ Sending...</span>
-      </form>
-      <p style="text-align: center;">Already have an account? <a href="/admin/login">Login</a></p>
-
-      <!-- OTP Modal -->
-      <div id="otp-modal" class="otp-modal" style="display: none">
-        <div
-         
-        >
-          <p style="color: #218838">
-            Please check your email for verification OTP sent and enter it
-            below.
-          </p>
-          <p style="color: #e73f07">
-            you can also check your spam folder if you don't see it in your
-            inbox.
-          </p>
-          <!-- <input id="email-input" type="text" name="email" placeholder="Email" required />
-          <span class="toggle-password">
-            <i class="fa fa-envelope"></i>
-          </span> -->
-          <input id="otp-input" placeholder="Enter OTP" />
-          <button id="verifyBtn" onclick="verifyOtp()">Verify OTP</button>
-          <span id="spinner2" style="display:none; margin-left:10px;">⏳ Sending...</span>
+          >
+            <p style="color: #218838">
+              Please check your email for verification OTP sent and enter it
+              below.
+            </p>
+            <p style="color: #e73f07">
+              you can also check your spam folder if you don't see it in your
+              inbox.
+            </p>
+            <input id="otp-input" placeholder="Enter OTP" />
+            <button id="verifyBtn" onclick="verifyOtp()">Verify OTP</button>
+            <span id="spinner2" style="display:none; margin-left:10px;">⏳ Sending...</span>
+          </div>
         </div>
       </div>
+
+      <div class="form-image">
+
+        <img 
+          src="/images/JKT logo bg.png"
+          alt="Login Illustration"
+        >
+
+        <h2>Join Our Learning Community</h2>
+
+        <p style="color:white">
+          Create your account to access courses, interactive labs,
+          career pathways, projects, and learning resources designed
+          to help you build valuable digital skills.
+        </p>
+
+      </div>
     </div>
+    
 
 <script>
 window.addEventListener("DOMContentLoaded", async () => {

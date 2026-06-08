@@ -375,7 +375,8 @@
           <% }) %>
         </div>
          <div style="text-align: center; margin-top: 1rem;">
-          <a href="/courses" class="login-button">View All Courses</a>
+          <button onclick="window.location.href='/courses'" class="btn-sec">View All Courses</button>
+          <!-- <a href="/courses" class="login-button">View All Courses</a> -->
         </div>
       </section>
 
@@ -398,7 +399,7 @@
         </section>
       <% } %>
       <div style="text-align: center; margin-top: 20px; width: 100%;">
-      <a style="text-decoration: none; padding: 8px 10px; background-color: black; color: white; margin-top: 20px; border-radius: 10px;" href="/gallery">Click to view gallery</a>
+        <button class="btn-sec" onclick="window.location.href='/gallery'">View Gallery</button>
       </div>
     </section>
 
@@ -424,7 +425,7 @@
         </div>
         <p>You can click on the testimony to view full details</p>
         <div style="text-align: center; margin-top: 20px">
-          <a href="/testimony" class="login-button">View All Testimony</a>
+          <button class="btn-sec" onclick="window.location.href='/testimony'">View All Testimony</button>
         </div>
       </section>
 
@@ -488,11 +489,13 @@
           <div class="faq-item">
              
             <div class="faq-question" onclick="toggleFaq(<%- index %>)">
-              <h4>Q: <%- faq.question %></h4> 
-              <i id="icon-<%= index %>" class="fas fa-plus"></i> 
+              <!-- <h4>Q: <%- faq.question %></h4>  -->
+              <h4><%- faq.question %></h4> 
+              <i id="icon-<%= index %>" class="fas fa-angle-down"></i> 
             </div> 
             <div id="answer-<%= index %>" class="faq-answer hidden"> 
               <% if (faq.answer) { %> 
+                <!-- <p><strong>A:</strong> <%- faq.answer %></p>  -->
                 <p><strong>A:</strong> <%- faq.answer %></p> 
                 <% } else { %> 
                   <p><em>Answer coming soon...</em></p> 
@@ -501,16 +504,13 @@
               </div> <% }) %> 
       </div> 
       <div style="text-align: center; margin-top: 20px">
-        <a href="/faq" class="login-button">Ask a question</a>
+        <button class="btn-sec" onclick="window.location.href='/faq'">Ask a question</button>
       </div>
     </section>
     
     <% if (isLoggedIn) { %>
       <!-- <a href="/make-payment" class="btn btn-primary">Make a Payment</a> -->
     <% } else { %>
-      <!-- <a href=""> -->
-        <!-- <button onclick="promptLogin()" class="btn btn-primary">Make a Payment</button> -->
-      <!-- </a> -->
       <script>
         function promptLogin() {
           alert("Please login to make a payment.");
@@ -559,12 +559,12 @@
         const icon = document.getElementById(`icon-${index}`); 
         if (answer.classList.contains('hidden')) {
         answer.classList.remove('hidden'); 
-          icon.classList.remove('fa-plus'); 
-          icon.classList.add('fa-minus'); } 
+          icon.classList.remove('fa-angle-down'); 
+          icon.classList.add('fa-angle-up'); } 
         else { 
           answer.classList.add('hidden'); 
-          icon.classList.remove('fa-minus'); 
-          icon.classList.add('fa-plus'); 
+          icon.classList.remove('fa-angle-up'); 
+          icon.classList.add('fa-angle-down'); 
         } 
       } 
     </script>

@@ -10,274 +10,6 @@
   <link rel="stylesheet" href="/css/styles3.css" />
 
  <style>
-
-  /* =========================
-    TABS
-  ========================= */
-
-  .login-tabs{
-    display:flex;
-    gap:15px;
-    margin-bottom:25px;
-  }
-
-  .login-tab{
-    flex:1;
-    border:none;
-    border-radius:18px;
-    padding:18px;
-    cursor:pointer;
-    background:#f5f5f5;
-    transition:.3s;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-    font-weight:bold;
-    box-shadow:0 4px 12px rgba(0,0,0,.08);
-    color:#000;
-  }
-
-  .login-tab:hover{
-    transform:translateY(-3px);
-  }
-
-  .login-tab.active{
-    background:#000;
-    color:#fff;
-  }
-
-  .tab-icon{
-    font-size:30px;
-  }
-
-  /* =========================
-    LOGIN SECTION
-  ========================= */
-
-  .login-section{
-    display:none;
-  }
-
-  .login-section.active{
-    display:block;
-  }
-
-  /* =========================
-    SELECT BUTTONS
-  ========================= */
-
-  .selection-launcher{
-    display:flex;
-    align-items:center;
-    gap:15px;
-    background:#fff;
-    border-radius:18px;
-    padding:15px;
-    margin-bottom:18px;
-    cursor:pointer;
-    transition:.3s;
-    box-shadow:0 4px 12px rgba(0,0,0,.08);
-  }
-
-  .selection-launcher:hover{
-    transform:translateY(-3px);
-  }
-
-  .selection-launcher img{
-    width:65px;
-    height:65px;
-    object-fit:cover;
-    border-radius:15px;
-  }
-
-  .selection-launcher h3{
-    margin:0;
-    font-size:18px;
-    color:#111;
-  }
-
-  .selection-launcher p{
-    margin-top:4px;
-    color:#666;
-    font-size:14px;
-  }
-
-  /* =========================
-    MODALS
-  ========================= */
-
-  .pin-modal{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.6);
-    display:none;
-    justify-content:center;
-    align-items:center;
-    z-index:9999;
-    padding:20px;
-  }
-
-  .selection-modal-box{
-    width:100%;
-    max-width:700px;
-    background:#fff;
-    border-radius:25px;
-    padding:25px;
-    position:relative;
-    max-height:85vh;
-    overflow-y:auto;
-  }
-
-  .selection-modal-box h3{
-    margin-bottom:20px;
-    text-align:center;
-  }
-
-  /* =========================
-    SCHOOL & CLASSROOM GRID
-  ========================= */
-
-  .selection-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-    gap:18px;
-  }
-
-  .selection-card{
-    background:#f9f9f9;
-    border-radius:18px;
-    padding:18px 12px;
-    text-align:center;
-    cursor:pointer;
-    transition:.3s;
-    border:2px solid transparent;
-  }
-
-  .selection-card:hover{
-    transform:translateY(-4px);
-    border-color:#000;
-    background:#fff;
-  }
-
-  .selection-card img{
-    width:70px;
-    height:70px;
-    object-fit:cover;
-    border-radius:16px;
-    margin-bottom:10px;
-  }
-
-  .selection-card p{
-    font-size:14px;
-    font-weight:600;
-    color:#222;
-    margin:0;
-  }
-
-  /* =========================
-    STUDENTS
-  ========================= */
-
-  .student-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-    gap:18px;
-    margin-top:25px;
-  }
-
-  .student-card{
-    background:#fff;
-    border-radius:20px;
-    padding:18px 10px;
-    text-align:center;
-    cursor:pointer;
-    transition:.3s;
-    box-shadow:0 4px 12px rgba(0,0,0,.08);
-  }
-
-  .student-card:hover{
-    transform:translateY(-4px);
-    background:#f9f9f9;
-  }
-
-  .student-card img{
-    width:80px;
-    height:80px;
-    border-radius:50%;
-    object-fit:cover;
-    margin-bottom:10px;
-    border:3px solid #eee;
-  }
-
-  .student-card p{
-    font-size:14px;
-    font-weight:600;
-    margin:0;
-    color:#222;
-  }
-
-  /* =========================
-    PIN MODAL
-  ========================= */
-
-  .pin-box{
-    background:#fff;
-    padding:30px;
-    border-radius:25px;
-    width:100%;
-    max-width:340px;
-    text-align:center;
-    position:relative;
-    box-shadow:0 10px 30px rgba(0,0,0,.2);
-  }
-
-  .pin-box h3{
-    margin-bottom:10px;
-  }
-
-  .pin-box input{
-    width:100%;
-    padding:14px;
-    margin:20px 0;
-    text-align:center;
-    font-size:24px;
-    letter-spacing:5px;
-    border-radius:12px;
-    border:1px solid #ddd;
-    outline:none;
-  }
-
-  .pin-box button:not(.pin-close){
-    width:100%;
-    padding:14px;
-    border:none;
-    border-radius:12px;
-    background:#000;
-    color:#fff;
-    font-size:16px;
-    cursor:pointer;
-  }
-
-  /* =========================
-    CLOSE BUTTON
-  ========================= */
-
-  .pin-close{
-    position:absolute;
-    top:10px;
-    right:14px;
-    background:none;
-    border:none;
-    font-size:28px;
-    cursor:pointer;
-    color:#555;
-  }
-
-  .pin-close:hover{
-    color:red;
-  }
-
   /* =========================
     MOBILE
   ========================= */
@@ -310,12 +42,13 @@
 </style>
 </head>
 
-<body class="signup-body">
-
+<!-- class="signup-body" -->
+<body >
+<div class="login-container">
   <div class="form-container">
 
-    <h2>Login</h2>
-    <p>Please enter your login details</p>
+    <!-- <h2>Login</h2> -->
+    <p>Select you login method and enter your login details</p>
 
     <% if (typeof error !== "undefined" && error) { %>
       <p style="color:red;"><%= error %></p>
@@ -332,7 +65,7 @@
         class="login-tab active"
         onclick="switchTab('normal', this)"
       >
-        <div class="tab-icon">🔐</div>
+        <!-- <div class="tab-icon">🔐</div> -->
         <span>Email Login</span>
       </button>
 
@@ -341,7 +74,7 @@
         class="login-tab"
         onclick="switchTab('student', this)"
       >
-        <div class="tab-icon">🎓</div>
+        <!-- <div class="tab-icon">🎓</div> -->
         <span>School Student Login</span>
       </button>
 
@@ -377,10 +110,12 @@
 
         <br>
 
-        <label>
-          <input type="checkbox" onclick="togglePassword()">
-          Show Password
-        </label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+          <input style="width: fit-content;" type="checkbox" onclick="togglePassword()">
+          <label style="width: 100%;">
+            Show Password
+          </label>
+        </div>
 
         <br><br>
 
@@ -390,7 +125,7 @@
           </a>
         </p>
 
-        <button type="submit" style="width:100%;">
+        <button type="submit" style="width:100%;" class="btn-sec">
           Login
         </button>
 
@@ -446,11 +181,27 @@
     </p>
 
   </div>
+  <div class="form-image">
+
+    <img 
+      src="/images/JKT logo bg.png"
+      alt="Login Illustration"
+    >
+
+    <h2>Welcome Back</h2>
+
+    <p style="color:white">
+      Access your dashboard, manage courses,
+      students, content, and monitor activities
+      from one central location.
+    </p>
+
+  </div>
+</div>
 
   <!-- =========================
     SCHOOL MODAL
   ========================== -->
-
   <div id="schoolModal" class="pin-modal">
 
     <div class="selection-modal-box">
