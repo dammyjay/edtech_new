@@ -12,51 +12,42 @@
     <!-- Header -->
     <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <!-- <form method="GET" action="/admin/pathways" style="margin-top: 20px">
-      <input
-        type="text"
-        name="search"
-        placeholder="Search by title..."
-        value="<%= search || '' %>"
-      />
-      <button type="submit">Search</button>
-    </form> -->
-
     <h2>Existing Pathways</h2>
 
     <div class="container2">
-      <button onclick="openModal()" class="btn-create">
+      <button onclick="openModal()" class="btn-pri">
         + Create New Pathway
       </button>
     </div>
 
-    <section class="article-grid">
+    <section class="section">
+    <div class="card-grid">
       <% pathways.forEach(pathway => { %>
-      <div class="article-card">
-        <h3><%= pathway.title %></h3>
-
+      <div class="card-thumbnail">
         <% if (pathway.thumbnail_url) { %>
         <img
           src="<%= pathway.thumbnail_url %>"
           alt="Pathway Thumbnail"
-          style="background-color: #d6a740;"
           
         />
         <% } %>
-
-        <div class="article-body" id="desc-<%= pathway.id %>">
-          <%- pathway.description.substring(0, 100) %>...
+        <div class="card-content">
+          <h3><%= pathway.title %></h3>
+          <div
+            class="card-body"
+            id="desc-<%= pathway.id %>"
+            data-full-description="<%= pathway.description.replace(/"/g, '&quot;') %>"
+            data-short-description="<%= pathway.description.substring(0,100).replace(/"/g, '&quot;') %>..."
+          >
+            <%- pathway.description.substring(0,100) %>...
+          </div>
         </div>
-
         <a
           href="javascript:void(0);"
           class="toggle-article"
           onclick="togglePathway(<%= pathway.id %>)"
           >Show More</a
         >
-
-        
-
         <div class="article-buttons">
           <!-- <a href="/admin/pathways/edit/<%= pathway.id %>">Edit</a> -->
           <button class="btn-edit" onclick="openEditModal(<%= pathway.id %>)">
@@ -163,6 +154,7 @@
         CKEDITOR.replace("edit-audience-<%= pathway.id %>");
       </script>
       <% }) %>
+      </div>
     </section>
 
     <!-- Create Pathway Modal -->
@@ -170,31 +162,7 @@
       <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
         <h2>Create New Pathway</h2>
-        <!-- <form
-          action="/admin/pathways"
-          method="POST"
-          enctype="multipart/form-data"
-        >
-          <input
-            type="text"
-            name="title"
-            placeholder="Pathway Name"
-            required
-          /><br />
-          <textarea
-            name="description"
-            id="content"
-            placeholder="Description"
-          ></textarea
-          ><br />
-          <input type="file" name="thumbnail" accept="image/*" /><br />
-
-          <div class="preview-container">
-            <img id="preview-image" alt="Image Preview" />
-          </div>
-
-          <button type="submit">Create Pathway</button>
-        </form> -->
+        
         <form
           action="/admin/pathways"
           method="POST"
@@ -271,7 +239,8 @@
       </div>
     </div>
 
-    <a href="/admin/dashboard">Back to Dashboard</a>
+    <button class="btn-pri" onclick="window.location.href='/admin/dashboard'">Back to Dashboard</button>
+    <!-- <a href="/admin/dashboard">Back to Dashboard</a> -->
     <script>
       CKEDITOR.replace("content");
     </script>
@@ -298,7 +267,7 @@
 
     <!-- Script not to be able to copy content from article body -->
     <script>
-      document.querySelectorAll(".article-body").forEach(function (el) {
+      document.querySelectorAll(".card-body").forEach(function (el) {
         el.addEventListener("contextmenu", function (e) {
           e.preventDefault();
         });
@@ -331,6 +300,21 @@
 
     <!-- script for opening and closing the modal -->
     <script>
+      function togglePathway(id) {
+        const desc = document.getElementById(`desc-${id}`);
+        const link = event.target;
+
+        const shortText = desc.dataset.shortDescription;
+        const fullText = desc.dataset.fullDescription;
+
+        if (link.innerText === "Show More") {
+          desc.innerHTML = fullText;
+          link.innerText = "Show Less";
+        } else {
+          desc.innerHTML = shortText;
+          link.innerText = "Show More";
+        }
+      }
       function openModal() {
         document.getElementById("createModal").style.display = "block";
       }
@@ -342,6 +326,7 @@
       function openEditModal(id) {
         document.getElementById("editModal-" + id).style.display = "block";
       }
+      
 
       function closeEditModal(id) {
         document.getElementById("editModal-" + id).style.display = "none";

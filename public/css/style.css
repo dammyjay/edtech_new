@@ -1357,7 +1357,7 @@ button:hover {
  .card-content h4 {
      text-decoration: none;
      color: var(--brand-pri);
-     font-size: 14px;
+     font-size: 16px;
      font-weight: 600;
  }
 

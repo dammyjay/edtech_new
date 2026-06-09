@@ -18,41 +18,36 @@
     </div>
 
    <!-- COURSE GRID -->
-  <section class="article-grid">
+<section class="section">
+    <div class="card-grid">
     <% courses.forEach(course => { %>
-      <div class="article-card hoverable">
-        
-        <h3><%= course.title %></h3>
-        <p>Course ID: <%= course.id %></p>
-        <% if (course.thumbnail_url) { %>
-            <a href="/admin/courses/<%= course.id %>" class="article-card-link">
-                <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail" />
-            </a>
-        <% } %> <br>
-        <small style="color: rgb(143, 112, 9);"><strong> created by: </strong><%= course.created_by %></small>
-        <p><%- course.description.substring(0, 100) %>...</p>
-        <small style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></small>
+      <div class="card-thumbnail hoverable">
+          <% if (course.thumbnail_url) { %>
+              <a href="/admin/courses/<%= course.id %>" class="article-card-link">
+                  <img src="<%= course.thumbnail_url %>" 
+                    alt="Course Thumbnail"
+                    style="width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background-color: #d6a740;"
+                  />
+              </a>
+          <% } %> 
+        <br>
 
-        <div class="article-buttons">
-          <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
-          <button class="btn-delete" onclick="openDeleteModal(<%= course.id %>)">Delete</button>
+        <div class="card-content">
+          <h3><%= course.title %></h3>
+          <p>Course ID: <%= course.id %></p>
+          <div class="card-body">
+            <p><%- course.description.substring(0, 100) %>...</p>
+          </div>
+          <small style="color: rgb(143, 112, 9);"><strong> created by: </strong><%= course.created_by %></small>
+          <small style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></small>
+          <div class="article-buttons">
+            <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+            <button class="btn-delete" onclick="openDeleteModal(<%= course.id %>)">Delete</button>
+          </div>
         </div>
+        
       </div>
 
-      <!-- EDIT MODAL -->
-      <!-- <div id="editModal-<%= course.id %>" class="modal">
-        <div class="modal-content">
-          <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
-          <h2>Edit Course</h2>
-          <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
-            <input type="text" name="title" value="<%= course.title %>" required />
-            <textarea id="content" name="description"><%- course.description %></textarea>
-            <input type="text" name="level" value="<%= course.level %>" required />
-            <input type="file" name="thumbnail" accept="image/*" />
-            <button type="submit">Update</button>
-          </form>
-        </div>
-      </div> -->
       <div id="editModal-<%= course.id %>" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
@@ -117,7 +112,7 @@
             <% }); %>
         </script>
 
-</div>
+      </div>
 
 
       <!-- DELETE MODAL -->
@@ -131,7 +126,8 @@
         </div>
       </div>
     <% }) %>
-  </section>
+  </div>
+</section>
 
   <!-- CREATE COURSE MODAL -->
   <!-- <div id="createModal" class="modal">
