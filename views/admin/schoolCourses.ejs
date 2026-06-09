@@ -1,52 +1,96 @@
 
  <%- include('../partials/adminHeader', { title: 'Assign Courses' }) %>
 
-<h2>Assign Courses to Schools</h2>
+<div class="assign-container">
 
-<% if (schools.length === 0) { %>
-  <p>No schools found.</p>
-<% } else if (courses.length === 0) { %>
-  <p>No courses available to assign.</p>
-<% } else { %>
+  <div class="page-header">
+    <h2>Assign Courses to Schools</h2>
+    <p>Select courses and assign them to specific schools.</p>
+    <% if (schools.length === 0) { %>
+    <p>No schools found.</p>
+  <% } else if (courses.length === 0) { %>
+    <p>No courses available to assign.</p>
+  <% } else { %>
+  </div>
 
-<form method="POST" action="/admin/school-courses/assign">
-  <% schools.forEach(school => { %>
-    <div class="school-section">
-      <h3>
-        <button type="button" class="collapse-btn" onclick="toggleCourses('<%= school.id %>')">
-          <%= school.name %> ▾
-        </button>
-      </h3>
+  <form method="POST" action="/admin/school-courses/assign">
+    <% schools.forEach(school => { %>
+      <div class="school-section">
+        <h3>
+          <button
+            type="button"
+            class="collapse-btn"
+            onclick="toggleCourses('<%= school.id %>', this)"
+          >
+            <span><%= school.name %></span>
+            <span class="arrow">▼</span>
+          </button>
+        </h3>
 
-      <div id="courses-<%= school.id %>" class="courses-list" style="display:none; margin-left: 20px;">
-        <input type="text" placeholder="Search courses..." class="course-search" onkeyup="filterCourses('<%= school.id %>')">
-        <br><br>
-        <% courses.forEach(course => { %>
-          <label class="course-item">
-            <input 
-              type="checkbox" 
-              name="school_<%= school.id %>[]" 
-              value="<%= course.id %>"
-              <% if (schoolCoursesMap[school.id] && schoolCoursesMap[school.id].includes(course.id)) { %> checked <% } %>
+        <div id="courses-<%= school.id %>" class="courses-list" style="display:none; margin-left: 20px;">
+          <input type="text" placeholder="Search courses..." class="course-search" onkeyup="filterCourses('<%= school.id %>')">
+          
+          <div class="course-grid">
+            <% courses.forEach(course => { %>
+            <label class="course-item">
+              <input
+                type="checkbox"
+                name="school_<%= school.id %>[]"
+                value="<%= course.id %>"
+                <% if (
+                  schoolCoursesMap[school.id] &&
+                  schoolCoursesMap[school.id].includes(course.id)
+                ) { %>
+                  checked
+                <% } %>
+              >
+              <span><%= course.title %></span>
+            </label>
+            <% }) %>
+          </div>
+          <button
+              type="submit"
+              class="assign-btn"
+              name="school_id"
+              value="<%= school.id %>"
             >
-            <%= course.title %>
-          </label><br>
-        <% }) %>
-        <br>
-        <button type="submit" name="school_id" value="<%= school.id %>">Assign Courses</button>
+              Save Course Assignments
+            </button>
+        </div>
+        <hr>
       </div>
-      <hr>
-    </div>
-  <% }) %>
-</form>
+    <% }) %>
+  </form>
 
-<% } %>
+  <% } %>
+</div>
+
+
 
 <script>
-  function toggleCourses(schoolId) {
-    const div = document.getElementById('courses-' + schoolId);
-    div.style.display = div.style.display === 'none' ? 'block' : 'none';
-  }
+  function toggleCourses(schoolId, btn){
+
+    const div =
+      document.getElementById(
+        "courses-" + schoolId
+      );
+
+    const arrow =
+      btn.querySelector(".arrow");
+
+    if(div.style.display === "none"){
+
+        div.style.display = "block";
+        arrow.textContent = "▲";
+
+    }else{
+
+        div.style.display = "none";
+        arrow.textContent = "▼";
+
+    }
+
+}
 
   function filterCourses(schoolId) {
     const input = document.querySelector('#courses-' + schoolId + ' .course-search');
@@ -61,22 +105,175 @@
 </script>
 
 <style>
-  .collapse-btn {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-  }
-
-  .courses-list input[type="text"] {
+/* =====================================
+   PAGE
+===================================== */
+.assign-container{
+    max-width:1200px;
     width: 100%;
-    padding: 5px;
-    margin-bottom: 10px;
-  }
+    padding:20px;
+}
 
-  .course-item {
-    display: block;
-    margin-bottom: 5px;
-  }
+.page-header{
+    margin-bottom:30px;
+    text-align: center;
+}
+
+.page-header h2{
+    font-size:32px;
+    margin-bottom:8px;
+    color:#222;
+}
+
+.page-header p{
+    color:#666;
+}
+/* =====================================
+   SCHOOL CARD
+===================================== */
+.school-section{
+    background:#fff;
+    border-radius:18px;
+    margin-bottom:20px;
+    overflow:hidden;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    border:1px solid #eee;
+}
+
+/* =====================================
+   COLLAPSE HEADER
+===================================== */
+
+.collapse-btn{
+    width:100%;
+    border:none;
+    background:#fff;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:22px 25px;
+
+    font-size:18px;
+    font-weight:600;
+
+    cursor:pointer;
+    transition:.3s;
+}
+
+.collapse-btn:hover{
+    background:#f9f9f9;
+}
+
+/* =====================================
+   COURSE AREA
+===================================== */
+
+.courses-list{
+    padding:25px;
+    border-top:1px solid #eee;
+}
+
+/* =====================================
+   SEARCH
+===================================== */
+
+.course-search{
+    width:100%;
+    padding:14px 18px;
+    border:1px solid #ddd;
+    border-radius:12px;
+    font-size:15px;
+    outline:none;
+    margin-bottom:20px;
+}
+
+.course-search:focus{
+    border-color:#b8860b;
+}
+
+/* =====================================
+   COURSES GRID
+===================================== */
+
+.course-grid{
+    display:grid;
+    grid-template-columns:
+      repeat(auto-fill,minmax(250px,1fr));
+    gap:15px;
+    margin-bottom:25px;
+}
+
+/* =====================================
+   COURSE ITEM
+===================================== */
+
+.course-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:15px;
+    background:#f8f8f8;
+    border-radius:12px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.course-item:hover{
+    background:#f1f1f1;
+    transform:translateY(-2px);
+}
+
+.course-item input{
+    width:18px;
+    height:18px;
+    cursor:pointer;
+}
+
+.course-item span{
+    font-size:15px;
+    color:#222;
+}
+
+/* =====================================
+   BUTTON
+===================================== */
+
+.assign-btn{
+    background:#b8860b;
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:14px 25px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.assign-btn:hover{
+    background:#9d7207;
+}
+
+/* =====================================
+   MOBILE
+===================================== */
+
+@media(max-width:768px){
+
+    .page-header h2{
+        font-size:24px;
+    }
+
+    .collapse-btn{
+        font-size:16px;
+        padding:18px;
+    }
+
+    .course-grid{
+        grid-template-columns:1fr;
+    }
+
+}
 </style>

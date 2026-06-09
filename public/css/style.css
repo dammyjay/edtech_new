@@ -295,11 +295,11 @@ header {
 }
 
 .purple-bg {
-    background: #6f42c1;
+    background: rgb(110, 1, 110);
 }
 
 .metric-card.purple {
-    border-left: 6px solid #6f42c1;
+    border-left: 6px solid rgb(110, 1, 110);
 }
 
 .teal-bg {
@@ -318,12 +318,27 @@ header {
     border-left: 6px solid #fd7e14;
 }
 
+.dark-red-bg {
+    background: #c70404;
+}
+
+.metric-card.dark-red {
+    border-left: 6px solid #c70404;
+}
+
 .green-bg {
     background: #28a745;
 }
 
 .metric-card.green {
     border-left: 6px solid #28a745;
+}
+.dark-green-bg {
+    background: #025a10;
+}
+
+.metric-card.dark-green {
+    border-left: 6px solid #025a10;
 }
 
 .pink-bg {
@@ -349,6 +364,7 @@ header {
 .success-bg {
     background: #1cc88a;
 }
+
 
 /* .card-content {
     text-align: right;

@@ -39,15 +39,6 @@
     <div class="engagement-grid">
 
       <!-- TOTAL EXPECTED -->
-      <div class="metric-card" style="border-bottom: 6px solid #1079f2;">
-        <div class="card-icon" style="background-color: #1079f2;">
-          <i class="fa-solid fa-money-bill-wave"></i>
-        </div>
-        <div class="card-content">
-          <h4>Total Expected</h4>
-          <h3 id="cardTotalExpected">₦0</h3>
-        </div>
-      </div>
       <div class="metric-card">
             <div class="card-title blue-bg">
                 <p>Total Expected</p>
@@ -61,80 +52,95 @@
         </div>
 
       <!-- TOTAL PAID -->
-      <div class="metric-card" style="border-bottom: 6px solid #025a10;">
-        <div class="card-icon" style="background-color: #025a10;">
-          <i class="fa-solid fa-check"></i>
+       <div class="metric-card">
+            <div class="card-title dark-green-bg">
+                <p>Total Collected</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon dark-green-bg">
+                  <i class="fa-solid fa-check"></i>
+                </div>
+                <h4 id="cardTotalPaid">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Total Collected</h4>
-          <h3 id="cardTotalPaid">₦0</h3>
-        </div>
-      </div>
 
       <!-- OUTSTANDING -->
-      <div class="metric-card" style="border-bottom: 6px solid #c70404;">
-        <div class="card-icon" style="background-color: #c70404;">
-          <i class="fa-solid fa-clock"></i>
+       <div class="metric-card">
+            <div class="card-title dark-red-bg">
+                <p>Outstanding</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon dark-red-bg">
+                  <i class="fa-solid fa-clock"></i>
+                </div>
+                <h4 id="cardOutstanding">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Outstanding</h4>
-          <h3 id="cardOutstanding">₦0</h3>
-        </div>
-      </div>
 
       <!-- COLLECTION RATE -->
-      <div class="metric-card" style="border-bottom: 6px solid #6610f2;">
-        <div class="card-icon" style="background-color: #6610f2;">
-          <i class="fa-solid fa-chart-line"></i>
+       <div class="metric-card">
+            <div class="card-title purple-bg">
+                <p>Collection Rate</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon purple-bg">
+                  <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h4 id="cardCollectionRate">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Collection Rate</h4>
-          <h3 id="cardCollectionRate">0%</h3>
-        </div>
-      </div>
 
       <!-- PAID QUOTES -->
-      <div class="metric-card" style="border-bottom: 6px solid #29c50a;">
-        <div class="card-icon" style="background-color: #29c50a;">
-          <i class="fa-solid fa-circle-check"></i>
+       <div class="metric-card">
+            <div class="card-title green-bg">
+                <p>Paid Quotes</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon green-bg">
+                  <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h4 id="cardPaidQuotes">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Paid Quotes</h4>
-          <h3 id="cardPaidQuotes">0</h3>
-        </div>
-      </div>
 
       <!-- PARTIAL -->
-      <div class="metric-card" style="border-bottom: 6px solid orange;">
-        <div class="card-icon" style="background-color: orange;">
-          <i class="fa-solid fa-triangle-exclamation"></i>
+       <div class="metric-card">
+            <div class="card-title orange-bg">
+                <p>Partial Payments</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon orange-bg">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h4 id="cardPartialQuotes">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Partial Payments</h4>
-          <h3 id="cardPartialQuotes">0</h3>
-        </div>
-      </div>
 
       <!-- UNPAID -->
-      <div class="metric-card" style="border-bottom: 6px solid red;">
-        <div class="card-icon" style="background-color: red;">
-          <i class="fa-solid fa-xmark"></i>
+       <div class="metric-card">
+            <div class="card-title dark-red-bg">
+                <p>Overdue Payment</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon dark-red-bg">
+                  <i class="fa-solid fa-xmark"></i>
+                </div>
+                <h4 id="cardUnpaidQuotes">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Overdue Payment</h4>
-          <h3 id="cardUnpaidQuotes">0</h3>
-        </div>
-      </div>
 
       <!-- Pending -->
-      <div class="metric-card" style="border-bottom: 6px solid rgb(110, 1, 110);">
-        <div class="card-icon" style="background-color: rgb(110, 1, 110);">
-          <i class="fa-solid fa-hourglass-half"></i>
+       <div class="metric-card">
+            <div class="card-title indigo-bg">
+                <p>Ongoing Quotes</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon indigo-bg">
+                  <i class="fa-solid fa-hourglass-half"></i>
+                </div>
+                <h4 id="cardPendingQuotes">₦0</h4>
+            </div>
         </div>
-        <div class="card-content">
-          <h4>Ongoing Quotes</h4>
-          <h3 id="cardPendingQuotes">0</h3>
-        </div>  
 
     </div>
   </section>
