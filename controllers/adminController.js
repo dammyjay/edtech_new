@@ -3093,49 +3093,6 @@ exports.viewStudentProgress = async (req, res) => {
     const lessonStart = {};
     const assignmentStart = {};
 
-    // for (const log of logs) {
-    //   const time = new Date(log.created_at);
-
-    //   const match = log.details.match(/\d+/);
-    //   const match2 = log.action.match(/\d+/);
-    //       const lessonId = match ? Number(match[0]) : null;
-    //       const lessonId2 = match2 ? Number(match2[0]) : null;
-
-    //   // LESSON START
-    //   if (log.action === "Viewed Lesson") {
-    //     lessonStart[lessonId] = time;
-    //   }
-
-    //   // LESSON END
-    //   if ((log.action === "Student submitted Quiz") ) {
-    //     if (lessonStart[lessonId2]) {
-    //       const duration = (time - lessonStart[lessonId2]) / 1000;
-
-    //       totalLessonTime += duration;
-
-    //       lessonTimeMap[lessonId2] =
-    //         (lessonTimeMap[lessonId2] || 0) + duration;
-
-    //       delete lessonStart[lessonId2];
-    //     }
-    //   }
-
-    //   // ASSIGNMENT START
-    //   if (log.action === "Viewed Assignment") {
-    //     assignmentStart[log.details] = time;
-    //   }
-
-    //   // ASSIGNMENT END
-    //   if (log.action === "Submitted Assignment") {
-    //     if (assignmentStart[log.details]) {
-    //       totalAssignmentTime +=
-    //         (time - assignmentStart[log.details]) / 1000;
-
-    //       delete assignmentStart[log.details];
-    //     }
-    //   }
-    // }
-
     // fallback calculation if duration is missing
     
     for (const log of logs) {
@@ -3643,46 +3600,6 @@ exports.viewStudentEnrollments = async (req, res) => {
   }
 };
 
-// exports.assignChildToParent = async (req, res) => {
-//   const { parentEmail, childEmail } = req.body;
-
-//   try {
-//     // Verify parent exists
-//     const parentRes = await pool.query(
-//       "SELECT email FROM users2 WHERE id = $1 AND role = 'parent'",
-//       [parentEmail]
-//     );
-//     if (parentRes.rows.length === 0) {
-//       return res.status(404).send("Parent not found");
-//     }
-
-//     // Verify child exists
-//     const childRes = await pool.query(
-//       "SELECT id FROM users2 WHERE email = $1 AND role = 'user'",
-//       [childEmail]
-//     );
-//     if (childRes.rows.length === 0) {
-//       return res.status(404).send("Child not found");
-//     }
-
-//     const child = childRes.rows[0];
-//     const parentId = parentRes.rows[0].id;
-
-//     // Create link
-//     await pool.query(
-//       `INSERT INTO parent_children (parent_id, child_id)
-//        VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-//       [parentId, child.id]
-//     );
-
-//     // res.redirect(`/admin/parents/${parentId}/children`);
-//     res.redirect(`/admin/parents/${parentId}/children`);
-//   } catch (err) {
-//     console.error("Error assigning child:", err);
-//     res.status(500).send("Failed to assign child");
-//   }
-// };
-
 exports.assignChildToParent = async (req, res) => {
   const { parentEmail, childEmail } = req.body;
 
@@ -3777,1028 +3694,1286 @@ function calculateGrade(score) {
 }
 
 
-exports.downloadCourseSummary = async (req, res) => {
-  const { studentId, courseId } = req.params;
+  exports.downloadCourseSummary = async (req, res) => {
+    const { studentId, courseId } = req.params;
 
-  try {
-    /* ==========================
-       FETCH CORE DATA
-    ========================== */
+    try {
+      function formatTimeReadable(seconds) {
+        const sec = Math.floor(seconds % 60);
+        const min = Math.floor((seconds / 60) % 60);
+        const hr = Math.floor(seconds / 3600);
 
-    const studentRes = await pool.query(
-      `SELECT fullname, email, created_at
-       FROM users2 WHERE id = $1`,
-      [studentId],
-    );
-    const student = studentRes.rows[0];
+        let result = "";
 
-    const courseRes = await pool.query(
-      `SELECT id, title, created_at
-       FROM courses WHERE id = $1`,
-      [courseId],
-    );
-    const course = courseRes.rows[0];
+        if (hr > 0) result += `${hr}hr `;
+        if (min > 0) result += `${min}min `;
+        if (sec > 0 || result === "") result += `${sec}sec`;
 
-    const modulesRes = await pool.query(
-      `SELECT id, title
-       FROM modules
-       WHERE course_id = $1
-       ORDER BY id`,
-      [courseId],
-    );
-    const modules = modulesRes.rows;
+        return result.trim();
+      }
+      /* ==========================
+        FETCH CORE DATA
+      ========================== */
 
-    const lessonsRes = await pool.query(
-      `SELECT l.id, l.title, l.module_id,
-              ulp.completed_at
-       FROM lessons l
-       JOIN modules m ON l.module_id = m.id
-       LEFT JOIN user_lesson_progress ulp
-         ON ulp.lesson_id = l.id
-         AND ulp.user_id = $1
-       WHERE m.course_id = $2
-       ORDER BY l.id`,
-      [studentId, courseId],
-    );
-    const lessons = lessonsRes.rows;
+      const studentRes = await pool.query(
+        `SELECT fullname, email, created_at
+        FROM users2 WHERE id = $1`,
+        [studentId],
+      );
+      const student = studentRes.rows[0];
 
-    const quizzesRes = await pool.query(
-      `
-  SELECT
-      q.id,
-      q.title AS quiz_title,
-      l.title AS lesson_title,
-      l.module_id,
-      qs.score,
-      qs.created_at AS taken_at
-  FROM quizzes q
-  JOIN lessons l ON q.lesson_id = l.id
-  JOIN modules m ON l.module_id = m.id
-  LEFT JOIN quiz_submissions qs
-      ON qs.quiz_id = q.id
-      AND qs.student_id = $1
-  WHERE m.course_id = $2
-  ORDER BY q.id
+      const courseRes = await pool.query(
+        `SELECT id, title, created_at
+        FROM courses WHERE id = $1`,
+        [courseId],
+      );
+      const course = courseRes.rows[0];
+
+      const modulesRes = await pool.query(
+        `SELECT id, title
+        FROM modules
+        WHERE course_id = $1
+        ORDER BY id`,
+        [courseId],
+      );
+      const modules = modulesRes.rows;
+
+      const lessonsRes = await pool.query(
+        `SELECT l.id, l.title, l.module_id,
+                ulp.completed_at
+        FROM lessons l
+        JOIN modules m ON l.module_id = m.id
+        LEFT JOIN user_lesson_progress ulp
+          ON ulp.lesson_id = l.id
+          AND ulp.user_id = $1
+        WHERE m.course_id = $2
+        ORDER BY l.id`,
+        [studentId, courseId],
+      );
+      // const lessons = lessonsRes.rows;
+
+      const lessonTimeMap = {};
+
+      const activityRes = await pool.query(
+        `
+        SELECT action, details, created_at
+        FROM activities
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+        `,
+        [studentId],
+      );
+
+      const lessonStart = {};
+
+      for (const log of activityRes.rows) {
+        const time = new Date(log.created_at);
+
+        const match = log.details?.match(/\d+/);
+        const lessonId = match ? Number(match[0]) : null;
+
+        if (log.action === "Viewed Lesson" && lessonId) {
+          lessonStart[lessonId] = time;
+        }
+
+        if (log.action === "Student submitted Quiz" && lessonId) {
+          if (lessonStart[lessonId]) {
+            const duration = (time - lessonStart[lessonId]) / 1000;
+
+            lessonTimeMap[lessonId] = (lessonTimeMap[lessonId] || 0) + duration;
+
+            delete lessonStart[lessonId];
+          }
+        }
+      }
+      const lessons = lessonsRes.rows.map((l) => ({
+        ...l,
+        timeSpent: "0sec",
+      }));
+      lessons.forEach((l) => {
+        l.timeSpent = formatTimeReadable(lessonTimeMap[l.id] || 0);
+      });
+
+      const quizzesRes = await pool.query(
+        `
+    SELECT
+        q.id,
+        q.title AS quiz_title,
+        l.title AS lesson_title,
+        l.module_id,
+        qs.score,
+        qs.created_at AS taken_at
+    FROM quizzes q
+    JOIN lessons l ON q.lesson_id = l.id
+    JOIN modules m ON l.module_id = m.id
+    LEFT JOIN quiz_submissions qs
+        ON qs.quiz_id = q.id
+        AND qs.student_id = $1
+    WHERE m.course_id = $2
+    ORDER BY q.id
+    `,
+        [studentId, courseId], // ✅ CORRECT
+      );
+
+      const quizzes = quizzesRes.rows;
+
+      const assignmentsRes = await pool.query(
+        `SELECT ma.id, ma.title, ma.module_id,
+                s.total, s.grade, s.ai_feedback,
+                s.created_at AS submitted_at
+        FROM module_assignments ma
+        JOIN modules m ON ma.module_id = m.id
+        LEFT JOIN assignment_submissions s
+          ON s.assignment_id = ma.id
+          AND s.student_id = $1
+        WHERE m.course_id = $2
+        ORDER BY ma.id`,
+        [studentId, courseId],
+      );
+      const assignments = assignmentsRes.rows;
+
+      const badgesRes = await pool.query(
+        `SELECT 
+            ub.id,
+            ub.badge_name,
+            ub.badge_image,
+            ub.awarded_at,
+            m.title AS module_title
+        FROM user_badges ub
+        JOIN modules m ON ub.module_id = m.id
+        WHERE ub.user_id = $1
+        AND m.course_id = $2
+        ORDER BY ub.awarded_at`,
+        [studentId, courseId],
+      );
+
+      const badges = badgesRes.rows;
+      const totalBadges = badges.length;
+
+      // const totalModuleSeconds = lessons.reduce(
+      //   (sum, l) => sum + (lessonTimeMap[l.id] || 0),
+      //   0,
+      // );
+
+      // const totalModuleTime = formatTimeReadable(totalModuleSeconds);
+
+      /* ==========================
+   MODULE TIME CALCULATION
+========================== */
+
+      const moduleTimeMap = {};
+
+      modules.forEach((module) => {
+        const moduleLessons = lessons.filter((l) => l.module_id === module.id);
+
+        const totalSeconds = moduleLessons.reduce(
+          (sum, lesson) => sum + (lessonTimeMap[lesson.id] || 0),
+          0,
+        );
+
+        moduleTimeMap[module.id] = {
+          seconds: totalSeconds,
+          formatted: formatTimeReadable(totalSeconds),
+        };
+      });
+
+      const certRes = await pool.query(
+        `SELECT certificate_url, certificate_code, issued_at
+        FROM user_certificates
+        WHERE user_id = $1
+        AND course_id = $2
+        LIMIT 1`,
+        [studentId, courseId],
+      );
+
+      const certificate = certRes.rows[0] || null;
+
+      const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+
+      /* ==========================
+    CHECK IF STUDENT BELONGS TO A SCHOOL
+  ========================== */
+
+      const schoolRes = await pool.query(
+        `SELECT s.name, s.logo_url
+    FROM user_school us
+    JOIN schools s ON us.school_id = s.id
+    WHERE us.user_id = $1
+    AND us.approved = true
+    LIMIT 1`,
+        [studentId],
+      );
+
+      const school = schoolRes.rows[0] || null;
+
+      /* ==========================
+        GLOBAL STATISTICS
+      ========================== */
+
+      const totalModules = modules.length;
+      const totalLessons = lessons.length;
+      const totalQuizzes = quizzes.length;
+      const totalAssignments = assignments.length;
+
+      const completedLessons = lessons.filter((l) => l.completed_at).length;
+      const lessonPercent = totalLessons
+        ? Math.round((completedLessons / totalLessons) * 100)
+        : 0;
+
+      const quizScores = quizzes
+        .filter((q) => q.score !== null)
+        .map((q) => q.score);
+      const quizAvg = quizScores.length
+        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
+        : 0;
+
+      const assignmentScores = assignments
+        .filter((a) => a.total !== null)
+        .map((a) => a.total);
+
+      const assignmentAvg = assignmentScores.length
+        ? Math.round(
+            assignmentScores.reduce((a, b) => a + b, 0) /
+              assignmentScores.length,
+          )
+        : 0;
+
+      /* ==========================
+    SMART COURSE GRADE CALCULATION
+  ========================== */
+
+      let gradingParts = [];
+      let gradingTotal = 0;
+
+      // Always include lesson completion
+      gradingParts.push(lessonPercent);
+      gradingTotal += lessonPercent;
+
+      // Always include quiz average
+      gradingParts.push(quizAvg);
+      gradingTotal += quizAvg;
+
+      // Include assignments ONLY if they exist
+      const hasAssignments = assignments.length > 0;
+
+      if (hasAssignments) {
+        gradingParts.push(assignmentAvg);
+        gradingTotal += assignmentAvg;
+      }
+
+      let overallScore = gradingParts.length
+        ? Math.round(gradingTotal / gradingParts.length)
+        : 0;
+
+      let courseGrade = "F";
+      if (overallScore >= 80) courseGrade = "A";
+      else if (overallScore >= 70) courseGrade = "B";
+      else if (overallScore >= 60) courseGrade = "C";
+      else if (overallScore >= 50) courseGrade = "D";
+
+      /* ==========================
+    LESSON COMPLETION INTERVAL CHECK
+  ========================== */
+
+      let consistencyComment = "";
+      const completionDates = lessons
+        .filter((l) => l.completed_at)
+        .map((l) => new Date(l.completed_at))
+        .sort((a, b) => a - b);
+
+      if (completionDates.length > 1) {
+        const first = completionDates[0];
+        const last = completionDates[completionDates.length - 1];
+        const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff <= 7) {
+          consistencyComment =
+            "Excellent learning consistency. Lessons completed within a short time frame.";
+        } else if (daysDiff <= 30) {
+          consistencyComment = "Moderate learning pace with steady progress.";
+        } else {
+          consistencyComment =
+            "Lessons were completed over a long interval. Improved consistency is recommended.";
+        }
+      }
+
+      /* ==========================
+        PROFESSIONAL COMMENT
+      ========================== */
+
+      let evaluation = "";
+
+      if (overallScore >= 80) {
+        evaluation =
+          "Outstanding academic performance with strong mastery of course materials and excellent engagement.";
+      } else if (overallScore >= 70) {
+        evaluation =
+          "Very good academic standing with consistent engagement and solid assessment performance.";
+      } else if (overallScore >= 60) {
+        evaluation =
+          "Satisfactory performance. Greater focus on quizzes and lesson consistency is recommended.";
+      } else {
+        evaluation =
+          "Performance is below expectations. Increased participation and assessment improvement is strongly advised.";
+      }
+
+      evaluation += `<br/><br/><strong>Consistency Analysis:</strong> ${consistencyComment}`;
+
+      /* ==========================
+        BUILD BEAUTIFUL HTML
+      ========================== */
+
+      const html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+  <meta charset="utf-8">
+  <title>Detailed Course Report</title>
+
+  <link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+  body { 
+    font-family: Arial; 
+    padding:40px; 
+    background:#f4f6f9; 
+    color:#2c3e50; 
+  }
+
+  /* WATERMARK */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 30%;
+    left: 20%;
+    width: 60%;
+    height: 60%;
+    background-image: url('${COMPANY_LOGO}');
+    background-repeat: no-repeat;
+    background-size: contain;
+    opacity: 0.05;
+    z-index: 0;
+  }
+
+  /* CONTENT ABOVE WATERMARK */
+  body > * {
+    position: relative;
+    z-index: 2;
+  }
+
+
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .school-info {
+    text-align: right;
+  }
+
+  .school-logo {
+    max-height: 60px;
+  }
+
+  /* FOOTER */
+  .footer {
+    position: fixed;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #666;
+  }
+
+  h1 { 
+    text-align:center; 
+    color:#1e2a38; 
+  }
+
+  .section { 
+    margin-top:40px; 
+  }
+
+  .grid { 
+    display:grid; 
+    grid-template-columns:repeat(4,1fr); 
+    gap:20px; 
+    margin-top:20px; 
+  }
+
+  .card {
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.08);
+    text-align:center;
+  }
+
+  .card-info {
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    text-align:Left;
+    box-shadow:0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  .card h2 { margin:10px 0; }
+
+  table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+    background:white;
+    font-size:12px;
+  }
+
+  th {
+    background:#1e2a38;
+    color:white;
+    padding:8px;
+    text-align:left;
+  }
+
+  td {
+    padding:8px;
+    border:1px solid #ddd;
+  }
+
+  tr:nth-child(even) { background:#f9f9f9; }
+
+  .module-block {
+    page-break-inside: avoid;
+    margin-top:40px;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+
+  .comment-box {
+    background:white;
+    padding:20px;
+    border-left:6px solid #2980b9;
+    margin-top:20px;
+  }
+
+  .footer {
+    margin-top:40px;
+    text-align:center;
+    font-size:11px;
+    color:#888;
+  }
+  </style>
+  </head>
+
+  <body>
+  <div class="header">
+    <div>
+      <h2>Student Course Report</h2>
+    </div>
+
+    ${
+      school
+        ? `
+    <div class="school-info">
+      <strong>${school.name}</strong><br/>
+      ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
+    </div>
+    `
+        : ""
+    }
+  </div>
+
+
+  <h1><i class="fa-solid fa-graduation-cap"></i> Detailed Student Course Report</h1>
+  <p style="text-align:center;">Generated: ${new Date().toLocaleString()}</p>
+
+  <div class="card-info">
+    <p><strong>Student:</strong> ${student.fullname}</p><br/>
+    <p><strong>Email:</strong> ${student.email}</p><br/>
+    <p><strong>Course:</strong> ${course.title}</p><br/>
+    <p>
+  </div>
+
+  <div class="section grid">
+    <div class="card">
+      <i style="color: #3498db;" class="fa-solid fa-layer-group fa-2x"></i>
+      <h2>${totalModules}</h2>
+      <p>Total Modules</p>
+    </div>
+    <div class="card">
+      <i style="color: #27ae60;" class="fa-solid fa-book fa-2x"></i>
+      <h2>${totalLessons}</h2>
+      <p>Total Lessons</p>
+    </div>
+    <div class="card">
+      <i style="color: #f39c12;" class="fa-solid fa-clipboard-check fa-2x"></i>
+      <h2>${totalQuizzes}</h2>
+      <p>Total Quizzes</p>
+    </div>
+    <div class="card">
+      <i style="color: #e74c3c;" class="fa-solid fa-pen-to-square fa-2x"></i>
+      <h2>${totalAssignments}</h2>
+      <p>Total Assignments</p>
+    </div>
+    
+  </div>
+
+  <div class="section grid">
+    <div style="color: #3498db;" class="card"><h2>${lessonPercent}%</h2><p>Completion</p></div>
+    <div style="color: #27ae60;" class="card"><h2>${quizAvg}%</h2><p>Quiz Average</p></div>
+    ${
+      hasAssignments
+        ? `
+    <div style="color: #f39c12;" class="card">
+      <h2>${assignmentAvg}%</h2>
+      <p>Assignment Average</p>
+    </div>`
+        : ""
+    }
+
+    <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
+
+    <div class="card">
+      <i style="color: #9b59b6;" class="fa-solid fa-award fa-2x"></i>
+      <h2>${totalBadges}</h2>
+      <p>Badges Earned</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🏅 Course Badges Earned</h2>
+
+    ${
+      badges.length === 0
+        ? `
+    <p>No badges earned yet.</p>
+    `
+        : `
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
+    ${badges
+      .map(
+        (b) => `
+      <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+        
+        ${
+          b.badge_image
+            ? `
+          <img src="${b.badge_image}" 
+              style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
+        `
+            : ""
+        }
+          <hr><br>
+        <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
+
+      </div>
+    `,
+      )
+      .join("")}
+    </div>
+    `
+    }
+  </div>
+
+  <div class="section">
+    <h2>🎓 Course Certificate</h2>
+
+    ${
+      certificate
+        ? `
+    <div style="background:white;padding:20px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+
+      <img src="${certificate.certificate_url}" 
+          style="max-width:100%; margin-bottom:20px; border:1px solid #ddd;"/>
+
+      <p><strong>Certificate Code:</strong> ${certificate.certificate_code}</p>
+      <p><strong>Issued:</strong> ${new Date(certificate.issued_at).toLocaleDateString()}</p>
+
+    </div>
+    `
+        : `
+    <p>No certificate issued yet.</p>
+    `
+    }
+
+  </div>
+
+  <div class="section">
+  <h2>Performance Evaluation</h2>
+  <div class="comment-box">${evaluation}</div>
+  </div>
+
+  ${modules
+    .map(
+      (m) => `
+  <div class="module-block">
+  <h2>📦 Module: ${m.title}</h2>
+
+  <div class="card" style="margin-bottom:20px;">
+    <h2>${moduleTimeMap[m.id].formatted}</h2>
+    <p>Total Learning Time</p>
+  </div>
+
+  <h3>📚 Lessons</h3>
+  <table>
+  <tr><th>Lesson</th><th>Status</th><th>Time Spent</th><th>Completion Date</th></tr>
+  ${lessons
+    .filter((l) => l.module_id === m.id)
+    .map(
+      (l) => `
+  <tr>
+  <td>${l.title}</td>
+  <td style="color: ${l.completed_at ? "#27ae60" : "#e74c3c"};">
+    ${l.completed_at ? "Completed" : "Not Completed"}
+  </td>
+  <td>${l.timeSpent}</td>
+  <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
+  </tr>`,
+    )
+    .join("")}
+  </table>
+
+  <h3>📝 Quizzes</h3>
+  <table>
+  <tr><th>lesson</th><th>Quiz</th><th>Score</th><th>Date Taken</th></tr>
+  ${quizzes
+    .filter((q) => q.module_id === m.id)
+    .map(
+      (q) => `
+  <tr>
+  <td>${q.lesson_title}</td>
+  <td>${q.quiz_title}</td>
+  <td style="color: ${q.score !== null ? "#27ae60" : "#e74c3c"};">
+    ${q.score ?? "N/A"}
+  </td>
+  <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "Not Taken"}</td>
+  </tr>`,
+    )
+    .join("")}
+  </table>
+
+  <h3>📑 Assignments</h3>
+  <table>
+  <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Submitted</th></tr>
+  ${assignments
+    .filter((a) => a.module_id === m.id)
+    .map(
+      (a) => `
+  <tr>
+  <td>${a.title}</td>
+  <td>${a.total ?? "Pending"}</td>
+  <td>${a.grade ?? "-"}</td>
+  <td>${a.ai_feedback ?? "No Feedback"}</td>
+  <td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "Not Submitted"}</td>
+  </tr>`,
+    )
+    .join("")}
+  </table>
+  </div>
+  <div class="page-break"></div>
   `,
-      [studentId, courseId], // ✅ CORRECT
-    );
-
-    const quizzes = quizzesRes.rows;
-
-    const assignmentsRes = await pool.query(
-      `SELECT ma.id, ma.title, ma.module_id,
-              s.total, s.grade, s.ai_feedback,
-              s.created_at AS submitted_at
-       FROM module_assignments ma
-       JOIN modules m ON ma.module_id = m.id
-       LEFT JOIN assignment_submissions s
-         ON s.assignment_id = ma.id
-         AND s.student_id = $1
-       WHERE m.course_id = $2
-       ORDER BY ma.id`,
-      [studentId, courseId],
-    );
-    const assignments = assignmentsRes.rows;
-
-    const badgesRes = await pool.query(
-      `SELECT 
-          ub.id,
-          ub.badge_name,
-          ub.badge_image,
-          ub.awarded_at,
-          m.title AS module_title
-      FROM user_badges ub
-      JOIN modules m ON ub.module_id = m.id
-      WHERE ub.user_id = $1
-      AND m.course_id = $2
-      ORDER BY ub.awarded_at`,
-      [studentId, courseId]
-    );
-
-    const badges = badgesRes.rows;
-    const totalBadges = badges.length;
-
-    const certRes = await pool.query(
-      `SELECT certificate_url, certificate_code, issued_at
-      FROM user_certificates
-      WHERE user_id = $1
-      AND course_id = $2
-      LIMIT 1`,
-      [studentId, courseId]
-    );
-
-    const certificate = certRes.rows[0] || null;
-    
-    const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+    )
+    .join("")}
 
 
-    /* ==========================
-   CHECK IF STUDENT BELONGS TO A SCHOOL
-========================== */
+  <div class="footer">
+    © ${new Date().getFullYear()} Jaykirch Technology Hub |
+    Confidential Academic Performance Report |
+    Generated on ${new Date().toLocaleDateString()}
+  </div>
 
-const schoolRes = await pool.query(
-  `SELECT s.name, s.logo_url
-   FROM user_school us
-   JOIN schools s ON us.school_id = s.id
-   WHERE us.user_id = $1
-   AND us.approved = true
-   LIMIT 1`,
-  [studentId]
-);
 
-const school = schoolRes.rows[0] || null;
+  </body>
+  </html>
+  `;
 
-    /* ==========================
-       GLOBAL STATISTICS
-    ========================== */
+      /* ==========================
+        GENERATE PDF
+      ========================== */
 
-    const totalModules = modules.length;
-    const totalLessons = lessons.length;
-    const totalQuizzes = quizzes.length;
-    const totalAssignments = assignments.length;
+      // await browser.close();
+      const pdf = await generatePdf(html);
 
-    const completedLessons = lessons.filter((l) => l.completed_at).length;
-    const lessonPercent = totalLessons
-      ? Math.round((completedLessons / totalLessons) * 100)
-      : 0;
-
-    const quizScores = quizzes
-      .filter((q) => q.score !== null)
-      .map((q) => q.score);
-    const quizAvg = quizScores.length
-      ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
-      : 0;
-
-    const assignmentScores = assignments
-      .filter((a) => a.total !== null)
-      .map((a) => a.total);
-
-    const assignmentAvg = assignmentScores.length
-      ? Math.round(
-          assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length,
-        )
-      : 0;
-
-    /* ==========================
-   SMART COURSE GRADE CALCULATION
-========================== */
-
-    let gradingParts = [];
-    let gradingTotal = 0;
-
-    // Always include lesson completion
-    gradingParts.push(lessonPercent);
-    gradingTotal += lessonPercent;
-
-    // Always include quiz average
-    gradingParts.push(quizAvg);
-    gradingTotal += quizAvg;
-
-    // Include assignments ONLY if they exist
-    const hasAssignments = assignments.length > 0;
-
-    if (hasAssignments) {
-      gradingParts.push(assignmentAvg);
-      gradingTotal += assignmentAvg;
+      res.setHeader(
+        "Content-Disposition",
+        // `attachment; filename=${course.title.replace(/\s+/g, "_")}_Detailed_Report.pdf`,
+        `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${course.title.replace(/\s+/g, "_")}_Detailed_Report.pdf`,
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.send(pdf);
+    } catch (err) {
+      console.error("PDF Error:", err);
+      res.status(500).send("Error generating detailed course summary");
     }
+  };
 
-    let overallScore = gradingParts.length
-      ? Math.round(gradingTotal / gradingParts.length)
-      : 0;
+  exports.downloadModuleSummary = async (req, res) => {
+    const { studentId, moduleId } = req.params;
 
-    let courseGrade = "F";
-    if (overallScore >= 80) courseGrade = "A";
-    else if (overallScore >= 70) courseGrade = "B";
-    else if (overallScore >= 60) courseGrade = "C";
-    else if (overallScore >= 50) courseGrade = "D";
+    try {
+      /* ================= FETCH DATA ================= */
 
-    /* ==========================
-   LESSON COMPLETION INTERVAL CHECK
+      const studentRes = await pool.query(
+        `SELECT fullname, email FROM users2 WHERE id = $1`,
+        [studentId],
+      );
+      const student = studentRes.rows[0];
+
+      const moduleRes = await pool.query(
+        `SELECT m.id, m.title, c.title AS course_title
+        FROM modules m
+        JOIN courses c ON m.course_id = c.id
+        WHERE m.id = $1`,
+        [moduleId],
+      );
+      const module = moduleRes.rows[0];
+
+      const lessonsRes = await pool.query(
+        `SELECT l.id, l.title,
+                ulp.completed_at
+        FROM lessons l
+        LEFT JOIN user_lesson_progress ulp
+          ON ulp.lesson_id = l.id
+          AND ulp.user_id = $1
+        WHERE l.module_id = $2
+        ORDER BY l.id`,
+        [studentId, moduleId],
+      );
+      const lessons = lessonsRes.rows;
+
+      /* ==========================
+   LESSON TIME CALCULATION
 ========================== */
 
-    let consistencyComment = "";
-    const completionDates = lessons
-      .filter((l) => l.completed_at)
-      .map((l) => new Date(l.completed_at))
-      .sort((a, b) => a - b);
+      function formatTimeReadable(seconds) {
+        const sec = Math.floor(seconds % 60);
+        const min = Math.floor((seconds / 60) % 60);
+        const hr = Math.floor(seconds / 3600);
 
-    if (completionDates.length > 1) {
-      const first = completionDates[0];
-      const last = completionDates[completionDates.length - 1];
-      const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
+        let result = "";
 
-      if (daysDiff <= 7) {
-        consistencyComment =
-          "Excellent learning consistency. Lessons completed within a short time frame.";
-      } else if (daysDiff <= 30) {
-        consistencyComment = "Moderate learning pace with steady progress.";
-      } else {
-        consistencyComment =
-          "Lessons were completed over a long interval. Improved consistency is recommended.";
+        if (hr > 0) result += `${hr}hr `;
+        if (min > 0) result += `${min}min `;
+        if (sec > 0 || result === "") result += `${sec}sec`;
+
+        return result.trim();
       }
-    }
 
-    /* ==========================
-       PROFESSIONAL COMMENT
-    ========================== */
+      const lessonTimeMap = {};
 
-    let evaluation = "";
+      const activityRes = await pool.query(
+        `
+        SELECT action, details, created_at
+        FROM activities
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+        `,
+        [studentId],
+      );
 
-    if (overallScore >= 80) {
-      evaluation =
-        "Outstanding academic performance with strong mastery of course materials and excellent engagement.";
-    } else if (overallScore >= 70) {
-      evaluation =
-        "Very good academic standing with consistent engagement and solid assessment performance.";
-    } else if (overallScore >= 60) {
-      evaluation =
-        "Satisfactory performance. Greater focus on quizzes and lesson consistency is recommended.";
-    } else {
-      evaluation =
-        "Performance is below expectations. Increased participation and assessment improvement is strongly advised.";
-    }
+      const lessonStart = {};
 
-    evaluation += `<br/><br/><strong>Consistency Analysis:</strong> ${consistencyComment}`;
+      for (const log of activityRes.rows) {
+        const time = new Date(log.created_at);
 
-    /* ==========================
-       BUILD BEAUTIFUL HTML
-    ========================== */
+        const match = log.details?.match(/\d+/);
+        const lessonId = match ? Number(match[0]) : null;
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Detailed Course Report</title>
+        if (log.action === "Viewed Lesson" && lessonId) {
+          lessonStart[lessonId] = time;
+        }
 
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+        if (log.action === "Student submitted Quiz" && lessonId) {
+          if (lessonStart[lessonId]) {
+            const duration = (time - lessonStart[lessonId]) / 1000;
 
-<style>
-body { 
-  font-family: Arial; 
-  padding:40px; 
-  background:#f4f6f9; 
-  color:#2c3e50; 
-}
+            lessonTimeMap[lessonId] = (lessonTimeMap[lessonId] || 0) + duration;
 
-/* WATERMARK */
-body::before {
-  content: "";
-  position: fixed;
-  top: 30%;
-  left: 20%;
-  width: 60%;
-  height: 60%;
-  background-image: url('${COMPANY_LOGO}');
-  background-repeat: no-repeat;
-  background-size: contain;
-  opacity: 0.05;
-  z-index: 0;
-}
+            delete lessonStart[lessonId];
+          }
+        }
+      }
 
-/* CONTENT ABOVE WATERMARK */
-body > * {
-  position: relative;
-  z-index: 2;
-}
+      lessons.forEach((lesson) => {
+        lesson.timeSpent = formatTimeReadable(lessonTimeMap[lesson.id] || 0);
+      });
 
+      /* ==========================
+        MODULE TOTAL TIME
+      ========================== */
 
-/* HEADER */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
+      const moduleTotalSeconds = lessons.reduce(
+        (sum, lesson) => sum + (lessonTimeMap[lesson.id] || 0),
+        0,
+      );
 
-.school-info {
-  text-align: right;
-}
+      const moduleTotalTime = formatTimeReadable(moduleTotalSeconds);
 
-.school-logo {
-  max-height: 60px;
-}
+      const quizzesRes = await pool.query(
+        `SELECT 
+            q.title AS quiz_title,
+            l.title AS lesson_title,
+            qs.score,
+            qs.created_at AS taken_at
+        FROM quizzes q
+        JOIN lessons l ON q.lesson_id = l.id
+        LEFT JOIN quiz_submissions qs
+          ON qs.quiz_id = q.id 
+          AND qs.student_id = $1
+        WHERE l.module_id = $2
+        ORDER BY q.id`,
+        [studentId, moduleId],
+      );
+      const quizzes = quizzesRes.rows;
 
-/* FOOTER */
-.footer {
-  position: fixed;
-  bottom: 10px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 11px;
-  color: #666;
-}
+      const assignmentsRes = await pool.query(
+        `SELECT ma.title,
+                s.total,
+                s.grade,
+                s.ai_feedback,
+                s.created_at AS submitted_at
+        FROM module_assignments ma
+        LEFT JOIN assignment_submissions s
+          ON s.assignment_id = ma.id
+          AND s.student_id = $1
+        WHERE ma.module_id = $2
+        ORDER BY ma.id`,
+        [studentId, moduleId],
+      );
+      const assignments = assignmentsRes.rows;
 
-h1 { 
-  text-align:center; 
-  color:#1e2a38; 
-}
+      const badgesRes = await pool.query(
+        `
+        SELECT
+            ub.id,
+            ub.badge_name,
+            ub.badge_image,
+            ub.awarded_at
+        FROM user_badges ub
+        WHERE ub.user_id = $1
+        AND ub.module_id = $2
+        ORDER BY ub.awarded_at
+        `,
+        [studentId, moduleId],
+      );
+      const badges = badgesRes.rows;
+      const totalBadges = badges.length;
 
-.section { 
-  margin-top:40px; 
-}
+      const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
 
-.grid { 
-  display:grid; 
-  grid-template-columns:repeat(4,1fr); 
-  gap:20px; 
-  margin-top:20px; 
-}
+      /* ==========================
+    CHECK IF STUDENT BELONGS TO A SCHOOL
+  ========================== */
 
-.card {
-  background:white;
-  padding:20px;
-  border-radius:10px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.08);
-  text-align:center;
-}
+      const schoolRes = await pool.query(
+        `SELECT s.name, s.logo_url
+    FROM user_school us
+    JOIN schools s ON us.school_id = s.id
+    WHERE us.user_id = $1
+    AND us.approved = true
+    LIMIT 1`,
+        [studentId],
+      );
 
-.card h2 { margin:10px 0; }
+      const school = schoolRes.rows[0] || null;
 
-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-top:15px;
-  background:white;
-  font-size:12px;
-}
+      /* ================= CALCULATIONS ================= */
 
-th {
-  background:#1e2a38;
-  color:white;
-  padding:8px;
-  text-align:left;
-}
+      const totalLessons = lessons.length;
+      const completedLessons = lessons.filter((l) => l.completed_at).length;
+      const percent = totalLessons
+        ? Math.round((completedLessons / totalLessons) * 100)
+        : 0;
 
-td {
-  padding:8px;
-  border:1px solid #ddd;
-}
+      const quizScores = quizzes
+        .filter((q) => q.score !== null)
+        .map((q) => q.score);
+      const quizAvg = quizScores.length
+        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
+        : 0;
 
-tr:nth-child(even) { background:#f9f9f9; }
+      const assignmentScores = assignments
+        .filter((a) => a.total !== null)
+        .map((a) => a.total);
 
-.module-block {
-  page-break-inside: avoid;
-  margin-top:40px;
-}
+      const assignmentAvg = assignmentScores.length
+        ? Math.round(
+            assignmentScores.reduce((a, b) => a + b, 0) /
+              assignmentScores.length,
+          )
+        : 0;
 
-.page-break {
-  page-break-after: always;
-}
+      /* ==========================
+      MODULE GRADE CALCULATION
+      ========================== */
 
-.comment-box {
-  background:white;
-  padding:20px;
-  border-left:6px solid #2980b9;
-  margin-top:20px;
-}
+      // let moduleScore = Math.round((percent + quizAvg + assignmentAvg) / 3);
 
-.footer {
-  margin-top:40px;
-  text-align:center;
-  font-size:11px;
-  color:#888;
-}
-</style>
-</head>
+      /* ==========================
+    SMART MODULE GRADE CALCULATION
+  ========================== */
 
-<body>
-<div class="header">
-  <div>
-    <h2>Student Course Report</h2>
-  </div>
+      let moduleParts = [];
+      let moduleTotal = 0;
 
-  ${school ? `
-  <div class="school-info">
-    <strong>${school.name}</strong><br/>
-    ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
-  </div>
-  ` : ""}
-</div>
+      // Always include lesson completion
+      moduleParts.push(percent);
+      moduleTotal += percent;
 
+      // Include quiz if exists
+      if (quizzes.length > 0) {
+        moduleParts.push(quizAvg);
+        moduleTotal += quizAvg;
+      }
 
-<h1><i class="fa-solid fa-graduation-cap"></i> Detailed Student Course Report</h1>
-<p style="text-align:center;">Generated: ${new Date().toLocaleString()}</p>
+      // Include assignment if exists
+      const hasModuleAssignments = assignments.length > 0;
 
-<div class="section">
-<strong>Student:</strong> ${student.fullname}<br/>
-<strong>Email:</strong> ${student.email}<br/>
-<strong>Course:</strong> ${course.title}<br/>
-</div>
+      if (hasModuleAssignments) {
+        moduleParts.push(assignmentAvg);
+        moduleTotal += assignmentAvg;
+      }
 
-<div class="section grid">
-  <div class="card">
-    <i style="color: #3498db;" class="fa-solid fa-layer-group fa-2x"></i>
-    <h2>${totalModules}</h2>
-    <p>Total Modules</p>
-  </div>
-  <div class="card">
-    <i style="color: #27ae60;" class="fa-solid fa-book fa-2x"></i>
-    <h2>${totalLessons}</h2>
-    <p>Total Lessons</p>
-  </div>
-  <div class="card">
-    <i style="color: #f39c12;" class="fa-solid fa-clipboard-check fa-2x"></i>
-    <h2>${totalQuizzes}</h2>
-    <p>Total Quizzes</p>
-  </div>
-  <div class="card">
-    <i style="color: #e74c3c;" class="fa-solid fa-pen-to-square fa-2x"></i>
-    <h2>${totalAssignments}</h2>
-    <p>Total Assignments</p>
-  </div>
-  
-</div>
+      let moduleScore = moduleParts.length
+        ? Math.round(moduleTotal / moduleParts.length)
+        : 0;
 
-<div class="section grid">
-  <div style="color: #3498db;" class="card"><h2>${lessonPercent}%</h2><p>Completion</p></div>
-  <div style="color: #27ae60;" class="card"><h2>${quizAvg}%</h2><p>Quiz Average</p></div>
-  ${hasAssignments ? `
-  <div style="color: #f39c12;" class="card">
-    <h2>${assignmentAvg}%</h2>
-    <p>Assignment Average</p>
-  </div>` : ""}
+      let moduleGrade = "F";
+      if (moduleScore >= 80) moduleGrade = "A";
+      else if (moduleScore >= 70) moduleGrade = "B";
+      else if (moduleScore >= 60) moduleGrade = "C";
+      else if (moduleScore >= 50) moduleGrade = "D";
 
-  <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
+      /* ==========================
+      CONSISTENCY CHECK
+      ========================== */
 
-  <div class="card">
-    <i style="color: #9b59b6;" class="fa-solid fa-award fa-2x"></i>
-    <h2>${totalBadges}</h2>
-    <p>Badges Earned</p>
-  </div>
-</div>
+      let consistencyComment = "";
+      const completionDates = lessons
+        .filter((l) => l.completed_at)
+        .map((l) => new Date(l.completed_at))
+        .sort((a, b) => a - b);
 
-<div class="section">
-  <h2>🏅 Course Badges Earned</h2>
+      if (completionDates.length > 1) {
+        const first = completionDates[0];
+        const last = completionDates[completionDates.length - 1];
+        const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
 
-  ${badges.length === 0 ? `
-  <p>No badges earned yet.</p>
-  ` : `
-  <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
-  ${badges.map(b => `
-    <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+        if (daysDiff <= 7) {
+          consistencyComment = "Excellent completion consistency.";
+        } else if (daysDiff <= 30) {
+          consistencyComment = "Moderate completion consistency.";
+        } else {
+          consistencyComment =
+            "Completion interval is wide. Improvement recommended.";
+        }
+      }
+
+      /* ================= BUILD HTML ================= */
+
+      const html = `
+      <html>
+      <head>
+      <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+      <style>
+      body { font-family: Arial; padding:40px; background:#f4f6f9; }
       
-      ${b.badge_image ? `
-        <img src="${b.badge_image}" 
-            style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
-      ` : ""}
-        <hr><br>
-      <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
-
-    </div>
-  `).join("")}
-  </div>
-  `}
-</div>
-
-<div class="section">
-  <h2>🎓 Course Certificate</h2>
-
-  ${certificate ? `
-  <div style="background:white;padding:20px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
-
-    <img src="${certificate.certificate_url}" 
-        style="max-width:100%; margin-bottom:20px; border:1px solid #ddd;"/>
-
-    <p><strong>Certificate Code:</strong> ${certificate.certificate_code}</p>
-    <p><strong>Issued:</strong> ${new Date(certificate.issued_at).toLocaleDateString()}</p>
-
-  </div>
-  ` : `
-  <p>No certificate issued yet.</p>
-  `}
-
-</div>
-
-<div class="section">
-<h2>Performance Evaluation</h2>
-<div class="comment-box">${evaluation}</div>
-</div>
-
-${modules
-  .map(
-    (m) => `
-<div class="module-block">
-<h2>📦 Module: ${m.title}</h2>
-
-<h3>📚 Lessons</h3>
-<table>
-<tr><th>Lesson</th><th>Status</th><th>Completion Date</th></tr>
-${lessons
-  .filter((l) => l.module_id === m.id)
-  .map(
-    (l) => `
-<tr>
-<td>${l.title}</td>
-<td style="color: ${l.completed_at ? '#27ae60' : '#e74c3c'};">
-  ${l.completed_at ? "Completed" : "Not Completed"}
-</td>
-<td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
-</tr>`,
-  )
-  .join("")}
-</table>
-
-<h3>📝 Quizzes</h3>
-<table>
-<tr><th>Quiz</th><th>Score</th><th>Date Taken</th></tr>
-${quizzes
-  .filter((q) => q.module_id === m.id)
-  .map(
-    (q) => `
-<tr>
-<td>${q.id}</td>
-<td style="color: ${q.score !== null ? '#27ae60' : '#e74c3c'};">
-  ${q.score ?? "N/A"}
-</td>
-<td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "Not Taken"}</td>
-</tr>`,
-  )
-  .join("")}
-</table>
-
-<h3>📑 Assignments</h3>
-<table>
-<tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Submitted</th></tr>
-${assignments
-  .filter((a) => a.module_id === m.id)
-  .map(
-    (a) => `
-<tr>
-<td>${a.title}</td>
-<td>${a.total ?? "Pending"}</td>
-<td>${a.grade ?? "-"}</td>
-<td>${a.ai_feedback ?? "No Feedback"}</td>
-<td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "Not Submitted"}</td>
-</tr>`,
-  )
-  .join("")}
-</table>
-</div>
-<div class="page-break"></div>
-`,
-  )
-  .join("")}
-
-
-<div class="footer">
-  © ${new Date().getFullYear()} Jaykirch Technology Hub |
-  Confidential Academic Performance Report |
-  Generated on ${new Date().toLocaleDateString()}
-</div>
-
-
-</body>
-</html>
-`;
-
-    /* ==========================
-       GENERATE PDF
-    ========================== */
-
-    // const browser = await puppeteer.launch({
-    //   headless: true,
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
-
-    // const page = await browser.newPage();
-    // await page.setContent(html, { waitUntil: "networkidle0" });
-
-    // const pdf = await page.pdf({
-    //   format: "A4",
-    //   printBackground: true,
-    // });
-
-    // await browser.close();
-    const pdf = await generatePdf(html);
-
-    res.setHeader(
-      "Content-Disposition",
-      // `attachment; filename=${course.title.replace(/\s+/g, "_")}_Detailed_Report.pdf`,
-      `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${course.title.replace(/\s+/g, "_")}_Detailed_Report.pdf`,
-    );
-    res.setHeader("Content-Type", "application/pdf");
-    res.send(pdf);
-  } catch (err) {
-    console.error("PDF Error:", err);
-    res.status(500).send("Error generating detailed course summary");
+  /* WATERMARK */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 30%;
+    left: 20%;
+    width: 60%;
+    height: 60%;
+    background-image: url('${COMPANY_LOGO}');
+    background-repeat: no-repeat;
+    background-size: contain;
+    opacity: 0.05;
+    z-index: 0;
   }
-};
 
-exports.downloadModuleSummary = async (req, res) => {
-  const { studentId, moduleId } = req.params;
-
-  try {
-    /* ================= FETCH DATA ================= */
-
-    const studentRes = await pool.query(
-      `SELECT fullname, email FROM users2 WHERE id = $1`,
-      [studentId],
-    );
-    const student = studentRes.rows[0];
-
-    const moduleRes = await pool.query(
-      `SELECT m.id, m.title, c.title AS course_title
-       FROM modules m
-       JOIN courses c ON m.course_id = c.id
-       WHERE m.id = $1`,
-      [moduleId],
-    );
-    const module = moduleRes.rows[0];
-
-    const lessonsRes = await pool.query(
-      `SELECT l.id, l.title,
-              ulp.completed_at
-       FROM lessons l
-       LEFT JOIN user_lesson_progress ulp
-         ON ulp.lesson_id = l.id
-         AND ulp.user_id = $1
-       WHERE l.module_id = $2
-       ORDER BY l.id`,
-      [studentId, moduleId],
-    );
-    const lessons = lessonsRes.rows;
-
-    const quizzesRes = await pool.query(
-      `SELECT 
-          q.title AS quiz_title,
-          l.title AS lesson_title,
-          qs.score,
-          qs.created_at AS taken_at
-       FROM quizzes q
-       JOIN lessons l ON q.lesson_id = l.id
-       LEFT JOIN quiz_submissions qs
-         ON qs.quiz_id = q.id 
-         AND qs.student_id = $1
-       WHERE l.module_id = $2
-       ORDER BY q.id`,
-      [studentId, moduleId],
-    );
-    const quizzes = quizzesRes.rows;
-
-    const assignmentsRes = await pool.query(
-      `SELECT ma.title,
-              s.total,
-              s.grade,
-              s.ai_feedback,
-              s.created_at AS submitted_at
-       FROM module_assignments ma
-       LEFT JOIN assignment_submissions s
-         ON s.assignment_id = ma.id
-         AND s.student_id = $1
-       WHERE ma.module_id = $2
-       ORDER BY ma.id`,
-      [studentId, moduleId],
-    );
-    const assignments = assignmentsRes.rows;
-    const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
-
-    /* ==========================
-   CHECK IF STUDENT BELONGS TO A SCHOOL
-========================== */
-
-const schoolRes = await pool.query(
-  `SELECT s.name, s.logo_url
-   FROM user_school us
-   JOIN schools s ON us.school_id = s.id
-   WHERE us.user_id = $1
-   AND us.approved = true
-   LIMIT 1`,
-  [studentId]
-);
-
-const school = schoolRes.rows[0] || null;
+  /* CONTENT ABOVE WATERMARK */
+  body > * {
+    position: relative;
+    z-index: 2;
+  }
 
 
-    /* ================= CALCULATIONS ================= */
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
 
-    const totalLessons = lessons.length;
-    const completedLessons = lessons.filter((l) => l.completed_at).length;
-    const percent = totalLessons
-      ? Math.round((completedLessons / totalLessons) * 100)
-      : 0;
+  .school-info {
+    text-align: right;
+  }
 
-    const quizScores = quizzes
-      .filter((q) => q.score !== null)
-      .map((q) => q.score);
-    const quizAvg = quizScores.length
-      ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
-      : 0;
+  .school-logo {
+    max-height: 60px;
+  }
 
-    const assignmentScores = assignments
-      .filter((a) => a.total !== null)
-      .map((a) => a.total);
+  /* FOOTER */
+  .footer {
+    position: fixed;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #666;
+  }
+      h1 { text-align:center; color:#1e2a38; }
+      .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:20px; }
 
-    const assignmentAvg = assignmentScores.length
-      ? Math.round(
-          assignmentScores.reduce((a, b) => a + b, 0) / assignmentScores.length,
-        )
-      : 0;
-
-    /* ==========================
-    MODULE GRADE CALCULATION
-    ========================== */
-
-    // let moduleScore = Math.round((percent + quizAvg + assignmentAvg) / 3);
-
-    /* ==========================
-   SMART MODULE GRADE CALCULATION
-========================== */
-
-    let moduleParts = [];
-    let moduleTotal = 0;
-
-    // Always include lesson completion
-    moduleParts.push(percent);
-    moduleTotal += percent;
-
-    // Include quiz if exists
-    if (quizzes.length > 0) {
-      moduleParts.push(quizAvg);
-      moduleTotal += quizAvg;
-    }
-
-    // Include assignment if exists
-    const hasModuleAssignments = assignments.length > 0;
-
-    if (hasModuleAssignments) {
-      moduleParts.push(assignmentAvg);
-      moduleTotal += assignmentAvg;
-    }
-
-    let moduleScore = moduleParts.length
-      ? Math.round(moduleTotal / moduleParts.length)
-      : 0;
-
-    let moduleGrade = "F";
-    if (moduleScore >= 80) moduleGrade = "A";
-    else if (moduleScore >= 70) moduleGrade = "B";
-    else if (moduleScore >= 60) moduleGrade = "C";
-    else if (moduleScore >= 50) moduleGrade = "D";
-
-    /* ==========================
-    CONSISTENCY CHECK
-    ========================== */
-
-    let consistencyComment = "";
-    const completionDates = lessons
-      .filter((l) => l.completed_at)
-      .map((l) => new Date(l.completed_at))
-      .sort((a, b) => a - b);
-
-    if (completionDates.length > 1) {
-      const first = completionDates[0];
-      const last = completionDates[completionDates.length - 1];
-      const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
-
-      if (daysDiff <= 7) {
-        consistencyComment = "Excellent completion consistency.";
-      } else if (daysDiff <= 30) {
-        consistencyComment = "Moderate completion consistency.";
-      } else {
-        consistencyComment =
-          "Completion interval is wide. Improvement recommended.";
+      .card {
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        text-align:center;
+        box-shadow:0 4px 10px rgba(0,0,0,0.08);
       }
+      
+      .card-info {
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        text-align:Left;
+        box-shadow:0 4px 10px rgba(0,0,0,0.08);
+      }
+
+      table {
+        width:100%;
+        border-collapse:collapse;
+        margin-top:15px;
+        background:white;
+        font-size:12px;
+      }
+
+      th {
+        background:#1e2a38;
+        color:white;
+        padding:8px;
+        text-align:left;
+      }
+
+      td {
+        padding:8px;
+        border:1px solid #ddd;
+      }
+
+      tr:nth-child(even) { background:#f9f9f9; }
+
+      .section { margin-top:40px; }
+
+      </style>
+      </head>
+
+      <body>
+      <div class="header">
+    <div>
+      <h2>Student Course Report</h2>
+    </div>
+
+    ${
+      school
+        ? `
+    <div class="school-info">
+      <strong>${school.name}</strong><br/>
+      ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
+    </div>
+    `
+        : ""
     }
-
-    /* ================= BUILD HTML ================= */
-
-    const html = `
-    <html>
-    <head>
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
-    <style>
-    body { font-family: Arial; padding:40px; background:#f4f6f9; }
-    
-/* WATERMARK */
-body::before {
-  content: "";
-  position: fixed;
-  top: 30%;
-  left: 20%;
-  width: 60%;
-  height: 60%;
-  background-image: url('${COMPANY_LOGO}');
-  background-repeat: no-repeat;
-  background-size: contain;
-  opacity: 0.05;
-  z-index: 0;
-}
-
-/* CONTENT ABOVE WATERMARK */
-body > * {
-  position: relative;
-  z-index: 2;
-}
-
-
-/* HEADER */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-
-.school-info {
-  text-align: right;
-}
-
-.school-logo {
-  max-height: 60px;
-}
-
-/* FOOTER */
-.footer {
-  position: fixed;
-  bottom: 10px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 11px;
-  color: #666;
-}
-    h1 { text-align:center; color:#1e2a38; }
-    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:20px; }
-
-    .card {
-      background:white;
-      padding:20px;
-      border-radius:10px;
-      text-align:center;
-      box-shadow:0 4px 10px rgba(0,0,0,0.08);
-    }
-
-    table {
-      width:100%;
-      border-collapse:collapse;
-      margin-top:15px;
-      background:white;
-      font-size:12px;
-    }
-
-    th {
-      background:#1e2a38;
-      color:white;
-      padding:8px;
-      text-align:left;
-    }
-
-    td {
-      padding:8px;
-      border:1px solid #ddd;
-    }
-
-    tr:nth-child(even) { background:#f9f9f9; }
-
-    .section { margin-top:40px; }
-
-    </style>
-    </head>
-
-    <body>
-    <div class="header">
-  <div>
-    <h2>Student Course Report</h2>
   </div>
 
-  ${school ? `
-  <div class="school-info">
-    <strong>${school.name}</strong><br/>
-    ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
-  </div>
-  ` : ""}
-</div>
+      <h1><i class="fa-solid fa-box"></i> Module Performance Report</h1>
 
-    <h1><i class="fa-solid fa-box"></i> Module Performance Report</h1>
-
-    <p><strong>Student:</strong> ${student.fullname}</p>
-    <p><strong>Email:</strong> ${student.email}</p>
-    <p><strong>Course:</strong> ${module.course_title}</p>
-    <p><strong>Module:</strong> ${module.title}</p>
-    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-
-    <div class="grid">
-      <div class="card">
-        <h2>${percent}%</h2>
-        <p>Completion</p>
-      </div>
-      <div class="card">
-        <h2>${quizAvg}%</h2>
-        <p>Quiz Average</p>
-      </div>
-      ${hasModuleAssignments? `
-      <div class="card">
-        <h2>${assignmentAvg}%</h2>
-        <p>Assignment Average</p>
-      </div>`: ""}
-
-      <div class="card">
-        <h2>${moduleGrade}</h2>
-        <p>Module Grade</p>
+      <div class="card-info">
+        <p><strong>Student:</strong> ${student.fullname}</p>
+        <p><strong>Email:</strong> ${student.email}</p>
+        <p><strong>Course:</strong> ${module.course_title}</p>
+        <p><strong>Module:</strong> ${module.title}</p>
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
       </div>
 
-    </div>
-
-    <div class="section">
-      <h2>Lessons</h2>
-      <table>
-      <tr><th>Lesson</th><th>Status</th><th>Date</th></tr>
-      ${lessons
-        .map(
-          (l) => `
-        <tr>
-          <td>${l.title}</td>
-          <td>${l.completed_at ? "Completed" : "Not Completed"}</td>
-          <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
-        </tr>`,
-        )
-        .join("")}
-      </table>
-    </div>
-
-    <div class="section">
-      <h2>Quiz Results</h2>
-      <table>
-      <tr><th>Lesson</th><th>Quiz</th><th>Score</th><th>Date</th></tr>
-      ${quizzes
-        .map(
-          (q) => `
-        <tr>
-          <td>${q.lesson_title}</td>
-          <td>${q.quiz_title}</td>
-          <td>${q.score ?? "N/A"}</td>
-          <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "-"}</td>
-        </tr>`,
-        )
-        .join("")}
-      </table>
-    </div>
-
-    <div class="section">
-      <h2>Assignments</h2>
-      <table>
-      <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Date</th></tr>
-      ${assignments
-        .map(
-          (a) => `
-        <tr>
-          <td>${a.title}</td>
-          <td>${a.total ?? "-"}</td>
-          <td>${a.grade ?? "-"}</td>
-          <td>${a.ai_feedback ?? "No Feedback"}</td>
-          <td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "-"}</td>
-        </tr>`,
-        )
-        .join("")}
-      </table>
-      <div class="section">
-        <h2>Evaluation</h2>
-        <div class="card">
-          Overall Score: ${moduleScore}% <br/><br/>
-          ${consistencyComment}
+      <div class="grid">
+        <div class="card" style="background-color: #bb1188; color: #ffffff">
+          <h2>${percent}%</h2>
+          <p>Completion</p>
         </div>
+        <div class="card" style="background-color: #280dc2; color: #ffffff">
+          <h2>${quizAvg}%</h2>
+          <p>Quiz Average</p>
+        </div>
+        ${
+          hasModuleAssignments
+            ? `
+        <div class="card" tyle="background-color: #d6a812;">
+          <h2>${assignmentAvg}%</h2>
+          <p>Assignment Average</p>
+        </div>`
+            : ""
+        }
+
+        <div class="card" style="background-color: #11b447; color: #ffffff">
+          <h2>${moduleGrade}</h2>
+          <p>Module Grade</p>
+        </div>
+        <div class="card" style="background-color: #9b59b6; color: #ffffff">
+          <h2>${totalBadges}</h2>
+          <p>Badges Earned</p>
+        </div>
+        <div class="card" style="background: #6b4303; color:  white;">
+          <h2>${moduleTotalTime}</h2>
+          <p>Total Learning Time</p>
+        </div>
+
       </div>
 
-    </div>
+      <div class="section">
+        <h2>Lessons</h2>
+        <table>
+        <tr><th>Lesson</th><th>Status</th><th>Time Spent</th><th>Date</th></tr>
+        ${lessons
+          .map(
+            (l) => `
+          <tr>
+            <td>${l.title}</td>
+            <td>${l.completed_at ? "Completed" : "Not Completed"}</td>
+             <td>${l.timeSpent}</td>
+            <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
+          </tr>`,
+          )
+          .join("")}
+        </table>
+      </div>
 
-    <div class="footer">
-      © ${new Date().getFullYear()} Jaykirch Technology Hub |
-      Confidential Academic Performance Report |
-      Generated on ${new Date().toLocaleDateString()}
-    </div>
+      <div class="section">
+        <h2>Quiz Results</h2>
+        <table>
+        <tr><th>Lesson</th><th>Quiz</th><th>Score</th><th>Date</th></tr>
+        ${quizzes
+          .map(
+            (q) => `
+          <tr>
+            <td>${q.lesson_title}</td>
+            <td>${q.quiz_title}</td>
+            <td>${q.score ?? "N/A"}</td>
+            <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "-"}</td>
+          </tr>`,
+          )
+          .join("")}
+        </table>
+      </div>
 
-    </body>
-    </html>
-    `;
+      <div class="section">
+        <h2>Assignments</h2>
+        <table>
+        <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Date</th></tr>
+        ${assignments
+          .map(
+            (a) => `
+          <tr>
+            <td>${a.title}</td>
+            <td>${a.total ?? "-"}</td>
+            <td>${a.grade ?? "-"}</td>
+            <td>${a.ai_feedback ?? "No Feedback"}</td>
+            <td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "-"}</td>
+          </tr>`,
+          )
+          .join("")}
+        </table>
 
-    // const browser = await puppeteer.launch({
-    //   headless: true,
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
+        <div class="section">
+          <h2>🏅 Course Badges Earned</h2>
 
-    // const page = await browser.newPage();
-    // await page.setContent(html, { waitUntil: "networkidle0" });
-    // const pdf = await page.pdf({ format: "A4", printBackground: true });
+          ${
+            badges.length === 0
+              ? `
+          <p>No badges earned yet.</p>
+          `
+              : `
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
+          ${badges
+            .map(
+              (b) => `
+            <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
+              
+              ${
+                b.badge_image
+                  ? `
+                <img src="${b.badge_image}" 
+                    style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
+              `
+                  : ""
+              }
+                <hr><br>
+              <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
 
-    // await browser.close();
-    const pdf = await generatePdf(html);
+            </div>
+          `,
+            )
+            .join("")}
+          </div>
+          `
+          }
+        </div>
 
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${module.title.replace(/\s+/g, "_")}_Module_Report.pdf`,
-    );
-    res.setHeader("Content-Type", "application/pdf");
-    res.send(pdf);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error generating module summary");
-  }
-};
+        <div class="section">
+          <h2>Evaluation</h2>
+          <div class="card">
+            Overall Score: ${moduleScore}% <br/><br/>
+            ${consistencyComment}
+          </div>
+        </div>
+
+      </div>
+
+      <div class="footer">
+        © ${new Date().getFullYear()} Jaykirch Technology Hub |
+        Confidential Academic Performance Report |
+        Generated on ${new Date().toLocaleDateString()}
+      </div>
+
+      </body>
+      </html>
+      `;
+
+      // const browser = await puppeteer.launch({
+      //   headless: true,
+      //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      // });
+
+      // const page = await browser.newPage();
+      // await page.setContent(html, { waitUntil: "networkidle0" });
+      // const pdf = await page.pdf({ format: "A4", printBackground: true });
+
+      // await browser.close();
+      const pdf = await generatePdf(html);
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${module.title.replace(/\s+/g, "_")}_Module_Report.pdf`,
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.send(pdf);
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Error generating module summary");
+    }
+  };
 
 exports.getSchoolsApi = async (req, res) => {
   try {
