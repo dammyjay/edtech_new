@@ -110,7 +110,7 @@
     overflow-x: auto;
     scroll-behavior: smooth;
     gap: 1rem;
-    padding-bottom: 10px;
+    padding: 10px;
     margin-bottom: 1rem;
     scrollbar-width: thin;
     /* width: 100%; */

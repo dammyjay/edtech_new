@@ -3486,6 +3486,13 @@ width:100%;
     color: #222;
 }
 
+ .card-content h4 {
+     text-decoration: none;
+     color: var(--brand-pri);
+     font-size: 10px;
+     font-weight: 600;
+ }
+
 .card-content p {
     margin: 4px 0 0;
     font-size: 10px;

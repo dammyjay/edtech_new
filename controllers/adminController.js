@@ -3850,16 +3850,9 @@ function calculateGrade(score) {
       const badges = badgesRes.rows;
       const totalBadges = badges.length;
 
-      // const totalModuleSeconds = lessons.reduce(
-      //   (sum, l) => sum + (lessonTimeMap[l.id] || 0),
-      //   0,
-      // );
-
-      // const totalModuleTime = formatTimeReadable(totalModuleSeconds);
-
       /* ==========================
-   MODULE TIME CALCULATION
-========================== */
+        MODULE TIME CALCULATION
+      ========================== */
 
       const moduleTimeMap = {};
 
@@ -3877,6 +3870,123 @@ function calculateGrade(score) {
         };
       });
 
+      /* ==========================
+        MODULE PERFORMANCE MAP
+      ========================== */
+
+      const modulePerformanceMap = {};
+
+      modules.forEach((module) => {
+        const moduleLessons = lessons.filter((l) => l.module_id === module.id);
+
+        const moduleQuizzes = quizzes.filter((q) => q.module_id === module.id);
+
+        const moduleAssignments = assignments.filter(
+          (a) => a.module_id === module.id,
+        );
+
+        /* Lesson Completion */
+
+        const moduleCompletedLessons = moduleLessons.filter(
+          (l) => l.completed_at,
+        ).length;
+
+        const moduleCompletionPercent = moduleLessons.length
+          ? Math.round((moduleCompletedLessons / moduleLessons.length) * 100)
+          : 0;
+
+        /* Quiz Average */
+
+        const moduleQuizScores = moduleQuizzes
+          .filter((q) => q.score !== null)
+          .map((q) => q.score);
+
+        const moduleQuizAvg = moduleQuizScores.length
+          ? Math.round(
+              moduleQuizScores.reduce((a, b) => a + b, 0) /
+                moduleQuizScores.length,
+            )
+          : 0;
+
+        /* Assignment Average */
+
+        const moduleAssignmentScores = moduleAssignments
+          .filter((a) => a.total !== null)
+          .map((a) => a.total);
+
+        const moduleAssignmentAvg = moduleAssignmentScores.length
+          ? Math.round(
+              moduleAssignmentScores.reduce((a, b) => a + b, 0) /
+                moduleAssignmentScores.length,
+            )
+          : 0;
+
+        /* Smart Module Score */
+
+        let moduleParts = [];
+        let moduleTotal = 0;
+
+        moduleParts.push(moduleCompletionPercent);
+        moduleTotal += moduleCompletionPercent;
+
+        if (moduleQuizzes.length > 0) {
+          moduleParts.push(moduleQuizAvg);
+          moduleTotal += moduleQuizAvg;
+        }
+
+        if (moduleAssignments.length > 0) {
+          moduleParts.push(moduleAssignmentAvg);
+          moduleTotal += moduleAssignmentAvg;
+        }
+
+        const moduleScore = moduleParts.length
+          ? Math.round(moduleTotal / moduleParts.length)
+          : 0;
+
+        /* Module Grade */
+
+        let moduleGrade = "F";
+
+        if (moduleScore >= 80) moduleGrade = "A";
+        else if (moduleScore >= 70) moduleGrade = "B";
+        else if (moduleScore >= 60) moduleGrade = "C";
+        else if (moduleScore >= 50) moduleGrade = "D";
+
+        /* Consistency */
+
+        let consistencyComment = "No completion data.";
+
+        const completionDates = moduleLessons
+          .filter((l) => l.completed_at)
+          .map((l) => new Date(l.completed_at))
+          .sort((a, b) => a - b);
+
+        if (completionDates.length > 1) {
+          const first = completionDates[0];
+          const last = completionDates[completionDates.length - 1];
+
+          const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff <= 7) {
+            consistencyComment = "Excellent completion consistency.";
+          } else if (daysDiff <= 30) {
+            consistencyComment = "Moderate completion consistency.";
+          } else {
+            consistencyComment =
+              "Completion interval is wide. Improvement recommended.";
+          }
+        }
+
+        modulePerformanceMap[module.id] = {
+          completionPercent: moduleCompletionPercent,
+          quizAvg: moduleQuizAvg,
+          assignmentAvg: moduleAssignmentAvg,
+          moduleScore,
+          moduleGrade,
+          consistencyComment,
+        };
+      });
+
       const certRes = await pool.query(
         `SELECT certificate_url, certificate_code, issued_at
         FROM user_certificates
@@ -3891,8 +4001,8 @@ function calculateGrade(score) {
       const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
 
       /* ==========================
-    CHECK IF STUDENT BELONGS TO A SCHOOL
-  ========================== */
+        CHECK IF STUDENT BELONGS TO A SCHOOL
+      ========================== */
 
       const schoolRes = await pool.query(
         `SELECT s.name, s.logo_url
@@ -4237,6 +4347,11 @@ function calculateGrade(score) {
         : ""
     }
 
+    <div style="color: #f39c12;;" class="card">
+      <h2>${overallScore}%</h2>
+      <p>Course Score</p>
+    </div>
+
     <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
 
     <div class="card">
@@ -4305,8 +4420,16 @@ function calculateGrade(score) {
   </div>
 
   <div class="section">
-  <h2>Performance Evaluation</h2>
-  <div class="comment-box">${evaluation}</div>
+    <h2>Performance Evaluation</h2>
+
+    <div class="card" style="margin-bottom:20px;">
+      <h2>${overallScore}%</h2>
+      <p>Overall Course Score</p>
+    </div>
+
+    <div class="comment-box">
+      ${evaluation}
+    </div>
   </div>
 
   ${modules
@@ -4315,9 +4438,49 @@ function calculateGrade(score) {
   <div class="module-block">
   <h2>📦 Module: ${m.title}</h2>
 
-  <div class="card" style="margin-bottom:20px;">
-    <h2>${moduleTimeMap[m.id].formatted}</h2>
-    <p>Total Learning Time</p>
+  <div class="section grid">
+
+    <div class="card" style="background-color: #bb1188; color: #ffffff">
+      <h2>${modulePerformanceMap[m.id].completionPercent}%</h2>
+      <p>Completion</p>
+    </div>
+
+    <div class="card" style="background-color: #280dc2; color: #ffffff">
+      <h2>${modulePerformanceMap[m.id].quizAvg}%</h2>
+      <p>Quiz Average</p>
+    </div>
+
+    ${
+      assignments.some((a) => a.module_id === m.id)
+        ? `
+        <div class="card">
+          <h2>${modulePerformanceMap[m.id].assignmentAvg}%</h2>
+          <p>Assignment Average</p>
+        </div>
+        `
+        : ""
+    }
+
+    <div class="card" style="background-color: #c20d86; color: #ffffff">
+      <h2>${modulePerformanceMap[m.id].moduleScore}%</h2>
+      <p>Module Score</p>
+    </div>
+
+    <div class="card" style="background-color: #11b447; color: #ffffff">
+      <h2>${modulePerformanceMap[m.id].moduleGrade}</h2>
+      <p>Module Grade</p>
+    </div>
+    <div class="card" style="background-color: #743b07; color: #ffffff">
+      <h2>${moduleTimeMap[m.id].formatted}</h2>
+      <p>Total Learning Time</p>
+    </div>
+  </div>
+
+  
+
+  <div class="comment-box">
+    <strong>Consistency Analysis:</strong>
+    ${modulePerformanceMap[m.id].consistencyComment}
   </div>
 
   <h3>📚 Lessons</h3>
@@ -4820,7 +4983,7 @@ function calculateGrade(score) {
         ${
           hasModuleAssignments
             ? `
-        <div class="card" tyle="background-color: #d6a812;">
+        <div class="card" style="background-color: #d6a812;">
           <h2>${assignmentAvg}%</h2>
           <p>Assignment Average</p>
         </div>`
@@ -4839,7 +5002,10 @@ function calculateGrade(score) {
           <h2>${moduleTotalTime}</h2>
           <p>Total Learning Time</p>
         </div>
-
+        <div class="card" style="background-color: #280dc2; color: #ffffff">
+          <h2>${moduleScore}%</h2>
+          <p>Module Score</p>
+        </div>
       </div>
 
       <div class="section">
@@ -4950,17 +5116,6 @@ function calculateGrade(score) {
       </body>
       </html>
       `;
-
-      // const browser = await puppeteer.launch({
-      //   headless: true,
-      //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      // });
-
-      // const page = await browser.newPage();
-      // await page.setContent(html, { waitUntil: "networkidle0" });
-      // const pdf = await page.pdf({ format: "A4", printBackground: true });
-
-      // await browser.close();
       const pdf = await generatePdf(html);
 
       res.setHeader(

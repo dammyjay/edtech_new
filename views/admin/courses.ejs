@@ -66,34 +66,36 @@
     </div>
 
     <div class="container2">
-        <button onclick="openModal()" class="btn-create">
+        <button onclick="openModal()" class="btn-pri">
         + Create New Course
         </button>
     </div>
 
-
-    <!-- <h3>All Courses</h3> -->
-
-    <form method="GET" action="/admin/courses" style="margin-top: 20px">
+    <!-- <form method="GET" action="/admin/courses" style="margin-top: 20px">
       <input
         type="text"
         name="search"
         placeholder="Search by title..."
         value="<%= search || '' %>"
       />
-      <button type="submit">Search</button>
-    </form>
+      <button class="btn-sec" type="submit">Search</button>
+    </form> -->
+    <div style="margin-top:20px;">
+      <input
+        type="text"
+        id="courseSearch"
+        placeholder="Search courses..."
+      />
+    </div>
+
     <h2>Existing Courses</h2>
 
-    
-<div class="pathway-nav">
-  <button class="path-nav-btn" onclick="filterByPathway('All')">All Pathways</button>
+<div class="login-tabs">
+  <button class="login-tab active" onclick="filterByPathway('All', this)">All Pathways</button>
   <% careerPathways.forEach(path => { %>
-    <button onclick="filterByPathway('<%= path.title %>')"><%= path.title %></button>
+    <button class="login-tab" onclick="filterByPathway('<%= path.title %>', this)"><%= path.title %></button>
   <% }) %>
 </div>
-
-
 
   <% for (let pathway in groupedCourses) { %>
   <div class="pathway-group" data-pathway="<%= pathway %>">
@@ -105,25 +107,32 @@
         <div class="section">
           <section class="course-scroll-container">
             <% groupedCourses[pathway][level].forEach(course => { %>
-              <div class="article-card scroll-card">
+              <div
+                class="card-thumbnail hoverable scroll-card"
+                data-title="<%= course.title.toLowerCase() %>"
+                data-pathway="<%= pathway.toLowerCase() %>"
+                data-level="<%= level.toLowerCase() %>"
+                data-creator="<%= course.created_by.toLowerCase() %>"
+              >
                 <% if (course.thumbnail_url) { %>
                   <img src="<%= course.thumbnail_url %>" alt="Course Thumbnail"  />
                 <% } %>
 
-                <h4><%= course.title %></h4>
-                <small style="color: rgb(143, 112, 9);"><strong> created by: </strong><%= course.created_by %></small>
-                <div class="article-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
-                  <%- course.description.substring(0, 100) %>...
-                </div>
+                <div class="card-content">
+                  <h4><%= course.title %></h4>
+                  <p style="color: rgb(143, 112, 9);"><strong> created by: </strong><%= course.created_by %></p>
+                  <div class="card-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
+                    <%- course.description.substring(0, 100) %>...
+                  </div>
 
-                <!-- <a href="javascript:void(0);" class="toggle-article" onclick="togglePathway(<%= course.id %>)">Show More</a> <br> -->
-                <small><strong>Price: </strong> ₦ <%= course.amount %></small><br>
-                <small style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></small>
-                <div class="article-buttons">
-                  <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
-                  <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return confirm('Delete this course?');">
-                    <button class="btn-delete" type="submit">Delete</button>
-                  </form>
+                  <p><strong>Price: </strong> ₦ <%= course.amount %></p>
+                  <p style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></p>
+                  <div class="article-buttons">
+                    <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return confirm('Delete this course?');">
+                      <button class="btn-delete" type="submit">Delete</button>
+                    </form>
+                  </div>
                 </div>
               </div>
 
@@ -224,56 +233,131 @@
     </script>
 
     <!-- script to preview image before upload -->
-    <script>
+   <script>
+      const imageInput =
+      document.getElementById("imageInput");
+
+    if(imageInput){
+
+      imageInput.addEventListener("change", function () {
+
+        const preview =
+          document.getElementById("imagePreview");
+
+        const file =
+          this.files[0];
+
+        if (file) {
+
+          const reader =
+            new FileReader();
+
+          reader.onload = function (e) {
+
+            preview.src =
+              e.target.result;
+
+            preview.style.display =
+              "block";
+
+          };
+
+          reader.readAsDataURL(file);
+
+        }
+
+      });
+
+    }
+    </script>
+
+<!-- Filter by Pathway script -->
+  <script>
+    function filterByPathway(pathway, btn) {
+      const groups = document.querySelectorAll(".pathway-group");
+      groups.forEach(group => {
+        const groupName = group.getAttribute("data-pathway");
+        if (pathway === "All" || groupName === pathway) {
+          group.style.display = "block";
+        } else {
+          group.style.display = "none";
+        }
+      });
       document
-        .getElementById("imageInput")
-        .addEventListener("change", function () {
-          const preview = document.getElementById("imagePreview");
-          const file = this.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-              preview.src = e.target.result;
-              preview.style.display = "block";
-            };
-            reader.readAsDataURL(file);
-          } else {
-            preview.src = "#";
-            preview.style.display = "none";
-          }
-        });
-    </script>
+          .querySelectorAll(".login-tab")
+          .forEach(tab => tab.classList.remove("active"));
 
-    <!-- script to filter level for each career pathway -->
-    <!--<script>
-      function filterByLevel() {
-        const selected = document.getElementById("levelFilter").value;
-        const sections = document.querySelectorAll(".course-level-section");
+        btn.classList.add("active");
+    }
+  </script>
 
-        sections.forEach(section => {
-          const level = section.getAttribute("data-level");
-          if (selected === "All" || level === selected) {
-            section.style.display = "block";
-          } else {
-            section.style.display = "none";
-          }
-        });
-      }
-    </script> -->
+  <!-- Live Search Script -->
+<script>
+  document
+    .getElementById("courseSearch")
+    .addEventListener("input", function () {
 
-    <script>
-  function filterByPathway(pathway) {
-    const groups = document.querySelectorAll(".pathway-group");
-    groups.forEach(group => {
-      const groupName = group.getAttribute("data-pathway");
-      if (pathway === "All" || groupName === pathway) {
-        group.style.display = "block";
-      } else {
-        group.style.display = "none";
-      }
+      const keyword =
+        this.value.toLowerCase().trim();
+
+      const cards =
+        document.querySelectorAll(".card-thumbnail");
+
+      cards.forEach(card => {
+
+        const title =
+          card.dataset.title || "";
+
+        const pathway =
+          card.dataset.pathway || "";
+
+        const level =
+          card.dataset.level || "";
+
+        const creator =
+          card.dataset.creator || "";
+
+        if (
+          title.includes(keyword) ||
+          pathway.includes(keyword) ||
+          level.includes(keyword) ||
+          creator.includes(keyword)
+        ) {
+          card.style.display = "";
+        } else {
+          card.style.display = "none";
+        }
+
+      });
+
+      updateEmptyGroups();
+
     });
-  }
-    </script>
+</script>
+
+  <!-- Hide Empty pathway -->
+   <script>
+    function updateEmptyGroups(){
+      document
+        .querySelectorAll(".pathway-group")
+        .forEach(group => {
+
+          const visibleCards =
+            group.querySelectorAll(
+              '.card-thumbnail-card:not([style*="display: none"])'
+            );
+
+          if(visibleCards.length > 0){
+            group.style.display = "block";
+          }else{
+            group.style.display = "none";
+          }
+
+        });
+
+    }
+
+  </script>
 
 <!-- script for opening and closing the modal -->
     <script>
