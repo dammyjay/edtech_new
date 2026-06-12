@@ -376,6 +376,11 @@ router.post(
   learningController.editQuizQuestion
 );
 
+router.post(
+  "/lesson/:lessonId/quiz/import",
+  learningController.importQuizJson
+);
+
 // Delete question
 router.post("/quiz-question/:id/delete", learningController.deleteQuizQuestion);
 

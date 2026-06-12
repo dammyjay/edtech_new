@@ -412,6 +412,82 @@ exports.createQuizQuestion = async (req, res) => {
   }
 };
 
+exports.importQuizJson = async (req, res) => {
+  const { lessonId } = req.params;
+  const { quizData } = req.body;
+
+  try {
+    const parsed =
+      typeof quizData === "string" ? JSON.parse(quizData) : quizData;
+
+    // Find or create quiz
+    let quizResult = await pool.query(
+      `SELECT * FROM quizzes WHERE lesson_id = $1`,
+      [lessonId],
+    );
+
+    let quiz;
+
+    if (quizResult.rows.length === 0) {
+      const created = await pool.query(
+        `INSERT INTO quizzes (lesson_id, title)
+         VALUES ($1,$2)
+         RETURNING *`,
+        [lessonId, parsed.title || "Imported Quiz"],
+      );
+
+      quiz = created.rows[0];
+    } else {
+      quiz = quizResult.rows[0];
+    }
+
+    for (const q of parsed.questions) {
+      await pool.query(
+        `
+        INSERT INTO quiz_questions
+        (
+          quiz_id,
+          question,
+          question_type,
+          options,
+          correct_option
+        )
+        VALUES ($1,$2,$3,$4,$5)
+        `,
+        [
+          quiz.id,
+          q.question,
+          q.question_type,
+          q.options || null,
+          q.correct_option,
+        ],
+      );
+    }
+
+    const updatedQuestions = await pool.query(
+      `
+      SELECT *
+      FROM quiz_questions
+      WHERE quiz_id = $1
+      ORDER BY id
+      `,
+      [quiz.id],
+    );
+
+    res.json({
+      success: true,
+      questions: updatedQuestions.rows,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Invalid JSON format",
+    });
+  }
+};
+
 exports.deleteQuizQuestion = async (req, res) => {
   try {
     await pool.query(`DELETE FROM quiz_questions WHERE id = $1`, [

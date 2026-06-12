@@ -134,6 +134,32 @@
   <div class="modal-content">
     <h2>Manage Quiz</h2>
 
+    <hr>
+
+    <h3>Import Quiz JSON</h3>
+    <input
+      type="file"
+      id="quizFile"
+      accept=".json"
+    />
+
+    <textarea
+      id="quizJson"
+      rows="10"
+      style="width:100%;"
+      placeholder="Paste JSON here..."
+    ></textarea>
+
+    <br><br>
+
+    <button
+      type="button"
+      onclick="importQuizJson()"
+    >
+      Import JSON
+    </button>
+
+  <p>Or type manually</p>
     <div id="quizQuestions"></div>
 
     <hr>
@@ -300,6 +326,58 @@ function openQuizModal(lessonId) {
     .catch(err => console.error(err));
 }
 
+function importQuizJson() {
+  const lessonId =
+    document.querySelector(
+      '.article-card[data-lesson-id]'
+    ).dataset.lessonId;
+
+  const json = document.getElementById("quizJson").value;
+
+  if (!json.trim()) {
+    return alert("Paste JSON first");
+  }
+
+  fetch(
+    `/admin/lesson/${lessonId}/quiz/import`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        quizData: json,
+      }),
+    }
+  )
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        renderQuestions(data.questions);
+        alert("Quiz imported successfully");
+      } else {
+        alert(data.message);
+      }
+    });
+}
+
+document
+  .getElementById("quizFile")
+  .addEventListener("change", function (e) {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function (event) {
+      document.getElementById("quizJson").value =
+        event.target.result;
+    };
+
+    reader.readAsText(file);
+  });
+  
 function closeQuizModal() {
   document.getElementById('quizModal').style.display = 'none';
 }
@@ -425,183 +503,6 @@ function deleteQuestion(id) {
 }
 </script>
 
-
-<!-- <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-<script>
-  /* ---------------- CREATE LESSON ---------------- */
-  function openLessonModal() {
-    document.getElementById('lessonModal').style.display = 'block';
-
-    // ✅ Initialize CKEditor 4 for create lesson if not already initialized
-    if (!CKEDITOR.instances['createLessonContent']) {
-      CKEDITOR.replace('createLessonContent');
-    }
-  }
-
-  function closeLessonModal() {
-    document.getElementById('lessonModal').style.display = 'none';
-  }
-
-  /* ---------------- EDIT LESSON ---------------- */
-  async function openEditLessonModal(lessonId) {
-    try {
-      const res = await fetch(`/admin/lessons/${lessonId}/json`);
-      const lesson = await res.json();
-
-      if (!lesson) {
-        alert("Failed to load lesson data.");
-        return;
-      }
-
-      const form = document.getElementById('editLessonForm');
-      form.action = `/admin/lessons/${lesson.id}/edit`;
-
-      document.getElementById('editLessonTitle').value = lesson.title;
-      document.getElementById('editLessonOrder').value = lesson.order_number || '';
-
-      // ✅ Handle module dropdown
-      let moduleSelect = document.getElementById('editLessonModule');
-      if (!moduleSelect) {
-        moduleSelect = document.createElement('select');
-        moduleSelect.name = 'module_id';
-        moduleSelect.id = 'editLessonModule';
-        moduleSelect.required = true;
-
-        const titleLabel = document.querySelector('#editLessonForm label[for="editLessonTitle"]') ||
-                           document.querySelector('#editLessonForm input[name="title"]');
-        form.insertBefore(moduleSelect, titleLabel);
-      }
-
-      moduleSelect.innerHTML = '';
-      if (window.modules && Array.isArray(window.modules)) {
-        window.modules.forEach(mod => {
-          const opt = document.createElement('option');
-          opt.value = mod.id;
-          opt.textContent = mod.title;
-          if (lesson.module_id == mod.id) opt.selected = true;
-          moduleSelect.appendChild(opt);
-        });
-      } else {
-        const opt = document.createElement('option');
-        opt.value = lesson.module_id;
-        opt.textContent = lesson.module_title || `Module ${lesson.module_id}`;
-        opt.selected = true;
-        moduleSelect.appendChild(opt);
-      }
-
-      document.getElementById('editLessonVideo').value = lesson.video_url || '';
-      document.getElementById('editLessonModal').style.display = 'block';
-
-      // ✅ Initialize CKEditor 4 for edit lesson
-      if (!CKEDITOR.instances['editLessonContent']) {
-        CKEDITOR.replace('editLessonContent');
-        setTimeout(() => {
-          CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
-        }, 300);
-      } else {
-        CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching lesson data.");
-    }
-  }
-
-  function closeEditLessonModal() {
-    document.getElementById('editLessonModal').style.display = 'none';
-  }
-
-  /* ---------------- FORM SUBMISSION HANDLERS ---------------- */
-  document.addEventListener('submit', function (e) {
-    // ✅ Update CKEditor fields first before reading their values
-    for (let instance in CKEDITOR.instances) {
-      CKEDITOR.instances[instance].updateElement();
-    }
-
-    // ✅ Now safely check for content
-    const createContent = document.getElementById('createLessonContent');
-    const editContent = document.getElementById('editLessonContent');
-
-    if (createContent && createContent.closest('form') === e.target) {
-      if (!createContent.value.trim()) {
-        e.preventDefault();
-        alert("Please enter lesson content before saving.");
-        return false;
-      }
-    }
-
-    if (editContent && editContent.closest('form') === e.target) {
-      if (!editContent.value.trim()) {
-        e.preventDefault();
-        alert("Lesson content is required.");
-        return false;
-      }
-    }
-  });
-</script> -->
-
-
-<!-- <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-<script>
-  /* ---------------- CREATE LESSON ---------------- */
-  function openLessonModal() {
-    document.getElementById('lessonModal').style.display = 'block';
-    if (!CKEDITOR.instances['createLessonContent']) CKEDITOR.replace('createLessonContent');
-    if (!CKEDITOR.instances['createLessonPlan']) CKEDITOR.replace('createLessonPlan');
-  }
-
-  function closeLessonModal() {
-    document.getElementById('lessonModal').style.display = 'none';
-  }
-
-  /* ---------------- EDIT LESSON ---------------- */
-  async function openEditLessonModal(lessonId) {
-    try {
-      const res = await fetch(`/admin/lessons/${lessonId}/json`);
-      const lesson = await res.json();
-      if (!lesson) return alert("Failed to load lesson data.");
-
-      const form = document.getElementById('editLessonForm');
-      form.action = `/admin/lessons/${lesson.id}/edit`;
-
-      document.getElementById('editLessonTitle').value = lesson.title;
-      document.getElementById('editLessonOrder').value = lesson.order_number || '';
-      document.getElementById('editLessonVideo').value = lesson.video_url || '';
-
-      // CKEditor for content
-      if (!CKEDITOR.instances['editLessonContent']) CKEDITOR.replace('editLessonContent');
-      CKEDITOR.instances['editLessonContent'].setData(lesson.content || '');
-
-      // CKEditor for lesson plan
-      if (!CKEDITOR.instances['editLessonPlan']) CKEDITOR.replace('editLessonPlan');
-      CKEDITOR.instances['editLessonPlan'].setData(lesson.lesson_plan || '');
-
-      document.getElementById('editLessonModal').style.display = 'block';
-
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching lesson data.");
-    }
-  }
-
-  function closeEditLessonModal() {
-    document.getElementById('editLessonModal').style.display = 'none';
-  }
-
-  /* ---------------- FORM SUBMISSION ---------------- */
-  document.addEventListener('submit', function(e){
-    for (let instance in CKEDITOR.instances) CKEDITOR.instances[instance].updateElement();
-
-    const textarea = e.target.querySelector('textarea[name="content"], textarea[name="lesson_plan"]');
-    if (!textarea.value.trim()) {
-      e.preventDefault();
-      alert("Both lesson content and teacher lesson plan are required.");
-      return false;
-    }
-  });
-</script> -->
-
 <script>
   window.modules = <%- JSON.stringify(modules) %>;
 </script>
@@ -609,17 +510,6 @@ function deleteQuestion(id) {
 <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
 <script>
 /* ---------------- CREATE LESSON ---------------- */
-// function openLessonModal() {
-//   document.getElementById('lessonModal').style.display = 'block';
-
-//   if (!CKEDITOR.instances.createLessonContent) {
-//     CKEDITOR.replace('createLessonContent');
-//   }
-//   if (!CKEDITOR.instances.createLessonPlan) {
-//     CKEDITOR.replace('createLessonPlan');
-//   }
-
-// }
 
 function openLessonModal() {
     document.getElementById('lessonModal').style.display = 'block';
