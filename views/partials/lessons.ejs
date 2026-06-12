@@ -312,7 +312,23 @@ document.querySelectorAll('.ai-generate-form').forEach(form => {
 let isEditing = false;
 let editingQuestionId = null;
 
+// function openQuizModal(lessonId) {
+//   fetch(`/admin/lesson/${lessonId}/quiz`)
+//     .then(res => res.json())
+//     .then(data => {
+//       if (data.success) {
+//         document.getElementById('quiz_id').value = data.quiz.id;
+//         renderQuestions(data.questions);
+//         resetQuizForm();
+//         document.getElementById('quizModal').style.display = 'block';
+//       }
+//     })
+//     .catch(err => console.error(err));
+// }
+
 function openQuizModal(lessonId) {
+  currentLessonId = lessonId;
+
   fetch(`/admin/lesson/${lessonId}/quiz`)
     .then(res => res.json())
     .then(data => {
@@ -326,11 +342,46 @@ function openQuizModal(lessonId) {
     .catch(err => console.error(err));
 }
 
+// function importQuizJson() {
+//   const lessonId =
+//     document.querySelector(
+//       '.article-card[data-lesson-id]'
+//     ).dataset.lessonId;
+
+//   const json = document.getElementById("quizJson").value;
+
+//   if (!json.trim()) {
+//     return alert("Paste JSON first");
+//   }
+
+//   fetch(
+//     `/admin/lesson/${lessonId}/quiz/import`,
+//     {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//       },
+//       body: JSON.stringify({
+//         quizData: json,
+//       }),
+//     }
+//   )
+//     .then((res) => res.json())
+//     .then((data) => {
+//       if (data.success) {
+//         renderQuestions(data.questions);
+//         alert("Quiz imported successfully");
+//       } else {
+//         alert(data.message);
+//       }
+//     });
+// }
+
 function importQuizJson() {
-  const lessonId =
-    document.querySelector(
-      '.article-card[data-lesson-id]'
-    ).dataset.lessonId;
+
+  if (!currentLessonId) {
+    return alert("No lesson selected");
+  }
 
   const json = document.getElementById("quizJson").value;
 
@@ -339,7 +390,7 @@ function importQuizJson() {
   }
 
   fetch(
-    `/admin/lesson/${lessonId}/quiz/import`,
+    `/admin/lesson/${currentLessonId}/quiz/import`,
     {
       method: "POST",
       headers: {
@@ -350,15 +401,15 @@ function importQuizJson() {
       }),
     }
   )
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.success) {
-        renderQuestions(data.questions);
-        alert("Quiz imported successfully");
-      } else {
-        alert(data.message);
-      }
-    });
+  .then(res => res.json())
+  .then(data => {
+    console.log(data);
+
+    if (data.success) {
+      renderQuestions(data.questions);
+      alert("Quiz imported successfully");
+    }
+  });
 }
 
 document
@@ -377,7 +428,7 @@ document
 
     reader.readAsText(file);
   });
-  
+
 function closeQuizModal() {
   document.getElementById('quizModal').style.display = 'none';
 }
