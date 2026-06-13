@@ -14,7 +14,7 @@
 
     <h2><%= course.title %></h2>
 
-    <ul class="tab-list">
+    <!-- <ul class="tab-list">
       <li class="<%= activeTab === 'details' ? 'active' : '' %>">
         <a href="?tab=details">Course Details</a>
       </li>
@@ -30,7 +30,46 @@
       <li class="<%= activeTab === 'project' ? 'active' : '' %>">
         <a href="?tab=project">Capstone Project</a>
       </li>
-    </ul>
+    </ul> -->
+
+    <div class="login-tabs scroll-tabs">
+
+      <a
+        href="?tab=details"
+        class="login-tab <%= activeTab === 'details' ? 'active' : '' %>"
+      >
+        Course Details
+      </a>
+
+      <a
+        href="?tab=modules"
+        class="login-tab <%= activeTab === 'modules' ? 'active' : '' %>"
+      >
+        Modules
+      </a>
+
+      <a
+        href="?tab=lessons"
+        class="login-tab <%= activeTab === 'lessons' ? 'active' : '' %>"
+      >
+        Lessons
+      </a>
+
+      <a
+        href="?tab=assignment"
+        class="login-tab <%= activeTab === 'assignment' ? 'active' : '' %>"
+      >
+        Assignment
+      </a>
+
+      <a
+        href="?tab=project"
+        class="login-tab <%= activeTab === 'project' ? 'active' : '' %>"
+      >
+        Capstone Project
+      </a>
+
+    </div>
 
     <div class="tab-content">
 

@@ -582,13 +582,22 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
   <h1>📊 Progress Report for <%= student.fullname %></h1>
 
   <!-- Tabs -->
-  <div class="tabs">
+  <!-- <div class="tabs">
     <div class="tab active" onclick="openTab('summary')">Summary</div>
     <div class="tab" onclick="openTab('courses')">Courses</div>
     <div class="tab" onclick="openTab('modules')">Modules</div>
     <div class="tab" onclick="openTab('lessons')">Lessons</div>
     <div class="tab" onclick="openTab('quizzes')">Quizzes</div>
     <div class="tab" onclick="openTab('assignments')">Assignments</div>
+  </div> -->
+
+    <div class="login-tabs">
+    <div class="login-tab active" onclick="openTab('summary')">Summary</div>
+    <div class="login-tab" onclick="openTab('courses')">Courses</div>
+    <div class="login-tab" onclick="openTab('modules')">Modules</div>
+    <div class="login-tab" onclick="openTab('lessons')">Lessons</div>
+    <div class="login-tab" onclick="openTab('quizzes')">Quizzes</div>
+    <div class="login-tab" onclick="openTab('assignments')">Assignments</div>
   </div>
 
 <div id="summary" class="tab-content active">
@@ -936,9 +945,9 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 
   <script> 
     function openTab(tabId) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.login-tab').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      document.querySelector(`.tab[onclick="openTab('${tabId}')"]`).classList.add('active');
+      document.querySelector(`.login-tab[onclick="openTab('${tabId}')"]`).classList.add('active');
       document.getElementById(tabId).classList.add('active');
     }
 

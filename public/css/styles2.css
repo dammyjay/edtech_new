@@ -672,28 +672,22 @@
   width: 90%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-
-/* Style the tab list (horizontal menu) */
+/* 
 .tab-list {
     list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
     flex-wrap: nowrap;
-    /* Prevent wrapping */
     overflow-x: auto;
-    /* Enable horizontal scroll if needed */
     -webkit-overflow-scrolling: touch;
-    /* Smooth scroll for mobile */
     border-bottom: 2px solid #ccc;
     margin-top: 30px;
     width: 100vw;
-    /* Full device width */
 }
 
 .tab-list::-webkit-scrollbar {
     height: 6px;
-    /* Thin scrollbar */
 }
 
 .tab-list::-webkit-scrollbar-thumb {
@@ -703,7 +697,6 @@
 
 .tab-list li {
     flex: 0 0 auto;
-    /* Prevent shrinking */
     margin-right: 10px;
 }
 
@@ -718,7 +711,6 @@
     font-weight: 500;
     transition: all 0.3s ease;
     white-space: nowrap;
-    /* Keep text on one line */
 }
 
 .tab-list li.active a {
@@ -731,6 +723,66 @@
 .tab-list li a:hover {
     background-color: #eaeaea;
     color: #007bff;
+} */
+
+/* =================================
+   COURSE TABS (LOGIN TAB STYLE)
+================================= */
+
+.tab-list {
+    list-style: none;
+    padding: 0;
+    margin: 30px 0;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 10px;
+    width: 100%;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tab-list::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tab-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 20px;
+}
+
+.tab-list li {
+    flex: 0 0 auto;
+    /* prevents shrinking */
+}
+
+.tab-list li a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 150px;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #333;
+    background: #f5f5f5;
+    border: none;
+    border-bottom: 5px solid var(--brand-pri);
+    border-radius: 15px 15px 0 0;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.tab-list li.active a {
+    background: var(--brand-pri);
+    color: #fff;
+    border-bottom: 5px solid var(--neutral1);
+}
+
+.tab-list li a:hover {
+    background: var(--brand-pri);
+    color: #fff;
 }
 
 .content-section {
