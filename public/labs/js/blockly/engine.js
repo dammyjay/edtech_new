@@ -12,6 +12,21 @@ window.backgrounds = [];
 // SPRITE RENDER
 // =========================
 
+// window.updateSprite = function () {
+//   const sprite = document.getElementById("sprite");
+
+//   if (!sprite) return;
+
+//   sprite.style.left = spriteX + "px";
+//   sprite.style.top = spriteY + "px";
+
+//   sprite.style.transform =
+//     `rotate(${spriteRotation}deg)`;
+
+//   sprite.style.display =
+//     spriteVisible ? "block" : "none";
+// };
+
 window.updateSprite = function () {
   const sprite = document.getElementById("sprite");
 
@@ -20,11 +35,20 @@ window.updateSprite = function () {
   sprite.style.left = spriteX + "px";
   sprite.style.top = spriteY + "px";
 
-  sprite.style.transform =
-    `rotate(${spriteRotation}deg)`;
+  sprite.style.transform = `rotate(${spriteRotation}deg)`;
 
-  sprite.style.display =
-    spriteVisible ? "block" : "none";
+  sprite.style.display = spriteVisible ? "block" : "none";
+
+  // UPDATE RECORDING DATA
+
+  const mainSprite = window.sprites.find((s) => s.id === "mainSprite");
+
+  if (mainSprite) {
+    mainSprite.x = spriteX;
+    mainSprite.y = spriteY;
+    mainSprite.rotation = spriteRotation;
+    mainSprite.visible = spriteVisible;
+  }
 };
 
 

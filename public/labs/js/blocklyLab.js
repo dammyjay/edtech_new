@@ -2,6 +2,10 @@
 
 let workspace;
 let saveTimeout;
+let stageWidth;
+let stageHeight;
+let recordingStartTime = null;
+let recordingTimerInterval = null;
 
 window.sprites = [];
 
@@ -82,22 +86,50 @@ function makeSpriteDraggable(spriteData) {
     dragging = false;
   });
 
+  // document.addEventListener("mousemove", (e) => {
+  //   if (!dragging) return;
+
+  //   const rect = stage.getBoundingClientRect();
+
+  //   spriteData.x = e.clientX - rect.left - offsetX;
+
+  //   spriteData.y = e.clientY - rect.top - offsetY;
+
+  //   spriteData.element.style.left = spriteData.x + "px";
+
+  //   spriteData.element.style.top = spriteData.y + "px";
+
+  //   if (currentSprite && currentSprite.id === spriteData.id) {
+  //     loadSpriteProperties(spriteData);
+  //   }
+  // });
+
   document.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
 
     const rect = stage.getBoundingClientRect();
 
-    spriteData.x = e.clientX - rect.left - offsetX;
+    // Update cursor tracking
+    cursorX = e.clientX - rect.left;
+    cursorY = e.clientY - rect.top;
 
+    // Drag sprite
+    if (!dragging) return;
+
+    spriteData.x = e.clientX - rect.left - offsetX;
     spriteData.y = e.clientY - rect.top - offsetY;
 
-    spriteData.element.style.left = spriteData.x + "px";
+    if (spriteData.id === "mainSprite") {
+      spriteX = spriteData.x;
+      spriteY = spriteData.y;
+    }
 
+    spriteData.element.style.left = spriteData.x + "px";
     spriteData.element.style.top = spriteData.y + "px";
 
     if (currentSprite && currentSprite.id === spriteData.id) {
       loadSpriteProperties(spriteData);
     }
+
   });
 }
 
@@ -154,22 +186,6 @@ window.moveCurrentSprite = function (x, y) {
 };
 
 
-// window.addBackground = function (file) {
-//   const stage = document.getElementById("stage");
-
-//   stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
-
-//   stage.style.backgroundSize = "cover";
-
-//   stage.style.backgroundPosition = "center";
-
-//   stage.style.backgroundRepeat = "no-repeat";
-
-//   backgrounds.push(file);
-
-//   renderBackgroundList();
-// };
-
 window.addBackground = function (file) {
   const stage = document.getElementById("stage");
 
@@ -184,31 +200,106 @@ window.addBackground = function (file) {
   stage.style.backgroundRepeat = "no-repeat";
 
   backgrounds.push(file);
+  setBackground(file);
 
   renderBackgroundList();
 };
+
+window.setBackground = function (file) {
+  const stage = document.getElementById("stage");
+
+  currentBackground = file;
+
+  stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
+
+  stage.style.backgroundSize = "cover";
+  stage.style.backgroundPosition = "center";
+  stage.style.backgroundRepeat = "no-repeat";
+
+  backgroundImage = new Image();
+  backgroundImage.src = `/labs/images/backgrounds/${file}`;
+};
+
+// window.renderBackgroundList = function () {
+//   const container = document.getElementById("backgroundList");
+
+//   container.innerHTML = "";
+
+//   backgrounds.forEach((bg) => {
+//     const item = document.createElement("div");
+
+//     item.innerHTML = `
+//     <img
+//         src="/labs/images/backgrounds/${bg}"
+//         style="
+//             width:100%;
+//             height:80px;
+//             object-fit:cover;
+//             border-radius:8px;
+//         ">
+//     `;
+
+//     container.appendChild(item);
+//   });
+// };
 
 window.renderBackgroundList = function () {
   const container = document.getElementById("backgroundList");
 
   container.innerHTML = "";
 
-  backgrounds.forEach((bg) => {
+  backgrounds.forEach((bg, index) => {
     const item = document.createElement("div");
 
+    item.className = "background-card";
+
     item.innerHTML = `
-    <img
+      <img
         src="/labs/images/backgrounds/${bg}"
         style="
-            width:100%;
-            height:80px;
-            object-fit:cover;
-            border-radius:8px;
-        ">
+          width:100%;
+          height:80px;
+          object-fit:cover;
+          border-radius:8px;
+          cursor:pointer;
+        "
+      >
+
+      <button
+        class="delete-bg-btn"
+        onclick="deleteBackground(${index})">
+        <i class="fas fa-trash"></i>
+      </button>
     `;
+
+    item.querySelector("img").addEventListener("click", () => {
+      setBackground(bg);
+    });
 
     container.appendChild(item);
   });
+};
+
+window.deleteBackground = function (index) {
+  const deletedBg = backgrounds[index];
+
+  backgrounds.splice(index, 1);
+
+  if (deletedBg === currentBackground) {
+    if (backgrounds.length > 0) {
+      setBackground(backgrounds[0]);
+    } else {
+      const stage = document.getElementById("stage");
+
+      stage.style.backgroundImage = "none";
+
+      backgroundImage = null;
+
+      currentBackground = null;
+    }
+  }
+
+  renderBackgroundList();
 };
 
 window.addEventListener("load", async () => {
@@ -250,7 +341,9 @@ window.addEventListener("load", async () => {
     }, 3000);
 
     const defaultSprite = document.getElementById("sprite");
-
+    defaultSprite.style.left = "100px";
+    defaultSprite.style.top = "100px";
+    defaultSprite.style.position = "absolute";
     const spriteData = {
       id: "mainSprite",
       name: "Jay",
@@ -270,9 +363,6 @@ window.addEventListener("load", async () => {
     });
 
     window.sprites.push(spriteData);
-
-    // selectSpriteById("mainSprite");
-
     renderSpriteList();
 
     // Load project
@@ -286,31 +376,21 @@ window.addEventListener("load", async () => {
 
     stage.addEventListener("mousemove", (e) => {
       const rect = stage.getBoundingClientRect();
-
       const x = Math.round(e.clientX - rect.left);
-
       const y = Math.round(e.clientY - rect.top);
       cursorX = x;
       cursorY = y;
-
       mouseX.textContent = `X: ${x}`;
-
       mouseY.textContent = `Y: ${y}`;
-
       const cursor = document.getElementById("recordCursor");
-
       cursor.style.left = x + "px";
-
       cursor.style.top = y + "px";
     });
-
     stage.addEventListener("mouseleave", () => {
       mouseX.textContent = "X: -";
-
       mouseY.textContent = "Y: -";
     });
 
-    
 
     // Buttons
     document.getElementById("saveBtn").addEventListener("click", saveProject);
@@ -427,6 +507,96 @@ async function takeStageScreenshot() {
   }
 }
 
+function renderRecordingFrame() {
+  if (!isRecording) return;
+
+  recordingCtx.clearRect(0, 0, recordingCanvas.width, recordingCanvas.height);
+
+  // Draw background
+
+  if (backgroundImage && backgroundImage.complete) {
+
+    const imgW = backgroundImage.width;
+    const imgH = backgroundImage.height;
+
+    const stageRatio = stageWidth / stageHeight;
+    const imageRatio = imgW / imgH;
+
+    let sx = 0;
+    let sy = 0;
+    let sw = imgW;
+    let sh = imgH;
+
+    if (imageRatio > stageRatio) {
+
+        sw = imgH * stageRatio;
+        sx = (imgW - sw) / 2;
+
+    } else {
+
+        sh = imgW / stageRatio;
+        sy = (imgH - sh) / 2;
+    }
+
+    recordingCtx.drawImage(
+        backgroundImage,
+        sx,
+        sy,
+        sw,
+        sh,
+        0,
+        0,
+        stageWidth,
+        stageHeight
+    );
+  }
+  
+  sprites.forEach((sprite) => {
+    if (!sprite.visible) return;
+
+    recordingCtx.save();
+
+    recordingCtx.translate(
+      sprite.x + sprite.width / 2,
+      sprite.y + sprite.height / 2,
+    );
+
+    recordingCtx.rotate(((sprite.rotation || 0) * Math.PI) / 180);
+
+    recordingCtx.drawImage(
+      sprite.element,
+      -sprite.width / 2,
+      -sprite.height / 2,
+      sprite.width,
+      sprite.height,
+    );
+
+    recordingCtx.restore();
+  });
+
+  // Draw cursor
+
+  recordingCtx.beginPath();
+
+  recordingCtx.arc(cursorX, cursorY, 8, 0, Math.PI * 2);
+
+  recordingCtx.fillStyle = "red";
+
+  recordingCtx.fill();
+
+  // const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+
+  // const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+
+  // const seconds = String(elapsed % 60).padStart(2, "0");
+
+  // recordingCtx.fillStyle = "red";
+  // recordingCtx.font = "bold 18px Arial";
+  // recordingCtx.fillText(`REC ${minutes}:${seconds}`, 15, 30);
+
+  requestAnimationFrame(renderRecordingFrame);
+}
+
 async function startRecording() {
     document.getElementById("recordCursor").style.display = "block";
     const useMic =
@@ -434,152 +604,166 @@ async function startRecording() {
             "Do you want to record with microphone narration?"
         );
 
-    await recordStage(useMic);6
+    await recordStage(useMic);
 
+}
+
+function startRecordingTimer() {
+  recordingStartTime = Date.now();
+
+  const timer = document.getElementById("recordingTimer");
+
+  timer.classList.add("recording");
+
+  recordingTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+
+    const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+
+    const seconds = String(elapsed % 60).padStart(2, "0");
+
+    timer.textContent = `🔴 REC ${minutes}:${seconds}`;
+  }, 1000);
+}
+
+function stopRecordingTimer() {
+  clearInterval(recordingTimerInterval);
+
+  const timer = document.getElementById("recordingTimer");
+
+  timer.classList.remove("recording");
+
+  timer.textContent = "🔴 REC 00:00";
 }
 
 async function recordStage(useMic) {
 
-  const stage =
+    const stage =
     document.getElementById("stage");
-
-  const canvas =
-    document.createElement("canvas");
-
-  canvas.width =
-    stage.offsetWidth;
-
-  canvas.height =
-    stage.offsetHeight;
-
-  const ctx =
-    canvas.getContext("2d");
-
-  const fps = 30;
-
-  const drawFrame = async () => {
-
-    if (!isRecording) return;
-
-    const frame =
-      await html2canvas(stage, {
-        backgroundColor: null,
-        useCORS: true
-      });
-
-    ctx.clearRect(
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-    ctx.drawImage(
-      frame,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-    requestAnimationFrame(drawFrame);
-  };
-
-  isRecording = true;
-
-  drawFrame();
-
-  recordingStream =
-    canvas.captureStream(fps);
-  if (useMic) {
-
-    try {
-
-      const mic =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true
-        });
-
-      mic.getAudioTracks().forEach(track => {
-
-        recordingStream.addTrack(track);
-
-      });
-
-    }
-    catch (err) {
-
-      alert("Microphone permission denied");
-
-    }
-  }
   
-  recordedChunks = [];
+  stageWidth = stage.offsetWidth;
+  stageHeight = stage.offsetHeight;
 
-  mediaRecorder =
-    // new MediaRecorder(
-    //   recordingStream,
-    //   {
-    //     mimeType: "video/webm"
-    //   }
-    // );
-    new MediaRecorder(recordingStream, {
-      mimeType: "video/webm;codecs=vp9",
+    const scale = 2;
+    
 
-      videoBitsPerSecond: 12000000,
-    });
+    recordingCanvas =
+        document.createElement("canvas");
 
-  mediaRecorder.ondataavailable =
-    (event) => {
+    recordingCanvas.width =
+        stage.offsetWidth * scale;
 
-      if (event.data.size > 0) {
+    recordingCanvas.height =
+        stage.offsetHeight * scale;
 
-        recordedChunks.push(
-          event.data
+    recordingCtx =
+        recordingCanvas.getContext("2d");
+
+    recordingCtx.scale(scale, scale);
+
+    isRecording = true;
+    startRecordingTimer();
+
+    renderRecordingFrame();
+
+    recordingStream =
+        recordingCanvas.captureStream(60);
+
+    if (useMic) {
+
+        try {
+
+            const mic =
+                await navigator.mediaDevices.getUserMedia({
+                    audio: true
+                });
+
+            mic.getAudioTracks().forEach(track => {
+
+                recordingStream.addTrack(track);
+
+            });
+
+        } catch (err) {
+
+            alert(
+                "Microphone permission denied"
+            );
+
+        }
+    }
+
+    recordedChunks = [];
+
+    mediaRecorder =
+        new MediaRecorder(
+            recordingStream,
+            {
+                mimeType:
+                    "video/webm;codecs=vp9",
+
+                videoBitsPerSecond:
+                    12000000
+            }
         );
 
-      }
+    mediaRecorder.ondataavailable =
+        event => {
+
+            if (
+                event.data.size > 0
+            ) {
+
+                recordedChunks.push(
+                    event.data
+                );
+
+            }
+
+        };
+
+    mediaRecorder.onstop = () => {
+
+        const blob =
+            new Blob(
+                recordedChunks,
+                {
+                    type:
+                        "video/webm"
+                }
+            );
+
+        const url =
+            URL.createObjectURL(
+                blob
+            );
+
+        const a =
+            document.createElement("a");
+
+        a.href = url;
+
+        a.download =
+            `recording-${Date.now()}.webm`;
+
+        a.click();
 
     };
-  
-  mediaRecorder.onstop = () => {
 
-    const blob =
-      new Blob(
-        recordedChunks,
-        {
-          type: "video/webm"
-        }
-      );
+    mediaRecorder.start();
 
-    const url =
-      URL.createObjectURL(blob);
+    document.getElementById(
+        "recordBtn"
+    ).style.display = "none";
 
-    const a =
-      document.createElement("a");
-
-    a.href = url;
-
-    a.download =
-      `recording-${Date.now()}.webm`;
-
-    a.click();
-
-  };
-  
-  mediaRecorder.start();
-
-  document
-    .getElementById("recordBtn")
-    .style.display = "none";
-
-  document
-    .getElementById("stopRecordBtn")
-    .style.display = "inline-block";
+    document.getElementById(
+        "stopRecordBtn"
+    ).style.display = "inline-block";
 }
 
 function stopRecording() {
   isRecording = false;
+  stopRecordingTimer();
 
   mediaRecorder.stop();
   document.getElementById("recordCursor").style.display = "none";
@@ -779,18 +963,6 @@ window.changeBackground = function (color) {
   }
 };
 
-// const spriteModal = document.getElementById("spriteModal");
-
-// const backgroundModal = document.getElementById("backgroundModal");
-
-// document.getElementById("addSpriteBtn").addEventListener("click", () => {
-//   spriteModal.classList.add("show");
-// });
-
-// document.getElementById("addBackgroundBtn").addEventListener("click", () => {
-//   backgroundModal.classList.add("show");
-// });
-
 window.addEventListener("click", (e) => {
   if (e.target === spriteModal) {
     spriteModal.classList.remove("show");
@@ -801,103 +973,10 @@ window.addEventListener("click", (e) => {
   }
 });
 
-
-// function renderSpriteList() {
-//   const list = document.getElementById("spriteList");
-
-//   list.innerHTML = "";
-
-//   window.sprites.forEach((sprite, index) => {
-//     list.innerHTML += `
-//         <div class="asset-item">
-
-//             <img
-//             src="/labs/images/sprites/${sprite.name}.png">
-
-//             <span>${sprite.name}</span>
-
-//             <div class="asset-actions">
-
-//                 <button
-//                 onclick="selectSpriteById(${sprite.id})">
-//                 Select
-//                 </button>
-
-//                 <button
-//                 onclick="deleteSprite(${index})">
-//                 Delete
-//                 </button>
-
-//             </div>
-
-//         </div>
-//         `;
-//   });
-// }
-
-// function deleteSprite(index) {
-//   const sprite = window.sprites[index];
-
-//   if (!sprite) return;
-
-//   sprite.element.remove();
-
-//   window.sprites.splice(index, 1);
-
-//   renderSpriteList();
-// }
-
 window.selectedSprite = null;
 
 function selectSprite(index) {
   selectedSprite = window.sprites[index];
 
   console.log("Selected:", selectedSprite.name);
-}
-
-window.backgrounds = [];
-
-// function addBackground(file) {
-//   backgrounds.push({
-//     name: file,
-//   });
-
-//   renderBackgroundList();
-
-//   backgroundModal.classList.remove("show");
-
-//   document.getElementById("stage").style.backgroundImage =
-//     `url('/labs/images/backgrounds/${file}')`;
-
-//   document.getElementById("stage").style.backgroundSize = "cover";
-// }
-
-function renderBackgroundList() {
-  const list = document.getElementById("backgroundList");
-
-  list.innerHTML = "";
-
-  backgrounds.forEach((bg, index) => {
-    list.innerHTML += `
-        <div class="asset-item">
-
-            <span>${bg.name}</span>
-
-            <div class="asset-actions">
-
-                <button
-                onclick="setBackground(${index})">
-                Use
-                </button>
-
-                <button
-                onclick="deleteBackground(${index})">
-                Delete
-                </button>
-
-            </div>
-
-        </div>
-        `;
-  });
 }
