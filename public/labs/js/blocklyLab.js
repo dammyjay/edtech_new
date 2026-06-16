@@ -7,6 +7,22 @@ window.sprites = [];
 
 window.currentSprite = null;
 window.backgrounds = [];
+window.isRunning = false;
+window.stopRequested = false;
+
+let mediaRecorder;
+let recordedChunks = [];
+
+let recordingStream = null;
+
+let isRecording = false;
+let recordingCanvas;
+let recordingCtx;
+
+let cursorX = 0;
+let cursorY = 0;
+
+let backgroundImage = null;
 
 window.createSprite = function (spriteName) {
   const stage = document.getElementById("stage");
@@ -20,51 +36,70 @@ window.createSprite = function (spriteName) {
   sprite.style.position = "absolute";
   sprite.style.left = "100px";
   sprite.style.top = "200px";
-  sprite.style.width = "60px";
-  sprite.style.height = "60px";
+  sprite.style.width = "120px";
+  sprite.style.height = "120px";
 
   stage.appendChild(sprite);
 
-  // const spriteData = {
-  //   id: Date.now(),
-
-  //   name: spriteName,
-
-  //   element: sprite,
-
-  //   x: 100,
-
-  //   y: 100,
-
-  //   rotation: 0,
-  // };
 
   const spriteData = {
     id: Date.now(),
-
     name: spriteName,
-
     element: sprite,
-
     x: 100,
-
     y: 100,
-
-    width: 60,
-
-    height: 60,
-
+    width: 120,
+    height: 120,
     rotation: 0,
-
     visible: true,
   };
 
   sprites.push(spriteData);
+  makeSpriteDraggable(spriteData);
 
   renderSpriteList();
 
   document.getElementById("spriteModal").style.display = "none";
 };
+
+function makeSpriteDraggable(spriteData) {
+  const stage = document.getElementById("stage");
+
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  spriteData.element.addEventListener("mousedown", (e) => {
+    selectSpriteById(spriteData.id);
+
+    dragging = true;
+
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+  });
+
+  document.addEventListener("mouseup", () => {
+    dragging = false;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+
+    const rect = stage.getBoundingClientRect();
+
+    spriteData.x = e.clientX - rect.left - offsetX;
+
+    spriteData.y = e.clientY - rect.top - offsetY;
+
+    spriteData.element.style.left = spriteData.x + "px";
+
+    spriteData.element.style.top = spriteData.y + "px";
+
+    if (currentSprite && currentSprite.id === spriteData.id) {
+      loadSpriteProperties(spriteData);
+    }
+  });
+}
 
 window.renderSpriteList = function () {
   const container = document.getElementById("spriteList");
@@ -118,10 +153,35 @@ window.moveCurrentSprite = function (x, y) {
   currentSprite.element.style.top = y + "px";
 };
 
+
+// window.addBackground = function (file) {
+//   const stage = document.getElementById("stage");
+
+//   stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
+
+//   stage.style.backgroundSize = "cover";
+
+//   stage.style.backgroundPosition = "center";
+
+//   stage.style.backgroundRepeat = "no-repeat";
+
+//   backgrounds.push(file);
+
+//   renderBackgroundList();
+// };
+
 window.addBackground = function (file) {
   const stage = document.getElementById("stage");
 
   stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
+
+  backgroundImage = new Image();
+
+  backgroundImage.src = `/labs/images/backgrounds/${file}`;
+
+  stage.style.backgroundSize = "cover";
+  stage.style.backgroundPosition = "center";
+  stage.style.backgroundRepeat = "no-repeat";
 
   backgrounds.push(file);
 
@@ -193,15 +253,17 @@ window.addEventListener("load", async () => {
 
     const spriteData = {
       id: "mainSprite",
-      name: "Cat",
+      name: "Jay",
       element: defaultSprite,
       x: 100,
       y: 100,
-      width: 60,
-      height: 60,
+      width: 120,
+      height: 120,
       rotation: 0,
       visible: true,
     };
+
+    makeSpriteDraggable(spriteData);
 
     defaultSprite.addEventListener("click", () => {
       selectSpriteById("mainSprite");
@@ -216,12 +278,100 @@ window.addEventListener("load", async () => {
     // Load project
     await initLab("blockly");
 
+    const stage = document.getElementById("stage");
+
+    const mouseX = document.getElementById("mouseXIndicator");
+
+    const mouseY = document.getElementById("mouseYIndicator");
+
+    stage.addEventListener("mousemove", (e) => {
+      const rect = stage.getBoundingClientRect();
+
+      const x = Math.round(e.clientX - rect.left);
+
+      const y = Math.round(e.clientY - rect.top);
+      cursorX = x;
+      cursorY = y;
+
+      mouseX.textContent = `X: ${x}`;
+
+      mouseY.textContent = `Y: ${y}`;
+
+      const cursor = document.getElementById("recordCursor");
+
+      cursor.style.left = x + "px";
+
+      cursor.style.top = y + "px";
+    });
+
+    stage.addEventListener("mouseleave", () => {
+      mouseX.textContent = "X: -";
+
+      mouseY.textContent = "Y: -";
+    });
+
+    
+
     // Buttons
     document.getElementById("saveBtn").addEventListener("click", saveProject);
 
     document.getElementById("runBtn").addEventListener("click", runCode);
 
     document.getElementById("resetBtn").addEventListener("click", resetStage);
+
+    
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+
+    const exitFullscreenBtn = document.getElementById("exitFullscreenBtn");
+
+    const stagePanel = document.querySelector(".stage-panel");
+
+    fullscreenBtn.addEventListener("click", () => {
+      // stagePanel.classList.add("fullscreen");
+      document.body.classList.add("presentation-mode");
+      stagePanel.classList.add("fullscreen");
+
+      fullscreenBtn.style.display = "none";
+
+      exitFullscreenBtn.style.display = "inline-block";
+
+      setTimeout(() => {
+        Blockly.svgResize(workspace);
+      }, 100);
+    });
+
+    exitFullscreenBtn.addEventListener("click", () => {
+      // stagePanel.classList.remove("fullscreen");
+      document.body.classList.remove("presentation-mode");
+
+      stagePanel.classList.remove("fullscreen");
+
+      fullscreenBtn.style.display = "inline-block";
+
+      exitFullscreenBtn.style.display = "none";
+
+      setTimeout(() => {
+        Blockly.svgResize(workspace);
+      }, 100);
+    });
+
+    document
+      .getElementById("screenshotBtn")
+      .addEventListener("click", takeStageScreenshot);
+
+    document.getElementById("stopBtn").addEventListener("click", () => {
+      stopRequested = true;
+
+      document.getElementById("runStatus").textContent = "Stopped";
+    });
+
+    document
+      .getElementById("recordBtn")
+      .addEventListener("click", startRecording);
+    
+    document
+      .getElementById("stopRecordBtn")
+      .addEventListener("click", stopRecording);
 
     const addSpriteBtn = document.getElementById("addSpriteBtn");
 
@@ -255,6 +405,189 @@ window.addEventListener("load", async () => {
     console.error("Blockly Init Error:", err);
   }
 });
+
+async function takeStageScreenshot() {
+  const stage = document.getElementById("stage");
+
+  try {
+    const canvas = await html2canvas(stage, {
+      backgroundColor: null,
+      useCORS: true,
+    });
+
+    const link = document.createElement("a");
+
+    link.download = `stage-${Date.now()}.png`;
+
+    link.href = canvas.toDataURL("image/png");
+
+    link.click();
+  } catch (err) {
+    console.error("Screenshot failed", err);
+  }
+}
+
+async function startRecording() {
+    document.getElementById("recordCursor").style.display = "block";
+    const useMic =
+        confirm(
+            "Do you want to record with microphone narration?"
+        );
+
+    await recordStage(useMic);6
+
+}
+
+async function recordStage(useMic) {
+
+  const stage =
+    document.getElementById("stage");
+
+  const canvas =
+    document.createElement("canvas");
+
+  canvas.width =
+    stage.offsetWidth;
+
+  canvas.height =
+    stage.offsetHeight;
+
+  const ctx =
+    canvas.getContext("2d");
+
+  const fps = 30;
+
+  const drawFrame = async () => {
+
+    if (!isRecording) return;
+
+    const frame =
+      await html2canvas(stage, {
+        backgroundColor: null,
+        useCORS: true
+      });
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    ctx.drawImage(
+      frame,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    requestAnimationFrame(drawFrame);
+  };
+
+  isRecording = true;
+
+  drawFrame();
+
+  recordingStream =
+    canvas.captureStream(fps);
+  if (useMic) {
+
+    try {
+
+      const mic =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
+
+      mic.getAudioTracks().forEach(track => {
+
+        recordingStream.addTrack(track);
+
+      });
+
+    }
+    catch (err) {
+
+      alert("Microphone permission denied");
+
+    }
+  }
+  
+  recordedChunks = [];
+
+  mediaRecorder =
+    // new MediaRecorder(
+    //   recordingStream,
+    //   {
+    //     mimeType: "video/webm"
+    //   }
+    // );
+    new MediaRecorder(recordingStream, {
+      mimeType: "video/webm;codecs=vp9",
+
+      videoBitsPerSecond: 12000000,
+    });
+
+  mediaRecorder.ondataavailable =
+    (event) => {
+
+      if (event.data.size > 0) {
+
+        recordedChunks.push(
+          event.data
+        );
+
+      }
+
+    };
+  
+  mediaRecorder.onstop = () => {
+
+    const blob =
+      new Blob(
+        recordedChunks,
+        {
+          type: "video/webm"
+        }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const a =
+      document.createElement("a");
+
+    a.href = url;
+
+    a.download =
+      `recording-${Date.now()}.webm`;
+
+    a.click();
+
+  };
+  
+  mediaRecorder.start();
+
+  document
+    .getElementById("recordBtn")
+    .style.display = "none";
+
+  document
+    .getElementById("stopRecordBtn")
+    .style.display = "inline-block";
+}
+
+function stopRecording() {
+  isRecording = false;
+
+  mediaRecorder.stop();
+  document.getElementById("recordCursor").style.display = "none";
+
+  document.getElementById("recordBtn").style.display = "inline-block";
+
+  document.getElementById("stopRecordBtn").style.display = "none";
+}
 
 window.addEventListener("click", (e) => {
   const spriteModal = document.getElementById("spriteModal");
@@ -375,7 +708,29 @@ async function runCode() {
     console.log("Generated Code:");
     console.log(code);
 
-    await runGeneratedCode(code);
+    // await runGeneratedCode(code);
+    isRunning = true;
+    stopRequested = false;
+
+    document.getElementById("runStatus").textContent = "Running...";
+
+    document.getElementById("stopBtn").style.display = "inline-block";
+
+    try {
+      await runGeneratedCode(code);
+    } finally {
+      isRunning = false;
+
+      document.getElementById("runStatus").textContent = "Ready";
+
+      document.getElementById("stopBtn").style.display = "none";
+    }
+
+    document.getElementById("stopBtn").addEventListener("click", () => {
+      stopRequested = true;
+
+      document.getElementById("runStatus").textContent = "Stopped";
+    });
   } catch (err) {
     console.error(err);
     logMessage("Error: " + err.message);

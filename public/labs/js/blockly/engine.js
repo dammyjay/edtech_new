@@ -129,9 +129,9 @@ const spriteData = {
 
   y: Number(y),
 
-  width: 60,
+  width: 120,
 
-  height: 60,
+  height: 120,
 
   rotation: 0,
 
@@ -173,21 +173,6 @@ window.sprites.push(spriteData);
   });
 };
 
-// function selectSpriteById(id) {
-//   document
-//     .querySelectorAll(".extra-sprite")
-//     .forEach((s) => s.classList.remove("active-sprite"));
-
-//   const sprite = window.sprites.find((s) => s.id === id);
-
-//   if (!sprite) return;
-
-//   window.currentSprite = sprite;
-
-//   sprite.element.classList.add("active-sprite");
-
-//   loadSpriteProperties(sprite);
-// }
 
 function selectSpriteById(id) {
   document
@@ -216,9 +201,9 @@ function loadSpriteProperties(sprite) {
 
   document.getElementById("spriteY").value = sprite.y;
 
-  document.getElementById("spriteWidth").value = sprite.width || 60;
+  document.getElementById("spriteWidth").value = sprite.width || 120;
 
-  document.getElementById("spriteHeight").value = sprite.height || 60;
+  document.getElementById("spriteHeight").value = sprite.height || 120;
 
   document.getElementById("spriteRotation").value = sprite.rotation || 0;
 
@@ -349,14 +334,40 @@ window.showSprite = function () {
 //  `/labs/images/sprites/${name}.png`;
 // };
 
-window.wait = function(seconds){
+// window.wait = function(seconds){
 
- return new Promise(resolve=>{
-   setTimeout(resolve, seconds * 1000);
- });
+//  return new Promise(resolve=>{
+//    setTimeout(resolve, seconds * 1000);
+//  });
+// };
+
+window.wait = function (seconds) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+
+    const timer = setInterval(() => {
+      if (stopRequested) {
+        clearInterval(timer);
+
+        reject(new Error("Program stopped"));
+
+        return;
+      }
+
+      if (Date.now() - start >= seconds * 1000) {
+        clearInterval(timer);
+
+        resolve();
+      }
+    }, 20);
+  });
 };
 
-
+window.checkStop = function () {
+  if (stopRequested) {
+    throw new Error("Program stopped");
+  }
+};
 
 window.touchingEdge = function(){
 

@@ -20,7 +20,7 @@
 <script src="/labs/js/blockly/generators/control.js"></script>
 
 <script src="/labs/js/blockly/engine.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>;
 <script src="/labs/js/blocklyLab.js"></script>
 <link
   rel="stylesheet"
@@ -31,27 +31,86 @@
 />
 
 <div class="editor-toolbar">
-  <button id="runBtn">▶ Run</button>
 
-  <button id="saveBtn">💾 Save</button>
+    <button id="runBtn">
+        <i class="fas fa-play"></i> Run
+    </button>
 
-  <button id="resetBtn">🔄 Reset</button>
+    <button id="stopBtn" style="display:none;">
+        <i class="fas fa-stop"></i> Stop
+    </button>
+
+    <button id="saveBtn">
+        <i class="fas fa-save"></i> Save
+    </button>
+
+    <button id="resetBtn">
+        <i class="fas fa-rotate-right"></i> Reset
+    </button>
+
+    <button id="screenshotBtn">
+        <i class="fas fa-camera"></i> Screenshot
+    </button>
+
+    <button id="recordBtn">
+        <i class="fas fa-circle"></i> Record
+    </button>
+
+    <button id="stopRecordBtn" style="display:none;">
+        <i class="fas fa-stop"></i> Stop Recording
+    </button>
+
+    <button id="fullscreenBtn">
+        <i class="fas fa-expand"></i> Full Screen
+    </button>
+
+    <button id="exitFullscreenBtn" style="display:none;">
+        <i class="fas fa-compress"></i> Minimize
+    </button>
+
+    <div id="runStatus">
+        Ready
+    </div>
+
 </div>
 
 <div class="blockly-container">
-  <div class="block-console">
+  <!-- <div class="block-console">
     <div id="blocklyDiv"></div>
     <div id="console">This is the console area</div>
-  </div>
+  </div> -->
+  <div class="block-console">
+
+    <div class="blockly-wrapper">
+
+        <img
+            src="/images/JKT logo.png"
+            class="workspace-logo"
+            alt="Company Logo">
+
+        <div id="blocklyDiv"></div>
+
+    </div>
+
+    <div id="console">
+        This is the console area
+    </div>
+
+</div>
  
   <div class="stage-panel">
     <div class="stage-area">
       <!-- Stage -->
       <div id="stage">
-        <img id="sprite" class="extra-sprite" src="/labs/images/sprites/cat.png" />
+        <div id="recordCursor"></div>
+        <div id="mouseXIndicator">X: 0</div>
+        <div id="mouseYIndicator">Y: 0</div>
+        <img id="sprite" class="extra-sprite" src="/labs/images/sprites/Jay.png" />
       </div>
 
-      <!-- Sprite Panel -->
+      
+    </div>
+    <!-- Sprite Panel -->
       <div class="asset-row">
         <div class="sprite-panel">
 
@@ -107,7 +166,6 @@
           <div id="backgroundList"></div>
         </div>
       </div>
-    </div>
     <!-- <div id="console"></div> -->
   </div>
 </div>
@@ -408,6 +466,7 @@
     <h3>Choose Sprite</h3>
 
     <div class="sprite-grid">
+      <img src="/labs/images/sprites/Jay.png" onclick="createSprite('Jay')" />
       <img src="/labs/images/sprites/cat.png" onclick="createSprite('cat')" />
 
       <img src="/labs/images/sprites/dog.png" onclick="createSprite('dog')" />
