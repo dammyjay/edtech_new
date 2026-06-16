@@ -116,17 +116,149 @@ window.addSprite = function (spriteName, x, y) {
   sprite.style.width = "50px";
   sprite.style.height = "50px";
 
+  // stage.appendChild(sprite);
   stage.appendChild(sprite);
+const spriteData = {
+  id: Date.now(),
 
-  window.sprites.push({
-    id: window.sprites.length,
-    element: sprite,
-    name: spriteName,
-    x: Number(x),
-    y: Number(y),
-    rotation: 0,
-    });
+  element: sprite,
+
+  name: spriteName,
+
+  x: Number(x),
+
+  y: Number(y),
+
+  width: 60,
+
+  height: 60,
+
+  rotation: 0,
+
+  visible: true,
 };
+
+window.sprites.push(spriteData);
+  let dragging = false;
+
+  sprite.addEventListener("mousedown", () => {
+    selectSpriteById(spriteData.id);
+
+    dragging = true;
+  });
+
+  document.addEventListener("mouseup", () => {
+    dragging = false;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+
+    const rect = stage.getBoundingClientRect();
+
+    spriteData.x = e.clientX - rect.left;
+
+    spriteData.y = e.clientY - rect.top;
+
+    sprite.style.left = spriteData.x + "px";
+
+    sprite.style.top = spriteData.y + "px";
+
+    loadSpriteProperties(spriteData);
+  });
+
+  
+  sprite.addEventListener("click", () => {
+    selectSpriteById(spriteData.id);
+  });
+};
+
+// function selectSpriteById(id) {
+//   document
+//     .querySelectorAll(".extra-sprite")
+//     .forEach((s) => s.classList.remove("active-sprite"));
+
+//   const sprite = window.sprites.find((s) => s.id === id);
+
+//   if (!sprite) return;
+
+//   window.currentSprite = sprite;
+
+//   sprite.element.classList.add("active-sprite");
+
+//   loadSpriteProperties(sprite);
+// }
+
+function selectSpriteById(id) {
+  document
+    .querySelectorAll(".sprite-card")
+    .forEach((card) => card.classList.remove("selected"));
+
+  const sprite = window.sprites.find((s) => s.id === id);
+
+  if (!sprite) return;
+
+  window.currentSprite = sprite;
+
+  const card = document.querySelector(`.sprite-card[data-sprite-id="${id}"]`);
+
+  if (card) {
+    card.classList.add("selected");
+  }
+
+  loadSpriteProperties(sprite);
+}
+
+function loadSpriteProperties(sprite) {
+  document.getElementById("spriteName").value = sprite.name;
+
+  document.getElementById("spriteX").value = sprite.x;
+
+  document.getElementById("spriteY").value = sprite.y;
+
+  document.getElementById("spriteWidth").value = sprite.width || 60;
+
+  document.getElementById("spriteHeight").value = sprite.height || 60;
+
+  document.getElementById("spriteRotation").value = sprite.rotation || 0;
+
+  document.getElementById("spriteVisible").checked = sprite.visible !== false;
+}
+
+function updateSelectedSprite() {
+  if (!currentSprite) return;
+if (currentSprite?.id === "mainSprite") {
+  spriteX = currentSprite.x;
+  spriteY = currentSprite.y;
+}
+  currentSprite.x = Number(document.getElementById("spriteX").value);
+
+  currentSprite.y = Number(document.getElementById("spriteY").value);
+
+  currentSprite.width = Number(document.getElementById("spriteWidth").value);
+
+  currentSprite.height = Number(document.getElementById("spriteHeight").value);
+
+  currentSprite.rotation = Number(
+    document.getElementById("spriteRotation").value,
+  );
+
+  currentSprite.visible = document.getElementById("spriteVisible").checked;
+
+  currentSprite.element.style.left = currentSprite.x + "px";
+
+  currentSprite.element.style.top = currentSprite.y + "px";
+
+  currentSprite.element.style.width = currentSprite.width + "px";
+
+  currentSprite.element.style.height = currentSprite.height + "px";
+
+  currentSprite.element.style.transform = `rotate(${currentSprite.rotation}deg)`;
+
+  currentSprite.element.style.display = currentSprite.visible
+    ? "block"
+    : "none";
+}
 
 window.moveSpriteTo = function (spriteId, x, y) {
   const sprite = window.sprites[spriteId];
@@ -316,5 +448,30 @@ window.resetStage = function () {
 // =========================
 
 window.addEventListener("load", () => {
+  
+document
+  .getElementById("spriteX")
+  .addEventListener("input", updateSelectedSprite);
+
+document
+  .getElementById("spriteY")
+  .addEventListener("input", updateSelectedSprite);
+
+document
+  .getElementById("spriteWidth")
+  .addEventListener("input", updateSelectedSprite);
+
+document
+  .getElementById("spriteHeight")
+  .addEventListener("input", updateSelectedSprite);
+
+document
+  .getElementById("spriteRotation")
+  .addEventListener("input", updateSelectedSprite);
+
+document
+  .getElementById("spriteVisible")
+  .addEventListener("change", updateSelectedSprite);
+
   updateSprite();
 });

@@ -672,58 +672,6 @@
   width: 90%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-/* 
-.tab-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-bottom: 2px solid #ccc;
-    margin-top: 30px;
-    width: 100vw;
-}
-
-.tab-list::-webkit-scrollbar {
-    height: 6px;
-}
-
-.tab-list::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 3px;
-}
-
-.tab-list li {
-    flex: 0 0 auto;
-    margin-right: 10px;
-}
-
-.tab-list li a {
-    display: inline-block;
-    padding: 10px 16px;
-    text-decoration: none;
-    color: #333;
-    border: 1px solid transparent;
-    border-radius: 4px 4px 0 0;
-    background-color: #f5f5f5;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-
-.tab-list li.active a {
-    background-color: #ffffff;
-    border: 1px solid #ccc;
-    border-bottom: none;
-    color: #007bff;
-}
-
-.tab-list li a:hover {
-    background-color: #eaeaea;
-    color: #007bff;
-} */
 
 /* =================================
    COURSE TABS (LOGIN TAB STYLE)
@@ -1591,17 +1539,6 @@ canvas {
     font-size: 14px;
 }
 
-/* .article-card a {
-    display: inline-block;
-    margin-top: 10px;
-    background-color: #2196f3;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-size: 14px;
-} */
-
 .article-card a {
     text-decoration: none;
     font-size: 14px;
@@ -1700,20 +1637,6 @@ canvas {
   to { transform: scale(1); opacity:1; }
 }
 
-/* Mini Lesson Sidebar */
-/* .lesson-sidebar {
-    width: 220px;
-    flex-shrink: 0; 
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    background: #f9f9f9; 
-    border-right: 1px solid #ddd;
-    padding: 10px;
-    transition: transform 0.3s ease;
-} */
-
 /* Sidebar */
 .lesson-sidebar {
     width: 220px;
@@ -1727,10 +1650,6 @@ canvas {
     transition: all 0.3s ease;
 }
 
-/* Collapsed state */
-/* .lesson-sidebar.collapsed {
-  transform: translateX(-95%);
-} */
 
 .lesson-sidebar.collapsed {
   width: 20px;
@@ -2043,45 +1962,6 @@ canvas {
     word-wrap: break-word;
 }
 
-/* .msg.bot {
-    align-self: flex-start;
-    background: #f1f0f0;
-    border-radius: 12px 12px 12px 0;
-    padding: 8px;
-    margin: 6px;
-    max-width: 90%;
-    text-align: left;
-    line-height: 1.4em;
-    word-wrap: break-word;
-} */
-
-/* ✅ Formatting inside bot messages */
-/* .msg.bot h3,
-.msg.bot h4 {
-    margin: 4px 0;
-    color: #0078d7;
-}
-
-.msg.bot ul,
-.msg.bot ol {
-    margin: 4px 0 4px 18px;
-}
-
-.msg.bot code {
-    background: #eee;
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: monospace;
-}
-
-.msg.bot pre {
-    background: #272822;
-    color: #f8f8f2;
-    padding: 8px;
-    border-radius: 6px;
-    overflow-x: auto;
-} */
-
 /* 🔹 Base chatbox styles (already good) */
 .ai-tutor {
     position: fixed;
@@ -2383,14 +2263,6 @@ canvas {
     color: #666;
 }
 
-/* .project-card {
-    background: #fff;
-    padding: 15px;
-    border-radius: 12px;
-    margin-bottom: 15px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-} */
-
 .project-card h4 {
     margin-bottom: 5px;
 }
@@ -2496,11 +2368,6 @@ canvas {
     margin-bottom: 5px;
     border: 2px solid #e0e0e0;
 }
-
-/* .badge-date {
-    font-size: 0.85rem;
-    color: #777;
-} */
 
 .badge-date,
 .badge-module {
@@ -2611,11 +2478,6 @@ canvas {
     }
 }
 
-g>Certificate Available:</strong> <%= courseStats.has_certificate ? "✅ Yes" : "❌ No" %></li>
-  </ul>
-</div>
-
-<style>
 .course-summary-card {
   background: #fff;
   border-radius: 12px;

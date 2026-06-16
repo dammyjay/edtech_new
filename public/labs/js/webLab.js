@@ -90,36 +90,80 @@ require(["vs/editor/editor.main"], function () {
       document.querySelector(".editor-grid").requestFullscreen();
     });
 
-    document.getElementById("saveBtn").addEventListener("click", async () => {
+    // document.getElementById("saveBtn").addEventListener("click", async () => {
 
-        if (!window.currentProjectId) {
-            alert("Project not initialized yet");
-            return;
-        }
+    //     if (!window.currentProjectId) {
+    //         alert("Project not initialized yet");
+    //         return;
+    //     }
 
-        const payload = {
-            projectId: window.currentProjectId,
-            html: htmlEditor.getValue(),
-            css: cssEditor.getValue(),
-            js: jsEditor.getValue(),
-        };
+    //     const payload = {
+    //         projectId: window.currentProjectId,
+    //         html: htmlEditor.getValue(),
+    //         css: cssEditor.getValue(),
+    //         js: jsEditor.getValue(),
+    //     };
 
-        const res = await fetch("/labs/project/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+    //     const res = await fetch("/labs/project/save", {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify(payload),
+    //     });
 
-        const data = await res.json();
+    //     const data = await res.json();
 
-        console.log("SAVE RESPONSE:", data);
-    });
+    //     console.log("SAVE RESPONSE:", data);
+    // });
+
+  document.getElementById("saveBtn").addEventListener("click", async () => {
+    try {
+      if (!window.currentProjectId) {
+        console.log("Project not initialized yet");
+        return;
+      }
+
+      const payload = {
+        projectId: window.currentProjectId,
+
+        projectData: {
+          html: htmlEditor.getValue(),
+          css: cssEditor.getValue(),
+          js: jsEditor.getValue(),
+        },
+      };
+
+      console.log("SAVING:", payload);
+
+      const res = await fetch("/labs/project/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      console.log("SAVE RESPONSE:", data);
+
+      if (data.success) {
+        console.log("Project saved successfully");
+      }
+    } catch (err) {
+      console.error("SAVE ERROR:", err);
+    }
+  });
+  
 
     htmlEditor.onDidChangeModelContent(runCode);
 
     cssEditor.onDidChangeModelContent(runCode);
 
-    jsEditor.onDidChangeModelContent(runCode);
+  jsEditor.onDidChangeModelContent(runCode);
+  
+  htmlEditor.onDidChangeModelContent(autoSave);
+  cssEditor.onDidChangeModelContent(autoSave);
+  jsEditor.onDidChangeModelContent(autoSave);
 });
 
 // async function initLab(labId) {
@@ -201,9 +245,7 @@ function autoSave() {
   }, 5000);
 }
 
-htmlEditor.onDidChangeModelContent(autoSave);
-cssEditor.onDidChangeModelContent(autoSave);
-jsEditor.onDidChangeModelContent(autoSave);
+
 
 function runCode() {
   const html = htmlEditor.getValue();

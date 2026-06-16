@@ -10,11 +10,20 @@
 // };
 
 
+// javascript.javascriptGenerator.forBlock["when_run_clicked"] = function (
+//   block,
+//   generator,
+// ) {
+//   const statements = generator.statementToCode(block, "DO");
+
+//   return statements;
+// };
+
 javascript.javascriptGenerator.forBlock["when_run_clicked"] = function (
   block,
   generator,
 ) {
   const statements = generator.statementToCode(block, "DO");
 
-  return statements;
+  return statements || "";
 };

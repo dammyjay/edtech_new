@@ -19,9 +19,25 @@ window.createSprite = function (spriteName) {
 
   sprite.style.position = "absolute";
   sprite.style.left = "100px";
-  sprite.style.top = "100px";
+  sprite.style.top = "200px";
+  sprite.style.width = "60px";
+  sprite.style.height = "60px";
 
   stage.appendChild(sprite);
+
+  // const spriteData = {
+  //   id: Date.now(),
+
+  //   name: spriteName,
+
+  //   element: sprite,
+
+  //   x: 100,
+
+  //   y: 100,
+
+  //   rotation: 0,
+  // };
 
   const spriteData = {
     id: Date.now(),
@@ -34,7 +50,13 @@ window.createSprite = function (spriteName) {
 
     y: 100,
 
+    width: 60,
+
+    height: 60,
+
     rotation: 0,
+
+    visible: true,
   };
 
   sprites.push(spriteData);
@@ -52,7 +74,9 @@ window.renderSpriteList = function () {
   sprites.forEach((sprite) => {
     const card = document.createElement("div");
 
+    // card.className = "sprite-card";
     card.className = "sprite-card";
+    card.dataset.spriteId = sprite.id;
 
     card.innerHTML = `
             <img src="/labs/images/sprites/${sprite.name}.png" >
@@ -64,7 +88,7 @@ window.renderSpriteList = function () {
         `;
 
     card.onclick = () => {
-      currentSprite = sprite;
+      selectSpriteById(sprite.id);
     };
 
     container.appendChild(card);
@@ -113,10 +137,15 @@ window.renderBackgroundList = function () {
     const item = document.createElement("div");
 
     item.innerHTML = `
-            <img
-            src="/labs/images/backgrounds/${bg}"
-            width="80">
-        `;
+    <img
+        src="/labs/images/backgrounds/${bg}"
+        style="
+            width:100%;
+            height:80px;
+            object-fit:cover;
+            border-radius:8px;
+        ">
+    `;
 
     container.appendChild(item);
   });
@@ -160,6 +189,29 @@ window.addEventListener("load", async () => {
       workspace.render();
     }, 3000);
 
+    const defaultSprite = document.getElementById("sprite");
+
+    const spriteData = {
+      id: "mainSprite",
+      name: "Cat",
+      element: defaultSprite,
+      x: 100,
+      y: 100,
+      width: 60,
+      height: 60,
+      rotation: 0,
+      visible: true,
+    };
+
+    defaultSprite.addEventListener("click", () => {
+      selectSpriteById("mainSprite");
+    });
+
+    window.sprites.push(spriteData);
+
+    // selectSpriteById("mainSprite");
+
+    renderSpriteList();
 
     // Load project
     await initLab("blockly");
@@ -171,26 +223,25 @@ window.addEventListener("load", async () => {
 
     document.getElementById("resetBtn").addEventListener("click", resetStage);
 
-     const addSpriteBtn = document.getElementById("addSpriteBtn");
+    const addSpriteBtn = document.getElementById("addSpriteBtn");
 
-     const addBackgroundBtn = document.getElementById("addBackgroundBtn");
+    const addBackgroundBtn = document.getElementById("addBackgroundBtn");
 
-     const spriteModal = document.getElementById("spriteModal");
+    const spriteModal = document.getElementById("spriteModal");
 
-     const backgroundModal = document.getElementById("backgroundModal");
+    const backgroundModal = document.getElementById("backgroundModal");
 
-     if (addSpriteBtn) {
-       addSpriteBtn.addEventListener("click", () => {
-         spriteModal.style.display = "flex";
-       });
-     }
+    if (addSpriteBtn) {
+      addSpriteBtn.addEventListener("click", () => {
+        spriteModal.style.display = "flex";
+      });
+    }
 
-     if (addBackgroundBtn) {
-       addBackgroundBtn.addEventListener("click", () => {
-         backgroundModal.style.display = "flex";
-       });
-     }
-
+    if (addBackgroundBtn) {
+      addBackgroundBtn.addEventListener("click", () => {
+        backgroundModal.style.display = "flex";
+      });
+    }
 
     // Auto save
     workspace.addChangeListener(() => {
@@ -373,17 +424,17 @@ window.changeBackground = function (color) {
   }
 };
 
-const spriteModal = document.getElementById("spriteModal");
+// const spriteModal = document.getElementById("spriteModal");
 
-const backgroundModal = document.getElementById("backgroundModal");
+// const backgroundModal = document.getElementById("backgroundModal");
 
-document.getElementById("addSpriteBtn").addEventListener("click", () => {
-  spriteModal.classList.add("show");
-});
+// document.getElementById("addSpriteBtn").addEventListener("click", () => {
+//   spriteModal.classList.add("show");
+// });
 
-document.getElementById("addBackgroundBtn").addEventListener("click", () => {
-  backgroundModal.classList.add("show");
-});
+// document.getElementById("addBackgroundBtn").addEventListener("click", () => {
+//   backgroundModal.classList.add("show");
+// });
 
 window.addEventListener("click", (e) => {
   if (e.target === spriteModal) {
@@ -396,58 +447,50 @@ window.addEventListener("click", (e) => {
 });
 
 
-function createSprite(name) {
-  addSprite(name, 100, 100);
+// function renderSpriteList() {
+//   const list = document.getElementById("spriteList");
 
-  renderSpriteList();
+//   list.innerHTML = "";
 
-  spriteModal.classList.remove("show");
-}
+//   window.sprites.forEach((sprite, index) => {
+//     list.innerHTML += `
+//         <div class="asset-item">
 
-function renderSpriteList() {
-  const list = document.getElementById("spriteList");
+//             <img
+//             src="/labs/images/sprites/${sprite.name}.png">
 
-  list.innerHTML = "";
+//             <span>${sprite.name}</span>
 
-  window.sprites.forEach((sprite, index) => {
-    list.innerHTML += `
-        <div class="asset-item">
+//             <div class="asset-actions">
 
-            <img
-            src="/labs/images/sprites/${sprite.name}.png">
+//                 <button
+//                 onclick="selectSpriteById(${sprite.id})">
+//                 Select
+//                 </button>
 
-            <span>${sprite.name}</span>
+//                 <button
+//                 onclick="deleteSprite(${index})">
+//                 Delete
+//                 </button>
 
-            <div class="asset-actions">
+//             </div>
 
-                <button
-                onclick="selectSprite(${index})">
-                Edit
-                </button>
+//         </div>
+//         `;
+//   });
+// }
 
-                <button
-                onclick="deleteSprite(${index})">
-                Delete
-                </button>
+// function deleteSprite(index) {
+//   const sprite = window.sprites[index];
 
-            </div>
+//   if (!sprite) return;
 
-        </div>
-        `;
-  });
-}
+//   sprite.element.remove();
 
-function deleteSprite(index) {
-  const sprite = window.sprites[index];
+//   window.sprites.splice(index, 1);
 
-  if (!sprite) return;
-
-  sprite.element.remove();
-
-  window.sprites.splice(index, 1);
-
-  renderSpriteList();
-}
+//   renderSpriteList();
+// }
 
 window.selectedSprite = null;
 
@@ -459,20 +502,20 @@ function selectSprite(index) {
 
 window.backgrounds = [];
 
-function addBackground(file) {
-  backgrounds.push({
-    name: file,
-  });
+// function addBackground(file) {
+//   backgrounds.push({
+//     name: file,
+//   });
 
-  renderBackgroundList();
+//   renderBackgroundList();
 
-  backgroundModal.classList.remove("show");
+//   backgroundModal.classList.remove("show");
 
-  document.getElementById("stage").style.backgroundImage =
-    `url('/labs/images/backgrounds/${file}')`;
+//   document.getElementById("stage").style.backgroundImage =
+//     `url('/labs/images/backgrounds/${file}')`;
 
-  document.getElementById("stage").style.backgroundSize = "cover";
-}
+//   document.getElementById("stage").style.backgroundSize = "cover";
+// }
 
 function renderBackgroundList() {
   const list = document.getElementById("backgroundList");

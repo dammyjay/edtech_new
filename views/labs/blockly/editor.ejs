@@ -5,7 +5,6 @@
 <script src="https://unpkg.com/blockly/blockly.min.js"></script>
 <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
 
-
 <script src="/labs/js/blockly/blocks/motion.js"></script>
 <script src="/labs/js/blockly/blocks/looks.js"></script>
 <script src="/labs/js/blockly/blocks/events.js"></script>
@@ -23,7 +22,13 @@
 <script src="/labs/js/blockly/engine.js"></script>
 
 <script src="/labs/js/blocklyLab.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  integrity="sha512-..."
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+/>
 
 <div class="editor-toolbar">
   <button id="runBtn">▶ Run</button>
@@ -34,55 +39,84 @@
 </div>
 
 <div class="blockly-container">
-  <div id="blocklyDiv"></div>
-
-  <!-- <iframe id="preview"></iframe> -->
+  <div class="block-console">
+    <div id="blocklyDiv"></div>
+    <div id="console">This is the console area</div>
+  </div>
+ 
   <div class="stage-panel">
-    <!-- <div id="stage">
-      <img id="sprite" src="/labs/images/sprites/cat.png" />
-    </div> -->
     <div class="stage-area">
+      <!-- Stage -->
+      <div id="stage">
+        <img id="sprite" class="extra-sprite" src="/labs/images/sprites/cat.png" />
+      </div>
 
-        <!-- Stage -->
-        <div id="stage">
-            <img id="sprite" src="/labs/images/sprites/cat.png">
-        </div>
-
-        <!-- Sprite Panel -->
+      <!-- Sprite Panel -->
+      <div class="asset-row">
         <div class="sprite-panel">
 
-            <button id="addSpriteBtn">
-                + Add Sprite
-            </button>
+          <!-- Compact Sprite Info -->
+          <div class="sprite-properties">
 
-            <div id="spriteList"></div>
+              <div class="sprite-top-row">
+
+                  <span class="label">Sprite</span>
+
+                  <input id="spriteName" type="text">
+
+                  <span>X</span>
+                  <input id="spriteX" type="number">
+
+                  <span>Y</span>
+                  <input id="spriteY" type="number">
+
+              </div>
+
+              <div class="sprite-bottom-row">
+
+                  <span>Size</span>
+                  <input id="spriteWidth" type="number">
+                  <input id="spriteHeight" type="number">
+
+                  <span>Direction</span>
+                  <input id="spriteRotation" type="number">
+
+                  <label class="show-toggle">
+                      <input type="checkbox" id="spriteVisible">
+                      Show
+                  </label>
+
+              </div>
+
+          </div>
+
+          <div id="spriteList"></div>
+
+          <button id="addSpriteBtn">
+              + Add Sprite
+          </button>
+          <!-- <button id="addSpriteBtn">
+              <i class="fa-solid fa-plus"></i>
+          </button> -->
 
         </div>
-
         <!-- Background Panel -->
         <div class="background-panel">
+          <button id="addBackgroundBtn">+ Add Background</button>
 
-            <button id="addBackgroundBtn">
-                + Add Background
-            </button>
-
-            <div id="backgroundList"></div>
-
+          <div id="backgroundList"></div>
         </div>
-
+      </div>
     </div>
-    <div id="console"></div>
+    <!-- <div id="console"></div> -->
   </div>
-  
 </div>
 
 <xml id="toolbox" style="display: none">
   <!-- EVENTS -->
-   <category name="Events" colour="#ff9800">
-
+  <category name="Events" colour="#ff9800">
     <block type="when_run_clicked"></block>
-
-</category>
+  </category>
 
   <category name="Events" colour="#ff9800">
     <block type="text_print"></block>
@@ -145,11 +179,9 @@
     <block type="controls_for"></block>
 
     <block type="controls_forEach"></block>
-
-</category>
+  </category>
   <!-- MATH -->
   <category name="Math" colour="#5ca65c">
-
     <block type="random_number">
       <value name="MIN">
         <shadow type="math_number">
@@ -163,7 +195,7 @@
         </shadow>
       </value>
     </block>
-    
+
     <block type="math_number"></block>
 
     <block type="math_arithmetic"></block>
@@ -305,43 +337,42 @@
     <block type="change_background"></block>
   </category>
 
-    <!-- LOOKS -->
+  <!-- LOOKS -->
   <category name="Looks" colour="#9966FF">
-
     <block type="change_background"></block>
 
     <block type="add_sprite">
-    <value name="X">
+      <value name="X">
         <shadow type="math_number">
-        <field name="NUM">100</field>
+          <field name="NUM">100</field>
         </shadow>
-    </value>
+      </value>
 
-    <value name="Y">
+      <value name="Y">
         <shadow type="math_number">
-        <field name="NUM">100</field>
+          <field name="NUM">100</field>
         </shadow>
-    </value>
+      </value>
     </block>
 
     <block type="move_added_sprite">
-    <value name="ID">
+      <value name="ID">
         <shadow type="math_number">
-        <field name="NUM">0</field>
+          <field name="NUM">0</field>
         </shadow>
-    </value>
+      </value>
 
-    <value name="X">
+      <value name="X">
         <shadow type="math_number">
-        <field name="NUM">200</field>
+          <field name="NUM">200</field>
         </shadow>
-    </value>
+      </value>
 
-    <value name="Y">
+      <value name="Y">
         <shadow type="math_number">
-        <field name="NUM">200</field>
+          <field name="NUM">200</field>
         </shadow>
-    </value>
+      </value>
     </block>
 
     <block type="set_sprite"></block>
@@ -349,86 +380,60 @@
     <block type="show_sprite"></block>
 
     <block type="hide_sprite"></block>
-
   </category>
 
-    <!-- SENSING -->
+  <!-- SENSING -->
   <category name="Sensing" colour="#5CB1D6">
-
     <block type="touching_edge"></block>
 
     <block type="when_touching_edge"></block>
 
     <block type="touching_sprite"></block>
-
   </category>
 
   <!-- CONSOLE -->
-    <category name="Console" colour="#4caf50">
-
+  <category name="Console" colour="#4caf50">
     <block type="print_message">
-
-        <value name="TEXT">
+      <value name="TEXT">
         <shadow type="text">
-            <field name="TEXT">Hello World</field>
+          <field name="TEXT">Hello World</field>
         </shadow>
-        </value>
-
+      </value>
     </block>
-
-    </category>
+  </category>
 </xml>
 
-
 <div id="spriteModal" class="modal">
+  <div class="modal-content">
+    <h3>Choose Sprite</h3>
 
-    <div class="modal-content">
+    <div class="sprite-grid">
+      <img src="/labs/images/sprites/cat.png" onclick="createSprite('cat')" />
 
-        <h3>Choose Sprite</h3>
+      <img src="/labs/images/sprites/dog.png" onclick="createSprite('dog')" />
 
-        <div class="sprite-grid">
-
-            <img
-                src="/labs/images/sprites/cat.png"
-                onclick="createSprite('cat')"
-            >
-
-            <img
-                src="/labs/images/sprites/dog.png"
-                onclick="createSprite('dog')"
-            >
-
-            <img
-                src="/labs/images/sprites/robot.png"
-                onclick="createSprite('robot')"
-            >
-
-        </div>
-
+      <img
+        src="/labs/images/sprites/robot.png"
+        onclick="createSprite('robot')"
+      />
     </div>
-
+  </div>
 </div>
 
 <div id="backgroundModal" class="modal">
+  <div class="modal-content">
+    <h3>Choose Background</h3>
 
-    <div class="modal-content">
+    <div class="background-grid">
+      <img
+        src="/labs/images/backgrounds/underwater.webp"
+        onclick="addBackground('underwater.webp')"
+      />
 
-        <h3>Choose Background</h3>
-
-        <div class="background-grid">
-
-            <img
-                src="/labs/images/backgrounds/underwater.webp"
-                onclick="addBackground('forest.jpg')"
-            >
-
-            <img
-                src="/labs/images/backgrounds/beach.webp"
-                onclick="addBackground('beach.jpg')"
-            >
-
-        </div>
-
+      <img
+        src="/labs/images/backgrounds/beach.webp"
+        onclick="addBackground('beach.webp')"
+      />
     </div>
-
+  </div>
 </div>
