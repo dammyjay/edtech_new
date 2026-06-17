@@ -1,4 +1,3 @@
-
 window.spriteX = 100;
 window.spriteY = 100;
 window.spriteRotation = 0;
@@ -11,21 +10,6 @@ window.backgrounds = [];
 // =========================
 // SPRITE RENDER
 // =========================
-
-// window.updateSprite = function () {
-//   const sprite = document.getElementById("sprite");
-
-//   if (!sprite) return;
-
-//   sprite.style.left = spriteX + "px";
-//   sprite.style.top = spriteY + "px";
-
-//   sprite.style.transform =
-//     `rotate(${spriteRotation}deg)`;
-
-//   sprite.style.display =
-//     spriteVisible ? "block" : "none";
-// };
 
 window.updateSprite = function () {
   const sprite = document.getElementById("sprite");
@@ -51,6 +35,54 @@ window.updateSprite = function () {
   }
 };
 
+
+// =========================
+// EVENTS
+// =========================
+
+window.keyEvents = {};
+
+window.registerKeyEvent = function (key, callback) {
+  if (!window.keyEvents[key]) {
+    window.keyEvents[key] = [];
+  }
+
+  window.keyEvents[key].push(callback);
+};
+
+document.addEventListener("keydown", async (e) => {
+  const list = window.keyEvents[e.key];
+
+  if (!list) return;
+
+  for (const fn of list) {
+    await fn();
+  }
+});
+
+window.registerSpriteClick = function (callback) {
+  const sprite = document.getElementById("sprite");
+
+  sprite.addEventListener("click", callback);
+};
+
+window.broadcastListeners = {};
+
+window.broadcast = function (message) {
+  const listeners = window.broadcastListeners[message];
+
+  if (!listeners) return;
+
+  listeners.forEach((fn) => fn());
+};
+
+window.registerBroadcast = function (message, callback) {
+  if (!window.broadcastListeners[message]) {
+    window.broadcastListeners[message] = [];
+  }
+
+  window.broadcastListeners[message].push(callback);
+};
 
 // =========================
 // MOTION
@@ -103,6 +135,90 @@ window.setSpeed = function (speed) {
 // =========================
 // LOOKS
 // =========================
+
+window.sayText = function (text) {
+  const sprite = document.getElementById("sprite");
+
+  let bubble = document.getElementById("speechBubble");
+
+  if (!bubble) {
+    bubble = document.createElement("div");
+
+    bubble.id = "speechBubble";
+
+    bubble.className = "speech-bubble";
+
+    document.getElementById("stage").appendChild(bubble);
+  }
+
+  bubble.innerText = text;
+
+  bubble.style.left = spriteX + 60 + "px";
+
+  bubble.style.top = spriteY - 20 + "px";
+
+  bubble.style.display = "block";
+};
+
+window.sayForSeconds = async function (text, seconds) {
+  sayText(text);
+
+  await wait(seconds);
+
+  const bubble = document.getElementById("speechBubble");
+
+  if (bubble) {
+    bubble.style.display = "none";
+  }
+};
+
+window.setBackgroundImage = function (image) {
+  const stage = document.getElementById("stage");
+
+  stage.style.backgroundImage = `url('/labs/images/backgrounds/${image}.jpg')`;
+
+  stage.style.backgroundSize = "cover";
+
+  stage.style.backgroundPosition = "center";
+};
+
+window.currentBackground = 0;
+
+window.nextBackground = function () {
+  if (!window.backgrounds || window.backgrounds.length === 0) {
+    return;
+  }
+
+  currentBackground++;
+
+  if (currentBackground >= backgrounds.length) {
+    currentBackground = 0;
+  }
+
+  setBackgroundImage(backgrounds[currentBackground]);
+};
+
+window.previousBackground = function () {
+  if (!window.backgrounds.length) return;
+
+  currentBackground--;
+
+  if (currentBackground < 0) {
+    currentBackground = window.backgrounds.length - 1;
+  }
+
+  setBackgroundImage(window.backgrounds[currentBackground]);
+};
+
+window.randomBackground = function () {
+  if (!backgrounds || backgrounds.length === 0) {
+    return;
+  }
+
+  const random = Math.floor(Math.random() * backgrounds.length);
+
+  setBackgroundImage(backgrounds[random]);
+};
 
 window.changeBackground = function (color) {
 
@@ -341,6 +457,23 @@ window.changeY = function(value){
  updateSprite();
 };
 
+window.glideTo = async function (sec, x, y) {
+  const startX = spriteX;
+  const startY = spriteY;
+
+  const steps = 60 * sec;
+
+  for (let i = 0; i < steps; i++) {
+    spriteX = startX + ((x - startX) * i) / steps;
+
+    spriteY = startY + ((y - startY) * i) / steps;
+
+    updateSprite();
+
+    await wait(1 / 60);
+  }
+};
+
 window.hideSprite = function () {
   spriteVisible = false;
 
@@ -352,18 +485,27 @@ window.showSprite = function () {
 
   updateSprite();
 };
-// window.setSprite = function(name){
 
-//  document.getElementById("sprite").src =
-//  `/labs/images/sprites/${name}.png`;
-// };
+window.setSpriteSize = function (size) {
+  const sprite = document.getElementById("sprite");
 
-// window.wait = function(seconds){
+  sprite.style.width = size + "px";
 
-//  return new Promise(resolve=>{
-//    setTimeout(resolve, seconds * 1000);
-//  });
-// };
+  sprite.style.height = size + "px";
+};
+
+window.changeSpriteSizeBy = function (value) {
+  const sprite = document.getElementById("sprite");
+
+  let width = parseInt(sprite.style.width) || sprite.offsetWidth;
+
+  let height = parseInt(sprite.style.height) || sprite.offsetHeight;
+
+  sprite.style.width = width + Number(value) + "px";
+
+  sprite.style.height = height + Number(value) + "px";
+};
+
 
 window.wait = function (seconds) {
   return new Promise((resolve, reject) => {
@@ -406,9 +548,6 @@ window.touchingEdge = function(){
  );
 };
 
-// window.touchingSprite = function () {
-//   return false;
-// };
 
 window.touchingSprite = function () {
   const a = document.getElementById("sprite1").getBoundingClientRect();
@@ -422,6 +561,44 @@ window.touchingSprite = function () {
     a.top > b.bottom
   );
 };
+
+window.mouseX = 0;
+window.mouseY = 0;
+
+document.addEventListener("mousemove", (e) => {
+  const stage = document.getElementById("stage");
+
+  const rect = stage.getBoundingClientRect();
+
+  mouseX = e.clientX - rect.left;
+
+  mouseY = e.clientY - rect.top;
+});
+
+window.touchingMouse =
+function(){
+
+ return (
+  mouseX >= spriteX &&
+  mouseX <= spriteX + 100 &&
+  mouseY >= spriteY &&
+  mouseY <= spriteY + 100
+ );
+  };
+
+  window.pressedKeys = {};
+
+  document.addEventListener("keydown", (e) => {
+    pressedKeys[e.key] = true;
+  });
+
+  document.addEventListener("keyup", (e) => {
+    pressedKeys[e.key] = false;
+  });
+
+  window.isKeyPressed = function (key) {
+    return !!pressedKeys[key];
+  };
 
 // =========================
 // CONSOLE
@@ -510,3 +687,52 @@ document
 
   updateSprite();
 });
+
+window.compileEvents = function () {
+
+   clearEvents();
+
+   const generator =
+      javascript.javascriptGenerator;
+
+   const topBlocks =
+      workspace.getTopBlocks(true);
+
+   let eventCode = "";
+
+   for (const block of topBlocks) {
+
+      if (
+         block.type === "when_key_pressed" ||
+         block.type === "when_sprite_clicked" ||
+         block.type === "when_message_received" ||
+         block.type === "when_touching_edge"
+      ) {
+
+         let code =
+            generator.blockToCode(block);
+
+         if (Array.isArray(code)) {
+            code = code[0];
+         }
+
+         eventCode += code + "\n";
+      }
+   }
+
+   console.log(eventCode);
+
+   new Function(eventCode)();
+};
+
+window.clearEvents = function(){
+
+   window.keyEvents = {};
+
+   window.broadcastListeners = {};
+
+   window.spriteClickEvents = [];
+
+   window.edgeEvents = [];
+
+};

@@ -9,7 +9,24 @@ Blockly.Blocks["move_sprite"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(200);
+    this.setColour("#4C97FF");
+  },
+};
+
+Blockly.Blocks["move_added_sprite"] = {
+  init: function () {
+    this.appendDummyInput().appendField("Move Sprite");
+
+    this.appendValueInput("ID").setCheck("Number").appendField("ID");
+
+    this.appendValueInput("X").setCheck("Number").appendField("X");
+
+    this.appendValueInput("Y").setCheck("Number").appendField("Y");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#4C97FF");
   },
 };
 
@@ -24,7 +41,7 @@ Blockly.Blocks["turn_sprite"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(200);
+    this.setColour("#4C97FF");
   },
 };
 
@@ -37,7 +54,7 @@ Blockly.Blocks["point_direction"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(200);
+    this.setColour("#4C97FF");
   },
 };
 
@@ -52,7 +69,7 @@ Blockly.Blocks["go_to_position"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(200);
+    this.setColour("#4C97FF");
   },
 };
 
@@ -65,7 +82,7 @@ Blockly.Blocks["set_speed"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(200);
+    this.setColour("#4C97FF");
   },
 };
 
@@ -87,6 +104,20 @@ Blockly.Blocks["change_y"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
+    this.setColour("#4C97FF");
+  },
+};
+
+Blockly.Blocks["glide_to"] = {
+  init() {
+    this.appendValueInput("SECONDS").appendField("Glide");
+
+    this.appendValueInput("X").appendField("to X");
+
+    this.appendValueInput("Y").appendField("Y");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
     this.setColour("#4C97FF");
   },
 };

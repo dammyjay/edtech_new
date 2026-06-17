@@ -367,6 +367,7 @@ window.addEventListener("load", async () => {
 
     // Load project
     await initLab("blockly");
+    // compileEvents();
 
     const stage = document.getElementById("stage");
 
@@ -480,6 +481,8 @@ window.addEventListener("load", async () => {
       saveTimeout = setTimeout(() => {
         saveProject();
       }, 5000);
+      // Re-register events immediately
+      compileEvents();
     });
   } catch (err) {
     console.error("Blockly Init Error:", err);
@@ -882,6 +885,20 @@ async function runCode() {
     }
 
     let code = generator.blockToCode(runBlock);
+
+//     let code = "";
+
+// for (const block of topBlocks) {
+
+//   let blockCode =
+//     generator.blockToCode(block);
+
+//   if (Array.isArray(blockCode)) {
+//     blockCode = blockCode[0];
+//   }
+
+//   code += blockCode + "\n";
+// }
 
     if (Array.isArray(code)) {
       code = code[0];

@@ -3,6 +3,18 @@
    MAIN LAYOUT
 ========================= */
 
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    height:100%;
+    overflow:hidden;
+}
+
 :root {
     /* Brand Colors */
     --brand-pri: #A17807;
@@ -34,12 +46,21 @@
     --border-dark: #b0b0b0;
 }
 
-.blockly-container {
+
+/* .blockly-container {
     display: flex;
     height: calc(100vh - 60px);
     gap: 15px;
     padding: 15px;
     background: #f4f6f9;
+} */
+
+.blockly-container{
+    display:flex;
+    height:calc(100vh - 61px);
+    gap:15px;
+    padding:10px;
+    overflow:hidden;
 }
 
 .editor-toolbar {
@@ -52,6 +73,7 @@
     position: sticky;
     top: 0;
     z-index: 5000;
+    height: 60px;
 }
 
 .editor-toolbar button {
@@ -89,9 +111,27 @@
 
 /* Blockly */
 
-.block-console {
+/* .block-console {
     height: 85%;
     width: 100%;
+} */
+
+.block-console{
+    flex:3;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+}
+
+.blockly-wrapper{
+    flex:1;
+    min-height:0;
+}
+
+#console{
+    height:80px;
+    min-height: 80px;
+    flex:none;
 }
 
 .blockly-wrapper {
@@ -127,42 +167,16 @@
    STAGE SIDE
 ========================= */
 
-.stage-panel {
-    width: 900px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-/* 
-.stage-panel.fullscreen {
-
-    position: fixed;
-
-    top: 60px;
-    left: 0;
-
-    width: 100vw;
-    height: calc(100vh - 60px);
-
-    z-index: 99999;
-
-    background: #f4f6f9;
-
-    padding: 15px;
+.stage-panel{
+    flex:1;     /* Stage gets less space */
+    /* width: 35%; */
+    min-width:500px;
+    max-width:600px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
 }
 
-.stage-panel.fullscreen .stage-area {
-    height: 100%;
-}
-
-.stage-panel.fullscreen #stage {
-    height: 75vh;
-}
-
-.stage-panel.fullscreen .asset-row {
-    flex: 1;
-    min-height: 180px;
-} */
 
 /* Presentation Mode */
 
@@ -233,7 +247,7 @@
 #stage {
     position: relative;
     width: 100%;
-    height: 420px;
+    height: 320px;
     background: white;
     border: 2px solid #ddd;
     border-radius: 12px;
@@ -525,14 +539,19 @@
    CONSOLE
 ========================= */
 #console {
-    flex: 1;
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+
+    flex: 0 0 80px;
+
     background: #111;
     color: var(--brand-pri);
     padding: 10px;
     border-radius: 12px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     font-family: monospace;
-    height: 15%;
 }
 
 .modal {
@@ -620,7 +639,7 @@
     }
 
     #console {
-        height: 180px;
+        height: 80px;
         flex: none;
     }
 }
@@ -665,7 +684,7 @@
     }
 
     #console{
-        height:180px;
+        height:80px;
         flex:none;
     }
 

@@ -3,6 +3,54 @@ console.log("looks generator loaded");
 const jsGenerator = javascript.javascriptGenerator;
 
 // =========================
+// Generators for Event Blocks
+// =========================
+
+jsGenerator.forBlock["when_key_pressed"] = function (block) {
+  const key = block.getFieldValue("KEY");
+
+  const statements = jsGenerator.statementToCode(block, "DO");
+
+  return `
+registerKeyEvent("${key}", async ()=>{
+${statements}
+});
+`;
+};
+
+jsGenerator.forBlock["when_sprite_clicked"] = function (block) {
+  const statements = jsGenerator.statementToCode(block, "DO");
+
+  return `
+registerSpriteClick(async ()=>{
+${statements}
+});
+`;
+};
+
+jsGenerator.forBlock["broadcast_message"] = function (block) {
+  const msg = block.getFieldValue("MESSAGE");
+
+  return `
+broadcast("${msg}");
+`;
+};
+
+jsGenerator.forBlock["when_message_received"] = function (block) {
+  const msg = block.getFieldValue("MESSAGE");
+
+  const statements = jsGenerator.statementToCode(block, "DO");
+
+  return `
+registerBroadcast(
+ "${msg}",
+ async ()=>{
+${statements}
+});
+`;
+};
+
+// =========================
 // Generators for Console Blocks
 // =========================
 jsGenerator.forBlock["print_message"] = function (block, generator) {
@@ -67,9 +115,76 @@ jsGenerator.forBlock["set_speed"] = function (block) {
   return `setSpeed(${speed});\n`;
 };
 
+jsGenerator.forBlock["glide_to"] = function(block){
+
+ const sec =
+  jsGenerator.valueToCode(block,"SECONDS",0);
+
+ const x =
+  jsGenerator.valueToCode(block,"X",0);
+
+ const y =
+  jsGenerator.valueToCode(block,"Y",0);
+
+ return `await glideTo(${sec},${x},${y});\n`;
+
+};
+
 // =========================
 // Generators for Looks Blocks
 // =========================
+
+jsGenerator.forBlock["say_text"] = function(block){
+
+  const text =
+    jsGenerator.valueToCode(
+      block,
+      "TEXT",
+      javascript.Order.ATOMIC
+    ) || '""';
+
+  return `sayText(${text});\n`;
+};
+
+jsGenerator.forBlock["say_for_seconds"] = function(block){
+
+ const text =
+  jsGenerator.valueToCode(
+   block,
+   "TEXT",
+   0
+  ) || '""';
+
+ const sec =
+  jsGenerator.valueToCode(
+   block,
+   "SECONDS",
+   0
+  ) || "2";
+
+ return `
+await sayForSeconds(${text},${sec});
+`;
+};
+
+
+jsGenerator.forBlock["set_background_image"] = function (block) {
+  const image = block.getFieldValue("IMAGE");
+
+  return `
+setBackgroundImage("${image}");
+`;
+};
+
+jsGenerator.forBlock["next_background"] = function () {
+  return `nextBackground();\n`;
+};
+
+jsGenerator.forBlock["random_background"] = function () {
+  return `randomBackground();\n`;
+};
+
+
 jsGenerator.forBlock["change_background"] = function (block) {
   const color = block.getFieldValue("COLOR");
 
@@ -110,7 +225,7 @@ Blockly.Blocks["move_added_sprite"] = {
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
-    this.setColour(290);
+    this.setColour("#4C97FF");
   }
 };
 
@@ -139,6 +254,21 @@ jsGenerator.forBlock["hide_sprite"] = function () {
 
 jsGenerator.forBlock["show_sprite"] = function () {
   return `showSprite();\n`;
+};
+
+jsGenerator.forBlock["set_sprite_size"] = function (block) {
+  const size =
+    jsGenerator.valueToCode(block, "SIZE", javascript.Order.ATOMIC) || "100";
+
+  return `setSpriteSize(${size});\n`;
+};
+
+jsGenerator.forBlock["change_size_by"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "SIZE", 0) || "10";
+
+  return `
+changeSpriteSizeBy(${value});
+`;
 };
 
 // =========================
@@ -174,6 +304,31 @@ jsGenerator.forBlock["touching_sprite"] = function () {
   return ["touchingSprite()", javascript.Order.FUNCTION_CALL];
 };
 
+jsGenerator.forBlock["touching_mouse"] = function () {
+  return ["touchingMouse()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["mouse_x"] = function () {
+  return ["mouseX", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["mouse_y"] = function () {
+  return ["mouseY", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["key_pressed"] = function (block) {
+  const key = block.getFieldValue("KEY");
+
+  return [`isKeyPressed("${key}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["sprite_x_position"] = function () {
+  return ["spriteX", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["sprite_y_position"] = function () {
+  return ["spriteY", javascript.Order.ATOMIC];
+};
 
 // =========================
 // Control Blocks Functions
@@ -206,5 +361,20 @@ jsGenerator.forBlock["repeat_times"] = function (block) {
 for(let i = 0; i < ${times}; i++){
 ${statements}
 }
+`;
+};
+
+jsGenerator.forBlock["when_run_clicked"] = function(block){
+
+  const statements =
+    jsGenerator.statementToCode(
+      block,
+      "DO"
+    );
+
+  return `
+(async ()=>{
+${statements}
+})();
 `;
 };
