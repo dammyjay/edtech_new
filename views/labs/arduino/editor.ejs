@@ -1,0 +1,66 @@
+<link rel="stylesheet" href="/labs/css/arduino.css">
+
+<div class="arduino-container">
+
+  <div class="components-panel">
+    <h3>Components</h3>
+
+    <div class="component" draggable="true" data-type="arduino">
+      Arduino Uno
+    </div>
+
+    <div class="component" draggable="true" data-type="led">
+      LED
+    </div>
+
+    <div class="component" draggable="true" data-type="button">
+      Push Button
+    </div>
+
+    <div class="component" draggable="true" data-type="buzzer">
+      Buzzer
+    </div>
+
+  </div>
+
+  <div id="circuitCanvas" class="circuit-canvas">
+
+    <h2>Drop Components Here</h2>
+
+  </div>
+
+</div>
+
+<div class="code-section">
+
+<textarea id="arduinoCode">
+
+void setup(){
+
+}
+
+void loop(){
+
+}
+
+</textarea>
+
+</div>
+
+<div class="controls">
+
+<button id="runBtn">
+Run Simulation
+</button>
+
+<button id="stopBtn">
+Stop
+</button>
+
+<button id="saveBtn">
+Save
+</button>
+
+</div>
+
+<script src="/labs/js/arduinoLab.js"></script>
