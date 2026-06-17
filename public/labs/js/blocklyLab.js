@@ -148,10 +148,12 @@ window.renderSpriteList = function () {
     card.innerHTML = `
             <img src="/labs/images/sprites/${sprite.name}.png" >
             <br>
+            <div class="sprite-action">
             <span>${sprite.name}</span>
-            <button onclick="deleteSprite(${sprite.id})" style="background: none; border: none; color: red; font-size: 16px; cursor: pointer;">
+            <button onclick="deleteSprite(${sprite.id})" style="background: none; border: none; color: red; font-size: 12px; cursor: pointer;">
                 <i class="fas fa-trash"></i>
             </button>
+            </div>
         `;
 
     card.onclick = () => {
@@ -258,7 +260,7 @@ window.renderBackgroundList = function () {
         src="/labs/images/backgrounds/${bg}"
         style="
           width:100%;
-          height:80px;
+          height:40px;
           object-fit:cover;
           border-radius:8px;
           cursor:pointer;
@@ -268,7 +270,7 @@ window.renderBackgroundList = function () {
       <button
         class="delete-bg-btn"
         onclick="deleteBackground(${index})">
-        <i class="fas fa-trash"></i>
+        <i class="fas fa-trash" style="background: none; border: none; color: red; font-size: 12px; cursor: pointer;"></i>
       </button>
     `;
 

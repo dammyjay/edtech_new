@@ -9,10 +9,39 @@
     box-sizing:border-box;
 }
 
-html,
+/* html,
 body{
     height:100%;
     overflow:hidden;
+} */
+
+html,
+body {
+    height: 100%;
+}
+
+@media (max-width:1024px) {
+
+    html,
+    body {
+        overflow: auto;
+    }
+
+    .blockly-container{
+        height:auto;
+        overflow:visible;
+    }
+
+        .stage-panel {
+            flex: 1;
+            /* Stage gets less space */
+            /* width: 35%; */
+            min-width: 300px;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 }
 
 :root {
@@ -57,10 +86,11 @@ body{
 
 .blockly-container{
     display:flex;
-    height:calc(100vh - 61px);
+    height:calc(100vh - 60px);
     gap:15px;
     padding:10px;
     overflow:hidden;
+    box-sizing: border-box;
 }
 
 .editor-toolbar {
@@ -170,7 +200,7 @@ body{
 .stage-panel{
     flex:1;     /* Stage gets less space */
     /* width: 35%; */
-    min-width:500px;
+    min-width:450px;
     max-width:600px;
     display:flex;
     flex-direction:column;
@@ -336,9 +366,22 @@ body{
     display: inline-block;
 }
 
+/* .asset-row {
+    display: flex;
+    gap: 10px;
+    height: 100%;
+} */
+
 .asset-row {
     display: flex;
     gap: 10px;
+
+    flex: 0 0 250px;
+    /* fixed height */
+    height: 250px;
+
+    min-height: 250px;
+    max-height: 250px;
 }
 
 /* Main sprite */
@@ -351,7 +394,8 @@ body{
 }
 
 .sprite-card {
-    width: 90px;
+    width: 70px;
+    height: 80px;
     border: 2px solid var(--brand-pri);
     border-radius: 12px;
     overflow: hidden;
@@ -365,15 +409,21 @@ body{
 
 .sprite-card img {
     width: 100%;
-    height: 70px;
+    height: 40px;
     object-fit: contain;
 }
 
+.sprite-action{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .sprite-card span {
     display: block;
     text-align: center;
     padding: 6px;
-    font-size: 14px;
+    font-size: 10px;
+    font-weight: bold;
     color: rgb(0, 0, 0);
 }
 
@@ -403,6 +453,7 @@ body{
     border: 1px solid #ddd;
     border-radius: 12px;
     overflow: hidden;
+    min-height: 0;
 }
 
 .background-panel {
@@ -413,6 +464,7 @@ body{
     border: 1px solid #ddd;
     border-radius: 12px;
     overflow: hidden;
+    min-height: 0;
 }
 
 /* Header Buttons */
@@ -443,6 +495,7 @@ body{
     padding: 10px;
     overflow-y: auto;
     overflow-x: hidden;
+    min-height: 0;
 }
 
 
@@ -454,15 +507,16 @@ body{
     padding: 10px;
     overflow-y: auto;
     overflow-x: hidden;
+    min-height: 0;
 }
 
 .sprite-properties {
-    padding: 12px;
+    padding: 5px;
     background: #f8f9fc;
     border-bottom: 1px solid #ddd;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
 }
 
 .sprite-top-row,
@@ -477,6 +531,7 @@ body{
 .sprite-properties .label {
     font-weight: 600;
     color: #555;
+    font-size: 10px;
 }
 
 .sprite-properties input[type="text"] {
@@ -485,15 +540,16 @@ body{
 
 .sprite-properties input[type="number"],
 .sprite-properties input:not([type]) {
-    width: 40px;
+    width: 60px;
 }
 
 .sprite-properties input {
-    height: 34px;
+    height: 20px;
     border: 1px solid #d8d8d8;
-    border-radius: 18px;
+    border-radius: 10px;
     text-align: center;
     padding: 0 10px;
+    font-size: 10px;
 }
 
 .show-toggle {
@@ -630,9 +686,20 @@ body{
         display:block;
     }
 
-    .stage-panel {
+    /* .stage-panel {
         width: 100%;    
-    }
+    } */
+
+    .stage-panel {
+            flex: 1;
+            /* Stage gets less space */
+            /* width: 35%; */
+            min-width: 300px;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
     #stage {
         height: 350px;
@@ -652,6 +719,11 @@ body{
 
     .editor-toolbar {
         flex-wrap: wrap;
+    }
+
+    .editor-toolbar{
+        position:static;
+        height:auto;
     }
 
     .editor-toolbar button {
@@ -688,7 +760,7 @@ body{
         flex:none;
     }
 
-    .asset-row{
+    /* .asset-row{
         flex-direction:column;
         height:auto;
     }
@@ -700,6 +772,22 @@ body{
 
     .sprite-panel{
         height:250px;
+    } */
+
+     .asset-row{
+        height:220px;
+        flex-direction:row;
+    }
+
+    .sprite-panel{
+        flex:2;
+        min-width:0;
+    }
+
+    .background-panel{
+        flex:1;
+        width:auto;
+        min-width:120px;
     }
 
     #spriteList,
