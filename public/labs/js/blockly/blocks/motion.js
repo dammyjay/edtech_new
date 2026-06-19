@@ -1,3 +1,18 @@
+// Blockly.Blocks["move_sprite"] = {
+//   init: function () {
+//     this.appendDummyInput().appendField("Move Sprite");
+
+//     this.appendValueInput("STEPS").setCheck("Number").appendField("by");
+
+//     this.appendDummyInput().appendField("steps");
+
+//     this.setPreviousStatement(true);
+//     this.setNextStatement(true);
+
+//     this.setColour("#4C97FF");
+//   },
+// };
+
 Blockly.Blocks["move_sprite"] = {
   init: function () {
     this.appendDummyInput().appendField("Move Sprite");

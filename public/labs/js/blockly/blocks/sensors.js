@@ -118,3 +118,104 @@ Blockly.Blocks["sprite_y_position"] = {
     this.setColour("#5CB1D6");
   },
 };
+
+// Blockly.Blocks["ask_and_wait"] = {
+//   init() {
+//     this.appendValueInput("QUESTION").appendField("Ask");
+
+//     this.appendDummyInput().appendField("and wait");
+
+//     this.setPreviousStatement(true);
+//     this.setNextStatement(true);
+
+//     this.setColour("#5CB1D6");
+//   },
+// };
+
+Blockly.Blocks["ask_and_wait"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Ask")
+      .appendField(new Blockly.FieldTextInput("What is your name?"), "QUESTION")
+      .appendField("and wait");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["answer"] = {
+  init() {
+    this.appendDummyInput().appendField("Answer");
+
+    this.setOutput(true, "String");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["mouse_down"] = {
+  init() {
+    this.appendDummyInput().appendField("Mouse Down?");
+
+    this.setOutput(true, "Boolean");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["any_key_pressed"] = {
+  init() {
+    this.appendDummyInput().appendField("Any Key Pressed?");
+
+    this.setOutput(true, "Boolean");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["last_key_pressed"] = {
+  init() {
+    this.appendDummyInput().appendField("Last Key Pressed");
+
+    this.setOutput(true, "String");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["timer"] = {
+  init() {
+    this.appendDummyInput().appendField("Timer");
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["reset_timer"] = {
+  init() {
+    this.appendDummyInput().appendField("Reset Timer");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["show_variable_monitor"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField(new Blockly.FieldCheckbox("TRUE"), "VISIBLE")
+      .appendField("Show X Position");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#5CB1D6");
+  },
+};

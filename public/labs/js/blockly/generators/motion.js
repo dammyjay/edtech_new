@@ -115,58 +115,36 @@ jsGenerator.forBlock["set_speed"] = function (block) {
   return `setSpeed(${speed});\n`;
 };
 
-jsGenerator.forBlock["glide_to"] = function(block){
+jsGenerator.forBlock["glide_to"] = function (block) {
+  const sec = jsGenerator.valueToCode(block, "SECONDS", 0);
 
- const sec =
-  jsGenerator.valueToCode(block,"SECONDS",0);
+  const x = jsGenerator.valueToCode(block, "X", 0);
 
- const x =
-  jsGenerator.valueToCode(block,"X",0);
+  const y = jsGenerator.valueToCode(block, "Y", 0);
 
- const y =
-  jsGenerator.valueToCode(block,"Y",0);
-
- return `await glideTo(${sec},${x},${y});\n`;
-
+  return `await glideTo(${sec},${x},${y});\n`;
 };
 
 // =========================
 // Generators for Looks Blocks
 // =========================
 
-jsGenerator.forBlock["say_text"] = function(block){
-
+jsGenerator.forBlock["say_text"] = function (block) {
   const text =
-    jsGenerator.valueToCode(
-      block,
-      "TEXT",
-      javascript.Order.ATOMIC
-    ) || '""';
+    jsGenerator.valueToCode(block, "TEXT", javascript.Order.ATOMIC) || '""';
 
   return `sayText(${text});\n`;
 };
 
-jsGenerator.forBlock["say_for_seconds"] = function(block){
+jsGenerator.forBlock["say_for_seconds"] = function (block) {
+  const text = jsGenerator.valueToCode(block, "TEXT", 0) || '""';
 
- const text =
-  jsGenerator.valueToCode(
-   block,
-   "TEXT",
-   0
-  ) || '""';
+  const sec = jsGenerator.valueToCode(block, "SECONDS", 0) || "2";
 
- const sec =
-  jsGenerator.valueToCode(
-   block,
-   "SECONDS",
-   0
-  ) || "2";
-
- return `
+  return `
 await sayForSeconds(${text},${sec});
 `;
 };
-
 
 jsGenerator.forBlock["set_background_image"] = function (block) {
   const image = block.getFieldValue("IMAGE");
@@ -183,7 +161,6 @@ jsGenerator.forBlock["next_background"] = function () {
 jsGenerator.forBlock["random_background"] = function () {
   return `randomBackground();\n`;
 };
-
 
 jsGenerator.forBlock["change_background"] = function (block) {
   const color = block.getFieldValue("COLOR");
@@ -206,27 +183,19 @@ addSprite("${sprite}", ${x}, ${y});
 
 Blockly.Blocks["move_added_sprite"] = {
   init: function () {
+    this.appendDummyInput().appendField("Move Sprite");
 
-    this.appendDummyInput()
-      .appendField("Move Sprite");
+    this.appendValueInput("ID").setCheck("Number").appendField("ID");
 
-    this.appendValueInput("ID")
-      .setCheck("Number")
-      .appendField("ID");
+    this.appendValueInput("X").setCheck("Number").appendField("X");
 
-    this.appendValueInput("X")
-      .setCheck("Number")
-      .appendField("X");
-
-    this.appendValueInput("Y")
-      .setCheck("Number")
-      .appendField("Y");
+    this.appendValueInput("Y").setCheck("Number").appendField("Y");
 
     this.setPreviousStatement(true);
     this.setNextStatement(true);
 
     this.setColour("#4C97FF");
-  }
+  },
 };
 
 jsGenerator.forBlock["move_added_sprite"] = function (block) {
@@ -330,6 +299,48 @@ jsGenerator.forBlock["sprite_y_position"] = function () {
   return ["spriteY", javascript.Order.ATOMIC];
 };
 
+jsGenerator.forBlock["ask_and_wait"] = function (block) {
+  const question = block.getFieldValue("QUESTION");
+
+  return `
+    await askAndWait(${JSON.stringify(question)});
+  `;
+};
+
+jsGenerator.forBlock["answer"] = function () {
+  return ["userAnswer", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["mouse_down"] = function () {
+  return ["mouseDown", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["any_key_pressed"] = function () {
+  return ["anyKeyPressed()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["last_key_pressed"] = function () {
+  return ["lastKeyPressed", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["timer"] = function () {
+  return ["getTimer()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["reset_timer"] = function () {
+  return `
+ resetTimer();
+ `;
+};
+
+jsGenerator.forBlock["show_variable_monitor"] = function (block) {
+  const visible = block.getFieldValue("VISIBLE");
+
+  return `
+ setMonitorVisible(${visible === "TRUE"});
+ `;
+};
+
 // =========================
 // Control Blocks Functions
 // =========================
@@ -364,17 +375,114 @@ ${statements}
 `;
 };
 
-jsGenerator.forBlock["when_run_clicked"] = function(block){
+jsGenerator.forBlock["if_block"] = function (block) {
+  const condition =
+    jsGenerator.valueToCode(block, "CONDITION", javascript.Order.NONE) ||
+    "false";
 
-  const statements =
-    jsGenerator.statementToCode(
-      block,
-      "DO"
-    );
+  const statements = jsGenerator.statementToCode(block, "DO");
+
+  return `
+if(${condition}){
+${statements}
+}
+`;
+};
+
+jsGenerator.forBlock["if_else_block"] = function (block) {
+  const condition =
+    jsGenerator.valueToCode(block, "CONDITION", javascript.Order.NONE) ||
+    "false";
+
+  const trueCode = jsGenerator.statementToCode(block, "TRUE");
+
+  const falseCode = jsGenerator.statementToCode(block, "FALSE");
+
+  return `
+if(${condition}){
+${trueCode}
+}else{
+${falseCode}
+}
+`;
+};
+
+jsGenerator.forBlock["repeat_until"] = function (block) {
+  const condition =
+    jsGenerator.valueToCode(block, "CONDITION", javascript.Order.NONE) ||
+    "false";
+
+  const statements = jsGenerator.statementToCode(block, "DO");
+
+  return `
+while(!(${condition})){
+${statements}
+await wait(0.02);
+}
+`;
+};
+
+jsGenerator.forBlock["wait_until"] = function (block) {
+  const condition =
+    jsGenerator.valueToCode(block, "CONDITION", javascript.Order.NONE) ||
+    "false";
+
+  return `
+while(!(${condition})){
+await wait(0.02);
+}
+`;
+};
+
+jsGenerator.forBlock["stop_all"] = function () {
+  return `
+stopAllScripts();
+return;
+`;
+};
+
+jsGenerator.forBlock["when_run_clicked"] = function (block) {
+  const statements = jsGenerator.statementToCode(block, "DO");
 
   return `
 (async ()=>{
 ${statements}
 })();
 `;
+};
+
+// PEN
+
+jsGenerator.forBlock["pen_down"] = function () {
+  return `penDownFn();\n`;
+};
+
+jsGenerator.forBlock["pen_up"] = function () {
+  return `penUpFn();\n`;
+};
+
+jsGenerator.forBlock["clear_pen"] = function () {
+  return `clearPen();\n`;
+};
+
+jsGenerator.forBlock["set_pen_color"] = function (block) {
+  const color = block.getFieldValue("COLOR");
+
+  return `
+setPenColor("${color}");
+`;
+};
+
+jsGenerator.forBlock["set_pen_size"] = function (block) {
+  const size = jsGenerator.valueToCode(block, "SIZE", 0) || "2";
+
+  return `
+setPenSize(${size});
+`;
+};
+
+jsGenerator.forBlock["change_pen_size"] = function (block) {
+  const size = jsGenerator.valueToCode(block, "VALUE", 0) || "1";
+
+  return `changePenSizeBy(${size});\n`;
 };

@@ -7,6 +7,18 @@ window.sprites = [];
 
 window.currentSprite = null;
 window.backgrounds = [];
+
+window.penDownState = false;
+
+window.penColor = "#000000";
+
+window.penSize = 2;
+
+window.penCanvas = null;
+
+window.penCtx = null;
+
+
 // =========================
 // SPRITE RENDER
 // =========================
@@ -34,6 +46,28 @@ window.updateSprite = function () {
     mainSprite.visible = spriteVisible;
   }
 };
+
+// window.updateSprite = function () {
+//   const container = document.getElementById("spriteContainer");
+
+//   if (!container) return;
+
+//   container.style.left = spriteX + "px";
+//   container.style.top = spriteY + "px";
+
+//   container.style.transform = `rotate(${spriteRotation}deg)`;
+
+//   container.style.display = spriteVisible ? "block" : "none";
+
+//   const mainSprite = window.sprites.find((s) => s.id === "mainSprite");
+
+//   if (mainSprite) {
+//     mainSprite.x = spriteX;
+//     mainSprite.y = spriteY;
+//     mainSprite.rotation = spriteRotation;
+//     mainSprite.visible = spriteVisible;
+//   }
+// };
 
 
 // =========================
@@ -84,22 +118,133 @@ window.registerBroadcast = function (message, callback) {
   window.broadcastListeners[message].push(callback);
 };
 
+window.initPen = function () {
+  const canvas = document.getElementById("penCanvas");
+
+  const stage = document.getElementById("stage");
+
+  if (!canvas || !stage) return;
+
+  canvas.width = stage.clientWidth;
+
+  canvas.height = stage.clientHeight;
+
+  window.penCanvas = canvas;
+
+  window.penCtx = canvas.getContext("2d");
+
+  penCtx.lineCap = "round";
+  penCtx.lineJoin = "round";
+};
+
+window.drawPenLine = function (startX, startY, endX, endY) {
+  if (!penDownState) return;
+
+  if (!penCtx) return;
+
+  penCtx.beginPath();
+
+  penCtx.moveTo(startX, startY);
+
+  penCtx.lineTo(endX, endY);
+
+  penCtx.strokeStyle = penColor;
+
+  penCtx.lineWidth = penSize;
+
+  penCtx.stroke();
+};
+
+window.drawPenLine = function (startX, startY, endX, endY) {
+  if (!penDownState) return;
+
+  if (!penCtx) return;
+
+  penCtx.beginPath();
+
+  penCtx.moveTo(startX, startY);
+
+  penCtx.lineTo(endX, endY);
+
+  penCtx.strokeStyle = penColor;
+
+  penCtx.lineWidth = penSize;
+
+  penCtx.stroke();
+};
+
+window.penDownFn = function () {
+  penDownState = true;
+};
+
+window.penUpFn = function () {
+  penDownState = false;
+};
+
+window.clearPen = function () {
+  if (!penCtx) return;
+
+  penCtx.clearRect(0, 0, penCanvas.width, penCanvas.height);
+};
+
+window.setPenColor = function (color) {
+  penColor = color;
+};
+
+window.setPenSize = function (size) {
+  penSize = Number(size);
+};
+
+window.changePenSizeBy = function (value) {
+  penSize += Number(value);
+
+  if (penSize < 1) {
+    penSize = 1;
+  }
+}; 
 // =========================
 // MOTION
 // =========================
 
+// window.moveSprite = function (steps) {
+
+//   const distance =
+//     Number(steps) * spriteSpeed;
+
+//   spriteX +=
+//     Math.cos(spriteRotation * Math.PI / 180)
+//     * distance;
+
+//   spriteY +=
+//     Math.sin(spriteRotation * Math.PI / 180)
+//     * distance;
+
+//   updateSprite();
+// };
+
 window.moveSprite = function (steps) {
+  const oldX = spriteX;
+  const oldY = spriteY;
 
-  const distance =
-    Number(steps) * spriteSpeed;
+  const distance = Number(steps) * spriteSpeed;
 
-  spriteX +=
-    Math.cos(spriteRotation * Math.PI / 180)
-    * distance;
+  spriteX += Math.cos((spriteRotation * Math.PI) / 180) * distance;
 
-  spriteY +=
-    Math.sin(spriteRotation * Math.PI / 180)
-    * distance;
+  spriteY += Math.sin((spriteRotation * Math.PI) / 180) * distance;
+
+  drawPenLine(oldX, oldY, spriteX, spriteY);
+
+  updateSprite();
+};
+
+window.goToPosition = function (x, y) {
+  const oldX = spriteX;
+  const oldY = spriteY;
+
+  spriteX = Number(x);
+  spriteY = Number(y);
+
+  drawPenLine(oldX, oldY, spriteX, spriteY);
 
   updateSprite();
 };
@@ -136,29 +281,60 @@ window.setSpeed = function (speed) {
 // LOOKS
 // =========================
 
-window.sayText = function (text) {
-  const sprite = document.getElementById("sprite");
+// window.sayText = function (text) {
+//   const sprite = document.getElementById("sprite");
 
+//   let bubble = document.getElementById("speechBubble");
+
+//   if (!bubble) {
+//     bubble = document.createElement("div");
+
+//     bubble.id = "speechBubble";
+
+//     bubble.className = "speech-bubble";
+
+//     document.getElementById("stage").appendChild(bubble);
+//   }
+
+//   bubble.innerText = text;
+
+//   bubble.style.left = spriteX + 80 + "px";
+
+//   bubble.style.top = spriteY - 20 + "px";
+
+//   bubble.style.display = "block";
+// };
+
+window.sayText = function (text) {
   let bubble = document.getElementById("speechBubble");
 
   if (!bubble) {
     bubble = document.createElement("div");
-
     bubble.id = "speechBubble";
-
     bubble.className = "speech-bubble";
-
     document.getElementById("stage").appendChild(bubble);
   }
 
   bubble.innerText = text;
-
-  bubble.style.left = spriteX + 60 + "px";
-
-  bubble.style.top = spriteY - 20 + "px";
-
   bubble.style.display = "block";
+
+  // Show scrollbar only for long messages
+  if (text.length > 100) {
+    bubble.style.maxHeight = "100px";
+    bubble.style.overflowY = "auto";
+  } else {
+    bubble.style.maxHeight = "none";
+    bubble.style.overflowY = "hidden";
+  }
+
+  requestAnimationFrame(() => {
+    const bubbleHeight = bubble.offsetHeight;
+
+    bubble.style.left = spriteX + 60 + "px";
+    bubble.style.top = spriteY - bubbleHeight - 10 + "px";
+  });
 };
+
 
 window.sayForSeconds = async function (text, seconds) {
   sayText(text);
@@ -171,6 +347,19 @@ window.sayForSeconds = async function (text, seconds) {
     bubble.style.display = "none";
   }
 };
+
+// window.sayForSeconds = async function (text, seconds) {
+//   sayText(text);
+
+//   await wait(seconds);
+
+//   const bubble = document.querySelector("#sprite .speech-bubble");
+//   // const bubble = document.querySelector("#spriteContainer .speech-bubble");
+
+//   if (bubble) {
+//     bubble.style.display = "none";
+//   }
+// };
 
 window.setBackgroundImage = function (image) {
   const stage = document.getElementById("stage");
@@ -385,8 +574,20 @@ if (currentSprite?.id === "mainSprite") {
     : "none";
 }
 
+// window.moveSpriteTo = function (spriteId, x, y) {
+//   const sprite = window.sprites[spriteId];
+
+//   if (!sprite) return;
+
+//   sprite.x = Number(x);
+//   sprite.y = Number(y);
+
+//   sprite.element.style.left = sprite.x + "px";
+//   sprite.element.style.top = sprite.y + "px";
+// };
+
 window.moveSpriteTo = function (spriteId, x, y) {
-  const sprite = window.sprites[spriteId];
+  const sprite = window.sprites.find((s) => s.id == spriteId);
 
   if (!sprite) return;
 
@@ -394,6 +595,7 @@ window.moveSpriteTo = function (spriteId, x, y) {
   sprite.y = Number(y);
 
   sprite.element.style.left = sprite.x + "px";
+
   sprite.element.style.top = sprite.y + "px";
 };
 
@@ -435,27 +637,66 @@ window.setSprite = function (spriteName) {
     `/labs/images/sprites/${spriteName}.png`;
 };
 
-window.goToPosition = function(x,y){
+// window.goToPosition = function(x,y){
 
- spriteX = Number(x);
- spriteY = Number(y);
+//  spriteX = Number(x);
+//  spriteY = Number(y);
 
- updateSprite();
+//  updateSprite();
+// };
+
+// window.changeX = function(value){
+
+//  spriteX += Number(value);
+
+//  updateSprite();
+// };
+
+window.changeX = function (value) {
+  const oldX = spriteX;
+  const oldY = spriteY;
+
+  spriteX += Number(value);
+
+  drawPenLine(oldX, oldY, spriteX, spriteY);
+
+  updateSprite();
 };
 
-window.changeX = function(value){
+// window.changeY = function(value){
 
- spriteX += Number(value);
+//  spriteY += Number(value);
 
- updateSprite();
+//  updateSprite();
+// };
+
+window.changeY = function (value) {
+  const oldX = spriteX;
+  const oldY = spriteY;
+
+  spriteY += Number(value);
+
+  drawPenLine(oldX, oldY, spriteX, spriteY);
+
+  updateSprite();
 };
 
-window.changeY = function(value){
+// window.glideTo = async function (sec, x, y) {
+//   const startX = spriteX;
+//   const startY = spriteY;
 
- spriteY += Number(value);
+//   const steps = 60 * sec;
 
- updateSprite();
-};
+//   for (let i = 0; i < steps; i++) {
+//     spriteX = startX + ((x - startX) * i) / steps;
+
+//     spriteY = startY + ((y - startY) * i) / steps;
+
+//     updateSprite();
+
+//     await wait(1 / 60);
+//   }
+// };
 
 window.glideTo = async function (sec, x, y) {
   const startX = spriteX;
@@ -463,10 +704,18 @@ window.glideTo = async function (sec, x, y) {
 
   const steps = 60 * sec;
 
+  let prevX = spriteX;
+  let prevY = spriteY;
+
   for (let i = 0; i < steps; i++) {
     spriteX = startX + ((x - startX) * i) / steps;
 
     spriteY = startY + ((y - startY) * i) / steps;
+
+    drawPenLine(prevX, prevY, spriteX, spriteY);
+
+    prevX = spriteX;
+    prevY = spriteY;
 
     updateSprite();
 
@@ -506,6 +755,11 @@ window.changeSpriteSizeBy = function (value) {
   sprite.style.height = height + Number(value) + "px";
 };
 
+window.stopRequested = false;
+
+window.stopAllScripts = function () {
+  stopRequested = true;
+};
 
 window.wait = function (seconds) {
   return new Promise((resolve, reject) => {
@@ -562,6 +816,23 @@ window.touchingSprite = function () {
   );
 };
 
+window.touchingSpriteNamed = function (name) {
+  const other = getSprite(name);
+
+  if (!other) return false;
+
+  const a = document.getElementById("sprite").getBoundingClientRect();
+
+  const b = other.element.getBoundingClientRect();
+
+  return !(
+    a.right < b.left ||
+    a.left > b.right ||
+    a.bottom < b.top ||
+    a.top > b.bottom
+  );
+};
+
 window.mouseX = 0;
 window.mouseY = 0;
 
@@ -600,9 +871,115 @@ function(){
     return !!pressedKeys[key];
   };
 
+//   window.userAnswer = "";
+
+//   window.askAndWait = async function (question) {
+//     userAnswer = prompt(question) || "";
+// };
+
+window.userAnswer = "";
+
+window.askAndWait = function (question) {
+  return new Promise((resolve) => {
+    const askBox = document.getElementById("askBox");
+
+    const askQuestion = document.getElementById("askQuestion");
+
+    const askInput = document.getElementById("askInput");
+
+    const askSubmit = document.getElementById("askSubmit");
+
+    askQuestion.innerText = question;
+
+    askInput.value = "";
+
+    askBox.style.display = "block";
+
+    askInput.focus();
+
+    const finish = () => {
+      userAnswer = askInput.value;
+
+      askBox.style.display = "none";
+
+      askSubmit.removeEventListener("click", finish);
+
+      askInput.removeEventListener("keydown", enterHandler);
+
+      resolve();
+    };
+
+    const enterHandler = (e) => {
+      if (e.key === "Enter") {
+        finish();
+      }
+    };
+
+    askSubmit.addEventListener("click", finish);
+
+    askInput.addEventListener("keydown", enterHandler);
+  });
+};
+
+window.mouseDown = false;
+
+document.addEventListener("mousedown", () => (mouseDown = true));
+
+document.addEventListener("mouseup", () => (mouseDown = false));
+
+window.lastKeyPressed = "";
+
+document.addEventListener("keydown", (e) => {
+  lastKeyPressed = e.key;
+});
+
+window.anyKeyPressed = function () {
+  return Object.values(pressedKeys).some(Boolean);
+};
+
+window.timerStart = Date.now();
+
+window.getTimer = function () {
+  return (Date.now() - timerStart) / 1000;
+};
+
+window.resetTimer = function () {
+  timerStart = Date.now();
+};
+
+// window.setMonitorVisible = function (show) {
+//   const monitor = document.getElementById("xMonitor");
+
+//   monitor.style.display = show ? "block" : "none";
+
+//   setInterval(() => {
+//     const monitor = document.getElementById("xMonitor");
+
+//     if (monitor) {
+//       monitor.innerHTML = `X: ${Math.round(spriteX)}`;
+//     }
+//   }, 50);
+// };
+
 // =========================
 // CONSOLE
 // =========================
+
+window.monitorInterval = null;
+
+window.setMonitorVisible = function (show) {
+  const monitor = document.getElementById("xMonitor");
+
+  if (!monitor) return;
+
+  monitor.style.display = show ? "block" : "none";
+
+  if (show && !window.monitorInterval) {
+    window.monitorInterval = setInterval(() => {
+      monitor.innerHTML = `X: ${Math.round(spriteX)}`;
+    }, 50);
+  }
+};
 
 window.logMessage = function (message) {
 
@@ -684,7 +1061,8 @@ document
 document
   .getElementById("spriteVisible")
   .addEventListener("change", updateSelectedSprite);
-
+  
+   initPen();
   updateSprite();
 });
 
