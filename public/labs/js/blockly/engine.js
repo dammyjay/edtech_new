@@ -47,29 +47,6 @@ window.updateSprite = function () {
   }
 };
 
-// window.updateSprite = function () {
-//   const container = document.getElementById("spriteContainer");
-
-//   if (!container) return;
-
-//   container.style.left = spriteX + "px";
-//   container.style.top = spriteY + "px";
-
-//   container.style.transform = `rotate(${spriteRotation}deg)`;
-
-//   container.style.display = spriteVisible ? "block" : "none";
-
-//   const mainSprite = window.sprites.find((s) => s.id === "mainSprite");
-
-//   if (mainSprite) {
-//     mainSprite.x = spriteX;
-//     mainSprite.y = spriteY;
-//     mainSprite.rotation = spriteRotation;
-//     mainSprite.visible = spriteVisible;
-//   }
-// };
-
-
 // =========================
 // EVENTS
 // =========================
@@ -206,47 +183,46 @@ window.changePenSizeBy = function (value) {
 // MOTION
 // =========================
 
-// window.moveSprite = function (steps) {
+window.getSpriteCenter = function () {
+  const sprite = document.getElementById("sprite");
 
-//   const distance =
-//     Number(steps) * spriteSpeed;
+  const rect = sprite.getBoundingClientRect();
+  const stageRect = document.getElementById("stage").getBoundingClientRect();
 
-//   spriteX +=
-//     Math.cos(spriteRotation * Math.PI / 180)
-//     * distance;
-
-//   spriteY +=
-//     Math.sin(spriteRotation * Math.PI / 180)
-//     * distance;
-
-//   updateSprite();
-// };
+  return {
+    x: rect.left - stageRect.left + rect.width / 2,
+    y: rect.top - stageRect.top + rect.height / 2,
+  };
+};
 
 window.moveSprite = function (steps) {
-  const oldX = spriteX;
-  const oldY = spriteY;
+  const start = getSpriteCenter();
 
   const distance = Number(steps) * spriteSpeed;
 
   spriteX += Math.cos((spriteRotation * Math.PI) / 180) * distance;
-
   spriteY += Math.sin((spriteRotation * Math.PI) / 180) * distance;
 
-  drawPenLine(oldX, oldY, spriteX, spriteY);
-
   updateSprite();
+
+  const end = getSpriteCenter();
+
+  drawPenLine(start.x, start.y, end.x, end.y);
+
 };
 
 window.goToPosition = function (x, y) {
-  const oldX = spriteX;
-  const oldY = spriteY;
+  const start = getSpriteCenter();
 
   spriteX = Number(x);
   spriteY = Number(y);
 
-  drawPenLine(oldX, oldY, spriteX, spriteY);
-
   updateSprite();
+
+  const end = getSpriteCenter();
+
+  drawPenLine(start.x, start.y, end.x, end.y);
+
 };
 
 window.turnSprite = function (angle) {
@@ -280,30 +256,6 @@ window.setSpeed = function (speed) {
 // =========================
 // LOOKS
 // =========================
-
-// window.sayText = function (text) {
-//   const sprite = document.getElementById("sprite");
-
-//   let bubble = document.getElementById("speechBubble");
-
-//   if (!bubble) {
-//     bubble = document.createElement("div");
-
-//     bubble.id = "speechBubble";
-
-//     bubble.className = "speech-bubble";
-
-//     document.getElementById("stage").appendChild(bubble);
-//   }
-
-//   bubble.innerText = text;
-
-//   bubble.style.left = spriteX + 80 + "px";
-
-//   bubble.style.top = spriteY - 20 + "px";
-
-//   bubble.style.display = "block";
-// };
 
 window.sayText = function (text) {
   let bubble = document.getElementById("speechBubble");
@@ -347,19 +299,6 @@ window.sayForSeconds = async function (text, seconds) {
     bubble.style.display = "none";
   }
 };
-
-// window.sayForSeconds = async function (text, seconds) {
-//   sayText(text);
-
-//   await wait(seconds);
-
-//   const bubble = document.querySelector("#sprite .speech-bubble");
-//   // const bubble = document.querySelector("#spriteContainer .speech-bubble");
-
-//   if (bubble) {
-//     bubble.style.display = "none";
-//   }
-// };
 
 window.setBackgroundImage = function (image) {
   const stage = document.getElementById("stage");
@@ -574,18 +513,6 @@ if (currentSprite?.id === "mainSprite") {
     : "none";
 }
 
-// window.moveSpriteTo = function (spriteId, x, y) {
-//   const sprite = window.sprites[spriteId];
-
-//   if (!sprite) return;
-
-//   sprite.x = Number(x);
-//   sprite.y = Number(y);
-
-//   sprite.element.style.left = sprite.x + "px";
-//   sprite.element.style.top = sprite.y + "px";
-// };
-
 window.moveSpriteTo = function (spriteId, x, y) {
   const sprite = window.sprites.find((s) => s.id == spriteId);
 
@@ -637,66 +564,30 @@ window.setSprite = function (spriteName) {
     `/labs/images/sprites/${spriteName}.png`;
 };
 
-// window.goToPosition = function(x,y){
-
-//  spriteX = Number(x);
-//  spriteY = Number(y);
-
-//  updateSprite();
-// };
-
-// window.changeX = function(value){
-
-//  spriteX += Number(value);
-
-//  updateSprite();
-// };
-
 window.changeX = function (value) {
-  const oldX = spriteX;
-  const oldY = spriteY;
+  const start = getSpriteCenter();
 
   spriteX += Number(value);
 
-  drawPenLine(oldX, oldY, spriteX, spriteY);
-
   updateSprite();
+
+  const end = getSpriteCenter();
+
+  drawPenLine(start.x, start.y, end.x, end.y);
 };
 
-// window.changeY = function(value){
-
-//  spriteY += Number(value);
-
-//  updateSprite();
-// };
-
 window.changeY = function (value) {
-  const oldX = spriteX;
-  const oldY = spriteY;
+  const start = getSpriteCenter();
 
   spriteY += Number(value);
 
-  drawPenLine(oldX, oldY, spriteX, spriteY);
-
   updateSprite();
+
+  const end = getSpriteCenter();
+
+  drawPenLine(start.x, start.y, end.x, end.y);
 };
 
-// window.glideTo = async function (sec, x, y) {
-//   const startX = spriteX;
-//   const startY = spriteY;
-
-//   const steps = 60 * sec;
-
-//   for (let i = 0; i < steps; i++) {
-//     spriteX = startX + ((x - startX) * i) / steps;
-
-//     spriteY = startY + ((y - startY) * i) / steps;
-
-//     updateSprite();
-
-//     await wait(1 / 60);
-//   }
-// };
 
 window.glideTo = async function (sec, x, y) {
   const startX = spriteX;
@@ -704,20 +595,20 @@ window.glideTo = async function (sec, x, y) {
 
   const steps = 60 * sec;
 
-  let prevX = spriteX;
-  let prevY = spriteY;
+  let prev = getSpriteCenter();
 
   for (let i = 0; i < steps; i++) {
     spriteX = startX + ((x - startX) * i) / steps;
 
     spriteY = startY + ((y - startY) * i) / steps;
 
-    drawPenLine(prevX, prevY, spriteX, spriteY);
-
-    prevX = spriteX;
-    prevY = spriteY;
-
     updateSprite();
+
+    const current = getSpriteCenter();
+
+    drawPenLine(prev.x, prev.y, current.x, current.y);
+
+    prev = current;
 
     await wait(1 / 60);
   }
@@ -871,12 +762,6 @@ function(){
     return !!pressedKeys[key];
   };
 
-//   window.userAnswer = "";
-
-//   window.askAndWait = async function (question) {
-//     userAnswer = prompt(question) || "";
-// };
-
 window.userAnswer = "";
 
 window.askAndWait = function (question) {
@@ -946,20 +831,6 @@ window.getTimer = function () {
 window.resetTimer = function () {
   timerStart = Date.now();
 };
-
-// window.setMonitorVisible = function (show) {
-//   const monitor = document.getElementById("xMonitor");
-
-//   monitor.style.display = show ? "block" : "none";
-
-//   setInterval(() => {
-//     const monitor = document.getElementById("xMonitor");
-
-//     if (monitor) {
-//       monitor.innerHTML = `X: ${Math.round(spriteX)}`;
-//     }
-//   }, 50);
-// };
 
 // =========================
 // CONSOLE

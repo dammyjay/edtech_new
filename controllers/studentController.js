@@ -1954,23 +1954,90 @@ ${JSON.stringify(reviewData, null, 2)}
          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
         [studentId, nextLessonId],
       );
-    } else {
-      // no more lessons → unlock the assignment
-      const moduleIdRes = await pool.query(
-        `SELECT module_id FROM lessons WHERE id=$1`,
-        [lessonId],
-      );
-      const moduleId = moduleIdRes.rows[0].module_id;
+    // }
+    // else {
+    //   // no more lessons → unlock the assignment
+    //   const moduleIdRes = await pool.query(
+    //     `SELECT module_id FROM lessons WHERE id=$1`,
+    //     [lessonId],
+    //   );
+    //   const moduleId = moduleIdRes.rows[0].module_id;
 
+    //   await pool.query(
+    //     `INSERT INTO unlocked_assignments (student_id, assignment_id)
+    //      SELECT $1, id 
+    //      FROM module_assignments 
+    //      WHERE module_id=$2
+    //      ON CONFLICT (student_id, assignment_id) DO NOTHING`,
+    //     [studentId, moduleId],
+    //   );
+    // }
+    } else {
+  // Last lesson quiz completed
+
+  const moduleIdRes = await pool.query(
+    `SELECT module_id FROM lessons WHERE id=$1`,
+    [lessonId]
+  );
+
+  const moduleId = moduleIdRes.rows[0].module_id;
+
+  // ✅ Unlock assignment
+  await pool.query(
+    `INSERT INTO unlocked_assignments (student_id, assignment_id)
+     SELECT $1, id
+     FROM module_assignments
+     WHERE module_id=$2
+     ON CONFLICT (student_id, assignment_id) DO NOTHING`,
+    [studentId, moduleId]
+  );
+
+  // ✅ Unlock next module immediately
+  const nextModuleRes = await pool.query(
+    `SELECT id
+     FROM modules
+     WHERE course_id = (
+       SELECT course_id
+       FROM modules
+       WHERE id = $1
+     )
+     AND id > $1
+     ORDER BY id ASC
+     LIMIT 1`,
+    [moduleId]
+  );
+
+  if (nextModuleRes.rows.length > 0) {
+    const nextModuleId = nextModuleRes.rows[0].id;
+
+    // unlock module
+    await pool.query(
+      `INSERT INTO unlocked_modules (student_id, module_id)
+       VALUES ($1, $2)
+       ON CONFLICT (student_id, module_id) DO NOTHING`,
+      [studentId, nextModuleId]
+    );
+
+    // unlock first lesson in next module
+    const firstLessonRes = await pool.query(
+      `SELECT id
+       FROM lessons
+       WHERE module_id = $1
+       ORDER BY id ASC
+       LIMIT 1`,
+      [nextModuleId]
+    );
+
+    if (firstLessonRes.rows.length > 0) {
       await pool.query(
-        `INSERT INTO unlocked_assignments (student_id, assignment_id)
-         SELECT $1, id 
-         FROM module_assignments 
-         WHERE module_id=$2
-         ON CONFLICT (student_id, assignment_id) DO NOTHING`,
-        [studentId, moduleId],
+        `INSERT INTO unlocked_lessons (student_id, lesson_id)
+         VALUES ($1, $2)
+         ON CONFLICT (student_id, lesson_id) DO NOTHING`,
+        [studentId, firstLessonRes.rows[0].id]
       );
     }
+  }
+}
 
     const {
       checkAndCompleteModule,
@@ -2632,41 +2699,41 @@ Return ONLY valid JSON, e.g.:
     });
 
     // ✅ Unlock next module if grading happened
-    if (total !== null) {
-      const nextModuleRes = await pool.query(
-        `SELECT id FROM modules 
-         WHERE course_id = (SELECT course_id FROM modules WHERE id=(SELECT module_id FROM module_assignments WHERE id=$1))
-           AND id > (SELECT module_id FROM module_assignments WHERE id=$1)
-         ORDER BY id ASC
-         LIMIT 1`,
-        [assignmentId]
-      );
+    // if (total !== null) {
+    //   const nextModuleRes = await pool.query(
+    //     `SELECT id FROM modules 
+    //      WHERE course_id = (SELECT course_id FROM modules WHERE id=(SELECT module_id FROM module_assignments WHERE id=$1))
+    //        AND id > (SELECT module_id FROM module_assignments WHERE id=$1)
+    //      ORDER BY id ASC
+    //      LIMIT 1`,
+    //     [assignmentId]
+    //   );
 
-      if (nextModuleRes.rows.length > 0) {
-        const nextModuleId = nextModuleRes.rows[0].id;
+    //   if (nextModuleRes.rows.length > 0) {
+    //     const nextModuleId = nextModuleRes.rows[0].id;
 
-        await pool.query(
-          `INSERT INTO unlocked_modules (student_id, module_id)
-           VALUES ($1, $2)
-           ON CONFLICT (student_id, module_id) DO NOTHING`,
-          [studentId, nextModuleId]
-        );
+    //     await pool.query(
+    //       `INSERT INTO unlocked_modules (student_id, module_id)
+    //        VALUES ($1, $2)
+    //        ON CONFLICT (student_id, module_id) DO NOTHING`,
+    //       [studentId, nextModuleId]
+    //     );
 
-        // 🔑 Auto-unlock first lesson
-        const firstLessonRes = await pool.query(
-          `SELECT id FROM lessons WHERE module_id=$1 ORDER BY id ASC LIMIT 1`,
-          [nextModuleId]
-        );
-        if (firstLessonRes.rows.length > 0) {
-          await pool.query(
-            `INSERT INTO unlocked_lessons (student_id, lesson_id)
-             VALUES ($1, $2)
-             ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-            [studentId, firstLessonRes.rows[0].id]
-          );
-        }
-      }
-    }
+    //     // 🔑 Auto-unlock first lesson
+    //     const firstLessonRes = await pool.query(
+    //       `SELECT id FROM lessons WHERE module_id=$1 ORDER BY id ASC LIMIT 1`,
+    //       [nextModuleId]
+    //     );
+    //     if (firstLessonRes.rows.length > 0) {
+    //       await pool.query(
+    //         `INSERT INTO unlocked_lessons (student_id, lesson_id)
+    //          VALUES ($1, $2)
+    //          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
+    //         [studentId, firstLessonRes.rows[0].id]
+    //       );
+    //     }
+    //   }
+    // }
   } catch (err) {
     console.error("Assignment submit error:", err.message);
     res.status(500).json({ success: false, message: "Failed to submit assignment" });

@@ -75,15 +75,6 @@ body {
     --border-dark: #b0b0b0;
 }
 
-
-/* .blockly-container {
-    display: flex;
-    height: calc(100vh - 60px);
-    gap: 15px;
-    padding: 15px;
-    background: #f4f6f9;
-} */
-
 .blockly-container{
     display:flex;
     height:calc(100vh - 60px);
@@ -91,6 +82,21 @@ body {
     padding:10px;
     overflow:hidden;
     box-sizing: border-box;
+}
+
+/* Presentation Mode */
+.blockly-container.presentation-mode .block-console {
+    display: none;
+}
+
+.blockly-container.presentation-mode {
+    justify-content: center;
+    align-items: center;
+}
+
+.blockly-container.presentation-mode .stage-panel {
+    flex: none;
+    max-width: none;
 }
 
 .editor-toolbar {
@@ -235,6 +241,7 @@ body {
 .stage-panel.fullscreen .asset-row {
     display: none;
 }
+
 
 /* Center stage */
 

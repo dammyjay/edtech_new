@@ -31,15 +31,35 @@ Blockly.Blocks["clear_pen"] = {
   },
 };
 
+// Blockly.Blocks["set_pen_color"] = {
+//   init() {
+//     this.appendDummyInput()
+//       .appendField("Set Pen Color")
+//       .appendField(new Blockly.FieldColour("#ff0000"), "COLOR");
+
+//     this.setPreviousStatement(true);
+//     this.setNextStatement(true);
+
+//     this.setColour("#0fBD8C");
+//   },
+// };
+
 Blockly.Blocks["set_pen_color"] = {
   init() {
     this.appendDummyInput()
       .appendField("Set Pen Color")
-      .appendField(new Blockly.FieldColour("#ff0000"), "COLOR");
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["Red", "#ff0000"],
+          ["Blue", "#0000ff"],
+          ["Green", "#00ff00"],
+          ["Black", "#000000"],
+        ]),
+        "COLOR",
+      );
 
     this.setPreviousStatement(true);
     this.setNextStatement(true);
-
     this.setColour("#0fBD8C");
   },
 };
