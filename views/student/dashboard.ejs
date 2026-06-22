@@ -162,7 +162,7 @@
 
     <div class="modal-buttons">
       <button onclick="goToAssignment()">
-        Submit Now
+        Open Assignment
       </button>
 
       <button onclick="closeReminderModal()">
@@ -2484,28 +2484,7 @@ window.closeEditModal = function (id) {
       });
   }
 
-    // function sendLessonDuration() {
-    //   if (!lessonStartTime || !currentActivityId) return;
-
-    //   const endTime = Date.now();
-    //   const duration = Math.max(1, Math.floor((endTime - lessonStartTime) / 1000));
-
-    //   fetch("/student/lesson-time", {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json"
-    //     },
-    //     body: JSON.stringify({
-    //       activityId: currentActivityId,
-    //       duration,
-    //       endTime
-    //     })
-    //   });
-
-    //   // lessonStartTime = null;
-    //   // currentActivityId = null;
-    // }
-
+   
     function sendLessonDuration() {
       if (!lessonStartTime || !currentActivityId) return;
 
@@ -2686,6 +2665,8 @@ document.addEventListener("visibilitychange", () => {
                   </div>
                 </div>
               `;
+
+              
             } else {
               alert(result.message || "❌ Submission failed.");
             }
@@ -2824,6 +2805,15 @@ document.addEventListener("visibilitychange", () => {
 
 <!-- script for loading, submiting reviewing quiz -->
 <script>
+
+  let quizQuestions = [];
+let quizAnswers = {};
+let currentQuestionIndex = 0;
+let currentQuizLessonId = null;
+
+let reviewQuestions = [];
+let reviewIndex = 0;
+
   function toggleModule(moduleId) {
     const el = document.getElementById(`module-${moduleId}`);
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
@@ -2866,7 +2856,13 @@ document.addEventListener("visibilitychange", () => {
 
           // Render review if available
           if (window.quizReviewData.length > 0) {
-            reviewQuizInline(lessonId);
+            // reviewQuizInline(lessonId);
+            reviewQuestions =
+              result.reviewData || [];
+
+            reviewIndex = 0;
+
+            renderReviewQuestion();
           } else {
             document.getElementById(`quiz-review-${lessonId}`).innerHTML =
               "<p>No detailed review available.</p>";
@@ -2876,11 +2872,11 @@ document.addEventListener("visibilitychange", () => {
         }
 
         // ✅ Otherwise, render quiz form
-        const questions = Array.isArray(data.questions) ? data.questions : [];
-        if (questions.length === 0) {
-          container.innerHTML = "<p>No quiz questions available.</p>";
-          return;
-        }
+        // const questions = Array.isArray(data.questions) ? data.questions : [];
+        // if (questions.length === 0) {
+        //   container.innerHTML = "<p>No quiz questions available.</p>";
+        //   return;
+        // }
 
         const pastelColors = [
           "#FFF3CD", // light yellow
@@ -2893,47 +2889,57 @@ document.addEventListener("visibilitychange", () => {
         ];
 
 
-        let quizHTML = `<form onsubmit="submitQuizInline(event, ${lessonId})">`;
+        // let quizHTML = `<form onsubmit="submitQuizInline(event, ${lessonId})">`;
 
-        questions.forEach((q, i) => {
-          const bgColor = pastelColors[Math.floor(Math.random() * pastelColors.length)];
-          quizHTML += `
-            <div class="quiz-question" 
-            style="
-              background-color: ${bgColor};
-              border: 1px solid #ddd;
-              padding: 15px;
-              margin-bottom: 15px;
-              border-radius: 12px;
-              max-width: 600px;
-            ">
-              <p><strong>Q${i + 1}:</strong> ${q.question}</p>
-              <button
-                type="button"
-                onclick='speakQuestionWithOptions(
-                  "Question ${i + 1}. ${q.question}",
-                  ${JSON.stringify(q.options)}
-                )'
-              >
-                🔊
-              </button>
+        // questions.forEach((q, i) => {
+        //   const bgColor = pastelColors[Math.floor(Math.random() * pastelColors.length)];
+        //   quizHTML += `
+        //     <div class="quiz-question" 
+        //     style="
+        //       background-color: ${bgColor};
+        //       border: 1px solid #ddd;
+        //       padding: 15px;
+        //       margin-bottom: 15px;
+        //       border-radius: 12px;
+        //       max-width: 600px;
+        //     ">
+        //       <p><strong>Q${i + 1}:</strong> ${q.question}</p>
+        //       <button
+        //         type="button"
+        //         onclick='speakQuestionWithOptions(
+        //           "Question ${i + 1}. ${q.question}",
+        //           ${JSON.stringify(q.options)}
+        //         )'
+        //       >
+        //         🔊
+        //       </button>
 
-              ${q.options
-                .map(
-                  opt => `
-                  <label>
-                    <input type="radio" name="q${q.id}" value="${opt}" required>
-                    ${opt}
-                  </label><br>
-                `
-                )
-                .join("")}
-            </div>
-          `;
-        });
+        //       ${q.options
+        //         .map(
+        //           opt => `
+        //           <label>
+        //             <input type="radio" name="q${q.id}" value="${opt}" required>
+        //             ${opt}
+        //           </label><br>
+        //         `
+        //         )
+        //         .join("")}
+        //     </div>
+        //   `;
+        // });
 
-        quizHTML += `<button type="submit">Submit Quiz</button></form>`;
-        container.innerHTML = `<div id="quiz-area-${lessonId}">${quizHTML}</div>`;
+        // quizHTML += `<button type="submit">Submit Quiz</button></form>`;
+        // container.innerHTML = `<div id="quiz-area-${lessonId}">${quizHTML}</div>`;
+
+        quizQuestions = data.questions || [];
+
+        quizAnswers = {};
+
+        currentQuestionIndex = 0;
+
+        currentQuizLessonId = lessonId;
+
+        renderQuestion();
       })
       
       .catch(err => {
@@ -2944,7 +2950,381 @@ document.addEventListener("visibilitychange", () => {
 
   }
 
-  function speakQuestionWithOptions(question, options) {
+  function renderQuestion() {
+
+  const q =
+    quizQuestions[currentQuestionIndex];
+
+  const total =
+    quizQuestions.length;
+
+  const progress =
+    ((currentQuestionIndex + 1) / total) * 100;
+
+  const selectedAnswer =
+    quizAnswers[q.id];
+
+  const container =
+    document.getElementById("lessonMainArea");
+
+  container.innerHTML = `
+
+  <div class="quiz-container">
+
+    <div class="quiz-progress">
+      <div
+        class="quiz-progress-bar"
+        style="width:${progress}%">
+      </div>
+    </div>
+
+    <p>
+      Question ${currentQuestionIndex + 1}
+      of ${total}
+    </p>
+
+    <h2 class="quiz-question-title">
+      ${q.question}
+    </h2>
+
+    <button
+      onclick='speakQuestionWithOptions(
+        ${JSON.stringify(q.question)},
+        ${JSON.stringify(q.options)}
+      )'
+    >
+      🔊 Read Question
+    </button>
+
+    <div class="quiz-options">
+
+      ${q.options.map(option => `
+
+        <div
+          class="quiz-option ${
+            selectedAnswer === option
+              ? "selected"
+              : ""
+          }"
+
+          onclick="selectAnswer(
+            ${q.id},
+            '${option.replace(/'/g, "\\'")}'
+          )"
+
+        >
+          ${option}
+        </div>
+
+      `).join("")}
+
+    </div>
+
+    <div class="quiz-nav">
+
+      <button
+        class="quiz-btn quiz-btn-secondary"
+        onclick="previousQuestion()"
+        ${currentQuestionIndex === 0
+          ? "disabled"
+          : ""}
+      >
+        Previous
+      </button>
+
+      ${
+        currentQuestionIndex === total - 1
+        ?
+        `
+        <button
+          class="quiz-btn quiz-btn-primary"
+          onclick="submitQuizWizard()"
+        >
+          Submit Quiz
+        </button>
+        `
+        :
+        `
+        <button
+          class="quiz-btn quiz-btn-primary"
+          onclick="nextQuestion()"
+        >
+          Next
+        </button>
+        `
+      }
+
+    </div>
+
+  </div>
+  `;
+}
+
+function selectAnswer(questionId, answer){
+
+  quizAnswers[questionId] = answer;
+
+  renderQuestion();
+}
+
+function nextQuestion(){
+
+  const currentQuestion =
+    quizQuestions[currentQuestionIndex];
+
+  if(
+    !quizAnswers[currentQuestion.id]
+  ){
+    alert(
+      "Please select an answer."
+    );
+    return;
+  }
+
+  currentQuestionIndex++;
+
+  renderQuestion();
+}
+
+function previousQuestion(){
+
+  if(currentQuestionIndex > 0){
+
+    currentQuestionIndex--;
+
+    renderQuestion();
+  }
+}
+
+function submitQuizAnswers(lessonId){
+  sendLessonDuration(); // save previous
+  showLoading(); // ⬅️ Start loading animation
+
+    fetch(`/student/lessons/${lessonId}/quiz/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lessonId: lessonId,
+      answers: answers
+
+    })
+  })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error("Server did not respond correctly.");
+      }
+      return res.json();
+    })
+    .then(result => {
+      // ⭐ Small delay ensures backend finishes grading before displaying
+      return new Promise(resolve => setTimeout(() => resolve(result), 300));
+    })
+    .then(result => {
+      hideLoading(); // ⬅️ Stop loading animation
+
+      const quizContainer =
+        document.getElementById(`quiz-area-${lessonId}`) ||
+        document.getElementById("lessonMainArea");
+
+      if (!result.success) {
+        quizContainer.innerHTML =
+          `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
+        return;
+      }
+
+      if (result.success) {
+        showQuizCelebration(result.score, result.xpEarned);
+      }
+
+      if (result.badgeAwarded) {
+        setTimeout(() => {
+          showBadgeCelebration(result.badgeName, result.badgeImage);
+        }, 1200);
+      }
+
+      // Save review data globally
+      window.quizReviewData = result.reviewData;
+      window.currentReviewLesson = lessonId;
+
+      quizContainer.innerHTML = `
+        <h3>Quiz Results</h3>
+        <p><strong>Score:</strong> ${result.score}%</p>
+        <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
+        <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
+        <hr>
+        <h3>Detailed Review</h3>
+        <div id="quiz-review-${lessonId}"></div>
+        <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
+      `;
+
+      // reviewQuizInline(lessonId);
+      reviewQuestions =
+        result.reviewData || [];
+
+      reviewIndex = 0;
+
+      renderReviewQuestion();
+
+      // 🚀 Unlock next lesson if passed
+      if (result.passed) {
+        const nextLessonBtn = document.querySelector(
+          `#lesson-btn-${lessonId + 1}`
+        );
+
+        if (nextLessonBtn) {
+          nextLessonBtn.removeAttribute("disabled");
+          nextLessonBtn.style.opacity = "1";
+          nextLessonBtn.style.cursor = "pointer";
+        }
+      }
+
+      if (result.feedback) {
+        pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
+      }
+    })
+    .catch(err => {
+      hideLoading(); // ⬅️ Make sure spinner stops
+      console.error("❌ Error submitting quiz:", err);
+
+      const quizContainer =
+        document.getElementById(`quiz-area-${lessonId}`) ||
+        document.getElementById("lessonMainArea");
+
+      quizContainer.innerHTML =
+        `<p class="error">Error submitting quiz. Please try again.</p>`;
+    });
+
+
+}
+
+function renderReviewQuestion(){
+
+  const q =
+    reviewQuestions[reviewIndex];
+
+  const total =
+    reviewQuestions.length;
+
+  const lessonMain =
+    document.getElementById(
+      "lessonMainArea"
+    );
+
+  lessonMain.innerHTML = `
+
+  <div class="quiz-container">
+
+    <div class="quiz-progress">
+      <div
+        class="quiz-progress-bar"
+        style="width:${
+          ((reviewIndex + 1)
+          / total) * 100
+        }%">
+      </div>
+    </div>
+
+    <h2>
+      Review
+      ${reviewIndex + 1}
+      of
+      ${total}
+    </h2>
+
+    <div class="quiz-question-card">
+
+      <h3>
+        ${q.question}
+      </h3>
+
+      <p>
+        <strong>
+          Your Answer:
+        </strong>
+        ${q.yourAnswer || "No answer"}
+      </p>
+
+      <p>
+        <strong>
+          Correct Answer:
+        </strong>
+        ${q.correctAnswer}
+      </p>
+
+      <p class="${
+        q.isCorrect
+          ? "correct"
+          : "wrong"
+      }">
+
+        ${
+          q.isCorrect
+            ? "✅ Correct"
+            : "❌ Wrong"
+        }
+
+      </p>
+
+      <div class="ai-feedback">
+        ${q.feedback || ""}
+      </div>
+
+    </div>
+
+    <div class="quiz-nav">
+
+      <button
+        class="quiz-btn quiz-btn-secondary"
+        onclick="prevReviewQuestion()"
+        ${reviewIndex === 0
+          ? "disabled"
+          : ""}
+      >
+        Previous
+      </button>
+
+      <button
+        class="quiz-btn quiz-btn-primary"
+        onclick="nextReviewQuestion()"
+        ${
+          reviewIndex === total - 1
+          ? "disabled"
+          : ""
+        }
+      >
+        Next
+      </button>
+
+    </div>
+
+  </div>
+  `;
+}
+ 
+function nextReviewQuestion(){
+
+  if(
+    reviewIndex <
+    reviewQuestions.length - 1
+  ){
+
+    reviewIndex++;
+
+    renderReviewQuestion();
+  }
+}
+
+function prevReviewQuestion(){
+
+  if(reviewIndex > 0){
+
+    reviewIndex--;
+
+    renderReviewQuestion();
+  }
+}
+
+function speakQuestionWithOptions(question, options) {
     const fullText =
       question + ". Options are: " + options.join(", ");
 
@@ -2979,18 +3359,30 @@ function showPendingAssignmentModal(assignments){
     document.getElementById("assignmentList");
 
   list.innerHTML = assignments
-    .map(a => `
-      <p>
-        📌 ${a.title}
-        <br>
-        <small>${a.module_name}</small>
-      </p>
-    `)
-    .join("");
+  .map(a => `
+    <div class="pending-assignment-card">
+      <h4>${a.title}</h4>
+      <small>${a.module_name}</small>
+      <br><br>
+
+      <button
+        onclick="openPendingAssignment(${a.id})">
+        Open Assignment
+      </button>
+    </div>
+  `)
+  .join("");
 
   document.getElementById(
     "assignmentReminderModal"
   ).style.display = "block";
+}
+
+function openPendingAssignment(assignmentId){
+
+  closeReminderModal();
+
+  loadAssignment(assignmentId);
 }
 
 function closeReminderModal(){
@@ -2999,16 +3391,16 @@ function closeReminderModal(){
   ).style.display = "none";
 }
 
-function goToAssignment(){
+function goToAssignment() {
 
-  if(currentPendingAssignments.length){
+  if (!currentPendingAssignments.length) return;
 
-    const assignmentId =
-      currentPendingAssignments[0].id;
+  const assignmentId =
+    currentPendingAssignments[0].id;
 
-    window.location =
-      `/student/assignments/${assignmentId}`;
-  }
+  closeReminderModal();
+
+  loadAssignment(assignmentId);
 }
 
 function showQuizCelebration(score, xp) {

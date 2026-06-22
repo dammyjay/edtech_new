@@ -2770,42 +2770,6 @@ Return ONLY valid JSON, e.g.:
       badgeImage: moduleResult?.badgeImage || null
     });
 
-    // ✅ Unlock next module if grading happened
-    // if (total !== null) {
-    //   const nextModuleRes = await pool.query(
-    //     `SELECT id FROM modules 
-    //      WHERE course_id = (SELECT course_id FROM modules WHERE id=(SELECT module_id FROM module_assignments WHERE id=$1))
-    //        AND id > (SELECT module_id FROM module_assignments WHERE id=$1)
-    //      ORDER BY id ASC
-    //      LIMIT 1`,
-    //     [assignmentId]
-    //   );
-
-    //   if (nextModuleRes.rows.length > 0) {
-    //     const nextModuleId = nextModuleRes.rows[0].id;
-
-    //     await pool.query(
-    //       `INSERT INTO unlocked_modules (student_id, module_id)
-    //        VALUES ($1, $2)
-    //        ON CONFLICT (student_id, module_id) DO NOTHING`,
-    //       [studentId, nextModuleId]
-    //     );
-
-    //     // 🔑 Auto-unlock first lesson
-    //     const firstLessonRes = await pool.query(
-    //       `SELECT id FROM lessons WHERE module_id=$1 ORDER BY id ASC LIMIT 1`,
-    //       [nextModuleId]
-    //     );
-    //     if (firstLessonRes.rows.length > 0) {
-    //       await pool.query(
-    //         `INSERT INTO unlocked_lessons (student_id, lesson_id)
-    //          VALUES ($1, $2)
-    //          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-    //         [studentId, firstLessonRes.rows[0].id]
-    //       );
-    //     }
-    //   }
-    // }
   } catch (err) {
     console.error("Assignment submit error:", err.message);
     res.status(500).json({ success: false, message: "Failed to submit assignment" });
