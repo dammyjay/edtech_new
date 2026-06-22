@@ -839,6 +839,22 @@ exports.getDashboard = async (req, res) => {
       courseFinalUnlocked[course.id] = allModulesCompleted;
     }
 
+    const pendingAssignmentsRes = await pool.query(
+      `
+  SELECT COUNT(*) AS count
+  FROM unlocked_assignments ua
+  LEFT JOIN assignment_submissions s
+    ON s.assignment_id = ua.assignment_id
+   AND s.student_id = ua.student_id
+  WHERE ua.student_id = $1
+    AND s.id IS NULL
+`,
+      [studentId],
+    );
+
+    const pendingAssignmentCount =
+      parseInt(pendingAssignmentsRes.rows[0].count) || 0;
+
     // --- Render
     res.render("student/dashboard", {
       student,
@@ -880,6 +896,7 @@ exports.getDashboard = async (req, res) => {
       courseCompleted,
       courseFinalUnlocked,
       query: req.query,
+      pendingAssignmentCount,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
@@ -1555,9 +1572,50 @@ exports.editProfile = async (req, res) => {
 
 };
 
+// exports.viewLesson = async (req, res) => {
+//   const lessonId = req.params.lessonId;
+//   // const lessonId = req.params.id;
+
+//   try {
+
+    
+//     const lessonRes = await pool.query(
+//       `SELECT l.*, m.title AS module_title, c.title AS course_title
+//        FROM lessons l
+//        JOIN modules m ON l.module_id = m.id
+//        JOIN courses c ON m.course_id = c.id
+//        WHERE l.id = $1`,
+//       [lessonId]
+//     );
+
+//     if (lessonRes.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Lesson not found" });
+//     }
+
+//     const lesson = lessonRes.rows[0];
+
+//     res.json({
+//       success: true,
+//       id: lesson.id,
+//       title: lesson.title,
+//       module_title: lesson.module_title,
+//       course_title: lesson.course_title,
+//       video_url: lesson.video_url,
+//       content: lesson.content,
+//       has_quiz: !!lesson.quiz_id,
+      
+//     });
+//   } catch (err) {
+//     console.error("Error loading lesson:", err);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
+
 exports.viewLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
-  // const lessonId = req.params.id;
+  const studentId = req.session?.student?.id || req.user?.id;
 
   try {
     const lessonRes = await pool.query(
@@ -1566,31 +1624,45 @@ exports.viewLesson = async (req, res) => {
        JOIN modules m ON l.module_id = m.id
        JOIN courses c ON m.course_id = c.id
        WHERE l.id = $1`,
-      [lessonId]
+      [lessonId],
     );
 
-    if (lessonRes.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Lesson not found" });
-    }
-
     const lesson = lessonRes.rows[0];
+
+    // 🔔 Find pending assignments
+    const pendingRes = await pool.query(
+      `
+      SELECT
+        ma.id,
+        ma.title,
+        m.title AS module_name
+      FROM unlocked_assignments ua
+      JOIN module_assignments ma
+        ON ma.id = ua.assignment_id
+      JOIN modules m
+        ON m.id = ma.module_id
+      LEFT JOIN assignment_submissions s
+        ON s.assignment_id = ma.id
+       AND s.student_id = $1
+      WHERE ua.student_id = $1
+        AND s.id IS NULL
+      `,
+      [studentId],
+    );
 
     res.json({
       success: true,
       id: lesson.id,
       title: lesson.title,
-      module_title: lesson.module_title,
-      course_title: lesson.course_title,
-      video_url: lesson.video_url,
       content: lesson.content,
-      has_quiz: !!lesson.quiz_id,
-      
+      video_url: lesson.video_url,
+
+      hasPendingAssignment: pendingRes.rows.length > 0,
+
+      pendingAssignments: pendingRes.rows,
     });
   } catch (err) {
-    console.error("Error loading lesson:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error(err);
   }
 };
 

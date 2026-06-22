@@ -5,9 +5,11 @@ const pgSession = require("connect-pg-simple")(session);
 const bodyParser = require("body-parser");
 const path = require("path");
 const createTables = require("./models/initTables");
+require("./cron/assignmentReminderJobs");
+require("./cron/parentAssignmentReminder");
 // const notificationRoutes = require("./routes/notificationRoutes");
 const runNewsletterScheduler = require("./cron/newsletterScheduler");
-const runDevotionalScheduler = require("./cron/cronJobs");
+// const runDevotionalScheduler = require("./cron/cronJobs");
 require("dotenv").config(); // Load .env variables
 const pool = require("./models/db"); // adjust path based on your folder structure
 const methodOverride = require("method-override");

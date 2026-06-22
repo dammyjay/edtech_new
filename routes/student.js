@@ -158,17 +158,6 @@ router.get('/lessons/:id', studentController.getLesson);
 
 router.post("/ai/ask", ensureAuthenticated, studentController.askAITutor);
 
-// router.get(
-//   "/student/assignments/:id",
-//   studentController.viewAssignment
-// );
-
-// router.post(
-//   "/student/assignments/:id/submit",
-//   upload.single("file"),
-//   studentController.submitAssignment
-// );
-
 router.get(
   "/assignments/:id",
   ensureAuthenticated, // 🔑 protect
