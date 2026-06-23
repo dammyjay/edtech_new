@@ -2879,11 +2879,12 @@ let reviewIndex = 0;
           if (window.quizReviewData.length > 0) {
             // reviewQuizInline(lessonId);
             reviewQuestions =
-              daya.reviewData || [];
+              data.reviewData || [];
 
             reviewIndex = 0;
 
-            renderReviewQuestion();
+            // renderReviewQuestion();
+            renderQuizSummary();
           } else {
             document.getElementById(`quiz-review-${lessonId}`).innerHTML =
               "<p>No detailed review available.</p>";
@@ -3113,11 +3114,117 @@ let reviewIndex = 0;
   `;
 }
 
+function renderQuizSummary() {
+
+  const totalQuestions = reviewQuestions.length;
+
+  const correctCount =
+    reviewQuestions.filter(q => q.isCorrect).length;
+
+  const wrongCount =
+    totalQuestions - correctCount;
+
+  const score =
+    Math.round(
+      (correctCount / totalQuestions) * 100
+    );
+
+  const lessonMain =
+    document.getElementById("lessonMainArea");
+
+  lessonMain.innerHTML = `
+
+  <div class="quiz-summary-container">
+
+    <h2>📊 Quiz Summary</h2>
+
+    <div class="quiz-summary-stats">
+
+      <div class="summary-card">
+        <h3>${score}%</h3>
+        <p>Score</p>
+      </div>
+
+      <div class="summary-card">
+        <h3>${correctCount}</h3>
+        <p>Correct</p>
+      </div>
+
+      <div class="summary-card">
+        <h3>${wrongCount}</h3>
+        <p>Wrong</p>
+      </div>
+
+    </div>
+
+    <h3>Question Map</h3>
+
+    <div class="question-grid">
+      ${reviewQuestions.map((q,index)=>{
+
+        let cls = "wrong-box";
+
+        if(!q.yourAnswer){
+          cls = "skipped-box";
+        }
+        else if(q.isCorrect){
+          cls = "correct-box";
+        }
+
+        return `
+          <div
+            class="question-box ${cls}"
+            onclick="goToReviewQuestion(${index})"
+          >
+            ${index + 1}
+          </div>
+        `;
+      }).join("")}
+
+    </div>
+
+    <div class="quiz-nav">
+
+      <button
+        class="quiz-btn quiz-btn-primary"
+        onclick="startReview()"
+      >
+        Start Review
+      </button>
+
+      <button
+        class="quiz-btn quiz-btn-secondary"
+        onclick="loadLessonPart(${currentQuizLessonId}, 'content')"
+      >
+        Back To Lesson
+      </button>
+
+    </div>
+
+  </div>
+
+  `;
+}
+
 function selectAnswer(questionId, answer){
 
   quizAnswers[questionId] = answer;
 
   renderQuestion();
+}
+
+function startReview(){
+
+  reviewIndex = 0;
+
+  renderReviewQuestion();
+}
+
+function goToReviewQuestion(index){
+
+  reviewIndex = index;
+
+  renderReviewQuestion();
 }
 
 function nextQuestion(){
@@ -3152,6 +3259,7 @@ function previousQuestion(){
 function submitQuizAnswers(lessonId){
   sendLessonDuration(); // save previous
   showLoading(); // ⬅️ Start loading animation
+  console.log("Submitting answers:", quizAnswers);
 
     fetch(`/student/lessons/${lessonId}/quiz/submit`, {
     method: "POST",
@@ -3216,7 +3324,8 @@ function submitQuizAnswers(lessonId){
 
       reviewIndex = 0;
 
-      renderReviewQuestion();
+      // renderReviewQuestion();
+      renderQuizSummary();
 
       // 🚀 Unlock next lesson if passed
       if (result.passed) {
@@ -3325,6 +3434,13 @@ function renderReviewQuestion(){
     </div>
 
     <div class="quiz-nav">
+
+      <button
+        class="quiz-btn quiz-btn-secondary"
+        onclick="renderQuizSummary()"
+      >
+        Quiz Summary
+      </button>
 
       <button
         class="quiz-btn quiz-btn-secondary"

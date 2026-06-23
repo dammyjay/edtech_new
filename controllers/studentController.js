@@ -1888,7 +1888,12 @@ exports.submitLessonQuiz = async (req, res) => {
     let score = 0;
     const reviewData = [];
     questions.forEach((q) => {
-      const yourAnswer = answers[`q${q.id}`] || "";
+      console.log("Question ID:", q.id);
+
+      console.log("Student Answer:", answers[q.id]);
+      // const yourAnswer = answers[`q${q.id}`] || "";
+      const yourAnswer =
+        answers[q.id] ?? answers[String(q.id)] ?? answers[`q${q.id}`] ?? "";
       const isCorrect =
         yourAnswer.toString().trim().toLowerCase() ===
         q.correct_option.toString().trim().toLowerCase();
