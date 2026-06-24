@@ -183,12 +183,11 @@ exports.getDashboard = async (req, res) => {
     const issueCertificate = require("../services/issueCertificate");
 
     for (let course of enrolledCourses) {
-
       const totalLessonsRes = await pool.query(
         `SELECT COUNT(*) FROM lessons l
         JOIN modules m ON l.module_id = m.id
         WHERE m.course_id = $1`,
-        [course.id]
+        [course.id],
       );
 
       const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
@@ -199,7 +198,7 @@ exports.getDashboard = async (req, res) => {
         JOIN lessons l ON ul.lesson_id = l.id
         JOIN modules m ON l.module_id = m.id
         WHERE ul.user_id = $1 AND m.course_id = $2`,
-        [studentId, course.id]
+        [studentId, course.id],
       );
 
       const completedLessons = parseInt(completedLessonsRes.rows[0].count);
@@ -209,17 +208,66 @@ exports.getDashboard = async (req, res) => {
         `UPDATE course_enrollments
         SET progress = $1
         WHERE user_id = $2 AND course_id = $3`,
-        [course.progress, studentId, course.id]
+        [course.progress, studentId, course.id],
       );
 
       // 🔥 Issue certificate ONLY for this course
+      // if (course.progress === 100) {
+      //   await issueCertificate({
+      //     userId: studentId,
+      //     courseId: course.id,
+      //     studentName: student.fullname,
+      //     courseTitle: course.title,
+      //   });
+      // }
+
+      // 🔥 Issue certificate ONLY if course is complete
+      // AND all assignments (if any) are submitted
+
       if (course.progress === 100) {
-        await issueCertificate({
-          userId: studentId,
-          courseId: course.id,
-          studentName: student.fullname,
-          courseTitle: course.title,
-        });
+        const assignmentRes = await pool.query(
+          `
+    SELECT ma.id
+    FROM module_assignments ma
+    JOIN modules m ON ma.module_id = m.id
+    WHERE m.course_id = $1
+    `,
+          [course.id],
+        );
+
+        const assignmentIds = assignmentRes.rows.map((a) => a.id);
+
+        let canAwardCertificate = false;
+
+        // No assignments in this course
+        if (assignmentIds.length === 0) {
+          canAwardCertificate = true;
+        } else {
+          const submittedRes = await pool.query(
+            `
+      SELECT COUNT(DISTINCT assignment_id) AS count
+      FROM assignment_submissions
+      WHERE student_id = $1
+      AND assignment_id = ANY($2)
+      `,
+            [studentId, assignmentIds],
+          );
+
+          const submittedAssignments = parseInt(
+            submittedRes.rows[0].count || 0,
+          );
+
+          canAwardCertificate = submittedAssignments === assignmentIds.length;
+        }
+
+        if (canAwardCertificate) {
+          await issueCertificate({
+            userId: studentId,
+            courseId: course.id,
+            studentName: student.fullname,
+            courseTitle: course.title,
+          });
+        }
       }
     }
 
@@ -1355,54 +1403,177 @@ exports.completeLesson = async (req, res) => {
       [userId, lessonId]
     );
 
-    if (certCheck.rows[0]?.progress === 100) {
+    const progress = certCheck.rows[0]?.progress || 0;
+    const courseId = certCheck.rows[0]?.course_id;
+
+    // if (certCheck.rows[0]?.progress === 100) {
+    // if (progress === 100) {
+    //   const courseId = certCheck.rows[0].course_id;
+
+    //   // 4️⃣ Get student name and course title
+    //   const studentRes = await pool.query(
+    //     `SELECT fullname FROM users2 WHERE id = $1`,
+    //     [userId],
+    //   );
+    //   const studentName = studentRes.rows[0].fullname;
+
+    //   const courseRes = await pool.query(
+    //     `SELECT title FROM courses WHERE id = $1`,
+    //     [courseId],
+    //   );
+    //   const courseTitle = courseRes.rows[0].title;
+
+    //   // 5️⃣ Generate PDF certificate
+    //   const pdfDir = path.join(__dirname, "../public/certificates");
+    //   if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+
+    //   const pdfPath = path.join(pdfDir, `${userId}_${courseId}.pdf`);
+    //   const doc = new PDFDocument();
+
+    //   doc.pipe(fs.createWriteStream(pdfPath));
+    //   doc.fontSize(28).text("Certificate of Completion", { align: "center" });
+    //   doc.moveDown(2);
+    //   doc.fontSize(20).text("This certifies that", { align: "center" });
+    //   doc.moveDown();
+    //   doc.fontSize(24).text(studentName, { align: "center", underline: true });
+    //   doc.moveDown();
+    //   doc
+    //     .fontSize(20)
+    //     .text("has successfully completed the course", { align: "center" });
+    //   doc.moveDown();
+    //   doc.fontSize(24).text(courseTitle, { align: "center", underline: true });
+    //   doc.moveDown(2);
+    //   doc
+    //     .fontSize(16)
+    //     .text(`Date: ${new Date().toDateString()}`, { align: "center" });
+    //   doc.end();
+
+    //   // 6️⃣ Save certificate record in database
+    //   await pool.query(
+    //     `INSERT INTO user_certificates (user_id, course_id, certificate_url)
+    //      VALUES ($1, $2, $3)
+    //      ON CONFLICT (user_id, course_id) DO NOTHING`,
+    //     [userId, courseId, `/certificates/${userId}_${courseId}.pdf`],
+    //   );
+    // }
+
+    if (progress === 100) {
       const courseId = certCheck.rows[0].course_id;
 
-      // 4️⃣ Get student name and course title
-      const studentRes = await pool.query(
-        `SELECT fullname FROM users2 WHERE id = $1`,
-        [userId]
+      // Check if this course has assignments
+      const assignmentRes = await pool.query(
+        `
+    SELECT ma.id
+    FROM module_assignments ma
+    JOIN modules m ON ma.module_id = m.id
+    WHERE m.course_id = $1
+    `,
+        [courseId],
       );
-      const studentName = studentRes.rows[0].fullname;
 
-      const courseRes = await pool.query(
-        `SELECT title FROM courses WHERE id = $1`,
-        [courseId]
-      );
-      const courseTitle = courseRes.rows[0].title;
+      const assignmentIds = assignmentRes.rows.map((a) => a.id);
 
-      // 5️⃣ Generate PDF certificate
-      const pdfDir = path.join(__dirname, "../public/certificates");
-      if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+      let canAwardCertificate = false;
 
-      const pdfPath = path.join(pdfDir, `${userId}_${courseId}.pdf`);
-      const doc = new PDFDocument();
+      // ✅ No assignments in course
+      if (assignmentIds.length === 0) {
+        canAwardCertificate = true;
+      } else {
+        // Count submitted assignments
+        const submittedRes = await pool.query(
+          `
+      SELECT COUNT(DISTINCT assignment_id) AS count
+      FROM assignment_submissions
+      WHERE student_id = $1
+      AND assignment_id = ANY($2)
+      `,
+          [userId, assignmentIds],
+        );
 
-      doc.pipe(fs.createWriteStream(pdfPath));
-      doc.fontSize(28).text("Certificate of Completion", { align: "center" });
-      doc.moveDown(2);
-      doc.fontSize(20).text("This certifies that", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(24).text(studentName, { align: "center", underline: true });
-      doc.moveDown();
-      doc
-        .fontSize(20)
-        .text("has successfully completed the course", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(24).text(courseTitle, { align: "center", underline: true });
-      doc.moveDown(2);
-      doc
-        .fontSize(16)
-        .text(`Date: ${new Date().toDateString()}`, { align: "center" });
-      doc.end();
+        const submittedAssignments = parseInt(submittedRes.rows[0].count || 0);
 
-      // 6️⃣ Save certificate record in database
-      await pool.query(
-        `INSERT INTO user_certificates (user_id, course_id, certificate_url)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (user_id, course_id) DO NOTHING`,
-        [userId, courseId, `/certificates/${userId}_${courseId}.pdf`]
-      );
+        // ✅ All assignments submitted
+        canAwardCertificate = submittedAssignments === assignmentIds.length;
+      }
+
+      // Award certificate only if requirements are met
+      if (canAwardCertificate) {
+        const studentRes = await pool.query(
+          `SELECT fullname FROM users2 WHERE id = $1`,
+          [userId],
+        );
+
+        const studentName = studentRes.rows[0].fullname;
+
+        const courseRes = await pool.query(
+          `SELECT title FROM courses WHERE id = $1`,
+          [courseId],
+        );
+
+        const courseTitle = courseRes.rows[0].title;
+
+        // Generate PDF certificate
+        const pdfDir = path.join(__dirname, "../public/certificates");
+
+        if (!fs.existsSync(pdfDir)) {
+          fs.mkdirSync(pdfDir, { recursive: true });
+        }
+
+        const pdfPath = path.join(pdfDir, `${userId}_${courseId}.pdf`);
+
+        const doc = new PDFDocument();
+
+        doc.pipe(fs.createWriteStream(pdfPath));
+
+        doc.fontSize(28).text("Certificate of Completion", {
+          align: "center",
+        });
+
+        doc.moveDown(2);
+
+        doc.fontSize(20).text("This certifies that", {
+          align: "center",
+        });
+
+        doc.moveDown();
+
+        doc.fontSize(24).text(studentName, {
+          align: "center",
+          underline: true,
+        });
+
+        doc.moveDown();
+
+        doc.fontSize(20).text("has successfully completed the course", {
+          align: "center",
+        });
+
+        doc.moveDown();
+
+        doc.fontSize(24).text(courseTitle, {
+          align: "center",
+          underline: true,
+        });
+
+        doc.moveDown(2);
+
+        doc.fontSize(16).text(`Date: ${new Date().toDateString()}`, {
+          align: "center",
+        });
+
+        doc.end();
+
+        await pool.query(
+          `
+      INSERT INTO user_certificates
+      (user_id, course_id, certificate_url)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_id, course_id)
+      DO NOTHING
+      `,
+          [userId, courseId, `/certificates/${userId}_${courseId}.pdf`],
+        );
+      }
     }
 
     res.json({

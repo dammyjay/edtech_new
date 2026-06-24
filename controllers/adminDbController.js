@@ -40,49 +40,59 @@ exports.viewTable = async (req, res) => {
   const foreignKeyMap = {
     user_id: {
       table: "users2",
-      nameColumn: "fullname"
+      nameColumn: "fullname",
     },
     student_id: {
       table: "users2",
-      nameColumn: "fullname"
+      nameColumn: "fullname",
     },
     child_id: {
       table: "users2",
-      nameColumn: "fullname"
+      nameColumn: "fullname",
     },
     parent_id: {
       table: "users2",
-      nameColumn: "fullname"
+      nameColumn: "fullname",
     },
     school_id: {
       table: "schools",
-      nameColumn: "name"
+      nameColumn: "name",
     },
     course_id: {
       table: "courses",
-      nameColumn: "title"
+      nameColumn: "title",
     },
     module_id: {
       table: "modules",
-      nameColumn: "title"
+      nameColumn: "title",
     },
     lesson_id: {
       table: "lessons",
-      nameColumn: "title"
+      nameColumn: "title",
     },
     classroom_id: {
       table: "classrooms",
-      nameColumn: "name"
+      nameColumn: "name",
     },
     term_id: {
       table: "academic_terms",
-      nameColumn: "name"
-    }, 
+      nameColumn: "name",
+    },
 
     instructor_id: {
       table: "users2",
-      nameColumn: "fullname"
-    }
+      nameColumn: "fullname",
+    },
+
+    quiz_id: {
+      table: "quizzes",
+      nameColumn: "title",
+    },
+
+    assignment_id: {
+      table: "module_assignments",
+      nameColumn: "title",
+    },
   };
 
   const infoResult = await pool.query(

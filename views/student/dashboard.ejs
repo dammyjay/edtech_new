@@ -2181,10 +2181,6 @@ window.closeEditModal = function (id) {
     const slideBreaks = /(<hr\s*\/?>|---)/gi;
 
     // Split and clean
-    // const rawSlides = rawContent
-    //   .split(slideBreaks)
-    //   .map(s => s.trim())
-    //   .filter(s => s && s !== "<hr>" && s !== "<hr/>" && s !== "---");
     const rawSlides = rawContent
     .split(slideBreaks)
     .map(s => s.trim())
@@ -2213,15 +2209,6 @@ window.closeEditModal = function (id) {
       return { title, body: s };
     });
 
-    // ✅ Build HTML structure
-    // const noteView = `
-    //   <div class="lesson-view-mode">
-    //     <button id="noteBtn" class="active">📝 Note View</button>
-    //     <button id="slideBtn">📑 Slides View</button>
-    //   </div>
-    //   <div id="noteView" class="lesson-note">${rawContent}</div>
-    //   <div id="slideView" class="lesson-slides" style="display:none;"></div>
-    // `;
     const noteView = `
     <div class="lesson-view-controls">
       <div class="text-controls">
@@ -2855,19 +2842,6 @@ let reviewIndex = 0;
             : [];
 
           window.currentReviewLesson = lessonId;
-
-          // container.innerHTML = `
-          //   <h3>📊 Quiz Results</h3>
-          //   <p><strong>Score:</strong> ${data.score}%</p>
-          //   <p><strong>Status:</strong> ${data.passed ? "✅ Passed" : "❌ Failed"}</p>
-          //   <div class="ai-feedback">
-          //     <strong>🤖 AI Feedback Summary:</strong> ${data.feedback || "No feedback available"}
-          //   </div>
-          //   <hr>
-          //   <h3>Detailed Review</h3>
-          //   <div id="quiz-review-${lessonId}"></div>
-          //   <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
-          // `;
           
           reviewQuestions =
             data.reviewData || [];
@@ -2877,13 +2851,11 @@ let reviewIndex = 0;
           renderReviewQuestion();
           // Render review if available
           if (window.quizReviewData.length > 0) {
-            // reviewQuizInline(lessonId);
             reviewQuestions =
               data.reviewData || [];
 
             reviewIndex = 0;
 
-            // renderReviewQuestion();
             renderQuizSummary();
           } else {
             document.getElementById(`quiz-review-${lessonId}`).innerHTML =
@@ -2892,83 +2864,6 @@ let reviewIndex = 0;
 
           return; // 🚀 stop here
         }
-
-        // ✅ Otherwise, render quiz form
-        // const questions = Array.isArray(data.questions) ? data.questions : [];
-        // if (questions.length === 0) {
-        //   container.innerHTML = "<p>No quiz questions available.</p>";
-        //   return;
-        // }
-
-        // window.currentQuizQuestions = questions;
-        // window.currentQuizLessonId = lessonId;
-        // window.currentQuestionIndex = 0;
-        // window.quizAnswers = {};
-
-        // renderQuestion();
-
-        // const pastelColors = [
-        //   "#FFF3CD", // light yellow
-        //   "#E3F2FD", // light blue
-        //   "#E8F5E9", // light green
-        //   "#FCE4EC", // light pink
-        //   "#F3E5F5", // light purple
-        //   "#E0F7FA", // light cyan
-        //   "#FFF8E1"  // light orange
-        // ];
-
-
-        // let quizHTML = `<form onsubmit="submitQuizInline(event, ${lessonId})">`;
-
-        // questions.forEach((q, i) => {
-        //   const bgColor = pastelColors[Math.floor(Math.random() * pastelColors.length)];
-        //   quizHTML += `
-        //     <div class="quiz-question" 
-        //     style="
-        //       background-color: ${bgColor};
-        //       border: 1px solid #ddd;
-        //       padding: 15px;
-        //       margin-bottom: 15px;
-        //       border-radius: 12px;
-        //       max-width: 600px;
-        //     ">
-        //       <p><strong>Q${i + 1}:</strong> ${q.question}</p>
-        //       <button
-        //         type="button"
-        //         onclick='speakQuestionWithOptions(
-        //           "Question ${i + 1}. ${q.question}",
-        //           ${JSON.stringify(q.options)}
-        //         )'
-        //       >
-        //         🔊
-        //       </button>
-
-        //       ${q.options
-        //         .map(
-        //           opt => `
-        //           <label>
-        //             <input type="radio" name="q${q.id}" value="${opt}" required>
-        //             ${opt}
-        //           </label><br>
-        //         `
-        //         )
-        //         .join("")}
-        //     </div>
-        //   `;
-        // });
-
-        // quizHTML += `<button type="submit">Submit Quiz</button></form>`;
-        // container.innerHTML = `<div id="quiz-area-${lessonId}">${quizHTML}</div>`;
-
-        // quizQuestions = data.questions || [];
-
-        // quizAnswers = {};
-
-        // currentQuestionIndex = 0;
-
-        // currentQuizLessonId = lessonId;
-
-        // renderQuestion();
 
         quizQuestions = Array.isArray(data.questions)
           ? data.questions

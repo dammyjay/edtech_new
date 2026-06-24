@@ -1965,12 +1965,12 @@ canvas {
 
 .quiz-option:hover {
     border-color: var(--brand-pri);
-    background: #f8f9ff;
+    background: #fbffee;
 }
 
 .quiz-option.selected {
     border-color: var(--brand-pri);
-    background: #eef2ff;
+    background: #fbffee;
 }
 
 .quiz-nav {
