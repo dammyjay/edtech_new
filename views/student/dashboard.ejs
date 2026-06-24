@@ -151,6 +151,34 @@
   </div>
 </div>
 
+<!-- CERTIFICATE CELEBRATION MODAL -->
+<div id="certificateCelebration" class="celebration-modal">
+  <div class="celebration-content certificate-mode">
+
+    <div class="confetti"></div>
+
+    <h2>🎓 Certificate Unlocked!</h2>
+
+    <p id="certificateMessage">
+      Congratulations! You have successfully completed this course.
+    </p>
+
+    <div class="xp-box">
+      <h3>🏆 Achievement Unlocked</h3>
+      <p>Certificate of Completion Awarded</p>
+    </div>
+
+    <button onclick="downloadCertificate()">
+      View Certificate
+    </button>
+
+    <button onclick="closeCertificateCelebration()">
+      Continue Learning
+    </button>
+
+  </div>
+</div>
+
 <!-- Pending Assignment modal -->
 
 <div id="assignmentReminderModal" class="modal">
@@ -2625,7 +2653,6 @@ document.addEventListener("visibilitychange", () => {
              hideLoading(); // 🟢 Hide once submitted
              if (result.badgeAwarded) {
                 setTimeout(() => {
-                  // showBadgeCelebration(result.badgeAwarded);
                   showBadgeCelebration();
                 }, 1500); // delay after quiz popup
               }
@@ -2784,6 +2811,27 @@ document.addEventListener("visibilitychange", () => {
       alert("Could not review submission");
     }
   }
+
+function showCertificateCelebration(url) {
+
+  window.certificateUrl = url;
+
+  document.getElementById(
+    "certificateCelebration"
+  ).style.display = "flex";
+}
+
+function closeCertificateCelebration() {
+  document.getElementById(
+    "certificateCelebration"
+  ).style.display = "none";
+}
+
+function downloadCertificate() {
+  if (window.certificateUrl) {
+    window.open(window.certificateUrl, "_blank");
+  }
+}
 
 </script>
 
@@ -3198,6 +3246,15 @@ function submitQuizAnswers(lessonId){
         }, 1200);
       }
 
+    // 🎓 Course Certificate
+    if (result.certificateAwarded) {
+      setTimeout(() => {
+        showCertificateCelebration(
+          result.certificateUrl
+        );
+      }, 1500);
+    }
+
       // Save review data globally
       window.quizReviewData = result.reviewData;
       window.currentReviewLesson = lessonId;
@@ -3548,17 +3605,20 @@ function submitQuizInline(e, lessonId) {
         showQuizCelebration(result.score, result.xpEarned);
       }
 
-      // if (result.badgeAwarded) {
-      //   setTimeout(() => {
-      //     showBadgeCelebration();
-      //   }, 1200);
-      // }
-
       if (result.badgeAwarded) {
         setTimeout(() => {
           showBadgeCelebration(result.badgeName, result.badgeImage);
         }, 1200);
       }
+
+    // 🎓 Course Certificate
+    if (result.certificateAwarded) {
+      setTimeout(() => {
+        showCertificateCelebration(
+          result.certificateUrl
+        );
+      }, 1500);
+    }
 
       // Save review data globally
       window.quizReviewData = result.reviewData;

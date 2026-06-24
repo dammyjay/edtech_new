@@ -1406,57 +1406,8 @@ exports.completeLesson = async (req, res) => {
     const progress = certCheck.rows[0]?.progress || 0;
     const courseId = certCheck.rows[0]?.course_id;
 
-    // if (certCheck.rows[0]?.progress === 100) {
-    // if (progress === 100) {
-    //   const courseId = certCheck.rows[0].course_id;
-
-    //   // 4️⃣ Get student name and course title
-    //   const studentRes = await pool.query(
-    //     `SELECT fullname FROM users2 WHERE id = $1`,
-    //     [userId],
-    //   );
-    //   const studentName = studentRes.rows[0].fullname;
-
-    //   const courseRes = await pool.query(
-    //     `SELECT title FROM courses WHERE id = $1`,
-    //     [courseId],
-    //   );
-    //   const courseTitle = courseRes.rows[0].title;
-
-    //   // 5️⃣ Generate PDF certificate
-    //   const pdfDir = path.join(__dirname, "../public/certificates");
-    //   if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
-
-    //   const pdfPath = path.join(pdfDir, `${userId}_${courseId}.pdf`);
-    //   const doc = new PDFDocument();
-
-    //   doc.pipe(fs.createWriteStream(pdfPath));
-    //   doc.fontSize(28).text("Certificate of Completion", { align: "center" });
-    //   doc.moveDown(2);
-    //   doc.fontSize(20).text("This certifies that", { align: "center" });
-    //   doc.moveDown();
-    //   doc.fontSize(24).text(studentName, { align: "center", underline: true });
-    //   doc.moveDown();
-    //   doc
-    //     .fontSize(20)
-    //     .text("has successfully completed the course", { align: "center" });
-    //   doc.moveDown();
-    //   doc.fontSize(24).text(courseTitle, { align: "center", underline: true });
-    //   doc.moveDown(2);
-    //   doc
-    //     .fontSize(16)
-    //     .text(`Date: ${new Date().toDateString()}`, { align: "center" });
-    //   doc.end();
-
-    //   // 6️⃣ Save certificate record in database
-    //   await pool.query(
-    //     `INSERT INTO user_certificates (user_id, course_id, certificate_url)
-    //      VALUES ($1, $2, $3)
-    //      ON CONFLICT (user_id, course_id) DO NOTHING`,
-    //     [userId, courseId, `/certificates/${userId}_${courseId}.pdf`],
-    //   );
-    // }
-
+    let certificateAwarded = false;
+    let certificateUrl = null;
     if (progress === 100) {
       const courseId = certCheck.rows[0].course_id;
 
@@ -1511,6 +1462,13 @@ exports.completeLesson = async (req, res) => {
         );
 
         const courseTitle = courseRes.rows[0].title;
+
+        // return res.json({
+        //   success: true,
+        //   certificateAwarded: true,
+        //   courseId,
+        //   certificateUrl: `/certificates/${userId}_${courseId}.pdf`,
+        // });
 
         // Generate PDF certificate
         const pdfDir = path.join(__dirname, "../public/certificates");
@@ -1573,11 +1531,19 @@ exports.completeLesson = async (req, res) => {
       `,
           [userId, courseId, `/certificates/${userId}_${courseId}.pdf`],
         );
+
+        certificateAwarded = true;
+        certificateUrl = `/certificates/${userId}_${courseId}.pdf`;
       }
     }
 
+    // res.json({
+    //   message: "Lesson completed and certificate generated if course finished.",
+    // });
     res.json({
-      message: "Lesson completed and certificate generated if course finished.",
+      success: true,
+      certificateAwarded,
+      certificateUrl,
     });
   } catch (err) {
     console.error("Lesson completion error:", err.message);
