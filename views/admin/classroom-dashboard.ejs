@@ -66,32 +66,10 @@
     <canvas id="completionChart"></canvas>
 </section>
 
-
-<!-- <section class="section">
-    <h3>🏆 Leaderboard</h3>
-    <div class="table-responsive">
-        <table class="user-table" style="border-collapse: collapse; margin-top: 20px;">
-            <tr>
-                <th>Rank</th>
-                <th>Name</th>
-                <th>Overall Score</th>
-            </tr>
-
-            <% leaderboard.forEach((student, index) => { %>
-                <tr>
-                <td><%= index + 1 %></td>
-                <td><%= student.fullname %></td>
-                <td><%= student.overallScore %>%</td>
-                </tr>
-            <% }) %>
-        </table>
-    </div>
-</section> -->
-
 <section class="section">
     <h3>🏆 Leaderboard</h3>
     <div class="table-responsive">
-        <table class="user-table">
+        <table class="user-table sortable-table">
             <thead>
                 <tr>
                     <th>Rank</th>
@@ -149,7 +127,7 @@
   <h3>⚠️ At Risk Students</h3>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>Name</th>

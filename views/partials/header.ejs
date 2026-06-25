@@ -125,7 +125,85 @@ function hideLoading() {
     }
   });
 </script>
-    
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  document.querySelectorAll(".sortable-table").forEach(table => {
+
+    const headers = table.querySelectorAll("thead th");
+
+    headers.forEach((header, columnIndex) => {
+
+      header.classList.add("sortable");
+
+      let ascending = true;
+
+      header.addEventListener("click", () => {
+
+        const tbody = table.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+
+        // Remove previous sort indicators
+        headers.forEach(h => {
+          h.classList.remove("sort-asc", "sort-desc");
+        });
+
+        rows.sort((a, b) => {
+
+          let aText =
+            a.children[columnIndex]?.innerText.trim() || "";
+
+          let bText =
+            b.children[columnIndex]?.innerText.trim() || "";
+
+          // Numeric sorting
+          const aNum =
+            parseFloat(aText.replace(/[^\d.-]/g, ""));
+
+          const bNum =
+            parseFloat(bText.replace(/[^\d.-]/g, ""));
+
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            return ascending
+              ? aNum - bNum
+              : bNum - aNum;
+          }
+
+          // Date sorting
+          const aDate = Date.parse(aText);
+          const bDate = Date.parse(bText);
+
+          if (!isNaN(aDate) && !isNaN(bDate)) {
+            return ascending
+              ? aDate - bDate
+              : bDate - aDate;
+          }
+
+          // Text sorting
+          return ascending
+            ? aText.localeCompare(bText)
+            : bText.localeCompare(aText);
+
+        });
+
+        tbody.innerHTML = "";
+        rows.forEach(row => tbody.appendChild(row));
+
+        header.classList.add(
+          ascending ? "sort-asc" : "sort-desc"
+        );
+
+        ascending = !ascending;
+      });
+
+    });
+
+  });
+
+});
+</script>
+
 </body>
 </html>
 

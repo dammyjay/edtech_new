@@ -1157,7 +1157,7 @@ exports.getEngagementDashboard = async (req, res) => {
         ON l.id = COALESCE(
           a.lesson_id,
           NULLIF(
-            regexp_replace(a.details, '\D', '', 'g'),
+            substring(a.details FROM '([0-9]+)'),
             ''
           )::INT
         )
@@ -1246,7 +1246,13 @@ exports.getStudentActivities = async (req, res) => {
         FROM activities a
 
         LEFT JOIN lessons l
-          ON l.id = a.lesson_id
+          ON l.id = COALESCE(
+            a.lesson_id,
+            NULLIF(
+              substring(a.details FROM '([0-9]+)'),
+              ''
+            )::INT
+          )
 
         LEFT JOIN modules m
           ON m.id = l.module_id

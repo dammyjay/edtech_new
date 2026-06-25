@@ -2259,7 +2259,26 @@ i {
         margin-top: 20px;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
 
+th.sortable::after {
+  content: " ↕";
+  font-size: px;
+  font-weight: bold;
+  /* opacity: 0.6; */
+}
+
+th.sort-asc::after {
+  content: " ▲";
+}
+
+th.sort-desc::after {
+  content: " ▼";
+}
 
 .user-table {
     width: 100%;

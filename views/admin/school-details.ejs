@@ -103,7 +103,7 @@
 
   <% if (school.courses.length > 0) { %>
     <div class="table-responsive">
-      <table class="user-table" style="width: 80%; border-collapse: collapse; margin-top: 20px;">
+      <table class="user-table sortable-table" style="width: 80%; border-collapse: collapse; margin-top: 20px;">
         <thead>
           <tr>
             <th>Title</th>
@@ -169,7 +169,7 @@
     <p>No terms created yet.</p>
   <% } else { %>
     <div class="table-responsive">
-      <table class="user-table">
+      <table class="user-table sortable-table">
         <thead>
           <tr>
             <th>Term</th>
@@ -301,7 +301,7 @@
 
   <!-- Attendance Table -->
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -344,7 +344,7 @@
   />
 
   <div class="table-responsive">
-    <table id="teachersTable" class="user-table">
+    <table id="teachersTable" class="user-table sortable-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -385,7 +385,7 @@
 <!-- instructors section -->
 <div id="instructors-section" style="display:none;">
   <div class="table-responsive">
-    <table id="instructorsTable" class="user-table">
+    <table id="instructorsTable" class="user-table sortable-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -462,7 +462,7 @@
 
   <!-- tabe for students -->
   <div class="table-responsive">
-    <table id="studentsTable" class="user-table">
+    <table id="studentsTable" class="user-table sortable-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -540,7 +540,7 @@
   </button>
 
   <div class="table-responsive">
-    <table class="user-table" style="margin-top:20px;">
+    <table class="user-table sortable-table" style="margin-top:20px;">
       <thead>
         <tr>
           <th>Classroom Name</th>
@@ -1271,7 +1271,7 @@ async function toggleAttendanceDetails(sessionId) {
         container.innerHTML = "<p>No attendance records</p>";
       } else {
         let html = `
-          <table class="user-table" style="margin-top:10px;">
+          <table class="user-table sortable-table" style="margin-top:10px;">
             <thead>
               <tr>
                 <th>Student</th>
@@ -1543,7 +1543,7 @@ async function loadAttendanceHistory() {
       .then(res => res.json())
       .then(data => {
         let html = `
-          <table class="user-table">
+          <table class="user-table sortable-table">
             <thead>
               <tr>
                 <th>Student</th>
@@ -1720,7 +1720,7 @@ function exportExcel() {
           } else {
             let html = `
               <div class="table-responsive">
-                <table class="user-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
+                <table class="user-table sortable-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
                   <thead>
                     <tr>
                       <th>Full Name</th>
@@ -1778,7 +1778,7 @@ function exportExcel() {
           } else {
             let html = `
               <div class="table-responsive">
-                <table class="user-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
+                <table class="user-table sortable-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
                   <thead>
                     <tr>
                       <th>Full Name</th>
@@ -2063,7 +2063,7 @@ function exportExcel() {
         } else {
           let html = `
             <div class="table-responsive">
-              <table class="user-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
+              <table class="user-table sortable-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
                 <thead>
                   <tr>
                     <th>Full Name</th>
@@ -2440,7 +2440,7 @@ document.addEventListener("DOMContentLoaded", () => {
           container.innerHTML = "<p>No students assigned.</p>";
         } else {
           let html = `
-            <table class="user-table" style="margin-top:10px;">
+            <table class="user-table sortable-table" style="margin-top:10px;">
               <thead>
                 <tr>
                   <th>Name</th>
