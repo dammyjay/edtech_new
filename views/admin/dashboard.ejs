@@ -12,6 +12,54 @@
 
     <h1>Welcome Admin</h1>
     <p>You are logged in.</p>
+
+<div class="login-tabs">
+
+  <button
+    class="login-tab active"
+    onclick="openDashboardTab('overview-section', this)"
+  >
+    📊 Overview
+  </button>
+
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('business-section', this)"
+  >
+    💼 Business KPIs
+  </button>
+
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('learning-section', this)"
+  >
+    📘 Learning
+  </button>
+
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('schools-section', this)"
+  >
+    🏫 Schools
+  </button>
+
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('finance-section', this)"
+  >
+    💰 Finance
+  </button>
+
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('engagement-section', this)"
+  >
+    📈 Engagement
+  </button>
+
+</div>
+
+<div id="overview-section">
     <!-- <a href="/admin/logout">Logout</a> -->
     <h2>All Registered Users</h2>
     <section class="engagement-grid"> 
@@ -43,6 +91,94 @@
 
       
     </section>
+
+    <section class="engagement-grid">
+
+  <div class="metric-card">
+    <div class="card-title blue-bg">
+      <p>Total Users</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon blue-bg">
+        <i class="fas fa-users"></i>
+      </div>
+      <h4 id="totalUsers">0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title green-bg">
+      <p>Total Courses</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon green-bg">
+        <i class="fas fa-book"></i>
+      </div>
+      <h4 id="totalCourses">0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title orange-bg">
+      <p>Total Schools</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon orange-bg">
+        <i class="fas fa-school"></i>
+      </div>
+      <h4 id="totalSchools">0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title purple-bg">
+      <p>Enrollments</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon purple-bg">
+        <i class="fas fa-user-graduate"></i>
+      </div>
+      <h4 id="totalEnrollments">0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title pink-bg">
+      <p>Certificates</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon pink-bg">
+        <i class="fas fa-award"></i>
+      </div>
+      <h4 id="certificatesIssued">0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title teal-bg">
+      <p>Total Revenue</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon teal-bg">
+        <i class="fas fa-money-bill-wave"></i>
+      </div>
+      <h4 id="totalRevenue">₦0</h4>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="card-title red-bg">
+      <p>Avg Quiz Score</p>
+    </div>
+    <div class="metric-card-content">
+      <div class="card-icon red-bg">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <h4 id="avgQuiz">0%</h4>
+    </div>
+  </div>
+
+</section>
     <!-- <form method="GET" action="/admin/dashboard" class="filter-form">  -->
     <form class="filter-form" id="filterForm">
       <select name="gender"> 
@@ -146,6 +282,489 @@
         <p><strong>Date Registered: <span id="modalDate"></span></strong></p>
       </div>
     </div>
+  
+  </div>
+
+  <div id="business-section" style="display:none;">
+  <h2>Business KPIs</h2>
+
+  <section class="engagement-grid">
+
+    <div class="metric-card">
+      <div class="card-title blue-bg">
+        <p>Total Revenue</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="businessRevenue">₦0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title green-bg">
+        <p>Revenue This Month</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="monthlyRevenue">₦0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title orange-bg">
+        <p>Paid Schools</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="paidSchools">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title dark-red-bg">
+        <p>Outstanding Balances</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="outstandingBalance">₦0</h4>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>School</th>
+          <th>Amount Paid</th>
+          <th>Balance</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="schoolPaymentsTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div id="learning-section" style="display:none;">
+  <h2>Learning Analytics</h2>
+
+  <section class="engagement-grid">
+
+    <div class="metric-card">
+      <div class="card-title blue-bg">
+        <p>Total Courses</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="learningCourses">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title green-bg">
+        <p>Total Modules</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="learningModules">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title orange-bg">
+        <p>Total Lessons</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="learningLessons">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title purple-bg">
+        <p>Course Completion Rate</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="completionRate">0%</h4>
+      </div>
+    </div>
+
+  </section>
+
+  <h3>Top Courses</h3>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Schools</th>
+          <!-- <th>Enrollments</th> -->
+           <th>Direct Enrollments</th>
+          <th>School Learners</th>
+          <th>Total Learners</th>
+          <th>Modules</th>
+          <th>Module Completion</th>
+          <th>Lessons</th>
+          <th>Lesson Completion</th>
+          <th>Certificates</th>
+          <th>Analytics</th>
+        </tr>
+      </thead>
+      <tbody id="topCoursesTable"></tbody>
+    </table>
+  </div>
+
+  <div id="courseAnalyticsModal" class="modal" style="display:none;">
+
+    <div class="modal-content" style="max-width:900px;">
+
+      <span
+        onclick="closeCourseAnalytics()"
+        class="close">
+        &times;
+      </span>
+
+      <h2 id="analyticsCourseTitle">
+        Course Analytics
+      </h2>
+
+      <div class="engagement-grid">
+
+        <div class="metric-card">
+          <div class="card-title blue-bg">
+            <p>Students Enrolled</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsEnrollments">0</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title green-bg">
+            <p>Schools Using Course</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsSchools">0</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title green-bg">
+            <p>Total Learners</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsLearners">0</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title orange-bg">
+            <p>Modules</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsModules">0</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title purple-bg">
+            <p>Lessons</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsLessons">0</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title orange-bg">
+            <p>Completion Rate</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsCompletion">0%</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title purple-bg">
+            <p>Average Quiz Score</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsQuiz">0%</h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title teal-bg">
+            <p>Certificates Issued</p>
+          </div>
+          <div class="metric-card-content">
+            <h4 id="analyticsCertificates">0</h4>
+          </div>
+        </div>
+
+      </div>
+
+      <details>
+        <h3>Top Performing Students</h3>
+
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Average Score</th>
+            </tr>
+          </thead>
+
+          <tbody id="topStudentsTable"></tbody>
+        </table>
+      </details>
+
+      <details>
+        <h3>Students Needing Support</h3>
+
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Average Score</th>
+            </tr>
+          </thead>
+
+          <tbody id="bottomStudentsTable"></tbody>
+        </table>
+      </details>
+    </div>
+
+  </div>
+
+</div>
+
+<div id="schools-section" style="display:none;">
+  <h2>Schools Dashboard</h2>
+
+  <section class="engagement-grid">
+
+    <div class="metric-card">
+      <div class="card-title blue-bg">
+        <p>Total Schools</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="schoolCount">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title green-bg">
+        <p>Total Students</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="schoolStudents">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title orange-bg">
+        <p>Total Teachers</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="schoolTeachers">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title purple-bg">
+        <p>Total Classrooms</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="schoolClassrooms">0</h4>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>School</th>
+          <th>Students</th>
+          <th>Teachers</th>
+          <th>Courses</th>
+          <th>Last Activity</th>
+        </tr>
+      </thead>
+      <tbody id="schoolsTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div id="finance-section" style="display:none;">
+  <h2>Finance</h2>
+
+  <section class="engagement-grid">
+
+    <div class="metric-card">
+      <div class="card-title teal-bg">
+        <p>Total Revenue</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="financeRevenue">₦0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title blue-bg">
+        <p>Total Transactions</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="financeTransactions">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title dark-red-bg">
+        <p>Failed Transactions</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="failedTransactions">0</h4>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>User</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="transactionsTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div id="engagement-section" style="display:none;">
+  <h2>User Engagement</h2>
+
+  <section class="engagement-grid">
+
+    <div class="metric-card">
+      <div class="card-title blue-bg">
+        <p>Daily Active Users</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="dailyUsers">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title green-bg">
+        <p>Weekly Active Users</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="weeklyUsers">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title orange-bg">
+        <p>Lessons Completed</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="completedLessons">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title purple-bg">
+        <p>AI Tutor Questions</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="aiQuestions">0</h4>
+      </div>
+    </div>
+
+  </section>
+
+  <h3>Recent Activities</h3>
+  <div class="filter-bar">
+
+  <input
+    type="text"
+    id="activityAction"
+    placeholder="Filter by action">
+
+  <input
+    type="date"
+    id="activityStartDate">
+
+  <input
+    type="date"
+    id="activityEndDate">
+
+  <!-- <button onclick="loadEngagementDashboard()">
+    Filter
+  </button> -->
+  <button onclick="applyActivityFilters()">
+    Filter
+  </button>
+
+</div>
+
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>School</th>
+          <th>Role</th>
+          <th>Action</th>
+          <th>Lesson</th>
+          <th>Course</th>
+          <th>Date</th>
+          <th>History</th>
+        </tr>
+      </thead>
+      <tbody id="activitiesTable"></tbody>
+    </table>
+  </div>
+
+      <button
+        id="loadMoreActivities"
+        onclick="loadMoreActivities()">
+        Load More
+      </button>
+</div>
+
+<div id="activityModal" class="modal">
+  <div class="modal-content">
+
+    <span
+      class="close"
+      onclick="closeActivityModal()">
+      &times;
+    </span>
+
+    <h3>User Activity History</h3>
+
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Lesson</th>
+          <th>Course</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+
+      <tbody id="activityHistoryBody"></tbody>
+    </table>
+
+  </div>
+</div>
 
     <!-- script for delete user -->
     <script>
@@ -253,6 +872,517 @@
       }
     </script>
 
+    <script>
+      let currentActivityPage = 1;
+      const activityLimit = 50;
+      async function loadDashboardOverview(){
+
+          const res = await fetch('/admin/dashboard/overview');
+          const data = await res.json();
+          console.log("Overview Data:", data);
+
+          document.getElementById('totalUsers').innerText =
+            data.totalUsers.toLocaleString();
+
+          document.getElementById('totalCourses').innerText =
+            data.totalCourses.toLocaleString();
+
+          document.getElementById('totalSchools').innerText =
+            data.totalSchools.toLocaleString();
+
+          document.getElementById('totalEnrollments').innerText =
+            data.totalEnrollments.toLocaleString();
+
+          document.getElementById('certificatesIssued').innerText =
+            data.certificatesIssued.toLocaleString();
+
+          document.getElementById('totalRevenue').innerText =
+            '₦' + Number(data.revenue).toLocaleString();
+
+          document.getElementById('avgQuiz').innerText =
+            data.avgQuizScore + '%';
+      }
+
+      async function loadBusinessDashboard() {
+
+        try {
+
+          const res = await fetch('/admin/dashboard/business');
+          const data = await res.json();
+
+          console.log("Business Data:", data);
+
+          document.getElementById('businessRevenue').innerText =
+            '₦' + Number(data.totalRevenue || 0).toLocaleString();
+
+          document.getElementById('monthlyRevenue').innerText =
+            '₦' + Number(data.monthlyRevenue || 0).toLocaleString();
+
+          document.getElementById('paidSchools').innerText =
+            Number(data.paidSchools || 0).toLocaleString();
+
+          document.getElementById('outstandingBalance').innerText =
+            '₦' + Number(data.outstandingBalance || 0).toLocaleString();
+
+          const tbody = document.getElementById('schoolPaymentsTable');
+          tbody.innerHTML = '';
+
+          (data.schools || []).forEach(school => {
+
+            tbody.innerHTML += `
+              <tr>
+                <td>${school.school_name}</td>
+                <td>₦${Number(school.total_paid || 0).toLocaleString()}</td>
+                <td>₦${Number(school.balance || 0).toLocaleString()}</td>
+                <td>
+                  ${Number(school.balance) <= 0
+                    ? 'Paid'
+                    : 'Outstanding'}
+                </td>
+              </tr>
+            `;
+          });
+
+        } catch(err) {
+          console.error('Business dashboard error:', err);
+        }
+      }
+
+      async function loadLearningDashboard() {
+
+        try {
+
+          const res = await fetch('/admin/dashboard/learning');
+          const data = await res.json();
+          console.log("Learning Data:", data);
+
+          document.getElementById('learningCourses').innerText =
+            Number(data.totalCourses || 0).toLocaleString();
+
+          document.getElementById('learningModules').innerText =
+            Number(data.totalModules || 0).toLocaleString();
+
+          document.getElementById('learningLessons').innerText =
+            Number(data.totalLessons || 0).toLocaleString();
+
+          document.getElementById('completionRate').innerText =
+            `${data.completionRate || 0}%`;
+
+          const tbody = document.getElementById('topCoursesTable');
+          tbody.innerHTML = '';
+
+          (data.courses || []).forEach(course => {
+
+            tbody.innerHTML += `
+              <tr>
+
+                <td>${course.title}</td>
+
+                <td>${course.schools}</td>
+
+                <td>${course.enrollments}</td>
+                <td>${course.school_learners}</td>
+                <td>${course.totalLearners}</td>
+
+                <td>${course.modules}</td>
+
+                <td>${course.moduleCompletion}%</td>
+
+                <td>${course.lessons}</td>
+
+                <td>${course.lesson_completions}</td>
+
+                <td>${course.certificates}</td>
+
+                <td>
+                  <button
+                    onclick="openCourseAnalytics(${course.id})"
+                    class="btn-edit">
+                    View Analytics
+                  </button>
+                </td>
+
+              </tr>
+            `;
+          });
+
+        } catch(err) {
+          console.error('Learning dashboard error:', err);
+        }
+      }
+
+      async function loadSchoolsDashboard() {
+
+        try {
+
+          const res = await fetch('/admin/dashboard/schools');
+          const data = await res.json();
+
+          console.log("School Data:", data);
+
+          document.getElementById('schoolCount').innerText =
+            Number(data.totalSchools || 0).toLocaleString();
+
+          document.getElementById('schoolStudents').innerText =
+            Number(data.totalStudents || 0).toLocaleString();
+
+          document.getElementById('schoolTeachers').innerText =
+            Number(data.totalTeachers || 0).toLocaleString();
+
+          document.getElementById('schoolClassrooms').innerText =
+            Number(data.totalClassrooms || 0).toLocaleString();
+
+          const tbody = document.getElementById('schoolsTable');
+          tbody.innerHTML = '';
+
+          (data.schools || []).forEach(school => {
+
+            tbody.innerHTML += `
+              <tr>
+                <td>${school.name}</td>
+                <td>${school.students}</td>
+                <td>${school.teachers}</td>
+                <td>${school.courses}</td>
+                <td>
+                  ${school.last_activity
+                    ? new Date(school.last_activity).toLocaleDateString()
+                    : '-'}
+                </td>
+              </tr>
+            `;
+          });
+
+        } catch(err) {
+          console.error('Schools dashboard error:', err);
+        }
+      }
+
+      async function loadFinanceDashboard() {
+
+        try {
+
+          const res = await fetch('/admin/dashboard/finance');
+          const data = await res.json();
+
+          console.log("Finance Data:", data);
+
+          document.getElementById('financeRevenue').innerText =
+            '₦' + Number(data.revenue || 0).toLocaleString();
+
+          document.getElementById('financeTransactions').innerText =
+            Number(data.totalTransactions || 0).toLocaleString();
+
+          document.getElementById('failedTransactions').innerText =
+            Number(data.failedTransactions || 0).toLocaleString();
+
+          const tbody = document.getElementById('transactionsTable');
+          tbody.innerHTML = '';
+
+          (data.transactions || []).forEach(tx => {
+
+            tbody.innerHTML += `
+              <tr>
+                <td>${new Date(tx.created_at).toLocaleDateString()}</td>
+                <td>${tx.user_name || tx.email || '-'}</td>
+                <td>₦${Number(tx.amount || 0).toLocaleString()}</td>
+                <td>${tx.status}</td>
+              </tr>
+            `;
+          });
+
+        } catch(err) {
+          console.error('Finance dashboard error:', err);
+        }
+      }
+
+      async function loadEngagementDashboard(page = 1, append = false) {
+
+        try {
+
+          const action =
+            document.getElementById('activityAction')?.value || '';
+
+          const startDate =
+            document.getElementById('activityStartDate')?.value || '';
+
+          const endDate =
+            document.getElementById('activityEndDate')?.value || '';
+
+          const res = await fetch(
+            `/admin/dashboard/engagement?page=${page}&limit=${activityLimit}&action=${encodeURIComponent(action)}&startDate=${startDate}&endDate=${endDate}`
+          );
+
+          const data = await res.json();
+          console.log(data.activities);
+          console.log("Finance Data:", data);
+
+          document.getElementById('dailyUsers').innerText =
+            Number(data.dailyUsers || 0).toLocaleString();
+
+          document.getElementById('weeklyUsers').innerText =
+            Number(data.weeklyUsers || 0).toLocaleString();
+
+          document.getElementById('completedLessons').innerText =
+            Number(data.completedLessons || 0).toLocaleString();
+
+          document.getElementById('aiQuestions').innerText =
+            Number(data.aiQuestions || 0).toLocaleString();
+
+          const tbody =
+            document.getElementById('activitiesTable');
+
+          if (!append) {
+            tbody.innerHTML = '';
+          }
+
+          (data.activities || []).forEach(activity => {
+
+           tbody.innerHTML += `
+            <tr>
+              <td>${activity.fullname || 'Unknown User'}</td>
+
+              <td>${activity.school_name}</td>
+
+              <td>${activity.role || '-'}</td>
+
+              <td>${activity.action}</td>
+
+              <td>${activity.lesson_title || '-'}</td>
+
+              <td>${activity.course_title || '-'}</td>
+
+              <td>${new Date(activity.created_at).toLocaleString()}</td>
+
+              <td>
+                <button
+                  class="btn btn-sm btn-primary"
+                  onclick="viewUserActivities(${activity.user_id})">
+                  View
+                </button>
+              </td>
+            </tr>
+            `;
+          });
+
+        } catch(err) {
+
+          console.error(
+            'Engagement dashboard error:',
+            err
+          );
+
+        }
+      }
+      
+      function loadMoreActivities() {
+
+        currentActivityPage++;
+
+        loadEngagementDashboard(
+          currentActivityPage,
+          true
+        );
+
+      }
+
+      function loadMoreActivities() {
+
+        currentActivityPage++;
+
+        loadEngagementDashboard(
+          currentActivityPage,
+          true
+        );
+
+      }
+      
+      // async function viewUserActivities(userId) {
+      //   const res = await fetch(
+      //     `/admin/students/${userId}/activities`
+      //   );
+
+      //   const data = await res.json();
+
+      //   console.log(data);
+      // }
+      
+      async function viewUserActivities(userId) {
+
+        const res = await fetch(
+          `/admin/students/${userId}/activities`
+        );
+
+        const activities = await res.json();
+
+        const tbody =
+          document.getElementById(
+            "activityHistoryBody"
+          );
+
+        tbody.innerHTML = "";
+
+        activities.forEach(a => {
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${a.action}</td>
+              <td>${a.lesson_title || "-"}</td>
+              <td>${a.course_title || "-"}</td>
+              <td>${new Date(a.created_at).toLocaleString()}</td>
+            </tr>
+          `;
+        });
+
+        document.getElementById(
+          "activityModal"
+        ).style.display = "block";
+      }
+
+      function closeActivityModal() {
+        document.getElementById(
+          "activityModal"
+        ).style.display = "none";
+      }
+      
+      loadDashboardOverview();
+      loadBusinessDashboard();
+      loadLearningDashboard();
+      loadSchoolsDashboard();
+      loadFinanceDashboard();
+      loadEngagementDashboard();
+      loadDashboardOverview();
+
+    </script>
+
+    <script>
+      async function openCourseAnalytics(courseId){
+
+      const res =
+        await fetch(`/admin/dashboard/course/${courseId}`);
+
+      const data =
+        await res.json();
+
+      document.getElementById(
+        "analyticsCourseTitle"
+      ).innerText =
+        data.course.title;
+
+      document.getElementById(
+        "analyticsEnrollments"
+      ).innerText =
+        data.enrollments;
+
+      document.getElementById(
+        "analyticsSchools"
+      ).innerText =
+        data.schools;
+
+      document.getElementById("analyticsLearners").innerText =
+        data.learners;
+
+      document.getElementById("analyticsModules").innerText =
+        data.modules;
+
+      document.getElementById("analyticsLessons").innerText =
+        data.lessons;
+
+      document.getElementById(
+        "analyticsCompletion"
+      ).innerText =
+        data.completionRate + "%";
+
+      document.getElementById(
+        "analyticsQuiz"
+      ).innerText =
+        data.avgQuiz + "%";
+
+      document.getElementById(
+        "analyticsCertificates"
+      ).innerText =
+        data.certificates;
+
+      const topTable =
+        document.getElementById(
+          "topStudentsTable"
+        );
+
+      topTable.innerHTML = "";
+
+      data.topStudents.forEach(student => {
+
+        topTable.innerHTML += `
+          <tr>
+            <td>${student.fullname}</td>
+            <td>${student.avg_score}%</td>
+          </tr>
+        `;
+
+      });
+
+      const bottomTable =
+        document.getElementById(
+          "bottomStudentsTable"
+        );
+
+      bottomTable.innerHTML = "";
+
+      data.bottomStudents.forEach(student => {
+
+        bottomTable.innerHTML += `
+          <tr>
+            <td>${student.fullname}</td>
+            <td>${student.avg_score}%</td>
+          </tr>
+        `;
+
+      });
+
+      document.getElementById(
+        "courseAnalyticsModal"
+      ).style.display = "block";
+
+    }
+    
+      function closeCourseAnalytics(){
+
+        document.getElementById(
+          "courseAnalyticsModal"
+        ).style.display = "none";
+
+      }
+    
+    </script>
+
+    <script>
+      function openDashboardTab(sectionId, btn) {
+
+        const sections = [
+          'overview-section',
+          'business-section',
+          'learning-section',
+          'schools-section',
+          'finance-section',
+          'engagement-section'
+        ];
+
+        sections.forEach(id => {
+          const section = document.getElementById(id);
+
+          if (section) {
+            section.style.display = "none";
+          }
+        });
+
+        document.getElementById(sectionId).style.display = "block";
+        document.getElementById(sectionId).style.width = "100%";
+
+        document.querySelectorAll(".login-tab")
+          .forEach(tab => tab.classList.remove("active"));
+
+        btn.classList.add("active");
+      }
+    </script>
 
   </body>
 </html>

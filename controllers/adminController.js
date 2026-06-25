@@ -308,33 +308,6 @@ exports.avatarPinLogin = async (req, res) => {
   }
 };
 
-// exports.getClassroomStudents = async (req, res) => {
-//   const { classroomId } = req.params;
-
-//   try {
-//     const students = await pool.query(
-//       `
-//       SELECT
-//         u.id,
-//         u.fullname,
-//         u.avatar_url
-//       FROM user_school us
-//       JOIN users2 u
-//         ON u.id = us.user_id
-//       WHERE us.classroom_id = $1
-//       AND u.role = 'student'
-//       `,
-//       [classroomId],
-//     );
-
-//     res.json(students.rows);
-//   } catch (err) {
-//     console.error(err);
-
-//     res.status(500).json([]);
-//   }
-// };
-
 exports.logout = (req, res) => {
   req.session.destroy();
   res.redirect("/admin/login");
@@ -434,6 +407,868 @@ exports.dashboard = async (req, res) => {
   }
 };
 
+exports.getDashboardOverview = async (req, res) => {
+  try {
+
+    const [
+      users,
+      courses,
+      modules,
+      lessons,
+      enrollments,
+      schools,
+      certificates,
+      revenue,
+      avgQuiz
+    ] = await Promise.all([
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM users2
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM courses
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM modules
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM lessons
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM course_enrollments
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM schools
+      `),
+
+      pool.query(`
+        SELECT COUNT(*) total
+        FROM user_certificates
+      `),
+
+      pool.query(`
+        SELECT COALESCE(SUM(amount),0) total
+        FROM transactions
+        WHERE status='success'
+      `),
+
+      pool.query(`
+        SELECT ROUND(AVG(score),1) avg
+        FROM quiz_submissions
+      `)
+
+    ]);
+
+    res.json({
+      totalUsers: Number(users.rows[0].total),
+      totalCourses: Number(courses.rows[0].total),
+      totalModules: Number(modules.rows[0].total),
+      totalLessons: Number(lessons.rows[0].total),
+      totalEnrollments: Number(enrollments.rows[0].total),
+      totalSchools: Number(schools.rows[0].total),
+      certificatesIssued: Number(certificates.rows[0].total),
+      revenue: Number(revenue.rows[0].total),
+      avgQuizScore: avgQuiz.rows[0].avg || 0
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false
+    });
+  }
+};
+
+exports.getBusinessDashboard = async (req, res) => {
+  try {
+    const revenueResult = await pool.query(`
+      SELECT COALESCE(SUM(amount),0) total
+      FROM school_payments
+    `);
+
+    const monthlyRevenueResult = await pool.query(`
+      SELECT COALESCE(SUM(amount),0) total
+      FROM school_payments
+      WHERE DATE_TRUNC('month', payment_date)
+      = DATE_TRUNC('month', CURRENT_DATE)
+    `);
+
+    const schoolPaymentsResult = await pool.query(`
+      SELECT
+        s.name AS school_name,
+
+        COALESCE(st.total_students,0) *
+        COALESCE(q.price_per_student,0) AS total_amount,
+
+        COALESCE(p.total_paid,0) AS total_paid,
+
+        (
+          COALESCE(st.total_students,0) *
+          COALESCE(q.price_per_student,0)
+        ) - COALESCE(p.total_paid,0) AS balance
+
+      FROM quotes q
+
+      JOIN schools s
+      ON s.id = q.school_id
+
+      LEFT JOIN (
+        SELECT term_id, COUNT(*) total_students
+        FROM student_term_enrollments
+        GROUP BY term_id
+      ) st ON st.term_id = q.term_id
+
+      LEFT JOIN (
+        SELECT quote_id, SUM(amount) total_paid
+        FROM school_payments
+        GROUP BY quote_id
+      ) p ON p.quote_id = q.id
+    `);
+
+    const paidSchools = schoolPaymentsResult.rows.filter(
+      (x) => Number(x.balance) <= 0,
+    ).length;
+
+    const outstandingBalance = schoolPaymentsResult.rows.reduce(
+      (sum, row) => sum + Number(row.balance || 0),
+      0,
+    );
+
+    res.json({
+      totalRevenue: Number(revenueResult.rows[0].total),
+      monthlyRevenue: Number(monthlyRevenueResult.rows[0].total),
+      paidSchools,
+      outstandingBalance,
+      schools: schoolPaymentsResult.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// exports.getLearningDashboard = async (req, res) => {
+//   try {
+
+//     const [
+//       courses,
+//       modules,
+//       lessons,
+//       enrollments,
+//       certificates
+//     ] = await Promise.all([
+
+//       pool.query(`SELECT COUNT(*) total FROM courses`),
+
+//       pool.query(`SELECT COUNT(*) total FROM modules`),
+
+//       pool.query(`SELECT COUNT(*) total FROM lessons`),
+
+//       pool.query(`
+//         SELECT COUNT(*) total
+//         FROM course_enrollments
+//       `),
+
+//       pool.query(`
+//         SELECT COUNT(*) total
+//         FROM user_certificates
+//       `)
+
+//     ]);
+
+//     const completionRate =
+//       Number(enrollments.rows[0].total) > 0
+//       ? (
+//           Number(certificates.rows[0].total) /
+//           Number(enrollments.rows[0].total)
+//         ) * 100
+//       : 0;
+
+//     const topCourses = await pool.query(`
+//       SELECT
+//         c.id,
+//         c.title,
+//         COUNT(ce.id) enrollments
+
+//       FROM courses c
+
+//       LEFT JOIN course_enrollments ce
+//       ON ce.course_id = c.id
+
+//       GROUP BY c.id
+
+//       ORDER BY enrollments DESC
+//       LIMIT 10
+//     `);
+
+//     res.json({
+//       totalCourses: Number(courses.rows[0].total),
+//       totalModules: Number(modules.rows[0].total),
+//       totalLessons: Number(lessons.rows[0].total),
+//       completionRate: completionRate.toFixed(1),
+//       topCourses: topCourses.rows
+//     });
+
+//   } catch(err){
+//     console.error(err);
+//     res.status(500).json({success:false});
+//   }
+// };
+
+exports.getLearningDashboard = async (req, res) => {
+  try {
+    const totals = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM courses) total_courses,
+        (SELECT COUNT(*) FROM modules) total_modules,
+        (SELECT COUNT(*) FROM lessons) total_lessons
+    `);
+
+    const courseStats = await pool.query(`
+      SELECT
+
+        c.id,
+        c.title,
+
+        COUNT(DISTINCT ce.user_id) AS enrollments,
+
+        COUNT(DISTINCT CASE
+            WHEN us.role_in_school = 'student'
+            THEN us.user_id
+        END) AS school_learners,
+
+        COUNT(DISTINCT sc.school_id) AS schools,
+
+        COUNT(DISTINCT m.id) AS modules,
+
+        COUNT(DISTINCT l.id) AS lessons,
+
+        COUNT(DISTINCT ulp.id) AS lesson_completions,
+
+        COUNT(DISTINCT uc.id) AS certificates
+
+      FROM courses c
+
+      LEFT JOIN course_enrollments ce
+        ON ce.course_id = c.id
+
+      LEFT JOIN school_courses sc
+        ON sc.course_id = c.id
+
+      LEFT JOIN user_school us
+        ON us.school_id = sc.school_id
+
+      LEFT JOIN modules m
+        ON m.course_id = c.id
+
+      LEFT JOIN lessons l
+        ON l.module_id = m.id
+
+      LEFT JOIN user_lesson_progress ulp
+        ON ulp.lesson_id = l.id
+
+      LEFT JOIN user_certificates uc
+        ON uc.course_id = c.id
+
+      GROUP BY c.id
+
+      ORDER BY enrollments DESC
+    `);
+
+    const courses = courseStats.rows.map((course) => {
+       const totalLearners =
+        Number(course.enrollments || 0) +
+        Number(course.school_learners || 0);
+      
+      const moduleCompletion =
+        course.enrollments > 0
+          ? Math.round(
+              (course.lesson_completions /
+                (course.enrollments * Math.max(course.lessons, 1))) *
+                100,
+            )
+          : 0;
+
+      return {
+        ...course,
+        totalLearners,
+        moduleCompletion,
+      };
+    });
+
+    res.json({
+      totalCourses: totals.rows[0].total_courses,
+      totalModules: totals.rows[0].total_modules,
+      totalLessons: totals.rows[0].total_lessons,
+      courses,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getCourseAnalytics = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await pool.query(
+      `
+      SELECT *
+      FROM courses
+      WHERE id=$1
+    `,
+      [courseId],
+    );
+
+    const enrollments = await pool.query(
+      `
+      SELECT COUNT(*)
+      FROM course_enrollments
+      WHERE course_id=$1
+    `,
+      [courseId],
+    );
+
+    const schools = await pool.query(
+      `
+      SELECT COUNT(*)
+      FROM school_courses
+      WHERE course_id=$1
+    `,
+      [courseId],
+    );
+
+    const modules = await pool.query(`
+      SELECT COUNT(*)
+      FROM modules
+      WHERE course_id=$1
+    `, [courseId]);
+
+    const lessons = await pool.query(`
+      SELECT COUNT(*)
+      FROM lessons l
+      JOIN modules m
+        ON l.module_id=m.id
+      WHERE m.course_id=$1
+    `, [courseId]);
+
+    const certificates = await pool.query(
+      `
+      SELECT COUNT(*)
+      FROM user_certificates
+      WHERE course_id=$1
+    `,
+      [courseId],
+    );
+
+    const avgQuiz = await pool.query(
+      `
+      SELECT ROUND(AVG(score),2) avg
+      FROM quiz_submissions qs
+
+      JOIN quizzes q
+        ON qs.quiz_id=q.id
+
+      JOIN lessons l
+        ON q.lesson_id=l.id
+
+      JOIN modules m
+        ON l.module_id=m.id
+
+      WHERE m.course_id=$1
+    `,
+      [courseId],
+    );
+
+    const completion = await pool.query(
+      `
+      SELECT
+        COUNT(DISTINCT ulp.user_id) completed
+      FROM user_lesson_progress ulp
+
+      JOIN lessons l
+        ON ulp.lesson_id=l.id
+
+      JOIN modules m
+        ON l.module_id=m.id
+
+      WHERE m.course_id=$1
+    `,
+      [courseId],
+    );
+
+    const totalEnrollments = Number(enrollments.rows[0].count);
+
+    const completionRate =
+      totalEnrollments > 0
+        ? Math.round((completion.rows[0].completed / totalEnrollments) * 100)
+        : 0;
+
+    const topStudents = await pool.query(
+      `
+
+      SELECT
+
+        u.fullname,
+
+        ROUND(AVG(qs.score),2) avg_score
+
+      FROM quiz_submissions qs
+
+      JOIN users2 u
+        ON qs.student_id=u.id
+
+      JOIN quizzes q
+        ON q.id=qs.quiz_id
+
+      JOIN lessons l
+        ON l.id=q.lesson_id
+
+      JOIN modules m
+        ON m.id=l.module_id
+
+      WHERE m.course_id=$1
+
+      GROUP BY u.id
+
+      ORDER BY avg_score DESC
+
+      LIMIT 20
+
+    `,
+      [courseId],
+    );
+
+    const bottomStudents = await pool.query(
+      `
+
+      SELECT
+
+        u.fullname,
+
+        ROUND(AVG(qs.score),2) avg_score
+
+      FROM quiz_submissions qs
+
+      JOIN users2 u
+        ON qs.student_id=u.id
+
+      JOIN quizzes q
+        ON q.id=qs.quiz_id
+
+      JOIN lessons l
+        ON l.id=q.lesson_id
+
+      JOIN modules m
+        ON m.id=l.module_id
+
+      WHERE m.course_id=$1
+
+      GROUP BY u.id
+
+      ORDER BY avg_score ASC
+
+      LIMIT 10
+
+    `,
+      [courseId],
+    );
+
+    res.json({
+      course: course.rows[0],
+
+      enrollments: totalEnrollments,
+
+      schools: schools.rows[0].count,
+
+      learners: totalEnrollments,
+
+      modules: modules.rows[0].count,
+
+      lessons: lessons.rows[0].count,
+
+      certificates: certificates.rows[0].count,
+
+      completionRate,
+
+      avgQuiz: avgQuiz.rows[0].avg || 0,
+
+      topStudents: topStudents.rows,
+
+      bottomStudents: bottomStudents.rows
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+};
+
+exports.getSchoolsDashboard = async (req, res) => {
+  try {
+    // const summary = await pool.query(`
+    //   SELECT
+    //     COUNT(DISTINCT s.id) schools,
+
+    //     COUNT(DISTINCT CASE
+    //       WHEN us.role_in_school='student'
+    //       THEN us.user_id
+    //     END) students,
+
+    //     COUNT(DISTINCT CASE
+    //       WHEN us.role_in_school='teacher'
+    //       THEN us.user_id
+    //     END) teachers,
+
+    //     COUNT(DISTINCT c.id) classrooms
+
+    //   FROM schools s
+
+    //   LEFT JOIN user_school us
+    //   ON us.school_id=s.id
+
+    //   LEFT JOIN classrooms c
+    //   ON c.school_id=s.id
+    // `);
+
+    const summary = await pool.query(`
+      SELECT
+          (SELECT COUNT(*) FROM schools) AS schools,
+
+          (
+            SELECT COUNT(*)
+            FROM user_school
+            WHERE role_in_school = 'student'
+          ) AS students,
+
+          (
+            SELECT COUNT(*)
+            FROM user_school
+            WHERE role_in_school = 'teacher'
+          ) AS teachers,
+
+          (
+            SELECT COUNT(*)
+            FROM classrooms
+          ) AS classrooms
+    `);
+
+    // const schools = await pool.query(`
+    //   SELECT
+
+    //     s.id,
+    //     s.name,
+
+    //     COUNT(DISTINCT CASE
+    //       WHEN us.role_in_school='student'
+    //       THEN us.user_id
+    //     END) students,
+
+    //     COUNT(DISTINCT CASE
+    //       WHEN us.role_in_school='teacher'
+    //       THEN us.user_id
+    //     END) teachers,
+
+    //     COUNT(DISTINCT sc.course_id) courses,
+
+    //     MAX(us.created_at) last_activity
+
+    //   FROM schools s
+
+    //   LEFT JOIN user_school us
+    //   ON us.school_id=s.id
+
+    //   LEFT JOIN school_courses sc
+    //   ON sc.school_id=s.id
+
+    //   GROUP BY s.id
+
+    //   ORDER BY s.name
+    // `);
+
+    const schools = await pool.query(`
+      SELECT
+          s.id,
+          s.name,
+
+          COUNT(DISTINCT CASE
+              WHEN us.role_in_school = 'student'
+              THEN us.user_id
+          END) AS students,
+
+          COUNT(DISTINCT CASE
+              WHEN us.role_in_school = 'teacher'
+              THEN us.user_id
+          END) AS teachers,
+
+          COUNT(DISTINCT c.id) AS classrooms,
+
+          COUNT(DISTINCT sc.course_id) AS courses,
+
+          MAX(us.joined_at) AS last_activity
+
+      FROM schools s
+
+      LEFT JOIN user_school us
+          ON us.school_id = s.id
+
+      LEFT JOIN classrooms c
+          ON c.school_id = s.id
+
+      LEFT JOIN school_courses sc
+          ON sc.school_id = s.id
+
+      GROUP BY s.id, s.name
+
+      ORDER BY s.name
+    `);
+
+    res.json({
+      totalSchools: Number(summary.rows[0].schools),
+      totalStudents: Number(summary.rows[0].students),
+      totalTeachers: Number(summary.rows[0].teachers),
+      totalClassrooms: Number(summary.rows[0].classrooms),
+      schools: schools.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.getFinanceDashboard = async (req, res) => {
+  try {
+    const revenue = await pool.query(`
+      SELECT COALESCE(SUM(amount),0) total
+      FROM transactions
+      WHERE status='success'
+    `);
+
+    const totalTransactions = await pool.query(`
+      SELECT COUNT(*) total
+      FROM transactions
+    `);
+
+    const failedTransactions = await pool.query(`
+      SELECT COUNT(*) total
+      FROM transactions
+      WHERE status='failed'
+    `);
+
+    const recentTransactions = await pool.query(`
+      SELECT *
+      FROM transactions
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+
+    res.json({
+      revenue: Number(revenue.rows[0].total),
+      totalTransactions: Number(totalTransactions.rows[0].total),
+      failedTransactions: Number(failedTransactions.rows[0].total),
+      transactions: recentTransactions.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.getEngagementDashboard = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, action, startDate, endDate } = req.query;
+
+    let whereClause = "WHERE 1=1";
+    let params = [];
+    let paramCount = 1;
+
+    if (action) {
+      whereClause += ` AND a.action ILIKE $${paramCount}`;
+      params.push(`%${action}%`);
+      paramCount++;
+    }
+
+    if (startDate) {
+      whereClause += ` AND a.created_at >= $${paramCount}`;
+      params.push(startDate);
+      paramCount++;
+    }
+
+    if (endDate) {
+      whereClause += ` AND a.created_at <= $${paramCount}`;
+      params.push(endDate + " 23:59:59");
+      paramCount++;
+    }
+
+    const offset = (page - 1) * limit;
+
+    params.push(limit);
+    params.push(offset);
+
+    const activities = await pool.query(
+      `
+      SELECT
+        a.id,
+        a.user_id,
+        a.role,
+        a.action,
+        a.details,
+        a.created_at,
+
+        u.fullname,
+
+        -- School info
+        COALESCE(s.name, 'Private Tutor') AS school_name,
+
+        -- Lesson info
+        l.id AS lesson_id,
+        l.title AS lesson_title,
+
+        -- Course info
+        c.id AS course_id,
+        c.title AS course_title
+
+      FROM activities a
+
+      LEFT JOIN users2 u
+        ON u.id = a.user_id
+
+      LEFT JOIN user_school us
+        ON us.user_id = u.id
+
+      LEFT JOIN schools s
+        ON s.id = us.school_id
+
+      LEFT JOIN lessons l
+        ON l.id = COALESCE(
+          a.lesson_id,
+          NULLIF(
+            regexp_replace(a.details, '\D', '', 'g'),
+            ''
+          )::INT
+        )
+
+      LEFT JOIN modules m
+        ON m.id = l.module_id
+
+      LEFT JOIN courses c
+        ON c.id = m.course_id
+
+      ${whereClause}
+
+      ORDER BY a.created_at DESC
+
+      LIMIT $${paramCount}
+      OFFSET $${paramCount + 1}
+    `,
+      params,
+    );
+
+    const totalResult = await pool.query(
+      `
+      SELECT COUNT(*) total
+      FROM activities a
+      ${whereClause}
+    `,
+      params.slice(0, paramCount - 1),
+    );
+
+    const dailyUsers = await pool.query(`
+      SELECT COUNT(DISTINCT user_id)
+      FROM activities
+      WHERE created_at >= NOW() - INTERVAL '1 day'
+    `);
+
+    const weeklyUsers = await pool.query(`
+      SELECT COUNT(DISTINCT user_id)
+      FROM activities
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+    `);
+
+    const completedLessons = await pool.query(`
+      SELECT COUNT(*)
+      FROM user_lesson_progress
+    `);
+
+    const aiQuestions = await pool.query(`
+      SELECT COUNT(*)
+      FROM ai_tutor_logs
+    `);
+
+    res.json({
+      dailyUsers: dailyUsers.rows[0].count,
+      weeklyUsers: weeklyUsers.rows[0].count,
+      completedLessons: completedLessons.rows[0].count,
+      aiQuestions: aiQuestions.rows[0].count,
+
+      totalActivities: totalResult.rows[0].total,
+
+      activities: activities.rows,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+};
+
+exports.getStudentActivities = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(
+      `
+        SELECT
+          a.id,
+          a.action,
+          a.details,
+          a.created_at,
+
+          l.title AS lesson_title,
+          c.title AS course_title
+
+        FROM activities a
+
+        LEFT JOIN lessons l
+          ON l.id = a.lesson_id
+
+        LEFT JOIN modules m
+          ON m.id = l.module_id
+
+        LEFT JOIN courses c
+          ON c.id = m.course_id
+
+        WHERE a.user_id = $1
+
+        ORDER BY a.created_at DESC
+        `,
+      [userId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+};
+
 exports.filterUsersAjax = async (req, res) => {
   try {
     const { gender, role, email } = req.query;
@@ -464,8 +1299,6 @@ exports.filterUsersAjax = async (req, res) => {
     res.status(500).json([]);
   }
 };
-
-
 
 exports.exportAnalyticsPDF = async (req, res) => {
   try {

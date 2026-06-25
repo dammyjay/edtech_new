@@ -78,7 +78,27 @@ router.get(
   router.get("/reset-password/:token", adminController.showResetPasswordForm);
   router.post("/reset-password/:token", adminController.handleResetPassword);
 
+router.get(
+  "/dashboard/overview",
+  adminController.getDashboardOverview,
+);
+router.get("/dashboard/business", adminController.getBusinessDashboard);
 
+router.get("/dashboard/learning", adminController.getLearningDashboard);
+
+router.get("/dashboard/schools", adminController.getSchoolsDashboard);
+
+router.get("/dashboard/finance", adminController.getFinanceDashboard);
+
+router.get("/dashboard/engagement", adminController.getEngagementDashboard);
+router.get(
+  "/dashboard/course/:courseId",
+  adminController.getCourseAnalytics
+);
+router.get(
+  "/students/:userId/activities",
+  adminController.getStudentActivities,
+);
 router.get("/dashboard", adminController.dashboard);
 router.get("/users/filter", adminController.filterUsersAjax);
 

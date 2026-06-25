@@ -1709,47 +1709,6 @@ exports.editProfile = async (req, res) => {
 
 };
 
-// exports.viewLesson = async (req, res) => {
-//   const lessonId = req.params.lessonId;
-//   // const lessonId = req.params.id;
-
-//   try {
-
-    
-//     const lessonRes = await pool.query(
-//       `SELECT l.*, m.title AS module_title, c.title AS course_title
-//        FROM lessons l
-//        JOIN modules m ON l.module_id = m.id
-//        JOIN courses c ON m.course_id = c.id
-//        WHERE l.id = $1`,
-//       [lessonId]
-//     );
-
-//     if (lessonRes.rows.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Lesson not found" });
-//     }
-
-//     const lesson = lessonRes.rows[0];
-
-//     res.json({
-//       success: true,
-//       id: lesson.id,
-//       title: lesson.title,
-//       module_title: lesson.module_title,
-//       course_title: lesson.course_title,
-//       video_url: lesson.video_url,
-//       content: lesson.content,
-//       has_quiz: !!lesson.quiz_id,
-      
-//     });
-//   } catch (err) {
-//     console.error("Error loading lesson:", err);
-//     res.status(500).json({ success: false, message: "Server error" });
-//   }
-// };
-
 exports.viewLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
   const studentId = req.session?.student?.id || req.user?.id;
