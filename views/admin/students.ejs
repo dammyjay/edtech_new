@@ -59,7 +59,7 @@
     <h1>👩‍🎓 All Students</h1>
 
     <div class="table-responsive">
-      <table class="user-table" style="width: 90%; margin-top: 20px;">
+      <table class="user-table sortable-table" style="width: 90%; margin-top: 20px;">
         <thead>
           <tr>
             <th>Profile</th>
@@ -111,7 +111,7 @@
     <!-- Parents Table -->
   <div class="table-responsive">
 
-    <table class="user-table" style="width:90%; margin-top:20px;">
+    <table class="user-table sortable-table" style="width:90%; margin-top:20px;">
 
       <thead>
         <tr>
@@ -230,7 +230,7 @@
 
     <div class="table-responsive">
 
-      <table class="user-table" width="100%">
+      <table class="user-table sortable-table" width="100%">
 
         <thead>
           <tr>
@@ -292,18 +292,6 @@
   </button>
 
 </form>
-
-  <!-- Remove Child from Parent -->
-  <!-- <h2 style="margin-top:30px;">❌ Remove Child from Parent</h2> -->
-  <!-- <form method="POST" action="/admin/remove-child" style="margin-top:15px;">
-    <label>Parent ID:</label>
-    <input type="number" name="parentId" placeholder="Parent user ID" required />
-
-    <label>Child ID:</label>
-    <input type="number" name="childId" placeholder="Child user ID" required />
-
-    <button type="submit" style="background:red; color:#fff; margin-left:10px;">Remove</button>
-  </form> -->
 
     <!-- User details modal (reuse your existing modal logic) -->
     <div id="userModal" class="modal" style="display:none;">
@@ -471,6 +459,84 @@ function closeChildrenModal() {
   document.getElementById("childrenModal").style.display = "none";
 }
 
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  document.querySelectorAll(".sortable-table").forEach(table => {
+
+    const headers = table.querySelectorAll("thead th");
+
+    headers.forEach((header, columnIndex) => {
+
+      header.classList.add("sortable");
+
+      let ascending = true;
+
+      header.addEventListener("click", () => {
+
+        const tbody = table.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+
+        // Remove previous sort indicators
+        headers.forEach(h => {
+          h.classList.remove("sort-asc", "sort-desc");
+        });
+
+        rows.sort((a, b) => {
+
+          let aText =
+            a.children[columnIndex]?.innerText.trim() || "";
+
+          let bText =
+            b.children[columnIndex]?.innerText.trim() || "";
+
+          // Numeric sorting
+          const aNum =
+            parseFloat(aText.replace(/[^\d.-]/g, ""));
+
+          const bNum =
+            parseFloat(bText.replace(/[^\d.-]/g, ""));
+
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            return ascending
+              ? aNum - bNum
+              : bNum - aNum;
+          }
+
+          // Date sorting
+          const aDate = Date.parse(aText);
+          const bDate = Date.parse(bText);
+
+          if (!isNaN(aDate) && !isNaN(bDate)) {
+            return ascending
+              ? aDate - bDate
+              : bDate - aDate;
+          }
+
+          // Text sorting
+          return ascending
+            ? aText.localeCompare(bText)
+            : bText.localeCompare(aText);
+
+        });
+
+        tbody.innerHTML = "";
+        rows.forEach(row => tbody.appendChild(row));
+
+        header.classList.add(
+          ascending ? "sort-asc" : "sort-desc"
+        );
+
+        ascending = !ascending;
+      });
+
+    });
+
+  });
+
+});
 </script>
 
   </body>

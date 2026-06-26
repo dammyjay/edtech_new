@@ -206,7 +206,7 @@
     </form>
     <div class="table-responsive">
       <table
-        class="user-table"
+        class="user-table sortable-table"
         style="border-collapse: collapse; margin-top: 20px"
       >
         
@@ -329,7 +329,7 @@
   </section>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>School</th>
@@ -390,7 +390,7 @@
   <h3>Top Courses</h3>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>Course</th>
@@ -504,7 +504,7 @@
       <details>
         <h3>Top Performing Students</h3>
 
-        <table class="user-table">
+        <table class="user-table sortable-table">
           <thead>
             <tr>
               <th>Student</th>
@@ -519,7 +519,7 @@
       <details>
         <h3>Students Needing Support</h3>
 
-        <table class="user-table">
+        <table class="user-table sortable-table">
           <thead>
             <tr>
               <th>Student</th>
@@ -580,7 +580,7 @@
   </section>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>School</th>
@@ -631,7 +631,7 @@
   </section>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -715,7 +715,7 @@
 </div>
 
   <div class="table-responsive">
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>User</th>
@@ -750,7 +750,7 @@
 
     <h3>User Activity History</h3>
 
-    <table class="user-table">
+    <table class="user-table sortable-table">
       <thead>
         <tr>
           <th>Action</th>
@@ -1114,7 +1114,7 @@
 
           const data = await res.json();
           console.log(data.activities);
-          console.log("Finance Data:", data);
+          console.log("Engagement Data:", data);
 
           document.getElementById('dailyUsers').innerText =
             Number(data.dailyUsers || 0).toLocaleString();
@@ -1195,17 +1195,7 @@
         );
 
       }
-      
-      // async function viewUserActivities(userId) {
-      //   const res = await fetch(
-      //     `/admin/students/${userId}/activities`
-      //   );
-
-      //   const data = await res.json();
-
-      //   console.log(data);
-      // }
-      
+    
       async function viewUserActivities(userId) {
 
         const res = await fetch(

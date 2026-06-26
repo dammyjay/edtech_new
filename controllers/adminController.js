@@ -1155,14 +1155,13 @@ exports.getEngagementDashboard = async (req, res) => {
         ON s.id = us.school_id
 
       LEFT JOIN lessons l
-  ON l.id = COALESCE(
-    a.lesson_id,
-    CASE
-      WHEN regexp_match(a.details, '(\d+)') IS NOT NULL
-      THEN (regexp_match(a.details, '(\d+)'))[1]::INT
-      ELSE NULL
-    END
-  )
+        ON l.id = COALESCE(
+          a.lesson_id,
+          NULLIF(
+            substring(a.details FROM '([0-9]+)'),
+            ''
+          )::INT
+        )
 
       LEFT JOIN modules m
         ON m.id = l.module_id
@@ -1248,14 +1247,13 @@ exports.getStudentActivities = async (req, res) => {
         FROM activities a
 
         LEFT JOIN lessons l
-  ON l.id = COALESCE(
-    a.lesson_id,
-    CASE
-      WHEN regexp_match(a.details, '(\d+)') IS NOT NULL
-      THEN (regexp_match(a.details, '(\d+)'))[1]::INT
-      ELSE NULL
-    END
-  )
+          ON l.id = COALESCE(
+            a.lesson_id,
+            NULLIF(
+              substring(a.details FROM '([0-9]+)'),
+              ''
+            )::INT
+          )
 
         LEFT JOIN modules m
           ON m.id = l.module_id
