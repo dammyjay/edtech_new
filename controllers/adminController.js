@@ -7333,35 +7333,44 @@ exports.downloadQuotePDF = async (req, res) => {
 
   try {
     const result = await pool.query(`
-      SELECT 
-        q.id,
-        q.price_per_student,
-        q.status,
-        q.total_paid,
-        q.balance,
-        s.name AS school_name,
-        s.address,
-        t.name AS term_name,
-        COUNT(ts.student_id) AS total_students,
-        (COUNT(ts.student_id) * COALESCE(q.price_per_student, 0)) AS total_amount
+      SELECT
+          q.id,
+          q.price_per_student,
+          q.status,
+          q.total_paid,
+          q.balance,
+          s.name AS school_name,
+          s.email AS school_email,
+          s.phone,
+          s.address,
+          t.name AS term_name,
+          COUNT(ts.student_id) AS total_students,
+          (COUNT(ts.student_id) * COALESCE(q.price_per_student,0)) AS total_amount
       FROM quotes q
-      JOIN schools s ON q.school_id = s.id
-      JOIN academic_terms t ON q.term_id = t.id
-      LEFT JOIN student_term_enrollments ts 
-        ON ts.term_id = q.term_id
-      WHERE q.id = $1
-      GROUP BY 
-        q.id,
-        q.price_per_student,
-        q.status,
-        q.total_paid,
-        q.balance,
-        s.name,
-        s.address,
-        t.name
+      JOIN schools s
+      ON q.school_id=s.id
+      JOIN academic_terms t
+      ON q.term_id=t.id
+      LEFT JOIN student_term_enrollments ts
+      ON ts.term_id=q.term_id
+      WHERE q.id=$1
+      GROUP BY
+      q.id,
+      q.price_per_student,
+      q.status,
+      q.total_paid,
+      q.balance,
+      s.name,
+      s.email,
+      s.phone,
+      s.address,
+      t.name;
     `, [id]);
 
     const q = result.rows[0];
+    if (!q) {
+      return res.status(404).send("Invoice not found");
+    }
     const totalPaid = Number(q.total_paid || 0);
     const balance = Number(q.balance || 0);
 
@@ -7656,22 +7665,170 @@ exports.downloadQuotePDF = async (req, res) => {
     </html>
     `;
 
-    // const browser = await puppeteer.launch({
-    //   headless: true,
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
-
-    // const page = await browser.newPage();
-    // await page.setContent(html, { waitUntil: "networkidle0" });
-
-    // const pdf = await page.pdf({
-    //   format: "A4",
-    //   printBackground: true,
-    // });
-
-    // await browser.close();
-
     const pdf = await generatePdf(html);
+
+        const emailHtml = `
+        <div style="
+        background:#f4f4f4;
+        padding:40px;
+        font-family:Calibri,Arial;
+        ">
+
+        <div style="
+        max-width:700px;
+        margin:auto;
+        background:white;
+        border-radius:10px;
+        overflow:hidden;
+        ">
+
+        <div style="
+        background:#b89b5e;
+        padding:35px;
+        text-align:center;
+        color:white;
+        ">
+
+        <img
+        src="https://acad.jkthub.com/images/JKT%20logo.png"
+        width="80">
+
+        <h2 style="margin:15px 0 5px;">
+        Jaykirch Technology Hub
+        </h2>
+
+        <p style="margin:0;">
+        Coding Class Invoice
+        </p>
+
+        </div>
+
+        <div style="padding:35px;">
+
+        <p>
+
+        Dear <b>${q.school_name}</b>,
+
+        </p>
+
+        <p>
+
+        Please find attached the invoice for the
+        <b>${q.term_name}</b>
+        coding programme.
+
+        </p>
+
+        <table
+        style="
+        width:100%;
+        border-collapse:collapse;
+        margin:25px 0;
+        ">
+
+        <tr>
+        <td style="padding:10px;"><b>School</b></td>
+        <td>${q.school_name}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Term</b></td>
+        <td>${q.term_name}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>No. of Students</b></td>
+        <td>${q.total_students}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Amount</b></td>
+        <td>₦${total.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Paid</b></td>
+        <td>₦${totalPaid.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Balance</b></td>
+        <td>₦${balance.toLocaleString()}</td>
+        </tr>
+
+        </table>
+
+        <p>
+
+        Kindly make payment according to the agreed payment schedule.
+
+        </p>
+
+        <div style="
+        background:#faf8f1;
+        padding:20px;
+        border-left:5px solid #b89b5e;
+        ">
+
+        <b>Payment Details</b>
+
+        <br><br>
+
+        Access Bank
+
+        <br>
+
+        Account Name:
+        <b>Jaykirch Technology Hub</b>
+
+        <br>
+
+        Account Number:
+        <b>1582579748</b>
+
+        </div>
+
+        <br>
+
+        For enquiries, kindly contact us.
+
+        <br><br>
+
+        Regards,
+
+        <br>
+
+        <b>Jaykirch Technology Hub</b>
+
+        </div>
+
+        <div style="
+        background:#222;
+        color:white;
+        padding:20px;
+        text-align:center;
+        font-size:12px;
+        ">
+
+        © ${new Date().getFullYear()} Jaykirch Technology Hub
+
+        </div>
+
+        </div>
+
+        </div>
+        `;
+
+       if (q.school_email) {
+              await sendEmailWithAttachment(
+                  q.school_email,
+                  `Coding Class Invoice - ${q.term_name}`,
+                  emailHtml,
+                  `${q.school_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+                  pdf,
+                  ["jaykirchtechhub@gmail.com"]
+              );
+          }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -8171,6 +8328,10 @@ exports.downloadParentInvoicePDF = async (req, res) => {
 
     const invoice = result.rows[0];
 
+    if (invoice.status === "paid") {
+        return exports.generateParentReceipt(req, res, invoice);
+    }
+
     // Fetch students attached to invoice
     const studentResult = await pool.query(
       `
@@ -8200,7 +8361,37 @@ exports.downloadParentInvoicePDF = async (req, res) => {
       .toWords(Math.round(netAmount))
       .toUpperCase();
 
-    const today = new Date().toDateString();
+    // const today = new Date().toDateString();
+    const today = new Date();
+    const todayString = today.toDateString();
+
+    const dueDate = invoice.due_date
+      ? new Date(invoice.due_date)
+      : null;
+
+    const isOverdue =
+      dueDate &&
+      today > dueDate &&
+      balance > 0;
+
+    // Calculate days remaining
+    let dueMessage = "Not Specified";
+
+    if (dueDate) {
+      const diffDays = Math.ceil(
+        (dueDate - today) / (1000 * 60 * 60 * 24)
+      );
+
+      if (balance <= 0) {
+        dueMessage = "PAID";
+      } else if (diffDays > 0) {
+        dueMessage = `${diffDays} day${diffDays > 1 ? "s" : ""} remaining`;
+      } else if (diffDays === 0) {
+        dueMessage = "Due Today";
+      } else {
+        dueMessage = `${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""} overdue`;
+      }
+    }
 
     const studentRows =
       students.length > 0
@@ -8457,7 +8648,7 @@ Access Bank
 </div>
 
 <div class="date">
-Date: ${today}
+Date: ${todayString}
 </div>
 
 <div class="invoice-title">
@@ -8481,7 +8672,6 @@ ${studentRows}
 
 </div>
 
-</div>
 
 <div class="section">
 
@@ -8500,7 +8690,7 @@ ${studentRows}
 </tr>
 
 <tr>
-<td>Agreed Amount</td>
+<td>Training Fee</td>
 <td>₦${agreedAmount.toLocaleString()}</td>
 </tr>
 
@@ -8531,27 +8721,57 @@ ${studentRows}
 
 <tr>
 <td>Due Date</td>
-<td>${
-      invoice.due_date
-        ? new Date(invoice.due_date).toDateString()
-        : "Not Specified"
-    }</td>
+<td>
+${
+dueDate
+? dueDate.toDateString()
+: "Not Specified"
+}
+</td>
+</tr>
+
+<tr>
+<td>Payment Timeline</td>
+<td style="
+font-weight:bold;
+color:${
+isOverdue
+? "red"
+: balance <= 0
+? "green"
+: "#b89b5e"
+};
+">
+${dueMessage}
+</td>
 </tr>
 
 <tr>
 <td>Status</td>
+
 <td style="
 font-weight:bold;
 color:${
-      invoice.status === "paid"
-        ? "green"
-        : invoice.status === "partial"
-          ? "orange"
-          : "red"
-    };
+balance <= 0
+? "green"
+: isOverdue
+? "red"
+: invoice.status==="partial"
+? "orange"
+: "#b89b5e"
+};
 ">
-${invoice.status.toUpperCase()}
+
+${
+balance <= 0
+? "PAID"
+: isOverdue
+? "OVERDUE"
+: invoice.status.toUpperCase()
+}
+
 </td>
+
 </tr>
 
 </table>
@@ -8617,7 +8837,7 @@ class="signature-img"
 
 <div class="sign-date">
 
-${today}
+${todayString}
 
 </div>
 
@@ -8639,6 +8859,8 @@ CEO Signature
 `;
 
     const pdf = await generatePdf(html);
+    console.log(Buffer.isBuffer(pdf));
+    console.log(pdf.constructor.name);
 
     await sendEmailWithAttachment(
       invoice.parent_email,
@@ -8755,15 +8977,30 @@ margin:25px 0;
 </tr>
 
 <tr>
+<td style="padding:10px;" ><b>Due Date</b></td>
+<td>
+${
+dueDate
+? dueDate.toDateString()
+: "Not Specified"
+}
+</td>
+</tr>
 
-<td style="padding:10px;"><b>Due Date</b></td>
-
-<td>${
-        invoice.due_date
-          ? new Date(invoice.due_date).toDateString()
-          : "Not Specified"
-      }</td>
-
+<tr>
+<td>Payment Timeline</td>
+<td style="
+font-weight:bold;
+color:${
+isOverdue
+? "red"
+: balance <= 0
+? "green"
+: "#b89b5e"
+};
+">
+${dueMessage}
+</td>
 </tr>
 
 </table>
@@ -8800,7 +9037,9 @@ Account Number:
 
 <br>
 
-If payment has already been made, kindly ignore this email.
+Kindly make payment on or before the due date.
+
+For enquiries, contact our office.
 
 <br><br>
 
@@ -8832,6 +9071,7 @@ font-size:12px;
       `${invoice.invoice_number}.pdf`,
 
       pdf,
+      ["jaykirchtechhub@gmail.com"]
     );
 
     await pool.query(
@@ -8853,18 +9093,657 @@ font-size:12px;
 
     res.send(pdf);
     } catch (err) {
-    console.error("DOWNLOAD INVOICE ERROR");
-    console.error(err);
+      console.error("================================");
+      console.error("DOWNLOAD INVOICE ERROR");
+      console.error(err);
 
-    if (err.response) {
-      console.error(err.response.body || err.response.data);
+      if (err.response) {
+        console.error("Brevo Response:");
+        console.error(err.response.body);
+      }
+
+      res.status(500).json({
+        message: err.message,
+        stack: err.stack,
+      });
+    }
+};
+
+exports.generateParentReceipt = async (req, res, invoice) => {
+
+  try {
+
+    const studentResult = await pool.query(
+        `
+        SELECT
+            u.fullname
+        FROM invoice_students s
+        JOIN users2 u
+            ON s.student_id = u.id
+        WHERE s.invoice_id = $1
+        ORDER BY u.fullname
+        `,
+        [invoice.id]
+    );
+
+    const students = studentResult.rows;
+
+    const agreedAmount = Number(invoice.agreed_amount || 0);
+    const discount = Number(invoice.discount || 0);
+    const totalPaid = Number(invoice.total_paid || 0);
+
+    const netAmount = agreedAmount - discount;
+
+    const numberToWords = require("number-to-words");
+
+    const amountWords = numberToWords
+        .toWords(Math.round(totalPaid))
+        .toUpperCase();
+
+    const receiptNumber = invoice.invoice_number
+      ? invoice.invoice_number.replace(/^INV/i, "RCPT")
+      : `RCPT-${invoice.id}`;
+
+    const paymentDate =
+        invoice.payment_date
+            ? new Date(invoice.payment_date).toDateString()
+            : new Date().toDateString();
+
+    const studentRows =
+      students.length
+      ? students.map((student,index)=>`
+
+      <tr>
+      <td>${index+1}</td>
+      <td>${student.fullname}</td>
+      </tr>
+
+      `).join("")
+      :
+      `
+      <tr>
+      <td colspan="2">
+      No students attached
+      </td>
+      </tr>
+      `;
+
+      const html = `
+      <!DOCTYPE html>
+      <html>
+
+      <head>
+
+      <style>
+
+      body{
+          font-family:Calibri;
+          margin:0;
+          padding:0;
+          background:#fff;
+          display:flex;
+          justify-content:center;
+      }
+
+      .container{
+          width:80%;
+          max-width:800px;
+          padding:30px;
+      }
+
+      .header{
+          display:flex;
+          justify-content:center;
+          align-items:center;
+          gap:20px;
+      }
+
+      .header img{
+          width:70px;
+      }
+
+      .header-text{
+          text-align:center;
+      }
+
+      .title{
+          font-size:20px;
+          font-weight:bold;
+      }
+
+      .sub{
+          font-size:12px;
+      }
+
+      .receipt-title{
+          margin-top:25px;
+          text-align:center;
+          font-size:24px;
+          color:green;
+          font-weight:bold;
+          border:2px solid green;
+          padding:10px;
+      }
+
+      .top{
+          display:flex;
+          justify-content:space-between;
+          margin-top:35px;
+      }
+
+      .bank{
+          text-align:right;
+      }
+
+      .bank p{
+          margin:3px;
+      }
+
+      .section{
+          margin-top:25px;
+      }
+
+      table{
+          width:100%;
+          border-collapse:collapse;
+          margin-top:10px;
+      }
+
+      th{
+          background:#b89b5e;
+          color:white;
+          padding:8px;
+          font-size:12px;
+      }
+
+      td{
+          border:1px solid #000;
+          padding:8px;
+          font-size:12px;
+          text-align:center;
+      }
+
+      .words{
+          margin-top:25px;
+          font-size:13px;
+      }
+
+      .received{
+          margin-top:25px;
+          background: #fffcf3;
+          border-left:5px solid #b89b5e;
+          padding:15px;
+          line-height:24px;
+      }
+
+      .signatures{
+          margin-top:70px;
+          display:flex;
+          justify-content:space-between;
+      }
+
+      .sign{
+          width:40%;
+          text-align:center;
+      }
+
+      .line{
+          margin-top:50px;
+          border-top:1px solid #000;
+      }
+
+      .signature-box{
+          position:relative;
+      }
+
+      .signature-img{
+          position:absolute;
+          left:20%;
+          bottom:10px;
+          height:40px;
+      }
+
+      .sign-date{
+          position:absolute;
+          right:15%;
+          bottom:10px;
+          font-size:11px;
+      }
+
+      .footer{
+          margin-top:40px;
+          text-align:center;
+          font-size:11px;
+          color:#555;
+      }
+
+      .total{
+          background:#198754;
+          color:white;
+          font-weight:bold;
+      }
+
+      </style>
+
+      </head>
+
+      <body>
+
+      <div class="container">
+
+      <div class="header">
+
+      <img src="https://acad.jkthub.com/images/JKT%20logo.png">
+
+      <div class="header-text">
+
+      <div class="title">
+      JAYKIRCH TECHNOLOGY HUB
+      </div>
+
+      <div class="sub">
+      18 Moshood Bakare Street, Gbagada Phase 1
+      </div>
+
+      <div class="sub">
+      09166767242 | 07087522295
+      </div>
+
+      </div>
+
+      </div>
+
+      <div class="receipt-title">
+
+      OFFICIAL PAYMENT RECEIPT
+
+      </div>
+
+      <div class="top">
+
+      <div>
+
+      <b>Received From</b>
+
+      <br><br>
+
+      <div style="font-size:24px;font-weight:bold;">
+      ${invoice.parent_name}
+      </div>
+
+      <div>
+      ${invoice.parent_email}
+      </div>
+
+      <div>
+      ${invoice.parent_phone || ""}
+      </div>
+
+      </div>
+
+      <div class="bank">
+
+      <p><b>Receipt No</b></p>
+
+      <p>${receiptNumber}</p>
+
+      <br>
+
+      <p><b>Invoice No</b></p>
+
+      <p>${invoice.invoice_number}</p>
+
+      <br>
+
+      <p><b>Payment Date</b></p>
+
+      <p>${paymentDate}</p>
+
+      </div>
+
+      </div>
+
+      <div class="section">
+
+      <h3>Students Covered</h3>
+
+      <table>
+
+      <tr>
+      <th>S/N</th>
+      <th>Student Name</th>
+      </tr>
+
+      ${studentRows}
+
+      </table>
+
+      </div>
+
+      <div class="section">
+
+        <h3>Receipt Summary</h3>
+
+        <table>
+
+        <tr>
+        <th>Description</th>
+        <th>Details</th>
+        </tr>
+
+        <tr>
+        <td>Training</td>
+        <td>${invoice.training_title}</td>
+        </tr>
+
+        <tr>
+        <td>Training Fee</td>
+        <td>₦${agreedAmount.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td>Discount</td>
+        <td>₦${discount.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td>Net Amount</td>
+        <td>₦${netAmount.toLocaleString()}</td>
+        </tr>
+
+        <tr class="total">
+        <td>Amount Paid</td>
+        <td>₦${totalPaid.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td>Payment Method</td>
+        <td>${invoice.payment_method || "Bank Transfer"}</td>
+        </tr>
+
+        <tr>
+        <td>Payment Status</td>
+        <td style="
+        color:green;
+        font-weight:bold;
+        font-size:14px;
+        ">
+        ${invoice.status.toUpperCase()}
+        </td>
+        </tr>
+
+        </table>
+
+        </div>
+      <div class="words">
+
+        <b>AMOUNT RECEIVED IN WORDS:</b>
+
+        <br><br>
+
+        ${amountWords} NAIRA ONLY
+
+        </div>
+
+        <div class="received">
+
+        <h3 style="margin-top:0;color:green;">
+        Payment Confirmation
+        </h3>
+
+        <p>
+
+        This is to certify that payment has been successfully received from
+
+        <b>${invoice.parent_name}</b>
+
+        for the training programme
+
+        <b>${invoice.training_title}</b>.
+
+        </p>
+
+        <p>
+
+        The total amount of
+
+        <b>₦${totalPaid.toLocaleString()}</b>
+
+        has been received and the invoice has been fully settled.
+
+        </p>
+
+        <p>
+
+        Thank you for choosing
+        <b>Jaykirch Technology Hub.</b>
+
+        </p>
+
+        </div>
+        <div class="signatures">
+
+        <div class="sign">
+
+        <div class="line"></div>
+
+        Parent / Guardian
+
+        </div>
+
+        <div class="sign">
+
+        <div class="signature-box">
+
+        <img
+        src="https://acad.jkthub.com/images/Signature.jpg"
+        class="signature-img"
+        />
+
+        <div class="sign-date">
+
+        ${paymentDate}
+
+        </div>
+
+        <div class="line"></div>
+
+        </div>
+
+        Authorized Signature
+
+        </div>
+
+        </div>
+
+        <div class="footer">
+
+        This receipt is computer generated and serves as an official acknowledgement
+        of payment made to <b>Jaykirch Technology Hub</b>.
+
+        <br><br>
+
+        Thank you for your patronage.
+
+        </div>
+
+        </div>
+
+        </body>
+
+        </html>
+        `;
+
+        const pdf = await generatePdf(html);
+        await sendEmailWithAttachment(
+
+            invoice.parent_email,
+
+            `Payment Receipt - ${receiptNumber}`,
+
+            `
+        <div style="
+        background:#f4f4f4;
+        padding:40px;
+        font-family:Calibri,Arial;
+        ">
+
+        <div style="
+        max-width:700px;
+        margin:auto;
+        background:white;
+        border-radius:10px;
+        overflow:hidden;
+        ">
+
+        <div style="
+        background:#198754;
+        padding:35px;
+        text-align:center;
+        color:white;
+        ">
+
+        <img
+        src="https://acad.jkthub.com/images/JKT%20logo.png"
+        width="80">
+
+        <h2 style="margin:15px 0 5px;">
+        Jaykirch Technology Hub
+        </h2>
+
+        <p style="margin:0;">
+        Official Payment Receipt
+        </p>
+
+        </div>
+
+        <div style="padding:35px;">
+
+        <p>
+
+        Dear <b>${invoice.parent_name}</b>,
+
+        </p>
+
+        <p>
+
+        Thank you for your payment.
+
+        Your payment has been successfully received and processed.
+
+        Please find your official payment receipt attached to this email.
+
+        </p>
+
+        <table
+        style="
+        width:100%;
+        border-collapse:collapse;
+        margin:25px 0;
+        ">
+
+        <tr>
+        <td style="padding:10px;"><b>Receipt No</b></td>
+        <td>${receiptNumber}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Invoice No</b></td>
+        <td>${invoice.invoice_number}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Training</b></td>
+        <td>${invoice.training_title}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Students</b></td>
+        <td>${students.length}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Amount Paid</b></td>
+        <td>₦${totalPaid.toLocaleString()}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Payment Date</b></td>
+        <td>${paymentDate}</td>
+        </tr>
+
+        <tr>
+        <td style="padding:10px;"><b>Status</b></td>
+        <td style="color:green;font-weight:bold;">
+        PAID
+        </td>
+        </tr>
+
+        </table>
+
+        <p>
+
+        We appreciate your trust in
+        <b>Jaykirch Technology Hub</b>.
+
+        We look forward to seeing you in class.
+
+        </p>
+
+        <br>
+
+        Regards,
+
+        <br>
+
+        <b>Jaykirch Technology Hub</b>
+
+        </div>
+
+        <div style="
+        background:#222;
+        color:white;
+        padding:20px;
+        text-align:center;
+        font-size:12px;
+        ">
+
+        © ${new Date().getFullYear()} Jaykirch Technology Hub
+
+        </div>
+
+        </div>
+
+        </div>
+        `,
+
+        `${receiptNumber}.pdf`,
+
+        pdf,
+        ["jaykirchtechhub@gmail.com"]
+
+        );
+    res.setHeader("Content-Type", "application/pdf");
+
+    res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${receiptNumber}.pdf`
+    );
+
+    res.send(pdf);
+
+    } catch(err){
+
+        console.error("================================");
+        console.error("GENERATE RECEIPT ERROR");
+        console.error(err);
+
+        res.status(500).json({
+            message: err.message
+        });
+
     }
 
-    res.status(500).json({
-      message: err.message,
-      error: err.response?.body || err.stack,
-    });
-  }
 };
 
 // 📌 GET: School Courses (assignments)

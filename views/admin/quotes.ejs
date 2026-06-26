@@ -193,12 +193,6 @@
           <td>₦<%= q.total_paid.toLocaleString() %></td>
           <td>₦<%= q.balance.toLocaleString() %></td>
           <td>
-            <!-- <form action="/admin/quotes/<%= q.id %>/status" class="no-bg" method="POST">
-              <select name="status" onchange="this.form.submit()">
-                <option value="unpaid" <%= q.status === 'unpaid' ? 'selected' : '' %>>❌ Not Paid</option>
-                <option value="paid" <%= q.status === 'paid' ? 'selected' : '' %>>✅ Paid</option>
-              </select>
-            </form> -->
             <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
             
 
@@ -233,6 +227,11 @@
             <a href="/admin/quotes/<%= q.id %>/download" class="no-bg">
               <i class="fa-solid fa-file-pdf" style="color: red;"></i>
             </a>
+
+            <a href="/admin/quotes/<%= q.id %>/send" class="no-bg">
+                <i class="fa-solid fa-paper-plane" style="color:#007bff;"></i>
+            </a>
+            
             <a href="#" onclick="openPaymentModal('<%= q.id %>', '<%= q.school_id %>'); return false;" class="no-bg">
               <i class="fa-solid fa-credit-card" style="color: green;"></i>
             </a>
