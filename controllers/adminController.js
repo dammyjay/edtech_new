@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 // const nodemailer = require("nodemailer");
 const sendEmail = require("../utils/sendEmail");
+const sendEmailWithAttachment = require("../utils/sendEmailWithAttachment");
 const cloudinary = require("../utils/cloudinary");
 const buildFeedbackPDF = require("../utils/feedbackPdfTemplate");
 const buildAnalyticsPDF = require("../utils/buildAnalyticsPDF");
@@ -1154,13 +1155,14 @@ exports.getEngagementDashboard = async (req, res) => {
         ON s.id = us.school_id
 
       LEFT JOIN lessons l
-        ON l.id = COALESCE(
-          a.lesson_id,
-          NULLIF(
-            regexp_replace(a.details, '\D', '', 'g'),
-            ''
-          )::INT
-        )
+  ON l.id = COALESCE(
+    a.lesson_id,
+    CASE
+      WHEN regexp_match(a.details, '(\d+)') IS NOT NULL
+      THEN (regexp_match(a.details, '(\d+)'))[1]::INT
+      ELSE NULL
+    END
+  )
 
       LEFT JOIN modules m
         ON m.id = l.module_id
@@ -1246,7 +1248,14 @@ exports.getStudentActivities = async (req, res) => {
         FROM activities a
 
         LEFT JOIN lessons l
-          ON l.id = a.lesson_id
+  ON l.id = COALESCE(
+    a.lesson_id,
+    CASE
+      WHEN regexp_match(a.details, '(\d+)') IS NOT NULL
+      THEN (regexp_match(a.details, '(\d+)'))[1]::INT
+      ELSE NULL
+    END
+  )
 
         LEFT JOIN modules m
           ON m.id = l.module_id
@@ -7703,6 +7712,1160 @@ exports.updateQuoteStatus = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error updating status");
+  }
+};
+
+exports.addParentPayment = async (req, res) => {
+
+    try{
+
+        const {
+
+            invoice_id,
+            amount,
+            payment_method,
+            payment_note
+
+        } = req.body;
+
+        const amountValue = Number(amount);
+
+        const transactionReference =
+            "PAY-" +
+            Date.now() +
+            "-" +
+            Math.floor(Math.random()*100000);
+
+        const receiptNumber =
+            "RCT-" +
+            Date.now();
+
+        // Save payment
+
+        await pool.query(
+
+            `
+            INSERT INTO parent_payments
+            (
+                invoice_id,
+                amount,
+                payment_method,
+                transaction_reference,
+                receipt_number,
+                payment_note,
+                recorded_by
+            )
+
+            VALUES
+
+            ($1,$2,$3,$4,$5,$6,$7)
+            `,
+
+            [
+
+                invoice_id,
+
+                amountValue,
+
+                payment_method,
+
+                transactionReference,
+
+                receiptNumber,
+
+                payment_note || null,
+
+                req.session.user.id
+
+            ]
+
+        );
+
+        // Total paid
+
+        const payment = await pool.query(
+
+            `
+            SELECT
+
+                COALESCE(SUM(amount),0) total_paid
+
+            FROM parent_payments
+
+            WHERE invoice_id=$1
+            `,
+
+            [invoice_id]
+
+        );
+
+        const totalPaid =
+            Number(payment.rows[0].total_paid);
+
+        // Invoice
+
+        const invoice = await pool.query(
+
+            `
+            SELECT
+
+                agreed_amount,
+                discount
+
+            FROM parent_training_invoices
+
+            WHERE id=$1
+            `,
+
+            [invoice_id]
+
+        );
+
+        const agreed =
+            Number(invoice.rows[0].agreed_amount);
+
+        const discount =
+            Number(invoice.rows[0].discount);
+
+        const payable =
+            agreed - discount;
+
+        const balance =
+            payable - totalPaid;
+
+        let status = "pending";
+
+        if(totalPaid<=0){
+
+            status="pending";
+
+        }
+        else if(totalPaid<payable){
+
+            status="partial";
+
+        }
+        else{
+
+            status="paid";
+
+        }
+
+        await pool.query(
+
+            `
+            UPDATE parent_training_invoices
+
+            SET
+
+                total_paid=$1,
+
+                balance=$2,
+
+                status=$3
+
+            WHERE id=$4
+            `,
+
+            [
+
+                totalPaid,
+
+                balance,
+
+                status,
+
+                invoice_id
+
+            ]
+
+        );
+
+        res.redirect("/admin/parent-invoices");
+
+    }
+
+    catch(err){
+
+        console.log(err);
+
+        res.status(500).send("Payment Error");
+
+    }
+
+};
+
+exports.getParentInvoices = async (req, res) => {
+  try {
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
+
+    const invoices = await pool.query(`
+        SELECT
+            i.*,
+            p.fullname AS parent_name,
+            p.phone,
+            p.email,
+            COALESCE(
+                STRING_AGG(DISTINCT s.fullname, ', '),
+                'No Students'
+            ) AS students
+
+        FROM parent_training_invoices i
+
+        JOIN users2 p
+            ON p.id = i.parent_id
+
+        LEFT JOIN invoice_students ins
+            ON ins.invoice_id = i.id
+
+        LEFT JOIN users2 s
+            ON s.id = ins.student_id
+
+        GROUP BY
+          i.id,
+          p.id,
+          p.fullname,
+          p.phone,
+          p.email
+
+        ORDER BY i.created_at DESC
+    `);
+
+    const summary = await pool.query(`
+        SELECT
+
+            COALESCE(SUM(agreed_amount-discount),0) total_expected,
+            COALESCE(SUM(total_paid),0) total_paid,
+            COALESCE(SUM(balance),0) outstanding,
+
+            COUNT(*) FILTER (WHERE status='paid') paid_quotes,
+            COUNT(*) FILTER (WHERE status='partial') partial_quotes,
+            COUNT(*) FILTER (WHERE status='pending') pending_quotes
+
+        FROM parent_training_invoices
+    `);
+
+    const trend = await pool.query(`
+      SELECT
+          DATE(payment_date) AS payment_day,
+          TO_CHAR(DATE(payment_date), 'DD Mon') AS day,
+          SUM(amount) AS total
+      FROM parent_payments
+      GROUP BY DATE(payment_date)
+      ORDER BY DATE(payment_date)
+  `);
+
+    res.render("admin/parentInvoices", {
+      invoices: invoices.rows,
+      summary: summary.rows[0],
+      trend: trend.rows,
+      currentPage: "parentInvoices",
+      role: "admin",
+      info,
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).send("Error loading invoices");
+  }
+};
+
+exports.searchParents = async (req, res) => {
+  try {
+    const keyword = req.query.keyword || "";
+
+    const parents = await pool.query(
+      `
+      SELECT
+          id,
+          fullname,
+          email,
+          phone
+      FROM users2
+      WHERE role='parent'
+      AND (
+            fullname ILIKE $1
+            OR email ILIKE $1
+            OR phone ILIKE $1
+      )
+      ORDER BY fullname
+      LIMIT 10
+      `,
+      [`%${keyword}%`]
+    );
+
+    res.json(parents.rows);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json([]);
+  }
+};
+
+exports.getParentStudents = async (req, res) => {
+  try {
+    const { parentId } = req.params;
+
+    console.log("Parent ID:", parentId);
+
+    const students = await pool.query(
+      `
+            SELECT
+                u.id,
+                u.fullname,
+                u.email
+            FROM parent_children pc
+            JOIN users2 u
+                ON u.id = pc.child_id
+            WHERE pc.parent_id = $1
+        `,
+      [parentId],
+    );
+
+    console.log("Students:", students.rows);
+
+    res.json(students.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json([]);
+  }
+};
+
+exports.createParentTrainingInvoice = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const {
+      parent_id,
+
+      training_title,
+
+      agreed_amount,
+
+      discount,
+
+      due_date,
+
+      notes,
+
+      student_ids,
+    } = req.body;
+
+    const amount = Number(agreed_amount);
+
+    const discountValue = Number(discount || 0);
+
+    const balance = amount - discountValue;
+
+    const invoiceNumber = "INV-" + Date.now();
+
+    const invoice = await client.query(
+      `
+            INSERT INTO parent_training_invoices
+            (
+                parent_id,
+                invoice_number,
+                training_title,
+                agreed_amount,
+                discount,
+                total_paid,
+                balance,
+                due_date,
+                notes,
+                created_by
+            )
+
+            VALUES
+
+            ($1,$2,$3,$4,$5,0,$6,$7,$8,$9)
+
+            RETURNING id
+            `,
+
+      [
+        parent_id,
+
+        invoiceNumber,
+
+        training_title,
+
+        amount,
+
+        discountValue,
+
+        balance,
+
+        due_date || null,
+
+        notes,
+
+        req.session.user.id,
+      ],
+    );
+
+    const invoiceId = invoice.rows[0].id;
+
+    if (student_ids) {
+      const list = Array.isArray(student_ids) ? student_ids : [student_ids];
+
+      for (const studentId of list) {
+        await client.query(
+          `
+                    INSERT INTO invoice_students
+                    (
+                        invoice_id,
+                        student_id
+                    )
+
+                    VALUES
+
+                    ($1,$2)
+                    `,
+
+          [invoiceId, studentId],
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    res.redirect("/admin/parent-invoices");
+  } catch (err) {
+    await client.query("ROLLBACK");
+
+    console.log(err);
+
+    res.status(500).send("Unable to create invoice");
+  } finally {
+    client.release();
+  }
+};
+
+exports.downloadParentInvoicePDF = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+          i.*,
+          u.fullname AS parent_name,
+          u.email AS parent_email,
+          u.phone AS parent_phone
+      FROM parent_training_invoices i
+      JOIN users2 u
+          ON i.parent_id = u.id
+      WHERE i.id = $1
+      `,
+      [id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Invoice not found",
+      });
+    }
+
+    const invoice = result.rows[0];
+
+    // Fetch students attached to invoice
+    const studentResult = await pool.query(
+      `
+      SELECT
+          u.fullname
+      FROM invoice_students s
+      JOIN users2 u
+          ON s.student_id = u.id
+      WHERE s.invoice_id = $1
+      ORDER BY u.fullname
+      `,
+      [id],
+    );
+
+    const students = studentResult.rows;
+
+    const agreedAmount = Number(invoice.agreed_amount || 0);
+    const discount = Number(invoice.discount || 0);
+    const totalPaid = Number(invoice.total_paid || 0);
+    const balance = Number(invoice.balance || 0);
+
+    const netAmount = agreedAmount - discount;
+
+    const numberToWords = require("number-to-words");
+
+    const amountWords = numberToWords
+      .toWords(Math.round(netAmount))
+      .toUpperCase();
+
+    const today = new Date().toDateString();
+
+    const studentRows =
+      students.length > 0
+        ? students
+            .map(
+              (student, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${student.fullname}</td>
+        </tr>
+      `,
+            )
+            .join("")
+        : `
+      <tr>
+        <td colspan="2">No students attached</td>
+      </tr>
+      `;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<style>
+
+body{
+    font-family:Calibri;
+    margin:0;
+    padding:0;
+    background:#ffffff;
+    display:flex;
+    justify-content:center;
+}
+
+.container{
+    width:80%;
+    max-width:800px;
+    padding:30px;
+}
+
+.header{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:20px;
+}
+
+.header img{
+    width:70px;
+}
+
+.header-text{
+    text-align:center;
+}
+
+.title{
+    font-size:20px;
+    font-weight:bold;
+}
+
+.sub{
+    font-size:12px;
+}
+
+.top{
+    display:flex;
+    justify-content:space-between;
+    margin-top:35px;
+}
+
+.bank{
+    text-align:right;
+}
+
+.bank p{
+    margin:3px;
+}
+
+.date{
+    margin-top:15px;
+    text-align:right;
+    font-size:12px;
+}
+
+.invoice-title{
+    margin-top:15px;
+    text-align:right;
+    font-size:13px;
+    font-weight:bold;
+    color:#b89b5e;
+}
+
+.section{
+    margin-top:20px;
+}
+
+.section h3{
+    margin-bottom:8px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+
+th{
+    background:#b89b5e;
+    color:white;
+    padding:7px;
+    font-size:11px;
+}
+
+td{
+    border:1px solid #000;
+    padding:7px;
+    font-size:11px;
+    text-align:center;
+}
+
+.summary{
+    margin-top:20px;
+}
+
+.summary table{
+    width:100%;
+}
+
+.summary td{
+    text-align:left;
+    font-size:12px;
+    padding:8px;
+}
+
+.total{
+    background:black;
+    color:white;
+    font-weight:bold;
+}
+
+.words{
+    margin-top:20px;
+    font-size:12px;
+}
+
+.notes{
+    margin-top:20px;
+    font-size:12px;
+    line-height:20px;
+}
+
+.signatures{
+    margin-top:60px;
+    display:flex;
+    justify-content:space-between;
+}
+
+.sign{
+    width:40%;
+    text-align:center;
+}
+
+.line{
+    margin-top:50px;
+    border-top:1px solid black;
+}
+
+.signature-box{
+    position:relative;
+}
+
+.signature-img{
+    position:absolute;
+    height:40px;
+    left:20%;
+    bottom:10px;
+}
+
+.sign-date{
+    position:absolute;
+    right:20%;
+    bottom:10px;
+    font-size:11px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+
+<img src="https://acad.jkthub.com/images/JKT%20logo.png">
+
+<div class="header-text">
+
+<div class="title">
+JAYKIRCH TECHNOLOGY HUB
+</div>
+
+<div class="sub">
+18 Moshood Bakare Street, Gbagada Phase 1
+</div>
+
+<div class="sub">
+09166767242 | 07087522295
+</div>
+
+</div>
+
+</div>
+
+<div class="top">
+
+<div>
+
+<b>Invoice To</b><br><br>
+
+<p style="font-size:24px;margin:0;font-weight:bold;">
+${invoice.parent_name}
+</p>
+
+<p style="margin:4px 0;">
+${invoice.parent_email}
+</p>
+
+<p style="margin:4px 0;">
+${invoice.parent_phone || ""}
+</p>
+
+</div>
+
+<div class="bank">
+
+<p style="font-size:28px;color:#b89b5e;font-weight:bold;">
+Jaykirch Tech Hub
+</p>
+
+<p style="font-size:18px;">
+Access Bank
+</p>
+
+<p style="font-size:28px;">
+1582579748
+</p>
+
+</div>
+
+</div>
+
+<div class="date">
+Date: ${today}
+</div>
+
+<div class="invoice-title">
+PARENT TRAINING INVOICE
+</div>
+
+<div class="section">
+
+<h3>Students Covered</h3>
+
+<table>
+
+<tr>
+<th>S/N</th>
+<th>Student Name</th>
+</tr>
+
+${studentRows}
+
+</table>
+
+</div>
+
+</div>
+
+<div class="section">
+
+<h3>Invoice Summary</h3>
+
+<table>
+
+<tr>
+<th>Description</th>
+<th>Amount (₦)</th>
+</tr>
+
+<tr>
+<td>Training Title</td>
+<td>${invoice.training_title}</td>
+</tr>
+
+<tr>
+<td>Agreed Amount</td>
+<td>₦${agreedAmount.toLocaleString()}</td>
+</tr>
+
+<tr>
+<td>Discount</td>
+<td>₦${discount.toLocaleString()}</td>
+</tr>
+
+<tr class="total">
+<td>Net Amount</td>
+<td>₦${netAmount.toLocaleString()}</td>
+</tr>
+
+<tr>
+<td>Total Paid</td>
+<td>₦${totalPaid.toLocaleString()}</td>
+</tr>
+
+<tr>
+<td>Balance</td>
+<td>₦${balance.toLocaleString()}</td>
+</tr>
+
+<tr>
+<td>Payment Plan</td>
+<td>${invoice.payment_plan}</td>
+</tr>
+
+<tr>
+<td>Due Date</td>
+<td>${
+      invoice.due_date
+        ? new Date(invoice.due_date).toDateString()
+        : "Not Specified"
+    }</td>
+</tr>
+
+<tr>
+<td>Status</td>
+<td style="
+font-weight:bold;
+color:${
+      invoice.status === "paid"
+        ? "green"
+        : invoice.status === "partial"
+          ? "orange"
+          : "red"
+    };
+">
+${invoice.status.toUpperCase()}
+</td>
+</tr>
+
+</table>
+
+</div>
+
+<div class="words">
+
+<b>AMOUNT IN WORDS:</b>
+
+${amountWords} NAIRA ONLY
+
+</div>
+
+${
+  invoice.notes
+    ? `
+<div class="notes">
+
+<b>Notes</b>
+
+<p>${invoice.notes}</p>
+
+</div>
+`
+    : ""
+}
+
+<div class="notes">
+
+<b>Payment Details</b>
+
+<p>
+
+Bank Name: <b>Access Bank</b><br>
+
+Account Name: <b>Jaykirch Technology Hub</b><br>
+
+Account Number: <b>1582579748</b>
+
+</p>
+
+</div>
+
+<div class="signatures">
+
+<div class="sign">
+
+<div class="line"></div>
+
+Parent Signature
+
+</div>
+
+<div class="sign">
+
+<div class="signature-box">
+
+<img
+src="https://acad.jkthub.com/images/Signature.jpg"
+class="signature-img"
+/>
+
+<div class="sign-date">
+
+${today}
+
+</div>
+
+<div class="line"></div>
+
+</div>
+
+CEO Signature
+
+</div>
+
+</div>
+
+</div>
+
+</body>
+
+</html>
+`;
+
+    const pdf = await generatePdf(html);
+
+    await sendEmailWithAttachment(
+      invoice.parent_email,
+
+      `Training Invoice - ${invoice.invoice_number}`,
+
+      `
+<div style="
+background:#f4f4f4;
+padding:40px;
+font-family:Calibri,Arial;
+">
+
+<div style="
+max-width:700px;
+margin:auto;
+background:white;
+border-radius:10px;
+overflow:hidden;
+">
+
+<div style="
+background:#b89b5e;
+padding:35px;
+text-align:center;
+color:white;
+">
+
+<img
+src="https://acad.jkthub.com/images/JKT%20logo.png"
+width="80">
+
+<h2 style="margin:15px 0 5px;">
+Jaykirch Technology Hub
+</h2>
+
+<p style="margin:0;">
+Training Invoice
+</p>
+
+</div>
+
+<div style="padding:35px;">
+
+<p>
+
+Dear <b>${invoice.parent_name}</b>,
+
+</p>
+
+<p>
+
+Thank you for choosing
+<b>Jaykirch Technology Hub.</b>
+
+Please find attached your
+training invoice.
+
+</p>
+
+<table
+style="
+width:100%;
+border-collapse:collapse;
+margin:25px 0;
+">
+
+<tr>
+
+<td style="padding:10px;"><b>Invoice Number</b></td>
+
+<td>${invoice.invoice_number}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Training</b></td>
+
+<td>${invoice.training_title}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Students</b></td>
+
+<td>${students.length}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Amount</b></td>
+
+<td>₦${netAmount.toLocaleString()}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Paid</b></td>
+
+<td>₦${totalPaid.toLocaleString()}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Balance</b></td>
+
+<td>₦${balance.toLocaleString()}</td>
+
+</tr>
+
+<tr>
+
+<td style="padding:10px;"><b>Due Date</b></td>
+
+<td>${
+        invoice.due_date
+          ? new Date(invoice.due_date).toDateString()
+          : "Not Specified"
+      }</td>
+
+</tr>
+
+</table>
+
+<p>
+
+Kindly make payment before the due date.
+
+</p>
+
+<div style="
+background:#faf8f1;
+padding:20px;
+border-left:5px solid #b89b5e;
+">
+
+<b>Payment Details</b>
+
+<br><br>
+
+Access Bank
+
+<br>
+
+Account Name:
+<b>Jaykirch Technology Hub</b>
+
+<br>
+
+Account Number:
+<b>1582579748</b>
+
+</div>
+
+<br>
+
+If payment has already been made, kindly ignore this email.
+
+<br><br>
+
+Regards,
+
+<br>
+
+<b>Jaykirch Technology Hub</b>
+
+</div>
+
+<div style="
+background:#222;
+color:white;
+padding:20px;
+text-align:center;
+font-size:12px;
+">
+
+© ${new Date().getFullYear()} Jaykirch Technology Hub
+
+</div>
+
+</div>
+
+</div>
+`,
+
+      `${invoice.invoice_number}.pdf`,
+
+      pdf,
+    );
+
+    await pool.query(
+      `
+      UPDATE parent_training_invoices
+      SET status='sent'
+      WHERE id=$1
+      AND status='pending'
+      `,
+      [id],
+    );
+
+    res.setHeader("Content-Type", "application/pdf");
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${invoice.parent_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+    );
+
+    res.send(pdf);
+    } catch (err) {
+    console.error("DOWNLOAD INVOICE ERROR");
+    console.error(err);
+
+    if (err.response) {
+      console.error(err.response.body || err.response.data);
+    }
+
+    res.status(500).json({
+      message: err.message,
+      error: err.response?.body || err.stack,
+    });
   }
 };
 

@@ -500,6 +500,23 @@ router.post("/payments", adminController.addPayment);
 router.get("/quotes", adminController.getQuotes);
 router.get("/quotes/:id/download", adminController.downloadQuotePDF);
 router.post("/quotes/:id/status", adminController.updateQuoteStatus);
+router.get("/parent-invoices", adminController.getParentInvoices);
+
+router.post("/parent-payments", adminController.addParentPayment);
+router.get("/api/parents/search", adminController.searchParents);
+
+router.get(
+  "/api/parents/:parentId/students",
+  adminController.getParentStudents,
+);
+router.post(
+  "/parent-training-invoices/create",
+  adminController.createParentTrainingInvoice,
+);
+router.get(
+  "/parent-invoices/:id/download",
+  adminController.downloadParentInvoicePDF,
+);
 router.get("/school-courses", adminController.getSchoolCourses);
 router.post("/school-courses/assign", adminController.assignSchoolCourses);
 

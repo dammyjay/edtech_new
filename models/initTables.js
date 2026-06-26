@@ -913,17 +913,59 @@ async function createTables() {
     `);
 
     await pool.query(`
-      
+        CREATE TABLE IF NOT EXISTS parent_training_invoices (
+          id SERIAL PRIMARY KEY,
+          parent_id INT NOT NULL REFERENCES users2(id),
+          invoice_number VARCHAR(50) UNIQUE,
+          training_title VARCHAR(255) DEFAULT 'Training Fee',
+          agreed_amount NUMERIC(12,2) NOT NULL,
+          discount NUMERIC(12,2) DEFAULT 0,
+          total_paid NUMERIC(12,2) DEFAULT 0,
+          balance NUMERIC(12,2) DEFAULT 0,
+          payment_plan VARCHAR(30) DEFAULT 'One Time',
+          due_date DATE,
+          notes TEXT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_by INT REFERENCES users2(id),
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      ALTER TABLE parent_training_invoices
+      ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS last_sent_by INT REFERENCES users2(id);
       
     `);
 
     await pool.query(`
-      
+      CREATE TABLE IF NOT EXISTS parent_payments (
+        id SERIAL PRIMARY KEY,
+        invoice_id INT NOT NULL
+            REFERENCES parent_training_invoices(id)
+            ON DELETE CASCADE,
+        amount NUMERIC(12,2) NOT NULL,
+        payment_method VARCHAR(50),
+        transaction_reference VARCHAR(100),
+        payment_note TEXT,
+        receipt_number VARCHAR(50),
+        recorded_by INT
+            REFERENCES users2(id),
+        payment_date TIMESTAMP DEFAULT NOW()
+    );
       
     `);
 
     await pool.query(`
-      
+      CREATE TABLE IF NOT EXISTS invoice_students (
+          id SERIAL PRIMARY KEY,
+          invoice_id INT NOT NULL
+              REFERENCES parent_training_invoices(id)
+              ON DELETE CASCADE,
+          student_id INT NOT NULL
+              REFERENCES users2(id)
+              ON DELETE CASCADE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(invoice_id, student_id)
+      );
       
     `);
 

@@ -31,6 +31,8 @@
     --border-dark: #b0b0b0;
 }
 
+
+
 body {
     font-family: 'Inter', sans-serif;
     background: #f9f9fb;
@@ -43,6 +45,46 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 10px;
+}
+
+.status-paid {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.status-partial {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.status-pending {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.status-overdue {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.status-upcoming {
+    background: #f3f4f6;
+    color: #111827;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
 }
 
 /* === Main Content === */
@@ -3089,6 +3131,50 @@ i {
 .chart-card {
     width: 100%;
     overflow-x: auto;
+}
+
+.autocomplete-box {
+
+    border: 1px solid #ddd;
+
+    max-height: 220px;
+
+    overflow-y: auto;
+
+    background: #fff;
+
+    display: none;
+
+    position: relative;
+
+    z-index: 1000;
+
+}
+
+.autocomplete-item {
+
+    padding: 10px;
+
+    cursor: pointer;
+
+}
+
+.autocomplete-item:hover {
+
+    background: #f5f5f5;
+
+}
+
+.student-item {
+
+    margin: 8px 0;
+
+}
+
+.student-item label {
+
+    cursor: pointer;
+
 }
 
 /* Optional: reduce padding on very small screens */
