@@ -8306,6 +8306,8 @@ exports.createParentTrainingInvoice = async (req, res) => {
 
       due_date,
 
+      grace_days,
+
       notes,
 
       student_ids,
@@ -8331,13 +8333,14 @@ exports.createParentTrainingInvoice = async (req, res) => {
                 total_paid,
                 balance,
                 due_date,
+                grace_days,
                 notes,
                 created_by
             )
 
             VALUES
 
-            ($1,$2,$3,$4,$5,0,$6,$7,$8,$9)
+            ($1,$2,$3,$4,$5,0,$6,$7,$8,$9,$10)
 
             RETURNING id
             `,
@@ -8356,6 +8359,8 @@ exports.createParentTrainingInvoice = async (req, res) => {
         balance,
 
         due_date || null,
+
+        Number(grace_days || 0),
 
         notes,
 
@@ -8822,10 +8827,17 @@ ${studentRows}
 <tr>
 <td>Due Date</td>
 <td>
+${dueDate ? dueDate.toDateString() : "Not Specified"}
+</td>
+</tr>
+
+<tr>
+<td style="padding:10px;"><b>Grace Period</b></td>
+<td>
 ${
-dueDate
-? dueDate.toDateString()
-: "Not Specified"
+  Number(invoice.grace_days) > 0
+    ? `${invoice.grace_days} day${invoice.grace_days > 1 ? "s" : ""}`
+    : "No Grace Period"
 }
 </td>
 </tr>
@@ -8834,13 +8846,7 @@ dueDate
 <td>Payment Timeline</td>
 <td style="
 font-weight:bold;
-color:${
-isOverdue
-? "red"
-: balance <= 0
-? "green"
-: "#b89b5e"
-};
+color:${isOverdue ? "red" : balance <= 0 ? "green" : "#b89b5e"};
 ">
 ${dueMessage}
 </td>
@@ -8852,23 +8858,17 @@ ${dueMessage}
 <td style="
 font-weight:bold;
 color:${
-balance <= 0
-? "green"
-: isOverdue
-? "red"
-: invoice.status==="partial"
-? "orange"
-: "#b89b5e"
-};
+      balance <= 0
+        ? "green"
+        : isOverdue
+          ? "red"
+          : invoice.status === "partial"
+            ? "orange"
+            : "#b89b5e"
+    };
 ">
 
-${
-balance <= 0
-? "PAID"
-: isOverdue
-? "OVERDUE"
-: invoice.status.toUpperCase()
-}
+${balance <= 0 ? "PAID" : isOverdue ? "OVERDUE" : invoice.status.toUpperCase()}
 
 </td>
 
@@ -9257,36 +9257,55 @@ exports.generateParentReceipt = async (req, res, invoice) => {
           ? new Date(payment.payment_date).toDateString()
           : new Date().toDateString(); 
 
-      let paymentTimeline = "Not Fully Paid";
+      // let paymentTimeline = "Not Fully Paid";
 
-      if (invoice.status === "paid" && payment && invoice.due_date) {
+      // if (invoice.status === "paid" && payment && invoice.due_date) {
 
-          const due = new Date(invoice.due_date);
-          const paid = new Date(payment.payment_date);
+      //     const due = new Date(invoice.due_date);
+      //     const paid = new Date(payment.payment_date);
 
-          due.setHours(0,0,0,0);
-          paid.setHours(0,0,0,0);
+      //     due.setHours(0,0,0,0);
+      //     paid.setHours(0,0,0,0);
 
-          const diff = Math.floor(
-              (paid - due) / (1000 * 60 * 60 * 24)
-          );
+      //     const diff = Math.floor(
+      //         (paid - due) / (1000 * 60 * 60 * 24)
+      //     );
 
-          if (diff < 0) {
-              paymentTimeline = `${Math.abs(diff)} day${Math.abs(diff) > 1 ? "s" : ""} Early`;
-          } else if (diff === 0) {
-              paymentTimeline = "Paid On Time";
-          } else {
-              paymentTimeline = `${diff} day${diff > 1 ? "s" : ""} Late`;
-          }
+      //     if (diff < 0) {
+      //         paymentTimeline = `${Math.abs(diff)} day${Math.abs(diff) > 1 ? "s" : ""} Early`;
+      //     } else if (diff === 0) {
+      //         paymentTimeline = "Paid On Time";
+      //     } else {
+      //         paymentTimeline = `${diff} day${diff > 1 ? "s" : ""} Late`;
+      //     }
+    // }
+    
+    let paymentTimeline = "Not Fully Paid";
+
+    if (invoice.status === "paid" && payment && invoice.due_date) {
+      const dueDate = new Date(invoice.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      const graceEnd = new Date(invoice.due_date);
+      graceEnd.setDate(graceEnd.getDate() + Number(invoice.grace_days || 0));
+      graceEnd.setHours(0, 0, 0, 0);
+
+      const paid = new Date(payment.payment_date);
+      paid.setHours(0, 0, 0, 0);
+
+      if (paid <= dueDate) {
+        paymentTimeline = "Paid On Time";
+      } else if (paid <= graceEnd) {
+        paymentTimeline = `Paid During ${invoice.grace_days}-Day Grace Period`;
+      } else {
+        const diff = Math.floor((paid - graceEnd) / (1000 * 60 * 60 * 24));
+
+        paymentTimeline = `${diff} day${diff > 1 ? "s" : ""} Late (After Grace Period)`;
       }
+    }
     const receiptNumber = invoice.invoice_number
       ? invoice.invoice_number.replace(/^INV/i, "RCPT")
       : `RCPT-${invoice.id}`;
-
-    // const paymentDate =
-    //     invoice.payment_date
-    //         ? new Date(invoice.payment_date).toDateString()
-    //         : new Date().toDateString();
 
     const studentRows =
       students.length
@@ -9595,12 +9614,16 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <td>₦${totalPaid.toLocaleString()}</td>
         </tr>
 
-        ${Number(invoice.excess_payment) > 0 ? `
+        ${
+          Number(invoice.excess_payment) > 0
+            ? `
         <tr>
             <td>Excess Payment</td>
             <td>₦${Number(invoice.excess_payment).toLocaleString()}</td>
         </tr>
-        ` : ""}
+        `
+            : ""
+        }
 
         <tr>
         <td>Payment Method</td>
@@ -9611,16 +9634,27 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <td>Payment Performance</td>
           <td style="
           color:${
-              paymentTimeline.includes("Late")
-                  ? "red"
-                  : paymentTimeline.includes("Early")
-                  ? "green"
-                  : "#198754"
+            paymentTimeline.includes("Late")
+              ? "red"
+              : paymentTimeline.includes("Early")
+                ? "green"
+                : "#198754"
           };
           font-weight:bold;
           ">
           ${paymentTimeline}
           </td>
+          </tr>
+
+          <tr>
+              <td>Grace Period</td>
+              <td>
+                  ${
+                    Number(invoice.grace_days) > 0
+                      ? `${invoice.grace_days} day${invoice.grace_days > 1 ? "s" : ""}`
+                      : "No Grace Period"
+                  }
+              </td>
           </tr>
 
         <tr>
@@ -9666,7 +9700,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         </p>
 
         ${
-            invoice.status === "paid"
+          invoice.status === "paid"
             ? `
             <p>
             The total amount of
