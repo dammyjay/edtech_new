@@ -438,6 +438,14 @@
         name="amount"
         required>
 
+        <label>Payment Date</label>
+
+        <input
+            type="date"
+            name="payment_date"
+            value="<%= new Date().toISOString().split('T')[0] %>"
+            required>
+
         <label>
 
         Payment Note

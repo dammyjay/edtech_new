@@ -932,8 +932,9 @@ async function createTables() {
 
       ALTER TABLE parent_training_invoices
       ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS last_sent_by INT REFERENCES users2(id);
-      
+      ADD COLUMN IF NOT EXISTS last_sent_by INT REFERENCES users2(id),
+      ADD COLUMN IF NOT EXISTS excess_payment NUMERIC(12,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS final_payment_date TIMESTAMP;
     `);
 
     await pool.query(`

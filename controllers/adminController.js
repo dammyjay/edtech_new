@@ -7879,7 +7879,8 @@ exports.addParentPayment = async (req, res) => {
             invoice_id,
             amount,
             payment_method,
-            payment_note
+            payment_note,
+            payment_date
 
         } = req.body;
 
@@ -7908,12 +7909,13 @@ exports.addParentPayment = async (req, res) => {
                 transaction_reference,
                 receipt_number,
                 payment_note,
+                payment_date,
                 recorded_by
             )
 
             VALUES
 
-            ($1,$2,$3,$4,$5,$6,$7)
+            ($1,$2,$3,$4,$5,$6,$7,$8)
             `,
 
             [
@@ -7930,6 +7932,8 @@ exports.addParentPayment = async (req, res) => {
 
                 payment_note || null,
 
+                payment_date,
+
                 req.session.user.id
 
             ]
@@ -7938,24 +7942,38 @@ exports.addParentPayment = async (req, res) => {
 
         // Total paid
 
+        // const payment = await pool.query(
+
+        //     `
+        //     SELECT
+
+        //         COALESCE(SUM(amount),0) total_paid
+
+        //     FROM parent_payments
+
+        //     WHERE invoice_id=$1
+        //     `,
+
+        //     [invoice_id]
+
+        // );
+
+        // const totalPaid =
+        //     Number(payment.rows[0].total_paid);
+
         const payment = await pool.query(
-
-            `
-            SELECT
-
-                COALESCE(SUM(amount),0) total_paid
-
-            FROM parent_payments
-
-            WHERE invoice_id=$1
-            `,
-
-            [invoice_id]
-
+        `
+        SELECT
+            COALESCE(SUM(amount),0) AS total_paid,
+            MAX(payment_date) AS final_payment_date
+        FROM parent_payments
+        WHERE invoice_id=$1
+        `,
+        [invoice_id]
         );
 
-        const totalPaid =
-            Number(payment.rows[0].total_paid);
+        const totalPaid = Number(payment.rows[0].total_paid);
+        const finalPaymentDate = payment.rows[0].final_payment_date;
 
         // Invoice
 
@@ -7985,8 +8003,8 @@ exports.addParentPayment = async (req, res) => {
         const payable =
             agreed - discount;
 
-        const balance =
-            payable - totalPaid;
+        const excessPayment = Math.max(0, totalPaid - payable);
+        const balance = Math.max(0, payable - totalPaid);
 
         let status = "pending";
 
@@ -8017,9 +8035,11 @@ exports.addParentPayment = async (req, res) => {
 
                 balance=$2,
 
-                status=$3
+                excess_payment =$3,
 
-            WHERE id=$4
+                status=$4,
+                final_payment_date = $5
+            WHERE id = $6
             `,
 
             [
@@ -8028,13 +8048,18 @@ exports.addParentPayment = async (req, res) => {
 
                 balance,
 
+                excessPayment,
+
                 status,
+
+                finalPaymentDate,
 
                 invoice_id
 
             ]
 
         );
+
 
         res.redirect("/admin/parent-invoices");
 
@@ -9140,14 +9165,53 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         .toWords(Math.round(totalPaid))
         .toUpperCase();
 
+    const paymentResult = await pool.query(
+      `
+      SELECT payment_date, payment_method
+      FROM parent_payments
+      WHERE invoice_id = $1
+      ORDER BY payment_date DESC
+      LIMIT 1
+      `,
+      [invoice.id]
+      );
+
+      const payment = paymentResult.rows[0];
+
+      const paymentDate = payment
+          ? new Date(payment.payment_date).toDateString()
+          : new Date().toDateString(); 
+
+      let paymentTimeline = "Not Fully Paid";
+
+      if (invoice.status === "paid" && payment && invoice.due_date) {
+
+          const due = new Date(invoice.due_date);
+          const paid = new Date(payment.payment_date);
+
+          due.setHours(0,0,0,0);
+          paid.setHours(0,0,0,0);
+
+          const diff = Math.floor(
+              (paid - due) / (1000 * 60 * 60 * 24)
+          );
+
+          if (diff < 0) {
+              paymentTimeline = `${Math.abs(diff)} day${Math.abs(diff) > 1 ? "s" : ""} Early`;
+          } else if (diff === 0) {
+              paymentTimeline = "Paid On Time";
+          } else {
+              paymentTimeline = `${diff} day${diff > 1 ? "s" : ""} Late`;
+          }
+      }
     const receiptNumber = invoice.invoice_number
       ? invoice.invoice_number.replace(/^INV/i, "RCPT")
       : `RCPT-${invoice.id}`;
 
-    const paymentDate =
-        invoice.payment_date
-            ? new Date(invoice.payment_date).toDateString()
-            : new Date().toDateString();
+    // const paymentDate =
+    //     invoice.payment_date
+    //         ? new Date(invoice.payment_date).toDateString()
+    //         : new Date().toDateString();
 
     const studentRows =
       students.length
@@ -9395,7 +9459,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
 
       <br>
 
-      <p><b>Payment Date</b></p>
+      <p><b>Final Payment Date</b></p>
 
       <p>${paymentDate}</p>
 
@@ -9456,10 +9520,33 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <td>₦${totalPaid.toLocaleString()}</td>
         </tr>
 
+        ${Number(invoice.excess_payment) > 0 ? `
+        <tr>
+            <td>Excess Payment</td>
+            <td>₦${Number(invoice.excess_payment).toLocaleString()}</td>
+        </tr>
+        ` : ""}
+
         <tr>
         <td>Payment Method</td>
-        <td>${invoice.payment_method || "Bank Transfer"}</td>
+        <td>${payment?.payment_method || "Bank Transfer"}</td>
         </tr>
+
+        <tr>
+        <td>Payment Performance</td>
+          <td style="
+          color:${
+              paymentTimeline.includes("Late")
+                  ? "red"
+                  : paymentTimeline.includes("Early")
+                  ? "green"
+                  : "#198754"
+          };
+          font-weight:bold;
+          ">
+          ${paymentTimeline}
+          </td>
+          </tr>
 
         <tr>
         <td>Payment Status</td>
@@ -9503,15 +9590,25 @@ exports.generateParentReceipt = async (req, res, invoice) => {
 
         </p>
 
-        <p>
-
-        The total amount of
-
-        <b>₦${totalPaid.toLocaleString()}</b>
-
-        has been received and the invoice has been fully settled.
-
-        </p>
+        ${
+            invoice.status === "paid"
+            ? `
+            <p>
+            The total amount of
+            <b>₦${totalPaid.toLocaleString()}</b>
+            has been received and the invoice has been fully settled.
+            </p>
+            `
+            : `
+            <p>
+            A payment of
+            <b>₦${totalPaid.toLocaleString()}</b>
+            has been received.
+            The remaining balance is
+            <b>₦${Number(invoice.balance).toLocaleString()}</b>.
+            </p>
+            `
+        }
 
         <p>
 
@@ -9668,14 +9765,24 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         </tr>
 
         <tr>
-        <td style="padding:10px;"><b>Payment Date</b></td>
+        <td style="padding:10px;"><b>Final Payment Date</b></td>
         <td>${paymentDate}</td>
         </tr>
 
         <tr>
         <td style="padding:10px;"><b>Status</b></td>
-        <td style="color:green;font-weight:bold;">
-        PAID
+        <td
+        style="
+        font-weight:bold;
+        color:${
+            invoice.status === "paid"
+                ? "green"
+                : invoice.status === "partial"
+                ? "#f39c12"
+                : "red"
+        };
+        ">
+        ${invoice.status.toUpperCase()}
         </td>
         </tr>
 

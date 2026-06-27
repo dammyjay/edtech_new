@@ -96,7 +96,7 @@ exports.viewTable = async (req, res) => {
 
     invoice_id: {
       table: "parent_training_invoices",
-      nameColumn: invoice_number,
+      nameColumn: "invoice_number",
     },
   };
 
