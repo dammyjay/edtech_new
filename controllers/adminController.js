@@ -8082,38 +8082,73 @@ exports.getParentInvoices = async (req, res) => {
     );
     const info = infoResult.rows[0] || {};
 
+    // const invoices = await pool.query(`
+    //     SELECT
+    //         i.*,
+    //         p.fullname AS parent_name,
+    //         p.phone,
+    //         p.email,
+    //         COALESCE(
+    //             STRING_AGG(DISTINCT s.fullname, ', '),
+    //             'No Students'
+    //         ) AS students
+
+    //     FROM parent_training_invoices i
+
+    //     JOIN users2 p
+    //         ON p.id = i.parent_id
+
+    //     LEFT JOIN invoice_students ins
+    //         ON ins.invoice_id = i.id
+
+    //     LEFT JOIN users2 s
+    //         ON s.id = ins.student_id
+
+    //     GROUP BY
+    //       i.id,
+    //       p.id,
+    //       p.fullname,
+    //       p.phone,
+    //       p.email
+
+    //     ORDER BY i.created_at DESC
+    // `);
+
     const invoices = await pool.query(`
-        SELECT
-            i.*,
-            p.fullname AS parent_name,
-            p.phone,
-            p.email,
-            COALESCE(
-                STRING_AGG(DISTINCT s.fullname, ', '),
-                'No Students'
-            ) AS students
+      SELECT
+          i.*,
 
-        FROM parent_training_invoices i
+          p.fullname AS parent_name,
+          p.phone,
+          p.email,
 
-        JOIN users2 p
-            ON p.id = i.parent_id
+          (i.agreed_amount - i.discount) AS payable,
 
-        LEFT JOIN invoice_students ins
-            ON ins.invoice_id = i.id
+          COALESCE(
+              STRING_AGG(DISTINCT s.fullname, ', '),
+              'No Students'
+          ) AS students
 
-        LEFT JOIN users2 s
-            ON s.id = ins.student_id
+      FROM parent_training_invoices i
 
-        GROUP BY
+      JOIN users2 p
+      ON p.id=i.parent_id
+
+      LEFT JOIN invoice_students ins
+      ON ins.invoice_id=i.id
+
+      LEFT JOIN users2 s
+      ON s.id=ins.student_id
+
+      GROUP BY
           i.id,
           p.id,
           p.fullname,
           p.phone,
           p.email
 
-        ORDER BY i.created_at DESC
-    `);
-
+      ORDER BY i.created_at DESC
+      `);
     const summary = await pool.query(`
         SELECT
 
@@ -8150,6 +8185,46 @@ exports.getParentInvoices = async (req, res) => {
     console.log(err);
 
     res.status(500).send("Error loading invoices");
+  }
+};
+
+exports.getInvoicePayments = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `
+        SELECT
+
+            pp.id,
+            pp.amount,
+            pp.payment_method,
+            pp.payment_date,
+            pp.transaction_reference,
+            pp.receipt_number,
+            pp.payment_note,
+
+            u.fullname recorded_by
+
+        FROM parent_payments pp
+
+        LEFT JOIN users2 u
+        ON u.id=pp.recorded_by
+
+        WHERE invoice_id=$1
+
+        ORDER BY payment_date DESC
+        `,
+      [id],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      message: "Unable to load payments",
+    });
   }
 };
 

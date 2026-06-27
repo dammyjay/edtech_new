@@ -27,143 +27,178 @@
 
   <div class="filter-row">
 
-    <label style="margin-left:8px;">School:
-      <select id="schoolFilter"><option value="">All Schools</option></select>
-    </label>
+            <label style="margin-left:8px;">School:
+            <select id="schoolFilter"><option value="">All Schools</option></select>
+            </label>
 
-    <button id="refreshBtn">Refresh</button>
-  </div>
-
-  <!-- 🔥 FINANCE CARDS -->
-  <section class="section">
-    <div class="engagement-grid">
-
-      <!-- TOTAL EXPECTED -->
-      <div class="metric-card">
-            <div class="card-title blue-bg">
-                <p>Total Expected</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon blue-bg">
-                  <i class="fa-solid fa-money-bill-wave"></i>
-                </div>
-                <h4 id="cardTotalExpected">₦0</h4>
-            </div>
+            <button id="refreshBtn">Refresh</button>
         </div>
 
-      <!-- TOTAL PAID -->
-       <div class="metric-card">
-            <div class="card-title dark-green-bg">
-                <p>Total Collected</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-green-bg">
-                  <i class="fa-solid fa-check"></i>
+        <!-- 🔥 FINANCE CARDS -->
+        <section class="section">
+            <div class="engagement-grid">
+
+            <!-- TOTAL EXPECTED -->
+            <div class="metric-card">
+                    <div class="card-title blue-bg">
+                        <p>Total Expected</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon blue-bg">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                        <h4 id="cardTotalExpected">₦0</h4>
+                    </div>
                 </div>
-                <h4 id="cardTotalPaid">₦0</h4>
+
+            <!-- TOTAL PAID -->
+            <div class="metric-card">
+                    <div class="card-title dark-green-bg">
+                        <p>Total Collected</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon dark-green-bg">
+                        <i class="fa-solid fa-check"></i>
+                        </div>
+                        <h4 id="cardTotalPaid">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- OUTSTANDING -->
+            <div class="metric-card">
+                    <div class="card-title dark-red-bg">
+                        <p>Outstanding</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon dark-red-bg">
+                        <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <h4 id="cardOutstanding">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- COLLECTION RATE -->
+            <div class="metric-card">
+                    <div class="card-title purple-bg">
+                        <p>Collection Rate</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon purple-bg">
+                        <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <h4 id="cardCollectionRate">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- PAID QUOTES -->
+            <div class="metric-card">
+                    <div class="card-title green-bg">
+                        <p>Paid Quotes</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon green-bg">
+                        <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <h4 id="cardPaidQuotes">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- PARTIAL -->
+            <div class="metric-card">
+                    <div class="card-title orange-bg">
+                        <p>Partial Payments</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon orange-bg">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h4 id="cardPartialQuotes">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- UNPAID -->
+            <div class="metric-card">
+                    <div class="card-title dark-red-bg">
+                        <p>Overdue Payment</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon dark-red-bg">
+                        <i class="fa-solid fa-xmark"></i>
+                        </div>
+                        <h4 id="cardUnpaidQuotes">₦0</h4>
+                    </div>
+                </div>
+
+            <!-- Pending -->
+            <div class="metric-card">
+                    <div class="card-title indigo-bg">
+                        <p>Ongoing Quotes</p>
+                    </div>
+                    <div class="metric-card-content">
+                        <div class="card-icon indigo-bg">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <h4 id="cardPendingQuotes">₦0</h4>
+                    </div>
+                </div>
+
             </div>
+        </section>
+        <div class="chart-card">
+            <h4>Payment Trends</h4>
+            <canvas id="paymentChart" height="150"></canvas>
+        </div>
         </div>
 
-      <!-- OUTSTANDING -->
-       <div class="metric-card">
-            <div class="card-title dark-red-bg">
-                <p>Outstanding</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-red-bg">
-                  <i class="fa-solid fa-clock"></i>
-                </div>
-                <h4 id="cardOutstanding">₦0</h4>
-            </div>
+        <!-- <input type="text" id="searchInput" placeholder="Search quotes..." />
+            <select id="statusFilter">
+            <option value="">All</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="overdue">Overdue</option>
+            <option value="pending">Ongoing</option>
+            <option value="upcoming">Upcoming</option>
+            </select> -->
+
+            <div class="filter-row">
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search Invoice, Parent, Student, Training...">
+
+            <select id="statusFilter">
+                <option value="">All Status</option>
+                <option value="paid">Paid</option>
+                <option value="partial">Partial</option>
+                <option value="pending">Pending</option>
+            </select>
+
+            <select id="paymentFilter">
+                <option value="">Payment Progress</option>
+                <option value="paid">Fully Paid</option>
+                <option value="balance">Has Balance</option>
+                <option value="excess">Excess Payment</option>
+            </select>
+
+            <select id="dueFilter">
+
+                <option value="">Due Date</option>
+
+                <option value="overdue">Overdue</option>
+
+                <option value="today">Due Today</option>
+
+                <option value="upcoming">Upcoming</option>
+
+            </select>
+
         </div>
-
-      <!-- COLLECTION RATE -->
-       <div class="metric-card">
-            <div class="card-title purple-bg">
-                <p>Collection Rate</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon purple-bg">
-                  <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <h4 id="cardCollectionRate">₦0</h4>
-            </div>
-        </div>
-
-      <!-- PAID QUOTES -->
-       <div class="metric-card">
-            <div class="card-title green-bg">
-                <p>Paid Quotes</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon green-bg">
-                  <i class="fa-solid fa-circle-check"></i>
-                </div>
-                <h4 id="cardPaidQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- PARTIAL -->
-       <div class="metric-card">
-            <div class="card-title orange-bg">
-                <p>Partial Payments</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon orange-bg">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                </div>
-                <h4 id="cardPartialQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- UNPAID -->
-       <div class="metric-card">
-            <div class="card-title dark-red-bg">
-                <p>Overdue Payment</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-red-bg">
-                  <i class="fa-solid fa-xmark"></i>
-                </div>
-                <h4 id="cardUnpaidQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- Pending -->
-       <div class="metric-card">
-            <div class="card-title indigo-bg">
-                <p>Ongoing Quotes</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon indigo-bg">
-                  <i class="fa-solid fa-hourglass-half"></i>
-                </div>
-                <h4 id="cardPendingQuotes">₦0</h4>
-            </div>
-        </div>
-
-    </div>
-  </section>
-  <div class="chart-card">
-    <h4>Payment Trends</h4>
-    <canvas id="paymentChart" height="150"></canvas>
-  </div>
-</div>
-
-<input type="text" id="searchInput" placeholder="Search quotes..." />
-    <select id="statusFilter">
-      <option value="">All</option>
-      <option value="paid">Paid</option>
-      <option value="partial">Partial</option>
-      <option value="overdue">Overdue</option>
-      <option value="pending">Ongoing</option>
-      <option value="upcoming">Upcoming</option>
-    </select>
 
 <div class="table-responsive">
   <table class="user-table" style="width:100%; margin-top:20px;">
 
-    <thead>
+    <!-- <thead>
         <tr>
 
         <th>Invoice</th>
@@ -186,11 +221,43 @@
 
         </tr>
 
+    </thead> -->
+  
+    <thead>
+        <tr>
+
+        <th>Invoice No</th>
+
+        <th>Created Date</th>
+
+        <th>Due Date</th>
+
+        <th>Final Payment</th>
+
+        <th>Parent</th>
+
+        <th>Students</th>
+
+        <th>Training</th>
+
+        <th>Payable</th>
+
+        <th>Paid</th>
+
+        <th>Balance</th>
+
+        <th>Excess</th>
+
+        <th>Status</th>
+
+        <th>Actions</th>
+
+        </tr>
     </thead>
     <tbody>
         <% invoices.forEach(invoice=>{ %>
 
-            <tr>
+            <!-- <tr>
 
             <td>
 
@@ -284,10 +351,193 @@
 
                 </button>
 
+                <button
+                    class="btn btn-info btn-sm"
+                    onclick="viewPayments(<%= invoice.id %>)">
+                    <i class="fa fa-history"></i>
+                </button>
+
             </td>
 
-            </tr>
+            </tr> -->
 
+            <tr
+
+                data-status="<%= invoice.status %>"
+
+                data-parent="<%= invoice.parent_name.toLowerCase() %>"
+
+                data-training="<%= invoice.training_title.toLowerCase() %>"
+
+                data-students="<%= invoice.students.toLowerCase() %>"
+
+                data-balance="<%= invoice.balance %>"
+
+                data-excess="<%= invoice.excess_payment %>"
+
+                data-due="<%= invoice.due_date || '' %>"
+
+                >
+
+                <td>
+                <strong><%= invoice.invoice_number %></strong>
+                </td>
+
+                <td>
+                <%= new Date(invoice.created_at).toLocaleDateString() %>
+                </td>
+
+                <td>
+
+                <% if(invoice.due_date){ %>
+
+                <%= new Date(invoice.due_date).toLocaleDateString() %>
+
+                <% }else{ %>
+
+                -
+
+                <% } %>
+
+                </td>
+
+                <td>
+
+                <% if(invoice.final_payment_date){ %>
+
+                <%= new Date(invoice.final_payment_date).toLocaleDateString() %>
+
+                <% }else{ %>
+
+                -
+
+                <% } %>
+
+                </td>
+
+                <td>
+
+                <b><%= invoice.parent_name %></b>
+
+                <br>
+
+                <small><%= invoice.phone || "" %></small>
+
+                </td>
+
+                <td>
+
+                <%= invoice.students %>
+
+                </td>
+
+                <td>
+
+                <%= invoice.training_title %>
+
+                </td>
+
+                <td>
+
+                ₦<%= Number(invoice.payable).toLocaleString() %>
+
+                </td>
+
+                <td>
+
+                ₦<%= Number(invoice.total_paid).toLocaleString() %>
+
+                </td>
+
+                <td>
+
+                ₦<%= Number(invoice.balance).toLocaleString() %>
+
+                </td>
+
+                <td>
+
+                <% if(Number(invoice.excess_payment)>0){ %>
+
+                <span style="color:green;font-weight:bold;">
+
+                ₦<%= Number(invoice.excess_payment).toLocaleString() %>
+
+                </span>
+
+                <% }else{ %>
+
+                -
+
+                <% } %>
+
+                </td>
+
+                <td>
+
+                <% if(invoice.status==="paid"){ %>
+
+                <!-- <span class="badge bg-success"> -->
+                <span class="badge payment-status bg-success">
+                Paid
+
+                </span>
+
+                <% }else if(invoice.status==="partial"){ %>
+
+                <!-- <span class="badge bg-warning"> -->
+                <span class="badge payment-status bg-warning">
+
+                Partial
+
+                </span>
+
+                <% }else{ %>
+
+                <!-- <span class="badge bg-danger"> -->
+                <span class="badge payment-status bg-danger">
+
+                Pending
+
+                </span>
+
+                <% } %>
+
+                </td>
+
+                <td>
+
+                <a href="/admin/parent-invoices/<%= invoice.id %>/download" class="no-bg">
+
+                <i class="fa-solid fa-file-pdf" style="color:red;"></i>
+
+                </a>
+
+                <a href="/admin/parent-invoices/<%= invoice.id %>/send" class="no-bg">
+
+                <i class="fa-solid fa-paper-plane" style="color:#007bff;"></i>
+
+                </a>
+
+                <a href="#" onclick="openPaymentModal('<%= invoice.id %>'); return false;" class="no-bg">
+                    <i class="fa-solid fa-credit-card" style="color: green;"></i>
+                </a>
+
+                <!-- <button
+                class="btn btn-success btn-sm"
+                onclick="openPaymentModal('<%= invoice.id %>')">
+
+                <i class="fa fa-credit-card"></i>
+
+                </button> -->
+
+                <a href="#" onclick="viewPayments(<%= invoice.id %>); return false;" class="no-bg">
+                    <i class="fa-solid fa-history" style="color: purple;"></i>
+                </a>
+
+                </td>
+
+            </tr>
             <% }) %>
     </tbody>
   </table>
@@ -466,6 +716,29 @@
   </div>
 </div>
 
+<div id="paymentHistoryModal" class="modal-overlay" style="display:none;">
+
+<div class="modal-content" style="max-width:900px;">
+
+<span class="close-btn"
+onclick="closeModal('paymentHistoryModal')">
+
+&times;
+
+</span>
+
+<h2>Payment History</h2>
+
+<div id="paymentHistoryTable">
+
+Loading...
+
+</div>
+
+</div>
+
+</div>
+
 <!-- chart script -->
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -555,22 +828,8 @@ window.onclick=function(e){
 }
 </script>
 
-<!-- <script>
-  async function togglePayment(id, currentStatus) {
-  const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-
-  const res = await fetch(`/admin/quotes/${id}/status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: newStatus })
-  });
-
-  if (res.ok) location.reload();
-}
-</script> -->
-
 <!-- Script Filter by status -->
- <script>
+ <!-- <script>
   document.getElementById("statusFilter").addEventListener("change", function () {
     const value = this.value;
     const rows = document.querySelectorAll("tbody tr");
@@ -585,10 +844,10 @@ window.onclick=function(e){
       }
     });
   });
-</script>
+</script> -->
 
 <!-- Search script -->
- <script>
+ <!-- <script>
   document.getElementById("searchInput").addEventListener("keyup", function () {
     const value = this.value.toLowerCase();
     const rows = document.querySelectorAll("tbody tr");
@@ -598,8 +857,91 @@ window.onclick=function(e){
       row.style.display = text.includes(value) ? "" : "none";
     });
   });
-</script>
+</script> -->
 
+<script>
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+    const paymentFilter = document.getElementById("paymentFilter");
+    const dueFilter = document.getElementById("dueFilter");
+
+    searchInput.addEventListener("keyup", filterTable);
+    statusFilter.addEventListener("change", filterTable);
+    paymentFilter.addEventListener("change", filterTable);
+    dueFilter.addEventListener("change", filterTable);
+
+    function filterTable(){
+
+        const keyword = searchInput.value.toLowerCase();
+
+        const status = statusFilter.value;
+
+        const payment = paymentFilter.value;
+
+        const due = dueFilter.value;
+
+        const today = new Date();
+
+        today.setHours(0,0,0,0);
+
+        document.querySelectorAll("tbody tr").forEach(row=>{
+
+            let show=true;
+
+            const text=row.innerText.toLowerCase();
+
+            if(keyword && !text.includes(keyword))
+                show=false;
+
+            if(status && row.dataset.status!==status)
+                show=false;
+
+            const balance=Number(row.dataset.balance);
+
+            const excess=Number(row.dataset.excess);
+
+            if(payment==="paid" && balance>0)
+                show=false;
+
+            if(payment==="balance" && balance<=0)
+                show=false;
+
+            if(payment==="excess" && excess<=0)
+                show=false;
+
+            if(due){
+
+                if(row.dataset.due){
+
+                    const dueDate=new Date(row.dataset.due);
+
+                    dueDate.setHours(0,0,0,0);
+
+                    if(due==="overdue" && dueDate>=today)
+                        show=false;
+
+                    if(due==="today" &&
+                        dueDate.getTime()!=today.getTime())
+                        show=false;
+
+                    if(due==="upcoming" && dueDate<=today)
+                        show=false;
+
+                }
+                else{
+
+                    show=false;
+
+                }
+
+            }
+
+            row.style.display=show ? "" : "none";
+
+        });
+
+    }
+</script>
 <!-- Script for sorting table -->
  <script>
     function sortTable(colIndex) {
@@ -790,3 +1132,99 @@ async function loadStudents(parentId){
 }
 </script>
  
+<script>
+    async function viewPayments(invoiceId){
+
+        const res = await fetch(
+            `/admin/api/parent-invoices/${invoiceId}/payments`
+        );
+
+        const payments = await res.json();
+
+        let html = `
+        <table class="user-table">
+
+        <thead>
+
+        <tr>
+
+        <th>#</th>
+
+        <th>Date</th>
+
+        <th>Amount</th>
+
+        <th>Method</th>
+
+        <th>Receipt</th>
+
+        <th>Reference</th>
+
+        <th>Recorded By</th>
+
+        <th>Note</th>
+
+        </tr>
+
+        </thead>
+
+        <tbody>
+        `;
+
+        if(payments.length===0){
+
+            html+=`
+            <tr>
+
+            <td colspan="8">
+
+            No payments found
+
+            </td>
+
+            </tr>
+            `;
+
+        }
+
+        payments.forEach((p,index)=>{
+
+            html+=`
+
+            <tr>
+
+            <td>${index+1}</td>
+
+            <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+
+            <td>₦${Number(p.amount).toLocaleString()}</td>
+
+            <td>${p.payment_method}</td>
+
+            <td>${p.receipt_number}</td>
+
+            <td>${p.transaction_reference}</td>
+
+            <td>${p.recorded_by||"-"}</td>
+
+            <td>${p.payment_note||"-"}</td>
+
+            </tr>
+
+            `;
+
+        });
+
+        html+=`
+
+        </tbody>
+
+        </table>
+        `;
+
+        document.getElementById("paymentHistoryTable").innerHTML=html;
+
+        document.getElementById("paymentHistoryModal").style.display="flex";
+
+    }
+</script>

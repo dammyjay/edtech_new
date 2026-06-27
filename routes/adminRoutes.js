@@ -501,6 +501,10 @@ router.get("/quotes", adminController.getQuotes);
 router.get("/quotes/:id/download", adminController.downloadQuotePDF);
 router.post("/quotes/:id/status", adminController.updateQuoteStatus);
 router.get("/parent-invoices", adminController.getParentInvoices);
+router.get(
+  "/api/parent-invoices/:id/payments",
+  adminController.getInvoicePayments,
+);
 
 router.post("/parent-payments", adminController.addParentPayment);
 router.get("/api/parents/search", adminController.searchParents);
