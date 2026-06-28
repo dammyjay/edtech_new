@@ -559,74 +559,6 @@ exports.getBusinessDashboard = async (req, res) => {
   }
 };
 
-// exports.getLearningDashboard = async (req, res) => {
-//   try {
-
-//     const [
-//       courses,
-//       modules,
-//       lessons,
-//       enrollments,
-//       certificates
-//     ] = await Promise.all([
-
-//       pool.query(`SELECT COUNT(*) total FROM courses`),
-
-//       pool.query(`SELECT COUNT(*) total FROM modules`),
-
-//       pool.query(`SELECT COUNT(*) total FROM lessons`),
-
-//       pool.query(`
-//         SELECT COUNT(*) total
-//         FROM course_enrollments
-//       `),
-
-//       pool.query(`
-//         SELECT COUNT(*) total
-//         FROM user_certificates
-//       `)
-
-//     ]);
-
-//     const completionRate =
-//       Number(enrollments.rows[0].total) > 0
-//       ? (
-//           Number(certificates.rows[0].total) /
-//           Number(enrollments.rows[0].total)
-//         ) * 100
-//       : 0;
-
-//     const topCourses = await pool.query(`
-//       SELECT
-//         c.id,
-//         c.title,
-//         COUNT(ce.id) enrollments
-
-//       FROM courses c
-
-//       LEFT JOIN course_enrollments ce
-//       ON ce.course_id = c.id
-
-//       GROUP BY c.id
-
-//       ORDER BY enrollments DESC
-//       LIMIT 10
-//     `);
-
-//     res.json({
-//       totalCourses: Number(courses.rows[0].total),
-//       totalModules: Number(modules.rows[0].total),
-//       totalLessons: Number(lessons.rows[0].total),
-//       completionRate: completionRate.toFixed(1),
-//       topCourses: topCourses.rows
-//     });
-
-//   } catch(err){
-//     console.error(err);
-//     res.status(500).json({success:false});
-//   }
-// };
-
 exports.getLearningDashboard = async (req, res) => {
   try {
     const totals = await pool.query(`
@@ -921,30 +853,6 @@ exports.getCourseAnalytics = async (req, res) => {
 
 exports.getSchoolsDashboard = async (req, res) => {
   try {
-    // const summary = await pool.query(`
-    //   SELECT
-    //     COUNT(DISTINCT s.id) schools,
-
-    //     COUNT(DISTINCT CASE
-    //       WHEN us.role_in_school='student'
-    //       THEN us.user_id
-    //     END) students,
-
-    //     COUNT(DISTINCT CASE
-    //       WHEN us.role_in_school='teacher'
-    //       THEN us.user_id
-    //     END) teachers,
-
-    //     COUNT(DISTINCT c.id) classrooms
-
-    //   FROM schools s
-
-    //   LEFT JOIN user_school us
-    //   ON us.school_id=s.id
-
-    //   LEFT JOIN classrooms c
-    //   ON c.school_id=s.id
-    // `);
 
     const summary = await pool.query(`
       SELECT

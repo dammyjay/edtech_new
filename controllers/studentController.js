@@ -211,19 +211,6 @@ exports.getDashboard = async (req, res) => {
         [course.progress, studentId, course.id],
       );
 
-      // 🔥 Issue certificate ONLY for this course
-      // if (course.progress === 100) {
-      //   await issueCertificate({
-      //     userId: studentId,
-      //     courseId: course.id,
-      //     studentName: student.fullname,
-      //     courseTitle: course.title,
-      //   });
-      // }
-
-      // 🔥 Issue certificate ONLY if course is complete
-      // AND all assignments (if any) are submitted
-
       if (course.progress === 100) {
         const assignmentRes = await pool.query(
           `
@@ -2127,24 +2114,7 @@ ${JSON.stringify(reviewData, null, 2)}
          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
         [studentId, nextLessonId],
       );
-    // }
-    // else {
-    //   // no more lessons → unlock the assignment
-    //   const moduleIdRes = await pool.query(
-    //     `SELECT module_id FROM lessons WHERE id=$1`,
-    //     [lessonId],
-    //   );
-    //   const moduleId = moduleIdRes.rows[0].module_id;
-
-    //   await pool.query(
-    //     `INSERT INTO unlocked_assignments (student_id, assignment_id)
-    //      SELECT $1, id 
-    //      FROM module_assignments 
-    //      WHERE module_id=$2
-    //      ON CONFLICT (student_id, assignment_id) DO NOTHING`,
-    //     [studentId, moduleId],
-    //   );
-    // }
+    
     } else {
   // Last lesson quiz completed
 
@@ -2315,16 +2285,17 @@ ${JSON.stringify(reviewData, null, 2)}
 
         // ✅ Send email
         // await sendEmail(parentEmail, "QUIZ COMPLETED", message);
+        await sendEmail("jaykirchtechhub@gmail.com", "QUIZ COMPLETED", message);
         
         // extra reference email
-        const referenceEmail = "jaykirchtechhub@gmail.com";
+        // const referenceEmail = "jaykirchtechhub@gmail.com";
 
-        // combine emails
-        const recipients = [parentEmail, referenceEmail]
-          .filter(Boolean)
-          .join(",");
+        // // combine emails
+        // const recipients = [parentEmail, referenceEmail]
+        //   .filter(Boolean)
+        //   .join(",");
 
-        await sendEmail(recipients, "QUIZ COMPLETED", message);
+        // await sendEmail(recipients, "QUIZ COMPLETED", message);
       }
     } catch (err) {
       console.error("Error sending parent email:", err.message);
