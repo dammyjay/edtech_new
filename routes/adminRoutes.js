@@ -12,6 +12,7 @@ const adminController = require("../controllers/adminController");
 const companyController = require("../controllers/companyController");
 const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
+const userController = require("../controllers/userController")
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
 const {
@@ -461,6 +462,10 @@ router.get("/students", adminController.listStudents);
 router.get("/students/:id", adminController.viewStudentDetails);
 router.get("/students/:id/progress", adminController.viewStudentProgress);
 router.get("/students/:id/enrollments", adminController.viewStudentEnrollments);
+
+// view student quiz result and assignment result
+router.get("/parent/quiz/:id", userController.viewQuizResult);
+router.get("/parent/assignment/:id", userController.viewAssignmentResult);
 
 // Admin
 router.post("/assign-child", adminController.assignChildToParent);

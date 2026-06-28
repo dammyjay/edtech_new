@@ -1169,11 +1169,6 @@ exports.viewQuizResult = async (req, res) => {
 
     const data = result.rows[0];
 
-    // res.render("parentQuizView", {
-    //   submission: data,
-    //   reviewData: data.review_data
-    // });
-
     let parsedReview = [];
 
     try {

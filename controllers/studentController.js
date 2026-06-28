@@ -2285,17 +2285,19 @@ ${JSON.stringify(reviewData, null, 2)}
 
         // ✅ Send email
         // await sendEmail(parentEmail, "QUIZ COMPLETED", message);
-        await sendEmail("jaykirchtechhub@gmail.com", "QUIZ COMPLETED", message);
+        // await sendEmail("jaykirchtechhub@gmail.com", "QUIZ COMPLETED", message);
+        await sendEmail(
+          [parentEmail, "jaykirchtechhub@gmail.com"],
+          "QUIZ COMPLETED",
+          message,
+        );
+
+        // Option 2 to send the mail separately
+        // await Promise.all([
+        //   sendEmail(parentEmail, "QUIZ COMPLETED", message),
+        //   sendEmail("jaykirchtechhub@gmail.com", "QUIZ COMPLETED", message),
+        // ]);
         
-        // extra reference email
-        // const referenceEmail = "jaykirchtechhub@gmail.com";
-
-        // // combine emails
-        // const recipients = [parentEmail, referenceEmail]
-        //   .filter(Boolean)
-        //   .join(",");
-
-        // await sendEmail(recipients, "QUIZ COMPLETED", message);
       }
     } catch (err) {
       console.error("Error sending parent email:", err.message);
