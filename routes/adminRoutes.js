@@ -13,6 +13,7 @@ const companyController = require("../controllers/companyController");
 const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
 const userController = require("../controllers/userController")
+const newsletterController = require("../controllers/newsletterController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
 const {
@@ -79,6 +80,8 @@ router.get(
   router.get("/reset-password/:token", adminController.showResetPasswordForm);
   router.post("/reset-password/:token", adminController.handleResetPassword);
 
+  // Newsletter Dashboard
+router.get("/", newsletterController.getNewslettersPage);
 router.get(
   "/dashboard/overview",
   adminController.getDashboardOverview,
@@ -126,7 +129,7 @@ router.post(
 );
 
 // Bulk enable for school students
-router.post("/schools/:schoolId/bulk-enable-avatar-login", adminController.bulkEnableAvatarLogin);
+router.post("/schooxls/:schoolId/bulk-enable-avatar-login", adminController.bulkEnableAvatarLogin);
 
 router.post(
   "/migrate-student-login",

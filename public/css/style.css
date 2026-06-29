@@ -327,6 +327,9 @@ header {
 .black-bg {
     background: var(--neutral1);
 }
+.metric-card.black {
+    border-left: 6px solid var(--neutral1);
+}
 
 .blue-bg {
     background: #4e73df;

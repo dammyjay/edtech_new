@@ -935,7 +935,7 @@ async function createTables() {
       ADD COLUMN IF NOT EXISTS last_sent_by INT REFERENCES users2(id),
       ADD COLUMN IF NOT EXISTS excess_payment NUMERIC(12,2) DEFAULT 0,
       ADD COLUMN IF NOT EXISTS final_payment_date TIMESTAMP,
-      ADD COLUMN grace_days INT DEFAULT 5;
+      ADD COLUMN IF NOT EXISTS grace_days INT DEFAULT 5;
     `);
 
     await pool.query(`
@@ -970,6 +970,232 @@ async function createTables() {
       );
       
     `);
+
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS newsletters (
+    id SERIAL PRIMARY KEY,
+
+    subject VARCHAR(255) NOT NULL,
+    preview_text TEXT,
+    message TEXT NOT NULL,
+    image_url TEXT,
+
+    sender_name VARCHAR(100),
+    sender_email VARCHAR(255),
+
+    email_template VARCHAR(50) DEFAULT 'default',
+
+    recipient_type VARCHAR(50) NOT NULL,
+
+    recipient_ids INTEGER[],
+
+    send_immediately BOOLEAN DEFAULT FALSE,
+
+    scheduled_at TIMESTAMP,
+    sent_at TIMESTAMP,
+
+    status VARCHAR(20) DEFAULT 'draft'
+        CHECK (
+            status IN (
+                'draft',
+                'scheduled',
+                'sending',
+                'sent',
+                'cancelled',
+                'failed'
+            )
+        ),
+
+    total_recipients INTEGER DEFAULT 0,
+    total_sent INTEGER DEFAULT 0,
+    total_failed INTEGER DEFAULT 0,
+
+    created_by INTEGER REFERENCES users2(id),
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+  ALTER TABLE newsletters
+  ADD COLUMN IF NOT EXISTS total_recipients INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sent_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS failed_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS delivered_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS opened_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS clicked_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0;
+`);
+    
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS newsletter_recipients (
+
+    id SERIAL PRIMARY KEY,
+
+    newsletter_id INTEGER
+        REFERENCES newsletters(id)
+        ON DELETE CASCADE,
+
+    user_id INTEGER
+        REFERENCES users2(id)
+        ON DELETE CASCADE,
+
+    email VARCHAR(255) NOT NULL,
+
+    status VARCHAR(20)
+        DEFAULT 'pending'
+        CHECK (
+            status IN (
+                'pending',
+                'sent',
+                'failed'
+            )
+        ),
+
+    delivered BOOLEAN DEFAULT FALSE,
+
+    opened BOOLEAN DEFAULT FALSE,
+
+    clicked BOOLEAN DEFAULT FALSE,
+
+    failure_reason TEXT,
+
+    sent_at TIMESTAMP,
+
+    opened_at TIMESTAMP,
+
+    clicked_at TIMESTAMP
+);
+
+  ALTER TABLE newsletter_recipients
+  ADD COLUMN IF NOT EXISTS fullname VARCHAR(255);
+  ALTER TABLE newsletter_recipients
+  DROP CONSTRAINT newsletter_recipients_status_check;
+  ALTER TABLE newsletter_recipients
+  ADD CONSTRAINT newsletter_recipients_status_check
+  CHECK(
+    status IN
+      (
+        'pending',
+        'sending',
+        'sent',
+        'failed'
+      )
+  );
+`);
+    
+await pool.query(`
+CREATE TABLE IF NOT EXISTS announcements (
+
+    id SERIAL PRIMARY KEY,
+
+    title VARCHAR(255) NOT NULL,
+
+    message TEXT NOT NULL,
+
+    image_url TEXT,
+
+    type VARCHAR(30)
+        DEFAULT 'information'
+        CHECK (
+            type IN (
+                'information',
+                'event',
+                'success',
+                'warning',
+                'emergency',
+                'promotion',
+                'maintenance',
+                'course'
+            )
+        ),
+
+    priority VARCHAR(20)
+        DEFAULT 'normal'
+        CHECK (
+            priority IN (
+                'low',
+                'normal',
+                'high',
+                'critical'
+            )
+        ),
+
+    display_locations TEXT[],
+
+    audience_type VARCHAR(50),
+
+    audience_ids INTEGER[],
+
+    button_text VARCHAR(100),
+
+    button_link TEXT,
+
+    background_color VARCHAR(30),
+
+    text_color VARCHAR(30),
+
+    button_color VARCHAR(30),
+
+    show_once BOOLEAN DEFAULT FALSE,
+
+    popup_delay INTEGER DEFAULT 0,
+
+    dismissible BOOLEAN DEFAULT TRUE,
+
+    allow_close BOOLEAN DEFAULT TRUE,
+
+    start_date TIMESTAMP,
+
+    end_date TIMESTAMP,
+
+    status VARCHAR(20)
+        DEFAULT 'draft'
+        CHECK (
+            status IN (
+                'draft',
+                'scheduled',
+                'published',
+                'expired',
+                'archived'
+            )
+        ),
+
+    created_by INTEGER
+        REFERENCES users2(id),
+
+    created_at TIMESTAMP DEFAULT NOW(),
+
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+`); 
+    
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS announcement_views (
+
+    id SERIAL PRIMARY KEY,
+
+    announcement_id INTEGER
+        REFERENCES announcements(id)
+        ON DELETE CASCADE,
+
+    user_id INTEGER
+        REFERENCES users2(id)
+        ON DELETE CASCADE,
+
+    viewed_at TIMESTAMP DEFAULT NOW(),
+
+    dismissed BOOLEAN DEFAULT FALSE,
+
+    dismissed_at TIMESTAMP,
+
+    clicked BOOLEAN DEFAULT FALSE,
+
+    clicked_at TIMESTAMP,
+
+    UNIQUE (announcement_id, user_id)
+);
+`);
 
     await pool.query(`
       

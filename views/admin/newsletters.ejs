@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Newsletters</title>
+
+    <link rel="stylesheet" href="/css/admin-newsletters.css">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+
+    <div class="page-header">
+
+        <div>
+
+            <h2>Newsletters</h2>
+
+            <p>Create and send newsletters.</p>
+
+        </div>
+
+        <button class="btn-pri" id="openCreateModal">
+
+            <i class="fa-solid fa-plus"></i>
+
+            New Newsletter
+
+        </button>
+
+    </div>
+
+    <section class="engagement-grid">
+
+        <!-- Total Newsletters -->
+        <div class="metric-card">
+            <div class="card-title blue-bg">
+                <p>Total Newsletters</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon blue-bg">
+                    <i class="fas fa-envelope-open-text"></i>
+                </div>
+                <h4><%= stats.total || 0 %></h4>
+            </div>
+        </div>
+
+        <!-- Draft -->
+        <div class="metric-card">
+
+            <div class="card-title orange-bg">
+                <p>Drafts</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon orange-bg">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+
+                <h4><%= stats.drafts || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Scheduled -->
+        <div class="metric-card">
+
+            <div class="card-title purple-bg">
+                <p>Scheduled</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon purple-bg">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+
+                <h4><%= stats.scheduled || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Sending -->
+        <div class="metric-card">
+
+            <div class="card-title teal-bg">
+                <p>Sending</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon teal-bg">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+
+                <h4><%= stats.sending || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Sent -->
+        <div class="metric-card">
+
+            <div class="card-title green-bg">
+                <p>Sent</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon green-bg">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+
+                <h4><%= stats.sent || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Delivered -->
+        <div class="metric-card">
+
+            <div class="card-title indigo-bg">
+                <p>Delivered</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon indigo-bg">
+                    <i class="fas fa-inbox"></i>
+                </div>
+
+                <h4><%= stats.delivered || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Opened -->
+        <div class="metric-card">
+
+            <div class="card-title pink-bg">
+                <p>Opened</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon pink-bg">
+                    <i class="fas fa-envelope-open"></i>
+                </div>
+
+                <h4><%= stats.opened || 0 %></h4>
+
+            </div>
+
+        </div>
+
+        <!-- Failed -->
+        <div class="metric-card">
+
+            <div class="card-title dark-red-bg">
+                <p>Failed</p>
+            </div>
+
+            <div class="metric-card-content">
+
+                <div class="card-icon dark-red-bg">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+
+                <h4><%= stats.failed || 0 %></h4>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <div class="toolbar">
+
+        <input
+            type="text"
+            placeholder="Search newsletter..."
+        >
+
+        <select>
+
+            <option>All Status</option>
+
+            <option>Draft</option>
+
+            <option>Scheduled</option>
+
+            <option>Sending</option>
+
+            <option>Sent</option>
+
+        </select>
+
+    </div>
+
+    <div class="table-responsive">
+        <table class="user-table">
+
+            <thead>
+
+            <tr>
+
+                <th>Subject</th>
+
+                <th>Audience</th>
+
+                <th>Status</th>
+
+                <th>Recipients</th>
+
+                <th>Created</th>
+
+                <th>Actions</th>
+
+            </tr>
+
+            </thead>
+
+            <tbody>
+
+            <% newsletters.forEach(newsletter => { %>
+
+                <tr>
+
+                    <td><%= newsletter.subject %></td>
+
+                    <td><%= newsletter.recipient_type %></td>
+
+                    <td>
+
+                        <span class="status <%= newsletter.status %>">
+
+                            <%= newsletter.status %>
+
+                        </span>
+
+                    </td>
+
+                    <td>
+
+                        <%= newsletter.total_recipients %>
+
+                    </td>
+
+                    <td>
+
+                        <%= new Date(newsletter.created_at).toLocaleDateString() %>
+
+                    </td>
+
+                    <td>
+
+                        <button class="viewBtn">
+
+                            <i class="fa fa-eye"></i>
+
+                        </button>
+
+                        <button class="editBtn">
+
+                            <i class="fa fa-edit"></i>
+
+                        </button>
+
+                        <button class="deleteBtn">
+
+                            <i class="fa fa-trash"></i>
+
+                        </button>
+
+                    </td>
+
+                </tr>
+
+            <% }) %>
+
+            </tbody>
+
+        </table>
+    </div>
+
+    <!-- ==========================
+CREATE NEWSLETTER MODAL
+=========================== -->
+
+<div id="createNewsletterModal" class="modal-overlay" style="display:none;">
+
+    <div class="modal-content" style="max-width:900px;">
+
+        <span class="close-btn"
+            onclick="closeModal('createNewsletterModal')">
+
+            &times;
+
+        </span>
+
+        <h2>
+            <i class="fas fa-envelope-open-text"></i>
+            Create Newsletter
+        </h2>
+
+        <form
+            action="/admin/newsletters/create"
+            method="POST"
+            enctype="multipart/form-data">
+
+            <label>Subject</label>
+
+            <input
+                type="text"
+                name="subject"
+                required
+                placeholder="Newsletter subject">
+
+            <label>Preview Text</label>
+
+            <input
+                type="text"
+                name="preview_text"
+                placeholder="Short email preview">
+
+            <label>Header Image</label>
+
+            <input
+                type="file"
+                name="image">
+
+            <label>Audience</label>
+
+            <select
+                id="recipientType"
+                name="recipient_type"
+                required>
+
+                <option value="">Select Audience</option>
+
+                <option value="all">
+                    Everyone
+                </option>
+
+                <option value="users">
+                    All Users
+                </option>
+
+                <option value="parents">
+                    Parents
+                </option>
+
+                <option value="teachers">
+                    Teachers
+                </option>
+
+                <option value="students">
+                    Students
+                </option>
+
+                <option value="school_admins">
+                    School Admins
+                </option>
+
+                <option value="admins">
+                    Platform Admins
+                </option>
+
+                <option value="schools">
+                    Specific Schools
+                </option>
+
+                <option value="classrooms">
+                    Specific Classrooms
+                </option>
+
+                <option value="courses">
+                    Course Enrollees
+                </option>
+
+                <option value="custom">
+                    Custom Users
+                </option>
+
+            </select>
+
+            <!-- Dynamic Recipient Area -->
+
+            <div id="recipientSelectionArea"></div>
+
+            <label>Message</label>
+
+            <textarea
+                name="message"
+                rows="12"
+                required></textarea>
+
+            <label>When should this be sent?</label>
+
+            <select
+                name="status"
+                id="newsletterStatus">
+
+                <option value="draft">
+                    Save as Draft
+                </option>
+
+                <option value="sending">
+                    Send Immediately
+                </option>
+
+                <option value="scheduled">
+                    Schedule
+                </option>
+
+            </select>
+
+            <div
+                id="scheduleBox"
+                style="display:none;">
+
+                <label>Schedule Date & Time</label>
+
+                <input
+                    type="datetime-local"
+                    name="scheduled_at">
+
+            </div>
+
+            <button
+                class="btn-pri"
+                type="submit">
+
+                <i class="fas fa-paper-plane"></i>
+
+                Save Newsletter
+
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<script src="/js/admin-newsletters.js"></script>
+
+<script>
+    const createModal =
+document.getElementById("createNewsletterModal");
+
+document
+.getElementById("openCreateModal")
+.addEventListener("click", () => {
+
+    createModal.style.display = "flex";
+
+});
+
+function closeModal(id){
+
+    document.getElementById(id).style.display="none";
+
+}
+
+window.onclick = function(e){
+
+    if(e.target.classList.contains("modal-overlay")){
+
+        e.target.style.display="none";
+
+    }
+
+}
+
+document
+.getElementById("newsletterStatus")
+.addEventListener("change",function(){
+
+    document.getElementById("scheduleBox").style.display =
+    this.value==="scheduled"
+    ? "block"
+    : "none";
+
+});
+
+// const recipientType = document.getElementById("recipientType");
+
+// recipientType.addEventListener("change", async function(){
+
+//     const value = this.value;
+
+//     const container =
+//     document.getElementById("recipientSelectionArea");
+
+//     container.innerHTML = "";
+
+//     if(value==="schools"){
+
+//         const res =
+//         await fetch("/admin/newsletters/schools");
+
+//         const schools = await res.json();
+
+//         let html="<label>Select Schools</label>";
+
+//         schools.forEach(s=>{
+
+//             html+=`
+//             <label>
+
+//             <input
+//             type="checkbox"
+//             name="recipient_ids"
+//             value="${s.id}">
+
+//             ${s.name}
+
+//             </label>
+//             `;
+
+//         });
+
+//         container.innerHTML=html;
+
+//     }
+
+// });
+
+
+</script>
+
+</body>
+
+</html>

@@ -379,11 +379,6 @@ exports.dashboard = async (req, res) => {
     const percentageNew =
       totalUsers > 0 ? Math.round((recentUsers / totalUsers) * 100) : 0;
 
-    // const pendingFaqResult = await pool.query(
-    //   "SELECT COUNT(*) FROM faqs WHERE answer IS NULL OR TRIM(answer) = ''"
-    // );
-    // const pendingFaqCount = parseInt(pendingFaqResult.rows[0].count);
-
     const profilePic = req.session.user
       ? req.session.user.profile_picture
       : null;
@@ -1517,15 +1512,12 @@ exports.addUser = async (req, res) => {
     );
 
     res.redirect("/admin/students");
-    // req.flash("success", "User added successfully. Default password is 12345678");
-    // res.render("admin/students", { title: "Manage Students", role: "admin", users: req.session.user, info: infoResult });
-
+    
   } catch (err) {
     console.error(err);
-    // req.flash("error", "Email already exists or something went wrong");
+   
     res.redirect("/admin/students");
-    // res.render("admin/students", { title: "Manage Students", role: "admin", users: req.session.user });
-  }
+    }
 };
 
 exports.users = async (req, res) => {
@@ -1724,10 +1716,6 @@ exports.eventPaymentDetails = async (req, res) => {
   res.json(q.rows);
 };
 
-// exports.showFeedbackForm = (req, res) => {
-//   res.render('feedback'); // feedback.ejs
-// };
-
 exports.feedback = async (req, res) => {
   try {
     const feedbackSummary = await pool.query("SELECT COUNT(*)::int AS total_feedback, AVG(rating)::numeric(4,2) AS avg_rating FROM feedback");
@@ -1792,44 +1780,6 @@ exports.submitFeedbackAPI = async (req, res) => {
 exports.showFeedbackForm = (req, res) => {
   res.render("feedback"); // feedback.ejs
 };
-
-// Submit feedback via AJAX
-// exports.submitFeedbackAPI = async (req, res) => {
-//   try {
-//     const {
-//       user_type,
-//       name,
-//       email,
-//       message,
-//       rating,
-//       student_class,
-//       school_name,
-//       organization_name,
-//     } = req.body;
-
-//     await pool.query(
-//       `INSERT INTO feedback(user_type, fullname, email, message, rating, student_class, school_name, organization_name)
-//        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-//       [
-//         user_type,
-//         name,
-//         email,
-//         message,
-//         rating,
-//         student_class || null,
-//         school_name || null,
-//         organization_name || null,
-//       ]
-//     );
-
-//     // Return JSON so frontend can show thank-you
-//     res.json({ success: true, message: "Thank you for your feedback!" });
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ success: false, message: "Could not submit feedback" });
-//   }
-// };
 
 exports.submitFeedbackAPI = async (req, res) => {
   try {
@@ -2100,18 +2050,6 @@ exports.getFeedbackDetail = async (req, res) => {
   }
 };
 
-// POST /admin/feedback/publish/:id
-// exports.togglePublish = async (req,res) => {
-//   try {
-//     const id = parseInt(req.params.id);
-//     const publish = !!req.body.publish;
-//     await pool.query('UPDATE feedback SET is_published = $1 WHERE id = $2', [publish, id]);
-//     res.json({ success: true });
-//   } catch(err) {
-//     console.error(err); res.status(500).json({ success:false });
-//   }
-// };
-
 exports.togglePublish = async (req, res) => {
   try {
     const id = req.params.id;
@@ -2142,213 +2080,9 @@ exports.deleteFeedback = async (req, res) => {
   }
 };
 
-
-// Admincontroller.js
-// exports.instructorDashboard = async (req, res) => {
-//   try {
-//     const instructorId = req.user.id;
-
-//     /* ------------------------------------
-//        Company Info
-//     ------------------------------------ */
-//     const info =
-//       (await pool.query(
-//         "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//       )).rows[0] || {};
-
-//     const profilePic = req.session.user?.profile_picture || null;
-
-//     /* ------------------------------------
-//        1️⃣ Schools instructor belongs to
-//     ------------------------------------ */
-//     const schoolsRes = await pool.query(
-//       `
-//       SELECT DISTINCT s.id, s.name
-//       FROM classroom_instructors ci
-//       JOIN classrooms c ON ci.classroom_id = c.id
-//       JOIN schools s ON c.school_id = s.id
-//       WHERE ci.instructor_id = $1
-//       ORDER BY s.name
-//       `,
-//       [instructorId]
-//     );
-
-//     const schools = schoolsRes.rows;
-
-//     // ✅ Persist selected school
-//     const activeSchoolId =
-//       req.query.school_id || (schools[0] ? schools[0].id : null);
-
-//     let school = null;
-//     let classrooms = [];
-
-//     let total_students = 0;
-//     let total_courses = 0;
-//     let total_modules = 0;
-//     let total_lessons = 0;
-//     let total_submissions = 0;
-
-//     /* ------------------------------------
-//        2️⃣ Load school-specific data
-//     ------------------------------------ */
-//     if (activeSchoolId) {
-//       school = schools.find(s => String(s.id) === String(activeSchoolId));
-
-//       // 📚 Classrooms
-//       const classroomsRes = await pool.query(
-//         `
-//         SELECT c.id, c.name
-//         FROM classroom_instructors ci
-//         JOIN classrooms c ON ci.classroom_id = c.id
-//         WHERE ci.instructor_id = $1
-//           AND c.school_id = $2
-//         ORDER BY c.name
-//         `,
-//         [instructorId, activeSchoolId]
-//       );
-//       classrooms = classroomsRes.rows;
-
-//       // 👩‍🎓 Students
-//       const studentsCountRes = await pool.query(
-//         `
-//         SELECT COUNT(DISTINCT us.user_id)
-//         FROM user_school us
-//         JOIN classrooms c ON us.classroom_id = c.id
-//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//         WHERE ci.instructor_id = $1
-//           AND c.school_id = $2
-//           AND us.role_in_school = 'student'
-//           AND us.approved = true
-//         `,
-//         [instructorId, activeSchoolId]
-//       );
-//       total_students = Number(studentsCountRes.rows[0].count);
-
-//       // 📘 Courses
-//       const coursesCountRes = await pool.query(
-//         `
-//         SELECT COUNT(DISTINCT cc.course_id)
-//         FROM classroom_courses cc
-//         JOIN classrooms c ON cc.classroom_id = c.id
-//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//         WHERE ci.instructor_id = $1
-//           AND c.school_id = $2
-//         `,
-//         [instructorId, activeSchoolId]
-//       );
-//       total_courses = Number(coursesCountRes.rows[0].count);
-
-//       // 📦 Modules
-//       const modulesCountRes = await pool.query(
-//         `
-//         SELECT COUNT(DISTINCT m.id)
-//         FROM modules m
-//         JOIN courses cr ON m.course_id = cr.id
-//         JOIN classroom_courses cc ON cc.course_id = cr.id
-//         JOIN classrooms c ON cc.classroom_id = c.id
-//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//         WHERE ci.instructor_id = $1
-//           AND c.school_id = $2
-//         `,
-//         [instructorId, activeSchoolId]
-//       );
-//       total_modules = Number(modulesCountRes.rows[0].count);
-
-//       // 📖 Lessons
-//       const lessonsCountRes = await pool.query(
-//         `
-//         SELECT COUNT(DISTINCT l.id)
-//         FROM lessons l
-//         JOIN modules m ON l.module_id = m.id
-//         JOIN classroom_courses cc ON cc.course_id = m.course_id
-//         JOIN classrooms c ON cc.classroom_id = c.id
-//         JOIN classroom_instructors ci ON ci.classroom_id = c.id
-//         WHERE ci.instructor_id = $1
-//           AND c.school_id = $2
-//         `,
-//         [instructorId, activeSchoolId]
-//       );
-//       total_lessons = Number(lessonsCountRes.rows[0].count);
-//     }
-
-//     /* ------------------------------------
-//        3️⃣ Messages
-//     ------------------------------------ */
-//     const receivedMessages =
-//       (await pool.query(
-//         `
-//         SELECT 
-//           m.id,
-//           m.sender_id,
-//           m.message,
-//           m.created_at,
-//           u.fullname AS sender_name,
-//           u.email AS sender_email
-//         FROM messages m
-//         JOIN users2 u ON u.id = m.sender_id
-//         WHERE m.receiver_id = $1
-//         ORDER BY m.created_at DESC
-//         LIMIT 10
-//         `,
-//         [instructorId]
-//       )).rows;
-
-//     /* ------------------------------------
-//        4️⃣ Instructor Courses (table)
-//     ------------------------------------ */
-//     const courses =
-//       (await pool.query(
-//         `
-//         SELECT c.id, c.title,
-//                COUNT(DISTINCT ce.user_id) AS student_count
-//         FROM courses c
-//         LEFT JOIN course_enrollments ce ON ce.course_id = c.id
-//         WHERE c.instructor_id = $1
-//         GROUP BY c.id
-//         ORDER BY c.title
-//         `,
-//         [instructorId]
-//       )).rows;
-
-//     /* ------------------------------------
-//        5️⃣ Render
-//     ------------------------------------ */
-//     res.render("instructor/dashboard", {
-//       info,
-//       role: "instructor",
-//       user: req.session.user,
-//       profilePic,
-
-//       schools,
-//       school,
-//       classrooms,
-
-//       courses,
-
-//       total_courses,
-//       total_modules,
-//       total_lessons,
-//       total_students,
-//       total_submissions,
-
-//       receivedMessages,
-
-//       // 🔑 VERY IMPORTANT for persistence
-//       selectedSchoolId: activeSchoolId,
-//     });
-//   } catch (err) {
-//     console.error("Instructor Dashboard Error:", err);
-//     res.status(500).send("Error loading dashboard");
-//   }
-// };
-
 exports.instructorDashboard = async (req, res) => {
 
-
-  // const instructorId = req.user.id;
   const instructorId = req.session.user.id;
-  // const schoolId = req.session.activeSchoolId;
-  // let schoolId = req.session.activeSchoolId;
   let schoolId = req.query.school_id || req.session.activeSchoolId;
 
   if (req.query.school_id) {
@@ -2395,18 +2129,6 @@ exports.instructorDashboard = async (req, res) => {
     );
 
     console.log("Instructor classrooms:", test.rows);
-
-    // --- Classrooms instructor teaches
-    // const classroomsRes = await pool.query(
-    //   `
-    //   SELECT c.id, c.name
-    //   FROM classrooms c
-    //   JOIN classroom_instructors ci ON ci.classroom_id = c.id
-    //   WHERE ci.instructor_id = $1
-    //   AND c.school_id = $2
-    //   `,
-    //   [instructorId, schoolId]
-    // );
 
     let classroomQuery = `
   SELECT c.id, c.name
@@ -2497,6 +2219,9 @@ exports.instructorDashboard = async (req, res) => {
 };
 
 exports.editUserForm = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const userId = req.params.id;
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -2522,6 +2247,7 @@ exports.editUserForm = async (req, res) => {
 exports.updateUser = async (req, res) => {
   const userId = req.params.id;
   const { fullname, email, phone, gender, role, wallet_balance2 } = req.body;
+  
 
   try {
     // Convert empty string to 0, otherwise keep number
@@ -2553,6 +2279,9 @@ exports.deleteUser = async (req, res) => {
 };
 
 exports.getAdminProfile = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const userId = req.session.user?.id;
   if (!userId || req.session.user.role !== "admin")
     return res.redirect("/admin/login");
@@ -2598,6 +2327,9 @@ exports.getUserProfile = async (req, res) => {
 
 // --- CAREER PATHWAYS ---
 exports.showPathways = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const search = req.query.search || ""; // ✅ define the variable
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -2719,6 +2451,9 @@ exports.editPathway = async (req, res) => {
 // --- COURSES ---
 
 exports.showCourses = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
@@ -3199,6 +2934,9 @@ exports.downloadCurriculum = async (req, res) => {
 
 exports.showCoursesByPathway = async (req, res) => {
   const { id } = req.params;
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
 
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -3643,6 +3381,7 @@ exports.listStudents = async (req, res) => {
 };
 
 exports.viewStudentDetails = async (req, res) => {
+  
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -4322,6 +4061,10 @@ exports.viewStudentProgress = async (req, res) => {
 };
 
 exports.viewStudentEnrollments = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -5921,6 +5664,10 @@ exports.getSchoolClassrooms = async (req, res) => {
 };
 
 exports.getSchools = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+
   try {
     const result = await pool.query(`
       SELECT 
@@ -6012,6 +5759,10 @@ exports.updateSchoolInfo = async (req, res) => {
 
 // 📌 GET: Single School Details
 exports.getSchoolDetails = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+
   try {
     const { id } = req.params;
 
@@ -7065,7 +6816,10 @@ exports.addPayment = async (req, res) => {
   }
 };
 
-  exports.getQuotes = async (req, res) => {
+exports.getQuotes = async (req, res) => {
+    if (!req.session.user || req.session.user.role !== "admin") {
+      return res.redirect("/admin/login");
+    }
   try {
 
     const result = await pool.query(`
@@ -7984,43 +7738,14 @@ exports.addParentPayment = async (req, res) => {
 };
 
 exports.getParentInvoices = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
     const info = infoResult.rows[0] || {};
-
-    // const invoices = await pool.query(`
-    //     SELECT
-    //         i.*,
-    //         p.fullname AS parent_name,
-    //         p.phone,
-    //         p.email,
-    //         COALESCE(
-    //             STRING_AGG(DISTINCT s.fullname, ', '),
-    //             'No Students'
-    //         ) AS students
-
-    //     FROM parent_training_invoices i
-
-    //     JOIN users2 p
-    //         ON p.id = i.parent_id
-
-    //     LEFT JOIN invoice_students ins
-    //         ON ins.invoice_id = i.id
-
-    //     LEFT JOIN users2 s
-    //         ON s.id = ins.student_id
-
-    //     GROUP BY
-    //       i.id,
-    //       p.id,
-    //       p.fullname,
-    //       p.phone,
-    //       p.email
-
-    //     ORDER BY i.created_at DESC
-    // `);
 
     const invoices = await pool.query(`
       SELECT
@@ -9872,6 +9597,9 @@ exports.generateParentReceipt = async (req, res, invoice) => {
 
 // 📌 GET: School Courses (assignments)
 exports.getSchoolCourses = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     // Fetch all schools
     const schoolsResult = await pool.query(
@@ -11953,6 +11681,9 @@ exports.getChatMessages = async (req, res) => {
 
 // ✅ Get all chat conversations (students who have messaged instructor)
 exports.getInstructorChats = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -11997,6 +11728,9 @@ exports.getInstructorChats = async (req, res) => {
 
 // ✅ Full chat conversation with one student
 exports.getChatWithStudent = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -12043,6 +11777,9 @@ exports.getChatWithStudent = async (req, res) => {
 
 
 exports.getParentChildren = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { parentId } = req.params;
 
   try {

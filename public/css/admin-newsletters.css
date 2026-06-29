@@ -1,0 +1,17 @@
+.audience-summary {
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.audience-summary h4 {
+    margin: 0 0 8px;
+    color: #1d4ed8;
+}
+
+.audience-summary p {
+    margin: 0;
+    font-size: 15px;
+}

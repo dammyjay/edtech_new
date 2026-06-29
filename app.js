@@ -7,8 +7,9 @@ const path = require("path");
 const createTables = require("./models/initTables");
 require("./cron/assignmentReminderJobs");
 require("./cron/parentAssignmentReminder");
+require("./cron/newsletterCron");
 // const notificationRoutes = require("./routes/notificationRoutes");
-const runNewsletterScheduler = require("./cron/newsletterScheduler");
+// const runNewsletterScheduler = require("./cron/newsletterScheduler");
 // const runDevotionalScheduler = require("./cron/cronJobs");
 require("dotenv").config(); // Load .env variables
 const pool = require("./models/db"); // adjust path based on your folder structure
@@ -75,10 +76,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-// app.get('/', (req, res) => {
-//   res.render('home');
-// });
 
 const publicRoutes = require("./routes/publicRoutes");
 app.use("/", publicRoutes);
@@ -157,9 +154,13 @@ app.use("/", adminTestimonyRoutes);
 const testRoutes = require("./routes/testRoutes");
 app.use("/", testRoutes);
 
-runNewsletterScheduler();
+const newsletterRoutes = require("./routes/newsletterRoutes");
 
-// runDevotionalScheduler();
+app.use("/admin/newsletters", newsletterRoutes);
+
+// runNewsletterScheduler();
+
+
 
 // Run table creation at startup
 createTables();

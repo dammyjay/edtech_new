@@ -68,8 +68,16 @@
           <a href="/instructor/dashboard">Dashboard</a>
           <a href="/instructor/chats">Chats</a>
         <% } %>
-        <a href="/admin/pathways">Pathways</a>
-        <a href="/admin/courses">Courses</a>
+        <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown('resourceMenu')">
+              Resource ▾
+            </button>
+            <div class="dropdown-content" id="resounceMenu">
+              <a href="/admin/pathways">Pathways</a>
+              <a href="/admin/courses">Courses</a>
+            </div>
+          </div>
+        
 
 
         <% if (role === 'admin') { %>
@@ -79,8 +87,6 @@
             </button>
             <div class="dropdown-content" id="galleryMenu">
               <a href="/admin/gallery">Gallery</a>
-              <!-- <a href="/admin/gallery/categories">Categories</a> -->
-              <!-- <a href="/admin/demo-videos">Demo</a> -->
             </div>
           </div>
 
@@ -94,11 +100,21 @@
             <div class="dropdown-content" id="ministryMenu">
               <a href="/admin/company">Company Details</a>
               <a href="/admin/about">About Us</a>
+              <a href="/admin/benefits">Benefits</a>
+              
+            </div>
+          </div>
+
+          <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown('communicationMenu')">
+              Communication ▾
+            </button>
+            <div class="dropdown-content" id="communicationMenu">
               <a href="/admin/faqs">FAQ</a>
               <a href="/admin/testimonies">Testimonies</a>
-              <!-- <a href="/admin/devotionals">Devotionals</a> -->
-              <a href="/admin/benefits">Benefits</a>
               <a href="/admin/events">Events</a>
+              <a href="/admin/newsletters">Newsletters</a>
+              <a href="/admin/announcements">Announcements</a>
             </div>
           </div>
         <% } %>
