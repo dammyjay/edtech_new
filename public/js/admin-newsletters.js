@@ -1,27 +1,4 @@
-// const recipientType = document.getElementById("recipientType");
-// const recipientArea = document.getElementById("recipientSelectionArea");
 
-// recipientType.addEventListener("change", async () => {
-//   recipientArea.innerHTML = "";
-
-//   switch (recipientType.value) {
-//     case "schools":
-//       loadSchools();
-//       break;
-
-//     case "classrooms":
-//       loadSchoolSelector();
-//       break;
-
-//     case "courses":
-//       loadCourses();
-//       break;
-
-//     case "custom":
-//       loadUserSearch();
-//       break;
-//   }
-// });
 
 let recipientType;
 let recipientArea;
@@ -34,30 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log(recipientType);
   console.log(recipientArea);
-
-  //   recipientType.addEventListener("change", () => {
-  //     console.log("Selected:", recipientType.value);
-
-  //     recipientArea.innerHTML = "";
-
-  //     switch (recipientType.value) {
-  //       case "schools":
-  //         loadSchools();
-  //         break;
-
-  //       case "classrooms":
-  //         loadSchoolSelector();
-  //         break;
-
-  //       case "courses":
-  //         loadCourses();
-  //         break;
-
-  //       case "custom":
-  //         loadUserSearch();
-  //         break;
-  //     }
-  //   });
 
   recipientType.addEventListener("change", () => {
     console.log("Selected:", recipientType.value);

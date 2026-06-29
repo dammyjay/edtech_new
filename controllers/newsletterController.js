@@ -74,11 +74,13 @@ exports.createNewsletter = async (req, res) => {
     } = req.body;
 
     const image_url = req.file ? req.file.path : null;
+    const dbStatus = status === "sending" ? "draft" : status;
 
       // await pool.query(
       
       const result = await pool.query(
         `
+        
             INSERT INTO newsletters
             (
                 subject,
@@ -101,7 +103,7 @@ exports.createNewsletter = async (req, res) => {
             message,
             image_url,
             recipient_type,
-            status,
+            dbStatus,
             scheduled_at || null,
             req.session.user.id,
         ]

@@ -17,18 +17,22 @@ async function sendNewsletter(newsletterId) {
     if (!newsletterResult.rows.length) return;
 
       const newsletter = newsletterResult.rows[0];
+      console.log("Newsletter:", newsletter.id);
       
           if (newsletter.status === "sent") return;
 
 
     // Mark as sending
-    await pool.query(
-      `
-        UPDATE newsletters
-        SET status='sending'
-        WHERE id=$1
-      `,
-      [newsletterId],
+    await pool.query(`
+      UPDATE newsletters
+      SET
+      status='sending',
+      progress=0,
+      sent_count=0,
+      failed_count=0,
+      delivered_count=0
+      WHERE id=$1
+      `,[newsletterId]
     );
 
     // Get recipients
@@ -41,6 +45,21 @@ async function sendNewsletter(newsletterId) {
     `,
       [newsletterId],
     );
+
+    console.log("Recipients:", recipients.rows.length);
+
+    if (recipients.rows.length === 0) {
+
+    await pool.query(`
+        UPDATE newsletters
+        SET
+            status='failed',
+            failed_count=1
+        WHERE id=$1
+    `,[newsletterId]);
+
+    return; 
+    }
 
     let sent = 0;
     let failed = 0;
@@ -104,10 +123,13 @@ async function sendNewsletter(newsletterId) {
             </div>
             `;
 
+            console.log("Sending:", recipient.email);
           await sendEmail(recipient.email, newsletter.subject, html);
+          console.log("Sent:", recipient.email);
 
           // Brevo rate limit protection
           await new Promise((resolve) => setTimeout(resolve, 150));
+          console.log("Newsletter finished");
 
         sent++;
 
@@ -162,18 +184,32 @@ async function sendNewsletter(newsletterId) {
     }
 
     // Finished
-    await pool.query(
-      `
+    await pool.query(`
       UPDATE newsletters
-        SET
-            status='sent',
-            sent_at=NOW()
-        WHERE id=$1
-    `,
-      [newsletterId],
+      SET
+      status='sent',
+      sent_at=NOW(),
+      sent_count=$1,
+      failed_count=$2,
+      delivered_count=$1,
+      progress=100
+      WHERE id=$3
+      `,[
+          sent,
+          failed,
+          newsletterId
+        ]
     );
-  } catch (err) {
-    console.log(err);
+  } catch(err){
+
+    console.error(err);
+
+    await pool.query(`
+    UPDATE newsletters
+    SET status='failed'
+    WHERE id=$1
+    `,[newsletterId]);
+
   }
 }
 
