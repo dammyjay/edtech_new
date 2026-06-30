@@ -693,3 +693,46 @@ window.closeAudienceModal = function(){
     document.getElementById("audienceModal").style.display="none";
 
 }
+
+window.editNewsletter = async function(id){
+
+    try{
+
+        const res = await fetch(`/admin/newsletters/${id}`);
+
+        const newsletter = await res.json();
+
+        // Fill your form
+
+        document.querySelector('[name="subject"]').value =
+            newsletter.subject;
+
+        document.querySelector('[name="preview_text"]').value =
+            newsletter.preview_text;
+
+        document.querySelector('[name="recipient_type"]').value =
+            newsletter.recipient_type;
+
+        document.querySelector('[name="scheduled_at"]').value =
+            newsletter.scheduled_at || "";
+
+        CKEDITOR.instances.newsletterEditor.setData(
+            newsletter.message
+        );
+
+        openModal("createNewsletterModal");
+
+    }catch(err){
+
+        console.error(err);
+
+        alert("Unable to load newsletter.");
+
+    }
+
+};
+window.openModal = function(id){
+
+    document.getElementById(id).style.display = "flex";
+
+};

@@ -76,12 +76,6 @@ exports.createNewsletter = async (req, res) => {
     const recipientSelectionMode =
     req.body.recipient_selection_mode || "all";
 
-    console.log("Recipient Type:", recipient_type);
-
-    console.log("Selection Mode:", recipientSelectionMode);
-
-    console.log("Recipient IDs:", recipientIds);
-
     const image_url = req.file ? req.file.path : null;
     const dbStatus = status === "sending" ? "draft" : status;
 
@@ -512,4 +506,266 @@ exports.getAudienceUsers = async (req, res) => {
       error: "Unable to load audience users."
     });
   }
+};
+
+exports.getNewsletterRecipients = async (req, res) => {
+  try {
+
+    const result = await pool.query(
+      `
+      SELECT
+          nr.user_id,
+          u.fullname,
+          u.email,
+          nr.status,
+          nr.sent_at,
+          nr.opened_at
+      FROM newsletter_recipients nr
+      JOIN users2 u
+          ON u.id = nr.user_id
+      WHERE nr.newsletter_id = $1
+      ORDER BY u.fullname
+      `,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to load recipients."
+    });
+
+  }
+};
+
+exports.updateNewsletter = async (req, res) => {
+
+  try {
+
+    const {
+      subject,
+      preview_text,
+      message,
+      recipient_type,
+      status,
+      scheduled_at
+    } = req.body;
+
+    let imageSql = "";
+    let values = [
+      subject,
+      preview_text,
+      message,
+      recipient_type,
+      status,
+      scheduled_at || null
+    ];
+
+    if (req.file) {
+
+      imageSql = ", image_url=$7";
+
+      values.push(req.file.path);
+
+      values.push(req.params.id);
+
+    } else {
+
+      values.push(req.params.id);
+
+    }
+
+    const idIndex = req.file ? 8 : 7;
+
+    await pool.query(
+      `
+      UPDATE newsletters
+      SET
+          subject=$1,
+          preview_text=$2,
+          message=$3,
+          recipient_type=$4,
+          status=$5,
+          scheduled_at=$6
+          ${imageSql}
+      WHERE id=$${idIndex}
+      `,
+      values
+    );
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to update newsletter."
+    });
+
+  }
+
+};
+
+exports.deleteNewsletter = async (req, res) => {
+
+  try {
+
+    await pool.query(
+      "DELETE FROM newsletter_recipients WHERE newsletter_id=$1",
+      [req.params.id]
+    );
+
+    await pool.query(
+      "DELETE FROM newsletters WHERE id=$1",
+      [req.params.id]
+    );
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to delete newsletter."
+    });
+
+  }
+
+};
+
+exports.sendNewsletterNow = async (req, res) => {
+
+  try {
+
+    await pool.query(
+      `
+      UPDATE newsletters
+      SET status='sending'
+      WHERE id=$1
+      `,
+      [req.params.id]
+    );
+
+    sendNewsletter(req.params.id)
+      .catch(console.error);
+
+    res.json({
+      success: true,
+      message: "Newsletter sending started."
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to send newsletter."
+    });
+
+  }
+
+};  
+
+exports.cancelNewsletter = async (req, res) => {
+
+  try {
+
+    await pool.query(
+      `
+      UPDATE newsletters
+      SET
+          status='draft',
+          scheduled_at=NULL
+      WHERE id=$1
+      `,
+      [req.params.id]
+    );
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to cancel schedule."
+    });
+
+  }
+
+};
+
+exports.duplicateNewsletter = async (req, res) => {
+
+  try {
+
+    const original = await pool.query(
+      `
+      SELECT *
+      FROM newsletters
+      WHERE id=$1
+      `,
+      [req.params.id]
+    );
+
+    if (!original.rows.length) {
+
+      return res.status(404).json({
+        error: "Newsletter not found."
+      });
+
+    }
+
+    const n = original.rows[0];
+
+    await pool.query(
+      `
+      INSERT INTO newsletters
+      (
+          subject,
+          preview_text,
+          message,
+          image_url,
+          recipient_type,
+          status,
+          created_by
+      )
+      VALUES($1,$2,$3,$4,$5,'draft',$6)
+      `,
+      [
+        n.subject + " (Copy)",
+        n.preview_text,
+        n.message,
+        n.image_url,
+        n.recipient_type,
+        req.session.user.id
+      ]
+    );
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to duplicate newsletter."
+    });
+
+  }
+
 };
