@@ -2403,6 +2403,13 @@ th.sort-desc::after {
 .continue-reading-btn:hover {
     background: #a38833; }
 
+.announcement-thumb{
+    width:70px;
+    height:45px;
+    object-fit:cover;
+    border-radius:6px;
+    display:block;
+}
 
 .newsletter-image-preview{
 

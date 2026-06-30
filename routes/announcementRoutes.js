@@ -6,38 +6,6 @@ const announcementController = require("../controllers/announcementController");
 
 console.log(announcementController);
 
-// router.get("/", announcementController.getAnnouncementsPage);
-
-// router.post(
-//     "/create",
-//     upload.single("image"),
-//     announcementController.createAnnouncement
-// );
-
-// router.get(
-//     "/homepage",
-//     announcementController.getHomepageAnnouncements
-// );
-
-// router.get(
-//     "/dashboard",
-//     announcementController.getDashboardAnnouncements
-// );
-
-// router.get("/:id", announcementController.getAnnouncement);
-
-// router.put(
-//     "/:id",
-//     upload.single("image"),
-//     announcementController.updateAnnouncement
-// );
-
-// router.delete("/:id", announcementController.deleteAnnouncement);
-
-// router.post("/:id/publish", announcementController.publishAnnouncement);
-
-// router.post("/:id/archive", announcementController.archiveAnnouncement);
-
 router.get("/", announcementController.getAnnouncementsPage);
 
 router.get("/all", announcementController.getAllAnnouncements);

@@ -98,6 +98,16 @@ exports.viewTable = async (req, res) => {
       table: "parent_training_invoices",
       nameColumn: "invoice_number",
     },
+
+    newsletter_id: {
+      table: "newsletter",
+      nameColumn: "subject",
+    },
+
+    announcement_id: {
+      table: "announcement",
+      nameColumn: "title",
+    },
   };
 
   const infoResult = await pool.query(

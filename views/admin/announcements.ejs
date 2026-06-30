@@ -22,35 +22,20 @@
 
 <div class="table-responsive">
     <table id="announcementTable" class="user-table">
-
         <thead>
-
             <tr>
-
                 <th>Image</th>
-
                 <th>Title</th>
-
                 <th>Type</th>
-
                 <th>Priority</th>
-
                 <th>Status</th>
-
                 <th>Audience</th>
-
                 <th>Views</th>
-
                 <th>Actions</th>
-
             </tr>
-
         </thead>
-
         <tbody>
-
         </tbody>
-
     </table>
 </div>
 
@@ -58,9 +43,7 @@
 <div id="announcementModal" class="modal">
 
     <div class="modal-content large-modal">
-
         <div class="modal-header">
-
             <h2 id="modalTitle">
                 New Announcement
             </h2>
@@ -73,32 +56,26 @@
             id="announcementForm"
             enctype="multipart/form-data"
         >
-
             <input
                 type="hidden"
                 id="announcementId"
             >
-
             <!-- Continue adding fields -->
-             
+            
             <div class="form-group">
-
                 <label>Title</label>
-
                 <input
                     type="text"
+                    name="title"
                     id="title"
                     required
                 >
-
             </div>
-
             <div class="form-group">
-
                 <label>Message</label>
-
                 <textarea
                     id="message"
+                    name="message"
                     rows="6"
                     required
                 ></textarea>
@@ -113,6 +90,7 @@
                     type="file"
                     id="image"
                     accept="image/*"
+                    name="image"
                 >
 
                 <img
@@ -131,7 +109,7 @@
 
             <label>Type</label>
 
-            <select id="type">
+            <select id="type" name="type">
 
             <option value="information">Information</option>
 
@@ -157,7 +135,7 @@
 
             <label>Priority</label>
 
-            <select id="priority">
+            <select id="priority" name="priority">
 
             <option value="low">Low</option>
 
@@ -171,8 +149,26 @@
 
             </div>
 
+            <div class="modal-footer">
+
+                <button
+                type="submit"
+                id="saveAnnouncementBtn"
+                class="btn-primary">
+
+                Save Announcement
+
+                </button>
+
+            </div>
+
         </form>
 
+        
     </div>
 
 </div>
+
+<script src="https://cdn.ckeditor.com/4.22.1/full/ckeditor.js"></script>
+
+<script src="/js/admin-announcements.js"></script>

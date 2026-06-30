@@ -82,6 +82,8 @@ exports.getAnnouncementsPage = async (req, res) => {
 };
 
 exports.createAnnouncement = async (req, res) => {
+    console.log("BODY:", req.body);
+    console.log("FILE:", req.file);
   try {
 
     const {
@@ -280,17 +282,23 @@ exports.createAnnouncement = async (req, res) => {
       ]
     );
 
-    res.redirect("/admin/announcements");
-
-  } catch (err) {
-
-    console.error(err);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to create announcement."
+    // res.redirect("/admin/announcements");
+    return res.json({
+        success: true,
+        message: "Announcement created successfully."
     });
 
+  } catch (err) {
+      console.error("POSTGRES ERROR:");
+      console.error(err.message);
+      console.error(err.detail);
+      console.error(err.code);
+      console.error(err.stack);
+
+      res.status(500).json({
+          success:false,
+          message:err.message
+      });
   }
 };
 

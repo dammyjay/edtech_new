@@ -10,6 +10,7 @@
 let announcements = [];
 let editingAnnouncementId = null;
 let announcementEditor = null;
+let allAnnouncements = [];
 
 // ------------------------------
 // DOM Elements
@@ -30,10 +31,10 @@ const announcementForm =
     document.getElementById("announcementForm");
 
 const modalTitle =
-    document.getElementById("announcementModalTitle");
+    document.getElementById("modalTitle");
 
 const imageInput =
-    document.getElementById("announcementImage");
+    document.getElementById("image");
 
 const imagePreview =
     document.getElementById("imagePreview");
@@ -45,9 +46,11 @@ const loadingSpinner =
     document.getElementById("announcementLoading");
 
 
+
 // ======================================================
 // INITIALIZATION
 // ======================================================
+
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -57,7 +60,55 @@ document.addEventListener("DOMContentLoaded", () => {
 
     bindEvents();
 
+    announcementForm.addEventListener("submit", async function(e){
+
+        e.preventDefault();
+
+        // Sync CKEditor back to textarea
+        if (CKEDITOR.instances.message) {
+            CKEDITOR.instances.message.updateElement();
+        }
+
+        const formData = new FormData(this);
+
+        console.log("Title:", formData.get("title"));
+        console.log("Message:", formData.get("message"));
+
+        for (const [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+
+        const url = editingAnnouncementId
+            ? `/admin/announcements/${editingAnnouncementId}`
+            : "/admin/announcements/create";
+
+        const method = editingAnnouncementId
+            ? "PUT"
+            : "POST";
+
+        const response = await fetch(url,{
+            method,
+            body:formData
+        });
+
+        const data = await response.json();
+        if (data.success) {
+    document.getElementById("announcementModal").classList.remove("show");
+    // or however you close your modal
+        closeModal()
+        location.reload();
+    }
+
+        alert(data.message);
+
+        closeModal();
+
+        loadAnnouncements();
+
+    });
+
 });
+
 
 
 // ======================================================
@@ -66,20 +117,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function initializeCKEditor() {
 
-    if (CKEDITOR.instances.announcementMessage) {
+    if (CKEDITOR.instances.message) {
 
-        CKEDITOR.instances.announcementMessage.destroy(true);
+        CKEDITOR.instances.message.destroy(true);
 
     }
 
     announcementEditor = CKEDITOR.replace(
-        "announcementMessage",
+        "message",
         {
             height: 250
         }
     );
 
 }
+
 
 
 // ======================================================
@@ -124,7 +176,82 @@ async function loadAnnouncements() {
 
 }
 
+// ======================================================
+// VIEW ANNOUNCEMENTS
+// ======================================================
+async function viewAnnouncement(id){
 
+    try{
+
+        const res = await fetch(`/admin/announcements/${id}`);
+
+        const data = await res.json();
+
+        if(!data.success){
+            return alert(data.message);
+        }
+
+        const a = data.announcement;
+
+        alert(
+            `Title: ${a.title}\n\n${a.message.replace(/<[^>]+>/g,"")}`
+        );
+
+    }catch(err){
+
+        console.error(err);
+
+    }
+
+}
+
+// ======================================================
+// EDIT ANNOUNCEMENTS
+// ======================================================
+
+async function editAnnouncement(id){
+
+    try{
+
+        const res = await fetch(`/admin/announcements/${id}`);
+
+        const data = await res.json();
+
+        if(!data.success){
+            return alert(data.message);
+        }
+
+        const a = data.announcement;
+
+        editingAnnouncementId = id;
+
+        modalTitle.innerText = "Edit Announcement";
+
+        document.getElementById("title").value = a.title;
+
+        CKEDITOR.instances.message.setData(a.message);
+
+        document.getElementById("type").value = a.type;
+
+        document.getElementById("priority").value = a.priority;
+
+        if(a.image_url){
+
+            imagePreview.src = a.image_url;
+
+            imagePreview.style.display = "block";
+
+        }
+
+        openModal();
+
+    }catch(err){
+
+        console.error(err);
+
+    }
+
+}
 
 // ======================================================
 // RENDER TABLE
@@ -343,12 +470,13 @@ statusFilter.addEventListener("change", function () {
 
 newAnnouncementBtn.addEventListener("click", () => {
 
+    console.log("Button clicked");
+
     editingAnnouncementId = null;
 
     resetForm();
 
-    modalTitle.innerText =
-        "Create Announcement";
+    modalTitle.innerText = "Create Announcement";
 
     openModal();
 
@@ -434,7 +562,7 @@ function closeModal() {
 function bindEvents() {
 
     document
-        .querySelectorAll(".close-modal")
+        .querySelectorAll(".closeModal")
         .forEach(btn => {
 
             btn.addEventListener(
@@ -480,160 +608,160 @@ function showToast(message, type = "success") {
 // LOAD ANNOUNCEMENTS
 // ==========================================
 
-async function loadAnnouncements() {
-    try {
+// async function loadAnnouncements() {
+//     try {
 
-        const res = await fetch("/admin/announcements/all");
+//         const res = await fetch("/admin/announcements/all");
 
-        const announcements = await res.json();
+//         const announcements = await res.json();
 
-        allAnnouncements = announcements;
+//         allAnnouncements = announcements;
 
-        renderAnnouncements();
+//         renderAnnouncements();
 
-    } catch (err) {
+//     } catch (err) {
 
-        console.error(err);
+//         console.error(err);
 
-        alert("Failed to load announcements");
+//         alert("Failed to load announcements");
 
-    }
-}
+//     }
+// }
 
 // ==========================================
 // RENDER TABLE
 // ==========================================
 
-function renderAnnouncements() {
+// function renderAnnouncements() {
 
-    const tbody = document.querySelector("#announcementTable tbody");
+//     const tbody = document.querySelector("#announcementTable tbody");
 
-    tbody.innerHTML = "";
+//     tbody.innerHTML = "";
 
-    const keyword = searchInput.value.toLowerCase();
+//     const keyword = searchInput.value.toLowerCase();
 
-    const status = statusFilter.value;
+//     const status = statusFilter.value;
 
-    const filtered = allAnnouncements.filter(a => {
+//     const filtered = allAnnouncements.filter(a => {
 
-        const matchesSearch =
-            a.title.toLowerCase().includes(keyword) ||
-            a.message.toLowerCase().includes(keyword);
+//         const matchesSearch =
+//             a.title.toLowerCase().includes(keyword) ||
+//             a.message.toLowerCase().includes(keyword);
 
-        const matchesStatus =
-            !status || a.status === status;
+//         const matchesStatus =
+//             !status || a.status === status;
 
-        return matchesSearch && matchesStatus;
+//         return matchesSearch && matchesStatus;
 
-    });
+//     });
 
-    if (!filtered.length) {
+//     if (!filtered.length) {
 
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align:center;padding:30px;">
-                    No announcements found.
-                </td>
-            </tr>
-        `;
+//         tbody.innerHTML = `
+//             <tr>
+//                 <td colspan="8" style="text-align:center;padding:30px;">
+//                     No announcements found.
+//                 </td>
+//             </tr>
+//         `;
 
-        return;
-    }
+//         return;
+//     }
 
-    filtered.forEach(item => {
+//     filtered.forEach(item => {
 
-        tbody.innerHTML += `
+//         tbody.innerHTML += `
 
-<tr>
+// <tr>
 
-<td>
+// <td>
 
-${
-item.image_url
-?
-`<img src="${item.image_url}"
-style="width:60px;height:40px;object-fit:cover;border-radius:6px;">`
-:
-"-"
-}
+// ${
+// item.image_url
+// ?
+// `<img src="${item.image_url}"
+// style="width:60px;height:40px;object-fit:cover;border-radius:6px;">`
+// :
+// "-"
+// }
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-<strong>${item.title}</strong><br>
+// <strong>${item.title}</strong><br>
 
-<small>${item.created_at || ""}</small>
+// <small>${item.created_at || ""}</small>
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-${item.type}
+// ${item.type}
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-<span class="priority priority-${item.priority}">
-${item.priority}
-</span>
+// <span class="priority priority-${item.priority}">
+// ${item.priority}
+// </span>
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-${statusBadge(item.status)}
+// ${statusBadge(item.status)}
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-${item.audience_type || "Everyone"}
+// ${item.audience_type || "Everyone"}
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-${item.views || 0}
+// ${item.views || 0}
 
-</td>
+// </td>
 
-<td>
+// <td>
 
-<button
-class="editBtn"
-data-id="${item.id}">
-Edit
-</button>
+// <button
+// class="editBtn"
+// data-id="${item.id}">
+// Edit
+// </button>
 
-<button
-class="publishBtn"
-data-id="${item.id}">
-Publish
-</button>
+// <button
+// class="publishBtn"
+// data-id="${item.id}">
+// Publish
+// </button>
 
-<button
-class="archiveBtn"
-data-id="${item.id}">
-Archive
-</button>
+// <button
+// class="archiveBtn"
+// data-id="${item.id}">
+// Archive
+// </button>
 
-<button
-class="deleteBtn"
-data-id="${item.id}">
-Delete
-</button>
+// <button
+// class="deleteBtn"
+// data-id="${item.id}">
+// Delete
+// </button>
 
-</td>
+// </td>
 
-</tr>
+// </tr>
 
-`;
+// `;
 
-    });
+//     });
 
-}
+// }
 
 // ==========================================
 // STATUS BADGE
@@ -852,16 +980,6 @@ statusFilter.addEventListener("change", function(){
 
 });
 
-
-// ==========================================
-// NEW ANNOUNCEMENT BUTTON
-// ==========================================
-
-newAnnouncementBtn.addEventListener("click", function(){
-
-    openAnnouncementModal();
-
-});
 
 
 // ==========================================
