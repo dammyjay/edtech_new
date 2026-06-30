@@ -264,7 +264,7 @@
 
                     </td>
 
-                    <td>
+                    <!-- <td>
 
                         <button class="viewBtn">
 
@@ -284,8 +284,39 @@
 
                         </button>
 
-                    </td>
+                    </td> -->
 
+                    <td>
+
+                        <button
+                            class="btn-view"
+                            onclick="viewNewsletter(<%= newsletter.id %>)">
+
+                            <i class="fas fa-eye"></i>
+
+                        </button>
+
+                        <% if(newsletter.status !== 'sent'){ %>
+
+                            <button
+                                class="btn-edit"
+                                onclick="editNewsletter(<%= newsletter.id %>)">
+
+                                <i class="fas fa-edit"></i>
+
+                            </button>
+
+                            <button
+                                class="btn-delete"
+                                onclick="deleteNewsletter(<%= newsletter.id %>)">
+
+                                <i class="fas fa-trash"></i>
+
+                            </button>
+
+                        <% } %>
+
+                    </td>
                 </tr>
 
             <% }) %>
@@ -335,11 +366,21 @@ CREATE NEWSLETTER MODAL
                 name="preview_text"
                 placeholder="Short email preview">
 
-            <label>Header Image</label>
+            <label>Newsletter Banner</label>
 
             <input
-                type="file"
-                name="image">
+            type="file"
+            id="newsletterImage"
+            name="image"
+            accept="image/*">
+
+            <div class="newsletter-image-preview">
+
+            <img
+            id="newsletterPreview"
+            style="display:none;">
+
+            </div>
 
             <label>Audience</label>
 
@@ -399,13 +440,29 @@ CREATE NEWSLETTER MODAL
             <!-- Dynamic Recipient Area -->
 
             <div id="recipientSelectionArea"></div>
+            <input
+            type="hidden"
+            id="selectedRecipientIds"
+            name="recipient_ids">
+
+            <!-- Stores whether admin selected all users or only selected users -->
+            <input
+                type="hidden"
+                id="recipientSelectionMode"
+                name="recipient_selection_mode"
+                value="all">
 
             <label>Message</label>
 
-            <textarea
-                name="message"
-                rows="12"
-                required></textarea>
+            <textarea id="newsletterEditor" name="message">
+
+                <h2>Welcome!</h2>
+                <p>Hello everyone,</p>
+                <p>We are excited to share our latest updates.</p>
+                <p>Thank you for being part of JKT Hub.</p>
+
+            </textarea>
+
 
             <label>When should this be sent?</label>
 
@@ -452,6 +509,117 @@ CREATE NEWSLETTER MODAL
         </form>
 
     </div>
+
+</div>
+
+<!-- ===============================
+AUDIENCE SELECTION MODAL
+================================ -->
+
+<div
+    id="audienceModal"
+    class="modal-overlay"
+    style="display:none;">
+
+    <div class="modal-content" style="max-width:850px;">
+
+        <span
+            class="close-btn"
+            onclick="closeAudienceModal()">
+
+            &times;
+
+        </span>
+
+        <h2 id="audienceTitle">
+            Select Recipients
+        </h2>
+
+        <div class="audience-toolbar">
+
+            <input
+                type="text"
+                id="audienceSearch"
+                placeholder="Search users...">
+
+            <button
+                type="button"
+                id="selectAllAudience"
+                class="btn-pri">
+
+                Select All
+
+            </button>
+
+            <button
+                type="button"
+                id="clearAudience"
+                class="btn-danger">
+
+                Clear
+
+            </button>
+
+        </div>
+
+        <div
+            id="audienceUserList"
+            class="audience-user-list">
+
+        </div>
+
+        <div
+            class="audience-footer">
+
+            <span>
+
+                Selected:
+                <strong id="selectedAudienceCount">
+
+                    0
+
+                </strong>
+
+            </span>
+
+            <button
+                type="button"
+                id="saveAudienceSelection"
+                class="btn-pri">
+
+                Done
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div
+id="viewNewsletterModal"
+class="modal-overlay"
+style="display:none;">
+
+<div
+class="modal-content"
+style="max-width:900px;">
+
+<span
+class="close-btn"
+onclick="closeModal('viewNewsletterModal')">
+
+&times;
+
+</span>
+
+<h2 id="viewSubject"></h2>
+
+<div id="viewBody"></div>
+
+</div>
 
 </div>
 
@@ -536,6 +704,106 @@ document
 //         container.innerHTML=html;
 
 //     }
+
+// });
+
+
+</script>
+
+<script src="https://cdn.ckeditor.com/4.22.1/full/ckeditor.js"></script>
+
+<script>
+    
+//     CKEDITOR.replace("newsletterEditor",{
+//     height:450,
+//     removeButtons:'PasteFromWord',
+//     extraPlugins:'justify,colorbutton,font',
+//     allowedContent:true,
+//     extraAllowedContent:'*(*){*}[*]',
+//     toolbar:[
+
+//         {
+//             name:'document',
+//             items:[
+//                 'Source',
+//                 '-',
+//                 'Preview'
+//             ]
+//         },
+
+//         {
+//             name:'clipboard',
+//             items:[
+//                 'Cut',
+//                 'Copy',
+//                 'Paste',
+//                 'Undo',
+//                 'Redo'
+//             ]
+//         },
+
+//         {
+//             name:'styles',
+//             items:[
+//                 'Format',
+//                 'Font',
+//                 'FontSize'
+//             ]
+//         },
+
+//         {
+//             name:'colors',
+//             items:[
+//                 'TextColor',
+//                 'BGColor'
+//             ]
+//         },
+
+//         {
+//             name:'basicstyles',
+//             items:[
+//                 'Bold',
+//                 'Italic',
+//                 'Underline',
+//                 'Strike'
+//             ]
+//         },
+
+//         {
+//             name:'paragraph',
+//             items:[
+//                 'NumberedList',
+//                 'BulletedList',
+//                 '-',
+//                 'Outdent',
+//                 'Indent',
+//                 '-',
+//                 'JustifyLeft',
+//                 'JustifyCenter',
+//                 'JustifyRight',
+//                 'JustifyBlock'
+//             ]
+//         },
+
+//         {
+//             name:'insert',
+//             items:[
+//                 'Image',
+//                 'Table',
+//                 'HorizontalRule',
+//                 'SpecialChar'
+//             ]
+//         },
+
+//         {
+//             name:'links',
+//             items:[
+//                 'Link',
+//                 'Unlink'
+//             ]
+//         }
+
+//     ]
 
 // });
 

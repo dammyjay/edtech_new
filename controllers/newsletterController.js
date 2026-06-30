@@ -73,6 +73,15 @@ exports.createNewsletter = async (req, res) => {
       scheduled_at,
     } = req.body;
 
+    const recipientSelectionMode =
+    req.body.recipient_selection_mode || "all";
+
+    console.log("Recipient Type:", recipient_type);
+
+    console.log("Selection Mode:", recipientSelectionMode);
+
+    console.log("Recipient IDs:", recipientIds);
+
     const image_url = req.file ? req.file.path : null;
     const dbStatus = status === "sending" ? "draft" : status;
 
@@ -111,15 +120,52 @@ exports.createNewsletter = async (req, res) => {
 
         const newsletterId = result.rows[0].id;
 
-        const recipientIds = req.body.recipient_ids || [];
+        // const recipientIds = req.body.recipient_ids || [];
+
+        // const recipients =
+        // await newsletterService.getRecipients(
+        //     recipient_type,
+        //     Array.isArray(recipientIds)
+        //     ? recipientIds
+        //     : [recipientIds]
+        // );
+
+        let recipientIds = [];
+
+        if (req.body.recipient_ids) {
+
+            if (Array.isArray(req.body.recipient_ids)) {
+
+                recipientIds = req.body.recipient_ids.map(Number);
+
+            } else {
+
+                recipientIds = req.body.recipient_ids
+                    .split(",")
+                    .map(id => Number(id.trim()))
+                    .filter(id => !isNaN(id));
+
+            }
+
+        }
+
+        console.log("Recipient Type:", recipient_type);
+
+        console.log("Selection Mode:", recipientSelectionMode);
+
+        console.log("Recipient IDs:", recipientIds);
+
+        // const recipients = await newsletterService.getRecipients(
+        //     recipient_type,
+        //     recipientIds
+        // );
 
         const recipients =
-        await newsletterService.getRecipients(
-            recipient_type,
-            Array.isArray(recipientIds)
-            ? recipientIds
-            : [recipientIds]
-        );
+          await newsletterService.getRecipients(
+              recipient_type,
+              recipientIds,
+              recipientSelectionMode
+          );
 
         await newsletterService.saveRecipients(
             newsletterId,
@@ -295,4 +341,175 @@ exports.getAudienceSummary = async (req, res) => {
     title,
     count: Number(result.rows[0].count),
   });
+};
+
+exports.getNewsletter = async(req,res)=>{
+
+    const result = await pool.query(`
+        SELECT *
+        FROM newsletters
+        WHERE id=$1
+    `,[req.params.id]);
+
+    if(result.rows.length===0){
+
+        return res.status(404).json({
+            error:"Newsletter not found"
+        });
+
+    }
+
+    res.json(result.rows[0]);
+
+};
+
+exports.getAudienceUsers = async (req, res) => {
+  try {
+    const type = req.params.type;
+    const ids = req.query.ids
+      ? req.query.ids.split(",").map(Number)
+      : [];
+
+    let result;
+
+    switch (type) {
+
+      case "all":
+      case "users":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "parents":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE role='parent'
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "teachers":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE role='teacher'
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "students":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE role='student'
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "school_admins":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE role='school_admin'
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "admins":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE role='admin'
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `);
+        break;
+
+      case "schools":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE school_id = ANY($1)
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `, [ids]);
+        break;
+
+      case "classrooms":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE classroom_id = ANY($1)
+          AND email IS NOT NULL
+          ORDER BY fullname
+        `, [ids]);
+        break;
+
+      case "custom":
+        result = await pool.query(`
+          SELECT
+              id,
+              fullname,
+              email,
+              role
+          FROM users2
+          WHERE id = ANY($1)
+          ORDER BY fullname
+        `, [ids]);
+        break;
+
+      default:
+        return res.json([]);
+    }
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Unable to load audience users."
+    });
+  }
 };

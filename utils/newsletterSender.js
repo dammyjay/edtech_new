@@ -1,5 +1,6 @@
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
+const newsletterTemplate = require("./newsletterTemplate");
 
 async function sendNewsletter(newsletterId) {
 
@@ -74,54 +75,8 @@ async function sendNewsletter(newsletterId) {
         `,
           [recipient.id],
           );
-          const body = newsletter.message.replace(/\n/g, "<br>");
 
-        // const html = `
-        //     <div style="font-family:Arial">
-
-        //         ${
-        //           newsletter.image_url
-        //             ? `<img src="${newsletter.image_url}" style="max-width:100%">`
-        //             : ""
-        //         }
-
-        //         <h2>${newsletter.subject}</h2>
-
-                
-        //         <p>${body}</p>
-
-        //     </div>
-          // `;
-          
-          const html = `
-            <div style="font-family:Arial,sans-serif">
-
-            ${
-            newsletter.image_url
-            ? `<img src="${newsletter.image_url}" style="max-width:100%">`
-            : ""
-            }
-
-            <h2>${newsletter.subject}</h2>
-
-            <p style="color:#888">
-            ${newsletter.preview_text || ""}
-            </p>
-
-            <div>
-            ${body}
-            </div>
-
-            <hr>
-
-            <p style="font-size:12px;color:#999">
-
-            You received this email because you are a member of JKT Hub.
-
-            </p>
-
-            </div>
-            `;
+          const html = newsletterTemplate(newsletter);
 
             console.log("Sending:", recipient.email);
           await sendEmail(recipient.email, newsletter.subject, html);

@@ -3,7 +3,12 @@ const pool = require("../models/db");
 /**
  * Returns all recipients for a newsletter
  */
-async function getRecipients(recipientType, recipientIds = []) {
+async function getRecipients(recipientType, recipientIds = [], selectionMode = "all") {
+
+  recipientIds = recipientIds
+    .map(Number)
+    .filter(id => !isNaN(id));
+
   switch (recipientType) {
     case "all":
     case "users":
@@ -26,14 +31,40 @@ async function getRecipients(recipientType, recipientIds = []) {
       ).rows;
 
     case "teachers":
-      return (
+
+    if (
+        selectionMode === "selected" &&
+        recipientIds.length > 0
+    ) {
+
+        return (
+            await pool.query(
+                `
+                SELECT
+                    id,
+                    fullname,
+                    email
+                FROM users2
+                WHERE role='teacher'
+                AND id = ANY($1)
+                `,
+                [recipientIds]
+            )
+        ).rows;
+
+    }
+
+    return (
         await pool.query(`
-            SELECT id, fullname, email
+            SELECT
+                id,
+                fullname,
+                email
             FROM users2
             WHERE role='teacher'
-              AND email IS NOT NULL
+            AND email IS NOT NULL
         `)
-      ).rows;
+    ).rows;
 
     case "students":
       return (
@@ -66,25 +97,60 @@ async function getRecipients(recipientType, recipientIds = []) {
       ).rows;
 
     case "schools":
-      return (
-        await pool.query(
-          `
+
+    // Admin selected individual users from the school(s)
+   if (
+        selectionMode === "selected" &&
+        recipientIds.length > 0
+    )  {
+
+        return (
+            await pool.query(`
+                SELECT
+                    id,
+                    fullname,
+                    email
+                FROM users2
+                WHERE id = ANY($1)
+                AND email IS NOT NULL
+            `,[recipientIds])
+        ).rows;
+
+    }
+
+    // Admin selected entire school(s)
+    return (
+        await pool.query(`
             SELECT DISTINCT
-                u.id,
-                u.fullname,
-                u.email
-            FROM users2 u
-            WHERE u.school_id = ANY($1)
-            AND u.email IS NOT NULL
-        `,
-          [recipientIds],
-        )
-      ).rows;
+                id,
+                fullname,
+                email
+            FROM users2
+            WHERE school_id = ANY($1)
+            AND email IS NOT NULL
+        `,[recipientIds])
+    ).rows;
 
     case "classrooms":
-      return (
-        await pool.query(
-          `
+
+    if (selectionMode === "selected") {
+
+        return (
+            await pool.query(`
+                SELECT
+                    id,
+                    fullname,
+                    email
+                FROM users2
+                WHERE id = ANY($1)
+                AND email IS NOT NULL
+            `, [recipientIds])
+        ).rows;
+
+    }
+
+    return (
+        await pool.query(`
             SELECT
                 id,
                 fullname,
@@ -92,25 +158,54 @@ async function getRecipients(recipientType, recipientIds = []) {
             FROM users2
             WHERE classroom_id = ANY($1)
             AND email IS NOT NULL
-        `,
-          [recipientIds],
-        )
-      ).rows;
+        `, [recipientIds])
+    ).rows;
+
+    case "courses":
+
+    if (selectionMode ==="selected") {
+
+        return (
+            await pool.query(`
+                SELECT
+                    id,
+                    fullname,
+                    email
+                FROM users2
+                WHERE id = ANY($1)
+                AND email IS NOT NULL
+            `,[recipientIds])
+        ).rows;
+
+    }
+
+    return (
+        await pool.query(`
+            SELECT DISTINCT
+                u.id,
+                u.fullname,
+                u.email
+            FROM users2 u
+            JOIN course_enrollments ce
+                ON ce.user_id = u.id
+            WHERE ce.course_id = ANY($1)
+            AND u.email IS NOT NULL
+        `,[recipientIds])
+    ).rows;
 
     case "custom":
-      return (
-        await pool.query(
-          `
+
+    return (
+        await pool.query(`
             SELECT
                 id,
                 fullname,
                 email
             FROM users2
             WHERE id = ANY($1)
-        `,
-          [recipientIds],
-        )
-      ).rows;
+            AND email IS NOT NULL
+        `,[recipientIds])
+    ).rows;
 
     default:
       return [];
