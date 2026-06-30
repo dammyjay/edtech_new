@@ -1,0 +1,178 @@
+ <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+ <button id="newAnnouncementBtn" class="btn-primary">
+    <i class="fas fa-plus"></i>
+    New Announcement
+</button>
+
+<input
+    type="text"
+    id="announcementSearch"
+    placeholder="Search announcements..."
+>
+
+<select id="statusFilter">
+    <option value="">All</option>
+    <option value="draft">Draft</option>
+    <option value="published">Published</option>
+    <option value="scheduled">Scheduled</option>
+    <option value="expired">Expired</option>
+    <option value="archived">Archived</option>
+</select>
+
+<div class="table-responsive">
+    <table id="announcementTable" class="user-table">
+
+        <thead>
+
+            <tr>
+
+                <th>Image</th>
+
+                <th>Title</th>
+
+                <th>Type</th>
+
+                <th>Priority</th>
+
+                <th>Status</th>
+
+                <th>Audience</th>
+
+                <th>Views</th>
+
+                <th>Actions</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        </tbody>
+
+    </table>
+</div>
+
+<!-- Announcement Modal -->
+<div id="announcementModal" class="modal">
+
+    <div class="modal-content large-modal">
+
+        <div class="modal-header">
+
+            <h2 id="modalTitle">
+                New Announcement
+            </h2>
+
+            <span class="closeModal">&times;</span>
+
+        </div>
+
+        <form
+            id="announcementForm"
+            enctype="multipart/form-data"
+        >
+
+            <input
+                type="hidden"
+                id="announcementId"
+            >
+
+            <!-- Continue adding fields -->
+             
+            <div class="form-group">
+
+                <label>Title</label>
+
+                <input
+                    type="text"
+                    id="title"
+                    required
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Message</label>
+
+                <textarea
+                    id="message"
+                    rows="6"
+                    required
+                ></textarea>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Image</label>
+
+                <input
+                    type="file"
+                    id="image"
+                    accept="image/*"
+                >
+
+                <img
+                    id="imagePreview"
+                    style="
+                        display:none;
+                        margin-top:10px;
+                        max-width:250px;
+                        border-radius:8px;
+                    "
+                >
+
+            </div>
+
+            <div class="form-group">
+
+            <label>Type</label>
+
+            <select id="type">
+
+            <option value="information">Information</option>
+
+            <option value="event">Event</option>
+
+            <option value="success">Success</option>
+
+            <option value="warning">Warning</option>
+
+            <option value="emergency">Emergency</option>
+
+            <option value="promotion">Promotion</option>
+
+            <option value="maintenance">Maintenance</option>
+
+            <option value="course">Course</option>
+
+            </select>
+
+            </div>
+
+            <div class="form-group">
+
+            <label>Priority</label>
+
+            <select id="priority">
+
+            <option value="low">Low</option>
+
+            <option value="normal">Normal</option>
+
+            <option value="high">High</option>
+
+            <option value="critical">Critical</option>
+
+            </select>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>

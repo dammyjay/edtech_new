@@ -218,24 +218,6 @@ router.get("/profile", async (req, res) => {
   }
 });
 
-// router.post("/update-profile", async (req, res) => {
-
-//   if (!req.session.user) {
-//     return res.redirect("/admin/login");
-//   }
-
-//   const { fullname, phone, gender, dob } = req.body;
-
-//   await pool.query(
-//     `UPDATE users2 
-//      SET fullname=$1, phone=$2, gender=$3, dob=$4
-//      WHERE id=$5`,
-//     [fullname, phone, gender, dob, req.session.user.id]
-//   );
-
-//   res.redirect("/profile");
-// });
-
 router.post("/update-profile", upload.single("profile_picture"), async (req, res) => {
 
   if (!req.session.user) {
@@ -459,7 +441,6 @@ router.get("/feedback", async (req, res) => {
   });
 });
 
-
 router.post("/feedback", async (req, res) => {
   try {
     const {
@@ -559,7 +540,6 @@ router.get("/make-payment", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
-
 
 router.post("/verify-payment", async (req, res) => {
   const { reference, email, fullName } = req.body;
@@ -693,7 +673,6 @@ router.get("/courses", async (req, res) => {
   });
 });
 
-
 router.get("/pay-event/:regId", async (req, res) => {
   const { regId } = req.params;
 
@@ -730,7 +709,6 @@ router.get("/pay-event/:regId", async (req, res) => {
 // =========================
 // POST Verify Payment
 // =========================
-
 
 router.post("/verify-event-payment", async (req, res) => {
   const { reference, regId } = req.body;
@@ -800,8 +778,6 @@ router.post("/verify-event-payment", async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
-
 
 router.get("/pathways/:id", async (req, res) => {
    const { id } = req.params;
@@ -873,75 +849,6 @@ router.get("/pathways/:id", async (req, res) => {
      res.status(500).send("Server error");
    }
 });
-
-// router.get("/courses/:id", async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     // Get company info
-//     const infoResult = await pool.query(
-//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//     );
-//     const info = infoResult.rows[0] || {};
-
-//     // Get the course details
-//     const courseResult = await pool.query(
-//       "SELECT * FROM courses WHERE id = $1",
-//       [id]
-//     );
-//     const course = courseResult.rows[0];
-
-//     if (!course) return res.status(404).send("Course not found");
-
-//     // Get modules for this course (flat array, not grouped by level)
-//     const modulesResult = await pool.query(
-//       `SELECT * FROM modules 
-//        WHERE course_id = $1
-//        ORDER BY order_number ASC`,
-//       [id]
-//     );
-
-//     const modules = modulesResult.rows;
-
-//       const enrolledCoursesRes = await pool.query(
-//         `SELECT course_id FROM course_enrollments WHERE user_id = $1`,
-//         [req.user?.id]
-//       );
-//     const enrolledCourseIds = enrolledCoursesRes.rows.map((r) => r.course_id);
-    
-//     let walletBalance = 0;
-//     if (req.session.user) {
-//       const walletResult = await pool.query(
-//         "SELECT wallet_balance2 FROM users2 WHERE email = $1",
-//         [req.session.user.email]
-//       );
-//       walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
-//     }
-
-//     const usersResult = await pool.query("SELECT * FROM users2");
-//     const users = usersResult.rows;
-//     const isLoggedIn = !!req.session.user;
-//     const profilePic = req.session.user
-//       ? req.session.user.profile_picture
-//       : null;
-
-//     res.render("singleCourse", {
-//       info,
-//       users,
-//       isLoggedIn,
-//       profilePic,
-//       course,
-//       enrolledCourseIds,
-//       walletBalance,
-//       modules,
-//       subscribed: req.query.subscribed,
-//       activePage: "courses", // 👈 Pass active page
-//     });
-//   } catch (err) {
-//     console.error("❌ Error fetching course details:", err.message);
-//     res.status(500).send("Server error");
-//   }
-// });
 
 router.get("/courses/:id", async (req, res) => {
   const { id } = req.params;

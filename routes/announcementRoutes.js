@@ -2,28 +2,64 @@ const express = require("express");
 const router = express.Router();
 
 const { upload } = require("../middlewares/upload");
-const controller = require("../controllers/announcementController");
+const announcementController = require("../controllers/announcementController");
 
-router.get("/", controller.getAnnouncementsPage);
+console.log(announcementController);
+
+// router.get("/", announcementController.getAnnouncementsPage);
+
+// router.post(
+//     "/create",
+//     upload.single("image"),
+//     announcementController.createAnnouncement
+// );
+
+// router.get(
+//     "/homepage",
+//     announcementController.getHomepageAnnouncements
+// );
+
+// router.get(
+//     "/dashboard",
+//     announcementController.getDashboardAnnouncements
+// );
+
+// router.get("/:id", announcementController.getAnnouncement);
+
+// router.put(
+//     "/:id",
+//     upload.single("image"),
+//     announcementController.updateAnnouncement
+// );
+
+// router.delete("/:id", announcementController.deleteAnnouncement);
+
+// router.post("/:id/publish", announcementController.publishAnnouncement);
+
+// router.post("/:id/archive", announcementController.archiveAnnouncement);
+
+router.get("/", announcementController.getAnnouncementsPage);
+
+router.get("/all", announcementController.getAllAnnouncements);
 
 router.post(
     "/create",
     upload.single("image"),
-    controller.createAnnouncement
+    announcementController.createAnnouncement
 );
 
-router.get("/:id", controller.getAnnouncement);
+router.get("/:id", announcementController.getAnnouncement);
 
 router.put(
     "/:id",
     upload.single("image"),
-    controller.updateAnnouncement
+    announcementController.updateAnnouncement
 );
 
-router.delete("/:id", controller.deleteAnnouncement);
+router.delete("/:id", announcementController.deleteAnnouncement);
 
-router.post("/:id/publish", controller.publishAnnouncement);
+router.post("/:id/publish", announcementController.publishAnnouncement);
 
-router.post("/:id/archive", controller.archiveAnnouncement);
+router.post("/:id/archive", announcementController.archiveAnnouncement);
 
 module.exports = router;

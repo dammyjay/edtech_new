@@ -155,8 +155,14 @@ const testRoutes = require("./routes/testRoutes");
 app.use("/", testRoutes);
 
 const newsletterRoutes = require("./routes/newsletterRoutes");
-
 app.use("/admin/newsletters", newsletterRoutes);
+
+const announcementRoutes = require("./routes/announcementRoutes");
+app.use("/admin/announcements", announcementRoutes);
+
+const publicAnnouncementRoutes = require("./routes/publicAnnouncementRoutes");
+app.use("/announcements", publicAnnouncementRoutes);
+
 
 // runNewsletterScheduler();
 
