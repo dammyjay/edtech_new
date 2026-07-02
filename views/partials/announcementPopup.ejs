@@ -1,0 +1,173 @@
+<% if (announcements && announcements.length > 0) { %>
+
+<div id="announcementModal" class="announcement-modal">
+    <div class="announcement-content">
+
+        <!-- <span class="close-announcement">&times;</span> -->
+         <% if (announcements[0].allow_close) { %>
+        <span class="close-announcement">&times;</span>
+        <% } %>
+
+        <% announcements.forEach((announcement, index) => { %>
+            <!-- <div class="announcement-slide <%= index === 0 ? 'active' : '' %>"> -->
+            <div
+                class="announcement-slide <%= index===0?'active':'' %>"
+                data-id="<%= announcement.id %>"
+                data-delay="<%= announcement.popup_delay || 0 %>"
+            >
+                <% if (announcement.image_url) { %>
+                    <img src="<%= announcement.image_url %>" alt="" />
+                <% } %>
+
+                <h2><%= announcement.title %></h2>
+
+                <div style="text-align: left;">
+                    <%- announcement.message %>
+                </div>
+
+            </div>
+
+        <% }) %>
+
+        <% if (announcements.length > 1) { %>
+
+            <div class="announcement-buttons">
+
+                <button id="prevAnnouncement" onclick="recordAnnouncementClick(<%= announcements[0].id %>)">Previous</button>
+
+                <button id="nextAnnouncement" onclick="recordAnnouncementClick(<%= announcements[0].id %>)">Next</button>
+
+            </div>
+
+        <% } %>
+
+    </div>
+</div>
+
+<% } %>
+
+<script>
+
+    async function recordAnnouncementClick(id){
+
+    await fetch(`/admin/announcements/${id}/click`,{
+        method:"POST"
+    });
+
+}
+
+    async function recordAnnouncementView(id) {
+    try {
+        await fetch(`/admin/announcements/${id}/view`, {
+            method: "POST"
+        });
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+
+    const modal=document.getElementById("announcementModal");
+
+    if(!modal) return;
+    const slides=document.querySelectorAll(".announcement-slide");
+
+    // modal.style.display="flex";
+    const firstSlide = slides[0];
+
+    const delay = Number(firstSlide.dataset.delay || 0);
+
+    setTimeout(()=>{
+
+        modal.style.display="flex";
+
+        showSlide(0);
+
+    }, delay * 1000);
+    showSlide(0);
+
+    const close = document.querySelector(".close-announcement");
+
+    if(close){
+
+        close.onclick = ()=>{
+
+            const id = slides[current].dataset.id;
+
+            fetch(`/admin/announcements/${id}/dismiss`,{
+                method:"POST"
+            });
+
+            modal.style.display="none";
+        };
+
+    }
+
+    window.onclick=(e)=>{
+
+        if(e.target===modal){
+
+            modal.style.display="none";
+
+        }
+
+    }
+
+    
+
+    let current=0;
+
+    // function showSlide(index){
+
+    //     slides.forEach(slide=>slide.classList.remove("active"));
+
+    //     slides[index].classList.add("active");
+
+    // }
+
+    function showSlide(index){
+
+        slides.forEach(slide=>{
+            slide.classList.remove("active");
+        });
+
+        slides[index].classList.add("active");
+
+        const id = slides[index].dataset.id;
+
+        if(id){
+            recordAnnouncementView(id);
+        }
+    }
+
+    const next=document.getElementById("nextAnnouncement");
+
+    const prev=document.getElementById("prevAnnouncement");
+
+    if(next){
+
+        next.onclick=()=>{
+
+            current=(current+1)%slides.length;
+
+            showSlide(current);
+
+        }
+
+    }
+
+    if(prev){
+
+        prev.onclick=()=>{
+
+            current=(current-1+slides.length)%slides.length;
+
+            showSlide(current);
+
+        }
+
+    }
+
+});
+</script>

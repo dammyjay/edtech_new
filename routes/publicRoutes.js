@@ -13,6 +13,7 @@ const { feedback } = require("../controllers/adminController");
 const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates"); 
 // const buildFeedbackThankYouEmail = require("../utils/feedbackEmailTemplate");
 const buildFeedbackAdminEmail = require("../utils/feedbackAdminEmail");
+const getAnnouncements = require("../utils/getAnnouncements");
 
 router.get("/events/:id", userController.showEvent);
 
@@ -68,6 +69,8 @@ router.get("/", async (req, res) => {
     const faqsResult = await pool.query(
       "SELECT * FROM faqs WHERE is_published = true ORDER BY created_at DESC LIMIT 5"
     );
+
+    const announcements = await getAnnouncements("homepage");
 
     const TestimonyResult = await pool.query(
       `
@@ -177,6 +180,7 @@ router.get("/", async (req, res) => {
       stats,
       faqs,
       testimonies,
+      announcements,
       engagementStats,
       activePage: "home", // 👈 Pass active page
     });

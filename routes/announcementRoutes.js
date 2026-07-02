@@ -30,4 +30,13 @@ router.post("/:id/publish", announcementController.publishAnnouncement);
 
 router.post("/:id/archive", announcementController.archiveAnnouncement);
 
+router.post("/:id/view", announcementController.recordView);
+
+router.post("/:id/click", announcementController.recordClick);
+
+router.post(
+  "/:id/dismiss",
+  announcementController.dismissAnnouncement,
+);
+
 module.exports = router;

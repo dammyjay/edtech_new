@@ -6,7 +6,7 @@ const PDFDocument = require("pdfkit");
 const generatePdf = require("../utils/generatePdf");
 const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
-
+const getAnnouncements = require("../utils/getAnnouncements");
 
 exports.showSignup = (req, res) => {
   // res.sendFile(path.join(__dirname, 'signup.html'));
@@ -547,6 +547,7 @@ exports.getParentDashboard = async (req, res) => {
   }
 
   try {
+    const announcements = await getAnnouncements("dashboard");
     // Company Info
         const infoResult = await pool.query(
           "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -568,6 +569,7 @@ exports.getParentDashboard = async (req, res) => {
       info,
       profilePic,
       title: "Parent Dashboard",
+      announcements,
       isLoggedIn: !!req.session.user,
       users: req.session.user,
     });

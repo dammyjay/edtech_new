@@ -552,7 +552,16 @@ exports.getDashboardAnnouncements = async (req, res) => {
     const result = await pool.query(
       `
       SELECT *
-      FROM announcements
+      FROM announcements a
+
+      LEFT JOIN announcement_views av
+
+      ON
+      a.id = av.announcement_id
+
+      AND
+      av.user_id = $4
+
       WHERE
 
         status='published'
@@ -573,6 +582,24 @@ exports.getDashboardAnnouncements = async (req, res) => {
         (
           'dashboard' = ANY(display_locations)
           OR 'all' = ANY(display_locations)
+        )
+
+        AND
+        (
+            a.show_once = FALSE
+
+            OR
+
+            av.id IS NULL
+        )
+
+        AND
+        (
+            a.expires_after_view = FALSE
+
+            OR
+
+            av.id IS NULL
         )
 
         AND
@@ -605,11 +632,7 @@ exports.getDashboardAnnouncements = async (req, res) => {
 
         created_at DESC
       `,
-      [
-        user.role,
-        user.school_id || 0,
-        user.classroom_id || 0
-      ]
+      [user.role, user.school_id || 0, user.classroom_id || 0, user.id],
     );
 
     res.json({
@@ -631,17 +654,41 @@ exports.getDashboardAnnouncements = async (req, res) => {
 
 exports.getAllAnnouncements = async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT
-                a.*,
-                COUNT(av.id) AS views
-            FROM announcements a
-            LEFT JOIN announcement_views av
-                ON av.announcement_id = a.id
-            GROUP BY a.id
-            ORDER BY a.created_at DESC
-        `);
+        // const result = await pool.query(`
+        //     SELECT
+        //         a.*,
+        //         COUNT(av.id) AS views
+        //     FROM announcements a
+        //     LEFT JOIN announcement_views av
+        //         ON av.announcement_id = a.id
+        //     GROUP BY a.id
+        //     ORDER BY a.created_at DESC
+        // `);
 
+        const result = await pool.query(`
+          SELECT
+              a.*,
+
+              COUNT(av.id) AS views,
+
+              COUNT(*) FILTER (
+                  WHERE av.clicked = true
+              ) AS clicks,
+
+              COUNT(*) FILTER (
+                  WHERE av.dismissed = true
+              ) AS dismissed
+
+          FROM announcements a
+
+          LEFT JOIN announcement_views av
+
+          ON av.announcement_id = a.id
+
+          GROUP BY a.id
+
+          ORDER BY a.created_at DESC
+          `);
         res.json(result.rows);
 
     } catch (err) {
@@ -777,46 +824,95 @@ exports.deleteAnnouncement = async (req, res) => {
 
 };
 
+// exports.recordView = async (req, res) => {
+
+//     try {
+
+//         if (!req.session.user) {
+//             return res.json({ success: true });
+//         }
+
+//         await pool.query(
+//             `
+//             INSERT INTO announcement_views
+//             (
+//                 announcement_id,
+//                 user_id
+//             )
+//             VALUES($1,$2)
+//             ON CONFLICT
+//             (announcement_id,user_id)
+//             DO NOTHING
+//             `,
+//             [
+//                 req.params.id,
+//                 req.session.user.id
+//             ]
+//         );
+
+//         res.json({
+//             success: true
+//         });
+
+//     } catch (err) {
+
+//         console.error(err);
+
+//         res.status(500).json({
+//             success: false
+//         });
+
+//     }
+
+// };
+
 exports.recordView = async (req, res) => {
+  const announcementId = req.params.id;
+  const userId = req.session.user.id;
 
-    try {
+  await pool.query(
+    `
+        INSERT INTO announcement_views
+        (
+            announcement_id,
+            user_id,
+            viewed_at
+        )
+        VALUES
+        (
+            $1,
+            $2,
+            NOW()
+        )
+        ON CONFLICT
+        (
+            announcement_id,
+            user_id
+        )
+        DO NOTHING
+        `,
+    [announcementId, userId],
+  );
 
-        if (!req.session.user) {
-            return res.json({ success: true });
-        }
+  res.json({ success: true });
+};
 
-        await pool.query(
-            `
-            INSERT INTO announcement_views
-            (
-                announcement_id,
-                user_id
-            )
-            VALUES($1,$2)
-            ON CONFLICT
-            (announcement_id,user_id)
-            DO NOTHING
-            `,
-            [
-                req.params.id,
-                req.session.user.id
-            ]
-        );
+exports.recordClick = async (req, res) => {
+  await pool.query(
+    `
+    UPDATE announcement_views
+    SET
+        clicked = TRUE,
+        clicked_at = NOW()
+    WHERE announcement_id = $1
+      AND user_id = $2
+    `,
+    [req.params.id, req.session.user.id],
+  );
 
-        res.json({
-            success: true
-        });
-
-    } catch (err) {
-
-        console.error(err);
-
-        res.status(500).json({
-            success: false
-        });
-
-    }
-
+  res.json({
+    success: true,
+  });
 };
 
 exports.dismissAnnouncement = async (req, res) => {
