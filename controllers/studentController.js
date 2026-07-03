@@ -9,6 +9,7 @@ const {upload} = require("../middlewares/upload");
 const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const bcrypt = require("bcrypt");
+const getAnnouncements = require("../utils/getAnnouncements");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -16,6 +17,9 @@ exports.getDashboard = async (req, res) => {
   const role = req.session.user.role; // "student", "individual_student", "user"
 
   try {
+
+    const announcements =
+      await getAnnouncements("dashboard");
     // --- Company Info
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -932,6 +936,7 @@ exports.getDashboard = async (req, res) => {
       courseFinalUnlocked,
       query: req.query,
       pendingAssignmentCount,
+      announcements,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);

@@ -14,7 +14,7 @@
   <body>
     <!-- Header -->
     <%- include('./partials/userHeader', { title: 'JKT Hub Home' }) %>
-
+    <%- include("./partials/announcementPopup") %>
     
 
     <!-- Mission & Vision -->
@@ -22,22 +22,7 @@
 
 
     <% if (info?.hero_image_url) { %>
-      
-      <!-- <section class="new-hero">
-        <div class="hero-content">
-           <h1>Learn. Grow. Get Certified.</h1>
-          <p><%= info?.vision || 'Empowering lives through the gospel of Christ.' %></p>
-          <a style="background-color: #1660E8;" href="/courses" class="cta-btn">Explore courses</a>
-          
-        </div>
-        <div class="hero-content">
-          <img style="width: 100%; height: 100%; object-fit: contain;" src="/images/Hero-image.png" alt="">
-        </div>
-      
-      </section> -->
-
-  
-
+ 
       <section class="hero-section" style="background-image: url('<%= info.hero_image_url %>');">
         <div class="hero-overlay">
           <h1>Welcome to <%= info?.company_name || 'Jaykirch Tech Hub' %></h1>

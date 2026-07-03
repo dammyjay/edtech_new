@@ -1,5 +1,6 @@
 const pool = require("../models/db");
 const userController = require("./userController");
+const getAnnouncements = require("../utils/getAnnouncements");
 const generatePdf = require("../utils/generatePdf");
 // const puppeteer = require("puppeteer");
 
@@ -13,6 +14,8 @@ exports.getDashboard = (req, res) => {
 exports.getDashboardSection = async (req, res) => {
   try {
     const teacherId = req.user.id;
+
+    const announcements = await getAnnouncements("dashboard");
 
     // ✅ Teacher profile
     const profileRes = await pool.query(
@@ -168,6 +171,7 @@ exports.getDashboardSection = async (req, res) => {
       strugglingStudents,
       pendingAssignments,
       teacher: req.user,
+      announcements,
     });
   } catch (err) {
     console.error("Teacher Dashboard Section Error:", err);
@@ -339,23 +343,6 @@ exports.getDashboardData = async (req, res) => {
   }
 };
 
-// ----------------- CLASSES SECTION -----------------
-// exports.getClassesSection = async (req, res) => {
-//   try {
-//     const teacherId = req.user.id;
-//     const classesRes = await pool.query(
-//       `SELECT c.id, c.name
-//        FROM classrooms c
-//        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-//        WHERE ct.teacher_id = $1`,
-//       [teacherId]
-//     );
-//     res.render("teacher/sections/classes", { classes: classesRes.rows });
-//   } catch (err) {
-//     console.error("Teacher Classes Section Error:", err);
-//     res.status(500).send("<p>Error loading classes</p>");
-//   }
-// };
 
 exports.getClassesSection = async (req, res) => {
   try {

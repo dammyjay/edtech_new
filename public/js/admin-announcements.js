@@ -179,31 +179,84 @@ async function loadAnnouncements() {
 // ======================================================
 // VIEW ANNOUNCEMENTS
 // ======================================================
-async function viewAnnouncement(id){
+// async function viewAnnouncement(id){
 
-    try{
+//     try{
 
-        const res = await fetch(`/admin/announcements/${id}`);
+//         const res = await fetch(`/admin/announcements/${id}`);
 
-        const data = await res.json();
+//         const data = await res.json();
 
-        if(!data.success){
-            return alert(data.message);
-        }
+//         if(!data.success){
+//             return alert(data.message);
+//         }
 
-        const a = data.announcement;
+//         const a = data.announcement;
 
-        alert(
-            `Title: ${a.title}\n\n${a.message.replace(/<[^>]+>/g,"")}`
-        );
+//         alert(
+//             `Title: ${a.title}\n\n${a.message.replace(/<[^>]+>/g,"")}`
+//         );
 
-    }catch(err){
+//     }catch(err){
 
-        console.error(err);
+//         console.error(err);
 
+//     }
+
+// }
+
+async function viewAnnouncement(id) {
+  try {
+    const res = await fetch(`/admin/announcements/${id}`);
+
+    const data = await res.json();
+
+    if (!data.success) {
+      return alert(data.message);
     }
 
+    const a = data.announcement;
+
+    document.getElementById("viewTitle").innerText = a.title;
+
+    document.getElementById("viewType").innerText = a.type;
+
+    document.getElementById("viewPriority").innerText = a.priority;
+
+    document.getElementById("viewStatus").innerText = a.status;
+
+    document.getElementById("viewAudience").innerText =
+      a.audience_type || "Everyone";
+
+    document.getElementById("viewLocations").innerText = a.display_locations
+      ? a.display_locations.join(", ")
+      : "-";
+
+    document.getElementById("viewMessage").innerHTML = a.message;
+
+    const img = document.getElementById("viewImage");
+
+    if (a.image_url) {
+      img.src = a.image_url;
+
+      img.style.display = "block";
+    } else {
+      img.style.display = "none";
+    }
+
+    document.getElementById("viewAnnouncementModal").style.display = "flex";
+  } catch (err) {
+    console.error(err);
+  }
 }
+
+document
+.querySelector(".closeViewModal")
+.addEventListener("click", function(){
+
+    document.getElementById("viewAnnouncementModal").style.display="none";
+
+});
 
 // ======================================================
 // EDIT ANNOUNCEMENTS
@@ -242,6 +295,16 @@ async function editAnnouncement(id){
             imagePreview.style.display = "block";
 
         }
+
+        document
+          .querySelectorAll("input[name='display_locations']")
+          .forEach((cb) => {
+            cb.checked = false;
+
+            if (a.display_locations && a.display_locations.includes(cb.value)) {
+              cb.checked = true;
+            }
+          });
 
         openModal();
 
@@ -288,17 +351,11 @@ function renderAnnouncements(data) {
 <td>
 
 ${
-item.image_url
-?
-
-`<img
+  item.image_url
+    ? `<img
 src="${item.image_url}"
 class="announcement-thumb">`
-
-:
-
-`<span class="text-muted">No Image</span>`
-
+    : `<span class="text-muted">No Image</span>`
 }
 
 </td>
@@ -345,6 +402,10 @@ ${item.audience_type || "Everyone"}
 
 ${item.views || 0}
 
+</td>
+
+<td>
+    ${item.display_locations ? item.display_locations.join(", ") : "-"}
 </td>
 
 <td>
@@ -524,6 +585,10 @@ function resetForm() {
 
     imagePreview.style.display =
         "none";
+    
+    document
+      .querySelectorAll("input[name='display_locations']")
+      .forEach((cb) => (cb.checked = false));
 
     if (announcementEditor) {
 

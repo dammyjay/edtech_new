@@ -4,15 +4,13 @@ const { logActivityForUser } = require("../utils/activityLogger");
 const csv = require("csv-parser");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
-// const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const ExcelJS = require("exceljs");
 const axios = require("axios");
-
+const getAnnouncements = require("../utils/getAnnouncements");
 
 exports.getDashboard = async (req, res) => {
-  // const schoolDbId = req.session.user.school_id; // numeric PK
-  // console.log("session.school_id:", schoolDbId);
+  const announcements = await getAnnouncements("dashboard");
 
   const schoolRes = await pool.query(
   `SELECT s.id, s.name
@@ -94,16 +92,6 @@ GROUP BY c.id, c.name;`,
     ORDER BY u.fullname`,
     [schoolDbId]  
   );
-
-  // // Students
-  // const students = await pool.query(
-  //   `SELECT u.id, u.fullname, u.email, us.role_in_school, us.joined_at
-          
-  //    FROM users2 u
-  //    JOIN user_school us ON u.id = us.user_id
-  //    WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
-  //   [schoolDbId]
-  // );
 
   // ✅ Recent activities (limit 10 for dashboard)
   const recentActivities = await pool.query(
@@ -233,6 +221,7 @@ ORDER BY engagement_rate DESC;
     studentEngagement: studentEngagement.rows, // ✅ add this
     info,
     profilePic,
+    announcements,
     users: req.session.user,
   });
 };
