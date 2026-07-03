@@ -2562,6 +2562,7 @@ document.addEventListener("visibilitychange", () => {
     showLoading();
     try {
       const res = await fetch(`/student/assignments/${assignmentId}`);
+      
       if (!res.ok) {
         const text = await res.text();
         console.error("Assignment fetch failed:", text);
@@ -2569,8 +2570,71 @@ document.addEventListener("visibilitychange", () => {
         return;
       }
       const data = await res.json();
+      const guideRes = await fetch("/admin/assignment-guide/guide");
+      const guideData = await guideRes.json();
 
       const lessonMain = document.getElementById("lessonMainArea");
+
+      let guideHTML = "";
+
+      if (guideData.success && guideData.guide) {
+
+          const g = guideData.guide;
+
+          guideHTML = `
+              <div class="assignment-guide">
+
+                <h2>
+                📘 Assignment Submission Guide
+                </h2>
+
+                <h3>${g.title}</h3>
+
+                <p>${g.description}</p>
+
+                ${
+                g.video_url
+                ?
+                `
+                <div class="guide-video">
+
+                <iframe
+                src="${convertYoutube(g.video_url)}"
+                allowfullscreen>
+                </iframe>
+
+                </div>
+                `
+                :
+                ""
+                }
+
+                ${
+                g.sample_document_url
+                ?
+                `
+                <div class="guide-download">
+
+                <a
+                href="${g.sample_document_url}"
+                target="_blank">
+
+                📄 Download Sample Assignment
+
+                </a>
+
+                </div>
+                `
+                :
+                ""
+                }
+
+                <hr>
+
+                </div>
+          `;
+
+      }
 
       if (data.submitted) {
         // ✅ Show previous submission with breakdown
@@ -2581,6 +2645,7 @@ document.addEventListener("visibilitychange", () => {
           : "<p>No detailed breakdown.</p>";
 
         lessonMain.innerHTML = `
+          
           <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px; background-color:#f9f9f9;">
             <h2>📑 ${data.assignment.title}</h2>
             <p><strong>Course:</strong> ${data.assignment.course_title}</p>
@@ -2601,6 +2666,7 @@ document.addEventListener("visibilitychange", () => {
       } else {
         // ✅ Show form if not yet submitted
         lessonMain.innerHTML = `
+        ${guideHTML}
           <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px;">
             <h2>📑 ${data.assignment.title}</h2>
             <p><strong>Course:</strong> ${data.assignment.course_title}</p>

@@ -325,6 +325,17 @@ async function createTables() {
       );`
     );
 
+    await pool.query(`
+      CREATE TABLE assignment_submission_guides (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          video_url TEXT,
+          sample_document_url TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+      `);
+
     // table for course projects
     await pool.query(
       `CREATE TABLE IF NOT EXISTS course_projects (

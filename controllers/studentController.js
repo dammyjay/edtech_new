@@ -2563,7 +2563,7 @@ exports.viewAssignment = async (req, res) => {
 
     // ✅ Check if student already submitted
     const subRes = await pool.query(
-      `SELECT id, description, file_url, score, grade, ai_feedback, created_at
+      `SELECT id, description, file_url, score, total, grade, criteria, ai_feedback, created_at
       FROM assignment_submissions
       WHERE assignment_id = $1 AND student_id = $2
       ORDER BY created_at DESC LIMIT 1`,

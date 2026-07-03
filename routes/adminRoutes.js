@@ -418,6 +418,9 @@ router.post(
   upload.none(),
   learningController.editAssignment
 );
+router.get("/guide",controller.getGuide);
+
+router.post("/guide",controller.saveGuide);
 
 // Delete
 router.post("/assignments/:id/delete", learningController.deleteAssignment);

@@ -707,7 +707,29 @@ function isAjax(req) {
 
 // CREATE
 exports.createAssignment = async (req, res) => {
-  const { title, instructions, lesson_id, module_id, course_id } = req.body;
+  // const { title, instructions, lesson_id, module_id, course_id } = req.body;
+
+  const {
+
+title,
+
+objective,
+
+estimated_time,
+
+difficulty,
+
+passing_score,
+
+instructions,
+
+lesson_id,
+
+module_id,
+
+course_id
+
+} = req.body;
 
   try {
     let field, id;
@@ -748,6 +770,105 @@ exports.createAssignment = async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 };
+
+exports.getGuide = async (req, res) => {
+    try {
+
+        const guide = await pool.query(`
+            SELECT *
+            FROM assignment_submission_guides
+            ORDER BY id DESC
+            LIMIT 1
+        `);
+
+        res.json({
+            success:true,
+            guide: guide.rows[0] || null
+        });
+
+    } catch(err){
+
+        console.log(err);
+
+        res.status(500).json({
+            success:false
+        });
+
+    }
+
+};
+
+exports.saveGuide = async(req,res)=>{
+
+    const {
+        title,
+        description,
+        video_url,
+        sample_document_url
+    } = req.body;
+
+    try{
+
+        const existing = await pool.query(`
+        SELECT id
+        FROM assignment_submission_guides
+        LIMIT 1
+        `);
+
+        if(existing.rows.length){
+
+            await pool.query(`
+            UPDATE assignment_submission_guides
+            SET
+            title=$1,
+            description=$2,
+            video_url=$3,
+            sample_document_url=$4
+            WHERE id=$5
+            `,[
+                title,
+                description,
+                video_url,
+                sample_document_url,
+                existing.rows[0].id
+            ]);
+
+        }else{
+
+            await pool.query(`
+            INSERT INTO assignment_submission_guides
+            (
+            title,
+            description,
+            video_url,
+            sample_document_url
+            )
+
+            VALUES($1,$2,$3,$4)
+            `,[
+                title,
+                description,
+                video_url,
+                sample_document_url
+            ]);
+
+        }
+
+        res.json({
+            success:true
+        });
+
+    }catch(err){
+
+        console.log(err);
+
+        res.status(500).json({
+            success:false
+        });
+
+    }
+
+}
 
 // EDIT
 exports.editAssignment = async (req, res) => {
