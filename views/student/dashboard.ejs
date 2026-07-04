@@ -2561,19 +2561,50 @@ document.addEventListener("visibilitychange", () => {
       });
   }
 
+  function convertYoutube(url) {
+
+      if (!url) return "";
+
+      if (url.includes("watch?v=")) {
+          return url.replace("watch?v=", "embed/");
+      }
+
+      if (url.includes("youtu.be/")) {
+          const id = url.split("youtu.be/")[1].split("?")[0];
+          return `https://www.youtube.com/embed/${id}`;
+      }
+
+      return url;
+  }
 
   async function loadAssignment(assignmentId) {
     showLoading();
     try {
-      const res = await fetch(`/student/assignments/${assignmentId}`);
+      // const res = await fetch(`/student/assignments/${assignmentId}`);
       
+      // if (!res.ok) {
+      //   const text = await res.text();
+      //   console.error("Assignment fetch failed:", text);
+      //   alert("Could not load assignment");
+      //   return;
+      // }
+      // const data = await res.json();
+
+      const res = await fetch(`/student/assignments/${assignmentId}`);
+
+      const responseText = await res.text();
+
+      console.log("Status:", res.status);
+      console.log("Response:", responseText);
+
       if (!res.ok) {
-        const text = await res.text();
-        console.error("Assignment fetch failed:", text);
-        alert("Could not load assignment");
-        return;
+          alert("Could not load assignment");
+          return;
       }
-      const data = await res.json();
+
+      const data = JSON.parse(responseText);
+
+      console.log(data);
       // const guideRes = await fetch("/admin/assignment-guide/guide");
       // const guideData = await guideRes.json();
 
