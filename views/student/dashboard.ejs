@@ -1791,6 +1791,7 @@ if(classroomId){
       window.location.href = url.toString();
     }
 </script>
+
 <script>
   function changeRange(range) {
     const url = new URL(window.location.href);
@@ -1815,6 +1816,7 @@ if(classroomId){
     }
   };
 </script>
+
 <script>
   function applyCustomRange() {
     const start = document.getElementById("startDate").value;
@@ -2572,71 +2574,123 @@ document.addEventListener("visibilitychange", () => {
         return;
       }
       const data = await res.json();
-      const guideRes = await fetch("/admin/assignment-guide/guide");
-      const guideData = await guideRes.json();
+      // const guideRes = await fetch("/admin/assignment-guide/guide");
+      // const guideData = await guideRes.json();
 
       const lessonMain = document.getElementById("lessonMainArea");
 
-      let guideHTML = "";
+      // let guideHTML = "";
 
-      if (guideData.success && guideData.guide) {
+      // if (guideData.success && guideData.guide) {
 
-          const g = guideData.guide;
+      //     const g = guideData.guide;
 
-          guideHTML = `
-              <div class="assignment-guide">
+      //     guideHTML = `
+      //         <div class="assignment-guide">
 
-                <h2>
-                📘 Assignment Submission Guide
-                </h2>
+      //           <h2>
+      //           📘 Assignment Submission Guide
+      //           </h2>
 
-                <h3>${g.title}</h3>
+      //           <h3>${g.title}</h3>
 
-                <p>${g.description}</p>
+      //           <p>${g.description}</p>
 
-                ${
-                g.video_url
-                ?
-                `
-                <div class="guide-video">
+      //           ${
+      //           g.video_url
+      //           ?
+      //           `
+      //           <div class="guide-video">
 
-                <iframe
-                src="${convertYoutube(g.video_url)}"
-                allowfullscreen>
-                </iframe>
+      //           <iframe
+      //           src="${convertYoutube(g.video_url)}"
+      //           allowfullscreen>
+      //           </iframe>
 
-                </div>
-                `
-                :
-                ""
-                }
+      //           </div>
+      //           `
+      //           :
+      //           ""
+      //           }
 
-                ${
-                g.sample_document_url
-                ?
-                `
-                <div class="guide-download">
+      //           ${
+      //           g.sample_document_url
+      //           ?
+      //           `
+      //           <div class="guide-download">
 
-                <a
-                href="${g.sample_document_url}"
-                target="_blank">
+      //           <a
+      //           href="${g.sample_document_url}"
+      //           target="_blank">
 
-                📄 Download Sample Assignment
+      //           📄 Download Sample Assignment
 
-                </a>
+      //           </a>
 
-                </div>
-                `
-                :
-                ""
-                }
+      //           </div>
+      //           `
+      //           :
+      //           ""
+      //           }
 
-                <hr>
+      //           <hr>
 
-                </div>
-          `;
+      //           </div>
+      //     `;
 
-      }
+      // }
+
+        const g = data.guide;
+
+        let guideHTML = "";
+
+        if (g) {
+
+            guideHTML = `
+                <details class="assignment-guide">
+
+                    <summary>
+                        📘 Assignment Submission Guide
+                    </summary>
+
+                    <div style="padding:15px;">
+
+                        <h2>${g.title}</h2>
+
+                        ${
+                            g.video_url
+                            ? `
+                            <iframe
+                                width="100%"
+                                height="350"
+                                src="${convertYoutube(g.video_url)}"
+                                allowfullscreen>
+                            </iframe>
+                            `
+                            : ""
+                        }
+
+                        <h3>Instructions</h3>
+
+                        ${g.description}
+
+                        <hr>
+
+                        <h3>Sample Assignment Question</h3>
+
+                        ${g.sample_question || "<p>No sample question available.</p>"}
+
+                        <hr>
+
+                        <h3>Sample Submission</h3>
+
+                        ${g.sample_submission_url || "<p>No sample submission available.</p>"}
+
+                    </div>
+
+                </details>
+            `;
+        }
 
       if (data.submitted) {
         // ✅ Show previous submission with breakdown

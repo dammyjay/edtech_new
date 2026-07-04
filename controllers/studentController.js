@@ -2566,6 +2566,16 @@ exports.viewAssignment = async (req, res) => {
     }
     const assignment = result.rows[0];
 
+    // Fetch Assignment Guide
+    const guideRes = await pool.query(
+        `SELECT *
+        FROM learning_guides
+        WHERE guide_type='assignment'
+        LIMIT 1`
+    );
+
+    const assignmentGuide = guideRes.rows[0] || null;
+
     // ✅ Check if student already submitted
     const subRes = await pool.query(
       `SELECT id, description, file_url, score, total, grade, criteria, ai_feedback, created_at
@@ -2588,6 +2598,7 @@ exports.viewAssignment = async (req, res) => {
           module_title: assignment.module_title,
           course_title: assignment.course_title,
         },
+        guide: assignmentGuide,
         submission: subRes.rows[0],
       });
     }
@@ -2604,6 +2615,7 @@ exports.viewAssignment = async (req, res) => {
         module_title: assignment.module_title,
         course_title: assignment.course_title,
       },
+      guide: assignmentGuide
     });
   } catch (err) {
     console.error("View assignment error:", err);
