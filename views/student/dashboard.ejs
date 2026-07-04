@@ -2731,50 +2731,184 @@ document.addEventListener("visibilitychange", () => {
               .join("")
           : "<p>No detailed breakdown.</p>";
 
+        // lessonMain.innerHTML = `
+        //   ${guideHTML}
+        //   <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px; background-color:#f9f9f9;">
+        //     <h2>📑 ${data.assignment.title}</h2>
+        //     <p><strong>Course:</strong> ${data.assignment.course_title}</p>
+        //     <p><strong>Module:</strong> ${data.assignment.module_title}</p>
+        //     <hr>
+        //     <h3>✅ You already submitted this assignment</h3>
+        //     <p><strong>Description:</strong> ${data.submission.description}</p>
+        //     ${data.submission.file_url ? `<p><a href="${data.submission.file_url}" target="_blank">📂 View File</a></p>` : ""}
+        //     <h3>📊 AI Feedback</h3>
+        //     <p><strong>Total Score:</strong> ${data.submission.total ?? "Pending"}</p>
+        //     <p><strong>Grade:</strong> ${data.submission.grade ?? "N/A"}</p>
+        //     <div><strong>Criteria Breakdown:</strong>${data.submission.criteria}</div>
+        //     <div><strong>Comments:</strong><p>${data.submission.ai_feedback ?? "Pending"}</p></div>
+        //   </div>
+        // `;
+
         lessonMain.innerHTML = `
-          
-          <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px; background-color:#f9f9f9;">
-            <h2>📑 ${data.assignment.title}</h2>
-            <p><strong>Course:</strong> ${data.assignment.course_title}</p>
-            <p><strong>Module:</strong> ${data.assignment.module_title}</p>
-            <hr>
-            <h3>✅ You already submitted this assignment</h3>
-            <p><strong>Description:</strong> ${data.submission.description}</p>
-            ${data.submission.file_url ? `<p><a href="${data.submission.file_url}" target="_blank">📂 View File</a></p>` : ""}
-            <h3>📊 AI Feedback</h3>
-            <p><strong>Total Score:</strong> ${data.submission.total ?? "Pending"}</p>
-            <p><strong>Grade:</strong> ${data.submission.grade ?? "N/A"}</p>
-            <div><strong>Criteria Breakdown:</strong>${data.submission.criteria}</div>
-            <div><strong>Comments:</strong><p>${data.submission.ai_feedback ?? "Pending"}</p></div>
-          </div>
+          ${guideHTML}
+        <details class="assignment-details" open>
+
+            <summary>
+                📑 Submitted Assignment
+            </summary>
+
+            <div class="assignment-container">
+
+                <h2>${data.assignment.title}</h2>
+
+                <p><strong>Course:</strong> ${data.assignment.course_title}</p>
+
+                <p><strong>Module:</strong> ${data.assignment.module_title}</p>
+
+                <hr>
+
+                <h3>Submission</h3>
+
+                <p>${data.submission.description}</p>
+
+                ${
+                    data.submission.file_url
+                    ? `
+                        <a href="${data.submission.file_url}" target="_blank">
+                            📂 View Uploaded File
+                        </a>
+                    `
+                    : ""
+                }
+
+                <hr>
+
+                <h3>AI Feedback</h3>
+
+                <p><strong>Total:</strong> ${data.submission.total ?? "Pending"}</p>
+
+                <p><strong>Grade:</strong> ${data.submission.grade ?? "N/A"}</p>
+
+                <div>
+                    <strong>Criteria:</strong>
+                    ${data.submission.criteria}
+                </div>
+
+                <div>
+                    <strong>Comments:</strong>
+                    <p>${data.submission.ai_feedback ?? "Pending"}</p>
+                </div>
+
+            </div>
+
+        </details>
+
         `;
+
+  
         hideLoading();
         return;
       } else {
         // ✅ Show form if not yet submitted
-        lessonMain.innerHTML = `
-        ${guideHTML}
-          <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px;">
-            <h2>📑 ${data.assignment.title}</h2>
-            <p><strong>Course:</strong> ${data.assignment.course_title}</p>
-            <p><strong>Module:</strong> ${data.assignment.module_title}</p>
-            <div class="instructions">
-              <strong>Instructions:</strong>
-              <p>${data.assignment.instructions}</p>
-            </div>
-            <p><strong>Due Date:</strong> ${data.assignment.due_date || "No due date"}</p>
+        // lessonMain.innerHTML = `
+        // ${guideHTML}
+        //   <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px;">
+        //     <h2>📑 ${data.assignment.title}</h2>
+        //     <p><strong>Course:</strong> ${data.assignment.course_title}</p>
+        //     <p><strong>Module:</strong> ${data.assignment.module_title}</p>
+        //     <div class="instructions">
+        //       <strong>Instructions:</strong>
+        //       <p>${data.assignment.instructions}</p>
+        //     </div>
+        //     <p><strong>Due Date:</strong> ${data.assignment.due_date || "No due date"}</p>
 
-            <h3>Submit Your Work</h3>
-            <form id="submitAssignmentForm" enctype="multipart/form-data">
-              <input type="hidden" name="assignmentId" value="${assignmentId}" />
-              <label>Description:</label><br>
-              <textarea id="assignmentDescription" name="description" placeholder="Write your answer..." required></textarea><br><br>
-              <label>Upload File (optional):</label>
-              <input type="file" name="file"><br><br>
-              <button type="submit">Submit Assignment</button>
-            </form>
-          </div>
+        //     <h3>Submit Your Work</h3>
+        //     <form id="submitAssignmentForm" enctype="multipart/form-data">
+        //       <input type="hidden" name="assignmentId" value="${assignmentId}" />
+        //       <label>Description:</label><br>
+        //       <textarea id="assignmentDescription" name="description" placeholder="Write your answer..." required></textarea><br><br>
+        //       <label>Upload File (optional):</label>
+        //       <input type="file" name="file"><br><br>
+        //       <button type="submit">Submit Assignment</button>
+        //     </form>
+        //   </div>
+        // `;
+       
+                lessonMain.innerHTML = `
+
+        ${guideHTML}
+
+        <details class="assignment-details" open>
+
+            <summary>
+                📑 Assignment
+            </summary>
+
+            <div class="assignment-container">
+
+                <h2>${data.assignment.title}</h2>
+
+                <p><strong>Course:</strong> ${data.assignment.course_title}</p>
+
+                <p><strong>Module:</strong> ${data.assignment.module_title}</p>
+
+                <p>
+                    <strong>Due Date:</strong>
+                    ${data.assignment.due_date || "No due date"}
+                </p>
+
+                <hr>
+
+                <h3>Instructions</h3>
+
+                <div class="instructions">
+                    ${data.assignment.instructions}
+                </div>
+
+                <hr>
+
+                <h3>Submit Your Work</h3>
+
+                <form id="submitAssignmentForm" enctype="multipart/form-data">
+
+                    <input
+                        type="hidden"
+                        name="assignmentId"
+                        value="${assignmentId}"
+                    >
+
+                    <label>Description</label>
+
+                    <textarea
+                        id="assignmentDescription"
+                        name="description"
+                        required
+                    ></textarea>
+
+                    <br><br>
+
+                    <label>Upload File (optional)</label>
+
+                    <input
+                        type="file"
+                        name="file"
+                    >
+
+                    <br><br>
+
+                    <button type="submit">
+                        Submit Assignment
+                    </button>
+
+                </form>
+
+            </div>
+
+        </details>
+
         `;
+       
+
         // 🟢 Initialize CKEditor for assignment submission
         setTimeout(() => {
           if (CKEDITOR.instances.assignmentDescription) {

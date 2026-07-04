@@ -2403,6 +2403,54 @@ th.sort-desc::after {
 .continue-reading-btn:hover {
     background: #a38833; }
 
+.assignment-details,
+.assignment-guide{
+    margin-bottom:20px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    overflow:hidden;
+    background:#fff;
+}
+
+.assignment-details summary,
+.assignment-guide summary{
+    cursor:pointer;
+    padding:15px 20px;
+    background:#f7f7f7;
+    font-size:18px;
+    font-weight:600;
+    list-style:none;
+}
+
+.assignment-details summary::-webkit-details-marker,
+.assignment-guide summary::-webkit-details-marker{
+    display:none;
+}
+
+.assignment-details summary::after,
+.assignment-guide summary::after{
+    content:"▼";
+    float:right;
+    transition:.3s;
+}
+
+.assignment-details[open] summary::after,
+.assignment-guide[open] summary::after{
+    transform:rotate(180deg);
+}
+
+.assignment-container{
+    padding:20px;
+}
+
+.assignment-container h2{
+    margin-top:0;
+}
+
+.instructions{
+    line-height:1.7;
+}
+
 .announcement-thumb{
     width:70px;
     height:45px;
