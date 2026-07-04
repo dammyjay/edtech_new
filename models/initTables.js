@@ -326,7 +326,7 @@ async function createTables() {
     );
 
     await pool.query(`
-      CREATE TABLE assignment_submission_guides (
+      CREATE TABLE IF NOT EXISTS assignment_submission_guides (
           id SERIAL PRIMARY KEY,
           title VARCHAR(255) NOT NULL,
           description TEXT,
@@ -335,6 +335,29 @@ async function createTables() {
           created_at TIMESTAMP DEFAULT NOW()
       );
       `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS learning_guides (
+          id SERIAL PRIMARY KEY,
+          guide_type VARCHAR(50) UNIQUE NOT NULL,
+          title TEXT,
+          description TEXT,
+          video_url TEXT,
+          sample_document_url TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Remove the old column
+      ALTER TABLE learning_guides
+      DROP COLUMN IF EXISTS sample_document_url;
+
+      -- Add the new columns
+      ALTER TABLE learning_guides
+      ADD COLUMN IF NOT EXISTS sample_question TEXT,
+      ADD COLUMN IF NOT EXISTS sample_submission TEXT;
+        
+      `)
 
     // table for course projects
     await pool.query(

@@ -771,19 +771,53 @@ course_id
   }
 };
 
-exports.getGuide = async (req, res) => {
+exports.renderGuidePage = async (req, res) => {
+
     try {
 
-        const guide = await pool.query(`
+        const infoResult = await pool.query(`
             SELECT *
-            FROM assignment_submission_guides
+            FROM company_info
             ORDER BY id DESC
             LIMIT 1
         `);
 
+        res.render("admin/guides",{
+
+            info: infoResult.rows[0],
+            role: req.session.user?.role || "admin", // ✅ ensure role is passed
+
+        });
+
+    } catch(err){
+
+        console.log(err);
+
+        res.status(500).send("Server Error");
+
+    }
+
+};
+
+exports.getGuide = async (req, res) => {
+
+    try {
+
+        const { type } = req.params;
+
+        const result = await pool.query(`
+            SELECT *
+            FROM learning_guides
+            WHERE guide_type=$1
+            LIMIT 1
+        `,[type]);
+
         res.json({
+
             success:true,
-            guide: guide.rows[0] || null
+
+            guide: result.rows[0] || null
+
         });
 
     } catch(err){
@@ -800,59 +834,114 @@ exports.getGuide = async (req, res) => {
 
 exports.saveGuide = async(req,res)=>{
 
-    const {
-        title,
-        description,
-        video_url,
-        sample_document_url
-    } = req.body;
-
     try{
 
-        const existing = await pool.query(`
-        SELECT id
-        FROM assignment_submission_guides
-        LIMIT 1
-        `);
+        const {
+            guide_type,
+            title,
+            description,
+            video_url,
+            sample_question,
+            sample_submission
+        } = req.body;
+
+        const existing=await pool.query(
+
+            `
+            SELECT id
+            FROM learning_guides
+            WHERE guide_type=$1
+            `,
+
+            [guide_type]
+
+        );
 
         if(existing.rows.length){
 
-            await pool.query(`
-            UPDATE assignment_submission_guides
+            await pool.query(
+
+            `
+           UPDATE learning_guides
             SET
             title=$1,
             description=$2,
             video_url=$3,
-            sample_document_url=$4
-            WHERE id=$5
-            `,[
+            sample_question=$4,
+            sample_submission=$5,
+            updated_at=NOW()
+            WHERE guide_type=$6
+            `,
+
+            [
                 title,
                 description,
                 video_url,
-                sample_document_url,
-                existing.rows[0].id
+                sample_question,
+                sample_submission,
+                guide_type
             ]);
 
         }else{
 
-            await pool.query(`
-            INSERT INTO assignment_submission_guides
-            (
-            title,
-            description,
-            video_url,
-            sample_document_url
-            )
+            await pool.query(
 
-            VALUES($1,$2,$3,$4)
-            `,[
+            `
+            INSERT INTO learning_guides(
+                guide_type,
                 title,
                 description,
                 video_url,
-                sample_document_url
+                sample_question,
+                sample_submission
+            )
+            VALUES($1,$2,$3,$4,$5,$6)
+            `,
+
+            [
+                guide_type,
+                title,
+                description,
+                video_url,
+                sample_question,
+                sample_submission
             ]);
 
         }
+
+        res.json({
+
+            success:true
+
+        });
+
+    }catch(err){
+
+        console.log(err);
+
+        res.status(500).json({
+
+            success:false
+
+        });
+
+    }
+
+};
+
+exports.deleteGuide = async (req, res) => {
+
+    try{
+
+        const { type } = req.params;
+
+        await pool.query(
+            `
+            DELETE FROM learning_guides
+            WHERE guide_type=$1
+            `,
+            [type]
+        );
 
         res.json({
             success:true
@@ -868,9 +957,8 @@ exports.saveGuide = async(req,res)=>{
 
     }
 
-}
+};
 
-// EDIT
 exports.editAssignment = async (req, res) => {
   const { id } = req.params;
   const { title, instructions, course_id } = req.body;

@@ -1,0 +1,386 @@
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+
+
+<div class="login-tabs">
+
+    <button class="login-tab active"
+        onclick="openGuideTab('assignment-section',this)">
+        Assignment Guide
+    </button>
+
+    <button class="login-tab"
+        onclick="openGuideTab('course-section',this)">
+        Course Guide
+    </button>
+
+    <button class="login-tab"
+        onclick="openGuideTab('certificate-section',this)">
+        Certificate Guide
+    </button>
+
+    <button class="login-tab"
+        onclick="openGuideTab('parent-section',this)">
+        Parent Guide
+    </button>
+
+    <button class="login-tab"
+        onclick="openGuideTab('teacher-section',this)">
+        Teacher Guide
+    </button>
+
+</div>
+
+
+<div id="assignment-section">
+    <h3>Module Assignments</h3>
+
+    <div class="assignment-actions">
+        <button onclick="openGuideModal('assignment')">
+            📘 Assignment Submission Guide
+        </button>
+
+        <button onclick="openAssignmentModal()">
+            + Add Assignment
+        </button>
+    </div>
+
+<h2>Assignment Submission Guide</h2>
+
+<button onclick="openGuideModal('assignment')">
+    Edit Guide
+</button>
+
+</div>
+
+<div id="course-section" style="display:none">
+
+<h2>Course Guide</h2>
+
+<button onclick="openGuideModal('course')">
+    Edit Guide
+</button>
+
+</div>
+
+<div id="certificate-section" style="display:none">
+
+<h2>Certificate Guide</h2>
+
+<button onclick="openGuideModal('certificate')">
+    Edit Guide
+</button>
+
+</div>
+
+<div id="parent-section" style="display:none">
+
+<h2>Parent Guide</h2>
+
+<button onclick="openGuideModal('parent')">
+    Edit Guide
+</button>
+
+</div>
+
+<div id="teacher-section" style="display:none">
+
+<h2>Teacher Guide</h2>
+
+<button onclick="openGuideModal('teacher')">
+    Edit Guide
+</button>
+
+</div>
+
+
+
+<!-- ASSIGNMENT GUIDE MODAL -->
+
+<!-- <div id="guideModal" class="modal" style="display:none;">
+
+<form
+id="guideForm"
+class="modal-content"
+enctype="multipart/form-data">
+
+<h2>Assignment Submission Guide</h2>
+
+<input type="hidden" id="guideId" name="id">
+
+<label>Guide Title</label>
+
+<input
+type="text"
+name="title"
+id="guideTitle"
+required>
+
+<label>Description</label>
+
+<textarea
+name="description"
+id="guideDescription"></textarea>
+
+<label>Guide Video (Youtube Link)</label>
+
+<input
+type="text"
+name="video_url"
+id="guideVideo">
+
+<label>Sample Assignment PDF/DOC</label>
+
+<input
+type="file"
+name="sample_document">
+
+<div class="modal-actions">
+
+<button type="submit">
+
+Save Guide
+
+</button>
+
+<button
+type="button"
+onclick="closeGuideModal()">
+
+Cancel
+
+</button>
+
+</div>
+
+</form>
+
+</div> -->
+
+<div id="guideModal"
+     class="modal"
+     style="display:none;">
+
+<form id="guideForm"
+      class="modal-content"
+      enctype="multipart/form-data">
+
+<input type="hidden"
+       id="guideType"
+       name="guide_type">
+
+<input type="hidden"
+       id="guideId">
+
+<h2 id="guideHeading"></h2>
+
+<label>Title</label>
+
+<input
+type="text"
+id="guideTitle"
+name="title"
+required>
+
+<label>Description</label>
+
+<textarea
+id="guideDescription"
+name="description"></textarea>
+
+<label>YouTube Video</label>
+
+<input
+type="text"
+id="guideVideo"
+name="video_url">
+
+<label>Sample Assignment Question</label>
+
+<textarea
+    id="sampleQuestion"
+    name="sample_question">
+</textarea>
+
+<label>Sample Submission</label>
+
+<textarea
+    id="sampleSubmission"
+    name="sample_submission">
+</textarea>
+
+<div class="modal-actions">
+
+<button type="submit">
+Save Guide
+</button>
+
+<button
+type="button"
+onclick="deleteGuide()">
+Delete
+</button>
+
+<button
+type="button"
+onclick="closeGuideModal()">
+Cancel
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+<script>
+    
+    let editorInitialized = false;
+
+    async function openGuideModal(type){
+
+        document.getElementById("guideModal").style.display = "block";
+
+        document.getElementById("guideType").value = type;
+
+        document.getElementById("guideHeading").innerText =
+            type.charAt(0).toUpperCase() + type.slice(1) + " Guide";
+
+        if (!editorInitialized) {
+
+            CKEDITOR.replace("guideDescription");
+
+            CKEDITOR.replace("sampleQuestion");
+
+            CKEDITOR.replace("sampleSubmission");
+
+            editorInitialized = true;
+        }
+
+        await loadGuide(type);
+
+    }
+        
+    function closeGuideModal(){
+
+            document.getElementById("guideModal").style.display="none";
+
+        }
+
+async function loadGuide(type){
+
+    const res = await fetch(`/admin/guides/${type}`);
+
+    const data = await res.json();
+
+   if(!data.success){
+
+        alert("Unable to load guide.");
+
+        return;
+
+    }
+
+    document.getElementById("guideTitle").value =
+        data.guide?.title || "";
+
+    document.getElementById("guideVideo").value =
+        data.guide?.video_url || "";
+
+    CKEDITOR.instances.guideDescription.setData(
+        data.guide?.description || ""
+    );
+
+    CKEDITOR.instances.sampleQuestion.setData(
+        data.guide?.sample_question || ""
+    );
+
+    CKEDITOR.instances.sampleSubmission.setData(
+        data.guide?.sample_submission || ""
+    );
+
+}
+
+async function deleteGuide(){
+
+    const type =
+        document.getElementById("guideType").value;
+
+    if(!confirm("Delete this guide?")){
+        return;
+    }
+
+    const res = await fetch(`/admin/guides/${type}`,{
+
+        method:"DELETE"
+
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+
+        alert("Guide deleted.");
+
+        closeGuideModal();
+
+    }
+
+}
+
+    document.getElementById("guideForm")
+.addEventListener("submit", async function(e){
+
+    e.preventDefault();
+
+    CKEDITOR.instances.guideDescription.updateElement();
+
+    CKEDITOR.instances.sampleQuestion.updateElement();
+
+    CKEDITOR.instances.sampleSubmission.updateElement();
+
+    const formData = new FormData(this);
+
+    const res = await fetch("/admin/guides/save",{
+
+        method:"POST",
+
+        body:formData
+
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+
+        alert("Guide Saved");
+
+        closeGuideModal();
+
+    }
+
+});
+
+
+    function openGuideTab(sectionId, btn){
+
+        const sections=[
+            "assignment-section",
+            "course-section",
+            "certificate-section",
+            "parent-section",
+            "teacher-section"
+        ];
+
+        sections.forEach(id=>{
+            document.getElementById(id).style.display="none";
+        });
+
+        document.getElementById(sectionId).style.display="block";
+
+        document.querySelectorAll(".login-tab")
+        .forEach(tab=>tab.classList.remove("active"));
+
+        btn.classList.add("active");
+    }
+</script>

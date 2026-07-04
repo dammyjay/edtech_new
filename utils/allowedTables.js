@@ -30,6 +30,7 @@ module.exports = [
   "invoice_students",
   "lab_projects",
   "lab_submissions",
+  "learning_guides",
   "lessons",
   "lesson_labs",
   "messages",

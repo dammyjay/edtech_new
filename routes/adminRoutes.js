@@ -418,9 +418,23 @@ router.post(
   upload.none(),
   learningController.editAssignment
 );
-router.get("/guide",controller.getGuide);
+router.get("/guides", learningController.renderGuidePage);
 
-router.post("/guide",controller.saveGuide);
+// load one guide
+router.get("/guides/:type", learningController.getGuide);
+
+// save one guide
+// router.post("/guides/save", learningController.saveGuide);
+router.post(
+    "/guides/save",
+    upload.none(),
+    learningController.saveGuide
+);
+
+router.delete(
+    "/guides/:type",
+    learningController.deleteGuide
+);
 
 // Delete
 router.post("/assignments/:id/delete", learningController.deleteAssignment);
