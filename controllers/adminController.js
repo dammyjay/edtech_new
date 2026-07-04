@@ -1493,31 +1493,257 @@ exports.overview = async (req, res) => {
   }
 };
 
+// exports.addUser = async (req, res) => {
+//   try {
+
+//     const infoResult = await pool.query(
+//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+//     );
+//     const { fullname, email, phone, gender, role } = req.body;
+
+//     // default password
+//     const defaultPassword = "12345678";
+//     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+//     await pool.query(
+//       `INSERT INTO users2 (fullname, email, phone, gender, password, role)
+//        VALUES ($1, $2, $3, $4, $5, $6)`,
+//       [fullname, email, phone, gender, hashedPassword, role || "user"]
+//     );
+
+//     res.redirect("/admin/students");
+    
+//   } catch (err) {
+//     console.error(err);
+   
+//     res.redirect("/admin/students");
+//     }
+// };
+
+
 exports.addUser = async (req, res) => {
   try {
-
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
+
+    const company = infoResult.rows[0] || {};
+
     const { fullname, email, phone, gender, role } = req.body;
 
-    // default password
+    // Default password
     const defaultPassword = "12345678";
+
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     await pool.query(
-      `INSERT INTO users2 (fullname, email, phone, gender, password, role)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [fullname, email, phone, gender, hashedPassword, role || "user"]
+      `INSERT INTO users2
+      (fullname, email, phone, gender, password, role)
+      VALUES ($1,$2,$3,$4,$5,$6)`,
+      [
+        fullname,
+        email,
+        phone,
+        gender,
+        hashedPassword,
+        role || "user",
+      ]
+    );
+
+    // ==========================
+    // Send Welcome Email
+    // ==========================
+
+    const loginUrl = "https://acad.jkthub.com/admin/login"; // change if necessary
+
+    const html = `
+<div style="
+background:#f4f4f4;
+padding:40px;
+font-family:Calibri,Arial,sans-serif;
+">
+
+<div style="
+max-width:720px;
+margin:auto;
+background:#fff;
+border-radius:10px;
+overflow:hidden;
+box-shadow:0 5px 20px rgba(0,0,0,.08);
+">
+
+<div style="
+background:#b89b5e;
+padding:35px;
+text-align:center;
+color:white;
+">
+
+<img
+src="https://acad.jkthub.com/images/JKT%20logo.png"
+width="80">
+
+<h2 style="margin:15px 0 5px;">
+${company.company_name || "Jaykirch Technology Hub"}
+</h2>
+
+<p style="margin:0;">
+Welcome to Our Learning Platform
+</p>
+
+</div>
+
+<div style="padding:35px;">
+
+<h2 style="margin-top:0;color:#333;">
+Hello ${fullname},
+</h2>
+
+<p>
+Congratulations! Your learning account has been successfully created.
+</p>
+
+<p>
+You can now log in and begin accessing your courses, lessons, quizzes,
+assignments and certificates.
+</p>
+
+<table
+style="
+width:100%;
+border-collapse:collapse;
+margin:25px 0;
+">
+
+<tr>
+<td style="padding:12px;border-bottom:1px solid #eee;">
+<b>Login Email</b>
+</td>
+
+<td style="border-bottom:1px solid #eee;">
+${email}
+</td>
+</tr>
+
+<tr>
+<td style="padding:12px;border-bottom:1px solid #eee;">
+<b>Temporary Password</b>
+</td>
+
+<td style="border-bottom:1px solid #eee;">
+${defaultPassword}
+</td>
+</tr>
+
+<tr>
+<td style="padding:12px;">
+<b>Role</b>
+</td>
+
+<td>
+${role || "Student"}
+</td>
+</tr>
+
+</table>
+
+<div
+style="
+background:#faf8f1;
+padding:20px;
+border-left:5px solid #b89b5e;
+margin:25px 0;
+">
+
+<b>How to Login</b>
+
+<ol style="line-height:28px;padding-left:20px;">
+
+<li>Visit the login page.</li>
+
+<li>Enter your email address.</li>
+
+<li>Enter your temporary password.</li>
+
+<li>Click <b>Login</b>.</li>
+
+<li>After logging in, go to <b>My Profile</b> and change your password for security.</li>
+
+</ol>
+
+</div>
+
+<div style="text-align:center;margin:35px 0;">
+
+<a href="${loginUrl}"
+style="
+background:#b89b5e;
+color:white;
+text-decoration:none;
+padding:14px 30px;
+border-radius:6px;
+display:inline-block;
+font-weight:bold;
+">
+Login Now
+</a>
+
+</div>
+
+<p>
+<b>Important:</b><br>
+For your security, we strongly recommend changing your password immediately after your first login. You can do this anytime from your <b>Profile</b> page.
+</p>
+
+<p>
+
+If you experience any difficulty accessing your account,
+please contact our support team.
+
+</p>
+
+<br>
+
+Kind regards,
+
+<br><br>
+
+<b>
+${company.company_name || "Jaykirch Technology Hub"}
+</b>
+
+</div>
+
+<div style="
+background:#222;
+color:#fff;
+padding:20px;
+text-align:center;
+font-size:12px;
+">
+
+© ${new Date().getFullYear()}
+${company.company_name || "Jaykirch Technology Hub"}
+
+</div>
+
+</div>
+
+</div>
+`;
+
+    await sendEmail(
+      email,
+      "🎉 Welcome! Your Learning Account Has Been Created",
+      html
     );
 
     res.redirect("/admin/students");
-    
+
   } catch (err) {
     console.error(err);
-   
     res.redirect("/admin/students");
-    }
+  }
 };
 
 exports.users = async (req, res) => {
