@@ -40,11 +40,73 @@
             <option>Female</option>
           </select>
 
-          <select name="role">
-            <option value="user">Student</option>
-            <option value="parent">Parent</option>
-            <option value="admin">Admin</option>
-          </select>
+          <select name="role" required>
+
+            <option value="user">
+                Normal User
+            </option>
+
+            <option value="student">
+                School Student
+            </option>
+
+            <option value="teacher">
+                Teacher
+            </option>
+
+            <option value="school_admin">
+                School Administrator
+            </option>
+
+            <option value="parent">
+                Parent
+            </option>
+
+            <option value="instructor">
+                Instructor
+            </option>
+
+            <option value="admin">
+                System Administrator
+            </option>
+
+        </select>
+
+        <div id="schoolInfoSection" style="display:none;">
+
+        <input
+        name="schoolName"
+        placeholder="School Name"
+        >
+
+        <input
+        name="schoolAddress"
+        placeholder="School Address"
+        >
+
+        <input
+        name="schoolEmail"
+        placeholder="School Email"
+        >
+
+        <input
+        name="schoolPhone"
+        placeholder="School Phone"
+        >
+
+        </div>
+
+        <div id="schoolLookupSection" style="display:none;">
+
+        <input
+        id="schoolIdInput"
+        name="schoolId"
+        placeholder="Enter School ID"
+        autocomplete="off">
+
+        <div id="schoolResult"></div>
+
+        </div>
 
           <p style="font-size:12px; color:#666;">
             Default password: <strong>12345678</strong>
@@ -336,6 +398,88 @@
   function closeAddUserModal() {
     document.getElementById("addUserModal").style.display = "none";
   }
+
+  const roleSelect =
+document.querySelector('select[name="role"]');
+
+const schoolInfoSection =
+document.getElementById("schoolInfoSection");
+
+const schoolLookupSection =
+document.getElementById("schoolLookupSection");
+
+const schoolIdInput =
+document.getElementById("schoolIdInput");
+
+const schoolResult =
+document.getElementById("schoolResult");
+
+  roleSelect.addEventListener("change", function(){
+
+    const role=this.value;
+
+    schoolInfoSection.style.display="none";
+
+    schoolLookupSection.style.display="none";
+
+    if(role==="school_admin"){
+
+        schoolInfoSection.style.display="block";
+
+    }
+
+    if(role==="teacher" || role==="student"){
+
+        schoolLookupSection.style.display="block";
+
+    }
+
+});
+
+schoolIdInput.addEventListener("keyup", async ()=>{
+
+    const schoolId=schoolIdInput.value.trim();
+
+    if(schoolId.length<3){
+
+        schoolResult.innerHTML="";
+
+        return;
+
+    }
+
+    const res=await fetch(
+        `/admin/check-school/${schoolId}`
+    );
+
+    const data=await res.json();
+
+    const submitBtn =
+document.getElementById("createUserBtn");
+
+if(data.found){
+
+    schoolResult.innerHTML=`
+        <span style="color:green;">
+        ✔ ${data.school.name}
+        </span>
+        `;
+
+        submitBtn.disabled=false;
+
+    }else{
+
+        schoolResult.innerHTML=`
+            <span style="color:red;">
+            School not found
+            </span>
+        `;
+
+        submitBtn.disabled=true;
+
+    }
+
+});
 </script>
 
 <!-- script for autocomplete -->

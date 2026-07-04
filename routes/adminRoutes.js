@@ -136,6 +136,7 @@ router.post(
   adminController.migrateStudentLoginFeatures,
 );
 router.post("/add-user", adminController.addUser);
+router.get("/check-school/:schoolId", adminController.checkSchool);
 router.get("/stats/users", adminController.users);
 router.get("/stats/courses", adminController.courses);
 router.get("/stats/progress",adminController.progress);

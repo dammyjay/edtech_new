@@ -1493,35 +1493,34 @@ exports.overview = async (req, res) => {
   }
 };
 
-// exports.addUser = async (req, res) => {
-//   try {
-
-//     const infoResult = await pool.query(
-//       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-//     );
-//     const { fullname, email, phone, gender, role } = req.body;
-
-//     // default password
-//     const defaultPassword = "12345678";
-//     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
-//     await pool.query(
-//       `INSERT INTO users2 (fullname, email, phone, gender, password, role)
-//        VALUES ($1, $2, $3, $4, $5, $6)`,
-//       [fullname, email, phone, gender, hashedPassword, role || "user"]
-//     );
-
-//     res.redirect("/admin/students");
-    
-//   } catch (err) {
-//     console.error(err);
-   
-//     res.redirect("/admin/students");
-//     }
-// };
-
-
 exports.addUser = async (req, res) => {
+
+  async function generateSchoolId() {
+
+    let schoolId;
+    let exists = true;
+
+    while (exists) {
+
+        schoolId =
+            "SCH-" +
+            Math.floor(100000 + Math.random() * 900000);
+
+        const check = await pool.query(
+            `
+            SELECT id
+            FROM schools
+            WHERE school_id=$1
+            `,
+            [schoolId]
+        );
+
+        exists = check.rows.length > 0;
+    }
+
+    return schoolId;
+} 
+
   try {
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -1529,34 +1528,304 @@ exports.addUser = async (req, res) => {
 
     const company = infoResult.rows[0] || {};
 
-    const { fullname, email, phone, gender, role } = req.body;
+    // const { fullname, email, phone, gender, role, schoolId } = req.body;
+    let { fullname,email,phone,gender,role,schoolId } = req.body;
 
     // Default password
     const defaultPassword = "12345678";
 
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
-    await pool.query(
-      `INSERT INTO users2
-      (fullname, email, phone, gender, password, role)
-      VALUES ($1,$2,$3,$4,$5,$6)`,
-      [
+    const roleConfig = {
+  admin: {
+    title: "Administrator Account",
+    subject: "Administrator Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Your administrator account has been created. You now have full administrative access to manage the platform, users, courses, reports, and system settings.",
+    description:
+      "You can now access your Administrator Dashboard to manage the platform, users, courses, reports and system settings.",
+    instructions: [
+      "Visit the Administrator Login page.",
+      "Login with your email address.",
+      "Enter your temporary password.",
+      "Manage users, courses, reports and platform settings.",
+      "Change your password immediately from your Profile page."
+    ]
+  },
+
+  school_admin: {
+    title: "School Administrator Account",
+    subject: "School Administrator Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Your School Administrator account has been created. You can now manage your school, teachers, students, classes and academic records.",
+    description:
+      "You can now access your School Administrator Dashboard to manage your school's settings, teachers, students and academic records.",
+    instructions: [
+      "Login using your email.",
+      "Manage your school's teachers.",
+      "Manage students and classes.",
+      "Configure school settings.",
+      "Change your password from your Profile page."
+    ]
+  },
+
+  teacher: {
+    title: "Teacher Account",
+    subject: "Teacher Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Welcome! Your teacher account is ready. You can now manage your classes, lessons, quizzes, assignments and student results.",
+    description:
+      "You can now access your Teacher Dashboard to manage classes, lessons, assignments, quizzes, attendance and student results.",
+    instructions: [
+      "Login with your email.",
+      "Access your teaching dashboard.",
+      "Create lessons and assignments.",
+      "Monitor students' progress.",
+      "Change your password from your Profile page."
+    ]
+  },
+
+  school_student: {
+    title: "Student Account",
+    subject: "Student Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Welcome to the learning platform. Your student account has been created successfully.",
+    description:
+      "You can now access your Student Dashboard to manage your courses, lessons, quizzes, assignments and certificates.",
+    instructions: [
+      "Login with your email.",
+      "Access your enrolled courses.",
+      "Complete lessons, quizzes and assignments.",
+      "Track your progress and certificates.",
+      "Change your password from your Profile page."
+    ]
+  },
+
+  parent: {
+    title: "Parent Account",
+    subject: "Parent Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Your parent account is ready. You can now monitor your children's learning progress, invoices and reports.",
+    description:
+      "You can now access your Parent Dashboard to monitor your children's academic progress, view invoices and reports.",
+    instructions: [
+      "Login using your email.",
+      "View your children.",
+      "Monitor academic progress.",
+      "Access invoices and receipts.",
+      "Change your password from your Profile page."
+    ]
+  },
+
+  instructor: {
+    title: "Instructor Account",
+    subject: "Instructor Account Created",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Welcome! Your instructor account has been created successfully.",
+    description:
+      "You can now access your Instructor Dashboard to manage your courses, lessons, quizzes and student progress.",
+    instructions: [
+      "Login using your email.",
+      "Manage your courses.",
+      "Upload lessons and quizzes.",
+      "Review learners' progress.",
+      "Change your password from your Profile page."
+    ]
+  },
+
+  user: {
+    title: "Learning Account",
+    subject: "Welcome to Our Learning Platform",
+    loginUrl: "https://acad.jkthub.com/admin/login",
+    welcome:
+      "Welcome! Your learning account has been created successfully.",
+    description:
+      "You can now access your learning dashboard to manage your courses, lessons, quizzes, assignments and certificates.",
+    instructions: [
+      "Login with your email.",
+      "Start learning.",
+      "Take quizzes and assignments.",
+      "Earn certificates.",
+      "Change your password from your Profile page."
+    ]
+  }
+};
+
+const userRole = role || "user";
+
+const config = roleConfig[userRole] || roleConfig.user;
+
+if(role==="teacher" || role==="student"){
+
+    if(!schoolId){
+        throw new Error("School ID is required.");
+    }
+
+    const school = await pool.query(
+        `
+        SELECT *
+        FROM schools
+        WHERE school_id=$1
+        `,
+        [createdSchoolId]
+    );
+
+    if(school.rows.length===0){
+        throw new Error("Invalid School ID");
+    }
+
+}
+
+      // let createdSchoolId = schoolId;
+
+      // if(role === "school_admin"){
+
+      //     const newSchool = await pool.query(
+      //         `
+      //         INSERT INTO schools
+      //         (
+      //             name,
+      //             email,
+      //             phone,
+      //             address
+      //         )
+      //         VALUES
+      //         ($1,$2,$3,$4)
+      //         RETURNING id,school_id
+      //         `,
+      //         [
+      //             req.body.schoolName,
+      //             req.body.schoolEmail,
+      //             req.body.schoolPhone,
+      //             req.body.schoolAddress
+      //         ]
+      //     );
+
+      //     createdSchoolId = newSchool.rows[0].school_id;
+
+      //     const schoolInformation =
+      //       role==="school_admin"
+      //       ? `
+      //       <tr>
+      //       <td style="padding:12px;border-bottom:1px solid #eee;">
+      //       <b>School ID</b>
+      //       </td>
+
+      //       <td style="border-bottom:1px solid #eee;">
+      //       ${createdSchoolId}
+      //       </td>
+      //       </tr>
+      //       `
+      //       : "";
+      // }
+
+    const insert = await pool.query(
+    `
+    INSERT INTO users2
+    (fullname,email,phone,gender,password,role)
+    VALUES($1,$2,$3,$4,$5,$6)
+    RETURNING id
+    `,
+    [
         fullname,
         email,
         phone,
         gender,
         hashedPassword,
-        role || "user",
-      ]
+        role
+    ]
     );
+
+    const userId = insert.rows[0].id;
+
+    let createdSchoolId = schoolId;
+
+if(role === "school_admin"){
+
+    createdSchoolId = await generateSchoolId();
+
+    await pool.query(
+        `
+        INSERT INTO schools
+        (
+            school_id,
+            name,
+            address,
+            email,
+            phone,
+            created_by
+        )
+        VALUES
+        ($1,$2,$3,$4,$5,$6)
+        `,
+        [
+            createdSchoolId,
+            req.body.schoolName,
+            req.body.schoolAddress,
+            req.body.schoolEmail,
+            req.body.schoolPhone,
+            userId
+        ]
+    );
+
+}
+    
+    if(
+        role==="teacher" ||
+        role==="student" ||
+        role==="school_admin"
+    ){
+
+        const school =
+          await pool.query(
+          `
+          SELECT id
+          FROM schools
+          WHERE school_id=$1
+          `,
+          [createdSchoolId]
+          );
+
+        await pool.query(
+            `
+            INSERT INTO user_school
+            (
+                user_id,
+                school_id,
+                role_in_school,
+                approved
+            )
+            VALUES
+            ($1,$2,$3,true)
+            `,
+            [
+                userId,
+                school.rows[0].id,
+                role
+            ]
+        );
+
+    }
 
     // ==========================
     // Send Welcome Email
     // ==========================
 
-    const loginUrl = "https://acad.jkthub.com/admin/login"; // change if necessary
+    // const loginUrl = "https://acad.jkthub.com/admin/login"; // change if necessary
+    const loginUrl = config.loginUrl;
 
     const html = `
+
+    <meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
 <div style="
 background:#f4f4f4;
 padding:40px;
@@ -1565,6 +1834,7 @@ font-family:Calibri,Arial,sans-serif;
 
 <div style="
 max-width:720px;
+width:100%;
 margin:auto;
 background:#fff;
 border-radius:10px;
@@ -1574,7 +1844,7 @@ box-shadow:0 5px 20px rgba(0,0,0,.08);
 
 <div style="
 background:#b89b5e;
-padding:35px;
+padding:25px;
 text-align:center;
 color:white;
 ">
@@ -1588,24 +1858,23 @@ ${company.company_name || "Jaykirch Technology Hub"}
 </h2>
 
 <p style="margin:0;">
-Welcome to Our Learning Platform
+${config.title}
 </p>
 
 </div>
 
-<div style="padding:35px;">
+<div style="padding:25px;">
 
 <h2 style="margin-top:0;color:#333;">
 Hello ${fullname},
 </h2>
 
 <p>
-Congratulations! Your learning account has been successfully created.
+${config.welcome}
 </p>
 
 <p>
-You can now log in and begin accessing your courses, lessons, quizzes,
-assignments and certificates.
+${config.description}
 </p>
 
 <table
@@ -1620,7 +1889,8 @@ margin:25px 0;
 <b>Login Email</b>
 </td>
 
-<td style="border-bottom:1px solid #eee;">
+<td style="border-bottom:1px solid #eee; word-break:break-all;
+overflow-wrap:anywhere;">
 ${email}
 </td>
 </tr>
@@ -1645,6 +1915,20 @@ ${role || "Student"}
 </td>
 </tr>
 
+${role === "school_admin" ? `
+<tr>
+<td style="padding:12px;border-bottom:1px solid #eee;">
+<b>School ID</b>
+</td>
+
+<td style="border-bottom:1px solid #eee;">
+${createdSchoolId}
+</td>
+</tr>
+` : ""}
+
+${schoolInformation}
+
 </table>
 
 <div
@@ -1657,18 +1941,11 @@ margin:25px 0;
 
 <b>How to Login</b>
 
+
 <ol style="line-height:28px;padding-left:20px;">
-
-<li>Visit the login page.</li>
-
-<li>Enter your email address.</li>
-
-<li>Enter your temporary password.</li>
-
-<li>Click <b>Login</b>.</li>
-
-<li>After logging in, go to <b>My Profile</b> and change your password for security.</li>
-
+${config.instructions.map(step => `
+<li>${step}</li>
+`).join("")}
 </ol>
 
 </div>
@@ -1734,8 +2011,15 @@ ${company.company_name || "Jaykirch Technology Hub"}
 
     await sendEmail(
       email,
-      "🎉 Welcome! Your Learning Account Has Been Created",
+      `🎉 ${config.subject}`,
       html
+    );
+
+    // res.redirect("/admin/students");
+    req.flash(
+    "success",
+    `School created successfully.
+    School ID: ${createdSchoolId}`
     );
 
     res.redirect("/admin/students");
@@ -1744,6 +2028,39 @@ ${company.company_name || "Jaykirch Technology Hub"}
     console.error(err);
     res.redirect("/admin/students");
   }
+};
+
+exports.checkSchool = async (req, res) => {
+
+    const { schoolId } = req.params;
+
+    const school = await pool.query(
+        `
+        SELECT *
+        FROM schools
+        WHERE school_id=$1
+        `,
+        [schoolId]
+    );
+
+    if(school.rows.length){
+
+        return res.json({
+
+            found:true,
+
+            school:school.rows[0]
+
+        });
+
+    }
+
+    res.json({
+
+        found:false
+
+    });
+
 };
 
 exports.users = async (req, res) => {
