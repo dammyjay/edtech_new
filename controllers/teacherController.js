@@ -5,9 +5,10 @@ const generatePdf = require("../utils/generatePdf");
 // const puppeteer = require("puppeteer");
 
 // ----------------- DASHBOARD WRAPPER -----------------
-exports.getDashboard = (req, res) => {
+exports.getDashboard = async (req, res) => {
+  const announcements = await getAnnouncements("dashboard");
   // Only render the shell with sidenav + empty main-content
-  res.render("teacher/dashboard", { teacher: req.user });
+  res.render("teacher/dashboard", { teacher: req.user, announcements });
 };
 
 // ----------------- DASHBOARD SECTION -----------------

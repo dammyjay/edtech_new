@@ -1673,7 +1673,7 @@ if(role==="teacher" || role==="student"){
         FROM schools
         WHERE school_id=$1
         `,
-        [createdSchoolId]
+        [schoolId]
     );
 
     if(school.rows.length===0){
@@ -1682,49 +1682,20 @@ if(role==="teacher" || role==="student"){
 
 }
 
-      // let createdSchoolId = schoolId;
+    const existingUser = await pool.query(
+      `
+      SELECT id
+      FROM users2
+      WHERE email=$1
+      `,
+      [email]
+  );
 
-      // if(role === "school_admin"){
-
-      //     const newSchool = await pool.query(
-      //         `
-      //         INSERT INTO schools
-      //         (
-      //             name,
-      //             email,
-      //             phone,
-      //             address
-      //         )
-      //         VALUES
-      //         ($1,$2,$3,$4)
-      //         RETURNING id,school_id
-      //         `,
-      //         [
-      //             req.body.schoolName,
-      //             req.body.schoolEmail,
-      //             req.body.schoolPhone,
-      //             req.body.schoolAddress
-      //         ]
-      //     );
-
-      //     createdSchoolId = newSchool.rows[0].school_id;
-
-      //     const schoolInformation =
-      //       role==="school_admin"
-      //       ? `
-      //       <tr>
-      //       <td style="padding:12px;border-bottom:1px solid #eee;">
-      //       <b>School ID</b>
-      //       </td>
-
-      //       <td style="border-bottom:1px solid #eee;">
-      //       ${createdSchoolId}
-      //       </td>
-      //       </tr>
-      //       `
-      //       : "";
-      // }
-
+  if (existingUser.rows.length > 0) {
+      req.flash("error", "Email already exists.");
+      return res.redirect("/admin/students");
+      }
+    
     const insert = await pool.query(
     `
     INSERT INTO users2
@@ -1927,7 +1898,6 @@ ${createdSchoolId}
 </tr>
 ` : ""}
 
-${schoolInformation}
 
 </table>
 

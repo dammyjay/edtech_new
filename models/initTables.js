@@ -600,17 +600,55 @@ async function createTables() {
     `);
     
     // junction table for users and schools
-      await pool.query(`
+      // await pool.query(`
+      //   CREATE TABLE IF NOT EXISTS user_school (
+      //     id SERIAL PRIMARY KEY,
+      //     user_id INT REFERENCES users2(id) ON DELETE CASCADE,
+      //     school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+      //     role_in_school TEXT CHECK (role_in_school IN ('teacher', 'student')),
+      //     classroom_id INT,
+      //     joined_at TIMESTAMP DEFAULT NOW(),
+      //     UNIQUE(user_id, school_id),
+      //     approved BOOLEAN DEFAULT false
+      //   );
+
+      //   ALTER TABLE user_school
+      //   DROP CONSTRAINT user_school_role_in_school_check;
+
+      //   ALTER TABLE user_school
+      //     ADD CONSTRAINT user_school_role_in_school_check
+      //     CHECK (
+      //         role_in_school IN (
+      //             'school_admin',
+      //             'teacher',
+      //             'student'
+      //         )
+      //     );
+      // `);
+
+    await pool.query(`
         CREATE TABLE IF NOT EXISTS user_school (
           id SERIAL PRIMARY KEY,
           user_id INT REFERENCES users2(id) ON DELETE CASCADE,
           school_id INT REFERENCES schools(id) ON DELETE CASCADE,
-          role_in_school TEXT CHECK (role_in_school IN ('teacher', 'student')),
           classroom_id INT,
           joined_at TIMESTAMP DEFAULT NOW(),
           UNIQUE(user_id, school_id),
           approved BOOLEAN DEFAULT false
         );
+
+        ALTER TABLE user_school
+        DROP CONSTRAINT user_school_role_in_school_check;
+
+        ALTER TABLE user_school
+          ADD CONSTRAINT user_school_role_in_school_check
+          CHECK (
+              role_in_school IN (
+                  'school_admin',
+                  'teacher',
+                  'student'
+              )
+          );
       `);
 
       // table for classrooms
