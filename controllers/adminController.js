@@ -11729,146 +11729,6 @@ exports.getAttendanceSession = async (req, res) => {
   }
 };
 
-// exports.exportAttendancePDF = async (req, res) => {
-//   const { sessionId } = req.params;
-
-//   try {
-//     const session = await pool.query(
-//       `SELECT * FROM attendance_sessions WHERE id=$1`,
-//       [sessionId]
-//     );
-
-//     const students = await pool.query(
-//       `SELECT u.fullname, r.status
-//        FROM attendance_records r
-//        JOIN users2 u ON r.student_id = u.id
-//        WHERE r.session_id=$1`,
-//       [sessionId]
-//     );
-
-//     // const html = `
-//     // <html>
-//     // <body style="font-family:Calibri;">
-//     //   <div style="text-align:center;">
-//     //     <h2>ATTENDANCE REPORT</h2>
-//     //     <p>Week ${session.rows[0].week_number}</p>
-//     //     <p>${session.rows[0].date}</p>
-//     //   </div>
-
-//     //   <table width="100%" border="1" cellspacing="0">
-//     //     <tr>
-//     //       <th>Student</th>
-//     //       <th>Status</th>
-//     //     </tr>
-
-//     //     ${students.rows.map(s => `
-//     //       <tr>
-//     //         <td>${s.fullname}</td>
-//     //         <td>${s.status}</td>
-//     //       </tr>
-//     //     `).join("")}
-//     //   </table>
-//     // </body>
-//     // </html>
-//     // `;
-
-//     const html = `
-//       <html>
-//       <head>
-//       <style>
-//       body {
-//         font-family: Arial;
-//         padding: 30px;
-//       }
-
-//       .header {
-//         text-align: center;
-//         border-bottom: 2px solid #333;
-//         margin-bottom: 20px;
-//       }
-
-//       .header h2 {
-//         margin: 0;
-//       }
-
-//       .meta {
-//         display: flex;
-//         justify-content: space-between;
-//         margin-bottom: 20px;
-//         font-size: 14px;
-//       }
-
-//       table {
-//         width: 100%;
-//         border-collapse: collapse;
-//       }
-
-//       th {
-//         background: #222;
-//         color: white;
-//         padding: 10px;
-//       }
-
-//       td {
-//         padding: 8px;
-//         border-bottom: 1px solid #ddd;
-//       }
-
-//       .status-present { color: green; }
-//       .status-absent { color: red; }
-//       .status-late { color: orange; }
-//       </style>
-//       </head>
-
-//       <body>
-
-//       <div class="header">
-//         <h2>ATTENDANCE REPORT</h2>
-//       </div>
-
-//       <div class="meta">
-//         <div>Week: ${session.rows[0].week_number}</div>
-//         <div>Date: ${session.rows[0].date}</div>
-//       </div>
-
-//       <table>
-//       <tr>
-//         <th>Student</th>
-//         <th>Status</th>
-//       </tr>
-
-//       ${students.rows
-//         .map(
-//           (s) => `
-//       <tr>
-//         <td>${s.fullname}</td>
-//         <td class="status-${s.status}">${s.status}</td>
-//       </tr>
-//       `,
-//         )
-//         .join("")}
-
-//       </table>
-
-//       </body>
-//       </html>
-//       `;
-
-//     const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
-//     const page = await browser.newPage();
-//     await page.setContent(html);
-
-//     const pdf = await page.pdf({ format: "A4" });
-//     await browser.close();
-
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.send(pdf);
-
-//   } catch (err) {
-//     res.status(500).send("PDF error");
-//   }
-// };
-
 exports.exportAttendancePDF = async (req, res) => {
   const { sessionId } = req.params;
 
@@ -12128,6 +11988,52 @@ exports.exportAttendanceExcel = async (req, res) => {
 
   await workbook.xlsx.write(res);
   res.end();
+};
+
+exports.generateClassTermReport = async (req, res) => {
+  const { schoolId, classId, termId } = req.params;
+  const attendance = await pool.query(`
+    SELECT
+    COUNT(*) FILTER (WHERE ar.status='present') as present,
+    COUNT(*) FILTER (WHERE ar.status='absent') as absent,
+    COUNT(*) FILTER (WHERE ar.status='late') as late
+    FROM attendance_records ar
+    JOIN attendance_sessions s
+    ON s.id = ar.session_id
+    WHERE s.term_id=$1
+    AND s.classroom_id=$2
+    `,[termId,classId]);
+
+  const weeklyTrend = await pool.query(`
+    SELECT
+    week_number,
+    COUNT(*) FILTER (WHERE ar.status='present') as present
+    FROM attendance_records ar
+    JOIN attendance_sessions s
+    ON s.id=ar.session_id
+    WHERE s.term_id=$1
+    AND s.classroom_id=$2
+    GROUP BY week_number
+    ORDER BY week_number
+    `,[termId,classId]);
+
+  const students = await pool.query(
+    `
+    SELECT COUNT(*)
+    FROM student_term_enrollments
+    WHERE term_id=$1
+    AND classroom_id=$2
+    `,
+    [termId, classId],
+  );
+
+  const courses = await pool.query(`
+    SELECT c.title
+    FROM classroom_courses cc
+    JOIN courses c
+    ON c.id=cc.course_id
+    WHERE cc.classroom_id=$1
+    `,[classId]);
 };
 
 exports.sendChatMessage = async (req, res) => {

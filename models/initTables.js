@@ -119,7 +119,7 @@ async function createTables() {
         sort_order INTEGER DEFAULT 0,
         amount INTEGER DEFAULT 0,
         created_by TEXT DEFAULT 'admin',
-        instructor_id INT REFERENCES users(id), 
+        instructor_id INT REFERENCES users2(id), 
         created_at TIMESTAMP DEFAULT NOW(),
         curriculum_url TEXT
       );
@@ -599,33 +599,7 @@ async function createTables() {
       );
     `);
     
-    // junction table for users and schools
-      // await pool.query(`
-      //   CREATE TABLE IF NOT EXISTS user_school (
-      //     id SERIAL PRIMARY KEY,
-      //     user_id INT REFERENCES users2(id) ON DELETE CASCADE,
-      //     school_id INT REFERENCES schools(id) ON DELETE CASCADE,
-      //     role_in_school TEXT CHECK (role_in_school IN ('teacher', 'student')),
-      //     classroom_id INT,
-      //     joined_at TIMESTAMP DEFAULT NOW(),
-      //     UNIQUE(user_id, school_id),
-      //     approved BOOLEAN DEFAULT false
-      //   );
-
-      //   ALTER TABLE user_school
-      //   DROP CONSTRAINT user_school_role_in_school_check;
-
-      //   ALTER TABLE user_school
-      //     ADD CONSTRAINT user_school_role_in_school_check
-      //     CHECK (
-      //         role_in_school IN (
-      //             'school_admin',
-      //             'teacher',
-      //             'student'
-      //         )
-      //     );
-      // `);
-
+      // User school
     await pool.query(`
         CREATE TABLE IF NOT EXISTS user_school (
           id SERIAL PRIMARY KEY,
@@ -638,17 +612,22 @@ async function createTables() {
         );
 
         ALTER TABLE user_school
-        DROP CONSTRAINT user_school_role_in_school_check;
+        ADD COLUMN IF NOT EXISTS role_in_school TEXT DEFAULT 'student';
 
         ALTER TABLE user_school
-          ADD CONSTRAINT user_school_role_in_school_check
-          CHECK (
-              role_in_school IN (
-                  'school_admin',
-                  'teacher',
-                  'student'
-              )
-          );
+        DROP CONSTRAINT IF EXISTS user_school_role_in_school_check;
+
+        ALTER TABLE user_school
+        ADD CONSTRAINT user_school_role_in_school_check
+        CHECK (
+            role_in_school IN
+            (
+                'school_admin',
+                'teacher',
+                'student',
+                'parent'
+            )
+        );
       `);
 
       // table for classrooms

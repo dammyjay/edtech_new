@@ -32,6 +32,11 @@ exports.getClassroomDashboard = async (req, res) => {
     return res.status(404).send("Classroom not found");
     }
 
+    const terms = await pool.query(`
+      SELECT id,name
+      FROM academic_terms
+      ORDER BY start_date DESC
+      `);
 
     /* ============================
        2️⃣ Total Students
@@ -100,28 +105,6 @@ exports.getClassroomDashboard = async (req, res) => {
        5️⃣ Merge Student Metrics
     ============================ */
 
-    // const studentMetrics = students.map(student => {
-    //   const lessonData = lessonStats.rows.find(s => s.id === student.id);
-    //   const quizData = quizStats.rows.find(s => s.id === student.id);
-
-    //   const completionPercent = lessonData && lessonData.total_lessons > 0
-    //     ? Math.round((lessonData.completed / lessonData.total_lessons) * 100)
-    //     : 0;
-
-    //   const quizAvg = quizData && quizData.quiz_avg
-    //     ? Math.round(quizData.quiz_avg)
-    //     : 0;
-
-    //   const overallScore = Math.round((completionPercent + quizAvg) / 2);
-
-    //   return {
-    //     ...student,
-    //     completionPercent,
-    //     quizAvg,
-    //     overallScore
-    //   };
-    // });
-
     const studentMetrics = students.map(student => {
     const lessonData = lessonStats.rows.find(s => s.id === student.id);
     const quizData = quizStats.rows.find(s => s.id === student.id);
@@ -182,16 +165,17 @@ exports.getClassroomDashboard = async (req, res) => {
       totalStudents;
 
     res.render("admin/classroom-dashboard", {
-        info: req.companyInfo || {},
-        role: req.userRole || "admin",
-        currentPage: "schools",
+      info: req.companyInfo || {},
+      role: req.userRole || "admin",
+      currentPage: "schools",
       classroom,
       totalStudents,
       averageCompletion: Math.round(averageCompletion || 0),
       averageQuiz: Math.round(averageQuiz || 0),
       studentMetrics,
       leaderboard,
-      atRiskStudents
+      atRiskStudents,
+      terms: terms.rows,
     });
 
   } catch (error) {

@@ -14,6 +14,7 @@ const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
 const userController = require("../controllers/userController")
 const newsletterController = require("../controllers/newsletterController");
+const reportController = require("../controllers/reportController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
 const {
@@ -44,18 +45,6 @@ const storage2 = multer.diskStorage({
 });
 
 const upload2 = multer({ storage: storage2 });
-// const upload = multer({ dest: 'uploads/' }); // temp local storage
-// const upload = require("../middlewares/upload");
-
-// router.get("/login", adminController.showLogin);
-// router.post("/login", adminController.login);
-// router.post("/student/avatar-login", adminController.avatarPinLogin);
-// router.get(
-//   "/classroom/:classroomId/students",
-//   adminController.getClassroomStudents,
-// );
-// router.get("/api/schools", adminController.getSchools);
-// router.get("/api/schools", adminController.getSchoolsApi);
 
 router.get("/login", adminController.showLogin);
 router.post("/login", adminController.login);
@@ -619,6 +608,11 @@ router.get(
 router.get(
   "/attendance/export/excel/:termId",
   adminController.exportAttendanceExcel,
+);
+
+router.get(
+  "/reports/:schoolId/:classroomId/:termId/download",
+  reportController.downloadClassReport,
 );
 
 router.post(
