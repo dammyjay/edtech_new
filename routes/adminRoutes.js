@@ -615,6 +615,11 @@ router.get(
   reportController.downloadClassReport,
 );
 
+router.get(
+  "/reports/:schoolId/:classroomId/:termId/student/:studentId/download",
+  reportController.downloadStudentReport,
+);
+
 router.post(
   "/schools/:schoolId/bulk-add-users",
   upload2.single("file"),

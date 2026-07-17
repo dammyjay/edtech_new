@@ -51,25 +51,61 @@ ${aiSummary.summary}
 <h3>Key Insights</h3>
 
 <ul>
-
-${aiSummary.insights.map((i) => `<li>${i}</li>`).join("")}
-
-</ul>
+${report.aiSummary.insights
+  .map(
+    (i) => `
+    <li>
+      ${
+        typeof i === "string"
+          ? i
+          : i.title
+            ? `<b>${i.title}</b><br>${i.description || ""}`
+            : JSON.stringify(i)
+      }
+    </li>
+  `,
+  )
+  .join("")}
+</ul> 
 
 <h3>Potential Risks</h3>
 
 <ul>
-
-${aiSummary.risks.map((i) => `<li>${i}</li>`).join("")}
-
+${report.aiSummary.risk
+  .map(
+    (i) => `
+    <li>
+      ${
+        typeof i === "string"
+          ? i
+          : i.title
+            ? `<b>${i.title}</b><br>${i.description || ""}`
+            : JSON.stringify(i)
+      }
+    </li>
+  `,
+  )
+  .join("")}
 </ul>
 
 <h3>Recommendations</h3>
 
 <ul>
-
-${aiSummary.recommendations.map((i) => `<li>${i}</li>`).join("")}
-
+${report.aiSummary.recommendations
+  .map(
+    (i) => `
+    <li>
+      ${
+        typeof i === "string"
+          ? i
+          : i.title
+            ? `<b>${i.title}</b><br>${i.description || ""}`
+            : JSON.stringify(i)
+      }
+    </li>
+  `,
+  )
+  .join("")}
 </ul>
 
 </div>

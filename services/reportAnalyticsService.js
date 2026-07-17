@@ -282,34 +282,66 @@ async function getStudentAnalytics(classroomId, termId) {
    STUDENT DATASET
 ========================================================== */
 
-async function buildStudentDataset(schoolId,classroomId, termId) {
+async function buildStudentDataset(
+  schoolId,
+  classroomId,
+  termId,
+  studentId = null,
+) {
   /* ---------------------------------------------------------
       STUDENTS
   ---------------------------------------------------------- */
 
-  const studentsResult = await pool.query(
-    `
-      SELECT
+//   const studentsResult = await pool.query(
+//     `
+//       SELECT
+//     u.id,
+//     u.fullname,
+//     u.gender,
+//     u.email,
+//     ste.classroom_id
+// FROM student_term_enrollments ste
+
+// JOIN users2 u
+//     ON u.id = ste.student_id
+
+// WHERE
+//     ste.school_id = $1
+// AND ste.classroom_id = $2
+// AND ste.term_id = $3
+
+// ORDER BY u.fullname;
+//     `,
+//     [schoolId, classroomId, termId],
+//   );
+
+  let sql = `
+SELECT
     u.id,
     u.fullname,
     u.gender,
     u.email,
     ste.classroom_id
 FROM student_term_enrollments ste
-
 JOIN users2 u
     ON u.id = ste.student_id
-
 WHERE
     ste.school_id = $1
 AND ste.classroom_id = $2
 AND ste.term_id = $3
+`;
 
-ORDER BY u.fullname;
-    `,
-    [schoolId, classroomId, termId],
-  );
+  const params = [schoolId, classroomId, termId];
 
+  if (studentId) {
+    sql += ` AND ste.student_id = $4`;
+    params.push(studentId);
+  }
+
+  sql += ` ORDER BY u.fullname`;
+
+  const studentsResult = await pool.query(sql, params);
+  
   const students = studentsResult.rows.map((student) => ({
     id: student.id,
     fullname: student.fullname,
@@ -1357,36 +1389,20 @@ async function generateStudentComments(studentDataset) {
    MAIN REPORT ANALYTICS
 ========================================================== */
 
-async function getClassTermAnalytics(schoolId, classroomId, termId) {
-  // const [
-  //   schoolInfo,
-  //   attendance,
-  //   studentAnalytics,
-  //   courseAnalytics,
-  //   assignmentAnalytics,
-  //   quizAnalytics,
-  //   xpAnalytics,
-  //   badgeAnalytics,
-  //   certificateAnalytics,
-  //   rankings,
-  //   interventionStudents,
-  // ] = await Promise.all([
-  //   getSchoolInfo(schoolId, classroomId, termId),
-  //   getAttendanceAnalytics(classroomId, termId),
-  //   getStudentAnalytics(classroomId, termId),
-  //   getCourseAnalytics(classroomId, termId),
-  //   getAssignmentAnalytics(classroomId, termId),
-  //   getQuizAnalytics(classroomId, termId),
-  //   getXPAnalytics(classroomId, termId),
-  //   getBadgeAnalytics(classroomId, termId),
-  //   getCertificateAnalytics(classroomId, termId),
-  //   getStudentRanking(classroomId, termId),
-  //   getInterventionStudents(studentAnalytics),
-  // ]);
-
+async function getClassTermAnalytics(
+  schoolId,
+  classroomId,
+  termId,
+  studentId = null,
+) {
   const schoolInfo = await getSchoolInfo(schoolId, classroomId, termId);
 
-  const studentDataset = await buildStudentDataset(schoolId, classroomId, termId);
+  const studentDataset = await buildStudentDataset(
+    schoolId,
+    classroomId,
+    termId,
+    studentId,  
+  );
 
   console.log("========== STUDENT DATASET ==========");
   console.log("Classroom:", classroomId);

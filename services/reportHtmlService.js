@@ -32,7 +32,11 @@ const css = fs.readFileSync(
   "utf8",
 );
 
-async function buildClassReportHTML(report) {
+// async function buildClassReportHTML(report) {
+
+
+async function buildClassReportHTML(report, options = {}) {
+  console.log("======= CLASS REPORT HTML =======");
   return `
 
 <!DOCTYPE html>
@@ -67,7 +71,7 @@ ${buildRankingSection(report)}
 
 ${buildInterventionSection(report)}
 
-${buildStudentPages(report)}
+${buildStudentPages(report, options)}
 
 ${buildRecommendationSection(report)}
 

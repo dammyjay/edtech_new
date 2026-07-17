@@ -48,13 +48,15 @@
     </div>
 </section>
 
+
+
 <section class="section">
 
     <h2>📑 Report Centre</h2>
 
     <div class="report-centre">
 
-        <div class="report-header">
+        <!-- <div class="report-header">
 
             <label for="termSelect">
                 Academic Term
@@ -80,9 +82,7 @@
                 📄 Generate Full Class Report (PDF)
             </button>
 
-            <button class="btn-sec">
-                👨‍🎓 Generate Individual Reports
-            </button>
+            
 
             <button class="btn-sec">
                 📧 Email Reports to Parents
@@ -90,6 +90,78 @@
 
             <button class="btn-sec">
                 📊 Export Excel Summary
+            </button>
+
+        </div> -->
+
+        <div class="report-header">
+
+            <label>Academic Term</label>
+            <select id="termSelect">
+
+                <% terms.forEach(term=>{ %>
+
+                    <option value="<%= term.id %>">
+                        <%= term.name %>
+                    </option>
+
+                <% }) %>
+
+            </select>
+
+        </div>
+
+        <br>
+
+        <div class="report-header">
+
+            <label>Student</label>
+            <select id="studentSelect">
+
+                <% students.forEach(student=>{ %>
+
+                    <option value="<%= student.id %>">
+
+                        <%= student.fullname %>
+
+                    </option>
+
+                <% }) %>
+
+            </select>
+
+        </div>
+
+        <br>
+
+        <div class="report-actions">
+
+            <button
+                id="btnFullReport"
+                class="btn-pri">
+
+                📄 Generate Full Class Report
+
+            </button>
+
+            <button
+                id="btnStudentReport"
+                class="btn-sec">
+
+                👨‍🎓 Generate Student Report
+
+            </button>
+
+            <button class="btn-sec">
+
+                📧 Email Reports
+
+            </button>
+
+            <button class="btn-sec">
+
+                📊 Export Excel
+
             </button>
 
         </div>
@@ -192,19 +264,6 @@
 
 <hr>
 
-<!-- <section class="section">
-  <h3>⚠️ At Risk Students</h3>
-  <ul>
-    <% atRiskStudents.forEach(student => { %>
-        <li>
-        <%= student.fullname %> 
-        (Completion: <%= student.completionPercent %>%, 
-        Quiz Avg: <%= student.quizAvg %>%)
-        </li>
-    <% }) %>
-    </ul>
-</section> -->
-
 <section class="section">
   <h3>⚠️ At Risk Students</h3>
 
@@ -255,7 +314,6 @@
   </div>
 </section>
 
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
@@ -275,24 +333,55 @@ new Chart(ctx, {
 
 <script>
 
-document.addEventListener("DOMContentLoaded", () => {
+// document.addEventListener("DOMContentLoaded", () => {
 
-    const btn = document.getElementById("btnFullReport");
+//     const btn = document.getElementById("btnFullReport");
 
-    btn.addEventListener("click", () => {
+//     btn.addEventListener("click", () => {
 
-        const termId =
-            document.getElementById("termSelect").value;
+//         const termId =
+//             document.getElementById("termSelect").value;
 
-        const url =
-`/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
+//         const url =
+// `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
 
-        console.log(url);
+//         console.log(url);
 
-        window.location.href = url;
+//         window.location.href = url;
+
+//     });
+
+// });
+
+    document.addEventListener("DOMContentLoaded", () => {
+
+        const fullBtn = document.getElementById("btnFullReport");
+
+        const studentBtn = document.getElementById("btnStudentReport");
+
+        fullBtn.addEventListener("click", () => {
+
+            const termId =
+                document.getElementById("termSelect").value;
+
+            window.location.href =
+                `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
+
+        });
+
+        studentBtn.addEventListener("click", () => {
+
+            const termId =
+                document.getElementById("termSelect").value;
+
+            const studentId =
+                document.getElementById("studentSelect").value;
+
+            window.location.href =
+                `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/download`;
+
+        });
 
     });
-
-});
 
 </script>

@@ -71,7 +71,7 @@ async function generateStudentComment(student) {
   const prompt = `
 You are an experienced classroom teacher.
 
-Write a professional end-of-term report comment.
+Write a professional and detailed end-of-term report comment.
 
 Student Information
 

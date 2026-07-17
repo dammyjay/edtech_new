@@ -175,6 +175,7 @@ exports.getClassroomDashboard = async (req, res) => {
       role: req.userRole || "admin",
       currentPage: "schools",
       classroom,
+      students,
       totalStudents,
       averageCompletion: Math.round(averageCompletion || 0),
       averageQuiz: Math.round(averageQuiz || 0),

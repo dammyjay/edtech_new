@@ -1,7 +1,21 @@
-function buildStudentPages(report) {
-  return report.students.students
-    .map((student) => buildStudentPage(student, report))
-    .join("");
+// function buildStudentPages(report) {
+//   return report.students.students
+//     .map((student) => buildStudentPage(student, report))
+//     .join("");
+// }
+
+function buildStudentPages(report, options = {}) {
+  let students = report.students.students;
+
+  // If a specific student is requested,
+  // filter the list to only that student
+  if (options.studentId) {
+    students = students.filter(
+      (student) => String(student.id) === String(options.studentId),
+    );
+  }
+
+  return students.map((student) => buildStudentPage(student, report)).join("");
 }
 
 function buildStudentPage(student, report) {

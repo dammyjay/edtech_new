@@ -9,8 +9,52 @@ async function generatePDF(html, filename) {
 
   const page = await browser.newPage();
 
+  page.on("requestfailed", (request) => {
+    console.log("FAILED:", request.url(), request.failure()?.errorText);
+  });
+
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      console.log("ERROR:", response.status(), response.url());
+    }
+  });
+
+  // await page.setContent(html, {
+  //   waitUntil: "networkidle0",
+  // });
+
+  // await page.setContent(html, {
+  //   waitUntil: "domcontentloaded",
+  //   timeout: 120000,
+  // });
+
   await page.setContent(html, {
-    waitUntil: "networkidle0",
+    waitUntil: "load",
+    timeout: 120000,
+  });
+
+  await page.evaluate(async () => {
+    const images = Array.from(document.images);
+
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete && img.naturalWidth !== 0) {
+          return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }),
+    );
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  await page.screenshot({
+    path: "debug.png",
+    fullPage: true,
   });
 
   const reportsDir = path.join(__dirname, "../reports");

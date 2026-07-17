@@ -1,3 +1,6 @@
+/* ==========================================================
+   AI RECOMMENDATIONS
+========================================================== */
 function buildRecommendationSection(report) {
   const ai = report.aiSummary;
 
@@ -39,13 +42,19 @@ Key Insights
 
 <ul>
 
-${ai.insights
+${(ai.insights || [])
   .map(
     (i) => `
-
-<li>${i}</li>
-
-`,
+    <li>
+      ${
+        typeof i === "string"
+          ? i
+          : `<strong>${i.title || ""}</strong>${
+              i.description ? `<br>${i.description}` : ""
+            }`
+      }
+    </li>
+  `,
   )
   .join("")}
 
@@ -63,13 +72,19 @@ Potential Risks
 
 <ul>
 
-${ai.risks
+${(ai.risks || [])
   .map(
     (r) => `
-
-<li>${r}</li>
-
-`,
+    <li>
+      ${
+        typeof r === "string"
+          ? r
+          : `<strong>${r.title || ""}</strong>${
+              r.description ? `<br>${r.description}` : ""
+            }`
+      }
+    </li>
+  `,
   )
   .join("")}
 
@@ -89,13 +104,19 @@ Recommendations
 
 <ul>
 
-${ai.recommendations
+${(ai.recommendations || [])
   .map(
     (r) => `
-
-<li>${r}</li>
-
-`,
+    <li>
+      ${
+        typeof r === "string"
+          ? r
+          : `<strong>${r.title || ""}</strong>${
+              r.description ? `<br>${r.description}` : ""
+            }`
+      }
+    </li>
+  `,
   )
   .join("")}
 
@@ -139,102 +160,6 @@ ${new Date().toLocaleString()}
 
 `;
 }
-
-/* ==========================================================
-   AI RECOMMENDATIONS
-========================================================== */
-
-// function buildRecommendationSection(aiSummary = {}) {
-//   return `
-
-// <section class="page">
-
-// <div class="page-title">
-
-// Overall Recommendations
-
-// </div>
-
-// <div class="summary-box">
-
-// <h3>Executive Summary</h3>
-
-// <p>
-
-// ${aiSummary.summary || "No summary available."}
-
-// </p>
-
-// </div>
-
-// <div class="recommendation-grid">
-
-// <div class="recommend-card">
-
-// <h3>Key Insights</h3>
-
-// <ul>
-
-// ${(aiSummary.insights || [])
-//   .map((item) => `<li>${item}</li>`)
-//   .join("")}
-
-// </ul>
-
-// </div>
-
-// <div class="recommend-card">
-
-// <h3>Identified Risks</h3>
-
-// <ul>
-
-// ${(aiSummary.risks || [])
-//   .map((item) => `<li>${item}</li>`)
-//   .join("")}
-
-// </ul>
-
-// </div>
-
-// <div class="recommend-card">
-
-// <h3>Recommendations</h3>
-
-// <ul>
-
-// ${(aiSummary.recommendations || [])
-//   .map((item) => `<li>${item}</li>`)
-//   .join("")}
-
-// </ul>
-
-// </div>
-
-// </div>
-
-// <div class="report-footer">
-
-// <p>
-
-// This report was automatically generated using the
-// JayKirch Tech Hub AI Reporting System.
-
-// </p>
-
-// <p>
-
-// Generated on
-// ${new Date().toLocaleDateString()}
-
-// </p>
-
-// </div>
-
-// </section>
-
-// `;
-// }
 
 module.exports = {
   buildRecommendationSection,
