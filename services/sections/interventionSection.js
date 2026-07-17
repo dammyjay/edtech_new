@@ -99,25 +99,25 @@ ${student.fullname}
 
 <td>
 
-${student.attendance.toFixed(1)}%
+${Number(student.attendance ?? 0).toFixed(1)}%
 
 </td>
 
 <td>
 
-${quizAverage.toFixed(1)}%
+${Number(quizAverage ?? 0).toFixed(1)}%
 
 </td>
 
 <td>
 
-${assignmentAverage.toFixed(1)}%
+${Number(assignmentAverage ?? 0).toFixed(1)}%
 
 </td>
 
 <td>
 
-${student.xp}
+${student.xp ?? 0}
 
 </td>
 

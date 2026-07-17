@@ -5,11 +5,15 @@ function buildCoverPage(report) {
 
 <div class="cover-page">
 
-    ${
-      school.logo_url
-        ? `<img class="school-logo" src="${school.logo_url}" />`
-        : ""
-    }
+    <div class="logo-row">
+
+        <img
+        class="company-logo"
+        src="https://acad.jkthub.com/images/JKT%20logo.png">
+
+        ${school.logo_url ? `<img class="school-logo" src="${school.logo_url}">` : ""}
+
+    </div>
 
     <h1 class="school-name">
         ${school.name}

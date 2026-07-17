@@ -38,7 +38,7 @@ Course Completion
 
 class="chart-image"
 
-src="${charts.courseCompletion}"
+src="file://${report.charts.courseCompletion}"
 
 >
 

@@ -17,7 +17,7 @@ Attendance Dashboard
 
 <img
 class="chart-image"
-src="${charts.attendancePie}"
+src="file://${report.charts.attendancePie}"
 >
 
 </div>
@@ -28,7 +28,7 @@ src="${charts.attendancePie}"
 
 <img
 class="chart-image"
-src="${charts.weeklyAttendance}"
+src="file://${report.charts.weeklyAttendance}"
 >
 
 </div>

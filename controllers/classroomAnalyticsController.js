@@ -32,11 +32,17 @@ exports.getClassroomDashboard = async (req, res) => {
     return res.status(404).send("Classroom not found");
     }
 
-    const terms = await pool.query(`
-      SELECT id,name
+    const terms = await pool.query(
+      `
+      SELECT
+          id,
+          name
       FROM academic_terms
+      WHERE school_id = $1
       ORDER BY start_date DESC
-      `);
+      `,
+      [classroom.school_id],
+    );
 
     /* ============================
        2️⃣ Total Students

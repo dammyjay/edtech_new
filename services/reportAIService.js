@@ -15,7 +15,7 @@ Generate a professional term report.
 DATA:
 ${JSON.stringify(reportData, null, 2)}
 
-Provide:
+Provide detailed insights and recommendations based on the data.:
 
 1. Executive Summary
 2. Key Insights
@@ -31,23 +31,36 @@ Return ONLY JSON.
   "recommendations":[]
 }
 `;
+  
+    const result = await askTutor({
+      question: prompt,
+    });
 
-  const result = await askTutor({
-    question: prompt,
-  });
+    let cleaned = result
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
-  const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
 
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
+    if (start !== -1 && end !== -1) {
+      cleaned = cleaned.substring(start, end + 1);
+    }
 
-  return {
-    summary: "",
-    insights: [],
-    risks: [],
-    recommendations: [],
-  };
+    try {
+      return JSON.parse(cleaned);
+    } catch (err) {
+      console.error("AI JSON parse failed");
+      console.error(cleaned);
+
+      return {
+        summary: "Unable to generate AI executive summary.",
+        insights: [],
+        risks: [],
+        recommendations: [],
+      };
+    }
 }
 
 /* ==========================================================

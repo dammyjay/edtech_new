@@ -41,14 +41,15 @@ async function getSchoolInfo(schoolId, classroomId, termId) {
   const term = await pool.query(
     `
     SELECT
-      id,
-      name,
-      start_date,
-      end_date
+        id,
+        name,
+        start_date,
+        end_date
     FROM academic_terms
-    WHERE id = $1
+    WHERE id=$1
+    AND school_id=$2
     `,
-    [termId],
+    [termId, schoolId],
   );
 
   return {
@@ -281,7 +282,7 @@ async function getStudentAnalytics(classroomId, termId) {
    STUDENT DATASET
 ========================================================== */
 
-async function buildStudentDataset(classroomId, termId) {
+async function buildStudentDataset(schoolId,classroomId, termId) {
   /* ---------------------------------------------------------
       STUDENTS
   ---------------------------------------------------------- */
@@ -289,27 +290,24 @@ async function buildStudentDataset(classroomId, termId) {
   const studentsResult = await pool.query(
     `
       SELECT
-      u.id,
-      u.fullname,
-      u.gender,
-      u.email,
-      us.classroom_id
-  FROM student_term_enrollments ste
+    u.id,
+    u.fullname,
+    u.gender,
+    u.email,
+    ste.classroom_id
+FROM student_term_enrollments ste
 
-  JOIN users2 u
-      ON u.id = ste.student_id
+JOIN users2 u
+    ON u.id = ste.student_id
 
-  JOIN user_school us
-      ON us.user_id = ste.student_id
-    AND us.school_id = ste.school_id
+WHERE
+    ste.school_id = $1
+AND ste.classroom_id = $2
+AND ste.term_id = $3
 
-  WHERE
-      ste.term_id = $2
-  AND us.classroom_id = $1
-
-  ORDER BY u.fullname;
+ORDER BY u.fullname;
     `,
-    [classroomId, termId],
+    [schoolId, classroomId, termId],
   );
 
   const students = studentsResult.rows.map((student) => ({
@@ -1388,7 +1386,7 @@ async function getClassTermAnalytics(schoolId, classroomId, termId) {
 
   const schoolInfo = await getSchoolInfo(schoolId, classroomId, termId);
 
-  const studentDataset = await buildStudentDataset(classroomId, termId);
+  const studentDataset = await buildStudentDataset(schoolId, classroomId, termId);
 
   console.log("========== STUDENT DATASET ==========");
   console.log("Classroom:", classroomId);
@@ -1396,7 +1394,26 @@ async function getClassTermAnalytics(schoolId, classroomId, termId) {
   console.log("Students:", studentDataset.students.length);
   console.table(studentDataset.students);
 
+  // const attendance = await getAttendanceAnalytics(classroomId, termId);
   const attendance = await getAttendanceAnalytics(classroomId, termId);
+
+  const studentAttendance = await getStudentAnalytics(classroomId, termId);
+
+  const attendanceMap = {};
+
+  studentAttendance.students.forEach((s) => {
+    attendanceMap[s.id] = s;
+  });
+
+  studentDataset.students.forEach((student) => {
+    student.attendance = attendanceMap[student.id] || {
+      attendanceRate: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      totalSessions: 0,
+    };
+  });
   console.log("========== ATTENDANCE ==========");
   console.log(attendance);
 
