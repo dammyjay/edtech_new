@@ -60,7 +60,6 @@ async function generateClassReport(schoolId, classroomId, termId) {
     schoolId,
     classroomId,
     termId,
-    studentId,
   );
 
   console.log("STEP 2");
