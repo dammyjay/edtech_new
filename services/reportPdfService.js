@@ -33,22 +33,35 @@ async function generatePDF(html, filename) {
     timeout: 120000,
   });
 
-  await page.evaluate(async () => {
-    const images = Array.from(document.images);
+  // await page.evaluate(async () => {
+  //   const images = Array.from(document.images);
 
-    await Promise.all(
-      images.map((img) => {
-        if (img.complete && img.naturalWidth !== 0) {
-          return Promise.resolve();
-        }
+  //   await Promise.all(
+  //     images.map((img) => {
+  //       if (img.complete && img.naturalWidth !== 0) {
+  //         return Promise.resolve();
+  //       }
 
-        return new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      }),
-    );
-  });
+  //       return new Promise((resolve) => {
+  //         img.onload = resolve;
+  //         img.onerror = resolve;
+  //       });
+  //     }),
+  //   );
+  // });
+
+  await page
+    .waitForFunction(
+      () => {
+        return [...document.images].every((img) => img.complete);
+      },
+      {
+        timeout: 10000,
+      },
+    )
+    .catch(() => {
+      console.log("Some images failed.");
+    });
 
   await new Promise((resolve) => setTimeout(resolve, 2000));
 

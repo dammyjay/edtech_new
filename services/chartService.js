@@ -166,17 +166,29 @@ async function generateCharts(reportData) {
 
   const badgeChart = await generateBadgeChart(reportData.badges);
 
-  return {
-    attendanceChart,
+  // return {
+  //   attendanceChart,
 
-    attendanceTrend,
+  //   attendanceTrend,
 
-    courseChart,
+  //   courseChart,
 
-    xpChart,
+  //   xpChart,
 
-    badgeChart,
-  };
+  //   badgeChart,
+  // };
+
+    return {
+      attendancePie: attendanceChart,
+
+      weeklyAttendance: attendanceTrend,
+
+      courseCompletion: courseChart,
+
+      xpRanking: xpChart,
+
+      badgeDistribution: badgeChart,
+    };
 }
 
 module.exports = {

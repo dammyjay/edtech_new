@@ -51,7 +51,7 @@ ${aiSummary.summary}
 <h3>Key Insights</h3>
 
 <ul>
-${report.aiSummary.insights
+${(report.aiSummary?.insights || [])
   .map(
     (i) => `
     <li>
@@ -71,7 +71,7 @@ ${report.aiSummary.insights
 <h3>Potential Risks</h3>
 
 <ul>
-${report.aiSummary.risk
+${(report.aiSummary?.risks || [])
   .map(
     (i) => `
     <li>
@@ -91,7 +91,7 @@ ${report.aiSummary.risk
 <h3>Recommendations</h3>
 
 <ul>
-${report.aiSummary.recommendations
+${(report.aiSummary?.recommendations || [])
   .map(
     (i) => `
     <li>

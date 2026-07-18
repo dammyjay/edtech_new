@@ -64,6 +64,8 @@ async function generateClassReport(schoolId, classroomId, termId) {
 
   console.log("STEP 2");
   analytics.charts = await generateCharts(analytics);
+  console.log("Charts:");
+  console.dir(analytics.charts, { depth: null });
 
   console.log("STEP 3");
   const html = await buildClassReportHTML(analytics);
