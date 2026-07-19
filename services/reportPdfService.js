@@ -3,9 +3,20 @@ const fs = require("fs");
 const path = require("path");
 
 async function generatePDF(html, filename) {
-  const browser = await puppeteer.launch({
-    headless: true,
-  });
+const browser = await puppeteer.launch({
+  headless: true,
+
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--no-zygote",
+    "--single-process",
+  ],
+
+  protocolTimeout: 300000, // 5 minutes
+});
 
   const page = await browser.newPage();
 
