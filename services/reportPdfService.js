@@ -3,83 +3,70 @@ const fs = require("fs");
 const path = require("path");
 
 async function generatePDF(html, filename) {
-const browser = await puppeteer.launch({
-  headless: true,
+  console.log("Launching browser...");
 
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--no-zygote",
-    "--single-process",
-  ],
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  });
 
-  protocolTimeout: 300000, // 5 minutes
-});
+  // const browser = await puppeteer.launch({
+  //   headless: true,
+
+  //   args: [
+  //     "--no-sandbox",
+  //     "--disable-setuid-sandbox",
+  //     "--allow-file-access-from-files",
+  //   ],
+  // });
+
+  console.log("Browser launched");
 
   const page = await browser.newPage();
 
-  page.on("requestfailed", (request) => {
-    console.log("FAILED:", request.url(), request.failure()?.errorText);
-  });
+  console.log("Page created");
 
-  page.on("response", (response) => {
-    if (response.status() >= 400) {
-      console.log("ERROR:", response.status(), response.url());
-    }
-  });
-
-  // await page.setContent(html, {
-  //   waitUntil: "networkidle0",
-  // });
-
-  // await page.setContent(html, {
-  //   waitUntil: "domcontentloaded",
-  //   timeout: 120000,
-  // });
+  console.log("Setting content...");
 
   await page.setContent(html, {
     waitUntil: "load",
     timeout: 120000,
   });
 
-  // await page.evaluate(async () => {
-  //   const images = Array.from(document.images);
+  await page.waitForSelector("img");
 
-  //   await Promise.all(
-  //     images.map((img) => {
-  //       if (img.complete && img.naturalWidth !== 0) {
-  //         return Promise.resolve();
-  //       }
+  await page.evaluate(async () => {
+    const imgs = Array.from(document.images);
 
-  //       return new Promise((resolve) => {
-  //         img.onload = resolve;
-  //         img.onerror = resolve;
-  //       });
-  //     }),
-  //   );
-  // });
+    await Promise.all(
+      imgs.map((img) => {
+        if (img.complete) return;
 
-  await page
-    .waitForFunction(
-      () => {
-        return [...document.images].every((img) => img.complete);
-      },
-      {
-        timeout: 10000,
-      },
-    )
-    .catch(() => {
-      console.log("Some images failed.");
-    });
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }),
+    );
+  });
 
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  console.log("Content loaded");
+
+  console.log("Taking screenshot...");
 
   await page.screenshot({
     path: "debug.png",
     fullPage: true,
   });
+
+  console.log("Screenshot done");
+
+  console.log("Generating PDF...");
 
   const reportsDir = path.join(__dirname, "../reports");
 
@@ -100,6 +87,8 @@ const browser = await puppeteer.launch({
       right: "20px",
     },
   });
+
+  console.log("PDF done");
 
   await browser.close();
 

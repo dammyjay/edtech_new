@@ -292,29 +292,6 @@ async function buildStudentDataset(
       STUDENTS
   ---------------------------------------------------------- */
 
-//   const studentsResult = await pool.query(
-//     `
-//       SELECT
-//     u.id,
-//     u.fullname,
-//     u.gender,
-//     u.email,
-//     ste.classroom_id
-// FROM student_term_enrollments ste
-
-// JOIN users2 u
-//     ON u.id = ste.student_id
-
-// WHERE
-//     ste.school_id = $1
-// AND ste.classroom_id = $2
-// AND ste.term_id = $3
-
-// ORDER BY u.fullname;
-//     `,
-//     [schoolId, classroomId, termId],
-//   );
-
   let sql = `
 SELECT
     u.id,
@@ -361,6 +338,8 @@ AND ste.term_id = $3
     badges: {},
 
     certificates: {},
+
+    reportCourses: {},
   }));
 
   /* ---------------------------------------------------------
@@ -491,8 +470,6 @@ async function getCourseAnalytics(studentDataset) {
     [studentDataset.classroomId, studentDataset.termId],
   );
 
-  // studentDataset.students;
-
   const progressMap = {};
 
   for (const row of progressResult.rows) {
@@ -515,27 +492,6 @@ async function getCourseAnalytics(studentDataset) {
     let completedStudents = 0;
 
     const studentProgress = [];
-
-    // students.forEach((student) => {
-    //   const completedLessons = progressMap[`${course.id}_${student.id}`] || 0;
-
-    //   const progress =
-    //     totalLessons === 0
-    //       ? 0
-    //       : Number((completedLessons / totalLessons) * 100);
-
-    //   totalCompletion += progress;
-
-    //   if (progress >= 100) completedStudents++;
-
-    //   studentProgress.push({
-    //     studentId: student.student_id,
-
-    //     completedLessons,
-
-    //     progress: Number(progress.toFixed(2)),
-    //   });
-    // });
 
     studentDataset.students.forEach((student) => {
       const completedLessons = progressMap[`${course.id}_${student.id}`] || 0;
@@ -616,48 +572,6 @@ async function getCourseAnalytics(studentDataset) {
 ========================================================== */
 
 async function getAssignmentAnalytics(studentDataset, classroomId, termId) {
-
-  // const result = await pool.query(
-  //   `
-  //     SELECT
-
-  //         ste.student_id,
-
-  //         a.id AS assignment_id,
-
-  //         a.title,
-
-  //         s.score,
-
-  //         s.total,
-
-  //         s.grade,
-
-  //         s.created_at
-
-  //     FROM student_term_enrollments ste
-
-  //     JOIN classroom_courses cc
-  //       ON cc.classroom_id = ste.classroom_id
-
-  //     JOIN module_assignments a
-  //       ON a.module_id = cc.course_id
-
-  //     LEFT JOIN assignment_submissions s
-  //       ON s.assignment_id = a.id
-  //     AND s.student_id = ste.student_id
-
-  //     WHERE
-
-  //         ste.classroom_id = $1
-  //         AND ste.term_id = $2
-
-  //     ORDER BY
-  //         ste.student_id,
-  //         a.title
-  //     `,
-  //   [classroomId, termId],
-  // );
 
   const result = await pool.query(
     `
@@ -779,51 +693,6 @@ async function getAssignmentAnalytics(studentDataset, classroomId, termId) {
 ========================================================== */
 
 async function getQuizAnalytics(studentDataset, classroomId, termId) {
-  // const result = await pool.query(
-  //   `
-  //   SELECT
-
-  //       ste.student_id,
-
-  //       q.id AS quiz_id,
-
-  //       q.title,
-
-  //       qs.score,
-
-  //       q.pass_mark,
-
-  //       qs.passed,
-
-  //       qs.created_at
-
-  //   FROM student_term_enrollments ste
-
-  //   JOIN classroom_courses cc
-  //     ON cc.classroom_id = ste.classroom_id
-
-  //   JOIN modules m
-  //     ON m.course_id = cc.course_id
-
-  //   JOIN quizzes q
-  //     ON q.module_id = m.id
-
-  //   LEFT JOIN quiz_submissions qs
-  //     ON qs.quiz_id = q.id
-  //    AND qs.student_id = ste.student_id
-
-  //   WHERE
-
-  //       ste.classroom_id = $1
-  //       AND ste.term_id = $2
-
-  //   ORDER BY
-
-  //       ste.student_id,
-  //       q.title
-  //   `,
-  //   [classroomId, termId],
-  // );
 
   const result = await pool.query(
   `
@@ -1410,7 +1279,6 @@ async function getClassTermAnalytics(
   console.log("Students:", studentDataset.students.length);
   console.table(studentDataset.students);
 
-  // const attendance = await getAttendanceAnalytics(classroomId, termId);
   const attendance = await getAttendanceAnalytics(classroomId, termId);
 
   const studentAttendance = await getStudentAnalytics(classroomId, termId);
@@ -1433,8 +1301,6 @@ async function getClassTermAnalytics(
   console.log("========== ATTENDANCE ==========");
   console.log(attendance);
 
-  // await getAttendanceAnalytics(studentDataset, classroomId, termId);
-
   const courses = await getCourseAnalytics(studentDataset, classroomId, termId);
   console.log("========== COURSES ==========");
   console.dir(courses, { depth: null });
@@ -1450,6 +1316,8 @@ async function getClassTermAnalytics(
   const quizzes = await getQuizAnalytics(studentDataset, classroomId, termId);
   console.log("========== QUIZZES ==========");
   console.dir(quizzes, { depth: null });
+
+  await buildStudentReportBreakdown(studentDataset, classroomId);
 
   const xp = await getXPAnalytics(studentDataset, classroomId, termId);
 
@@ -1499,62 +1367,242 @@ async function getClassTermAnalytics(
   };
 }
 
-// function buildStudentComment(student) {
-//   const attendance = student.attendance.attendanceRate;
+async function buildStudentReportBreakdown(studentDataset, classroomId) {
 
-//   const quizzes = Object.values(student.quizzes);
+    const result = await pool.query(
+        `
+        SELECT
 
-//   const assignments = Object.values(student.assignments);
+            u.id AS student_id,
 
-//   const courseProgress = Object.values(student.courses);
+            c.id AS course_id,
+            c.title AS course_title,
 
-//   const avgQuiz = quizzes.length
-//     ? quizzes.reduce((s, q) => s + q.score, 0) / quizzes.length
-//     : 0;
+            m.id AS module_id,
+            m.title AS module_title,
 
-//   const avgAssignment = assignments.length
-//     ? assignments.reduce((s, a) => s + a.percentage, 0) / assignments.length
-//     : 0;
+            l.id AS lesson_id,
+            l.title AS lesson_title,
 
-//   const avgCourse = courseProgress.length
-//     ? courseProgress.reduce((s, c) => s + c.progress, 0) / courseProgress.length
-//     : 0;
+            ulp.lesson_id AS completed_lesson,
 
-//   const xp = student.xp.totalXP || 0;
+            q.id AS quiz_id,
+            qs.score AS quiz_score,
 
-//   let strengths = [];
+            ma.id AS assignment_id,
+            asub.score AS assignment_score,
+            asub.total AS assignment_total,
 
-//   let improvements = [];
+            uc.id AS certificate_id
 
-//   if (attendance >= 90) strengths.push("excellent attendance");
-//   else if (attendance < 75) improvements.push("improve attendance");
+        FROM student_term_enrollments ste
 
-//   if (avgQuiz >= 70) strengths.push("good quiz performance");
-//   else if (avgQuiz < 50) improvements.push("practice for quizzes");
+        JOIN users2 u
+            ON u.id = ste.student_id
 
-//   if (avgAssignment >= 70) strengths.push("submits quality assignments");
-//   else if (avgAssignment < 50)
-//     improvements.push("complete assignments carefully");
+        JOIN classroom_courses cc
+            ON cc.classroom_id = ste.classroom_id
 
-//   if (avgCourse >= 80) strengths.push("excellent course progress");
-//   else if (avgCourse < 50) improvements.push("complete more lessons");
+        JOIN courses c
+            ON c.id = cc.course_id
 
-//   if (xp >= 300) strengths.push("high classroom engagement");
-//   else if (xp < 100) improvements.push("participate more actively");
+        JOIN modules m
+            ON m.course_id = c.id
 
-//   return {
-//     strengths,
+        JOIN lessons l
+            ON l.module_id = m.id
 
-//     improvements,
+        LEFT JOIN user_lesson_progress ulp
+            ON ulp.lesson_id = l.id
+           AND ulp.user_id = u.id
 
-//     overall:
-//       strengths.length >= 4
-//         ? "Outstanding performance throughout the term."
-//         : strengths.length >= 2
-//           ? "Good performance with opportunities for further improvement."
-//           : "Needs additional academic support and close monitoring.",
-//   };
-// }
+        LEFT JOIN quizzes q
+            ON q.lesson_id = l.id
+
+        LEFT JOIN quiz_submissions qs
+            ON qs.quiz_id = q.id
+           AND qs.student_id = u.id
+
+        LEFT JOIN module_assignments ma
+            ON ma.module_id = m.id
+
+        LEFT JOIN assignment_submissions asub
+            ON asub.assignment_id = ma.id
+           AND asub.student_id = u.id
+
+        LEFT JOIN user_certificates uc
+            ON uc.user_id = u.id
+           AND uc.course_id = c.id
+
+        WHERE ste.classroom_id=$1
+
+        ORDER BY
+
+            u.fullname,
+            c.title,
+            m.order_number,
+            l.order_number
+        `,
+        [classroomId]
+  );
+
+    const studentMap = {};
+
+    studentDataset.students.forEach((student) => {
+      studentMap[student.id] = student;
+    });
+
+    for (const row of result.rows) {
+      const student = studentMap[row.student_id];
+
+      if (!student) continue;
+
+      if (!student.reportCourses[row.course_id]) {
+        student.reportCourses[row.course_id] = {
+          id: row.course_id,
+
+          title: row.course_title,
+
+          certificate: row.certificate_id ? true : false,
+
+          modules: {},
+        };
+      }
+
+      const course = student.reportCourses[row.course_id];
+
+      if (!course.modules[row.module_id]) {
+        course.modules[row.module_id] = {
+          id: row.module_id,
+          title: row.module_title,
+          lessons: [],
+          assignments: [],
+        };
+      }
+
+      const module = course.modules[row.module_id];
+
+      // Prevent duplicate module assignments
+      if (
+          row.assignment_id &&
+          !module.assignments.some(a => a.assignmentId === row.assignment_id)
+      ) {
+
+          const percentage =
+              row.assignment_total && Number(row.assignment_total) > 0
+                  ? Number(
+                        (
+                            (Number(row.assignment_score || 0) /
+                                Number(row.assignment_total)) *
+                            100
+                        ).toFixed(1)
+                    )
+                  : 0;
+
+          module.assignments.push({
+              assignmentId: row.assignment_id,
+              title: row.module_title + " Assignment", // or assignment title if available
+              score: Number(row.assignment_score || 0),
+              total: Number(row.assignment_total || 0),
+              percentage,
+              submitted: row.assignment_score !== null,
+          });
+      }
+
+      const assignmentPercentage =
+        row.assignment_total && Number(row.assignment_total) > 0
+          ? Number(
+              (
+                (Number(row.assignment_score || 0) /
+                  Number(row.assignment_total)) *
+                100
+              ).toFixed(1),
+            )
+          : 0;
+
+      const existingLesson = module.lessons.find(
+          l => l.lessonId === row.lesson_id
+      );
+
+      if (!existingLesson) {
+          module.lessons.push({
+              lessonId: row.lesson_id,
+              lessonTitle: row.lesson_title,
+              completed: !!row.completed_lesson,
+              quizScore: Number(row.quiz_score || 0),
+          });
+      }
+    }
+
+    for (const student of studentDataset.students) {
+      student.attendanceTable = [];
+
+      student.reportCourses = Object.values(student.reportCourses);
+
+      student.reportCourses.forEach((course) => {
+        course.modules = Object.values(course.modules);
+
+        course.modules.forEach((module) => {
+          const lessons = module.lessons;
+
+          const quizAverage =
+            lessons.length === 0
+              ? 0
+              : lessons.reduce((s, l) => s + l.quizScore, 0) / lessons.length;
+
+          const assignmentAverage =
+            module.assignments.length === 0
+              ? 0
+              : module.assignments.reduce((s, a) => s + a.percentage, 0) /
+                module.assignments.length;
+
+          module.quizAverage = Number(quizAverage.toFixed(1));
+          module.assignmentAverage = Number(assignmentAverage.toFixed(1));
+
+          const completedLessons = lessons.filter((l) => l.completed).length;
+
+          module.completion =
+            lessons.length === 0
+              ? 0
+              : Number(((completedLessons / lessons.length) * 100).toFixed(1));
+        });
+
+        const totalLessons = course.modules.reduce(
+          (s, m) => s + m.lessons.length,
+          0,
+        );
+
+        const completedLessons = course.modules.reduce(
+          (s, m) => s + m.lessons.filter((l) => l.completed).length,
+          0,
+        );
+
+        course.progress =
+          totalLessons === 0
+            ? 0
+            : Number(((completedLessons / totalLessons) * 100).toFixed(1));
+      });
+
+      const attendance = await pool.query(
+        `
+            SELECT
+                s.date,
+                s.week_number,
+                COALESCE(ar.status,'not_yet_taken') status
+            FROM attendance_sessions s
+            LEFT JOIN attendance_records ar
+                ON ar.session_id=s.id
+                AND ar.student_id=$2
+            WHERE s.classroom_id=$1
+            ORDER BY s.date
+            `,
+        [classroomId, student.id],
+      );
+
+      student.attendanceTable = attendance.rows;
+    }
+  
+}
 
 module.exports = {
   getClassTermAnalytics,

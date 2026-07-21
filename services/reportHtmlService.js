@@ -71,11 +71,7 @@ ${buildRankingSection(report)}
 
 ${buildInterventionSection(report)}
 
-${buildStudentPages(report, options)}
-
 ${buildRecommendationSection(report)}
-
-
 
 </body>
 

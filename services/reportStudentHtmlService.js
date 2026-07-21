@@ -1,5 +1,8 @@
 const { buildCoverPage } = require("./sections/coverPage");
 const { buildStudentPages } = require("./sections/studentPages");
+const {
+  buildStudentCoursePerformance,
+} = require("./sections/studentCoursePerformance");
 
 const fs = require("fs");
 const path = require("path");
@@ -34,6 +37,11 @@ ${css}
 ${buildCoverPage(report)}
 
 ${buildStudentPages(report, { studentId })}
+
+${report.students.students
+  .filter((s) => String(s.id) === String(studentId))
+  .map(buildStudentCoursePerformance)
+  .join("")}
 
 </body>
 

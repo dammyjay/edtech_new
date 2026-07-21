@@ -35,12 +35,9 @@ Course Completion
 </h2>
 
 <img
-
 class="chart-image"
-
-src="${report.charts?.courseCompletion ? `file://${report.charts.courseCompletion}` : ""}"
-
->
+src="${report.charts?.courseCompletion || ""}"
+/>
 
 </div>
 

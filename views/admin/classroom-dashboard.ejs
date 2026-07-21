@@ -56,44 +56,6 @@
 
     <div class="report-centre">
 
-        <!-- <div class="report-header">
-
-            <label for="termSelect">
-                Academic Term
-            </label>
-
-            <select id="termSelect">
-
-                <% terms.forEach(term => { %>
-
-                    <option value="<%= term.id %>">
-                        <%= term.name %>
-                    </option>
-
-                <% }) %>
-
-            </select>
-
-        </div>
-
-        <div class="report-actions">
-
-            <button id="btnFullReport" class="btn-pri">
-                📄 Generate Full Class Report (PDF)
-            </button>
-
-            
-
-            <button class="btn-sec">
-                📧 Email Reports to Parents
-            </button>
-
-            <button class="btn-sec">
-                📊 Export Excel Summary
-            </button>
-
-        </div> -->
-
         <div class="report-header">
 
             <label>Academic Term</label>
@@ -331,27 +293,7 @@ new Chart(ctx, {
 });
 </script>
 
-<script>
-
-// document.addEventListener("DOMContentLoaded", () => {
-
-//     const btn = document.getElementById("btnFullReport");
-
-//     btn.addEventListener("click", () => {
-
-//         const termId =
-//             document.getElementById("termSelect").value;
-
-//         const url =
-// `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
-
-//         console.log(url);
-
-//         window.location.href = url;
-
-//     });
-
-// });
+<!-- <script>
 
     document.addEventListener("DOMContentLoaded", () => {
 
@@ -384,4 +326,45 @@ new Chart(ctx, {
 
     });
 
+</script> -->
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    // Sort student dropdown alphabetically
+    const studentSelect = document.getElementById("studentSelect");
+
+    const options = Array.from(studentSelect.options);
+
+    options.sort((a, b) =>
+        a.text.localeCompare(b.text, undefined, {
+            sensitivity: "base"
+        })
+    );
+
+    studentSelect.innerHTML = "";
+
+    options.forEach(option => studentSelect.appendChild(option));
+
+    // Existing buttons
+    const fullBtn = document.getElementById("btnFullReport");
+    const studentBtn = document.getElementById("btnStudentReport");
+
+    fullBtn.addEventListener("click", () => {
+        const termId = document.getElementById("termSelect").value;
+
+        window.location.href =
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
+    });
+
+    studentBtn.addEventListener("click", () => {
+        const termId = document.getElementById("termSelect").value;
+        const studentId = document.getElementById("studentSelect").value;
+
+        window.location.href =
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/download`;
+    });
+
+});
 </script>

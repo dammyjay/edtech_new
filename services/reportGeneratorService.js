@@ -1,53 +1,9 @@
-// const { getClassTermAnalytics } = require("./reportAnalyticsService");
 
-// const { generateAIReport } = require("./reportAIService");
-
-// const { generateCharts } = require("./chartService");
-
-// const { buildClassReportHTML } = require("./reportHtmlService");
-
-// const { generatePDF } = require("./reportPdfService");
-
-// const buildReport = require("./reportHtmlService");
-
-// async function generateClassReport(schoolId, classroomId, termId) {
-//     // STEP 1
-//     console.log("STEP 1");
-//   const analytics = await getClassTermAnalytics(schoolId, classroomId, termId);
-
-//     // STEP 2
-//     console.log("STEP 2");
-//   analytics.aiSummary = await generateAIReport(analytics);
-
-//     // STEP 3
-//     console.log("STEP 3");
-//   analytics.charts = await generateCharts(analytics);
-
-//     // STEP 4
-//     console.log("STEP 4");
-//   const html = await buildClassReportHTML(analytics);
-
-//     // STEP 5
-//     console.log("STEP 5");
-//   const pdf = await generatePDF(
-//     html,
-//     `ClassReport-${classroomId}-${termId}.pdf`,
-//   );
-
-//   return {
-//     html,
-
-//     pdf,
-
-//     analytics,
-//   };
-// }
 
 const { getClassTermAnalytics } = require("./reportAnalyticsService");
 
-const { generateCharts } = require("./chartService");
+const { generateCharts, generateStudentCharts } = require("./chartService");
 
-// const { buildClassReportHTML } = require("./reportHtmlService");
 const { buildClassReportHTML } = require("./reportHtmlService");
 const { buildStudentReportHTML } = require("./reportStudentHtmlService");
 
@@ -55,7 +11,6 @@ const { generatePDF } = require("./reportPdfService");
 
 async function generateClassReport(schoolId, classroomId, termId) {
   console.log("STEP 1");
-  // const analytics = await getClassTermAnalytics(schoolId, classroomId, termId);
   const analytics = await getClassTermAnalytics(
     schoolId,
     classroomId,
@@ -86,7 +41,6 @@ async function generateClassReport(schoolId, classroomId, termId) {
 async function generateStudentReport(schoolId, classroomId, termId, studentId) {
   console.log("Generating student report...");
 
-  // const analytics = await getClassTermAnalytics(schoolId, classroomId, termId);
   const analytics = await getClassTermAnalytics(
     schoolId,
     classroomId,
@@ -95,7 +49,11 @@ async function generateStudentReport(schoolId, classroomId, termId, studentId) {
   );
 
   // Keep this if your charts are used in the student page.
-  analytics.charts = await generateCharts(analytics);
+  // analytics.charts = await generateCharts(analytics);
+  const student = analytics.students.students[0];
+
+  analytics.charts = await generateStudentCharts(student);
+  console.log(analytics.charts);
 
   const html = await buildStudentReportHTML(analytics, studentId);
 
@@ -104,9 +62,7 @@ async function generateStudentReport(schoolId, classroomId, termId, studentId) {
 
   console.log(html);
 
-  // const pdf = await generatePDF(html, `Student-${studentId}.pdf`);
-
-  const student = analytics.students.students[0];
+  // const student = analytics.students.students[0];
 
   const studentName = student.fullname
     .replace(/[<>:"/\\|?*]/g, "") // Remove invalid filename characters
@@ -120,10 +76,6 @@ async function generateStudentReport(schoolId, classroomId, termId, studentId) {
     analytics,
   };
 }
-
-// module.exports = {
-//   generateClassReport,
-// };
 
 module.exports = {
   generateClassReport,

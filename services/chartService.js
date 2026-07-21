@@ -17,14 +17,34 @@ if (!fs.existsSync(chartFolder)) {
   fs.mkdirSync(chartFolder, { recursive: true });
 }
 
+// async function saveChart(filename, configuration) {
+//   const image = await chartJSNodeCanvas.renderToBuffer(configuration);
+
+//   const filePath = path.join(chartFolder, filename);
+
+//   fs.writeFileSync(filePath, image);
+
+//   return filePath;
+// }
+
 async function saveChart(filename, configuration) {
   const image = await chartJSNodeCanvas.renderToBuffer(configuration);
 
+  // optional: still save for debugging
   const filePath = path.join(chartFolder, filename);
-
   fs.writeFileSync(filePath, image);
 
-  return filePath;
+  return `data:image/png;base64,${image.toString("base64")}`;
+}
+
+async function generateStudentCharts(student) {
+  return {
+    attendancePie: await generateAttendanceChart({
+      present: student.attendance.present,
+      absent: student.attendance.absent,
+      late: student.attendance.late,
+    }),
+  };
 }
 
 async function generateAttendanceChart(attendance) {
@@ -166,18 +186,6 @@ async function generateCharts(reportData) {
 
   const badgeChart = await generateBadgeChart(reportData.badges);
 
-  // return {
-  //   attendanceChart,
-
-  //   attendanceTrend,
-
-  //   courseChart,
-
-  //   xpChart,
-
-  //   badgeChart,
-  // };
-
     return {
       attendancePie: attendanceChart,
 
@@ -193,4 +201,10 @@ async function generateCharts(reportData) {
 
 module.exports = {
   generateCharts,
+  generateStudentCharts,
+  generateAttendanceChart,
+  generateWeeklyAttendanceChart,
+  generateCourseChart,
+  generateXPChart,
+  generateBadgeChart,
 };

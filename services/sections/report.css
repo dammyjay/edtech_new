@@ -351,7 +351,7 @@ body {
 
     background: #f8f8f8;
 
-    border-left: 6px solid #2e7d32;
+    border-left: 6px solid #A17807;
 
     border-radius: 8px;
 
@@ -383,6 +383,77 @@ body {
 
 }
 
+.course-card {
+    margin-bottom: 40px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.course-card h2 {
+    background: #A17807;
+    color: white;
+    padding: 12px;
+    margin: 0;
+}
+
+.course-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+}
+
+.course-summary div {
+    text-align: center;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.module-card {
+    margin: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.module-card h3 {
+    margin: 0;
+    padding: 12px;
+    background: #efefef;
+}
+
+.module-progress {
+    padding: 12px;
+    font-size: 14px;
+}
+
+.lesson-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lesson-table th {
+    background: #000000;
+    color: white;
+}
+
+.lesson-table th,
+.lesson-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.module-average {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px;
+    background: #fafafa;
+    font-weight: bold;
+}
+
 .report-footer {
 
     margin-top: 50px;
@@ -406,3 +477,4 @@ body {
     margin: 8px 0;
 
 }
+

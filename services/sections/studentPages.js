@@ -1,8 +1,3 @@
-// function buildStudentPages(report) {
-//   return report.students.students
-//     .map((student) => buildStudentPage(student, report))
-//     .join("");
-// }
 
 function buildStudentPages(report, options = {}) {
   let students = report.students.students;
@@ -85,6 +80,17 @@ ${metricCard("Level", student.xp.level)}
 
 </div>
 
+<div class="attendance-chart">
+
+<img
+class="chart-image"
+src="${report.charts.attendancePie}"
+/>
+
+</div>
+
+${buildAttendanceTable(student)}
+
 <div class="teacher-comment">
 
 <h2>
@@ -158,6 +164,74 @@ ${student.ai.nextTermGoals.map((x) => `<li>${x}</li>`).join("")}
 <div class="page-break"></div>
 
 `;
+}
+
+function buildAttendanceTable(student) {
+  return `
+    <div class="attendance-section">
+
+      <h2>Attendance Record</h2>
+
+      <table class="lesson-table">
+
+        <thead>
+          <tr>
+            <th>Week</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${
+            student.attendanceTable.length
+              ? student.attendanceTable
+                  .map(
+                    (row) => `
+                    <tr>
+                      <td>${row.week_number}</td>
+                      <td>${formatDate(row.date)}</td>
+                      <td>${attendanceStatus(row.status)}</td>
+                    </tr>
+                  `,
+                  )
+                  .join("")
+              : `
+                <tr>
+                  <td colspan="3" style="text-align:center;">
+                    No attendance records available.
+                  </td>
+                </tr>
+              `
+          }
+
+        </tbody>
+
+      </table>
+
+    </div>
+  `;
+}
+
+function attendanceStatus(status) {
+  switch (status) {
+    case "present":
+      return "Present";
+
+    case "late":
+      return "Late";
+
+    case "absent":
+      return "Absent";
+
+    default:
+      return "Not Taken";
+  }
+}
+
+function formatDate(date) {
+  return new Date(date).toLocaleDateString();
 }
 
 function metricCard(title, value) {
