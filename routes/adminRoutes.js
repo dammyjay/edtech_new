@@ -71,6 +71,12 @@ router.get(
 
   // Newsletter Dashboard
 router.get("/", newsletterController.getNewslettersPage);
+
+router.get(
+    "/dashboard/charts/users",
+    adminController.getUserGrowthChart
+);
+
 router.get(
   "/dashboard/overview",
   adminController.getDashboardOverview,

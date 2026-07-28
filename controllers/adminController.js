@@ -403,9 +403,30 @@ exports.dashboard = async (req, res) => {
   }
 };
 
+exports.getUserGrowthChart = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        TO_CHAR(created_at,'Mon') AS month,
+        DATE_TRUNC('month', created_at) AS sort_month,
+        COUNT(*) AS total
+      FROM users2
+      GROUP BY sort_month, month
+      ORDER BY sort_month;
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+};
+
 exports.getDashboardOverview = async (req, res) => {
   try {
-
+    
     const [
       users,
       courses,
@@ -466,6 +487,7 @@ exports.getDashboardOverview = async (req, res) => {
 
     ]);
 
+
     res.json({
       totalUsers: Number(users.rows[0].total),
       totalCourses: Number(courses.rows[0].total),
@@ -488,19 +510,176 @@ exports.getDashboardOverview = async (req, res) => {
 
 exports.getBusinessDashboard = async (req, res) => {
   try {
-    const revenueResult = await pool.query(`
+    const {period, year, month } = req.query;
+      let schoolWhere = "";
+      let parentWhere = "";
+      let eventWhere = "";
+      let eventAliasWhere = "";
+
+      const params = [];
+
+      if (year && year !== "all") {
+        params.push(year);
+
+        schoolWhere += ` WHERE EXTRACT(YEAR FROM payment_date) = $${params.length}`;
+        parentWhere += ` WHERE EXTRACT(YEAR FROM p.payment_date) = $${params.length}`;
+        eventWhere += ` WHERE EXTRACT(YEAR FROM created_at) = $${params.length}`;
+        eventAliasWhere += ` WHERE EXTRACT(YEAR FROM r.created_at) = $${params.length}`;
+      }
+
+    //   if (month && month !== "all") {
+        
+    //     params.push(month);
+
+    //     schoolWhere += schoolWhere ? " AND " : " WHERE ";
+    //     parentWhere += parentWhere ? " AND " : " WHERE ";
+    //     eventWhere += eventWhere ? " AND " : " WHERE ";
+
+    //     schoolWhere += `EXTRACT(MONTH FROM payment_date) = $${params.length}`;
+    //     parentWhere += `EXTRACT(MONTH FROM p.payment_date) = $${params.length}`;
+    //     eventWhere += `EXTRACT(MONTH FROM created_at) = $${params.length}`;
+    //     eventAliasWhere += `EXTRACT(MONTH FROM r.created_at) = $${params.length}`;
+    // }
+
+      if (month && month !== "all") {
+
+        params.push(month);
+
+        schoolWhere += schoolWhere ? " AND " : " WHERE ";
+        parentWhere += parentWhere ? " AND " : " WHERE ";
+        eventWhere += eventWhere ? " AND " : " WHERE ";
+        eventAliasWhere += eventAliasWhere ? " AND " : " WHERE ";
+
+        schoolWhere += `EXTRACT(MONTH FROM payment_date) = $${params.length}`;
+        parentWhere += `EXTRACT(MONTH FROM p.payment_date) = $${params.length}`;
+        eventWhere += `EXTRACT(MONTH FROM created_at) = $${params.length}`;
+        eventAliasWhere += `EXTRACT(MONTH FROM r.created_at) = $${params.length}`;
+    }
+
+    const incomeBreakdown = await pool.query(`
+    SELECT * FROM (
+
+    SELECT
+    'School Payments' AS source,
+    COALESCE(SUM(amount),0) total
+    FROM school_payments
+    ${schoolWhere}
+
+    UNION ALL
+
+    SELECT
+    'Parent Training',
+    COALESCE(SUM(p.amount),0)
+    FROM parent_payments p
+    ${parentWhere}
+
+    UNION ALL
+
+    SELECT
+    'Events',
+    COALESCE(SUM(amount_paid),0)
+    FROM event_registrations
+    ${eventWhere}
+    ${eventWhere ? " AND " : " WHERE "}
+    payment_status IN ('success','completed')
+
+    )x
+    ORDER BY total DESC;
+    `, params);
+    
+    const parentPayments = await pool.query(
+      `
+    SELECT
+    u.fullname AS parent_name,
+    u.email,
+    i.training_title,
+    p.amount,
+    i.status,
+    p.payment_method,
+    p.transaction_reference,
+    p.payment_date,
+    STRING_AGG(s.fullname, ', ') AS students
+FROM parent_payments p
+JOIN parent_training_invoices i
+    ON i.id = p.invoice_id
+JOIN users2 u
+    ON u.id = i.parent_id
+LEFT JOIN invoice_students inv
+    ON inv.invoice_id = i.id
+LEFT JOIN users2 s
+    ON s.id = inv.student_id
+${parentWhere}
+GROUP BY
+u.fullname,
+u.email,
+i.training_title,
+p.amount,
+i.status,
+p.payment_method,
+p.transaction_reference,
+p.payment_date
+ORDER BY p.payment_date DESC;
+
+    `,
+      params,
+    );
+
+
+    const eventPayments = await pool.query(
+      `
+SELECT
+e.title,
+r.registrant_name,
+r.registrant_email,
+r.amount_paid,
+r.payment_status,
+r.created_at
+
+FROM event_registrations r
+
+JOIN events e
+ON e.id = r.event_id
+
+${eventAliasWhere}
+
+ORDER BY r.created_at DESC;
+`,
+      params,
+    );
+
+      const schoolRevenue = await pool.query(`
       SELECT COALESCE(SUM(amount),0) total
       FROM school_payments
-    `);
+      ${schoolWhere}
+      `, params);
+    
+      const parentRevenue = await pool.query(`
+      SELECT COALESCE(SUM(p.amount),0) total
+      FROM parent_payments p
+      ${parentWhere}
+      `, params);
+    
+      const eventRevenue = await pool.query(`
+      SELECT COALESCE(SUM(amount_paid),0) total
+      FROM event_registrations
+      ${eventWhere}
+      ${eventWhere ? " AND " : " WHERE "}
+      payment_status IN ('success','completed')
+      `, params);
+    
+      const eventRegistrations = await pool.query(`
+      SELECT COUNT(*) total
+      FROM event_registrations
+      ${eventWhere}
+      `, params);
 
-    const monthlyRevenueResult = await pool.query(`
-      SELECT COALESCE(SUM(amount),0) total
-      FROM school_payments
-      WHERE DATE_TRUNC('month', payment_date)
-      = DATE_TRUNC('month', CURRENT_DATE)
-    `);
+    const totalRevenue =
+      Number(schoolRevenue.rows[0].total) +
+      Number(parentRevenue.rows[0].total) +
+      Number(eventRevenue.rows[0].total);
 
-    const schoolPaymentsResult = await pool.query(`
+    const schoolPaymentsResult = await pool.query(
+      `
       SELECT
         s.name AS school_name,
 
@@ -526,11 +705,21 @@ exports.getBusinessDashboard = async (req, res) => {
       ) st ON st.term_id = q.term_id
 
       LEFT JOIN (
-        SELECT quote_id, SUM(amount) total_paid
+
+        SELECT
+        quote_id,
+        SUM(amount) total_paid
+
         FROM school_payments
+
+        ${schoolWhere}
+
         GROUP BY quote_id
-      ) p ON p.quote_id = q.id
-    `);
+
+        ) p ON p.quote_id = q.id
+    `,
+      params,
+    );
 
     const paidSchools = schoolPaymentsResult.rows.filter(
       (x) => Number(x.balance) <= 0,
@@ -542,11 +731,21 @@ exports.getBusinessDashboard = async (req, res) => {
     );
 
     res.json({
-      totalRevenue: Number(revenueResult.rows[0].total),
-      monthlyRevenue: Number(monthlyRevenueResult.rows[0].total),
+      // totalRevenue: Number(revenueResult.rows[0].total),
+      // monthlyRevenue: Number(monthlyRevenueResult.rows[0].total),
+      totalRevenue,
+      filteredRevenue: totalRevenue,
+      schoolRevenue: Number(schoolRevenue.rows[0].total),
+      parentRevenue: Number(parentRevenue.rows[0].total),
+      eventRevenue: Number(eventRevenue.rows[0].total),
+      eventRegistrations: Number(eventRegistrations.rows[0].total),
       paidSchools,
       outstandingBalance,
       schools: schoolPaymentsResult.rows,
+      incomeBreakdown: incomeBreakdown.rows,
+      parentPayments: parentPayments.rows,
+      eventPayments: eventPayments.rows,
+
     });
   } catch (err) {
     console.error(err);
@@ -2214,16 +2413,35 @@ exports.finance = async (req, res) => {
   }
 };
 
+// exports.eventPaymentDetails = async (req, res) => {
+//   const q = await pool.query(`
+//      SELECT ep.id, ep.payment_status, ep.amount,
+//             ep.created_at,
+//             u.fullname, u.email,
+//             ev.title AS event_title
+//      FROMevent_registrations ep
+//      JOIN users2 u ON u.id = ep.user_id
+//      JOIN events ev ON ev.id = ep.event_id
+//      ORDER BY ep.created_at DESC
+//   `);
+
+//   res.json(q.rows);
+// };
+
 exports.eventPaymentDetails = async (req, res) => {
   const q = await pool.query(`
-     SELECT ep.id, ep.payment_status, ep.amount,
-            ep.created_at,
-            u.fullname, u.email,
-            ev.title AS event_title
-     FROM event_payments ep
-     JOIN users2 u ON u.id = ep.user_id
-     JOIN events ev ON ev.id = ep.event_id
-     ORDER BY ep.created_at DESC
+    SELECT
+      er.id,
+      er.payment_status,
+      er.amount_paid AS amount,
+      er.created_at,
+      er.registrant_name AS fullname,
+      er.registrant_email AS email,
+      e.title AS event_title
+    FROM event_registrations er
+    JOIN events e
+      ON e.id = er.event_id
+    ORDER BY er.created_at DESC
   `);
 
   res.json(q.rows);
