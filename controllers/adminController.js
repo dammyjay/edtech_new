@@ -7292,18 +7292,6 @@ exports.addPayment = async (req, res) => {
 
     // 4. Calculate balance
     const balance = totalAmount - totalPaid;
-
-    // 5. Determine status
-    // let status = "unpaid";
-
-    // if (totalPaid === 0) {
-    //   status = "unpaid";
-    // } else if (totalPaid < totalAmount) {
-    //   status = "partial";
-    // } else {
-    //   status = "paid";
-    // }
-
     let status = "unpaid";
 
     if (totalPaid <= 0) {
@@ -7510,6 +7498,8 @@ exports.downloadQuotePDF = async (req, res) => {
     const result = await pool.query(`
       SELECT
           q.id,
+          q.term_id,
+          q.school_id,
           q.price_per_student,
           q.status,
           q.total_paid,
@@ -7531,6 +7521,8 @@ exports.downloadQuotePDF = async (req, res) => {
       WHERE q.id=$1
       GROUP BY
       q.id,
+      q.term_id,
+      q.school_id,
       q.price_per_student,
       q.status,
       q.total_paid,
@@ -7546,6 +7538,21 @@ exports.downloadQuotePDF = async (req, res) => {
     if (!q) {
       return res.status(404).send("Invoice not found");
     }
+
+    const studentsResult = await pool.query(`
+    SELECT
+        u.fullname AS full_name,
+        c.name AS class_name
+    FROM student_term_enrollments ste
+    JOIN users2 u
+        ON u.id = ste.student_id
+    LEFT JOIN classrooms c
+        ON c.id = ste.classroom_id
+    WHERE ste.term_id = $1
+    ORDER BY c.name, u.fullname;
+    `, [q.term_id]);
+
+    const students = studentsResult.rows;
     const totalPaid = Number(q.total_paid || 0);
     const balance = Number(q.balance || 0);
 
@@ -7570,21 +7577,19 @@ exports.downloadQuotePDF = async (req, res) => {
     <html>
     <head>
     <style>
-      body {
-        font-family: Calibri;
-        margin: 0;
-        padding: 0;
-        background: #ffffff; /* REMOVE GRAY for PDF */
-        display: flex;
-        justify-content: center;
+      body{
+          font-family:Calibri;
+          margin:0;
+          padding:0;
+          background:#fff;
       }
 
-      .container {
-        margin-top: 30px;
-        width: 80%;
-        max-width: 800px;
-        background: #fff;
-        padding: 30px;
+      .container{
+          width:80%;
+          max-width:800px;
+          margin:30px auto;
+          background:#fff;
+          padding:30px;
       }
 
       .header {
@@ -7732,6 +7737,44 @@ exports.downloadQuotePDF = async (req, res) => {
         right: 20%;
       }
 
+      .page-break{
+          page-break-before:always;
+          break-before:page;
+      }
+
+      .student-table{
+          width:100%;
+          border-collapse:collapse;
+          margin-top:20px;
+      }
+
+      .student-table th{
+          background:#b89b5e;
+          color:#fff;
+          padding:10px;
+          border:1px solid #000;
+          font-size:12px;
+      }
+
+      .student-table td{
+          border:1px solid #000;
+          padding:8px;
+          font-size:11px;
+      }
+
+      .student-heading{
+          text-align:center;
+          margin-top:20px;
+          font-size:22px;
+          font-weight:bold;
+      }
+
+      .student-sub{
+          text-align:center;
+          margin-bottom:20px;
+          color:#666;
+      }
+
     </style>
     </head>
 
@@ -7834,10 +7877,48 @@ exports.downloadQuotePDF = async (req, res) => {
 
       </div>
 
+</div>
+
+<!-- SECOND PAGE -->
+<div class="page-break"></div>
+
+<div class="container">
+
+    <div class="student-heading">
+        STUDENT LIST
     </div>
 
-    </body>
-    </html>
+    <div class="student-sub">
+        ${q.school_name}<br>
+        ${q.term_name}
+    </div>
+
+    <table class="student-table">
+
+        <tr>
+            <th>S/N</th>
+            <th>Student Name</th>
+            <th>Class</th>
+        </tr>
+
+        ${students
+          .map(
+            (student, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${student.full_name}</td>
+                <td>${student.class_name || "-"}</td>
+            </tr>
+        `,
+          )
+          .join("")}
+
+    </table>
+
+</div>
+
+</body>
+</html>
     `;
 
     const pdf = await generatePdf(html);
