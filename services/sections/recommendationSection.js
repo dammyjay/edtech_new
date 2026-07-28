@@ -32,7 +32,7 @@ ${ai.summary}
 
 <div class="two-column">
 
-<div>
+<div class="summary-card" style="text-align: left;">
 
 <h2>
 
@@ -62,7 +62,7 @@ ${(ai.insights || [])
 
 </div>
 
-<div>
+<div class="summary-card" style="text-align: left";>
 
 <h2>
 
@@ -94,9 +94,9 @@ ${(ai.risks || [])
 
 </div>
 
-<div class="goals">
+<div class="ai-summary">
 
-<h2>
+<h2 class="card-title">
 
 Recommendations
 
