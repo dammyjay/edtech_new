@@ -6,7 +6,7 @@ const learningController = require("../controllers/learningController");
 const adminController = require("../controllers/adminController");
 const instructorController = require("../controllers/instructorController");
 // const upload = require("../middlewares/upload");
-const { upload, lessonUpload } = require("../middlewares/upload");
+const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/upload");
 
 router.post("/login", adminController.login);
 // Instructor dashboard
@@ -89,11 +89,11 @@ router.post("/modules/delete/:id", learningController.deleteModule);
 router.post(
   "/lessons/create",
   ensureInstructorOrAdmin,
-  upload.none(),
+  lessonSlideUpload,
   learningController.createLesson
 );
 
-router.post("/lessons/:id/edit", upload.none(), learningController.editLesson);
+router.post("/lessons/:id/edit", lessonSlideUpload, learningController.editLesson);
 router.post("/lessons/:id/delete", learningController.deleteLesson);
 router.get("/lessons/:id/json", learningController.getLessonJSON);
 

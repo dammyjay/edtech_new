@@ -1890,7 +1890,7 @@ exports.previewContent = async (req, res) => {
     // ================= LESSON =================
     if (type === "lesson") {
       const lessonRes = await pool.query(
-        "SELECT id, title, content, video_url, lesson_plan FROM lessons WHERE id = $1",
+        "SELECT id, title, content, video_url, lesson_plan, lesson_file_url FROM lessons WHERE id = $1",
         [id]
       );
 
@@ -1923,6 +1923,15 @@ exports.previewContent = async (req, res) => {
           type: "video",
           title: lesson.title,
           video_url: lesson.video_url || null
+        });
+      }
+
+      // 📊 SLIDE DECK (PPT/PPTX)
+      if (part === "presentation") {
+        return res.json({
+          type: "presentation",
+          title: lesson.title,
+          lesson_file_url: lesson.lesson_file_url || null
         });
       }
 

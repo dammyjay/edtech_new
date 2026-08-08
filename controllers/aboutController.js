@@ -9,6 +9,9 @@ const cloudinary = require("cloudinary").v2;
 
 // Create new section
 exports.createAboutSection = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { section_key, section_title, content, section_order } = req.body;
   let image_url = null;
 
@@ -36,6 +39,10 @@ exports.createAboutSection = async (req, res) => {
 
 // Update section
 exports.updateAboutSection = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+      return res.redirect("/admin/login");
+  }
+  
   const { id } = req.params;
   const { section_title, content, section_order, remove_image } = req.body;
   let image_url = null;
@@ -86,6 +93,9 @@ exports.updateAboutSection = async (req, res) => {
 
 // Delete section (same as yours)
 exports.deleteAboutSection = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { id } = req.params;
   await pool.query("DELETE FROM about_sections WHERE id = $1", [id]);
   res.redirect("/admin/about");
@@ -94,6 +104,9 @@ exports.deleteAboutSection = async (req, res) => {
 
 // // Show about page to users
 exports.getAboutPage = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   if (!req.session.user || req.session.user.role !== "admin") {
     return res.redirect("/admin/login");
   }
@@ -117,6 +130,7 @@ exports.getAboutPage = async (req, res) => {
 
 // // Show admin edit view
 exports.getEditAboutPage = async (req, res) => {
+
   if (!req.session.user || req.session.user.role !== "admin") {
     return res.redirect("/admin/login");
   }
@@ -131,52 +145,3 @@ exports.getEditAboutPage = async (req, res) => {
     users: req.session.user,
   });
 };
-
-// // Create new section
-// // exports.createAboutSection = async (req, res) => {
-// //   const { section_key, section_title, content } = req.body;
-
-// //   await pool.query(
-// //     `INSERT INTO about_sections (section_key, section_title, content)
-// //      VALUES ($1, $2, $3)`,
-// //     [section_key, section_title, content]
-// //   );
-
-// //   res.redirect("/admin/about");
-// // };
-
-// exports.createAboutSection = async (req, res) => {
-//   const { section_key, section_title, content } = req.body;
-
-//   try {
-//     await pool.query(
-//       `INSERT INTO about_sections (section_key, section_title, content)
-//        VALUES ($1, $2, $3)`,
-//       [section_key, section_title, content]
-//     );
-//     res.redirect("/admin/about");
-//   } catch (err) {
-//     console.error("❌ Error creating section:", err);
-//     res.redirect("/admin/about?error=duplicate");
-//   }
-// };
-
-
-// // Update section
-// exports.updateAboutSection = async (req, res) => {
-//   const { section_key, content } = req.body;
-//   await pool.query(
-//     "UPDATE about_sections SET content = $1, updated_at = NOW() WHERE section_key = $2",
-//     [content, section_key]
-//   );
-//   res.redirect("/admin/about");
-// };
-
-// // Delete section
-// exports.deleteAboutSection = async (req, res) => {
-//   const { id } = req.params;
-//   await pool.query("DELETE FROM about_sections WHERE id = $1", [id]);
-//   res.redirect("/admin/about");
-// };
-
-

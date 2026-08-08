@@ -65,7 +65,7 @@
 
 <!-- CREATE LESSON MODAL -->
 <div id="lessonModal" class="modal">
-  <form method="POST" action="/admin/lessons/create" class="modal-content">
+  <form method="POST" action="/admin/lessons/create" class="modal-content" enctype="multipart/form-data">
     <h2>Create Lesson</h2>
     <input type="text" name="course_id" value="<%= course.id %>">
 
@@ -91,6 +91,9 @@
     <label>Video Link (YouTube/Vimeo)</label>
     <input type="url" name="video_url" placeholder="https://www.youtube.com/...">
 
+    <label>Slide Deck (PPT/PPTX, optional)</label>
+    <input type="file" name="slide_file" accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+
     <div class="modal-actions">
       <button type="submit">Save</button>
       <button type="button" onclick="closeLessonModal()">Cancel</button>
@@ -101,7 +104,7 @@
 
 <!-- EDIT LESSON MODAL -->
 <div id="editLessonModal" class="modal" style="display:none;">
-  <form id="editLessonForm" method="POST" class="modal-content">
+  <form id="editLessonForm" method="POST" class="modal-content" enctype="multipart/form-data">
     <h2>Edit Lesson</h2>
 
     <!-- Hidden input for course_id -->
@@ -120,6 +123,11 @@
 
     <label>Video Link (YouTube/Vimeo)</label>
     <input type="url" name="video_url" id="editLessonVideo" placeholder="https://www.youtube.com/...">
+
+    <label>Slide Deck (PPT/PPTX, optional)</label>
+    <div id="editLessonCurrentFile" style="margin-bottom:6px;"></div>
+    <input type="file" name="slide_file" accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+    <small>Leave empty to keep the current file (if any). Uploading a new one replaces it.</small>
 
     <div class="modal-actions">
       <button type="submit">Update</button>
@@ -586,6 +594,11 @@ async function openEditLessonModal(lessonId) {
     document.getElementById('editLessonTitle').value = lesson.title;
     document.getElementById('editLessonOrder').value = lesson.order_number || '';
     document.getElementById('editLessonVideo').value = lesson.video_url || '';
+
+    const currentFileDiv = document.getElementById('editLessonCurrentFile');
+    currentFileDiv.innerHTML = lesson.lesson_file_url
+      ? `Current file: <a href="${lesson.lesson_file_url}" target="_blank" rel="noopener">View current slide deck</a>`
+      : 'No slide deck uploaded yet.';
 
     /* ✅ MODULE SELECT (DO NOT REMOVE THIS) */
     let moduleSelect = document.getElementById('editLessonModule');

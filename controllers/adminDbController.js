@@ -261,6 +261,9 @@ exports.viewTable = async (req, res) => {
 
 // Create record
 exports.createRecord = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     const { table } = req.params;
 
@@ -295,6 +298,9 @@ exports.createRecord = async (req, res) => {
 
 // Delete record
 exports.deleteRecord = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const table = req.params.table;
   const id = req.params.id;
 
@@ -312,6 +318,10 @@ exports.deleteRecord = async (req, res) => {
 
 // Update record
 exports.updateRecord = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+
   const table = req.params.table;
   const id = req.params.id;
   let data = { ...req.body };
@@ -446,7 +456,10 @@ exports.updateRecord = async (req, res) => {
 };
 
 exports.getTableData = async (req, res) => {
-
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  
   const table = req.params.table;
   const search = req.query.search || "";
 

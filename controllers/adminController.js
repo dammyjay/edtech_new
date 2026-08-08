@@ -9192,19 +9192,6 @@ font-size:12px;
 `;
 
     if (quote.school_email) {
-      // await sendEmailWithAttachment(
-      //   quote.school_email,
-
-      //   `Payment Receipt - ${receiptNumber}`,
-
-      //   emailHtml,
-
-      //   `${receiptFileName}.pdf`,
-
-      //   pdf,
-
-      //   ["jaykirchtechhub@gmail.com"],
-      // );
       await sendEmailWithAttachment(
           quote.school_email,
           `Payment Receipt - ${receiptNumber}`,

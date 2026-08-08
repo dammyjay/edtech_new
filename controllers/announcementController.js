@@ -355,6 +355,10 @@ exports.getAnnouncement = async (req, res) => {
 
 // Publish Announcement
 exports.publishAnnouncement = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  
   try {
     const { id } = req.params;
 
@@ -401,6 +405,9 @@ exports.publishAnnouncement = async (req, res) => {
 };
 
 exports.archiveAnnouncement = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
     const { id } = req.params;
 
@@ -440,6 +447,9 @@ exports.archiveAnnouncement = async (req, res) => {
 };
 
 exports.getHomepageAnnouncements = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   try {
 
     const result = await pool.query(`

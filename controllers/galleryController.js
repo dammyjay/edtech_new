@@ -78,6 +78,9 @@ exports.getAdminGallery = async (req, res) => {
 
 // Upload new image
 exports.uploadGalleryImage = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { title, category_id } = req.body;
   let image_url = null;
 
@@ -99,6 +102,9 @@ exports.uploadGalleryImage = async (req, res) => {
 
 // Create category
 exports.createCategory = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { name } = req.body;
   await pool.query("INSERT INTO gallery_categories (name) VALUES ($1)", [name]);
   res.redirect("/admin/gallery");
@@ -106,6 +112,9 @@ exports.createCategory = async (req, res) => {
 
 // Delete image
 exports.deleteImage = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
   const { id } = req.params;
   await pool.query("DELETE FROM gallery_images WHERE id = $1", [id]);
   res.redirect("/admin/gallery");
@@ -113,6 +122,10 @@ exports.deleteImage = async (req, res) => {
 
 // Delete category
 exports.deleteCategory = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  
   const { id } = req.params;
   await pool.query("DELETE FROM gallery_categories WHERE id = $1", [id]);
   res.redirect("/admin/gallery");

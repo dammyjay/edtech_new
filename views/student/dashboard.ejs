@@ -801,6 +801,7 @@
                 <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
+                  <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'presentation')">📊 Slide Deck</button></li>
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
                 </ul>
 
@@ -2487,6 +2488,38 @@ window.closeEditModal = function (id) {
     hideLoading();
     return;
   }
+
+        // 📊 SLIDE DECK (PPT/PPTX) SECTION
+        if (part === "presentation") {
+          document.getElementById("ai-tutor").style.display = "none";
+
+          if (!lesson.lesson_file_url) {
+            document.getElementById("lessonMainArea").innerHTML =
+              `<h2>${lesson.title}</h2><p>No slide deck has been uploaded for this lesson yet.</p>`;
+            hideLoading();
+            return;
+          }
+
+          const deckUrl = lesson.lesson_file_url;
+          const encodedDeckUrl = encodeURIComponent(deckUrl);
+          const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedDeckUrl}`;
+          const fullscreenViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodedDeckUrl}`;
+
+          document.getElementById("lessonMainArea").innerHTML = `
+            <h2>${lesson.title}</h2>
+            <div class="lesson-presentation">
+              <iframe src="${viewerUrl}" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <p>
+              <a href="${fullscreenViewerUrl}" target="_blank" rel="noopener">🔍 Open Fullscreen (sharper, zoomable)</a>
+            </p>
+            <!-- Download link intentionally disabled:
+            <p><a href="${deckUrl}" target="_blank" rel="noopener">⬇ Download slide deck</a></p>
+            -->
+          `;
+          hideLoading();
+          return;
+        }
 
         // 🧩 QUIZ SECTION
         if (part === "quiz") {

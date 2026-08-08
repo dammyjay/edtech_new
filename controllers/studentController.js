@@ -1744,6 +1744,7 @@ exports.viewLesson = async (req, res) => {
       title: lesson.title,
       content: lesson.content,
       video_url: lesson.video_url,
+      lesson_file_url: lesson.lesson_file_url,
 
       hasPendingAssignment: pendingRes.rows.length > 0,
 

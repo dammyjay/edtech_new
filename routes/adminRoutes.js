@@ -1,7 +1,7 @@
 const express = require("express");
 const pool = require("../models/db");
 const router = express.Router();
-const { upload, lessonUpload } = require("../middlewares/upload");
+const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/upload");
 
 // const parser = require("../middlewares/upload");
 // const upload = require("../middlewares/upload");
@@ -354,9 +354,9 @@ router.post(
 router.post("/modules/delete/:id", learningController.deleteModule);
 
 
-router.post("/lessons/create", upload.none(), learningController.createLesson);
+router.post("/lessons/create", lessonSlideUpload, learningController.createLesson);
 
-router.post("/lessons/:id/edit", upload.none(), learningController.editLesson);
+router.post("/lessons/:id/edit", lessonSlideUpload, learningController.editLesson);
 router.post("/lessons/:id/delete", learningController.deleteLesson);
 router.get("/lessons/:id/json", learningController.getLessonJSON);
 

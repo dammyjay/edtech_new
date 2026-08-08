@@ -22,6 +22,7 @@
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'lesson_plan')">📘 Lesson Plan</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'video')">🎥 Video</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
+                <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'presentation')">📊 Slide Deck</button></li>
                 <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
               </ul>
             </li>
@@ -106,6 +107,31 @@ function loadLessonPart(lessonId, part) {
             frameborder="0"
             allowfullscreen>
           </iframe>
+        `;
+      }
+
+      // 📊 SLIDE DECK
+      else if (data.type === "presentation") {
+        if (!data.lesson_file_url) {
+          mainArea.innerHTML = `<h3>${data.title}</h3><p>No slide deck has been uploaded for this lesson yet.</p>`;
+          return;
+        }
+
+        const encodedFileUrl = encodeURIComponent(data.lesson_file_url);
+        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedFileUrl}`;
+        const fullscreenViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodedFileUrl}`;
+
+        mainArea.innerHTML = `
+          <h3>${data.title}</h3>
+          <div class="lesson-presentation">
+            <iframe src="${viewerUrl}" frameborder="0" allowfullscreen></iframe>
+          </div>
+          <p>
+            <a href="${fullscreenViewerUrl}" target="_blank" rel="noopener">🔍 Open Fullscreen (sharper, zoomable)</a>
+          </p>
+          <!-- Download link intentionally disabled:
+          <p><a href="${data.lesson_file_url}" target="_blank" rel="noopener">⬇ Download slide deck</a></p>
+          -->
         `;
       }
 
