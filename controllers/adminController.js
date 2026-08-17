@@ -475,9 +475,12 @@ exports.getDashboardOverview = async (req, res) => {
       `),
 
       pool.query(`
-        SELECT COALESCE(SUM(amount),0) total
-        FROM transactions
-        WHERE status='success'
+        SELECT
+          COALESCE((SELECT SUM(amount) FROM transactions WHERE status = 'success'), 0)
+          + COALESCE((SELECT SUM(amount) FROM school_payments), 0)
+          + COALESCE((SELECT SUM(amount) FROM parent_payments), 0)
+          + COALESCE((SELECT SUM(amount_paid) FROM event_registrations), 0)
+          AS total
       `),
 
       pool.query(`

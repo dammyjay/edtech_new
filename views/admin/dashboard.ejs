@@ -1017,9 +1017,6 @@
           const data = await res.json();
           console.log("Overview Data:", data);
 
-          document.getElementById('totalUsers').innerText =
-            data.totalUsers.toLocaleString();
-
           document.getElementById('totalCourses').innerText =
             data.totalCourses.toLocaleString();
 
