@@ -476,11 +476,12 @@ exports.updateUserProfile = async (req, res) => {
   if (!user) return res.redirect("/admin/login");
 
   const { fullname, phone, dob } = req.body;
+  const dobValue = dob && dob.trim() !== "" ? dob : null;
   const profile_picture = req.file ? req.file.path : user.profile_picture;
 
   await pool.query(
     "UPDATE users2 SET fullname = $1, phone = $2, profile_picture = $3, dob = $4 WHERE id = $5",
-    [fullname, phone, profile_picture, dob, user.id]
+    [fullname, phone, profile_picture, dobValue, user.id]
   );
   // Update session with new profile picture
   req.session.user.profile_picture = profile_picture;

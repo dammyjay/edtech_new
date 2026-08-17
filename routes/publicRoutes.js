@@ -231,6 +231,9 @@ router.post("/update-profile", upload.single("profile_picture"), async (req, res
   try {
 
     const { fullname, phone, gender, dob } = req.body;
+    // Postgres rejects '' for a date column (HTML forms submit an empty
+    // string, not nothing, when a date input is left blank) — needs NULL.
+    const dobValue = dob && dob.trim() !== "" ? dob : null;
 
     // Get old profile picture
     const oldUser = await pool.query(
@@ -259,7 +262,7 @@ router.post("/update-profile", upload.single("profile_picture"), async (req, res
       `UPDATE users2
        SET fullname=$1, phone=$2, gender=$3, dob=$4, profile_picture=$5
        WHERE id=$6`,
-      [fullname, phone, gender, dob, profilePicture, req.session.user.id]
+      [fullname, phone, gender, dobValue, profilePicture, req.session.user.id]
     );
 
     // Keep the session in sync so the header/nav avatar (which reads from

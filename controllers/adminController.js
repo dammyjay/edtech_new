@@ -3027,12 +3027,13 @@ exports.getAdminProfile = async (req, res) => {
 
 exports.updateAdminProfile = async (req, res) => {
   const { fullname, phone, dob } = req.body;
+  const dobValue = dob && dob.trim() !== "" ? dob : null;
   const profile_picture = req.file
     ? req.file.path
     : req.session.user.profile_picture;
   await pool.query(
     "UPDATE users2 SET fullname = $1, phone = $2, profile_picture = $3, dob = $4 WHERE id = $5",
-    [fullname, phone, profile_picture, dob, req.session.user.id]
+    [fullname, phone, profile_picture, dobValue, req.session.user.id]
   );
   req.session.user.profile_picture = profile_picture; // update session
   await logActivityForUser(
@@ -11649,6 +11650,7 @@ exports.migrateStudentLoginFeatures = async (req, res) => {
 exports.addUserToSchool = async (req, res) => {
   const { schoolId } = req.params;
   const { username, email, phone, gender, dob, role, password } = req.body;
+  const dobValue = dob && dob.trim() !== "" ? dob : null;
   const file = req.file;
 
   try {
@@ -11688,7 +11690,7 @@ exports.addUserToSchool = async (req, res) => {
         profile_picture,
         role,
         created_at,
-        dob,
+        dobValue,
       ]
     );
 

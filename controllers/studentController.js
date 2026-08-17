@@ -1616,6 +1616,7 @@ exports.enrollInCourse = async (req, res) => {
 exports.editProfile = async (req, res) => {
 
   const { fullname, gender, dob, current_password, new_password, confirm_password } = req.body;
+  const dobValue = dob && dob.trim() !== "" ? dob : null;
   let profilePic = req.body.existingPic;
 
   try {
@@ -1682,12 +1683,12 @@ exports.editProfile = async (req, res) => {
            dob=$3,
            profile_picture=$4
        WHERE id=$5`,
-      [fullname, gender, dob, profilePic, req.user.id]
+      [fullname, gender, dobValue, profilePic, req.user.id]
     );
 
     req.session.user.fullname = fullname;
     req.session.user.gender = gender;
-    req.session.user.dob = dob;
+    req.session.user.dob = dobValue;
     req.session.user.profile_picture = profilePic;
 
     res.redirect("/student/dashboard?section=profile");
