@@ -15,6 +15,7 @@ const learningController = require("../controllers/learningController");
 const userController = require("../controllers/userController")
 const newsletterController = require("../controllers/newsletterController");
 const reportController = require("../controllers/reportController");
+const reportsAdminController = require("../controllers/reportsAdminController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
 const {
@@ -625,6 +626,26 @@ router.get(
 router.get(
   "/reports/:schoolId/:classroomId/:termId/student/:studentId/download",
   reportController.downloadStudentReport,
+);
+
+router.post(
+  "/reports/platform/generate",
+  reportsAdminController.generatePlatformReportFiles,
+);
+
+router.post(
+  "/reports/platform/email-now",
+  reportsAdminController.sendPlatformReportNow,
+);
+
+router.get(
+  "/reports/platform/history",
+  reportsAdminController.getReportHistory,
+);
+
+router.get(
+  "/pitch-decks/download",
+  reportsAdminController.downloadPitchDeck,
 );
 
 router.post(

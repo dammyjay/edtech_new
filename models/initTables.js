@@ -1259,9 +1259,20 @@ CREATE TABLE IF NOT EXISTS announcement_views (
 `);
 
     await pool.query(`
-      
-      
-    `);
+CREATE TABLE IF NOT EXISTS report_generation_log (
+  id SERIAL PRIMARY KEY,
+  report_type TEXT NOT NULL,
+  scope TEXT,
+  period_label TEXT,
+  formats_generated TEXT[],
+  audience TEXT,
+  triggered_by TEXT NOT NULL,
+  triggered_by_user_id INTEGER REFERENCES users2(id),
+  status TEXT NOT NULL,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+`);
 
     console.log("✅ All tables are updated and ready.");
   } catch (err) {

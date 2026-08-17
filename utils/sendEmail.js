@@ -29,6 +29,7 @@
 // module.exports = sendEmail;
 
 const Brevo = require("@getbrevo/brevo");
+const { getCompanyInfo } = require("./companyInfo");
 
 const apiInstance = new Brevo.TransactionalEmailsApi();
 
@@ -48,11 +49,13 @@ async function sendEmail(to, subject, htmlContent) {
       ? to.map((email) => ({ email }))
       : [{ email: to }];
 
+    const company = await getCompanyInfo();
+
     const sendSmtpEmail = {
       to: recipients,
       sender: {
         email: process.env.BREVO_FROM,
-        name: "JKT Hub",
+        name: company.company_name || "",
       },
       subject,
       htmlContent,

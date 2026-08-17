@@ -1,4 +1,4 @@
-function buildFeedbackThankYouEmail({ name, user_type, rating, message }) {
+function buildFeedbackThankYouEmail({ name, user_type, rating, message, company = {} }) {
   const starHTML = `
     <div style="margin: 10px 0;">
       ${"★".repeat(rating)}${"☆".repeat(5 - rating)}
@@ -31,7 +31,7 @@ function buildFeedbackThankYouEmail({ name, user_type, rating, message }) {
     ">
       
       <div style="text-align: center;">
-        <img src="https://acad.jkthub.com/images/JKT logo bg.png" 
+        <img src="${company.logo_url || ""}"
              width="100" style="margin-bottom: 15px;" />
         <h2 style="color: #333; margin-bottom: 5px;">Thank You for Your Feedback! ❤️</h2>
         <p style="color: #666; font-size: 14px; margin-top: 0;">
@@ -75,7 +75,7 @@ function buildFeedbackThankYouEmail({ name, user_type, rating, message }) {
       <br><br>
 
       <p style="font-size: 12px; color: #999; text-align: center;">
-        © ${new Date().getFullYear()} JKT Hub — Empowering the Future with Technology.
+        © ${new Date().getFullYear()} ${company.company_name || ""} — Empowering the Future with Technology.
       </p>
 
     </div>

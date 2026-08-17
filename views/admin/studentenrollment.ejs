@@ -9,7 +9,9 @@
 <body>
   <header class="header">
     <div class="logo-title">
-      <img src="/images/JKT logo bg.png" alt="Logo" />
+      <% if (info?.logo_url) { %>
+      <img src="<%= info.logo_url %>" alt="Logo" />
+      <% } %>
       <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
     </div>
     <a href="/admin/dashboard">⬅ Back to Dashboard</a>

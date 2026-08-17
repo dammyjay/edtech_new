@@ -1,5 +1,5 @@
 function buildCoverPage(report) {
-  const { school, classroom, term } = report;
+  const { school, classroom, term, companyLogoUrl } = report;
 
   return `
 
@@ -7,9 +7,7 @@ function buildCoverPage(report) {
 
     <div class="logo-row">
 
-        <img
-        class="company-logo"
-        src="https://acad.jkthub.com/images/JKT%20logo.png">
+        ${companyLogoUrl ? `<img class="company-logo" src="${companyLogoUrl}">` : ""}
 
         ${school.logo_url ? `<img class="school-logo" src="${school.logo_url}">` : ""}
 

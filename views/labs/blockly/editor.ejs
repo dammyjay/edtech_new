@@ -64,11 +64,13 @@
 <div class="blockly-container">
   <div class="block-console">
     <div class="blockly-wrapper">
+      <% if (info?.logo_url) { %>
       <img
-        src="/images/JKT logo.png"
+        src="<%= info.logo_url %>"
         class="workspace-logo"
         alt="Company Logo"
       />
+      <% } %>
 
       <div id="blocklyDiv"></div>
     </div>

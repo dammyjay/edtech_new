@@ -8,6 +8,7 @@ const createTables = require("./models/initTables");
 require("./cron/assignmentReminderJobs");
 require("./cron/parentAssignmentReminder");
 require("./cron/newsletterCron");
+require("./cron/analyticsReportCron");
 // const notificationRoutes = require("./routes/notificationRoutes");
 // const runNewsletterScheduler = require("./cron/newsletterScheduler");
 // const runDevotionalScheduler = require("./cron/cronJobs");

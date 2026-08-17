@@ -14,6 +14,7 @@ const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates");
 // const buildFeedbackThankYouEmail = require("../utils/feedbackEmailTemplate");
 const buildFeedbackAdminEmail = require("../utils/feedbackAdminEmail");
 const getAnnouncements = require("../utils/getAnnouncements");
+const { getCompanyInfo } = require("../utils/companyInfo");
 
 router.get("/events/:id", userController.showEvent);
 
@@ -489,10 +490,12 @@ router.post("/feedback", async (req, res) => {
     );
 
     if (email) {
+      const company = await getCompanyInfo();
+
       await sendEmail(
         email,
         "Thank You for Your Feedback ❤️",
-        buildFeedbackThankYouEmail({ name, user_type, rating, message })
+        buildFeedbackThankYouEmail({ name, user_type, rating, message, company })
       );
 
       // ADMIN EMAIL — sends instantly when new feedback arrives
@@ -510,6 +513,7 @@ router.post("/feedback", async (req, res) => {
           category,
           message,
           extra,
+          company,
         })
       );
     }

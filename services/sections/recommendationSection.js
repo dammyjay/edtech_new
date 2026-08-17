@@ -136,7 +136,7 @@ ${(ai.recommendations || [])
 
 <p>
 
-Powered by JayKirch Tech Hub School Management System
+Powered by ${report.companyName || ""} School Management System
 
 </p>
 

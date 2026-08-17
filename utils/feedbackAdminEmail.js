@@ -9,13 +9,14 @@ function buildFeedbackAdminEmail({
   category,
   message,
   extra,
+  company = {},
 }) {
   return `
   <div style="font-family: Arial, sans-serif; background:#f8f8f8; padding:20px;">
     <div style="max-width:700px; margin:0 auto; background:white; padding:25px; border-radius:10px; border:1px solid #ddd;">
 
       <div style="text-align:center; margin-bottom:20px;">
-        <img src="https://acad.jkthub.com/images/JKT logo bg.png" alt="Logo" style="height:55px;">
+        <img src="${company.logo_url || ""}" alt="Logo" style="height:55px;">
       </div>
 
       <h2 style="color:#222; margin-bottom:10px;">📬 New Feedback Received</h2>
@@ -56,7 +57,7 @@ function buildFeedbackAdminEmail({
       <hr style="margin:25px 0;">
 
       <p style="font-size:13px; color:#777; text-align:center;">
-        This is an automated alert from <strong>JKT Hub Feedback System</strong>.
+        This is an automated alert from <strong>${company.company_name || ""} Feedback System</strong>.
       </p>
 
     </div>

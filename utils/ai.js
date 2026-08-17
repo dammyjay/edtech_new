@@ -7,7 +7,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-async function askTutor({ question, lessonContext = "", userName = "Student" }) {
+async function askTutor({ question, lessonContext = "", userName = "Student", maxTokens = 700 }) {
   try {
     // 🧹 Clean lesson context (remove HTML tags, trim spaces)
     let cleanContext = lessonContext.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
@@ -60,7 +60,7 @@ async function askTutor({ question, lessonContext = "", userName = "Student" }) 
         { role: "system", content: system },
         { role: "user", content: userMessage },
       ],
-      max_tokens: 700,
+      max_tokens: maxTokens,
       temperature: 0.5,
     });
 

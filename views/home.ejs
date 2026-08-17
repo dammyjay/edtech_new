@@ -19,7 +19,7 @@
   </head>
   <body>
     <!-- Header -->
-    <%- include('./partials/userHeader', { title: 'JKT Hub Home' }) %>
+    <%- include('./partials/userHeader', { title: (info?.company_name || 'JKT Hub').trim() + ' Home' }) %>
     <%- include("./partials/announcementPopup") %>
     
 

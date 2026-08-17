@@ -106,8 +106,9 @@
   <body>
     <div class="payment-container">
       <div class="logo">
-        <img src="/images/JKT logo.png" alt="Logo" />
-        <!-- Place your logo image in public/logo.png -->
+        <% if (info?.logo_url) { %>
+        <img src="<%= info.logo_url %>" alt="Logo" />
+        <% } %>
       </div>
 
       <h2>Make a Payment</h2>

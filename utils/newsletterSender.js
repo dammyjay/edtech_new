@@ -1,6 +1,7 @@
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
 const newsletterTemplate = require("./newsletterTemplate");
+const { getCompanyInfo } = require("./companyInfo");
 
 async function sendNewsletter(newsletterId) {
 
@@ -49,6 +50,8 @@ async function sendNewsletter(newsletterId) {
 
     console.log("Recipients:", recipients.rows.length);
 
+    const company = await getCompanyInfo();
+
     if (recipients.rows.length === 0) {
 
     await pool.query(`
@@ -76,7 +79,7 @@ async function sendNewsletter(newsletterId) {
           [recipient.id],
           );
 
-          const html = newsletterTemplate(newsletter);
+          const html = newsletterTemplate(newsletter, company);
 
             console.log("Sending:", recipient.email);
           await sendEmail(recipient.email, newsletter.subject, html);

@@ -191,10 +191,12 @@
   </div>
   <div class="form-image">
 
-    <img 
-      src="/images/JKT logo bg.png"
+    <% if (info?.logo_url) { %>
+    <img
+      src="<%= info.logo_url %>"
       alt="Login Illustration"
     >
+    <% } %>
 
     <h2>Welcome Back</h2>
 

@@ -879,7 +879,7 @@ exports.downloadCourseSummary = async (req, res) => {
     const infoRes = await pool.query(
       `SELECT company_name, logo_url FROM company_info ORDER BY id DESC LIMIT 1`
     );
-    const info = infoRes.rows[0] || { company_name: "Jaykirch Tech Hub" };
+    const info = infoRes.rows[0] || { company_name: "" };
 
     // --- Modules
     const modulesRes = await pool.query(

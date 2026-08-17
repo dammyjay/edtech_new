@@ -6,6 +6,7 @@ const {
 
   generateStudentComment,
 } = require("./reportAIService");
+const { getCompanyInfo } = require("../utils/companyInfo");
 
 /* ==========================================================
    SCHOOL INFORMATION
@@ -1335,6 +1336,8 @@ async function getClassTermAnalytics(
 
   await generateStudentComments(studentDataset);
 
+  const companyInfo = await getCompanyInfo();
+
   const aiSummary = await generateAIReport({
     school: schoolInfo,
     attendance,
@@ -1364,6 +1367,8 @@ async function getClassTermAnalytics(
 
     interventionStudents: intervention,
     aiSummary,
+    companyLogoUrl: companyInfo.logo_url || null,
+    companyName: companyInfo.company_name || "",
   };
 }
 

@@ -114,7 +114,9 @@
   <div class="container">
 
   <div class="header">
-    <img src="https://acad.jkthub.com/images/JKT%20logo.png" alt="Logo">
+    <% if (info?.logo_url) { %>
+    <img src="<%= info.logo_url %>" alt="Logo">
+    <% } %>
     <h2>📊 Quiz Result</h2>
   </div>
 

@@ -64,7 +64,9 @@
     
 <div id="loadingOverlay">
   <div class="spin">
-    <img src="/images/JKT logo.png" alt="">
+    <% if (info?.logo_url) { %>
+    <img src="<%= info.logo_url %>" alt="">
+    <% } %>
   </div>
 </div>
 

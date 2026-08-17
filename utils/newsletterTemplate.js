@@ -1,4 +1,4 @@
-function newsletterTemplate(newsletter) {
+function newsletterTemplate(newsletter, company = {}) {
 
     return `
 <!DOCTYPE html>
@@ -57,7 +57,7 @@ padding:35px;
 ">
 
 <img
-src="https://acad.jkthub.com/images/JKT%20logo%20bg.png"
+src="${company.logo_url || ""}"
 width="90"
 style="display:block">
 
@@ -68,7 +68,7 @@ margin:15px 0 5px;
 font-size:28px;
 ">
 
-JKT Hub
+${company.company_name || ""}
 
 </h1>
 
@@ -182,7 +182,7 @@ font-size:18px;
 font-weight:bold;
 ">
 
-JKT Hub
+${company.company_name || ""}
 
 </p>
 
@@ -208,7 +208,7 @@ color:#999;
 line-height:1.7;
 ">
 
-You are receiving this email because you are registered on JKT Hub.
+You are receiving this email because you are registered on ${company.company_name || ""}.
 
 </p>
 

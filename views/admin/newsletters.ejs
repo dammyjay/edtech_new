@@ -445,7 +445,7 @@ CREATE NEWSLETTER MODAL
                 <h2>Welcome!</h2>
                 <p>Hello everyone,</p>
                 <p>We are excited to share our latest updates.</p>
-                <p>Thank you for being part of JKT Hub.</p>
+                <p>Thank you for being part of <%= (info?.company_name || 'JKT Hub').trim() %>.</p>
 
             </textarea>
 

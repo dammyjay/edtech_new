@@ -16,6 +16,7 @@ const generatePdf = require("../utils/generatePdf");
 const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
 const axios = require("axios");
+const analyticsAggregationService = require("../services/analyticsAggregationService");
 
 // require at top of file
 const Sentiment = require('sentiment');
@@ -426,83 +427,8 @@ exports.getUserGrowthChart = async (req, res) => {
 
 exports.getDashboardOverview = async (req, res) => {
   try {
-    
-    const [
-      users,
-      courses,
-      modules,
-      lessons,
-      enrollments,
-      schools,
-      certificates,
-      revenue,
-      avgQuiz
-    ] = await Promise.all([
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM users2
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM courses
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM modules
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM lessons
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM course_enrollments
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM schools
-      `),
-
-      pool.query(`
-        SELECT COUNT(*) total
-        FROM user_certificates
-      `),
-
-      pool.query(`
-        SELECT
-          COALESCE((SELECT SUM(amount) FROM transactions WHERE status = 'success'), 0)
-          + COALESCE((SELECT SUM(amount) FROM school_payments), 0)
-          + COALESCE((SELECT SUM(amount) FROM parent_payments), 0)
-          + COALESCE((SELECT SUM(amount_paid) FROM event_registrations), 0)
-          AS total
-      `),
-
-      pool.query(`
-        SELECT ROUND(AVG(score),1) avg
-        FROM quiz_submissions
-      `)
-
-    ]);
-
-
-    res.json({
-      totalUsers: Number(users.rows[0].total),
-      totalCourses: Number(courses.rows[0].total),
-      totalModules: Number(modules.rows[0].total),
-      totalLessons: Number(lessons.rows[0].total),
-      totalEnrollments: Number(enrollments.rows[0].total),
-      totalSchools: Number(schools.rows[0].total),
-      certificatesIssued: Number(certificates.rows[0].total),
-      revenue: Number(revenue.rows[0].total),
-      avgQuizScore: avgQuiz.rows[0].avg || 0
-    });
-
+    const data = await analyticsAggregationService.getOverviewAnalytics(null);
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({
@@ -513,243 +439,9 @@ exports.getDashboardOverview = async (req, res) => {
 
 exports.getBusinessDashboard = async (req, res) => {
   try {
-    const {period, year, month } = req.query;
-      let schoolWhere = "";
-      let parentWhere = "";
-      let eventWhere = "";
-      let eventAliasWhere = "";
-
-      const params = [];
-
-      if (year && year !== "all") {
-        params.push(year);
-
-        schoolWhere += ` WHERE EXTRACT(YEAR FROM payment_date) = $${params.length}`;
-        parentWhere += ` WHERE EXTRACT(YEAR FROM p.payment_date) = $${params.length}`;
-        eventWhere += ` WHERE EXTRACT(YEAR FROM created_at) = $${params.length}`;
-        eventAliasWhere += ` WHERE EXTRACT(YEAR FROM r.created_at) = $${params.length}`;
-      }
-
-    //   if (month && month !== "all") {
-        
-    //     params.push(month);
-
-    //     schoolWhere += schoolWhere ? " AND " : " WHERE ";
-    //     parentWhere += parentWhere ? " AND " : " WHERE ";
-    //     eventWhere += eventWhere ? " AND " : " WHERE ";
-
-    //     schoolWhere += `EXTRACT(MONTH FROM payment_date) = $${params.length}`;
-    //     parentWhere += `EXTRACT(MONTH FROM p.payment_date) = $${params.length}`;
-    //     eventWhere += `EXTRACT(MONTH FROM created_at) = $${params.length}`;
-    //     eventAliasWhere += `EXTRACT(MONTH FROM r.created_at) = $${params.length}`;
-    // }
-
-      if (month && month !== "all") {
-
-        params.push(month);
-
-        schoolWhere += schoolWhere ? " AND " : " WHERE ";
-        parentWhere += parentWhere ? " AND " : " WHERE ";
-        eventWhere += eventWhere ? " AND " : " WHERE ";
-        eventAliasWhere += eventAliasWhere ? " AND " : " WHERE ";
-
-        schoolWhere += `EXTRACT(MONTH FROM payment_date) = $${params.length}`;
-        parentWhere += `EXTRACT(MONTH FROM p.payment_date) = $${params.length}`;
-        eventWhere += `EXTRACT(MONTH FROM created_at) = $${params.length}`;
-        eventAliasWhere += `EXTRACT(MONTH FROM r.created_at) = $${params.length}`;
-    }
-
-    const incomeBreakdown = await pool.query(`
-    SELECT * FROM (
-
-    SELECT
-    'School Payments' AS source,
-    COALESCE(SUM(amount),0) total
-    FROM school_payments
-    ${schoolWhere}
-
-    UNION ALL
-
-    SELECT
-    'Parent Training',
-    COALESCE(SUM(p.amount),0)
-    FROM parent_payments p
-    ${parentWhere}
-
-    UNION ALL
-
-    SELECT
-    'Events',
-    COALESCE(SUM(amount_paid),0)
-    FROM event_registrations
-    ${eventWhere}
-    ${eventWhere ? " AND " : " WHERE "}
-    payment_status IN ('success','completed')
-
-    )x
-    ORDER BY total DESC;
-    `, params);
-    
-    const parentPayments = await pool.query(
-      `
-    SELECT
-    u.fullname AS parent_name,
-    u.email,
-    i.training_title,
-    p.amount,
-    i.status,
-    p.payment_method,
-    p.transaction_reference,
-    p.payment_date,
-    STRING_AGG(s.fullname, ', ') AS students
-FROM parent_payments p
-JOIN parent_training_invoices i
-    ON i.id = p.invoice_id
-JOIN users2 u
-    ON u.id = i.parent_id
-LEFT JOIN invoice_students inv
-    ON inv.invoice_id = i.id
-LEFT JOIN users2 s
-    ON s.id = inv.student_id
-${parentWhere}
-GROUP BY
-u.fullname,
-u.email,
-i.training_title,
-p.amount,
-i.status,
-p.payment_method,
-p.transaction_reference,
-p.payment_date
-ORDER BY p.payment_date DESC;
-
-    `,
-      params,
-    );
-
-
-    const eventPayments = await pool.query(
-      `
-SELECT
-e.title,
-r.registrant_name,
-r.registrant_email,
-r.amount_paid,
-r.payment_status,
-r.created_at
-
-FROM event_registrations r
-
-JOIN events e
-ON e.id = r.event_id
-
-${eventAliasWhere}
-
-ORDER BY r.created_at DESC;
-`,
-      params,
-    );
-
-      const schoolRevenue = await pool.query(`
-      SELECT COALESCE(SUM(amount),0) total
-      FROM school_payments
-      ${schoolWhere}
-      `, params);
-    
-      const parentRevenue = await pool.query(`
-      SELECT COALESCE(SUM(p.amount),0) total
-      FROM parent_payments p
-      ${parentWhere}
-      `, params);
-    
-      const eventRevenue = await pool.query(`
-      SELECT COALESCE(SUM(amount_paid),0) total
-      FROM event_registrations
-      ${eventWhere}
-      ${eventWhere ? " AND " : " WHERE "}
-      payment_status IN ('success','completed')
-      `, params);
-    
-      const eventRegistrations = await pool.query(`
-      SELECT COUNT(*) total
-      FROM event_registrations
-      ${eventWhere}
-      `, params);
-
-    const totalRevenue =
-      Number(schoolRevenue.rows[0].total) +
-      Number(parentRevenue.rows[0].total) +
-      Number(eventRevenue.rows[0].total);
-
-    const schoolPaymentsResult = await pool.query(
-      `
-      SELECT
-        s.name AS school_name,
-
-        COALESCE(st.total_students,0) *
-        COALESCE(q.price_per_student,0) AS total_amount,
-
-        COALESCE(p.total_paid,0) AS total_paid,
-
-        (
-          COALESCE(st.total_students,0) *
-          COALESCE(q.price_per_student,0)
-        ) - COALESCE(p.total_paid,0) AS balance
-
-      FROM quotes q
-
-      JOIN schools s
-      ON s.id = q.school_id
-
-      LEFT JOIN (
-        SELECT term_id, COUNT(*) total_students
-        FROM student_term_enrollments
-        GROUP BY term_id
-      ) st ON st.term_id = q.term_id
-
-      LEFT JOIN (
-
-        SELECT
-        quote_id,
-        SUM(amount) total_paid
-
-        FROM school_payments
-
-        ${schoolWhere}
-
-        GROUP BY quote_id
-
-        ) p ON p.quote_id = q.id
-    `,
-      params,
-    );
-
-    const paidSchools = schoolPaymentsResult.rows.filter(
-      (x) => Number(x.balance) <= 0,
-    ).length;
-
-    const outstandingBalance = schoolPaymentsResult.rows.reduce(
-      (sum, row) => sum + Number(row.balance || 0),
-      0,
-    );
-
-    res.json({
-      // totalRevenue: Number(revenueResult.rows[0].total),
-      // monthlyRevenue: Number(monthlyRevenueResult.rows[0].total),
-      totalRevenue,
-      filteredRevenue: totalRevenue,
-      schoolRevenue: Number(schoolRevenue.rows[0].total),
-      parentRevenue: Number(parentRevenue.rows[0].total),
-      eventRevenue: Number(eventRevenue.rows[0].total),
-      eventRegistrations: Number(eventRegistrations.rows[0].total),
-      paidSchools,
-      outstandingBalance,
-      schools: schoolPaymentsResult.rows,
-      incomeBreakdown: incomeBreakdown.rows,
-      parentPayments: parentPayments.rows,
-      eventPayments: eventPayments.rows,
-
-    });
+    const { year, month } = req.query;
+    const data = await analyticsAggregationService.getBusinessAnalytics({ year, month });
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false });
@@ -758,91 +450,8 @@ ORDER BY r.created_at DESC;
 
 exports.getLearningDashboard = async (req, res) => {
   try {
-    const totals = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM courses) total_courses,
-        (SELECT COUNT(*) FROM modules) total_modules,
-        (SELECT COUNT(*) FROM lessons) total_lessons
-    `);
-
-    const courseStats = await pool.query(`
-      SELECT
-
-        c.id,
-        c.title,
-
-        COUNT(DISTINCT ce.user_id) AS enrollments,
-
-        COUNT(DISTINCT CASE
-            WHEN us.role_in_school = 'student'
-            THEN us.user_id
-        END) AS school_learners,
-
-        COUNT(DISTINCT sc.school_id) AS schools,
-
-        COUNT(DISTINCT m.id) AS modules,
-
-        COUNT(DISTINCT l.id) AS lessons,
-
-        COUNT(DISTINCT ulp.id) AS lesson_completions,
-
-        COUNT(DISTINCT uc.id) AS certificates
-
-      FROM courses c
-
-      LEFT JOIN course_enrollments ce
-        ON ce.course_id = c.id
-
-      LEFT JOIN school_courses sc
-        ON sc.course_id = c.id
-
-      LEFT JOIN user_school us
-        ON us.school_id = sc.school_id
-
-      LEFT JOIN modules m
-        ON m.course_id = c.id
-
-      LEFT JOIN lessons l
-        ON l.module_id = m.id
-
-      LEFT JOIN user_lesson_progress ulp
-        ON ulp.lesson_id = l.id
-
-      LEFT JOIN user_certificates uc
-        ON uc.course_id = c.id
-
-      GROUP BY c.id
-
-      ORDER BY enrollments DESC
-    `);
-
-    const courses = courseStats.rows.map((course) => {
-       const totalLearners =
-        Number(course.enrollments || 0) +
-        Number(course.school_learners || 0);
-      
-      const moduleCompletion =
-        course.enrollments > 0
-          ? Math.round(
-              (course.lesson_completions /
-                (course.enrollments * Math.max(course.lessons, 1))) *
-                100,
-            )
-          : 0;
-
-      return {
-        ...course,
-        totalLearners,
-        moduleCompletion,
-      };
-    });
-
-    res.json({
-      totalCourses: totals.rows[0].total_courses,
-      totalModules: totals.rows[0].total_modules,
-      totalLessons: totals.rows[0].total_lessons,
-      courses,
-    });
+    const data = await analyticsAggregationService.getLearningAnalytics(null);
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -1050,106 +659,8 @@ exports.getCourseAnalytics = async (req, res) => {
 
 exports.getSchoolsDashboard = async (req, res) => {
   try {
-
-    const summary = await pool.query(`
-      SELECT
-          (SELECT COUNT(*) FROM schools) AS schools,
-
-          (
-            SELECT COUNT(*)
-            FROM user_school
-            WHERE role_in_school = 'student'
-          ) AS students,
-
-          (
-            SELECT COUNT(*)
-            FROM user_school
-            WHERE role_in_school = 'teacher'
-          ) AS teachers,
-
-          (
-            SELECT COUNT(*)
-            FROM classrooms
-          ) AS classrooms
-    `);
-
-    // const schools = await pool.query(`
-    //   SELECT
-
-    //     s.id,
-    //     s.name,
-
-    //     COUNT(DISTINCT CASE
-    //       WHEN us.role_in_school='student'
-    //       THEN us.user_id
-    //     END) students,
-
-    //     COUNT(DISTINCT CASE
-    //       WHEN us.role_in_school='teacher'
-    //       THEN us.user_id
-    //     END) teachers,
-
-    //     COUNT(DISTINCT sc.course_id) courses,
-
-    //     MAX(us.created_at) last_activity
-
-    //   FROM schools s
-
-    //   LEFT JOIN user_school us
-    //   ON us.school_id=s.id
-
-    //   LEFT JOIN school_courses sc
-    //   ON sc.school_id=s.id
-
-    //   GROUP BY s.id
-
-    //   ORDER BY s.name
-    // `);
-
-    const schools = await pool.query(`
-      SELECT
-          s.id,
-          s.name,
-
-          COUNT(DISTINCT CASE
-              WHEN us.role_in_school = 'student'
-              THEN us.user_id
-          END) AS students,
-
-          COUNT(DISTINCT CASE
-              WHEN us.role_in_school = 'teacher'
-              THEN us.user_id
-          END) AS teachers,
-
-          COUNT(DISTINCT c.id) AS classrooms,
-
-          COUNT(DISTINCT sc.course_id) AS courses,
-
-          MAX(us.joined_at) AS last_activity
-
-      FROM schools s
-
-      LEFT JOIN user_school us
-          ON us.school_id = s.id
-
-      LEFT JOIN classrooms c
-          ON c.school_id = s.id
-
-      LEFT JOIN school_courses sc
-          ON sc.school_id = s.id
-
-      GROUP BY s.id, s.name
-
-      ORDER BY s.name
-    `);
-
-    res.json({
-      totalSchools: Number(summary.rows[0].schools),
-      totalStudents: Number(summary.rows[0].students),
-      totalTeachers: Number(summary.rows[0].teachers),
-      totalClassrooms: Number(summary.rows[0].classrooms),
-      schools: schools.rows,
-    });
+    const data = await analyticsAggregationService.getSchoolsAnalytics(null);
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false });
@@ -1158,36 +669,8 @@ exports.getSchoolsDashboard = async (req, res) => {
 
 exports.getFinanceDashboard = async (req, res) => {
   try {
-    const revenue = await pool.query(`
-      SELECT COALESCE(SUM(amount),0) total
-      FROM transactions
-      WHERE status='success'
-    `);
-
-    const totalTransactions = await pool.query(`
-      SELECT COUNT(*) total
-      FROM transactions
-    `);
-
-    const failedTransactions = await pool.query(`
-      SELECT COUNT(*) total
-      FROM transactions
-      WHERE status='failed'
-    `);
-
-    const recentTransactions = await pool.query(`
-      SELECT *
-      FROM transactions
-      ORDER BY created_at DESC
-      LIMIT 20
-    `);
-
-    res.json({
-      revenue: Number(revenue.rows[0].total),
-      totalTransactions: Number(totalTransactions.rows[0].total),
-      failedTransactions: Number(failedTransactions.rows[0].total),
-      transactions: recentTransactions.rows,
-    });
+    const data = await analyticsAggregationService.getFinanceAnalytics(null);
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false });
@@ -1198,133 +681,23 @@ exports.getEngagementDashboard = async (req, res) => {
   try {
     const { page = 1, limit = 50, action, startDate, endDate } = req.query;
 
-    let whereClause = "WHERE 1=1";
-    let params = [];
-    let paramCount = 1;
-
-    if (action) {
-      whereClause += ` AND a.action ILIKE $${paramCount}`;
-      params.push(`%${action}%`);
-      paramCount++;
+    // Preserve the live dashboard's free-text startDate/endDate query params
+    // (distinct from the report generator's month/year period bounds) by
+    // building an ad-hoc bounds object when either is supplied.
+    let bounds = null;
+    if (startDate || endDate) {
+      bounds = {
+        startDate: startDate ? new Date(startDate) : new Date(0),
+        endDate: endDate ? new Date(endDate + " 23:59:59") : new Date(),
+      };
     }
 
-    if (startDate) {
-      whereClause += ` AND a.created_at >= $${paramCount}`;
-      params.push(startDate);
-      paramCount++;
-    }
-
-    if (endDate) {
-      whereClause += ` AND a.created_at <= $${paramCount}`;
-      params.push(endDate + " 23:59:59");
-      paramCount++;
-    }
-
-    const offset = (page - 1) * limit;
-
-    params.push(limit);
-    params.push(offset);
-
-    const activities = await pool.query(
-      `
-      SELECT
-        a.id,
-        a.user_id,
-        a.role,
-        a.action,
-        a.details,
-        a.created_at,
-
-        u.fullname,
-
-        -- School info
-        COALESCE(s.name, 'Private Tutor') AS school_name,
-
-        -- Lesson info
-        l.id AS lesson_id,
-        l.title AS lesson_title,
-
-        -- Course info
-        c.id AS course_id,
-        c.title AS course_title
-
-      FROM activities a
-
-      LEFT JOIN users2 u
-        ON u.id = a.user_id
-
-      LEFT JOIN user_school us
-        ON us.user_id = u.id
-
-      LEFT JOIN schools s
-        ON s.id = us.school_id
-
-      LEFT JOIN lessons l
-        ON l.id = COALESCE(
-          a.lesson_id,
-          NULLIF(
-            substring(a.details FROM '([0-9]+)'),
-            ''
-          )::INT
-        )
-
-      LEFT JOIN modules m
-        ON m.id = l.module_id
-
-      LEFT JOIN courses c
-        ON c.id = m.course_id
-
-      ${whereClause}
-
-      ORDER BY a.created_at DESC
-
-      LIMIT $${paramCount}
-      OFFSET $${paramCount + 1}
-    `,
-      params,
-    );
-
-    const totalResult = await pool.query(
-      `
-      SELECT COUNT(*) total
-      FROM activities a
-      ${whereClause}
-    `,
-      params.slice(0, paramCount - 1),
-    );
-
-    const dailyUsers = await pool.query(`
-      SELECT COUNT(DISTINCT user_id)
-      FROM activities
-      WHERE created_at >= NOW() - INTERVAL '1 day'
-    `);
-
-    const weeklyUsers = await pool.query(`
-      SELECT COUNT(DISTINCT user_id)
-      FROM activities
-      WHERE created_at >= NOW() - INTERVAL '7 days'
-    `);
-
-    const completedLessons = await pool.query(`
-      SELECT COUNT(*)
-      FROM user_lesson_progress
-    `);
-
-    const aiQuestions = await pool.query(`
-      SELECT COUNT(*)
-      FROM ai_tutor_logs
-    `);
-
-    res.json({
-      dailyUsers: dailyUsers.rows[0].count,
-      weeklyUsers: weeklyUsers.rows[0].count,
-      completedLessons: completedLessons.rows[0].count,
-      aiQuestions: aiQuestions.rows[0].count,
-
-      totalActivities: totalResult.rows[0].total,
-
-      activities: activities.rows,
+    const data = await analyticsAggregationService.getEngagementAnalytics(bounds, {
+      page,
+      limit,
+      action,
     });
+    res.json(data);
   } catch (err) {
     console.error(err);
 
@@ -2023,11 +1396,11 @@ color:white;
 ">
 
 <img
-src="https://acad.jkthub.com/images/JKT%20logo.png"
+src="${company.logo_url || ""}"
 width="80">
 
 <h2 style="margin:15px 0 5px;">
-${company.company_name || "Jaykirch Technology Hub"}
+${company.company_name || ""}
 </h2>
 
 <p style="margin:0;">
@@ -2158,7 +1531,7 @@ Kind regards,
 <br><br>
 
 <b>
-${company.company_name || "Jaykirch Technology Hub"}
+${company.company_name || ""}
 </b>
 
 </div>
@@ -2172,7 +1545,7 @@ font-size:12px;
 ">
 
 © ${new Date().getFullYear()}
-${company.company_name || "Jaykirch Technology Hub"}
+${company.company_name || ""}
 
 </div>
 
@@ -3573,6 +2946,11 @@ exports.downloadCurriculum = async (req, res) => {
     return res.status(400).send("No curriculum available");
   }
 
+  const infoResult = await pool.query(
+    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+  );
+  const company = infoResult.rows[0] || {};
+
   const html = `
   <html>
     <head>
@@ -3614,10 +2992,10 @@ exports.downloadCurriculum = async (req, res) => {
     <body>
       <div class="watermark">
         <img
-          src="https://acad.jkthub.com/images/JKT%20logo.png"
-          alt="JKT Academy Logo"
+          src="${company.logo_url || ""}"
+          alt="${company.company_name || ""} Logo"
         />
-        <h2>JKT Hub Academy</h2>
+        <h2>${company.company_name || ""}</h2>
       </div>
 
 
@@ -5224,7 +4602,12 @@ function calculateGrade(score) {
 
       const certificate = certRes.rows[0] || null;
 
-      const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+      const infoResult = await pool.query(
+        "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+      );
+      const company = infoResult.rows[0] || {};
+
+      const COMPANY_LOGO = company.logo_url || "";
 
       /* ==========================
         CHECK IF STUDENT BELONGS TO A SCHOOL
@@ -5772,7 +5155,7 @@ function calculateGrade(score) {
 
 
   <div class="footer">
-    © ${new Date().getFullYear()} Jaykirch Technology Hub |
+    © ${new Date().getFullYear()} ${company.company_name || ""} |
     Confidential Academic Performance Report |
     Generated on ${new Date().toLocaleDateString()}
   </div>
@@ -5954,7 +5337,12 @@ function calculateGrade(score) {
       const badges = badgesRes.rows;
       const totalBadges = badges.length;
 
-      const COMPANY_LOGO = "https://acad.jkthub.com/images/JKT%20logo.png";
+      const infoResult = await pool.query(
+        "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+      );
+      const company = infoResult.rows[0] || {};
+
+      const COMPANY_LOGO = company.logo_url || "";
 
       /* ==========================
     CHECK IF STUDENT BELONGS TO A SCHOOL
@@ -6334,7 +5722,7 @@ function calculateGrade(score) {
       </div>
 
       <div class="footer">
-        © ${new Date().getFullYear()} Jaykirch Technology Hub |
+        © ${new Date().getFullYear()} ${company.company_name || ""} |
         Confidential Academic Performance Report |
         Generated on ${new Date().toLocaleDateString()}
       </div>
@@ -7786,6 +7174,11 @@ exports.downloadQuotePDF = async (req, res) => {
     // const totalPaid = Number(q.total_paid || 0);
     // const balance = Number(q.balance || 0);
 
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const company = infoResult.rows[0] || {};
+
     const numberToWords = require('number-to-words');
 
     const total = Number(q.total_amount);
@@ -8013,9 +7406,9 @@ exports.downloadQuotePDF = async (req, res) => {
     <div class="container">
 
       <div class="header">
-        <img src="https://acad.jkthub.com/images/JKT%20logo.png" />
+        <img src="${company.logo_url || ""}" />
         <div class="header-text">
-          <div class="title">JAYKIRCH TECHNOLOGY HUB</div>
+          <div class="title">${(company.company_name || "").toUpperCase()}</div>
           <div class="sub">18, Moshood Bakare Street, Gbagada Phase 1</div>
           <div class="sub">Tel: 09166767242, 07087522295</div>
         </div>
@@ -8032,7 +7425,7 @@ exports.downloadQuotePDF = async (req, res) => {
         </div>
 
         <div class="bank">
-          <p style="font-size: 30px; color: #b89b5e; margin: 0;">Jaykirch Tech Hub</p>
+          <p style="font-size: 30px; color: #b89b5e; margin: 0;">${company.company_name || ""}</p>
           <p style="font-size: 18px;">Access Bank</p>
           <p style="font-size: 30px;">1582579748</p>
         </div>
@@ -8176,11 +7569,11 @@ exports.downloadQuotePDF = async (req, res) => {
         ">
 
         <img
-        src="https://acad.jkthub.com/images/JKT%20logo.png"
+        src="${company.logo_url || ""}"
         width="80">
 
         <h2 style="margin:15px 0 5px;">
-        Jaykirch Technology Hub
+        ${company.company_name || ""}
         </h2>
 
         <p style="margin:0;">
@@ -8265,7 +7658,7 @@ exports.downloadQuotePDF = async (req, res) => {
         <br>
 
         Account Name:
-        <b>Jaykirch Technology Hub</b>
+        <b>${company.company_name || ""}</b>
 
         <br>
 
@@ -8284,7 +7677,7 @@ exports.downloadQuotePDF = async (req, res) => {
 
         <br>
 
-        <b>Jaykirch Technology Hub</b>
+        <b>${company.company_name || ""}</b>
 
         </div>
 
@@ -8296,7 +7689,7 @@ exports.downloadQuotePDF = async (req, res) => {
         font-size:12px;
         ">
 
-        © ${new Date().getFullYear()} Jaykirch Technology Hub
+        © ${new Date().getFullYear()} ${company.company_name || ""}
 
         </div>
 
@@ -8387,6 +7780,11 @@ exports.generateSchoolReceipt = async (req, res, quote) => {
     const paymentMethod = payment?.payment_method || "Bank Transfer";
 
     const receiptNumber = `RCPT-${String(quote.id).padStart(6, "0")}`;
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const company = infoResult.rows[0] || {};
 
     const invoiceNumber = `INV-${String(quote.id).padStart(6, "0")}`;
 
@@ -8736,13 +8134,13 @@ td{
 
 <div class="header">
 
-<img src="https://acad.jkthub.com/images/JKT%20logo.png">
+<img src="${company.logo_url || ""}">
 
 <div class="header-text">
 
 <div class="title">
 
-JAYKIRCH TECHNOLOGY HUB
+${(company.company_name || "").toUpperCase()}
 
 </div>
 
@@ -8958,7 +8356,7 @@ Remaining Balance:
 
 Thank you for your partnership with
 
-<b>Jaykirch Technology Hub.</b>
+<b>${company.company_name || ""}.</b>
 
 </p>
 
@@ -9000,7 +8398,7 @@ Authorized Signature
 <div class="footer">
 
 This receipt serves as an official acknowledgement of payment made to
-<b>Jaykirch Technology Hub</b>.
+<b>${company.company_name || ""}</b>.
 
 </div>
 
@@ -9074,11 +8472,11 @@ color:white;
 ">
 
 <img
-src="https://acad.jkthub.com/images/JKT%20logo.png"
+src="${company.logo_url || ""}"
 width="80">
 
 <h2 style="margin:15px 0 5px;">
-Jaykirch Technology Hub
+${company.company_name || ""}
 </h2>
 
 <p style="margin:0;">
@@ -9164,7 +8562,7 @@ ${balance <= 0 ? "FULLY PAID" : "PARTIALLY PAID"}
 <p>
 
 Thank you for partnering with
-<b>Jaykirch Technology Hub.</b>
+<b>${company.company_name || ""}.</b>
 
 </p>
 
@@ -9174,7 +8572,7 @@ Regards,
 
 <br>
 
-<b>Jaykirch Technology Hub</b>
+<b>${company.company_name || ""}</b>
 
 </div>
 
@@ -9186,7 +8584,7 @@ text-align:center;
 font-size:12px;
 ">
 
-© ${new Date().getFullYear()} Jaykirch Technology Hub
+© ${new Date().getFullYear()} ${company.company_name || ""}
 
 </div>
 
@@ -9821,6 +9219,11 @@ exports.downloadParentInvoicePDF = async (req, res) => {
       .toWords(Math.round(netAmount))
       .toUpperCase();
 
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const company = infoResult.rows[0] || {};
+
     // const today = new Date().toDateString();
     const today = new Date();
     const todayString = today.toDateString();
@@ -10049,12 +9452,12 @@ td{
 
 <div class="header">
 
-<img src="https://acad.jkthub.com/images/JKT%20logo.png">
+<img src="${company.logo_url || ""}">
 
 <div class="header-text">
 
 <div class="title">
-JAYKIRCH TECHNOLOGY HUB
+${(company.company_name || "").toUpperCase()}
 </div>
 
 <div class="sub">
@@ -10092,7 +9495,7 @@ ${invoice.parent_phone || ""}
 <div class="bank">
 
 <p style="font-size:28px;color:#b89b5e;font-weight:bold;">
-Jaykirch Tech Hub
+${company.company_name || ""}
 </p>
 
 <p style="font-size:18px;">
@@ -10263,7 +9666,7 @@ ${
 
 Bank Name: <b>Access Bank</b><br>
 
-Account Name: <b>Jaykirch Technology Hub</b><br>
+Account Name: <b>${company.company_name || ""}</b><br>
 
 Account Number: <b>1582579748</b>
 
@@ -10345,11 +9748,11 @@ color:white;
 ">
 
 <img
-src="https://acad.jkthub.com/images/JKT%20logo.png"
+src="${company.logo_url || ""}"
 width="80">
 
 <h2 style="margin:15px 0 5px;">
-Jaykirch Technology Hub
+${company.company_name || ""}
 </h2>
 
 <p style="margin:0;">
@@ -10369,7 +9772,7 @@ Dear <b>${invoice.parent_name}</b>,
 <p>
 
 Thank you for choosing
-<b>Jaykirch Technology Hub.</b>
+<b>${company.company_name || ""}.</b>
 
 Please find attached your
 training invoice.
@@ -10481,7 +9884,7 @@ Access Bank
 <br>
 
 Account Name:
-<b>Jaykirch Technology Hub</b>
+<b>${company.company_name || ""}</b>
 
 <br>
 
@@ -10502,7 +9905,7 @@ Regards,
 
 <br>
 
-<b>Jaykirch Technology Hub</b>
+<b>${company.company_name || ""}</b>
 
 </div>
 
@@ -10514,7 +9917,7 @@ text-align:center;
 font-size:12px;
 ">
 
-© ${new Date().getFullYear()} Jaykirch Technology Hub
+© ${new Date().getFullYear()} ${company.company_name || ""}
 
 </div>
 
@@ -10661,6 +10064,11 @@ exports.generateParentReceipt = async (req, res, invoice) => {
     const receiptNumber = invoice.invoice_number
       ? invoice.invoice_number.replace(/^INV/i, "RCPT")
       : `RCPT-${invoice.id}`;
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const company = infoResult.rows[0] || {};
 
     const studentRows =
       students.length
@@ -10846,12 +10254,12 @@ exports.generateParentReceipt = async (req, res, invoice) => {
 
       <div class="header">
 
-      <img src="https://acad.jkthub.com/images/JKT%20logo.png">
+      <img src="${company.logo_url || ""}">
 
       <div class="header-text">
 
       <div class="title">
-      JAYKIRCH TECHNOLOGY HUB
+      ${(company.company_name || "").toUpperCase()}
       </div>
 
       <div class="sub">
@@ -11077,7 +10485,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <p>
 
         Thank you for choosing
-        <b>Jaykirch Technology Hub.</b>
+        <b>${company.company_name || ""}.</b>
 
         </p>
 
@@ -11120,7 +10528,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <div class="footer">
 
         This receipt is computer generated and serves as an official acknowledgement
-        of payment made to <b>Jaykirch Technology Hub</b>.
+        of payment made to <b>${company.company_name || ""}</b>.
 
         <br><br>
 
@@ -11165,11 +10573,11 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         ">
 
         <img
-        src="https://acad.jkthub.com/images/JKT%20logo.png"
+        src="${company.logo_url || ""}"
         width="80">
 
         <h2 style="margin:15px 0 5px;">
-        Jaykirch Technology Hub
+        ${company.company_name || ""}
         </h2>
 
         <p style="margin:0;">
@@ -11255,7 +10663,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <p>
 
         We appreciate your trust in
-        <b>Jaykirch Technology Hub</b>.
+        <b>${company.company_name || ""}</b>.
 
         We look forward to seeing you in class.
 
@@ -11267,7 +10675,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
 
         <br>
 
-        <b>Jaykirch Technology Hub</b>
+        <b>${company.company_name || ""}</b>
 
         </div>
 
@@ -11279,7 +10687,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         font-size:12px;
         ">
 
-        © ${new Date().getFullYear()} Jaykirch Technology Hub
+        © ${new Date().getFullYear()} ${company.company_name || ""}
 
         </div>
 
@@ -12423,22 +11831,28 @@ exports.assignStudentsToTerm = async (req, res) => {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Term Students");
 
+      const infoResult = await pool.query(
+        "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+      );
+      const company = infoResult.rows[0] || {};
 
       // 🔥 Fetch logo from URL
-      const response = await axios.get(
-        "https://acad.jkthub.com/images/JKT%20logo.png",
-        { responseType: "arraybuffer" }
-      );
+      if (company.logo_url) {
+        const response = await axios.get(
+          company.logo_url,
+          { responseType: "arraybuffer" }
+        );
 
-      const imageId = workbook.addImage({
-        buffer: response.data,
-        extension: "png",
-      });
+        const imageId = workbook.addImage({
+          buffer: response.data,
+          extension: "png",
+        });
 
-      sheet.addImage(imageId, {
-        tl: { col: 0, row: 1 },
-        ext: { width: 80, height: 80 },
-      });
+        sheet.addImage(imageId, {
+          tl: { col: 0, row: 1 },
+          ext: { width: 80, height: 80 },
+        });
+      }
 
       // ✅ Title
       sheet.mergeCells("B2:D4");
@@ -12972,6 +12386,11 @@ exports.exportAttendancePDF = async (req, res) => {
 
     const s = sessionRes.rows[0];
 
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const company = infoResult.rows[0] || {};
+
     const html = `
     <!DOCTYPE html>
     <html>
@@ -13074,7 +12493,7 @@ exports.exportAttendancePDF = async (req, res) => {
           <p><b>Date Taken:</b> ${new Date(s.date).toDateString()}</p>
         </div>
 
-        <img class="logo" src="https://acad.jkthub.com/images/JKT%20logo.png" />
+        <img class="logo" src="${company.logo_url || ""}" />
       </div>
 
       <div class="info">

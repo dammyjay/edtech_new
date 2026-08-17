@@ -47,6 +47,13 @@
     📈 Engagement
   </button>
 
+  <button
+    class="login-tab"
+    onclick="openDashboardTab('reports-section', this)"
+  >
+    📑 Reports & Pitch Decks
+  </button>
+
 </div>
 
 <div id="overview-section">
@@ -875,6 +882,90 @@
       </button>
 </div>
 
+<div id="reports-section" style="display:none;">
+  <h2>Reports & Pitch Decks</h2>
+
+  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+    <h3>Analytics Report</h3>
+    <p style="color:#666;">Generate a monthly or yearly analytics report with AI-written commentary, exported as PDF, Excel, and PowerPoint.</p>
+
+    <div class="filter-bar">
+      <select id="reportScope" onchange="toggleReportPeriodInputs()">
+        <option value="month">Monthly</option>
+        <option value="year">Yearly</option>
+      </select>
+
+      <select id="reportYear"></select>
+
+      <select id="reportMonth">
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+    </div>
+
+    <div style="margin:15px 0;">
+      <label><input type="checkbox" id="formatPdf" checked> PDF</label>
+      &nbsp;&nbsp;
+      <label><input type="checkbox" id="formatExcel" checked> Excel</label>
+      &nbsp;&nbsp;
+      <label><input type="checkbox" id="formatPptx" checked> PowerPoint</label>
+    </div>
+
+    <button onclick="generatePlatformReport()" id="generateReportBtn">Generate & Download</button>
+    &nbsp;
+    <button onclick="emailPlatformReportNow()" id="emailReportBtn">Send me a copy by email now</button>
+
+    <p id="reportStatus" style="margin-top:10px; color:#666;"></p>
+  </div>
+
+  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+    <h3>Pitch Deck</h3>
+    <p style="color:#666;">Generate an AI-assisted PowerPoint pitch deck tailored to a specific audience.</p>
+
+    <div class="filter-bar">
+      <select id="pitchDeckAudience">
+        <option value="schools">Schools</option>
+        <option value="grants">Grant Applications</option>
+        <option value="investors">Investors</option>
+        <option value="partners">Partners</option>
+      </select>
+    </div>
+
+    <button onclick="generatePitchDeck()" id="generateDeckBtn">Generate Pitch Deck</button>
+
+    <p id="deckStatus" style="margin-top:10px; color:#666;"></p>
+  </div>
+
+  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+    <h3>Recent Reports</h3>
+    <div class="table-responsive">
+      <table class="user-table sortable-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Period / Audience</th>
+            <th>Formats</th>
+            <th>Triggered By</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="reportHistoryTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="activityModal" class="modal">
   <div class="modal-content">
 
@@ -1642,7 +1733,8 @@
           'learning-section',
           'schools-section',
           'finance-section',
-          'engagement-section'
+          'engagement-section',
+          'reports-section'
         ];
 
         sections.forEach(id => {
@@ -1661,4 +1753,193 @@
 
         btn.classList.add("active");
       }
+    </script>
+
+    <script>
+      function toggleReportPeriodInputs() {
+        const scope = document.getElementById("reportScope").value;
+        document.getElementById("reportMonth").style.display =
+          scope === "month" ? "inline-block" : "none";
+      }
+
+      function populateReportYearSelect() {
+        const yearSelect = document.getElementById("reportYear");
+        const currentYear = new Date().getFullYear();
+        yearSelect.innerHTML = "";
+        for (let y = currentYear; y >= 2023; y--) {
+          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+      }
+
+      function getSelectedFormats() {
+        const formats = [];
+        if (document.getElementById("formatPdf").checked) formats.push("pdf");
+        if (document.getElementById("formatExcel").checked) formats.push("excel");
+        if (document.getElementById("formatPptx").checked) formats.push("pptx");
+        return formats;
+      }
+
+      function getReportRequestBody() {
+        return {
+          scope: document.getElementById("reportScope").value,
+          year: document.getElementById("reportYear").value,
+          month: document.getElementById("reportMonth").value,
+          formats: getSelectedFormats(),
+        };
+      }
+
+      function downloadBase64File(base64, filename, mimeType) {
+        const byteChars = atob(base64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+          byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      async function generatePlatformReport() {
+        const btn = document.getElementById("generateReportBtn");
+        const status = document.getElementById("reportStatus");
+        btn.disabled = true;
+        status.innerText = "Generating report — this can take up to a minute...";
+
+        try {
+          const res = await fetch("/admin/reports/platform/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(getReportRequestBody()),
+          });
+          const data = await res.json();
+
+          if (!data.success) {
+            status.innerText = "Failed to generate report: " + (data.message || "Unknown error");
+            return;
+          }
+
+          data.files.forEach((f) => downloadBase64File(f.base64, f.filename, f.mimeType));
+          status.innerText = `Report for ${data.periodLabel} generated (${data.files.length} file(s)).`;
+          loadReportHistory();
+        } catch (err) {
+          console.error(err);
+          status.innerText = "Error generating report. Check console.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function emailPlatformReportNow() {
+        const btn = document.getElementById("emailReportBtn");
+        const status = document.getElementById("reportStatus");
+        btn.disabled = true;
+        status.innerText = "Generating and emailing report...";
+
+        try {
+          const res = await fetch("/admin/reports/platform/email-now", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(getReportRequestBody()),
+          });
+          const data = await res.json();
+
+          status.innerText = data.success
+            ? `Report for ${data.periodLabel} emailed to ${data.sentTo}.`
+            : "Failed to email report: " + (data.message || "Unknown error");
+          loadReportHistory();
+        } catch (err) {
+          console.error(err);
+          status.innerText = "Error emailing report. Check console.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function generatePitchDeck() {
+        const btn = document.getElementById("generateDeckBtn");
+        const status = document.getElementById("deckStatus");
+        const audience = document.getElementById("pitchDeckAudience").value;
+        btn.disabled = true;
+        status.innerText = "Generating pitch deck — this can take up to a minute...";
+
+        try {
+          const res = await fetch(`/admin/pitch-decks/download?audience=${audience}`);
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            status.innerText = "Failed to generate pitch deck: " + (data.message || res.statusText);
+            return;
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `pitch-deck-${audience}.pptx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          status.innerText = "Pitch deck generated.";
+          loadReportHistory();
+        } catch (err) {
+          console.error(err);
+          status.innerText = "Error generating pitch deck. Check console.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      const REPORT_TYPE_LABELS = {
+        platform_analytics: "Analytics Report",
+        pitch_deck: "Pitch Deck",
+      };
+
+      const AUDIENCE_LABELS = {
+        schools: "Schools",
+        grants: "Grant Applications",
+        investors: "Investors",
+        partners: "Partners",
+      };
+
+      async function loadReportHistory() {
+        try {
+          const res = await fetch("/admin/reports/platform/history");
+          const data = await res.json();
+          const tbody = document.getElementById("reportHistoryTable");
+          if (!tbody) return;
+
+          tbody.innerHTML = "";
+          (data.history || []).forEach((row) => {
+            const typeLabel = REPORT_TYPE_LABELS[row.report_type] || row.report_type;
+            const detail = row.audience
+              ? (AUDIENCE_LABELS[row.audience] || row.audience)
+              : (row.period_label || "-");
+            const statusColor = row.status === "success" ? "#1B7A3D" : "#B23B3B";
+            const statusTitle = row.error_message ? ` title="${row.error_message.replace(/"/g, "&quot;")}"` : "";
+
+            tbody.innerHTML += `
+              <tr>
+                <td>${typeLabel}</td>
+                <td>${detail}</td>
+                <td>${(row.formats_generated || []).join(", ")}</td>
+                <td>${row.triggered_by === "cron" ? "Scheduled" : "Admin"}</td>
+                <td style="color:${statusColor}; font-weight:600;"${statusTitle}>${row.status}</td>
+                <td>${new Date(row.created_at).toLocaleString()}</td>
+              </tr>
+            `;
+          });
+        } catch (err) {
+          console.error("Failed to load report history:", err);
+        }
+      }
+
+      populateReportYearSelect();
+      toggleReportPeriodInputs();
+      loadReportHistory();
     </script>
