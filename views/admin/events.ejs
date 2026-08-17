@@ -1,16 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Manage Events</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/styles2.css" />
-    <link rel="stylesheet" href="/css/styles3.css" />
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-  </head>
-  <body>
-    <!-- Header -->
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
     <h2>Manage Events</h2>
     <button onclick="openEventModal()" class="btn-create">+ Create Event</button>
@@ -169,6 +157,3 @@
         CKEDITOR.replace("editDescription-<%= event.id %>");
       </script>
     <% }); %>
-
-  </body>
-</html>

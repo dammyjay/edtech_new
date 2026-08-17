@@ -1,14 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Manage Articles</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="icon" type="image/x-icon" href="/logo.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-  </head>
-  <body>
-    <!-- Header -->
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
     <h2>Create New Article</h2>
     <form method="POST" action="/admin/articles" enctype="multipart/form-data">
@@ -181,5 +171,3 @@
         }
       }
     </script>
-  </body>
-</html>

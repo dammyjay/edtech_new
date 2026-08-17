@@ -1,12 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Edit Article</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" type="image/x-icon" href="/logo.png">
-</head>
-<body>
-  <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
   <h2>Edit User</h2>
 <form action="/admin/users/edit/<%= user.id %>" method="POST">
@@ -54,6 +46,3 @@
         nav.classList.toggle("open");
       }
     </script>
-
-</body>
-</html>

@@ -1,13 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Manage FAQs</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="icon" type="image/x-icon" href="/logo.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-  </head>
-  <body>
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
     
     <h2>Manage Frequently Asked Questions</h2>
     <form method="GET" action="/admin/faqs" style="margin: 20px 0;"> <label for="status">Filter:</label> <select name="filter" onchange="this.form.submit()"> <option value="">All</option> <option value="published" <%= filter === 'published' ? 'selected' : '' %>>Published</option> <option value="answered" <%= filter === 'answered' ? 'selected' : '' %>>Answered</option> <option value="unanswered" <%= filter === 'unanswered' ? 'selected' : '' %>>Unanswered</option> </select> </form>
@@ -53,5 +44,3 @@
     }
   });
 </script>
-  </body>
-</html>

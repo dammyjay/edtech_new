@@ -30,10 +30,10 @@
         
         <% if (role === 'admin') { %>
           <div class="dropdown">
-          <button class="dropbtn" onclick="toggleDropdown('schoolsMenu')">
+          <button class="dropbtn" onclick="toggleDropdown('dashboardMenu')">
               Dashboard ▾
             </button>
-            <div class="dropdown-content" id="schoolsMenu">
+            <div class="dropdown-content" id="dashboardMenu">
               <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
                 Dashboard
               </a>
@@ -75,7 +75,7 @@
             <button class="dropbtn" onclick="toggleDropdown('resourceMenu')">
               Resource ▾
             </button>
-            <div class="dropdown-content" id="resounceMenu">
+            <div class="dropdown-content" id="resourceMenu">
               <a href="/admin/pathways">Pathways</a>
               <a href="/admin/courses">Courses</a>
               <a href="/admin/guides">Guides</a>
@@ -173,6 +173,29 @@
         if (btn) btn.setAttribute('aria-expanded', 'false');
       }
     }
+  });
+</script>
+
+<script>
+  // Dropdown menus (Dashboard/Students/Schools/etc.) previously only opened
+  // via CSS :hover, so the onclick="toggleDropdown(...)" on every .dropbtn
+  // called a function that was never defined — touch devices had no way to
+  // open them at all. This makes tap/click actually work everywhere.
+  window.toggleDropdown = function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    if (!menu) return;
+    const isOpen = menu.classList.contains('show');
+    document.querySelectorAll('.dropdown-content.show').forEach(function (el) {
+      el.classList.remove('show');
+    });
+    if (!isOpen) menu.classList.add('show');
+  };
+
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('.dropdown')) return;
+    document.querySelectorAll('.dropdown-content.show').forEach(function (el) {
+      el.classList.remove('show');
+    });
   });
 </script>
 

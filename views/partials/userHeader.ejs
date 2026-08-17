@@ -7,7 +7,7 @@
          <!-- <p>Fasttrack IT Innovations</p> -->
       </div>
 
-      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+      <button id="nav-toggle-btn" class="nav-toggle" onclick="toggleNav()" aria-expanded="false" aria-controls="main-nav">☰</button>
       <div id="main-nav" class="main-nav">
         <nav >
           <a class="<%= activePage === 'home' ? 'active' : '' %>" href="/">Home</a>
@@ -47,5 +47,47 @@
               
             <% } %>
         </div>
-      </div>  
+      </div>
 </header>
+
+<script>
+  // Profile dropdown — previously only opened via CSS :hover, so
+  // onclick="toggleDropdown(...)" called a function that didn't exist.
+  window.toggleDropdown = function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    if (!menu) return;
+    const isOpen = menu.classList.contains('show');
+    document.querySelectorAll('.dropdown-content.show').forEach(function (el) {
+      el.classList.remove('show');
+    });
+    if (!isOpen) menu.classList.add('show');
+  };
+
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('.dropdown')) return;
+    document.querySelectorAll('.dropdown-content.show').forEach(function (el) {
+      el.classList.remove('show');
+    });
+  });
+
+  document.addEventListener('click', function (event) {
+    const nav = document.getElementById('main-nav');
+    const btn = document.getElementById('nav-toggle-btn');
+    if (!nav || !btn) return;
+    if (!nav.classList.contains('open')) return;
+    if (nav.contains(event.target) || btn.contains(event.target)) return;
+    nav.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  }, true);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      const nav = document.getElementById('main-nav');
+      const btn = document.getElementById('nav-toggle-btn');
+      if (nav && nav.classList.contains('open')) {
+        nav.classList.remove('open');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      }
+    }
+  });
+</script>

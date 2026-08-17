@@ -1,15 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Edit Ministry Info</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="icon" type="image/x-icon" href="/logo.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-  </head>
-  <body>
-    <!-- Header -->
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
     
     <h2>Ministry Info</h2>
     <form method="POST" action="/admin/ministry" enctype="multipart/form-data">
@@ -56,5 +45,3 @@
     <script>
       CKEDITOR.replace("content");
     </script>
-  </body>
-</html>

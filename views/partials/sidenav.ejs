@@ -31,8 +31,8 @@
   /* Sidebar */
   .sidenav {
     width: 220px;
-    background: #1270b0;
-    color: #fff;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
     height: 100vh;
     padding: 15px;
     position: fixed;
@@ -44,6 +44,8 @@
 
   .sidenav h2 {
     margin-bottom: 20px;
+    color: var(--sidebar-text);
+    font-size: 1.05rem;
   }
 
   .sidenav ul {
@@ -52,19 +54,21 @@
   }
 
   .sidenav ul li {
-    margin: 10px 0;
+    margin: 4px 0;
   }
 
   .sidenav ul li a {
-    color: #fff;
+    color: var(--sidebar-text-muted);
     text-decoration: none;
     display: block;
-    padding: 8px;
-    border-radius: 4px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   .sidenav ul li a:hover {
-    background: #0b4e7a;
+    background: var(--sidebar-bg-active);
+    color: var(--brand-pri-light);
   }
 
   /* Main content */
@@ -92,7 +96,7 @@
     position: fixed;
     top: 10px;
     right: 10px;
-    background: #1270b0;
+    background: var(--sidebar-bg);
     color: #fff;
     border: none;
     padding: 10px 14px;
@@ -145,7 +149,7 @@
 }
 
 .classroom-header {
-  background: #1270b0;
+  background: var(--brand-pri);
   color: #fff;
   padding: 15px;
   cursor: pointer;
@@ -194,7 +198,7 @@
 @keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
 
   .collapsible-header {
-    background: #1270b0;
+    background: var(--brand-pri);
     color: #fff;
     padding: 10px;
     cursor: pointer;

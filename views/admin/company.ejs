@@ -1,17 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Edit company Info</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/styles2.css" />
-    <link rel="stylesheet" href="/css/styles3.css" />
-    <link rel="icon" type="image/x-icon" href="/public/images/JKT logo.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-  </head>
-  <body>
-    <!-- Header -->
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
     <h2>company Info</h2>
     <form method="POST" action="/admin/company" enctype="multipart/form-data">
@@ -66,5 +53,3 @@
     <script>
       CKEDITOR.replace("content");
     </script>
-  </body>
-</html>

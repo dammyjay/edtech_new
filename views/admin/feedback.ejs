@@ -1,15 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Feedback Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/style2.css">
-  <link rel="stylesheet" href="/css/style3.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.2/wordcloud2.min.js"></script>
-
-  <style>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'feedback' }) %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.2/wordcloud2.min.js"></script>
+<style>
     /* ===== GRID RESPONSIVE ===== */
     .feedback-grid {
       display: grid;
@@ -301,11 +293,6 @@
       }
     }
   </style>
-</head>
-
-<body>
-
-  <%- include('../partials/adminHeader', { info: info, currentPage: 'feedback' }) %>
 
   <h1 style="margin-top:20px;">Feedback Dashboard</h1>
 
@@ -593,6 +580,3 @@ applyFilters.addEventListener("click", ()=>{currentPage=1; loadFeedback();});
 
 loadFeedback();
 </script>
-
-</body>
-</html>

@@ -1,15 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Event Registrations</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/styles2.css" />
-    <link rel="stylesheet" href="/css/styles3.css" />
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo.png" />
-  </head>
-  <body>
-    <!-- Header -->
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
     <h1>📋 Registrations for <%= event.title %></h1>
 
@@ -137,5 +126,3 @@
         });
       }
     </script>
-  </body>
-</html>
