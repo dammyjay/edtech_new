@@ -3,7 +3,7 @@
         <% if (info?.logo_url) { %>
         <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
         <% } %>
-        <h4><%= info?.company_name || 'JKT Hub' %></h4>
+        <h4><%= (info?.company_name || 'JKT Hub').trim() %></h4>
          <!-- <p>Fasttrack IT Innovations</p> -->
       </div>
 
@@ -90,4 +90,31 @@
       }
     }
   });
+
+  // Highlight whichever nav/dropdown link matches the current page, so the
+  // user always sees where they are. Picks the most specific (longest)
+  // matching href, and also lights up the parent dropdown button.
+  (function highlightActiveNav() {
+    var path = window.location.pathname.replace(/\/+$/, '') || '/';
+    var best = null, bestLen = -1;
+    document.querySelectorAll('#main-nav a[href]').forEach(function (link) {
+      var href = link.getAttribute('href');
+      if (!href || href.charAt(0) !== '/') return;
+      var normalized = href.replace(/\/+$/, '') || '/';
+      var matches = normalized === '/'
+        ? path === '/'
+        : (path === normalized || path.indexOf(normalized + '/') === 0);
+      if (matches && normalized.length > bestLen) {
+        best = link;
+        bestLen = normalized.length;
+      }
+    });
+    if (best) {
+      best.classList.add('active');
+      var content = best.closest('.dropdown-content');
+      var dropdown = content && content.closest('.dropdown');
+      var btn = dropdown && dropdown.querySelector('.dropbtn');
+      if (btn) btn.classList.add('active');
+    }
+  })();
 </script>

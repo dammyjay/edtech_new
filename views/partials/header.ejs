@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <title><%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
@@ -20,7 +20,7 @@
       </a>
     <% } %>
 
-    <p><%= info?.company_name || 'JKT Hub' %></p>
+    <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
   </div>
 
   <!-- MOBILE TOGGLE -->
@@ -120,6 +120,25 @@ function hideLoading() {
       btn.setAttribute("aria-expanded", "false");
     }
   });
+
+  // Highlight whichever nav link matches the current page.
+  (function highlightActiveNav() {
+    var path = window.location.pathname.replace(/\/+$/, '') || '/';
+    var best = null, bestLen = -1;
+    document.querySelectorAll('#main-nav a[href]').forEach(function (link) {
+      var href = link.getAttribute('href');
+      if (!href || href.charAt(0) !== '/') return;
+      var normalized = href.replace(/\/+$/, '') || '/';
+      var matches = normalized === '/'
+        ? path === '/'
+        : (path === normalized || path.indexOf(normalized + '/') === 0);
+      if (matches && normalized.length > bestLen) {
+        best = link;
+        bestLen = normalized.length;
+      }
+    });
+    if (best) best.classList.add('active');
+  })();
 </script>
 
 <script>

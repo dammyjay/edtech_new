@@ -12,7 +12,7 @@
     <% if (info?.logo_url) { %>
       <a href="/"><img src="<%= info.logo_url %>" alt="Logo" /></a>
     <% } %>
-    <p><%= info?.company_name || 'C&S Church Online' %></p>
+    <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
   </div>
 
   <hr>

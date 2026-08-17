@@ -193,7 +193,7 @@ exports.showArticles = async (req, res) => {
     const search = req.query.search || ""; // ✅ define the variable
 
     const infoResult = await pool.query(
-      "SELECT * FROM ministry_info ORDER BY id DESC LIMIT 1"
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
     const info = infoResult.rows[0] || {};
 

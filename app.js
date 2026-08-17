@@ -40,6 +40,14 @@ app.use(layout);
 
 app.set("view engine", "ejs");
 app.set("view cache", false);
+// Almost every view already renders its own complete <!DOCTYPE html>...
+// document (via a header partial or its own <head>), so wrapping every
+// res.render() in views/layout.ejs by default produced a second, nested
+// <html>/<head>/<body> on nearly every page — the extra <title> from the
+// layout silently won in the browser tab over each page's real title.
+// Layouts are now opt-in per render call (pass { layout: 'layout' }) for
+// the handful of pages that actually rely on it for their shell.
+app.set("layout", false);
 app.use(express.static(path.join(__dirname, "public")));
 // app.use(bodyParser.urlencoded({ extended: false }));
 app.use(
@@ -73,6 +81,27 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   res.locals.title = "Company"; // Default title
+  next();
+});
+
+// Make the admin-configured company info (logo, name) available to every
+// view by default, so headers show the real branding even on routes whose
+// controller forgot to fetch and pass its own `info`. A controller that
+// does pass `info` to res.render() still takes precedence over this.
+app.use(async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = result.rows[0] || {};
+    if (typeof info.company_name === "string") {
+      info.company_name = info.company_name.trim();
+    }
+    res.locals.info = info;
+  } catch (err) {
+    console.error("Failed to load company_info:", err.message);
+    res.locals.info = res.locals.info || {};
+  }
   next();
 });
 

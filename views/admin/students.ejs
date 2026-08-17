@@ -13,7 +13,7 @@
           <% info = info || {}; %> <% if (info.logo_url) { %>
           <img src="<%= info.logo_url %>" alt="Logo" />
           <% } %>
-          <p><%= info?.company_name || 'Jaykirch Tech Hub' %></p>
+          <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
       </div>
       <a style="text-decoration: none; color: white;" href="/admin/dashboard">⬅ Back to Dashboard</a>
     </header>

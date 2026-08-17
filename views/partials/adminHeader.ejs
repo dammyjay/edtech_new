@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title><%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
@@ -18,23 +18,17 @@
         <% info = info || {}; %> <% if (info.logo_url) { %>
         <img src="<%= info.logo_url %>" alt="Logo" />
         <% } %>
-        <p><%= info?.company_name || 'Jaykirch Tech Hub' %></p>
+        <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
       </div>
-      <!-- <button class="nav-toggle" onclick="toggleNav()">☰</button> -->
        <button id="nav-toggle-btn" class="nav-toggle" onclick="toggleNav()" aria-expanded="false" aria-controls="main-nav">☰</button>
       <nav id="main-nav">
-        <!-- <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
-          Dashboard
-        </a> -->
-        
-        
         <% if (role === 'admin') { %>
           <div class="dropdown">
           <button class="dropbtn" onclick="toggleDropdown('dashboardMenu')">
               Dashboard ▾
             </button>
             <div class="dropdown-content" id="dashboardMenu">
-              <a class="active" href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
+              <a href="<%= role === 'admin' ? '/admin/dashboard' : '/instructor/dashboard' %>">
                 Dashboard
               </a>
               <a href="/admin/db">Database</a>
@@ -197,6 +191,33 @@
       el.classList.remove('show');
     });
   });
+
+  // Highlight whichever nav/dropdown link matches the current page, and
+  // light up the parent dropdown button so e.g. "Students ▾" shows as
+  // active while browsing any page under Students.
+  (function highlightActiveNav() {
+    var path = window.location.pathname.replace(/\/+$/, '') || '/';
+    var best = null, bestLen = -1;
+    document.querySelectorAll('#main-nav a[href]').forEach(function (link) {
+      var href = link.getAttribute('href');
+      if (!href || href.charAt(0) !== '/') return;
+      var normalized = href.replace(/\/+$/, '') || '/';
+      var matches = normalized === '/'
+        ? path === '/'
+        : (path === normalized || path.indexOf(normalized + '/') === 0);
+      if (matches && normalized.length > bestLen) {
+        best = link;
+        bestLen = normalized.length;
+      }
+    });
+    if (best) {
+      best.classList.add('active');
+      var content = best.closest('.dropdown-content');
+      var dropdown = content && content.closest('.dropdown');
+      var btn = dropdown && dropdown.querySelector('.dropbtn');
+      if (btn) btn.classList.add('active');
+    }
+  })();
 </script>
 
 <script>

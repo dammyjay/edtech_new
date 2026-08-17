@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title><%= info?.company_name || 'JKT Hub' %></title>
+    <title><%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
@@ -25,7 +25,7 @@
  
       <section class="hero-section" style="background-image: url('<%= info.hero_image_url %>');">
         <div class="hero-overlay">
-          <h1>Welcome to <%= info?.company_name || 'Jaykirch Tech Hub' %></h1>
+          <h1>Welcome to <%= (info?.company_name || 'JKT Hub').trim() %></h1>
           <p><%= info?.vision || 'Empowering lives through the gospel of Christ.' %></p>
           
           <div class="cta-actions" style="display: flex; justify-content: center; gap: 10px;">

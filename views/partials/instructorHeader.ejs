@@ -3,7 +3,7 @@
     <% if (info && info.logo_url) { %>
       <img src="<%= info.logo_url %>" alt="Logo" />
     <% } %>
-    <p><%= info?.company_name || 'Jaykirch Tech Hub' %></p>
+    <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
   </div>
   <button class="nav-toggle" onclick="toggleNav()">☰</button>
   <nav id="main-nav">

@@ -20,7 +20,7 @@ router.get("/faq", async (req, res) => {
     }
 
     const infoResult = await pool.query(
-      "SELECT * FROM ministry_info ORDER BY id DESC LIMIT 1"
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
 
     res.render("faq", {
@@ -71,7 +71,7 @@ router.post("/faq/ask", async (req, res) => {
 // Show Testimony Form Page (optional if part of another page)
 router.get("/testimony", async (req, res) => {
   const infoResult = await pool.query(
-    "SELECT * FROM ministry_info ORDER BY id DESC LIMIT 1"
+    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
   res.render("testimony", {
     info: infoResult.rows[0] || {},

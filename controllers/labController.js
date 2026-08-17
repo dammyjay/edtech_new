@@ -32,24 +32,28 @@ const LAB_TEMPLATES = {
 exports.getLabDashboard = async (req, res) => {
   res.render("labs/dashboard", {
     title: "Learning Labs",
+    layout: "layout",
   });
 };
 
 exports.getWebLab = async (req, res) => {
   res.render("labs/web/editor", {
     title: "Web Playground",
+    layout: "layout",
   });
 };
 
 exports.getBlocklyLab = async (req, res) => {
   res.render("labs/blockly/editor", {
     title: "Blockly Playground",
+    layout: "layout",
   });
 };
 
 exports.getArduinoLab = async (req, res) => {
   res.render("labs/arduino/editor", {
     title: "Arduino Playground",
+    layout: "layout",
   });
 };
 

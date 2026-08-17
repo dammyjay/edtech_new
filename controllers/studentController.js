@@ -3015,6 +3015,8 @@ exports.getClassroom = async (req, res) => {
     res.render("student/classroom", {
       classroom,
       classmates: classmatesRes.rows,
+      title: "My Classroom",
+      layout: "layout",
     });
   } catch (err) {
     console.error("Classroom Error:", err.message);
@@ -3052,6 +3054,8 @@ exports.getTeacher = async (req, res) => {
 
     res.render("student/teacher", {
       teachers: teacherRes.rows,
+      title: "My Teachers",
+      layout: "layout",
     });
   } catch (err) {
     console.error("Teacher Error:", err.message);
