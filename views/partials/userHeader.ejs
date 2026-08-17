@@ -34,8 +34,14 @@
                   <a style="color: black;" href="/profile">View Profile</a>
                   
                   <% if (users) { %>
+                  <% if (users.role === "school_admin") { %>
+                  <a style="color: black;" href="/school-admin/dashboard">Dashboard</a>
+                  <% } else if (users.role === "user") { %>
+                  <a style="color: black;" href="/student/dashboard">Dashboard</a>
+                  <% } else { %>
                   <a style="color: black;" href="/<%= users.role %>/dashboard">Dashboard</a>
-                  <% } %>   
+                  <% } %>
+                  <% } %>
                 </div>
               </div>
               
