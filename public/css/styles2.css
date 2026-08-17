@@ -34,13 +34,15 @@
     color: white;
     padding: 10px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius);
     margin: 10px 0;
-    cursor: pointer; 
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-black:hover {
     background-color: #333333;
+    box-shadow: var(--shadow-sm);
 }
 
 .container2 {
@@ -341,18 +343,20 @@
 }
 
 .btn-secondary {
-    background-color: #007bff;
+    background-color: var(--brand-pri);
     color: white;
     border: none;
-    padding: 8px 14px;
-    border-radius: 4px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
     cursor: pointer;
     text-decoration: none;
-    transition: background-color 0.3s ease;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-secondary:hover {
-    background-color: #0056b3;
+    background-color: var(--brand-pri-dark);
+    box-shadow: var(--shadow-sm);
 }
 
 .pagination {
@@ -365,49 +369,59 @@
 
 .pagination a {
     padding: 8px 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
     text-decoration: none;
     background-color: #f8f8f8;
-    color: #333;
-    transition: all 0.3s ease;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
 }
 
 .pagination a:hover {
-    background-color: #e0e0e0;
-    border-color: #888;
+    background-color: var(--brand-tint);
+    border-color: var(--brand-pri);
+    color: var(--brand-pri-dark);
 }
 
 .pagination a.active {
-    background-color: #4CAF50;
+    background-color: var(--brand-pri);
     color: white;
-    border-color: #4CAF50;
-    font-weight: bold;
+    border-color: var(--brand-pri);
+    font-weight: 700;
 }
 
 .btn-show {
     display: inline-block;
     margin-top: 10px;
-    padding: 8px 14px;
-    background: #007BFF;
+    padding: 8px 16px;
+    background: var(--brand-pri);
     color: white;
     text-decoration: none;
-    border-radius: 5px;
+    font-weight: 600;
+    border-radius: var(--radius);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-show:hover {
+    background: var(--brand-pri-dark);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-register {
-    background-color: #007bff;
+    background-color: var(--brand-pri);
     color: white;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: var(--radius);
     display: inline-block;
     text-decoration: none;
     margin-top: 15px;
-    font-weight: bold;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-register:hover {
-    background-color: #0056b3;
+    background-color: var(--brand-pri-dark);
+    box-shadow: var(--shadow-sm);
 }
 
 .event_section{
@@ -778,14 +792,6 @@
     .dashboard-stats h3 p {
         color: #000;
     }
-        .stat-box {
-    background: #f2f2f2;
-    padding: 10px 15px;
-    border-radius: 6px;
-    text-align: center;
-    margin-bottom: 15px;
-    color: #000;
-    }
 /* === Sidebar === */
 
 .sidebar {
@@ -1025,64 +1031,78 @@ canvas {
 }
 
 .stat-box {
-    flex: 1 1 calc(25% - 20px);
-    /* 4 per row on desktop */
+    flex: 1 1 220px;
     min-width: 220px;
-    /* stop shrinking too much */
     max-width: 280px;
-    /* optional: keep them from stretching too far */
-
-    padding: 25px 20px;
-    border-radius: 12px;
+    padding: 24px 20px;
+    border-radius: var(--radius-lg);
     text-align: center;
-    background: #f9f9f9;
+    background: var(--bg-secondary);
     box-sizing: border-box;
-    color: #000;
-
-    /* style effects */
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .stat-box:hover {
-    transform: translateY(-5px);
-    box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
-/* Headings inside stat-box */
+/* Label — pages use either <h3> or <h4> for it */
+.stat-box h3,
 .stat-box h4 {
-    font-size: 1rem;
-    margin-bottom: 12px;
-    color: #444;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 10px;
+    color: var(--text-secondary);
 }
 
-/* Numbers inside stat-box */
+/* Number */
 .stat-box p {
-    font-size: 1.6rem;
-    font-weight: bold;
-    color: #222;
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: var(--text-primary);
     margin: 0;
 }
 
 /* Color variations */
 .stat-box.light-blue {
-    background: #e3f2fd;
-    color: #0d47a1;
+    background: #E9F1FC;
+    color: #17457A;
+}
+
+.stat-box.light-green {
+    background: #EAF6EE;
+    color: #1E6B34;
 }
 
 .stat-box.light-pink {
-    background: #fce4ec;
-    color: #880e4f;
+    background: #FBEAF0;
+    color: #8A2452;
 }
 
 .stat-box.light-yellow {
-    background: #fff8e1;
-    color: #f57f17;
+    background: var(--brand-tint);
+    color: var(--brand-pri-dark);
 }
 
 .stat-box.light-grey {
-    background: #f5f5f5;
-    color: #424242;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.stat-box.light-blue h3, .stat-box.light-blue h4,
+.stat-box.light-green h3, .stat-box.light-green h4,
+.stat-box.light-pink h3, .stat-box.light-pink h4,
+.stat-box.light-yellow h3, .stat-box.light-yellow h4,
+.stat-box.light-grey h3, .stat-box.light-grey h4,
+.stat-box.light-blue p, .stat-box.light-green p,
+.stat-box.light-pink p, .stat-box.light-yellow p,
+.stat-box.light-grey p {
+    color: inherit;
 }
 
 /* .engagement-section {
@@ -1149,49 +1169,61 @@ canvas {
     align-items: center;
     justify-content: space-between;
     flex-direction: column;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     position: relative;
     overflow: hidden;
-    border-radius: 0 0 14px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .metric-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
-.metric-card-content{
+.metric-card-content {
     display: flex;
     justify-content: space-between;
-    width:90%;
-    padding: 10px 8px
+    align-items: center;
+    width: 90%;
+    padding: 14px 8px;
 }
 
-.metric-card-content h4{
-    font-size: 24px;
+.metric-card-content h4 {
+    font-size: 26px;
     margin: 0;
-    font-weight: bold;
-} 
+    font-weight: 800;
+    color: var(--text-primary);
+}
 
-.card-title{
+.card-title {
     width: 100%;
     text-align: center;
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--neutral2);
+    padding: 12px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.card-title p {
+    margin: 0;
 }
 
 /* ICON CIRCLE */
 .card-icon {
-    width: 55px;
-    height: 55px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 20px;
+    font-size: 18px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 /* COLORS */
@@ -2360,12 +2392,22 @@ canvas {
     gap: 15px;
 }
 
-.card {
+/* Scoped to .card-container so this teacher-profile card variant
+   doesn't leak its fixed width into the generic .card used elsewhere
+   (course/gallery listing cards). */
+.card-container .card {
     background: #fff;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
     padding: 15px;
     width: 220px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card-container .card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -3121,61 +3163,26 @@ canvas {
         .metric-card h3 h4 {
             font-size: 15px;
         }
-    
-.metric-card h4 {
-            font-size: 15px;
-        }
 
-.metric-card {
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-direction: column;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    border-radius: 0 0 14px 14px;
-}
-
-.metric-card-content {
-    display: flex;
-    justify-content: space-between;
-    width: 90%;
-    padding: 10px 8px
-}
-
+/* Mobile-only size adjustments — shape (radius/shadow/hover) is shared
+   with the base .metric-card rule and doesn't need to change here. */
 .metric-card-content h4 {
-    font-size: 18px;
-    margin: 0;
-    font-weight: bold;
+    font-size: 20px;
 }
 
 .card-title {
-    width: 100%;
-    text-align: center;
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--neutral2);
+    font-size: 11px;
+    padding: 10px;
 }
 
 .card-title p {
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--neutral2);
+    font-size: 11px;
 }
 
-
 .card-icon {
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 15px;
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
 }
 
 .card-icon i {

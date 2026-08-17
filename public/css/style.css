@@ -41,7 +41,9 @@
     /* Elevation */
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --radius-sm: 8px;
     --radius: 10px;
+    --radius-lg: 16px;
 }
 
 
@@ -115,32 +117,44 @@ body {
     margin-bottom: 20px;
 }
 
+/* ============================
+   TAB BAR — shared by .instructor-tabs/.tab-btn and .login-tabs/.login-tab
+   (see line ~2100). Same look everywhere: a horizontally scrollable row
+   of underline tabs, gold when active.
+============================ */
 .instructor-tabs {
   display: flex;
-  gap: 10px;
-  border-bottom: 2px solid #e0e0e0;
-  padding-bottom: 10px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  border-bottom: 2px solid var(--border-light);
   margin-bottom: 20px;
 }
 
 .tab-btn {
+  flex: 0 0 auto;
   background: none;
   border: none;
-  padding: 10px 16px;
-  font-size: 15px;
+  white-space: nowrap;
+  padding: 10px 18px;
+  font-size: 14.5px;
+  font-weight: 600;
   cursor: pointer;
   border-bottom: 3px solid transparent;
-  color: #555;
+  color: var(--text-secondary);
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .tab-btn:hover {
-  color: var(--brand-pri);
+  color: var(--brand-pri-dark);
 }
 
 .tab-btn.active {
-  color: var(--brand-pri);
-  border-bottom-color: var(--brand-pri)  ;
-  font-weight: bold;
+  color: var(--brand-pri-dark);
+  border-bottom-color: var(--brand-pri);
+  font-weight: 700;
 }
 
 .lesson-main-area {
@@ -297,49 +311,61 @@ header {
     align-items: center;
     justify-content: space-between;
     flex-direction: column;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     position: relative;
     overflow: hidden;
-    border-radius: 0 0 14px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .metric-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .metric-card-content {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     width: 90%;
-    padding: 10px 8px
+    padding: 14px 8px;
 }
 
 .metric-card-content h4 {
-    font-size: 24px;
+    font-size: 26px;
     margin: 0;
-    font-weight: bold;
+    font-weight: 800;
+    color: var(--text-primary);
 }
 
 .card-title {
     width: 100%;
     text-align: center;
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--neutral2);
+    padding: 12px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.card-title p {
+    margin: 0;
 }
 
 /* ICON CIRCLE */
 .card-icon {
-    width: 55px;
-    height: 55px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 20px;
+    font-size: 18px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 /* COLORS */
@@ -478,55 +504,87 @@ header {
 }
 
 .stat-box {
-    flex: 1 1 200px;
+    flex: 1 1 220px;
     min-width: 220px;
-    background: #fff;
-    padding: 25px 20px;
+    max-width: 280px;
+    background: var(--bg-secondary);
+    padding: 24px 20px;
     text-align: center;
-    border-radius: 12px;
-    color: #fff;
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
     position: relative;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .stat-box i {
-    font-size: 2rem;
+    font-size: 1.9rem;
     margin-bottom: 10px;
     display: block;
+    opacity: 0.9;
+}
+
+/* Label — pages use either <h3> or <h4> for it */
+.stat-box h3,
+.stat-box h4 {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 10px;
+    color: var(--text-secondary);
 }
 
 .stat-box h2 {
-    font-size: 2.2rem;
-    margin-bottom: 5px;
-    font-weight: bold;
+    font-size: 2.1rem;
+    margin-bottom: 4px;
+    font-weight: 800;
 }
 
 .stat-box p {
-    font-size: 1rem;
+    font-size: 1.7rem;
+    font-weight: 800;
     margin: 0;
+    color: var(--text-primary);
 }
 
-/* ✅ Colors */
+/* Solid-gradient variants — brand-family gold/bronze tones instead of a
+   mismatched rainbow, so every stat tile reads as the same product.
+   These need their own light text since the base is a light card. */
+.stat-box.schools,
+.stat-box.teachers,
+.stat-box.students,
+.stat-box.users {
+    color: #fff;
+}
+
+.stat-box.schools h3, .stat-box.schools h4, .stat-box.schools p,
+.stat-box.teachers h3, .stat-box.teachers h4, .stat-box.teachers p,
+.stat-box.students h3, .stat-box.students h4, .stat-box.students p,
+.stat-box.users h3, .stat-box.users h4, .stat-box.users p {
+    color: inherit;
+}
+
 .stat-box.schools {
-    background: linear-gradient(135deg, #0072ff, #00c6ff);
+    background: linear-gradient(135deg, #B5892A, #7A5A12);
 }
 
 .stat-box.teachers {
-    background: linear-gradient(135deg, #ff7e5f, #feb47b);
+    background: linear-gradient(135deg, #C79A3D, #8C6A1E);
 }
 
 .stat-box.students {
-    background: linear-gradient(135deg, #43cea2, #185a9d);
+    background: linear-gradient(135deg, var(--brand-pri), var(--brand-pri-dark));
 }
 
 .stat-box.users {
-    background: linear-gradient(135deg, #f7971e, #ffd200);
+    background: linear-gradient(135deg, #D9B65C, var(--brand-pri));
 }
 
-/* ✅ Hover */
 .stat-box:hover {
-    transform: translateY(-8px) scale(1.03);
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 em,
@@ -799,13 +857,15 @@ font-size:12px;
     color: white;
     padding: 10px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius);
     margin: 10px 0;
-    cursor: pointer; 
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-black:hover {
     background-color: #333333;
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-nobg {
@@ -813,9 +873,9 @@ font-size:12px;
     color: #000000;
     padding: 10px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius);
     margin: 10px 0;
-    cursor: pointer; 
+    cursor: pointer;
 }
 
 .carousel-btn {
@@ -1175,40 +1235,51 @@ textarea {
     background-color: var(--brand-pri);
     color: #fff;
     font-weight: 600;
-    padding: 12px 16px;
+    padding: 12px 20px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius);
     cursor: pointer;
     font-size: 1rem;
     margin-top: 25px;
-    transition: background-color 0.3s ease;
-    
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .btn-primary:hover {
     background-color: var(--brand-pri-dark);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
 }
 
-/* Buttons */
+/* Buttons — this is the fallback for any plain <button> with no
+   .btn-* class, so it should still look intentional rather than
+   defaulting to the browser's bare grey button. */
 button {
-    font-weight: bold;
-    padding: 12px 24px;
+    background-color: var(--brand-pri);
+    color: #fff;
+    font-weight: 600;
+    padding: 10px 18px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius);
     cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s ease;
-    
+    font-size: 15px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
-.btn-pri{
+button:hover {
+    background-color: var(--brand-pri-dark);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-pri {
     background-color: var(--neutral1);
     color: #fff;
+    border-radius: var(--radius);
 }
 
 .btn-sec {
     background-color: var(--brand-pri);
     color: var(--neutral2);
+    border-radius: var(--radius);
 }
 
 .btn-pri:hover {
@@ -1221,9 +1292,10 @@ button {
     color: #fff;
 }
 
-.btn-red{
+.btn-red {
     background-color: var(--red);
     color: #fff;
+    border-radius: var(--radius);
 }
 
 .btn-red:hover {
@@ -1233,23 +1305,21 @@ button {
 .btn-blue {
     background-color: var(--blue);
     color: #fff;
+    border-radius: var(--radius);
 }
 
 .btn-blue:hover {
     background-color: #0d04a8;
 }
+
 .btn-green {
     background-color: var(--success);
     color: #fff;
+    border-radius: var(--radius);
 }
 
 .btn-green:hover {
     background-color: #1cc88a;
-}
-
-button:hover {
-    background-color: #614f15;
-    /* darker gold */
 }
 
 .multi-btn{
@@ -1856,23 +1926,23 @@ nav a:hover {
 }
 
 .card {
-    background-color: #fafafa;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 1rem;
-    transition: box-shadow 0.3s;
+    background-color: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     height: 100%;
     margin-bottom: 20px;
-    /* margin-top: 20px;  */
 }
 
 .card:hover {
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
-
 
 .card img {
     display: block;
@@ -1881,30 +1951,17 @@ nav a:hover {
     height: 100px;
     width: 100%;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 .card iframe {
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 .card h3 {
     margin-top: 0;
-    color: #4d3b00;
-    /* dark gold */
+    color: var(--brand-pri-dark);
 }
-
-.card {
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    transition: 0.3s;
-}
-    
-    .card:hover {
-    transform: translateY(-4px);
-    }
 
         .card-grid2 {
             display: grid;
@@ -2046,52 +2103,48 @@ nav a:hover {
 ================================= */
 
 .login-tabs {
-    /* display: flex;
-    margin-bottom: 25px;   */
-    /* list-style: none; */
     padding: 0;
-    margin: 30px 0;
+    margin: 24px 0;
     display: flex;
     flex-wrap: nowrap;
+    gap: 4px;
     overflow-x: auto;
     overflow-y: hidden;
-    /* gap: 10px; */
     width: 100%;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
-    max-width: 960px;
+    border-bottom: 2px solid var(--border-light);
 }
 
-
-.login-tab{
-    flex: 1;
-    padding: 10px;
+.login-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 12px 20px;
     border: none;
-    border-bottom: 5px solid var(--brand-pri);
-    border-radius: 15px 15px 0 0;
+    background: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
     cursor: pointer;
-    transition: .3s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    /* gap: 8px; */
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .login-tabs a {
-    background: var(--grey);
     text-decoration: none;
-    color: black; 
+    color: inherit;
 }
 
 .login-tab.active {
-    background: var(--brand-pri);
-    color: #fff;
-    border-bottom: 5px solid var(--neutral1);
+    background: none;
+    color: var(--brand-pri-dark);
+    border-bottom-color: var(--brand-pri);
+    font-weight: 700;
 }
 
 .login-tab:hover {
-    /* transform: translateY(-3px); */
+    color: var(--brand-pri-dark);
 }
 
 /* =========================
@@ -2310,19 +2363,18 @@ nav a:hover {
 }
 
 .login-button {
-    padding: 6px 12px;
+    padding: 8px 16px;
     background-color: var(--brand-pri);
-    /* gold */
     color: white;
-    border-radius: 4px;
+    border-radius: var(--radius);
     text-decoration: none;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .login-button:hover {
     background-color: var(--brand-pri-dark);
-    /* darker gold */
+    box-shadow: var(--shadow-sm);
 }
 
 i {
@@ -2331,19 +2383,18 @@ i {
 }
 
 .logout-button {
-    padding: 6px 12px;
-    background-color: #ff0000;
-    /* gold */
+    padding: 8px 16px;
+    background-color: var(--error);
     color: white;
-    border-radius: 4px;
+    border-radius: var(--radius);
     text-decoration: none;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .logout-button:hover {
     background-color: #a60a0a;
-    /* darker gold */
+    box-shadow: var(--shadow-sm);
     text-decoration: none;
 }
 .user-table-wrapper {
@@ -2412,37 +2463,39 @@ th.sort-desc::after {
 .user-table tr:hover {
     background-color: #f5f5f5;
 }
-.btn-edit {
-    background-color: #4CAF50;
+.btn-edit,
+.btn-view,
+.btn-delete {
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-edit {
+    background-color: #4CAF50;
 }
 
 .btn-view {
     background-color: #000000;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
 }
 
 .btn-edit:hover {
     background-color: #45a049;
+    box-shadow: var(--shadow-sm);
 }
+
 .btn-delete {
     background-color: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
 }
+
 .btn-delete:hover {
     background-color: #e53935;
+    box-shadow: var(--shadow-sm);
 }
 
 
@@ -2784,14 +2837,6 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
     flex-wrap: wrap;
     }
 
-    .stat-box {
-    background: #f2f2f2;
-    padding: 10px 15px;
-    border-radius: 6px;
-    text-align: center;
-    margin-bottom: 15px;
-    color: #000;
-    }
     .dashboard-stats {
     display: flex;
     gap: 20px;
@@ -2822,29 +2867,34 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
 
 .kpi-card {
     background: #fff;
-    border-radius: 18px;
-    padding: 24px;
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
     position: relative;
     overflow: hidden;
-
-    box-shadow:
-        0 10px 30px rgba(0, 0, 0, .06);
-
-    transition: .3s;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .kpi-card:hover {
     transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .kpi-card h5 {
-    color: #777;
-    font-size: 14px;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
 }
 
 .kpi-card h2 {
-    font-size: 32px;
-    margin-top: 10px;
+    font-size: 30px;
+    font-weight: 800;
+    margin-top: 8px;
+    color: var(--text-primary);
 }
 
 .users {
@@ -3002,45 +3052,63 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
 }
 
 /* Modal */
-.modal {
+/* ============================
+   MODALS — one consolidated system. (This used to be three separate,
+   conflicting .modal/.modal-content definitions further down the file
+   that CSS silently merged together: the last-declared .modal-content
+   set `position: relative`, but an earlier block's now-orphaned
+   `top: 50%; left: 50%; transform: translate(-50%, -50%)` still applied
+   on top of it, offsetting every modal on the site away from center.)
+   `margin: auto` centers correctly regardless of whether the calling
+   page's JS sets the parent .modal's display to "block" or "flex"
+   (both are used interchangeably across the codebase). */
+.modal,
+.modal-overlay {
+    display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
+    inset: 0;
+    background: rgba(20, 16, 8, 0.55);
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 24px;
+    box-sizing: border-box;
 }
 
 .modal-content {
     background: #fff;
-    padding: 30px;
-    border-radius: 12px;
-    max-width: 600px;
-    width: 90%;
+    padding: 28px;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    box-sizing: border-box;
     position: relative;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
-    animation: slideUp 0.4s ease-out;
+    margin: 5vh auto;
+    box-shadow: var(--shadow-md);
+    animation: modalIn 0.2s ease-out;
 }
 
 .modal-content h3 {
     margin-bottom: 20px;
 }
 
-.modal-content .close {
+.modal-content .close,
+.modal .close {
     position: absolute;
-    top: 15px;
-    right: 15px;
-    font-size: 22px;
+    top: 14px;
+    right: 18px;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
     cursor: pointer;
-    color: #888;
+    color: #999;
+    transition: color 0.15s ease;
 }
 
-.modal-content .close:hover {
-    color: #000;
+.modal-content .close:hover,
+.modal .close:hover {
+    color: var(--brand-pri-dark);
 }
 
 /* Animations */
@@ -3056,10 +3124,10 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
     }
 }
 
-@keyframes slideUp {
+@keyframes modalIn {
     from {
         opacity: 0;
-        transform: translateY(40px);
+        transform: translateY(16px);
     }
 
     to {
@@ -3094,70 +3162,20 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
     border-radius: 50%;
 }
 
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-
-}
-    
- .modal-content {
-     position: fixed;
-     top: 50%;
-     left: 50%;
-     transform: translate(-50%, -50%);
-     background: white;
-     padding: 30px;
-     border-radius: 10px;
-     overflow-y: auto;
-     max-width: 500px;
-     width: 90%;
-     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-     z-index: 1000;
- }
-
-/* modal  */    
-.modal {
-    position: fixed;
-    z-index: 9999;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: none;
-}
-
-
-.modal-content {
-    background: white;
-    max-height: 90vh;
-    width: 90%;
-    max-width: 600px;
-    overflow-y: auto;
-    padding: 20px;
-    border-radius: 8px;
-    box-sizing: border-box;
-    position: relative; }
-
 .close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    color: #999;
+    font-size: 24px;
     font-weight: bold;
+    line-height: 1;
     cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.close:hover {
+    color: var(--brand-pri-dark);
 }
 
 /* Announcement Section Styling */
@@ -3451,20 +3469,6 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
     .selection-grid{
       grid-template-columns:repeat(2,1fr);
     }
-.login-tab {
-        flex: 1;
-        padding: 10px;
-        border: none;
-        border-bottom: 5px solid var(--brand-pri);
-        border-radius: 15px 15px 0 0;
-        cursor: pointer;
-        transition: .3s;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        /* gap: 8px; */
-    }
   .login-container {
         grid-template-columns: 1fr;
     }
@@ -3638,45 +3642,11 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
      height: 35px !important;
  }
 
- .btn-edit {
-     background-color: #4CAF50;
-     color: white;
-     border: none;
-     padding: 2px 4px;
-     cursor: pointer;
-     border-radius: 4px;
- }
-
- .btn-edit:hover {
-     background-color: #45a049;
- }
-
- .btn-edit {
-     background-color: #4CAF50;
-     color: white;
-     border: none;
-     padding: 6px 12px;
-     cursor: pointer;
-     border-radius: 4px;
-     font-size: 12px;
- }
-
- .btn-edit:hover {
-     background-color: #45a049;
- }
-
+ .btn-edit,
+ .btn-view,
  .btn-delete {
-     background-color: #f44336;
-     color: white;
-     border: none;
-     padding: 6px 12px;
-     cursor: pointer;
-     border-radius: 4px;
      font-size: 12px;
- }
-
- .btn-delete:hover {
-     background-color: #e53935;
+     padding: 6px 10px;
  }
 
  nav {
@@ -3903,61 +3873,26 @@ width:100%;
       .metric-card h3 h4 {
             font-size: 15px;
         }
-    
-.metric-card h4 {
-            font-size: 15px;
-        }
 
-.metric-card {
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-direction: column;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    border-radius: 0 0 14px 14px;
-}
-
-.metric-card-content {
-    display: flex;
-    justify-content: space-between;
-    width: 90%;
-    padding: 10px 8px
-}
-
+/* Mobile-only size adjustments — shape (radius/shadow/hover) is shared
+   with the base .metric-card rule and doesn't need to change here. */
 .metric-card-content h4 {
-    font-size: 18px;
-    margin: 0;
-    font-weight: bold;
+    font-size: 20px;
 }
 
 .card-title {
-    width: 100%;
-    text-align: center;
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--neutral2);
+    font-size: 11px;
+    padding: 10px;
 }
 
 .card-title p {
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--neutral2);
+    font-size: 11px;
 }
 
-
 .card-icon {
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 15px;
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
 }
 
 .card-icon i {

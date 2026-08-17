@@ -256,19 +256,23 @@
   margin: 20px 0;
 }
 .kpi-card {
-  background: #f9f9f9;
-  padding: 20px;
-  border-radius: 12px;
+  background: #fff;
+  padding: 22px 24px;
+  border-radius: var(--radius-lg);
   text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .kpi-card:hover {
   transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
 }
 .kpi-card h3 {
-  margin: 10px 0;
+  margin: 10px 0 0;
   font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 /* === Charts Layout === */
@@ -280,17 +284,19 @@
 }
 .chart-box {
   background: #fff;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
 }
 
 /* === Activity Feed === */
 .activity-feed {
   background: #fff;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
 }
 .activity-feed ul {
   list-style: none;
