@@ -256,11 +256,17 @@ router.post("/update-profile", upload.single("profile_picture"), async (req, res
     }
 
     await pool.query(
-      `UPDATE users2 
+      `UPDATE users2
        SET fullname=$1, phone=$2, gender=$3, dob=$4, profile_picture=$5
        WHERE id=$6`,
       [fullname, phone, gender, dob, profilePicture, req.session.user.id]
     );
+
+    // Keep the session in sync so the header/nav avatar (which reads from
+    // req.session.user, not a fresh DB query) reflects the change right
+    // away instead of only after the next login.
+    req.session.user.profile_picture = profilePicture;
+    req.session.user.fullname = fullname;
 
     res.redirect("/profile");
 

@@ -243,7 +243,7 @@ exports.login = async (req, res) => {
       id: user.id,
       email: user.email,
       role: user.role,
-      profile_pic: user.profile_picture,
+      profile_picture: user.profile_picture,
     };
 
     if (redirectUrl) return res.redirect(redirectUrl);
@@ -292,7 +292,7 @@ exports.avatarPinLogin = async (req, res) => {
       id: user.id,
       email: user.email,
       role: user.role,
-      profile_pic: user.profile_picture,
+      profile_picture: user.profile_picture,
     };
 
     return res.json({
