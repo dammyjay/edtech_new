@@ -2,13 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %> — Testimonies</title>
+    <title>Testimonies — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'Testimonies — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Read what our students and partners are saying about their experience.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/testimonies';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
   </head>
   <body>
     <%- include('./partials/userHeader', { title: 'Testimonies' }) %>

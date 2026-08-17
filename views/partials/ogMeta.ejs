@@ -1,0 +1,23 @@
+<%
+/* Shared Open Graph / Twitter Card block. Each page sets ogTitle,
+   ogDescription, ogImage, ogUrl (absolute) before including this —
+   ogType defaults to "website" if not set. This is what a pasted link
+   actually shows in WhatsApp/Slack/Twitter/etc., so every page needs
+   its own real title/description/image rather than one generic set. */
+const _ogTitle = typeof ogTitle !== 'undefined' && ogTitle ? ogTitle : (info?.company_name || 'JKT Hub').trim();
+const _ogDescription = typeof ogDescription !== 'undefined' && ogDescription ? ogDescription : 'Empowering Students, Teachers, and Schools with smart education tools.';
+const _ogImage = typeof ogImage !== 'undefined' && ogImage ? ogImage : (info?.hero_image_url || info?.logo_url || 'https://acad.jkthub.com/images/JKT%20logo.png');
+const _ogUrl = typeof ogUrl !== 'undefined' && ogUrl ? ogUrl : 'https://acad.jkthub.com/';
+const _ogType = typeof ogType !== 'undefined' && ogType ? ogType : 'website';
+%>
+<meta property="og:site_name" content="<%= (info?.company_name || 'JKT Hub').trim() %>" />
+<meta property="og:title" content="<%= _ogTitle %>" />
+<meta property="og:description" content="<%= _ogDescription %>" />
+<meta property="og:image" content="<%= _ogImage %>" />
+<meta property="og:url" content="<%= _ogUrl %>" />
+<meta property="og:type" content="<%= _ogType %>" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="<%= _ogTitle %>" />
+<meta name="twitter:description" content="<%= _ogDescription %>" />
+<meta name="twitter:image" content="<%= _ogImage %>" />

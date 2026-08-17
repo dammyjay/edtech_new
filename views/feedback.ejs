@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %> — Feedback</title>
+    <title>Share Your Feedback — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
     <link rel="stylesheet" href="/css/style.css" />
@@ -15,18 +15,12 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Share Your Feedback – JKT Acad Elearn Platform" />
-    <meta property="og:description" content="Your voice matters! Share your experience, testimony, suggestions, or complaints to help us build a better learning community." />
-    <meta property="og:image" content="https://acad.jkthub.com/images/JKT logo.png" />
-    <meta property="og:url" content="https://acad.jkthub.com/feedback" />
-    <meta property="og:type" content="website" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Share Your Feedback – JKT Acad Elearn Platform" />
-    <meta name="twitter:description" content="Your feedback helps us grow. Share your experience easily." />
-    <meta name="twitter:image" content="https://acad.jkthub.com/images/JKT logo.png" />
+    <% const ogTitle = 'Share Your Feedback — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Your voice matters! Share your experience, testimony, suggestions, or complaints to help us build a better learning community.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/feedback';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
 
     <style>
       .section {

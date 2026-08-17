@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %> — Testimonies</title>
+    <title>Share Your Testimony — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
@@ -15,6 +15,12 @@
       referrerpolicy="no-referrer"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'Share Your Testimony — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Read what our students and partners are saying, or share your own story.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/testimony';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
   </head>
   <body>
     <%- include('./partials/userHeader', { title: 'Testimonials' }) %>

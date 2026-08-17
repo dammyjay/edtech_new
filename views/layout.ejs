@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof title !== 'undefined' ? title : 'Website' %></title>
+    <meta charset="UTF-8" />
+    <title><%= typeof title !== 'undefined' && title ? title + ' — ' + (info?.company_name || 'JKT Hub').trim() : (info?.company_name || 'JKT Hub').trim() %></title>
 
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

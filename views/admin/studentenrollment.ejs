@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Student Enrollments</title>
+  <title>Student Enrollments — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+  <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <header class="header">
     <div class="logo-title">
-      <img src="/logo.png" alt="Logo" />
-      <p>Admin Dashboard</p>
+      <img src="/images/JKT logo bg.png" alt="Logo" />
+      <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
     </div>
     <a href="/admin/dashboard">⬅ Back to Dashboard</a>
   </header>

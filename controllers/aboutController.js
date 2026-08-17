@@ -104,12 +104,12 @@ exports.deleteAboutSection = async (req, res) => {
 
 // // Show about page to users
 exports.getAboutPage = async (req, res) => {
-  if (!req.session.user || req.session.user.role !== "admin") {
-    return res.redirect("/admin/login");
-  }
-  if (!req.session.user || req.session.user.role !== "admin") {
-    return res.redirect("/admin/login");
-  }
+  // if (!req.session.user || req.session.user.role !== "admin") {
+  //   return res.redirect("/admin/login");
+  // }
+  // if (!req.session.user || req.session.user.role !== "admin") {
+  //   return res.redirect("/admin/login");
+  // }
   const result = await pool.query("SELECT * FROM about_sections ORDER BY id");
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"

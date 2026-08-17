@@ -52,7 +52,7 @@
 <div id="overview-section">
     <!-- <a href="/admin/logout">Logout</a> -->
     <h2>All Registered Users</h2>
-    <section class="engagement-grid"> 
+    <!-- <section class="engagement-grid"> 
 
       <div class="metric-card" style="max-width: 300px;">
           <div class="card-title blue-bg">
@@ -80,11 +80,35 @@
     
 
       
-    </section>
+    </section> -->
 
     <section class="engagement-grid">
 
       <div class="metric-card">
+          <div class="card-title blue-bg">
+            <p>Total Users</p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon blue-bg">
+              <i class="fas fa-user"></i>
+            </div>
+              <h4><%= totalUsers %></h4>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title green-bg">
+            <p>New This Week</p>
+          </div>
+          <div class="metric-card-content">
+            <div class="card-icon green-bg">
+              <i class="fas fa-user-plus"></i>
+            </div>
+              <h4><%= recentUsers %> (<%= percentageNew %>% of total)</h4>
+          </div>
+        </div>
+
+      <!-- <div class="metric-card">
         <div class="card-title blue-bg">
           <p>Total Users</p>
         </div>
@@ -94,7 +118,7 @@
           </div>
           <h4 id="totalUsers">0</h4>
         </div>
-      </div>
+      </div> -->
 
       <div class="metric-card">
         <div class="card-title green-bg">

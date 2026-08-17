@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %> — FAQs</title>
+    <title>FAQs — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
     <link rel="stylesheet" href="/css/style.css" />
@@ -16,6 +16,12 @@
       referrerpolicy="no-referrer"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'FAQs — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Answers to common questions about our courses and platform.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/faq';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
   </head>
   <body>
     <%- include('./partials/userHeader', { title: 'FAQs' }) %>

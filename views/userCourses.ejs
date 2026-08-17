@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <title>Courses — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
@@ -10,6 +10,12 @@
     <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'Courses — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Explore our full catalog of courses and start building real skills.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/courses';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
   </head>
   <body>
     <!-- Header -->

@@ -22,6 +22,7 @@
       </div>
        <button id="nav-toggle-btn" class="nav-toggle" onclick="toggleNav()" aria-expanded="false" aria-controls="main-nav">☰</button>
       <nav id="main-nav">
+        <a href="/">Home</a>
         <% if (role === 'admin') { %>
           <div class="dropdown">
           <button class="dropbtn" onclick="toggleDropdown('dashboardMenu')">
@@ -62,6 +63,7 @@
         <% } %>
 
         <% if (role === 'instructor') { %>
+          
           <a href="/instructor/dashboard">Dashboard</a>
           <a href="/instructor/chats">Chats</a>
         <% } %>

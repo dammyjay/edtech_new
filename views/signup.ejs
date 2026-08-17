@@ -7,7 +7,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
     />
-    <title><%= (info?.company_name || 'JKT Hub').trim() %> — Signup</title>
+    <title>Signup — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"
@@ -16,6 +16,12 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/styles2.css">
     <link rel="stylesheet" href="/css/styles3.css">
+    <% const ogTitle = 'Signup — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Create your account to access courses, interactive labs, career pathways, and more.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/signup';
+       const ogType = 'website'; %>
+    <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
     </head>
 
     <style>

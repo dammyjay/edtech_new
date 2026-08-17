@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login</title>
+  <title>Login — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+  <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
 
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/styles2.css" />
   <link rel="stylesheet" href="/css/styles3.css" />
+
+  <% const ogTitle = 'Login — ' + (info?.company_name || 'JKT Hub').trim();
+     const ogDescription = 'Access your dashboard, courses, and progress.';
+     const ogImage = info?.hero_image_url || info?.logo_url;
+     const ogUrl = 'https://acad.jkthub.com/admin/login';
+       const ogType = 'website'; %>
+  <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
 
  <style>
   /* =========================

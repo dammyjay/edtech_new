@@ -177,6 +177,10 @@ body {
     font-size: inherit;
     padding: 10px 14px;
   }
+
+  .dropbtn:hover{
+    color: var(--bg-secondary);
+  }
   
   /* Dropdown content (hidden by default) */
   .dropdown-content {
