@@ -452,7 +452,7 @@
 
 .about-block h2 {
     text-align: center;
-    color: #bfa046;
+    color: var(--brand-pri);
     margin-bottom: 20px;
 }
 .about-body {
