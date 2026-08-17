@@ -68,43 +68,56 @@
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
+/* Same underline-tab language as .tab-btn/.login-tab (see style.css) —
+   this filters course pathways rather than switching sections, but it's
+   still a tab bar and should look like one. */
 .tab-nav {
     width: 100%;
     display: flex;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    gap: 0.75rem;
-    padding: 10px 0;
+    gap: 4px;
+    padding: 0;
     white-space: nowrap;
     scroll-behavior: smooth;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 2px solid var(--border-light);
     scrollbar-width: thin;
+    margin: 20px 0;
 }
-
 
 .tab-nav::-webkit-scrollbar {
     height: 6px;
 }
 
 .tab-nav::-webkit-scrollbar-thumb {
-    background-color: #a9712f;
+    background-color: var(--brand-pri);
     border-radius: 4px;
 }
 
 .tab-nav button {
     flex: 0 0 auto;
-    background-color: #f8f6f3;
-    border: 1px solid #a9712f;
-    color: #a9712f;
-    padding: 6px 12px;
-    border-radius: 5px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    color: var(--text-secondary);
+    padding: 10px 18px;
+    font-size: 14.5px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color 0.3s;
+    transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .tab-nav button:hover {
-    background-color: #a9712f;
-    color: white;
+    background: none;
+    color: var(--brand-pri-dark);
+}
+
+.tab-nav button.active {
+    color: var(--brand-pri-dark);
+    border-bottom-color: var(--brand-pri);
+    font-weight: 700;
 }
 
 .course-scroll-container {
@@ -115,17 +128,13 @@
     padding: 10px;
     margin-bottom: 1rem;
     scrollbar-width: thin;
-    /* width: 100%; */
 }
 
 .scroll-card {
     flex: 0 0 300px;
-    /* fixed width */
     background-color: #fff;
-    border-radius: 8px;
-    /* padding: 1rem; */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    /* min-height: 350px; */
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
 }
 
 .scroll-card img {
@@ -159,19 +168,19 @@
 
 /* Beginner – soft gold (approachable, warm) */
 .collapsible-header.beginner {
-    background: linear-gradient(135deg, #d4af37, #b8860b);
+    background: linear-gradient(135deg, var(--brand-pri-light), var(--brand-pri));
 }
 
 /* Intermediate – charcoal with subtle gold edge */
 .collapsible-header.intermediate {
     background: linear-gradient(135deg, #444, #222);
-    border-left: 6px solid #d4af37;
+    border-left: 6px solid var(--brand-pri-light);
 }
 
 /* Advanced – deep black with warm golden accent */
 .collapsible-header.advanced {
     background: #000;
-    border-left: 6px solid #b8860b;
+    border-left: 6px solid var(--brand-pri-dark);
 }
 
 /* Hover animation */
@@ -228,10 +237,9 @@
 
 .card_thumbnail_horizontals-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 20px;
     margin: 40px auto;
-    /* max-width: 1100px; */
     width: 100%;
 }
 
@@ -240,21 +248,16 @@
     flex-direction: row;
     align-items: flex-start;
     background-color: #181818;
-    border: 1px solid #ddd;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     padding: 15px 20px;
-    /* box-shadow: 0 4px 8px rgba(18, 95, 139, 0.05); */
-    /* box-shadow: 0 4px 0px rgba(6, 141, 219, 0.669); */
-    box-shadow: 4px 0px 0px rgba(255, 210, 7, 0.38);
-    border: 1px solid #e1e1e1;
-    transition: box-shadow 0.3s ease;
-    transition: transform 0.2s ease-in-out;
+    box-shadow: 4px 0 0 var(--brand-pri-light);
+    border: 1px solid #2a2a2a;
+    transition: transform 0.2s ease-in-out, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .card_thumbnail_horizontal-crud{
     display: flex;
     flex-direction: column;
-    /* align-items: center; */
     justify-content: center;
     gap: 10px;
     background-color: #fff;
@@ -263,12 +266,8 @@
 }
 .card_thumbnail_horizontal-card:hover {
     transform: translateY(-4px);
-     /* box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38)) */
-    box-shadow: 0 4px 8px rgba((255, 210, 7, 0.38));
-    /* box-shadow: 4px 0px 0px rgba(255, 210, 7, 0.38); */
-    border: 1px solid #edc70b82;
-    transition: box-shadow 0.3s ease;
-    transition: transform 0.2s ease-in-out;
+    box-shadow: 0 4px 8px rgba(217, 168, 44, 0.38);
+    border-color: rgba(217, 168, 44, 0.5);
 }
 
 .card_thumbnail_horizontal-profile img {
@@ -432,41 +431,59 @@
 
 }
 
-.event_container{
+.event_container {
     width: 100%;
     background-color: #ffffff;
     display: flex;
     flex-direction: row;
     gap: 20px;
     margin-bottom: 20px;
-    /* height: 620px; */
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    padding: 10px;
+    box-sizing: border-box;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
 
+.event_container:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .event_details {
     width: 100%;
-    padding: 20px 10px;
+    padding: 10px;
     background-color: #ffffff;
-    
 }
 
 .event_details img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
+    border-radius: var(--radius);
+}
+
+@media (max-width: 640px) {
+    .event_container {
+        flex-direction: column;
+    }
 }
 
 .about-block {
-    padding: 20px;
-    border-radius: 12px;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
     margin-bottom: 20px;
     background: #fff;
-    /* optional, lets the colors you add pop */
+    box-shadow: var(--shadow-sm);
+    border-top: 4px solid var(--brand-pri);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .about-block h2 {
     text-align: center;
-    color: var(--brand-pri);
+    color: var(--brand-pri-dark);
     margin-bottom: 20px;
 }
 .about-body {
@@ -474,6 +491,13 @@
     flex-direction: row;
     align-items: flex-start;
     gap: 20px;
+}
+
+@media (max-width: 640px) {
+    .about-body,
+    .about-style {
+        flex-direction: column;
+    }
 }
 
 .about-image,
@@ -515,21 +539,12 @@
 
 .about-block:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-md);
 }
 
 .about-block div {
     font-size: 1rem;
     line-height: 1.7;
-}
-
-/* Add playful icons for each block */
-.about-block::before {
-    font-size: 1.6rem;
-    margin-right: 10px;
-    vertical-align: middle;
-    color: #d4af37;
-    display: inline-block;
 }
 
 
@@ -541,65 +556,51 @@
 
 .gallery-card {
     background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
     padding: 12px;
     width: 220px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.gallery-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .gallery-card img {
     width: 100%;
     height: 140px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
 }
 
 
-.img-modal {
-    position: fixed;
-    z-index: 9999;
-    background: rgba(0, 0, 0, 0.7);
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.img-modal-content {
-    max-width: 90vw;
-    max-height: 90vh;
-    border-radius: 8px;
-}
-
-.close-modal {
-    position: absolute;
-    top: 20px;
-    right: 30px;
-    font-size: 2rem;
-    color: white;
-    cursor: pointer;
-}
-
-.new-hero{
+.new-hero {
     position: relative;
     width: 100%;
-    height: 400px;
+    min-height: 400px;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    gap: 24px;
     margin-top: 20px;
-    padding: 20px 0px;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
+@media (max-width: 640px) {
+    .new-hero {
+        flex-direction: column;
+        min-height: 0;
+    }
+}
 
-
-.hero-content{
+.hero-content {
     width: 100%;
-    /* display: flex; */
 }
 
 .hero-details{
@@ -642,10 +643,29 @@
     color: inherit;
 }
 
+/* Base card — was missing entirely (only :hover/h3/img/p/small existed),
+   so every .article-card across the site (course modules, lessons,
+   admin FAQ/testimony list wrappers) rendered as an unstyled div. */
+.article-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    padding: 18px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.article-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
 .article-card:hover {
     cursor: pointer;
-    transform: scale(1.02);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
 .article-card2:hover {

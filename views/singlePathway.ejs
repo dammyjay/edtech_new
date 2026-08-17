@@ -108,12 +108,11 @@
 
 
     
+    <div style="text-align: center; margin: 20px 0;">
     <% if (isLoggedIn) { %>
-      <a href="/make-payment" class="btn btn-primary">Make a Payment</a>
+      <a href="/make-payment" class="btn-primary" style="text-decoration: none; display: inline-block;">Fund Wallet</a>
     <% } else { %>
-      <!-- <a href=""> -->
-        <button onclick="promptLogin()" class="btn btn-primary">Make a Payment</button>
-      <!-- </a> -->
+        <button onclick="promptLogin()" class="btn-primary">Fund Wallet</button>
       <script>
         function promptLogin() {
           alert("Please login to make a payment.");
@@ -121,50 +120,13 @@
         }
       </script>
     <% } %>
+    </div>
     
 
     <% if (subscribed === 'success') { %>
 
       <p style="color: green; text-align: center;">Thank you for subscribing!</p> <% } else if (subscribed === 'fail') { %> <p style="color: red; text-align: center;">There was a problem with your subscription.</p> <% } %>
     <%- include('./partials/userFooter') %>
-
-    <!-- for redirect if user is not logged in -->
-    <script>
-    
-    const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
-
-    function handleProtectedLink(e, targetUrl) {
-        if (!isLoggedIn) {
-        e.preventDefault();
-        // Redirect to login with redirect param
-        window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
-        }
-        // else, allow default navigation
-    }
-
-    // Attach event listeners after DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        const articlesBtn = document.querySelector('a[href="/articles"]');
-        const videosBtn = document.querySelector('a[href="/videos"]');
-        const faqBtn = document.querySelector('a[href="/faq"]');
-        
-        if (articlesBtn) {
-        articlesBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/articles');
-        });
-        }
-        if (videosBtn) {
-        videosBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/videos');
-        });
-        }
-        if (faqBtn) {
-        faqBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/faq');
-        });
-        }
-    });
-    </script>
 
     <!-- For the navigation toggle -->
     <script>
@@ -251,23 +213,6 @@
         return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
     }
     </script>
-
-    <script>
-        function filterByPathway(pathway) {
-            const groups = document.querySelectorAll(".pathway-group");
-            groups.forEach(group => {
-            const groupName = group.getAttribute("data-pathway");
-            if (pathway === "All" || groupName === pathway) {
-                group.style.display = "block";
-            } else {
-                group.style.display = "none";
-            }
-            });
-        }
-    </script>
-
-
-
 
 </body>
 </html>

@@ -446,26 +446,6 @@
       });
     </script>
 
-    <!-- Script for engagement chart animation -->
-     <script>
-        document.querySelectorAll(".metric-card h3").forEach(el => {
-          const target = +el.innerText;
-          let count = 0;
-          const speed = 20;
-
-          const update = () => {
-            if (count < target) {
-              count += Math.ceil(target / 50);
-              el.innerText = count > target ? target : count;
-              setTimeout(update, speed);
-            }
-          };
-
-          update();
-        });
-      </script>
-
-
        <!-- Frequently Asked Questions -->    
     <section id="faq" class="section"> 
       <h2>Frequently Asked Questions</h2> 
@@ -553,44 +533,6 @@
         } 
       } 
     </script>
-
-<!-- for redirect if user is not logged in -->
-<script>
-  
-  const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
-
-  function handleProtectedLink(e, targetUrl) {
-    if (!isLoggedIn) {
-      e.preventDefault();
-      // Redirect to login with redirect param
-      window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
-    }
-    // else, allow default navigation
-  }
-
-  // Attach event listeners after DOM is loaded
-  document.addEventListener('DOMContentLoaded', function() {
-    const articlesBtn = document.querySelector('a[href="/articles"]');
-    const videosBtn = document.querySelector('a[href="/videos"]');
-    const faqBtn = document.querySelector('a[href="/faq"]');
-    
-    if (articlesBtn) {
-      articlesBtn.addEventListener('click', function(e) {
-        handleProtectedLink(e, '/articles');
-      });
-    }
-    if (videosBtn) {
-      videosBtn.addEventListener('click', function(e) {
-        handleProtectedLink(e, '/videos');
-      });
-    }
-    if (faqBtn) {
-      faqBtn.addEventListener('click', function(e) {
-        handleProtectedLink(e, '/faq');
-      });
-    }
-  });
-</script>
 
 <!-- For the navigation toggle -->
 <script>

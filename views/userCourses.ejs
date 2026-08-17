@@ -32,9 +32,9 @@
     </div>
 
     <div class="tab-nav">
-    <button class="path-nav-btn" onclick="filterByPathway('All')">All Pathways</button>
+    <button class="path-nav-btn active" onclick="filterByPathway('All', this)">All Pathways</button>
     <% careerPathways.forEach(path => { %>
-        <button onclick="filterByPathway('<%= path.title %>')"><%= path.title %></button>
+        <button onclick="filterByPathway('<%= path.title %>', this)"><%= path.title %></button>
     <% }) %>
     </div>
    
@@ -42,7 +42,7 @@
 
     <% for (let pathway in groupedCourses) { %>
   <div class="pathway-group" data-pathway="<%= pathway %>">
-    <h2 style="margin-top: 2rem; color: goldenrod;"><%= pathway %></h2>
+    <h2 style="margin-top: 2rem; color: var(--brand-pri-dark);"><%= pathway %></h2>
 
     <% for (let level in groupedCourses[pathway]) { %>
 
@@ -185,44 +185,6 @@
       } 
     </script> -->
 
-    <!-- for redirect if user is not logged in -->
-    <script>
-    
-    const isLoggedIn = <%- JSON.stringify(isLoggedIn) %>;
-
-    function handleProtectedLink(e, targetUrl) {
-        if (!isLoggedIn) {
-        e.preventDefault();
-        // Redirect to login with redirect param
-        window.location.href = '/admin/login?redirect=' + encodeURIComponent(targetUrl);
-        }
-        // else, allow default navigation
-    }
-
-    // Attach event listeners after DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        const articlesBtn = document.querySelector('a[href="/articles"]');
-        const videosBtn = document.querySelector('a[href="/videos"]');
-        const faqBtn = document.querySelector('a[href="/faq"]');
-        
-        if (articlesBtn) {
-        articlesBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/articles');
-        });
-        }
-        if (videosBtn) {
-        videosBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/videos');
-        });
-        }
-        if (faqBtn) {
-        faqBtn.addEventListener('click', function(e) {
-            handleProtectedLink(e, '/faq');
-        });
-        }
-    });
-    </script>
-
     <!-- For the navigation toggle -->
     <script>
     function toggleNav() {
@@ -357,7 +319,7 @@
     </script>
 
     <script>
-        function filterByPathway(pathway) {
+        function filterByPathway(pathway, btn) {
             const groups = document.querySelectorAll(".pathway-group");
             groups.forEach(group => {
             const groupName = group.getAttribute("data-pathway");
@@ -367,6 +329,9 @@
                 group.style.display = "none";
             }
             });
+
+            document.querySelectorAll(".tab-nav button").forEach(b => b.classList.remove("active"));
+            if (btn) btn.classList.add("active");
         }
     </script>
 

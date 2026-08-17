@@ -7,7 +7,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
     />
-    <title>Signup</title>
+    <title><%= (info?.company_name || 'JKT Hub').trim() %> — Signup</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"
@@ -16,7 +16,6 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/styles2.css">
     <link rel="stylesheet" href="/css/styles3.css">
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png">
     </head>
 
     <style>
@@ -264,7 +263,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           const data = await res.json();
           if (data.needsOtp) {
             localStorage.setItem("pendingEmail", formData.get("email"));
-            document.getElementById("otp-modal").style.display = "block";
+            document.getElementById("otp-modal").style.display = "flex";
             document.getElementById("signup-form").style.display = "none";
           } else {
             alert(data.message);
