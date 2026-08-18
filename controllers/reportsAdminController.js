@@ -49,7 +49,7 @@ exports.generatePlatformReportFiles = async (req, res) => {
         format: f.format,
         filename: f.filename,
         mimeType: f.mimeType,
-        base64: f.buffer.toString("base64"),
+        base64: Buffer.from(f.buffer).toString("base64"),
       })),
     });
   } catch (err) {

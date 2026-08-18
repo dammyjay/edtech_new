@@ -1,10 +1,10 @@
-const { renderMetricGrid, renderAiBlock, formatNaira } = require("./sectionHelpers");
+const { renderMetricGrid, renderAiBlock, renderPageHeader, formatNaira } = require("./sectionHelpers");
 
-function buildOverviewSection(overview, ai) {
+function buildOverviewSection(overview, ai, periodLabel) {
   return `
 <div class="page">
 
-<h1 class="page-title">Platform Overview</h1>
+${renderPageHeader("Platform Overview", periodLabel)}
 
 ${renderMetricGrid([
   { label: "Total Users", value: overview.totalUsers.toLocaleString() },

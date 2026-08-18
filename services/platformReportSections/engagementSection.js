@@ -1,10 +1,10 @@
-const { renderMetricGrid, renderAiBlock, renderDataTable } = require("./sectionHelpers");
+const { renderMetricGrid, renderAiBlock, renderDataTable, renderPageHeader } = require("./sectionHelpers");
 
-function buildEngagementSection(engagement, ai) {
+function buildEngagementSection(engagement, ai, periodLabel) {
   return `
 <div class="page">
 
-<h1 class="page-title">Engagement</h1>
+${renderPageHeader("Engagement", periodLabel)}
 
 ${renderMetricGrid([
   { label: "Daily Active Users", value: engagement.dailyUsers.toLocaleString() },

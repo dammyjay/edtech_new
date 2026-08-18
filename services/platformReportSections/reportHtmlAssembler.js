@@ -22,7 +22,8 @@ const baseCss = fs.readFileSync(
 // a 3-column KPI grid or a page subtitle style, so these are additive, not
 // a fork of the shared stylesheet.
 const extraCss = `
-.page-title { font-size: 26px; color: #A17807; border-bottom: 2px solid #A17807; padding-bottom: 10px; margin-bottom: 20px; }
+.page-title { font-size: 26px; color: #A17807; border-bottom: 2px solid #A17807; padding-bottom: 10px; margin-bottom: 4px; }
+.period-subtitle { font-size: 13px; color: #8A7A5C; margin: 0 0 20px; }
 .ai-summary h3 { margin-top: 0; color: #A17807; }
 .ai-summary h4 { margin-bottom: 6px; }
 `;
@@ -52,17 +53,17 @@ ${buildCoverPage({ periodLabel: analytics.periodLabel, companyName, logoUrl, sco
 
 ${buildExecutiveSummarySection(analytics, aiCommentary.executiveSummary)}
 
-${buildOverviewSection(analytics.overview, aiCommentary.overview)}
+${buildOverviewSection(analytics.overview, aiCommentary.overview, analytics.periodLabel)}
 
-${buildBusinessSection(analytics.business, aiCommentary.business)}
+${buildBusinessSection(analytics.business, aiCommentary.business, analytics.periodLabel)}
 
-${buildLearningSection(analytics.learning, aiCommentary.learning)}
+${buildLearningSection(analytics.learning, aiCommentary.learning, analytics.periodLabel)}
 
-${buildSchoolsSection(analytics.schools, aiCommentary.schools)}
+${buildSchoolsSection(analytics.schools, aiCommentary.schools, analytics.periodLabel)}
 
-${buildFinanceSection(analytics.finance, aiCommentary.finance)}
+${buildFinanceSection(analytics.finance, aiCommentary.finance, analytics.periodLabel)}
 
-${buildEngagementSection(analytics.engagement, aiCommentary.engagement)}
+${buildEngagementSection(analytics.engagement, aiCommentary.engagement, analytics.periodLabel)}
 
 </body>
 </html>

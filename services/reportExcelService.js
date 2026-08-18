@@ -99,9 +99,11 @@ async function buildAnalyticsWorkbook(analytics, aiCommentary, companyInfo = {})
     (business.incomeBreakdown || []).map((r) => ({ source: r.source, total: r.total }))
   );
   businessSheet.addRow([]);
-  businessSheet.addRow(["Total Revenue", business.totalRevenue]);
-  businessSheet.addRow(["Paid Schools", business.paidSchools]);
-  businessSheet.addRow(["Outstanding Balance", business.outstandingBalance]);
+  businessSheet.addRow(["Reporting Period", analytics.periodLabel]);
+  businessSheet.addRow(["Total Revenue (this period only)", business.totalRevenue]);
+  businessSheet.addRow(["Schools Fully Paid", `${business.paidSchools} / ${business.totalSchoolsWithQuotes}`]);
+  businessSheet.addRow(["Terms Paid", business.paidTermsCount]);
+  businessSheet.addRow(["Outstanding Balance (as of today, not period-limited)", business.outstandingBalance]);
 
   addTableSheet(
     workbook,

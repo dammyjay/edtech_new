@@ -24,7 +24,7 @@ async function buildAnalyticsDeck(analytics, aiCommentary, companyInfo) {
   });
 
   // Executive summary
-  theme.addStatSlide(pptx, "Executive Summary", [
+  theme.addStatSlide(pptx, `Executive Summary — ${analytics.periodLabel}`, [
     { label: "Total Users", value: analytics.overview.totalUsers.toLocaleString() },
     { label: "Total Courses", value: analytics.overview.totalCourses.toLocaleString() },
     { label: "Enrollments", value: analytics.overview.totalEnrollments.toLocaleString() },
@@ -39,12 +39,13 @@ async function buildAnalyticsDeck(analytics, aiCommentary, companyInfo) {
   theme.addAiSlide(pptx, "Overview", aiCommentary.overview);
 
   // Business
-  theme.addStatSlide(pptx, "Business KPIs", [
+  theme.addStatSlide(pptx, `Business KPIs — ${analytics.periodLabel}`, [
     { label: "Total Revenue", value: formatNaira(analytics.business.totalRevenue) },
     { label: "School Revenue", value: formatNaira(analytics.business.schoolRevenue) },
     { label: "Parent Revenue", value: formatNaira(analytics.business.parentRevenue) },
     { label: "Event Revenue", value: formatNaira(analytics.business.eventRevenue) },
-    { label: "Paid Schools", value: analytics.business.paidSchools.toLocaleString() },
+    { label: "Schools Fully Paid", value: `${analytics.business.paidSchools} / ${analytics.business.totalSchoolsWithQuotes}` },
+    { label: "Terms Paid", value: analytics.business.paidTermsCount.toLocaleString() },
     { label: "Outstanding Balance", value: formatNaira(analytics.business.outstandingBalance) },
   ]);
   if ((analytics.business.incomeBreakdown || []).length) {
@@ -93,7 +94,7 @@ async function buildAnalyticsDeck(analytics, aiCommentary, companyInfo) {
   theme.addAiSlide(pptx, "Schools", aiCommentary.schools);
 
   // Finance
-  theme.addStatSlide(pptx, "Finance", [
+  theme.addStatSlide(pptx, `Finance — ${analytics.periodLabel}`, [
     { label: "Wallet/Course Revenue", value: formatNaira(analytics.finance.revenue) },
     { label: "Total Transactions", value: analytics.finance.totalTransactions.toLocaleString() },
     { label: "Failed Transactions", value: analytics.finance.failedTransactions.toLocaleString() },

@@ -22,6 +22,22 @@ const ACCENT_RED = "B23B3B";
 
 const CARD_SHADOW = { type: "outer", color: "3A2F1D", blur: 6, offset: 3, angle: 90, opacity: 0.18 };
 
+// The logo gets embedded on every slide (title, each content-slide header,
+// closing), and pptxgenjs re-embeds a full copy each time rather than
+// deduplicating — so a full-resolution admin upload (these commonly run
+// several hundred KB to 1MB+) turns into a multi-MB deck for no visual
+// gain, since it never displays larger than ~1.5in anywhere here. Cloudinary
+// (the established upload host for company_info.logo_url in this app)
+// supports on-the-fly resizing via URL transformation params, so request a
+// small, quality-optimized copy instead of adding an image-processing
+// dependency. Falls back to the original URL if it's not a Cloudinary URL.
+function getOptimizedLogoUrl(logoUrl, targetWidth = 300) {
+  if (!logoUrl) return null;
+  const match = logoUrl.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/);
+  if (!match) return logoUrl;
+  return `${match[1]}w_${targetWidth},q_auto,f_png/${match[2]}`;
+}
+
 // companyInfo: { company_name, logo_url } — fetched fresh per report/deck
 // generation (services/reportOrchestratorService.js, pitchDeckGeneratorService.js)
 // from the same company_info table the admin edits and every EJS view
@@ -34,7 +50,7 @@ function newDeck(companyInfo = {}) {
   pptx.defineLayout({ name: "WIDESCREEN", width: 13.33, height: 7.5 });
   pptx.layout = "WIDESCREEN";
   pptx.__companyName = companyInfo.company_name || "";
-  pptx.__logoUrl = companyInfo.logo_url || null;
+  pptx.__logoUrl = getOptimizedLogoUrl(companyInfo.logo_url);
   return pptx;
 }
 

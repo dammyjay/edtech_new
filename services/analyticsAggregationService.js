@@ -264,8 +264,18 @@ async function getBusinessAnalytics({ year, month } = {}) {
     Number(parentRevenue.rows[0].total) +
     Number(eventRevenue.rows[0].total);
 
-  const schoolPaymentsResult = await pool.query(
-    `
+  // Outstanding balance is a live, cumulative status ("has this school paid
+  // off their quote yet?"), not something that should reset by report
+  // period — so total_paid here intentionally counts ALL payments ever
+  // recorded for the quote (i.e. as of today, whenever the report happens
+  // to be generated), regardless of whether this is a monthly/yearly
+  // report or which year/month it's scoped to. Using schoolWhere here
+  // would make a school that finished paying outside the report's exact
+  // period look like they still owe money, even though they don't.
+  // (Contrast with schoolRevenue/incomeBreakdown above, which correctly
+  // stay period-scoped — revenue recognized in a given year vs. balance
+  // owed right now are different questions.)
+  const schoolPaymentsResult = await pool.query(`
     SELECT
       s.name AS school_name,
       COALESCE(st.total_students,0) * COALESCE(q.price_per_student,0) AS total_amount,
@@ -281,14 +291,26 @@ async function getBusinessAnalytics({ year, month } = {}) {
     LEFT JOIN (
       SELECT quote_id, SUM(amount) total_paid
       FROM school_payments
-      ${schoolWhere}
       GROUP BY quote_id
     ) p ON p.quote_id = q.id
-    `,
-    params
-  );
+  `);
 
-  const paidSchools = schoolPaymentsResult.rows.filter(
+  // A school can have multiple quotes (one per term) — counting "paid
+  // schools" by row would count a school with 2 paid terms as 2, inflating
+  // the figure and conflating "how many schools are fully settled" with
+  // "how many term installments were paid". Split into two distinct
+  // metrics instead: paidSchools now counts distinct SCHOOLS whose balance
+  // across ALL their terms nets to zero or less (i.e. genuinely nothing
+  // outstanding), while paidTermsCount counts individual paid term/quote
+  // rows (so a school with 2 fully-paid terms contributes 2 there).
+  const balanceBySchool = new Map();
+  schoolPaymentsResult.rows.forEach((row) => {
+    const prior = balanceBySchool.get(row.school_name) || 0;
+    balanceBySchool.set(row.school_name, prior + Number(row.balance || 0));
+  });
+  const paidSchools = [...balanceBySchool.values()].filter((bal) => bal <= 0).length;
+
+  const paidTermsCount = schoolPaymentsResult.rows.filter(
     (x) => Number(x.balance) <= 0
   ).length;
 
@@ -305,6 +327,8 @@ async function getBusinessAnalytics({ year, month } = {}) {
     eventRevenue: Number(eventRevenue.rows[0].total),
     eventRegistrations: Number(eventRegistrations.rows[0].total),
     paidSchools,
+    paidTermsCount,
+    totalSchoolsWithQuotes: balanceBySchool.size,
     outstandingBalance,
     schools: schoolPaymentsResult.rows,
     incomeBreakdown: incomeBreakdown.rows,
@@ -661,10 +685,19 @@ async function getEngagementAnalytics(bounds, { page = 1, limit = 50, action } =
 async function getReportAnalytics(scope, year, month) {
   const bounds = getPeriodBounds(scope, year, month);
 
+  // getBusinessAnalytics takes a raw {year, month} pair rather than
+  // `bounds` (it needs year/month separately for its own SQL, unlike the
+  // other sections here) — so a stray month value surviving from a prior
+  // UI selection (e.g. the caller still has "January" set from before
+  // switching to a yearly report) would silently restrict revenue to that
+  // one month instead of the full year. Only forward month when this is
+  // actually a month-scoped report.
+  const businessMonth = scope === "month" ? month : undefined;
+
   const [overview, business, learning, schools, finance, engagement] =
     await Promise.all([
       getOverviewAnalytics(bounds),
-      getBusinessAnalytics({ year, month }),
+      getBusinessAnalytics({ year, month: businessMonth }),
       getLearningAnalytics(bounds),
       getSchoolsAnalytics(bounds),
       getFinanceAnalytics(bounds),

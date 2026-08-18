@@ -98,7 +98,9 @@ async function generatePlatformReport({
 
     if (formats.includes("pdf")) {
       const html = buildPlatformReportHTML(analytics, aiCommentary, { companyInfo });
-      const buffer = await generatePdf(html);
+      const buffer = await generatePdf(html, {
+        margin: { top: "0.5in", bottom: "0.5in", left: "0.5in", right: "0.5in" },
+      });
       files.push({
         format: "pdf",
         filename: fileNameFor(analytics.periodLabel, "pdf"),

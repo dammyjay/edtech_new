@@ -49,7 +49,8 @@ function summarizeSectionForAI(sectionName, data) {
         parentRevenue: data.parentRevenue,
         eventRevenue: data.eventRevenue,
         eventRegistrations: data.eventRegistrations,
-        paidSchools: data.paidSchools,
+        schoolsFullyPaid: `${data.paidSchools} of ${data.totalSchoolsWithQuotes} schools with quotes`,
+        termsPaid: data.paidTermsCount,
         outstandingBalance: data.outstandingBalance,
         incomeBreakdown: data.incomeBreakdown,
         topSchoolBalances: (data.schools || [])

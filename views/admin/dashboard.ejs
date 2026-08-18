@@ -364,10 +364,19 @@
 
     <div class="metric-card">
       <div class="card-title orange-bg">
-        <p>Paid Schools</p>
+        <p>Schools Fully Paid</p>
       </div>
       <div class="metric-card-content">
         <h4 id="paidSchools">0</h4>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="card-title orange-bg">
+        <p>Terms Paid</p>
+      </div>
+      <div class="metric-card-content">
+        <h4 id="paidTermsCount">0</h4>
       </div>
     </div>
 
@@ -1170,7 +1179,10 @@
             Number(data.eventRegistrations || 0).toLocaleString();
 
           document.getElementById('paidSchools').innerText =
-            Number(data.paidSchools || 0).toLocaleString();
+            Number(data.paidSchools || 0).toLocaleString() + ' / ' + Number(data.totalSchoolsWithQuotes || 0).toLocaleString();
+
+          document.getElementById('paidTermsCount').innerText =
+            Number(data.paidTermsCount || 0).toLocaleString();
 
           document.getElementById('outstandingBalance').innerText =
             '₦' + Number(data.outstandingBalance || 0).toLocaleString();
@@ -1758,8 +1770,17 @@
     <script>
       function toggleReportPeriodInputs() {
         const scope = document.getElementById("reportScope").value;
-        document.getElementById("reportMonth").style.display =
-          scope === "month" ? "inline-block" : "none";
+        const monthSelect = document.getElementById("reportMonth");
+        monthSelect.style.display = scope === "month" ? "inline-block" : "none";
+        // Hiding the select doesn't clear its value — it silently keeps
+        // whatever month was last selected (defaulting to "1"/January) and
+        // that stray value gets sent with every request regardless of
+        // scope. For a yearly report this quietly restricted revenue
+        // queries to January only. Explicitly reset it so a yearly/all
+        // request never carries a leftover month.
+        if (scope !== "month") {
+          monthSelect.value = "";
+        }
       }
 
       function populateReportYearSelect() {

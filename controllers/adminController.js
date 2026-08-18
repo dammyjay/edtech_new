@@ -7425,7 +7425,7 @@ exports.downloadQuotePDF = async (req, res) => {
         </div>
 
         <div class="bank">
-          <p style="font-size: 30px; color: #b89b5e; margin: 0;">${company.company_name || ""}</p>
+          <p style="font-size: 30px; color: #b89b5e; margin: 0;">Jaykirch Tech Hub</p>
           <p style="font-size: 18px;">Access Bank</p>
           <p style="font-size: 30px;">1582579748</p>
         </div>
@@ -7658,7 +7658,7 @@ exports.downloadQuotePDF = async (req, res) => {
         <br>
 
         Account Name:
-        <b>${company.company_name || ""}</b>
+        <b>Jaykirch Tech Hub</b>
 
         <br>
 
@@ -9495,7 +9495,7 @@ ${invoice.parent_phone || ""}
 <div class="bank">
 
 <p style="font-size:28px;color:#b89b5e;font-weight:bold;">
-${company.company_name || ""}
+Jaykirch Tech Hub
 </p>
 
 <p style="font-size:18px;">
@@ -9666,7 +9666,7 @@ ${
 
 Bank Name: <b>Access Bank</b><br>
 
-Account Name: <b>${company.company_name || ""}</b><br>
+Account Name: <b>Jaykirch Tech Hub</b><br>
 
 Account Number: <b>1582579748</b>
 
@@ -9884,7 +9884,7 @@ Access Bank
 <br>
 
 Account Name:
-<b>${company.company_name || ""}</b>
+<b>Jaykirch Tech Hub</b>
 
 <br>
 

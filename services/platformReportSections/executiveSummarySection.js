@@ -1,4 +1,4 @@
-const { renderMetricGrid, renderAiBlock, formatNaira } = require("./sectionHelpers");
+const { renderMetricGrid, renderAiBlock, renderPageHeader, formatNaira } = require("./sectionHelpers");
 
 function buildExecutiveSummarySection(analytics, executiveSummaryAI) {
   const { overview } = analytics;
@@ -6,7 +6,7 @@ function buildExecutiveSummarySection(analytics, executiveSummaryAI) {
   return `
 <div class="page">
 
-<h1 class="page-title">Executive Summary</h1>
+${renderPageHeader("Executive Summary", analytics.periodLabel)}
 
 ${renderMetricGrid([
   { label: "Total Users", value: overview.totalUsers.toLocaleString() },

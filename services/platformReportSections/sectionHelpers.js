@@ -14,17 +14,31 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;");
 }
 
+// Complementary accent palette — brand gold stays the default/neutral
+// color for most values, with a small set of semantic accents (teal for
+// informational counts, green for a good/settled status, amber for
+// something that needs attention) so a page of otherwise-identical gold
+// numbers doesn't read as flat. Pass m.accent as one of these keys.
+const METRIC_ACCENTS = {
+  gold: "A17807",
+  teal: "0F6E6E",
+  green: "2E7D4F",
+  amber: "C0762A",
+  red: "B23B3B",
+};
+
 function renderMetricGrid(metrics) {
   return `
 <div class="summary-grid">
 ${metrics
-  .map(
-    (m) => `
-<div class="summary-card">
+  .map((m) => {
+    const color = METRIC_ACCENTS[m.accent] || METRIC_ACCENTS.gold;
+    return `
+<div class="summary-card" style="border-top-color:#${color};">
   <div class="card-title">${escapeHtml(m.label)}</div>
-  <div class="card-value">${escapeHtml(m.value)}</div>
-</div>`
-  )
+  <div class="card-value" style="color:#${color};">${escapeHtml(m.value)}</div>
+</div>`;
+  })
   .join("")}
 </div>
 `;
@@ -92,10 +106,25 @@ function formatNaira(amount) {
   return "₦" + Number(amount || 0).toLocaleString();
 }
 
+// Every section page shows its title plus the report's period as a
+// subtitle — a reader looking at any single page later (not just the
+// cover) needs an unambiguous answer to "what period is this data for?"
+// without having to flip back. This matters in particular for periods
+// with little/no activity (e.g. an early year before revenue started) —
+// without this, a ₦0 revenue figure reads as a bug rather than "this
+// period genuinely had none."
+function renderPageHeader(title, periodLabel) {
+  return `
+<h1 class="page-title">${escapeHtml(title)}</h1>
+${periodLabel ? `<p class="period-subtitle">Reporting period: <strong>${escapeHtml(periodLabel)}</strong></p>` : ""}
+`;
+}
+
 module.exports = {
   escapeHtml,
   renderMetricGrid,
   renderAiBlock,
   renderDataTable,
+  renderPageHeader,
   formatNaira,
 };

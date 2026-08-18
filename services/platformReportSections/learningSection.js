@@ -1,6 +1,6 @@
-const { renderMetricGrid, renderAiBlock, renderDataTable } = require("./sectionHelpers");
+const { renderMetricGrid, renderAiBlock, renderDataTable, renderPageHeader } = require("./sectionHelpers");
 
-function buildLearningSection(learning, ai) {
+function buildLearningSection(learning, ai, periodLabel) {
   const metrics = [
     { label: "Total Courses", value: learning.totalCourses.toLocaleString() },
     { label: "Total Modules", value: learning.totalModules.toLocaleString() },
@@ -17,7 +17,7 @@ function buildLearningSection(learning, ai) {
   return `
 <div class="page">
 
-<h1 class="page-title">Learning</h1>
+${renderPageHeader("Learning", periodLabel)}
 
 ${renderMetricGrid(metrics)}
 

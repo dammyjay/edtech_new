@@ -1,10 +1,10 @@
-const { renderMetricGrid, renderAiBlock, renderDataTable, formatNaira } = require("./sectionHelpers");
+const { renderMetricGrid, renderAiBlock, renderDataTable, renderPageHeader, formatNaira } = require("./sectionHelpers");
 
-function buildFinanceSection(finance, ai) {
+function buildFinanceSection(finance, ai, periodLabel) {
   return `
 <div class="page">
 
-<h1 class="page-title">Finance</h1>
+${renderPageHeader("Finance", periodLabel)}
 
 ${renderMetricGrid([
   { label: "Wallet/Course Revenue", value: formatNaira(finance.revenue) },
