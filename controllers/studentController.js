@@ -8,6 +8,8 @@ const cloudinary = require("../utils/cloudinary");
 const {upload} = require("../middlewares/upload");
 const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
+const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
+const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const bcrypt = require("bcrypt");
 const getAnnouncements = require("../utils/getAnnouncements");
 
@@ -157,6 +159,44 @@ exports.getDashboard = async (req, res) => {
           [classroom.id]
         );
         enrolledCourses = enrolledCoursesRes.rows;
+      }
+    }
+
+    // Courses from a classroom this student used to be in (per
+    // student_term_enrollments) that dropped out of enrolledCourses
+    // because their live classroom changed — kept visible for review
+    // instead of just vanishing. Locked against new completions/quiz
+    // submissions server-side (see completeLesson/submitLessonQuiz).
+    let pastCourses = [];
+    if (role === "student" && classroom) {
+      const { pastCourseIds } = await getStudentCourseAccess(studentId);
+      if (pastCourseIds.size) {
+        const pastCourseIdsArr = Array.from(pastCourseIds);
+        const pastCoursesRes = await pool.query(
+          `SELECT id, title, thumbnail_url, level FROM courses WHERE id = ANY($1) ORDER BY title`,
+          [pastCourseIdsArr]
+        );
+        const progressRes = await pool.query(
+          `SELECT m.course_id,
+                  COUNT(DISTINCT l.id) AS total_lessons,
+                  COUNT(DISTINCT ulp.lesson_id) AS completed_lessons
+           FROM modules m
+           JOIN lessons l ON l.module_id = m.id
+           LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $2
+           WHERE m.course_id = ANY($1)
+           GROUP BY m.course_id`,
+          [pastCourseIdsArr, studentId]
+        );
+        const progressByCourseId = {};
+        progressRes.rows.forEach((r) => {
+          const total = Number(r.total_lessons);
+          const completed = Number(r.completed_lessons);
+          progressByCourseId[r.course_id] = total > 0 ? Math.round((completed / total) * 100) : 0;
+        });
+        pastCourses = pastCoursesRes.rows.map((c) => ({
+          ...c,
+          progress: progressByCourseId[c.id] || 0,
+        }));
       }
     }
 
@@ -910,6 +950,7 @@ exports.getDashboard = async (req, res) => {
       instructors,
       subscribed: req.query.subscribed,
       enrolledCourses,
+      pastCourses,
       pathwayCourses,
       courseModules,
       moduleLessons,
@@ -941,6 +982,68 @@ exports.getDashboard = async (req, res) => {
   } catch (err) {
     console.error("Dashboard Error:", err.message);
     res.status(500).send("Server Error");
+  }
+};
+
+// Read-only review of a course from a classroom the student used to be
+// in (not their live classroom anymore) — separate, lightweight page
+// rather than the full interactive module viewer, since that viewer's
+// data (courseModules/moduleLessons) is built only from the student's
+// CURRENT classroom's courses. Completed lessons stay viewable; anything
+// not completed shows locked (server-side enforcement lives in
+// completeLesson/submitLessonQuiz, not just this page).
+exports.viewPastCourse = async (req, res) => {
+  const studentId = req.session.user.id;
+  const courseId = parseInt(req.params.courseId, 10);
+
+  try {
+    const { pastCourseIds } = await getStudentCourseAccess(studentId);
+    if (!Number.isInteger(courseId) || !pastCourseIds.has(courseId)) {
+      return res.redirect("/student/dashboard?section=progress");
+    }
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
+
+    const courseRes = await pool.query("SELECT * FROM courses WHERE id = $1", [courseId]);
+    const course = courseRes.rows[0];
+    if (!course) return res.status(404).send("Course not found");
+
+    const modulesRes = await pool.query(
+      "SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC",
+      [courseId]
+    );
+    const moduleIds = modulesRes.rows.map((m) => m.id);
+
+    let lessonsByModule = {};
+    if (moduleIds.length) {
+      const lessonsRes = await pool.query(
+        `SELECT l.id, l.title, l.module_id, l.order_number,
+                (ulp.lesson_id IS NOT NULL) AS completed
+         FROM lessons l
+         LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $2
+         WHERE l.module_id = ANY($1)
+         ORDER BY l.order_number ASC`,
+        [moduleIds, studentId]
+      );
+      lessonsRes.rows.forEach((l) => {
+        if (!lessonsByModule[l.module_id]) lessonsByModule[l.module_id] = [];
+        lessonsByModule[l.module_id].push(l);
+      });
+    }
+
+    res.render("student/pastCourseReview", {
+      info,
+      users: req.session.user,
+      course,
+      modules: modulesRes.rows,
+      lessonsByModule,
+    });
+  } catch (err) {
+    console.error("Error loading past course review:", err.message);
+    res.status(500).send("Server error");
   }
 };
 
@@ -1350,6 +1453,24 @@ exports.completeLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
 
   try {
+    // A lesson already marked complete stays viewable/idempotent even
+    // if the course has since become a locked past-term course — only
+    // a genuinely NEW completion gets blocked.
+    const alreadyDone = await pool.query(
+      "SELECT 1 FROM user_lesson_progress WHERE user_id = $1 AND lesson_id = $2",
+      [userId, lessonId]
+    );
+    if (!alreadyDone.rows.length) {
+      const courseId = await getCourseIdForLesson(lessonId);
+      if (await isCourseLocked(userId, courseId)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "This course is from a previous term and is now view-only — you can no longer complete new lessons in it.",
+        });
+      }
+    }
+
     // 1️⃣ Mark lesson as completed
     await pool.query(
       `
@@ -1359,6 +1480,10 @@ exports.completeLesson = async (req, res) => {
       `,
       [userId, lessonId]
     );
+
+    // Best-effort, non-blocking: record which term this activity
+    // happened in, for the classroom-course-term link table.
+    recordActivityForLesson(userId, lessonId);
 
     // 2️⃣ Update course progress
     await pool.query(
@@ -1936,6 +2061,15 @@ exports.submitLessonQuiz = async (req, res) => {
       });
     }
 
+    const lockedCourseId = await getCourseIdForLesson(lessonId);
+    if (await isCourseLocked(studentId, lockedCourseId)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This course is from a previous term and is now view-only — you can no longer submit quizzes in it.",
+      });
+    }
+
     // ✅ Fetch lesson content
     const lessonRes = await pool.query(
       `SELECT id, title, content FROM lessons WHERE id=$1`,
@@ -2088,6 +2222,10 @@ ${JSON.stringify(reviewData, null, 2)}
    ON CONFLICT (user_id, lesson_id) DO NOTHING`,
       [studentId, lessonId],
     );
+
+    // Best-effort, non-blocking: record which term this activity
+    // happened in, for the classroom-course-term link table.
+    recordActivityForLesson(studentId, lessonId);
 
     const xpGained = 10;
     await pool.query(

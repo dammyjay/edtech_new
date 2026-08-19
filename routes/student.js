@@ -10,6 +10,7 @@ const studentController = require("../controllers/studentController");
 const { ensureAuthenticated } = require("../middlewares/auth");
 router.get("/dashboard", studentController.getDashboard);
 router.get("/courses", studentController.getEnrolledCourses);
+router.get("/past-courses/:courseId", ensureAuthenticated, studentController.viewPastCourse);
 router.get("/analytics", studentController.getAnalytics);
 router.post("/update-xp", studentController.updateXP);
 router.post("/award-badge", studentController.awardBadge);

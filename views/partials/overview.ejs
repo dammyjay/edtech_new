@@ -1,35 +1,13 @@
 
 
-<script>
-  function toggleCollapse(id) {
-    const section = document.getElementById(id);
-    section.classList.toggle("active");
-  }
-</script>
-
-<script>
-function openModal(id) {
-  document.getElementById(id).style.display = "flex";
-}
-function closeModal(id) {
-  document.getElementById(id).style.display = "none";
-}
-
-// Pre-fill edit modal
-function openEditModal(classroomId, classroomName, teacherIds) {
-  document.getElementById("edit_classroom_id").value = classroomId;
-  document.getElementById("edit_name").value = classroomName;
-
-  // Reset teacher select
-  const select = document.getElementById("edit_teacher_ids");
-  Array.from(select.options).forEach(opt => {
-    opt.selected = teacherIds.includes(parseInt(opt.value));
-  });
-
-  document.getElementById("editClassroomForm").action = "/school-admin/classrooms/" + classroomId + "/edit";
-  openModal("editClassroomModal");
-}
-</script>
+<!-- toggleCollapse / openModal / closeModal / openEditModal are declared
+     once, globally, in views/school-admin/dashboard.ejs — not here. They
+     used to live in this file's own <script>, which only ever executes
+     on the very first page load (when Overview happens to be the
+     default section rendered server-side); once the admin navigates to
+     another tab and back via loadSection's innerHTML swap, a <script>
+     tag re-inserted that way never runs, so a second definition here
+     would just never fire anyway. See dashboard.ejs for the real ones. -->
 
 
 <div class="kpi-row">
@@ -54,6 +32,41 @@ function openEditModal(classroomId, classroomName, teacherIds) {
     <p>Active Courses</p>
   </div>
 </div>
+
+<div style="margin: 1rem 0; display:flex; gap:10px; flex-wrap:wrap;">
+  <button class="btn-sec" onclick="loadSchoolAdminAnalytics()">📊 View Term Analytics</button>
+  <button class="btn-sec" onclick="window.location.href='/school-admin/download-progress'">📄 Download School Summary</button>
+</div>
+<div id="schoolAdminAnalyticsBox"></div>
+
+<script>
+  async function loadSchoolAdminAnalytics() {
+    const box = document.getElementById("schoolAdminAnalyticsBox");
+    box.innerHTML = "<p>Loading...</p>";
+    try {
+      const res = await fetch("/school-admin/term-analytics");
+      const data = await res.json();
+
+      let html = `
+        <div class="report-panel" style="background:#fff; border-radius:12px; padding:16px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+          <h3>📊 Term Analytics</h3>
+          <p><strong>Total Unique Students (across all terms):</strong> ${data.totals.total_unique_students}</p>
+          <p><strong>Total Term Enrollments:</strong> ${data.totals.total_enrollments}</p>
+          <p><strong>Retained Students (enrolled in 2+ terms):</strong> ${data.retention.retained_students}</p>
+          <h4>Growth Per Term</h4>
+          <ul>
+      `;
+      data.growth.forEach((term) => {
+        html += `<li>${term.name}: ${term.total_students} students</li>`;
+      });
+      html += `</ul></div>`;
+
+      box.innerHTML = html;
+    } catch (err) {
+      box.innerHTML = "<p>Error loading analytics.</p>";
+    }
+  }
+</script>
 
 <div class="charts-grid">
   <div class="chart-box">
@@ -185,6 +198,7 @@ function openEditModal(classroomId, classroomName, teacherIds) {
             <td>
               <button class="btn-edit">📩 Remind</button>
               <button class="btn-view">👨‍🏫 Assign Mentor</button>
+              <a class="btn-sec" href="/school-admin/students/<%= s.id %>/progress?from=school_admin">📊 Progress</a>
             </td>
           </tr>
         <% }) %>
@@ -506,53 +520,12 @@ async function approveUser(userId) {
     </div>
     </div>
 
-    <!-- Create Classroom Modal -->
-    <div id="createClassroomModal" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('createClassroomModal')">&times;</span>
-        <h2>➕ Create Classroom</h2>
-
-        <form method="POST" action="/school-admin/classrooms/new">
-        <label for="name">Classroom Name</label>
-        <input type="text" name="name" id="name" required>
-
-        <label for="teacher_id">Assign Teachers (optional)</label>
-        <select name="teacher_id" id="teacher_id" multiple size="5">
-            <% teachers.forEach(t => { %>
-            <option value="<%= t.id %>"><%= t.fullname %> (<%= t.email %>)</option>
-            <% }) %>
-        </select>
-        <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
-
-        <button type="submit" class="btn-edit">Create</button>
-        </form>
-    </div>
-    </div>
-
-    <!-- Reusable Edit Modal -->
-<div id="editClassroomModal" class="modal-overlay">
-  <div class="modal-content">
-    <span class="close-btn" onclick="closeModal('editClassroomModal')">&times;</span>
-    <h2>✏ Edit Classroom</h2>
-    <form id="editClassroomForm" method="POST">
-      <input type="hidden" name="id" id="edit_classroom_id">
-
-      <label for="edit_name">Classroom Name</label>
-      <input type="text" name="name" id="edit_name" required>
-
-      <label for="teacher_id">Assign Teachers</label>
-      <select name="teacher_id" id="edit_teacher_ids" multiple size="5">
-        <% teachers.forEach(t => { %>
-          <option value="<%= t.id %>"><%= t.fullname %> (<%= t.email %>)</option>
-        <% }) %>
-      </select>
-
-      <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
-
-      <button type="submit" class="btn-edit">Update</button>
-    </form>
-  </div>
-</div>
+    <!-- Create/Edit Classroom modals moved to views/school-admin/dashboard.ejs
+         (outside the AJAX-swapped #dashboard-content area) — they're
+         triggered from both this partial and partials/classrooms.ejs, so
+         they need to exist in the DOM regardless of which section is
+         currently loaded. See dashboard.ejs for the markup + openModal /
+         closeModal / openEditModal. -->
 
 <script>
 function openClassroom(classroomId) {

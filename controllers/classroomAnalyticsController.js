@@ -170,10 +170,24 @@ exports.getClassroomDashboard = async (req, res) => {
       studentMetrics.reduce((sum, s) => sum + s.quizAvg, 0) /
       totalStudents;
 
-    res.render("admin/classroom-dashboard", {
+    // Reused as-is by schoolAdminController.js's getClassroomDashboard
+    // (after its own ownership check) for parity with what the platform
+    // admin sees — but a school admin gets a dedicated view, not this
+    // one: admin/classroom-dashboard.ejs includes the admin header/nav
+    // and a self-serve "Report Centre" that contradicts the "only the
+    // platform admin generates term reports" flow (see adminController.js's
+    // endTerm) — that section is intentionally left out of
+    // school-admin/classroomDashboard.ejs.
+    const viewName =
+      req.session.user && req.session.user.role === "school_admin"
+        ? "school-admin/classroomDashboard"
+        : "admin/classroom-dashboard";
+
+    res.render(viewName, {
       info: req.companyInfo || {},
       role: req.userRole || "admin",
       currentPage: "schools",
+      users: req.session.user, // partials/header.ejs needs this for its nav links
       classroom,
       students,
       totalStudents,

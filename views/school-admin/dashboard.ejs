@@ -10,11 +10,92 @@
 <div class="main-content">
   <!-- Overview is the default content -->
   <div id="dashboard-content">
-    <%- include('../partials/overview', { 
-      schoolAdmin, school, pendingUsers, teachers, students, classrooms 
+    <%- include('../partials/overview', {
+      schoolAdmin, school, pendingUsers, teachers, students, classrooms
     }) %>
   </div>
 </div>
+
+<!-- Create/Edit Classroom modals — live here, outside #dashboard-content,
+     because they're triggered from both partials/overview.ejs and
+     partials/classrooms.ejs. Those get swapped in and out of
+     #dashboard-content by loadSection(), so a modal defined inside one of
+     them simply doesn't exist in the DOM once a different section is
+     showing — that was the "Create Classroom modal not working" bug:
+     clicking the button from the Classrooms tab called
+     openModal('createClassroomModal') against an element that had
+     already been removed from the page. -->
+<div id="createClassroomModal" class="modal-overlay">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('createClassroomModal')">&times;</span>
+    <h2>➕ Create Classroom</h2>
+
+    <form method="POST" action="/school-admin/classrooms/new">
+      <label for="name">Classroom Name</label>
+      <input type="text" name="name" id="name" required>
+
+      <label for="teacher_id">Assign Teachers (optional)</label>
+      <select name="teacher_id" id="teacher_id" multiple size="5">
+        <% teachers.forEach(t => { %>
+          <option value="<%= t.id %>"><%= t.fullname %> (<%= t.email %>)</option>
+        <% }) %>
+      </select>
+      <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
+
+      <button type="submit" class="btn-edit">Create</button>
+    </form>
+  </div>
+</div>
+
+<div id="editClassroomModal" class="modal-overlay">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('editClassroomModal')">&times;</span>
+    <h2>✏ Edit Classroom</h2>
+    <form id="editClassroomForm" method="POST">
+      <input type="hidden" name="id" id="edit_classroom_id">
+
+      <label for="edit_name">Classroom Name</label>
+      <input type="text" name="name" id="edit_name" required>
+
+      <label for="teacher_id">Assign Teachers</label>
+      <select name="teacher_id" id="edit_teacher_ids" multiple size="5">
+        <% teachers.forEach(t => { %>
+          <option value="<%= t.id %>"><%= t.fullname %> (<%= t.email %>)</option>
+        <% }) %>
+      </select>
+      <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
+
+      <button type="submit" class="btn-edit">Update</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleCollapse(id) {
+    const section = document.getElementById(id);
+    section.classList.toggle("active");
+  }
+
+  function openModal(id) {
+    document.getElementById(id).style.display = "flex";
+  }
+  function closeModal(id) {
+    document.getElementById(id).style.display = "none";
+  }
+
+  function openEditModal(classroomId, classroomName, teacherIds) {
+    document.getElementById("edit_classroom_id").value = classroomId;
+    document.getElementById("edit_name").value = classroomName;
+
+    const select = document.getElementById("edit_teacher_ids");
+    Array.from(select.options).forEach(opt => {
+      opt.selected = teacherIds.includes(parseInt(opt.value));
+    });
+
+    document.getElementById("editClassroomForm").action = "/school-admin/classrooms/" + classroomId + "/edit";
+    openModal("editClassroomModal");
+  }
+</script>
 
 <script>
   async function loadSection(section) {
@@ -140,10 +221,60 @@
 //   }
 // }
 
+// Weekly present/absent/attendance-% chart — same endpoint contract and
+// Chart.js rendering as the platform admin's version
+// (views/admin/school-details.ejs), now that
+// schoolAdminController.js's getWeeklyAttendanceStats matches it (it
+// used to query a column, attendance_date, that doesn't exist, so this
+// never had real data to render). Chart.js itself is loaded once by
+// partials/overview.ejs on first page load and stays available globally.
+let schoolAdminAttendanceChart = null;
+async function loadAttendanceStats() {
+  const termId = document.getElementById("attendanceFilterTerm")?.value;
+  const classroomId = document.getElementById("attendanceFilterClassroom")?.value;
+  const canvas = document.getElementById("attendanceChart");
+  const summary = document.getElementById("attendanceSummary");
+  if (!termId || !canvas) return;
+
+  try {
+    const res = await fetch(`/school-admin/attendance/stats?term_id=${termId}${classroomId ? "&classroom_id=" + classroomId : ""}`);
+    const data = await res.json();
+
+    const labels = data.map((d) => `Week ${d.week_number}`);
+    const present = data.map((d) => Number(d.present));
+    const absent = data.map((d) => Number(d.absent));
+    const percent = data.map((d) => Number(d.attendance_percent) || 0);
+
+    if (schoolAdminAttendanceChart) schoolAdminAttendanceChart.destroy();
+    schoolAdminAttendanceChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          { label: "Present", data: present, backgroundColor: "#4CAF50" },
+          { label: "Absent", data: absent, backgroundColor: "#e74c3c" },
+        ],
+      },
+    });
+
+    if (summary) {
+      const avg = percent.length ? percent.reduce((a, b) => a + b, 0) / percent.length : 0;
+      summary.innerHTML = data.length
+        ? `<h3>Average Attendance: ${avg.toFixed(1)}%</h3>`
+        : `<p>No attendance sessions recorded for this term yet.</p>`;
+    }
+  } catch (err) {
+    console.error(err);
+    if (summary) summary.innerHTML = "<p>Error loading attendance chart.</p>";
+  }
+}
+
 async function loadAttendanceHistory() {
   try {
     const termId = document.getElementById("attendanceFilterTerm")?.value;
     const classroomId = document.getElementById("attendanceFilterClassroom")?.value;
+
+    loadAttendanceStats();
 
     const url = `/school-admin/attendance/history?term_id=${termId || ""}&classroom_id=${classroomId || ""}`;
 
@@ -194,6 +325,81 @@ async function loadAttendanceHistory() {
   }
 }
 
+// Renders, per classroom: the session log (week/date/status/note) and a
+// student x week attendance matrix, for the currently-selected term (see
+// #attendanceFilterTerm) — schoolAdminController.js's getAttendanceSummary.
+async function loadAttendanceSummary() {
+  const termId = document.getElementById("attendanceFilterTerm")?.value;
+  const box = document.getElementById("attendanceSummaryReport");
+  if (!termId) {
+    alert("Select a term first.");
+    return;
+  }
+
+  box.innerHTML = "<p>Loading...</p>";
+  try {
+    const res = await fetch(`/school-admin/attendance/summary?term_id=${termId}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      box.innerHTML = `<p>${data.message || "Error loading attendance summary."}</p>`;
+      return;
+    }
+
+    if (!data.classrooms.length) {
+      box.innerHTML = "<p>No attendance sessions recorded for this term yet.</p>";
+      return;
+    }
+
+    const statusEmoji = { present: "✅", absent: "❌", late: "⏰" };
+
+    box.innerHTML = data.classrooms.map((cls) => {
+      const sessionRows = cls.sessions.map((s) =>
+        `<tr>
+          <td>Week ${s.week}</td>
+          <td>${s.date ? new Date(s.date).toLocaleDateString() : "-"}</td>
+          <td>${s.status}</td>
+          <td>${s.note || "-"}</td>
+        </tr>`
+      ).join("");
+
+      const weekHeaders = cls.weeks.map((w) => `<th>Wk ${w}</th>`).join("");
+      const studentRows = cls.students.map((s) => {
+        const weekCells = cls.weeks.map((w) => {
+          const status = s.weeks[w];
+          return `<td style="text-align:center;">${status ? (statusEmoji[status] || status) : "-"}</td>`;
+        }).join("");
+        return `<tr><td>${s.name}</td>${weekCells}</tr>`;
+      }).join("");
+
+      return `
+        <div class="report-panel" style="background:#fff; border-radius:12px; padding:16px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+          <h4>${cls.classroomName}</h4>
+
+          <h5 style="margin-top:12px; color:#666;">Sessions</h5>
+          <div class="table-responsive">
+            <table class="user-table">
+              <thead><tr><th>Week</th><th>Date</th><th>Status</th><th>Note</th></tr></thead>
+              <tbody>${sessionRows || '<tr><td colspan="4" style="text-align:center;">No sessions recorded</td></tr>'}</tbody>
+            </table>
+          </div>
+
+          <h5 style="margin-top:16px; color:#666;">Student Attendance by Week</h5>
+          <div class="table-responsive">
+            <table class="user-table">
+              <thead><tr><th>Student</th>${weekHeaders}</tr></thead>
+              <tbody>${studentRows || `<tr><td colspan="${cls.weeks.length + 1}" style="text-align:center;">No students recorded</td></tr>`}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    console.error(err);
+    box.innerHTML = "<p>Error loading attendance summary.</p>";
+  }
+}
+
 function exportPDF(sessionId) {
   window.open(`/school-admin/attendance/${sessionId}/pdf`, "_blank");
 }
@@ -205,6 +411,70 @@ function exportExcel(termId) {
   }
 
   window.open(`/school-admin/attendance/${termId}/excel`, "_blank");
+}
+
+// Used by the "Term Report Cards" widget rendered inside the Terms
+// section (loadSection's response). Declared here — not inline in that
+// response — because a <script> tag inserted via innerHTML never
+// executes; this has to be a real global function from a page-load
+// script for the onclick="..." handler in that HTML to find it.
+//
+// Report cards are generated only by the platform admin (when they mark
+// a term ended, or manually regenerate one) — this never generates
+// anything itself, it only asks whether reports exist yet for the chosen
+// classroom + term and, if so, shows download links to the exact stored
+// copies (see schoolAdminController.js's getClassTermReportStatus).
+async function checkTermReportStatus() {
+  const classroomId = document.getElementById("reportClassroom").value;
+  const termId = document.getElementById("reportTerm").value;
+  const box = document.getElementById("termReportStudents");
+  if (!classroomId || !termId) {
+    alert("Select a classroom and a term first.");
+    return;
+  }
+
+  box.innerHTML = "<p>Loading...</p>";
+  try {
+    const res = await fetch(`/school-admin/reports/${classroomId}/${termId}/status`);
+    const data = await res.json();
+
+    if (!data.success) {
+      box.innerHTML = `<p>${data.message || "Error loading report status."}</p>`;
+      return;
+    }
+
+    if (!data.termEnded) {
+      box.innerHTML = `<p style="color:#888;">⏳ Report not available yet — the admin hasn't finalized this term.</p>`;
+      return;
+    }
+
+    let html = "";
+    html += data.classReport
+      ? `<p><a href="/school-admin/stored-reports/${data.classReport.id}/download">📥 Download Full Class Report</a> <span style="color:#888; font-size:12px;">(generated ${new Date(data.classReport.generated_at).toLocaleString()})</span></p>`
+      : `<p style="color:#888;">No whole-class report generated for this classroom yet.</p>`;
+
+    if (data.students && data.students.length) {
+      html +=
+        '<table class="user-table"><thead><tr><th>Name</th><th>Email</th><th>Action</th></tr></thead><tbody>' +
+        data.students
+          .map((s) =>
+            `<tr><td>${s.fullname}</td><td>${s.email}</td><td>` +
+            (s.report_id
+              ? `<a href="/school-admin/stored-reports/${s.report_id}/download">📥 Download Report</a>`
+              : `<span style="color:#888;">Not generated yet</span>`) +
+            `</td></tr>`
+          )
+          .join("") +
+        "</tbody></table>";
+    } else {
+      html += "<p>No students enrolled in this classroom for this term.</p>";
+    }
+
+    box.innerHTML = html;
+  } catch (err) {
+    console.error(err);
+    box.innerHTML = "<p>Error loading report status.</p>";
+  }
 }
 
 async function viewAttendance(sessionId) {
@@ -361,6 +631,15 @@ function attachEvents() {
         showBulkModal("❌ Upload Error", errorText);
       }
     });
+  }
+
+  // The Attendance section's history table + chart both need a term
+  // selected to mean anything — auto-load using the first term in the
+  // dropdown as soon as the section is swapped in, so the chart isn't
+  // just an empty canvas until the admin manually clicks Filter.
+  const attendanceTermFilter = document.getElementById("attendanceFilterTerm");
+  if (attendanceTermFilter && attendanceTermFilter.options.length) {
+    loadAttendanceHistory();
   }
 }
 

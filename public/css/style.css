@@ -3648,7 +3648,7 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
      font-size: 2rem;
      margin: 5px;
      cursor: pointer;
-     color: #fff;
+     color: var(--brand-pri);
      padding: auto;
  }
 
@@ -3766,7 +3766,7 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
     font-size: 2rem;
     margin: 10px;
     cursor: pointer;
-    color: #fff;
+    color: var(--brand-pri);
     position: absolute;
     /* top: 20px; */
     right: 30px;
@@ -3829,7 +3829,7 @@ box-shadow:0 5px 15px rgba(0,0,0,.15);
   font-size: 2rem;
   margin: 10px;
   cursor: pointer;
-  color: #fff;
+  color: var(--brand-pri);
   position: absolute;
   right: 30px;
   z-index: 2001;
@@ -4107,6 +4107,7 @@ width:100%;
 }
     .nav-toggle {
         display: none;
+        color: var(--brand-pri);
     }
 
     #main-nav {

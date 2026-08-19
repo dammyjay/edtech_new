@@ -351,19 +351,45 @@ document.addEventListener("DOMContentLoaded", () => {
     const fullBtn = document.getElementById("btnFullReport");
     const studentBtn = document.getElementById("btnStudentReport");
 
+    // Generated reports are persisted (see services/classTermReportStore.js)
+    // so the school admin can view them later — regenerating one for the
+    // same classroom+term(+student) replaces the stored copy, so check
+    // first and confirm before overwriting an existing one.
+    async function generateReport(existsUrl, downloadUrl) {
+        try {
+            const res = await fetch(existsUrl);
+            const data = await res.json();
+            if (data.exists) {
+                const when = data.generatedAt ? new Date(data.generatedAt).toLocaleString() : "earlier";
+                if (!confirm(`A report was already generated on ${when} and is available to the school admin. Generate again and replace it?`)) {
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error("Could not check for an existing report:", err);
+        }
+        window.location.href = downloadUrl;
+    }
+
     fullBtn.addEventListener("click", () => {
         const termId = document.getElementById("termSelect").value;
+        if (!termId) { alert("Select a term first."); return; }
 
-        window.location.href =
-            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
+        generateReport(
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/exists`,
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`
+        );
     });
 
     studentBtn.addEventListener("click", () => {
         const termId = document.getElementById("termSelect").value;
         const studentId = document.getElementById("studentSelect").value;
+        if (!termId || !studentId) { alert("Select a term and a student first."); return; }
 
-        window.location.href =
-            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/download`;
+        generateReport(
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/exists`,
+            `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/download`
+        );
     });
 
 });

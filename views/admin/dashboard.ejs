@@ -955,12 +955,42 @@
     <p id="deckStatus" style="margin-top:10px; color:#666;"></p>
   </div>
 
+  <style>
+    .photo-tile-grid { display:flex; flex-wrap:wrap; gap:8px; }
+    .photo-tile {
+      position:relative; width:96px; cursor:pointer; border:2px solid transparent;
+      border-radius:8px; padding:3px; background:#f7f7f7; text-align:center; user-select:none;
+    }
+    .photo-tile:hover { border-color:#e0c9a6; }
+    .photo-tile.selected { border-color:#c0762a; background:#fdf3e7; }
+    .photo-tile img { width:100%; height:70px; object-fit:cover; border-radius:5px; display:block; background:#eee; }
+    .photo-tile .tile-none-icon { width:100%; height:70px; display:flex; align-items:center; justify-content:center; color:#aaa; font-size:12px; background:#eee; border-radius:5px; }
+    .photo-tile .tile-label { font-size:10px; color:#666; margin-top:3px; line-height:1.2; max-height:2.2em; overflow:hidden; }
+    .photo-tile .tile-check { position:absolute; top:2px; right:2px; background:#c0762a; color:#fff; border-radius:50%; width:16px; height:16px; font-size:11px; line-height:16px; text-align:center; }
+
+    .photo-picker-preview { display:flex; align-items:center; gap:5px; flex-wrap:wrap; min-height:36px; }
+    .photo-picker-thumb { width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid #ddd; }
+    .photo-picker-empty { font-size:12px; color:#999; }
+    .photo-picker-more { font-size:11px; color:#888; }
+    .photo-picker-btn {
+      margin-top:6px; font-size:12px; padding:5px 10px; border:1px solid #c0762a;
+      background:#fff; color:#c0762a; border-radius:6px; cursor:pointer;
+    }
+    .photo-picker-btn:hover { background:#fdf3e7; }
+  </style>
+
   <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
     <h3>Partnership Proposal</h3>
     <p style="color:#666;">Generate a full partnership proposal deck (about us, track record, programs, pricing, FAQ) — draft it with AI first, review and edit everything, then download.</p>
 
     <div class="filter-bar" style="flex-wrap:wrap; gap:10px;">
-      <input type="text" id="proposalRecipient" placeholder="Recipient / School name (e.g. Greenwood Schools)" style="min-width:280px;">
+      <select id="proposalAudience">
+        <option value="schools">Schools</option>
+        <option value="grants">Grant Applications</option>
+        <option value="investors">Investors</option>
+        <option value="partners">Partners</option>
+      </select>
+      <input type="text" id="proposalRecipient" placeholder="Recipient / School / Organization name" style="min-width:280px;">
     </div>
     <textarea id="proposalFocusNotes" placeholder="Optional: anything specific to emphasize (e.g. 'focus on STEM coding for primary pupils')" style="width:100%; min-height:50px; margin-top:10px;"></textarea>
 
@@ -979,6 +1009,13 @@
       <input type="text" id="proposalTrackRecordQuote" style="width:100%; margin-bottom:6px;">
       <p style="color:#888; font-size:13px; margin-bottom:12px;">Stats shown in the deck (from real platform data, not editable): <span id="proposalStatsPreview"></span></p>
 
+      <div style="margin-bottom:16px;">
+        <label><strong>Schools We Partner With</strong> <span style="color:#888; font-weight:normal;">— optional logo wall, pick from schools with a logo on file</span></label><br>
+        <select id="proposalPartnerLogos" multiple style="display:none;"></select>
+        <div id="proposalPartnerLogosPreview" class="photo-picker-preview" style="margin-top:6px;"></div>
+        <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalPartnerLogos', {multi:true, title:'Schools We Partner With'})">Choose schools</button>
+      </div>
+
       <label><strong>Our Programs</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Title | Description</span></label>
       <textarea id="proposalPrograms" style="width:100%; min-height:90px; margin-bottom:12px;"></textarea>
 
@@ -991,11 +1028,87 @@
       <label><strong>FAQ</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Question? | Answer</span></label>
       <textarea id="proposalFaq" style="width:100%; min-height:110px; margin-bottom:12px;"></textarea>
 
-      <p style="color:#888; font-size:13px; margin-bottom:4px;"><em>Program deep-dive pages and the curriculum outline are included in the deck as AI-drafted (not editable here yet) — everything else on this page is exactly what will appear.</em></p>
+      <p style="color:#888; font-size:13px; margin-bottom:4px;"><em>Program deep-dive pages are included in the deck as AI-drafted (not editable here yet) — everything else on this page is exactly what will appear.</em></p>
 
       <hr style="margin:18px 0;">
 
-      <label><strong>Investment / Pricing</strong> <span style="color:#c0762a;">(always set this yourself — never AI-generated)</span></label>
+      <label><strong>The Curriculum</strong> <span style="color:#888; font-weight:normal;">— optional, real courses with their actual thumbnail &amp; description</span></label>
+      <textarea id="proposalCurriculumIntro" placeholder="Short intro framing the curriculum (AI-drafted, editable)" style="width:100%; min-height:60px; margin-top:6px;"></textarea>
+      <select id="proposalCurriculumCourses" multiple style="display:none;"></select>
+      <div id="proposalCurriculumCoursesPreview" class="photo-picker-preview" style="margin-top:6px;"></div>
+      <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalCurriculumCourses', {multi:true, title:'The Curriculum — pick courses to feature'})">Choose courses</button>
+      <div style="margin-top:8px;">
+        <label style="font-size:13px;">Courses per slide:
+          <select id="proposalCurriculumLayout">
+            <option value="threePerSlide">3 per slide</option>
+            <option value="twoPerSlide">2 per slide (larger cards)</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label><strong>Career Pathways</strong> <span style="color:#888; font-weight:normal;">— optional, real pathways this curriculum builds toward</span></label>
+        <textarea id="proposalCareerPathwayIntro" placeholder="Why building toward a real career path matters for the learner (AI-drafted, editable)" style="width:100%; min-height:60px; margin-top:6px;"></textarea>
+        <select id="proposalCareerPathways" multiple style="display:none;"></select>
+        <div id="proposalCareerPathwaysPreview" class="photo-picker-preview" style="margin-top:6px;"></div>
+        <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalCareerPathways', {multi:true, title:'Career Pathways — pick pathways to feature'})">Choose pathways</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label><strong>Competitions &amp; Exhibitions</strong> <span style="color:#888; font-weight:normal;">— optional (AI-drafted, editable; leave blank to omit this slide)</span></label>
+        <textarea id="proposalCompetitionsExhibitions" placeholder="How students are prepared for showcases and competitions" style="width:100%; min-height:70px; margin-top:6px;"></textarea>
+      </div>
+
+      <hr style="margin:18px 0;">
+
+      <label><strong>Photos</strong> <span style="color:#888; font-weight:normal;">— best-guess matches from your gallery, choose a different one or "None" for any slot</span></label>
+      <div class="filter-bar" style="flex-wrap:wrap; gap:20px; margin-top:8px; align-items:flex-start;">
+        <div>
+          <label style="font-size:12px; color:#888; display:block; margin-bottom:4px;">About Us photo</label>
+          <select id="proposalImageAboutUs" style="display:none;"></select>
+          <div id="proposalImageAboutUsPreview" class="photo-picker-preview"></div>
+          <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalImageAboutUs', {multi:false, title:'About Us photo'})">Choose photo</button>
+        </div>
+        <div>
+          <label style="font-size:12px; color:#888; display:block; margin-bottom:4px;">Track Record photo</label>
+          <select id="proposalImageTrackRecord" style="display:none;"></select>
+          <div id="proposalImageTrackRecordPreview" class="photo-picker-preview"></div>
+          <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalImageTrackRecord', {multi:false, title:'Track Record photo'})">Choose photo</button>
+        </div>
+        <div>
+          <label style="font-size:12px; color:#888; display:block; margin-bottom:4px;">Closing photo</label>
+          <select id="proposalImageClosing" style="display:none;"></select>
+          <div id="proposalImageClosingPreview" class="photo-picker-preview"></div>
+          <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalImageClosing', {multi:false, title:'Closing photo'})">Choose photo</button>
+        </div>
+      </div>
+      <p id="proposalImagePreviewLinks" style="font-size:12px; margin-top:6px;"></p>
+
+      <div style="margin-top:16px;">
+        <label><strong>Photo Gallery section</strong> <span style="color:#888; font-weight:normal;">— optional grid of photos woven into the deck body</span></label><br>
+        <select id="proposalGalleryPhotos" multiple style="display:none;"></select>
+        <div id="proposalGalleryPhotosPreview" class="photo-picker-preview" style="margin-top:6px;"></div>
+        <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalGalleryPhotos', {multi:true, title:'Photo Gallery section'})">Choose photos</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label><strong>Appendix — Photo Evidence</strong> <span style="color:#888; font-weight:normal;">— optional extra section at the very end for showing many photos as evidence</span></label><br>
+        <select id="proposalAppendixPhotos" multiple style="display:none;"></select>
+        <div id="proposalAppendixPhotosPreview" class="photo-picker-preview" style="margin-top:6px;"></div>
+        <button type="button" class="photo-picker-btn" onclick="openPhotoPicker('proposalAppendixPhotos', {multi:true, title:'Appendix — Photo Evidence'})">Choose photos</button>
+        <div style="margin-top:8px;">
+          <label style="font-size:13px;">Layout:
+            <select id="proposalAppendixLayout">
+              <option value="grid">Grid (6 per slide)</option>
+              <option value="twoPerSlide">2 per slide (larger photos)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <hr style="margin:18px 0;">
+
+      <label><strong id="proposalPriceLabel">Investment</strong> <span style="color:#c0762a;">(always set this yourself — never AI-generated)</span></label>
       <div class="filter-bar" style="flex-wrap:wrap; gap:10px; margin-top:8px;">
         <input type="text" id="proposalPriceAmount" placeholder="Label, e.g. PER PUPIL" style="min-width:160px;">
         <input type="text" id="proposalPriceValue" placeholder="Price, e.g. ₦8,000" style="min-width:140px;">
@@ -1012,6 +1125,14 @@
 
       <label><strong>Connect page intro (optional)</strong></label>
       <input type="text" id="proposalConnectPreamble" style="width:100%; margin-bottom:12px;">
+
+      <hr style="margin:18px 0;">
+
+      <label><strong>Deck Template</strong> <span style="color:#888; font-weight:normal;">— visual style; switching this doesn't change any content above</span></label>
+      <div style="margin-top:6px;">
+        <select id="proposalTemplate" style="min-width:220px;"></select>
+        <p id="proposalTemplateDescription" style="font-size:12px; color:#888; margin-top:6px;"></p>
+      </div>
 
       <button onclick="downloadProposal()" id="downloadProposalBtn">Download Proposal</button>
       <p id="proposalDownloadStatus" style="margin-top:10px; color:#666;"></p>
@@ -1034,6 +1155,18 @@
         </thead>
         <tbody id="reportHistoryTable"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div id="photoPickerModal" class="modal">
+  <div class="modal-content" style="max-width:680px;">
+    <span class="close" onclick="closePhotoPickerModal()">&times;</span>
+    <h3 id="photoPickerModalTitle">Choose a photo</h3>
+    <p id="photoPickerModalHint" style="color:#888; font-size:13px; margin-top:-12px; margin-bottom:14px;"></p>
+    <div id="photoPickerModalGrid" class="photo-tile-grid" style="max-height:55vh; overflow-y:auto; padding-right:4px;"></div>
+    <div style="margin-top:18px; text-align:right;">
+      <button type="button" onclick="closePhotoPickerModal()">Done</button>
     </div>
   </div>
 </div>
@@ -2002,6 +2135,320 @@
       }
 
       let proposalPreviewContent = null;
+      let galleryImagesCache = null;
+      let curriculumAssetsCache = null;
+
+      async function loadGalleryImagesIfNeeded() {
+        if (galleryImagesCache) return galleryImagesCache;
+        try {
+          const res = await fetch("/admin/pitch-decks/proposal/gallery-images");
+          const data = await res.json();
+          galleryImagesCache = data.success ? data.images : [];
+        } catch (err) {
+          console.error("Failed to load gallery images:", err);
+          galleryImagesCache = [];
+        }
+        return galleryImagesCache;
+      }
+
+      async function loadCurriculumAssetsIfNeeded() {
+        if (curriculumAssetsCache) return curriculumAssetsCache;
+        try {
+          const res = await fetch("/admin/pitch-decks/proposal/curriculum-assets");
+          const data = await res.json();
+          curriculumAssetsCache = data.success
+            ? { courses: data.courses, careerPathways: data.careerPathways, partnerSchools: data.partnerSchools }
+            : { courses: [], careerPathways: [], partnerSchools: [] };
+        } catch (err) {
+          console.error("Failed to load curriculum assets:", err);
+          curriculumAssetsCache = { courses: [], careerPathways: [], partnerSchools: [] };
+        }
+        return curriculumAssetsCache;
+      }
+
+      function imageOptionLabel(img) {
+        return [img.title, img.category].filter(Boolean).join(" — ") || "Untitled";
+      }
+
+      // Small Cloudinary transform for fast-loading tile thumbnails; falls
+      // back to the original URL untouched for non-Cloudinary sources.
+      function cldThumb(url) {
+        if (!url) return url;
+        if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+          return url.replace("/upload/", "/upload/w_150,h_110,c_fill,q_auto,f_auto/");
+        }
+        return url;
+      }
+
+      // Builds one clickable photo tile for a <select> option — shared by
+      // the picker modal grid. Clicking calls onClick, which the caller
+      // uses to toggle/set selection on the underlying <select>.
+      //
+      // "No image" (course/pathway/school with no thumbnail_url/logo_url)
+      // is distinct from the real "None" placeholder option used by the
+      // single-select pickers (that one has no dataset.title at all) —
+      // otherwise an item that simply lacks a photo would misleadingly
+      // show the label "None" instead of its actual title.
+      function buildPhotoTile(opt, onClick) {
+        const tile = document.createElement("div");
+        tile.className = "photo-tile" + (opt.selected ? " selected" : "");
+        const isRealItem = opt.dataset.title !== undefined;
+
+        if (opt.value) {
+          const img = document.createElement("img");
+          img.src = cldThumb(opt.value);
+          img.loading = "lazy";
+          tile.appendChild(img);
+          if (opt.selected) {
+            const check = document.createElement("span");
+            check.className = "tile-check";
+            check.innerText = "✓";
+            tile.appendChild(check);
+          }
+        } else {
+          const noneIcon = document.createElement("div");
+          noneIcon.className = "tile-none-icon";
+          noneIcon.innerText = isRealItem ? "No image" : "None";
+          tile.appendChild(noneIcon);
+        }
+
+        const label = document.createElement("div");
+        label.className = "tile-label";
+        label.innerText = isRealItem ? (opt.dataset.title || "Untitled") : "None";
+        tile.appendChild(label);
+
+        tile.addEventListener("click", onClick);
+        return tile;
+      }
+
+      // The <select> elements stay the real source of truth (hidden in
+      // CSS) so every other function that reads .value/.selectedOptions
+      // keeps working unchanged — the modal grid and the compact preview
+      // strip both just mirror and toggle that state.
+      let photoPickerState = null; // { selectId, multi }
+
+      function openPhotoPicker(selectId, { multi, title }) {
+        photoPickerState = { selectId, multi };
+        document.getElementById("photoPickerModalTitle").innerText = title || "Choose photo";
+        document.getElementById("photoPickerModalHint").innerText = multi
+          ? "Click a photo to add or remove it, then close when done."
+          : "Click a photo to select it, or choose None.";
+        renderPhotoPickerModalGrid();
+        document.getElementById("photoPickerModal").style.display = "block";
+      }
+
+      function closePhotoPickerModal() {
+        document.getElementById("photoPickerModal").style.display = "none";
+        photoPickerState = null;
+      }
+
+      function renderPhotoPickerModalGrid() {
+        if (!photoPickerState) return;
+        const { selectId, multi } = photoPickerState;
+        const select = document.getElementById(selectId);
+        const grid = document.getElementById("photoPickerModalGrid");
+        grid.innerHTML = "";
+        Array.from(select.options).forEach((opt) => {
+          grid.appendChild(
+            buildPhotoTile(opt, () => {
+              if (multi) {
+                opt.selected = !opt.selected;
+              } else {
+                Array.from(select.options).forEach((o) => (o.selected = o === opt));
+              }
+              select.dispatchEvent(new Event("change"));
+              renderPhotoPickerModalGrid();
+              renderPhotoPreview(selectId);
+              if (!multi) closePhotoPickerModal();
+            })
+          );
+        });
+      }
+
+      // Compact "what's currently picked" strip shown inline on the page
+      // next to the "Choose photo(s)" button — small thumbnails, not the
+      // full grid, so many photos never overload the page itself. Excludes
+      // only the true "None" placeholder (no dataset.title) — a real item
+      // with no thumbnail (e.g. a course missing a thumbnail_url) still
+      // counts as selected, just shown with its title instead of an image.
+      function renderPhotoPreview(selectId) {
+        const select = document.getElementById(selectId);
+        const preview = document.getElementById(selectId + "Preview");
+        if (!select || !preview) return;
+        preview.innerHTML = "";
+        const selectedOpts = Array.from(select.selectedOptions).filter((o) => o.dataset.title !== undefined);
+        if (!selectedOpts.length) {
+          const span = document.createElement("span");
+          span.className = "photo-picker-empty";
+          span.innerText = "None selected";
+          preview.appendChild(span);
+          return;
+        }
+        selectedOpts.slice(0, 8).forEach((opt) => {
+          if (opt.value) {
+            const img = document.createElement("img");
+            img.className = "photo-picker-thumb";
+            img.src = cldThumb(opt.value);
+            img.title = opt.dataset.title || "";
+            preview.appendChild(img);
+          } else {
+            const chip = document.createElement("span");
+            chip.className = "photo-picker-more";
+            chip.innerText = opt.dataset.title || "Untitled";
+            preview.appendChild(chip);
+          }
+        });
+        if (selectedOpts.length > 8) {
+          const more = document.createElement("span");
+          more.className = "photo-picker-more";
+          more.innerText = "+" + (selectedOpts.length - 8) + " more";
+          preview.appendChild(more);
+        }
+      }
+
+      function populateImageSelect(selectId, images, selectedUrl) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">None</option>';
+        images.forEach((img) => {
+          const opt = document.createElement("option");
+          opt.value = img.image_url || "";
+          opt.innerText = imageOptionLabel(img);
+          opt.dataset.title = img.title || "";
+          opt.dataset.description = img.description || "";
+          if (img.image_url === selectedUrl) opt.selected = true;
+          select.appendChild(opt);
+        });
+        renderPhotoPreview(selectId);
+        if (photoPickerState && photoPickerState.selectId === selectId) renderPhotoPickerModalGrid();
+      }
+
+      // Same as populateImageSelect but for a <select multiple> — no
+      // "None" option needed since an empty selection already means none.
+      // Also used (with images mapped to {image_url, title, description})
+      // for the curriculum course picker and the partner-school logo
+      // picker, not just the gallery — an item's own value may be empty
+      // (a course with no thumbnail_url) without that meaning "not a real
+      // item"; see buildPhotoTile/renderPhotoPreview's isRealItem check.
+      function populateMultiImageSelect(selectId, images) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = "";
+        images.forEach((img) => {
+          const opt = document.createElement("option");
+          opt.value = img.image_url || "";
+          opt.innerText = imageOptionLabel(img);
+          opt.dataset.title = img.title || "";
+          opt.dataset.description = img.description || "";
+          select.appendChild(opt);
+        });
+        renderPhotoPreview(selectId);
+        if (photoPickerState && photoPickerState.selectId === selectId) renderPhotoPickerModalGrid();
+      }
+
+      // Career pathways carry more metadata than a plain photo/course, so
+      // they get their own populate function (still reusing the same tile
+      // picker/preview machinery via dataset fields).
+      function populatePathwaySelect(selectId, pathways) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = "";
+        pathways.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p.thumbnail_url || "";
+          opt.innerText = p.title || "Untitled";
+          opt.dataset.title = p.title || "";
+          opt.dataset.description = p.description || "";
+          opt.dataset.targetAudience = p.target_audience || "";
+          opt.dataset.durationEstimate = p.duration_estimate || "";
+          opt.dataset.expectedOutcomes = p.expected_outcomes || "";
+          select.appendChild(opt);
+        });
+        renderPhotoPreview(selectId);
+        if (photoPickerState && photoPickerState.selectId === selectId) renderPhotoPickerModalGrid();
+      }
+
+      function populateTemplateSelect(templateOptions, selectedKey) {
+        const select = document.getElementById("proposalTemplate");
+        select.innerHTML = "";
+        templateOptions.forEach((tpl) => {
+          const opt = document.createElement("option");
+          opt.value = tpl.key;
+          opt.innerText = tpl.label;
+          opt.dataset.description = tpl.description || "";
+          if (tpl.key === selectedKey) opt.selected = true;
+          select.appendChild(opt);
+        });
+        updateProposalTemplateDescription();
+      }
+
+      function updateProposalTemplateDescription() {
+        const select = document.getElementById("proposalTemplate");
+        const desc = document.getElementById("proposalTemplateDescription");
+        const opt = select.options[select.selectedIndex];
+        desc.innerText = opt ? opt.dataset.description || "" : "";
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const el = document.getElementById("proposalTemplate");
+        if (el) el.addEventListener("change", updateProposalTemplateDescription);
+      });
+
+      function getSelectedPhotosWithCaptions(selectId) {
+        const select = document.getElementById(selectId);
+        return Array.from(select.selectedOptions).map((opt) => ({
+          url: opt.value,
+          caption: opt.dataset.title || "",
+        }));
+      }
+
+      function getSelectedCourses(selectId) {
+        const select = document.getElementById(selectId);
+        return Array.from(select.selectedOptions).map((opt) => ({
+          title: opt.dataset.title || "",
+          description: opt.dataset.description || "",
+          thumbnailUrl: opt.value || null,
+        }));
+      }
+
+      function getSelectedPathways(selectId) {
+        const select = document.getElementById(selectId);
+        return Array.from(select.selectedOptions).map((opt) => ({
+          title: opt.dataset.title || "",
+          description: opt.dataset.description || "",
+          targetAudience: opt.dataset.targetAudience || "",
+          durationEstimate: opt.dataset.durationEstimate || "",
+          expectedOutcomes: opt.dataset.expectedOutcomes || "",
+          thumbnailUrl: opt.value || null,
+        }));
+      }
+
+      function getSelectedPartnerLogos(selectId) {
+        const select = document.getElementById(selectId);
+        return Array.from(select.selectedOptions).map((opt) => ({
+          name: opt.dataset.title || "",
+          logoUrl: opt.value || null,
+        }));
+      }
+
+      function updateProposalImagePreviewLinks() {
+        const slots = [
+          ["proposalImageAboutUs", "About Us"],
+          ["proposalImageTrackRecord", "Track Record"],
+          ["proposalImageClosing", "Closing"],
+        ];
+        const links = slots
+          .map(([id, label]) => {
+            const url = document.getElementById(id).value;
+            return url ? `<a href="${url}" target="_blank">${label} ↗</a>` : null;
+          })
+          .filter(Boolean);
+        document.getElementById("proposalImagePreviewLinks").innerHTML = links.join(" &nbsp;|&nbsp; ") || "No photos selected.";
+      }
+
+      ["proposalImageAboutUs", "proposalImageTrackRecord", "proposalImageClosing"].forEach((id) => {
+        document.addEventListener("DOMContentLoaded", () => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener("change", updateProposalImagePreviewLinks);
+        });
+      });
 
       async function generateProposalPreview() {
         const btn = document.getElementById("generateProposalPreviewBtn");
@@ -2022,6 +2469,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              audience: document.getElementById("proposalAudience").value,
               recipientName,
               focusNotes: document.getElementById("proposalFocusNotes").value.trim(),
             }),
@@ -2044,14 +2492,42 @@
           document.getElementById("proposalProcessSteps").value = formatPipeList(data.content.processSteps, ["title", "description"]);
           document.getElementById("proposalFaq").value = formatPipeList(data.content.faq, ["question", "answer"]);
 
-          document.getElementById("proposalPriceAmount").value = "PER PUPIL";
+          document.getElementById("proposalPriceLabel").innerText = data.content.investmentTitle || "Investment";
+          document.getElementById("proposalPriceAmount").value = data.content.pricing.amount || "";
           document.getElementById("proposalPriceValue").value = "";
-          document.getElementById("proposalPriceUnit").value = "per term";
+          document.getElementById("proposalPriceUnit").value = data.content.pricing.unit || "";
           document.getElementById("proposalPriceNote2").value = "";
           document.getElementById("proposalPriceIncludes").value = "";
           document.getElementById("proposalPriceNote").value = "";
-          document.getElementById("proposalContacts").value = "";
+          document.getElementById("proposalContacts").value = formatPipeList(data.content.contacts, ["label", "value"]);
           document.getElementById("proposalConnectPreamble").value = "";
+
+          document.getElementById("proposalCurriculumIntro").value = (data.content.curriculum || {}).intro || "";
+          document.getElementById("proposalCurriculumLayout").value = (data.content.curriculum || {}).layout || "threePerSlide";
+          document.getElementById("proposalCareerPathwayIntro").value = (data.content.careerPathways || {}).intro || "";
+          document.getElementById("proposalCompetitionsExhibitions").value = data.content.competitionsExhibitions || "";
+
+          populateTemplateSelect(data.templateOptions || [], data.content.template);
+
+          const galleryImages = await loadGalleryImagesIfNeeded();
+          const images = data.content.images || {};
+          populateImageSelect("proposalImageAboutUs", galleryImages, images.aboutUs);
+          populateImageSelect("proposalImageTrackRecord", galleryImages, images.trackRecord);
+          populateImageSelect("proposalImageClosing", galleryImages, images.closingHighlight);
+          populateMultiImageSelect("proposalGalleryPhotos", galleryImages);
+          populateMultiImageSelect("proposalAppendixPhotos", galleryImages);
+          updateProposalImagePreviewLinks();
+
+          const curriculumAssets = await loadCurriculumAssetsIfNeeded();
+          populateMultiImageSelect(
+            "proposalPartnerLogos",
+            curriculumAssets.partnerSchools.map((s) => ({ image_url: s.logo_url, title: s.name }))
+          );
+          populateMultiImageSelect(
+            "proposalCurriculumCourses",
+            curriculumAssets.courses.map((c) => ({ image_url: c.thumbnail_url, title: c.title, category: c.level, description: c.description }))
+          );
+          populatePathwaySelect("proposalCareerPathways", curriculumAssets.careerPathways);
 
           document.getElementById("proposalEditArea").style.display = "block";
           status.innerText = "Draft ready — review and edit below, then download when you're happy with it.";
@@ -2100,6 +2576,26 @@
           },
           contacts: parsePipeList(document.getElementById("proposalContacts").value, ["label", "value"]),
           connectPreamble: document.getElementById("proposalConnectPreamble").value.trim(),
+          images: {
+            aboutUs: document.getElementById("proposalImageAboutUs").value || null,
+            trackRecord: document.getElementById("proposalImageTrackRecord").value || null,
+            closingHighlight: document.getElementById("proposalImageClosing").value || null,
+          },
+          galleryPhotos: getSelectedPhotosWithCaptions("proposalGalleryPhotos"),
+          appendixPhotos: getSelectedPhotosWithCaptions("proposalAppendixPhotos"),
+          appendixLayout: document.getElementById("proposalAppendixLayout").value,
+          partnerSchoolLogos: getSelectedPartnerLogos("proposalPartnerLogos"),
+          curriculum: {
+            intro: document.getElementById("proposalCurriculumIntro").value.trim(),
+            courses: getSelectedCourses("proposalCurriculumCourses"),
+            layout: document.getElementById("proposalCurriculumLayout").value,
+          },
+          careerPathways: {
+            intro: document.getElementById("proposalCareerPathwayIntro").value.trim(),
+            pathways: getSelectedPathways("proposalCareerPathways"),
+          },
+          competitionsExhibitions: document.getElementById("proposalCompetitionsExhibitions").value.trim(),
+          template: document.getElementById("proposalTemplate").value,
         };
 
         try {
@@ -2117,7 +2613,7 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `partnership-proposal-${(content.recipientName || "draft").replace(/[^\w-]+/g, "_")}.pptx`;
+          a.download = `partnership-proposal-${content.audience || "schools"}-${(content.recipientName || "draft").replace(/[^\w-]+/g, "_")}.pptx`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -2142,7 +2638,10 @@
         grants: "Grant Applications",
         investors: "Investors",
         partners: "Partners",
-        proposal: "Partnership Proposal",
+        "proposal-schools": "Proposal — Schools",
+        "proposal-grants": "Proposal — Grant Applications",
+        "proposal-investors": "Proposal — Investors",
+        "proposal-partners": "Proposal — Partners",
       };
 
       async function loadReportHistory() {

@@ -87,6 +87,7 @@
             <td><%= new Date(s.joined_at).toDateString() %></td>
             <td>
               <button class="btn-edit" onclick="openAssignClassroomModal(<%= s.id %>, '<%= s.fullname %>')">➕ Add to Classroom</button>
+              <a class="btn-sec" href="/school-admin/students/<%= s.id %>/progress?from=school_admin">📊 Progress</a>
             </td>
           </tr>
         <% }) %>

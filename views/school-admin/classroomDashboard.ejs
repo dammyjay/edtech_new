@@ -1,0 +1,240 @@
+<%- include('../partials/header', { title: classroom.name }) %>
+<%- include('../partials/sidenav') %>
+
+<div class="main-content">
+
+<section class="section">
+    <div style="background:var(--grey);padding:20px;border-radius:8px;margin-bottom:20px;">
+        <h2><%= classroom.name %></h2>
+        <p><strong>School:</strong> <%= classroom.school_name %></p>
+
+        <div class="multi-btn">
+            <button class="btn-sec" onclick="window.location.href='/school-admin/dashboard'">← Back to Dashboard</button>
+            <button class="btn-pri" onclick="window.location.href='/school-admin/classrooms/<%= classroom.id %>/dashboard/export<%= selectedTerm ? "?term_id=" + selectedTerm.id : "" %>'">Download Classroom PDF</button>
+        </div>
+
+        <% if (terms && terms.length) { %>
+        <div style="margin-top:15px;">
+            <label for="termSelect"><strong>Term:</strong></label>
+            <select id="termSelect" onchange="window.location.href='/school-admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
+                <% terms.forEach(t => { %>
+                <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
+                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %>
+                </option>
+                <% }) %>
+            </select>
+            <p style="color:#666; font-size:12px; margin-top:6px;">
+                Showing students enrolled in this classroom for the selected term, and their progress on the courses confirmed part of it — including lessons completed in an earlier term, if that same course has been taught again this term.
+            </p>
+        </div>
+        <% } %>
+    </div>
+</section>
+
+<% if (!terms || !terms.length) { %>
+<section class="section">
+    <p style="text-align:center; color:#666;">No terms have been created for this school yet. Analytics will appear once a term exists.</p>
+</section>
+<% } else { %>
+
+<h2>📊 <%= classroom.name %> - Classroom Analytics <% if (selectedTerm) { %><small style="color:#666;">(<%= selectedTerm.name %>)</small><% } %></h2>
+
+<section class="section">
+    <div class="engagement-grid">
+        <div class="metric-card">
+            <div class="card-title blue-bg">
+                <p>Total Students</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon blue-bg">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <h4><%= totalStudents %></h4>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="card-title green-bg">
+                <p>Average Completion</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon green-bg">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h4><%= averageCompletion %>%</h4>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="card-title pink-bg">
+                <p>Average Quiz Score</p>
+            </div>
+            <div class="metric-card-content">
+                <div class="card-icon pink-bg">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h4><%= averageQuiz %>%</h4>
+            </div>
+        </div>
+    </div>
+</section>
+
+<hr>
+
+<section class="section">
+    <h3>📚 Courses This Term</h3>
+    <div class="table-responsive">
+        <table class="user-table sortable-table">
+            <thead>
+                <tr>
+                    <th>Course</th>
+                    <th>Level</th>
+                    <th>Lessons</th>
+                    <th>Students Engaged</th>
+                    <th>Avg Completion</th>
+                    <th>Avg Quiz Score</th>
+                </tr>
+            </thead>
+            <tbody>
+            <% if (courseBreakdown && courseBreakdown.length) { %>
+                <% courseBreakdown.forEach(course => { %>
+                <tr>
+                    <td><%= course.title %></td>
+                    <td><%= course.level || '-' %></td>
+                    <td><%= course.totalLessons %></td>
+                    <td><%= course.studentsEngaged %> / <%= course.totalStudents %></td>
+                    <td><%= course.avgCompletion %>%</td>
+                    <td><%= course.avgQuiz %>%</td>
+                </tr>
+                <% }) %>
+            <% } else { %>
+                <tr><td colspan="6" style="text-align:center;">No courses assigned to this classroom yet</td></tr>
+            <% } %>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<hr>
+
+<section class="section">
+    <h3>📈 Lesson Completion Chart</h3>
+    <canvas id="completionChart"></canvas>
+</section>
+
+<section class="section">
+    <h3>🏆 Leaderboard</h3>
+    <div class="table-responsive">
+        <table class="user-table sortable-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Lessons</th>
+                    <th>Completion %</th>
+                    <th>Quiz Avg</th>
+                    <th>Pace</th>
+                    <th>Overall</th>
+                    <th>Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+            <% leaderboard.forEach((student, index) => { %>
+                <tr>
+                    <td><%= index + 1 %></td>
+                    <td><%= student.fullname %></td>
+                    <td>
+                        <%= student.completedLessons %> /
+                        <%= student.totalLessons %>
+                    </td>
+                    <td><%= student.completionPercent %>%</td>
+                    <td><%= student.quizAvg %>%</td>
+                    <td><%= student.avgDaysToComplete !== null ? student.avgDaysToComplete + 'd avg' : '-' %></td>
+                    <td><strong><%= student.overallScore %>%</strong></td>
+                    <td>
+                        <a href="/school-admin/students/<%= student.id %>/progress?from=school_admin"
+                        class="btn-edit"
+                        style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
+                        Progress
+                        </a>
+                    </td>
+                </tr>
+            <% }) %>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<hr>
+
+<section class="section">
+  <h3>⚠️ At Risk Students</h3>
+
+  <div class="table-responsive">
+    <table class="user-table sortable-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Lessons</th>
+          <th>Completion %</th>
+          <th>Quiz Avg</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (atRiskStudents.length > 0) { %>
+          <% atRiskStudents.forEach(student => { %>
+            <tr>
+              <td><%= student.fullname %></td>
+              <td>
+                <%= student.completedLessons %> /
+                <%= student.totalLessons %>
+              </td>
+              <td style="color:#e74c3c;">
+                <%= student.completionPercent %>%
+              </td>
+              <td style="color:#e74c3c;">
+                <%= student.quizAvg %>%
+              </td>
+                <td>
+                    <a href="/school-admin/students/<%= student.id %>/progress?from=school_admin"
+                    class="btn-edit"
+                    style="background:#e74c3c; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
+                    Progress
+                    </a>
+                </td>
+            </tr>
+          <% }) %>
+        <% } else { %>
+          <tr>
+            <td colspan="5" style="text-align:center;">
+              ✅ No students at risk
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<% } %>
+
+</div>
+
+<% if (terms && terms.length) { %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('completionChart');
+
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: <%- JSON.stringify(studentMetrics.map(s => s.fullname)) %>,
+    datasets: [{
+      label: 'Completion %',
+      data: <%- JSON.stringify(studentMetrics.map(s => s.completionPercent)) %>
+    }]
+  }
+});
+</script>
+<% } %>

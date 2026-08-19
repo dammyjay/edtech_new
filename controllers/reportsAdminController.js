@@ -11,7 +11,10 @@ const {
   generatePitchDeck,
   generateProposalPreview,
   buildProposalDeckFromContent,
+  getGalleryImages,
+  getCurriculumPickerAssets,
 } = require("../services/pitchDeckGeneratorService");
+const { TEMPLATE_OPTIONS } = require("../services/pitchDecks/deckTheme");
 const sendEmailWithAttachment = require("../utils/sendEmailWithAttachment");
 const { sendEmailWithAttachments } = sendEmailWithAttachment;
 
@@ -125,13 +128,19 @@ exports.previewProposal = async (req, res) => {
   }
 
   try {
-    const { recipientName, focusNotes } = req.body;
+    const { recipientName, focusNotes, audience } = req.body;
+    const normalizedAudience = String(audience || "schools").toLowerCase();
+    if (!VALID_AUDIENCES.includes(normalizedAudience)) {
+      return res.status(400).json({ success: false, message: "Invalid audience" });
+    }
+
     const preview = await generateProposalPreview({
+      audience: normalizedAudience,
       recipientName: String(recipientName || "").trim(),
       focusNotes: String(focusNotes || "").trim(),
       triggeredByUserId: req.session.user.id,
     });
-    res.json({ success: true, content: preview });
+    res.json({ success: true, content: preview, templateOptions: TEMPLATE_OPTIONS });
   } catch (err) {
     console.error("previewProposal error:", err);
     res.status(500).json({ success: false, message: "Failed to generate proposal preview" });
@@ -156,6 +165,34 @@ exports.downloadProposal = async (req, res) => {
   } catch (err) {
     console.error("downloadProposal error:", err);
     res.status(500).json({ success: false, message: "Failed to generate proposal deck" });
+  }
+};
+
+exports.getProposalGalleryImages = async (req, res) => {
+  if (!isAdminSession(req)) {
+    return res.status(403).json({ success: false, message: "Admin access required" });
+  }
+
+  try {
+    const images = await getGalleryImages();
+    res.json({ success: true, images });
+  } catch (err) {
+    console.error("getProposalGalleryImages error:", err);
+    res.status(500).json({ success: false, message: "Failed to load gallery images" });
+  }
+};
+
+exports.getProposalCurriculumAssets = async (req, res) => {
+  if (!isAdminSession(req)) {
+    return res.status(403).json({ success: false, message: "Admin access required" });
+  }
+
+  try {
+    const assets = await getCurriculumPickerAssets();
+    res.json({ success: true, ...assets });
+  } catch (err) {
+    console.error("getProposalCurriculumAssets error:", err);
+    res.status(500).json({ success: false, message: "Failed to load curriculum assets" });
   }
 };
 

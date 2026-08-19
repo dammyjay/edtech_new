@@ -6,6 +6,12 @@
   <div class="page-header">
     <h2>Assign Courses to Schools</h2>
     <p>Select courses and assign them to specific schools.</p>
+    <button type="button" class="assign-btn" onclick="runBackfill(this)" style="margin-top:10px;">
+      🔄 Re-scan Course-Term History
+    </button>
+    <p style="color:#666; font-size:12px; margin-top:6px;">
+      Confirms which courses were actually worked on in each past term, from real lesson/quiz activity — used by classroom analytics and student course access. Safe to re-run any time.
+    </p>
     <% if (schools.length === 0) { %>
     <p>No schools found.</p>
   <% } else if (courses.length === 0) { %>
@@ -13,61 +19,97 @@
   <% } else { %>
   </div>
 
-  <form method="POST" action="/admin/school-courses/assign">
-    <% schools.forEach(school => { %>
-      <div class="school-section">
-        <h3>
-          <button
-            type="button"
-            class="collapse-btn"
-            onclick="toggleCourses('<%= school.id %>', this)"
-          >
-            <span><%= school.name %></span>
-            <span class="arrow">▼</span>
-          </button>
-        </h3>
+  <% schools.forEach(school => { %>
+    <div class="school-section">
+      <h3>
+        <button
+          type="button"
+          class="collapse-btn"
+          onclick="toggleCourses('<%= school.id %>', this)"
+        >
+          <span><%= school.name %></span>
+          <span class="arrow">▼</span>
+        </button>
+      </h3>
 
-        <div id="courses-<%= school.id %>" class="courses-list" style="display:none; margin-left: 20px;">
-          <input type="text" placeholder="Search courses..." class="course-search" onkeyup="filterCourses('<%= school.id %>')">
-          
+      <div id="courses-<%= school.id %>" class="courses-list" style="display:none; margin-left: 20px;">
+
+        <% const schoolTerms = schoolTermsMap[school.id] || []; %>
+        <% if (schoolTerms.length) { %>
+        <div style="margin-bottom:15px;">
+          <label><strong>Assigning for term:</strong></label>
+          <select id="termSelect-<%= school.id %>" onchange="applyTermSelection('<%= school.id %>')">
+            <% schoolTerms.forEach(t => { %>
+            <option value="<%= t.id %>" <%= t.is_active ? 'selected' : '' %>><%= t.name %><%= t.is_active ? ' (Active)' : '' %></option>
+            <% }) %>
+            <option value="">General (no term)</option>
+          </select>
+          <p style="color:#666; font-size:12px; margin-top:6px;">
+            Courses checked below apply only to the selected term. Switching terms updates which boxes are checked.
+          </p>
+        </div>
+        <% } %>
+
+        <input type="text" placeholder="Search courses..." class="course-search" onkeyup="filterCourses('<%= school.id %>')">
+
+        <form method="POST" action="/admin/school-courses/assign" id="form-<%= school.id %>">
+          <input type="hidden" name="school_id" value="<%= school.id %>">
+          <input type="hidden" name="term_id" id="termInput-<%= school.id %>" value="<%= schoolTerms.find(t => t.is_active) ? schoolTerms.find(t => t.is_active).id : '' %>">
+
           <div class="course-grid">
             <% courses.forEach(course => { %>
             <label class="course-item">
               <input
                 type="checkbox"
                 name="school_<%= school.id %>[]"
+                class="course-checkbox-<%= school.id %>"
                 value="<%= course.id %>"
-                <% if (
-                  schoolCoursesMap[school.id] &&
-                  schoolCoursesMap[school.id].includes(course.id)
-                ) { %>
-                  checked
-                <% } %>
               >
               <span><%= course.title %></span>
+              <span class="confirmed-badge" style="display:none; margin-left:6px; font-size:11px; font-weight:600; color:#0a7d34; background:#e3f8e9; padding:2px 7px; border-radius:10px; white-space:nowrap;" title="Students have real lesson/quiz activity on this course during this term, but it isn't checked/assigned above.">✓ confirmed activity</span>
             </label>
             <% }) %>
           </div>
-          <button
-              type="submit"
-              class="assign-btn"
-              name="school_id"
-              value="<%= school.id %>"
-            >
-              Save Course Assignments
-            </button>
+          <button type="submit" class="assign-btn">Save Course Assignments</button>
+        </form>
+
+        <% if (schoolCoursesByTerm[school.id] && schoolCoursesByTerm[school.id].length) { %>
+        <div style="margin-top:25px;">
+          <h4 style="margin-bottom:10px;">📚 Courses by Term</h4>
+          <div class="table-responsive">
+            <table class="user-table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Term</th>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Courses</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% schoolCoursesByTerm[school.id].forEach(row => { %>
+                <tr>
+                  <td style="padding:8px; border-bottom:1px solid #f3f3f3; white-space:nowrap;"><%= row.termName %></td>
+                  <td style="padding:8px; border-bottom:1px solid #f3f3f3;"><%= row.courses.join(', ') %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <hr>
+        <% } %>
       </div>
-    <% }) %>
-  </form>
+      <hr>
+    </div>
+  <% }) %>
 
   <% } %>
 </div>
 
-
-
 <script>
+  // schoolId -> termKey ("none" or term id) -> [courseId, ...]
+  const schoolCoursesMap = <%- JSON.stringify(schoolCoursesMap) %>;
+  // schoolId -> termId -> [courseId, ...] (confirmed via course_term_links; never has a "none" key)
+  const schoolConfirmedCoursesMap = <%- JSON.stringify(schoolConfirmedCoursesMap) %>;
+
   function toggleCourses(schoolId, btn){
 
     const div =
@@ -82,6 +124,7 @@
 
         div.style.display = "block";
         arrow.textContent = "▲";
+        applyTermSelection(schoolId);
 
     }else{
 
@@ -91,6 +134,50 @@
     }
 
 }
+
+  function applyTermSelection(schoolId) {
+    const select = document.getElementById("termSelect-" + schoolId);
+    const termValue = select ? select.value : "";
+    const termInput = document.getElementById("termInput-" + schoolId);
+    if (termInput) termInput.value = termValue;
+
+    const termKey = termValue ? termValue : "none";
+    const assigned = (schoolCoursesMap[schoolId] && schoolCoursesMap[schoolId][termKey]) || [];
+    // Confirmed activity only ever exists against a real term (course_term_links
+    // always has a term_id), so "General (no term)" never shows a badge.
+    const confirmed = (termValue && schoolConfirmedCoursesMap[schoolId] && schoolConfirmedCoursesMap[schoolId][termValue]) || [];
+
+    const checkboxes = document.querySelectorAll(".course-checkbox-" + schoolId);
+    checkboxes.forEach(cb => {
+      const courseId = Number(cb.value);
+      cb.checked = assigned.includes(courseId);
+
+      const badge = cb.closest(".course-item").querySelector(".confirmed-badge");
+      if (badge) {
+        badge.style.display = (!cb.checked && confirmed.includes(courseId)) ? "inline-block" : "none";
+      }
+    });
+  }
+
+  function runBackfill(btn) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "🔄 Scanning...";
+    fetch("/admin/course-term-links/backfill", { method: "POST" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(`Done. ${data.total} course-term link(s) confirmed/updated.`);
+        } else {
+          alert("Backfill failed: " + (data.message || "Unknown error"));
+        }
+      })
+      .catch(() => alert("Backfill failed."))
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  }
 
   function filterCourses(schoolId) {
     const input = document.querySelector('#courses-' + schoolId + ' .course-search');
@@ -148,6 +235,7 @@
     width:100%;
     border:none;
     background:#fff;
+    color:#222;
 
     display:flex;
     justify-content:space-between;

@@ -15,6 +15,7 @@
           <!-- CRUD Buttons -->
           <div class="classroom-actions">
             <div class="article-buttons">
+            <a class="btn-sec" href="/school-admin/classrooms/<%= c.id %>/dashboard">📊 View Analytics</a>
             <button class="btn-edit" onclick="openEditModal(<%= c.id %>, '<%= c.name %>', <%- JSON.stringify(c.teacher_ids || []) %>)">✏ Edit Classroom</button>
             <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete" onsubmit="return confirm('Delete this classroom?')">
               <button type="submit" class="btn-delete">🗑 Delete Classroom</button>

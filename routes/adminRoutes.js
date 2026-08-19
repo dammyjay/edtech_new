@@ -546,6 +546,7 @@ router.get(
 );
 router.get("/school-courses", adminController.getSchoolCourses);
 router.post("/school-courses/assign", adminController.assignSchoolCourses);
+router.post("/course-term-links/backfill", adminController.runCourseTermLinkBackfill);
 
 
 
@@ -561,6 +562,8 @@ router.delete("/schools/:schoolId/users/:userId", adminController.deleteUserFrom
 router.post("/terms/create", adminController.createTerm);
 router.put("/terms/:id", adminController.updateTerm);
 router.delete("/terms/:id", adminController.deleteTerm);
+router.post("/terms/:id/end", adminController.endTerm);
+router.get("/terms/:id/end-status", adminController.getEndTermStatus);
 router.delete(
   "/terms/:termId/students/:studentId",
   adminController.removeStudentFromTerm,
@@ -628,6 +631,16 @@ router.get(
   reportController.downloadStudentReport,
 );
 
+router.get(
+  "/reports/:schoolId/:classroomId/:termId/exists",
+  reportController.checkClassReportExists,
+);
+
+router.get(
+  "/reports/:schoolId/:classroomId/:termId/student/:studentId/exists",
+  reportController.checkStudentReportExists,
+);
+
 router.post(
   "/reports/platform/generate",
   reportsAdminController.generatePlatformReportFiles,
@@ -656,6 +669,16 @@ router.post(
 router.post(
   "/pitch-decks/proposal/download",
   reportsAdminController.downloadProposal,
+);
+
+router.get(
+  "/pitch-decks/proposal/gallery-images",
+  reportsAdminController.getProposalGalleryImages,
+);
+
+router.get(
+  "/pitch-decks/proposal/curriculum-assets",
+  reportsAdminController.getProposalCurriculumAssets,
 );
 
 router.post(

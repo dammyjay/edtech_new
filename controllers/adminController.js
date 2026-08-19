@@ -17,6 +17,8 @@ const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
 const axios = require("axios");
 const analyticsAggregationService = require("../services/analyticsAggregationService");
+const { generateClassReport, generateStudentReport } = require("../services/reportGeneratorService");
+const { saveReport } = require("../services/classTermReportStore");
 
 // require at top of file
 const Sentiment = require('sentiment');
@@ -3524,6 +3526,28 @@ exports.viewStudentProgress = async (req, res) => {
       req.query.from ||
       (req.get("referer")?.includes("/parent") ? "parent" : "admin");
 
+    // This route previously had no auth check at all. Rather than
+    // retrofitting a full guard for every existing caller (admin, parent,
+    // teacher/instructor links all point here), this only adds the new
+    // case: a school_admin viewing this page must own the school the
+    // target student actually belongs to, so one school admin can't page
+    // through another school's students by guessing IDs.
+    if (from === "school_admin") {
+      if (!req.session.user || req.session.user.role !== "school_admin") {
+        return res.status(403).send("Access denied");
+      }
+      const ownershipCheck = await pool.query(
+        `SELECT 1
+         FROM user_school us
+         JOIN schools s ON s.id = us.school_id
+         WHERE us.user_id = $1 AND s.created_by = $2 AND us.role_in_school = 'student'`,
+        [id, req.session.user.id],
+      );
+      if (!ownershipCheck.rows.length) {
+        return res.status(404).send("Student not found");
+      }
+    }
+
     // =========================
     // 1. COMPANY INFO
     // =========================
@@ -5986,11 +6010,16 @@ exports.getSchoolDetails = async (req, res) => {
 
     // Fetch terms with students
     const termsResult = await pool.query(`
-      SELECT 
+      SELECT
         t.id AS term_id,
         t.name AS term_name,
         t.start_date,
         t.end_date,
+        t.is_ended,
+        t.ended_at,
+        t.report_generation_status,
+        t.report_generation_total,
+        t.report_generation_completed,
         COUNT(ts.student_id) AS student_count
       FROM academic_terms t
       LEFT JOIN student_term_enrollments ts ON ts.term_id = t.id
@@ -10743,13 +10772,62 @@ exports.getSchoolCourses = async (req, res) => {
     );
     const courses = coursesResult.rows;
 
-    // Fetch currently assigned courses
-    const assignmentsResult = await pool.query(`SELECT * FROM school_courses`);
-    const schoolCoursesMap = {};
+    // Every school's terms, so each school's section can offer its own
+    // term selector (schools don't share a term calendar).
+    const termsResult = await pool.query(
+      `SELECT id, school_id, name, is_active FROM academic_terms ORDER BY start_date DESC`
+    );
+    const schoolTermsMap = {};
+    termsResult.rows.forEach((t) => {
+      if (!schoolTermsMap[t.school_id]) schoolTermsMap[t.school_id] = [];
+      schoolTermsMap[t.school_id].push(t);
+    });
+
+    // Fetch currently assigned courses, keyed by school -> term ("none"
+    // for legacy/blanket assignments not tied to any term) -> course ids.
+    // Also build a flat "by term" list per school for the summary table.
+    const assignmentsResult = await pool.query(`
+      SELECT sc.school_id, sc.course_id, sc.term_id, c.title AS course_title, t.name AS term_name
+      FROM school_courses sc
+      JOIN courses c ON c.id = sc.course_id
+      LEFT JOIN academic_terms t ON t.id = sc.term_id
+      ORDER BY t.start_date DESC NULLS LAST, c.title
+    `);
+    const schoolCoursesMap = {}; // schoolId -> termKey -> [courseId, ...]
+    const schoolCoursesByTerm = {}; // schoolId -> [{termId, termName, courses: [title,...]}]
     assignmentsResult.rows.forEach((row) => {
-      if (!schoolCoursesMap[row.school_id])
-        schoolCoursesMap[row.school_id] = [];
-      schoolCoursesMap[row.school_id].push(row.course_id);
+      const termKey = row.term_id ? String(row.term_id) : "none";
+      if (!schoolCoursesMap[row.school_id]) schoolCoursesMap[row.school_id] = {};
+      if (!schoolCoursesMap[row.school_id][termKey]) schoolCoursesMap[row.school_id][termKey] = [];
+      schoolCoursesMap[row.school_id][termKey].push(row.course_id);
+
+      if (!schoolCoursesByTerm[row.school_id]) schoolCoursesByTerm[row.school_id] = {};
+      if (!schoolCoursesByTerm[row.school_id][termKey]) {
+        schoolCoursesByTerm[row.school_id][termKey] = {
+          termId: row.term_id,
+          termName: row.term_name || "General (no term)",
+          courses: [],
+        };
+      }
+      schoolCoursesByTerm[row.school_id][termKey].courses.push(row.course_title);
+    });
+    Object.keys(schoolCoursesByTerm).forEach((schoolId) => {
+      schoolCoursesByTerm[schoolId] = Object.values(schoolCoursesByTerm[schoolId]);
+    });
+
+    // Confirmed activity (course_term_links) per school -> term -> course
+    // ids — courses students actually engaged with during that term,
+    // regardless of whether they were ever formally saved through this
+    // page. Used to flag courses that look confirmed-but-unassigned.
+    const confirmedResult = await pool.query(`
+      SELECT DISTINCT school_id, term_id, course_id FROM course_term_links
+    `);
+    const schoolConfirmedCoursesMap = {}; // schoolId -> termId -> [courseId, ...]
+    confirmedResult.rows.forEach((row) => {
+      const termKey = String(row.term_id);
+      if (!schoolConfirmedCoursesMap[row.school_id]) schoolConfirmedCoursesMap[row.school_id] = {};
+      if (!schoolConfirmedCoursesMap[row.school_id][termKey]) schoolConfirmedCoursesMap[row.school_id][termKey] = [];
+      schoolConfirmedCoursesMap[row.school_id][termKey].push(row.course_id);
     });
 
     res.render("admin/schoolCourses", {
@@ -10757,6 +10835,9 @@ exports.getSchoolCourses = async (req, res) => {
       schools,
       courses,
       schoolCoursesMap,
+      schoolTermsMap,
+      schoolCoursesByTerm,
+      schoolConfirmedCoursesMap,
       currentPage: "school-courses",
       role: "admin", // ✅ important
     });
@@ -10793,27 +10874,66 @@ exports.rejectQuote = async (req, res) => {
   }
 };
 
-// 📌 POST: Assign Courses to School
+// Re-runs the course_term_links backfill on demand (it's also run once
+// automatically as history; this lets the admin re-trigger it later —
+// e.g. after old attendance/term data gets corrected, or a new school's
+// history needs linking). Safe to run repeatedly: every write is an
+// upsert (see services/courseTermLinkService.js).
+exports.runCourseTermLinkBackfill = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Forbidden" });
+  }
+  try {
+    const { backfillAllSchools } = require("../services/courseTermLinkService");
+    const result = await backfillAllSchools();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Error running course-term-link backfill:", err);
+    res.status(500).json({ success: false, message: "Backfill failed" });
+  }
+};
+
+// 📌 POST: Assign Courses to School (scoped to a term, or "general" /
+// no-term if the school doesn't use one) — replaces just that term's
+// assignment set, leaving other terms' assignments for this school
+// untouched.
 exports.assignSchoolCourses = async (req, res) => {
   try {
-    const { school_id } = req.body;
+    const { school_id, term_id } = req.body;
 
     if (!school_id) return res.status(400).send("School ID is required");
 
-    // Remove old assignments for this school
-    await pool.query("DELETE FROM school_courses WHERE school_id = $1", [
-      school_id,
-    ]);
+    const schoolIdNum = Number(school_id);
+    const termIdNum = term_id ? Number(term_id) : null;
+    if (!Number.isInteger(schoolIdNum)) {
+      return res.status(400).send("Invalid school ID");
+    }
+
+    if (termIdNum) {
+      await pool.query(
+        "DELETE FROM school_courses WHERE school_id = $1 AND term_id = $2",
+        [schoolIdNum, termIdNum]
+      );
+    } else {
+      await pool.query(
+        "DELETE FROM school_courses WHERE school_id = $1 AND term_id IS NULL",
+        [schoolIdNum]
+      );
+    }
 
     // Get selected courses
-    const courseIds = req.body[`school_${school_id}`] || [];
+    const rawCourseIds = req.body[`school_${schoolIdNum}`] || [];
+    const courseIds = (Array.isArray(rawCourseIds) ? rawCourseIds : [rawCourseIds])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id));
 
     if (courseIds.length > 0) {
-      const insertValues = courseIds
-        .map((id) => `(${school_id}, ${id})`)
+      const values = courseIds
+        .map((_, i) => `($1, $${i + 2}, $${courseIds.length + 2})`)
         .join(",");
       await pool.query(
-        `INSERT INTO school_courses (school_id, course_id) VALUES ${insertValues}`
+        `INSERT INTO school_courses (school_id, course_id, term_id) VALUES ${values}`,
+        [schoolIdNum, ...courseIds, termIdNum]
       );
     }
 
@@ -11625,6 +11745,177 @@ exports.updateTerm = async (req, res) => {
   );
 
   res.sendStatus(200);
+};
+
+// Marking a term "ended" bulk-generates and persists every report for
+// it — a full-class report per classroom, plus an individual report for
+// every student enrolled in that term — so they're all ready for the
+// school admin to view at once (see schoolAdminController.js's
+// loadSection "terms" branch, which gates on academic_terms.is_ended).
+//
+// Runs as a detached background job rather than inside the triggering
+// request: generating one report already takes tens of seconds
+// (Puppeteer), and a school with several classrooms/dozens of students
+// could take minutes total — long enough to risk the admin's browser
+// timing out or them thinking it hung. The route below starts the job
+// and responds immediately with "in_progress"; the admin UI polls
+// getEndTermStatus for progress. There's no job queue in this codebase
+// (no Redis/Bull), so progress lives on the academic_terms row itself —
+// if the server process restarts mid-job, the row is left stuck at
+// "in_progress" and the admin would need to press the button again
+// (harmless: saveReport's upsert means re-running just overwrites
+// whatever was already generated).
+async function runEndTermJob(termId, schoolId, userId) {
+  try {
+    const classroomsRes = await pool.query(
+      `SELECT DISTINCT c.id, c.name
+       FROM student_term_enrollments ste
+       JOIN classrooms c ON c.id = ste.classroom_id
+       WHERE ste.term_id = $1`,
+      [termId],
+    );
+
+    // Total unit of work = one class report per classroom + one report
+    // per enrolled student, known up front so progress (x of y) is
+    // meaningful from the first poll rather than growing as we go.
+    const enrollmentCountRes = await pool.query(
+      `SELECT COUNT(*) AS count FROM student_term_enrollments WHERE term_id = $1`,
+      [termId],
+    );
+    const total = classroomsRes.rows.length + Number(enrollmentCountRes.rows[0].count);
+
+    await pool.query(
+      `UPDATE academic_terms
+       SET report_generation_status = 'in_progress',
+           report_generation_total = $1,
+           report_generation_completed = 0,
+           report_generation_errors = '{}'
+       WHERE id = $2`,
+      [total, termId],
+    );
+
+    const errors = [];
+    let completed = 0;
+    const bumpProgress = async () => {
+      completed += 1;
+      await pool.query(
+        `UPDATE academic_terms SET report_generation_completed = $1 WHERE id = $2`,
+        [completed, termId],
+      );
+    };
+
+    for (const classroom of classroomsRes.rows) {
+      try {
+        const classReport = await generateClassReport(schoolId, classroom.id, termId);
+        await saveReport({
+          schoolId,
+          classroomId: classroom.id,
+          termId,
+          studentId: null,
+          pdfBuffer: fs.readFileSync(classReport.pdf),
+          filename: path.basename(classReport.pdf),
+          generatedByUserId: userId,
+        });
+      } catch (err) {
+        console.error(`endTerm: failed to generate class report for classroom ${classroom.id}:`, err);
+        errors.push(`Classroom "${classroom.name}": ${err.message}`);
+      }
+      await bumpProgress();
+
+      const studentsRes = await pool.query(
+        `SELECT student_id FROM student_term_enrollments WHERE term_id = $1 AND classroom_id = $2`,
+        [termId, classroom.id],
+      );
+
+      for (const { student_id: studentId } of studentsRes.rows) {
+        try {
+          const studentReport = await generateStudentReport(schoolId, classroom.id, termId, studentId);
+          await saveReport({
+            schoolId,
+            classroomId: classroom.id,
+            termId,
+            studentId,
+            pdfBuffer: fs.readFileSync(studentReport.pdf),
+            filename: path.basename(studentReport.pdf),
+            generatedByUserId: userId,
+          });
+        } catch (err) {
+          console.error(`endTerm: failed to generate student report for student ${studentId}:`, err);
+          errors.push(`Student ID ${studentId}: ${err.message}`);
+        }
+        await bumpProgress();
+      }
+    }
+
+    await pool.query(
+      `UPDATE academic_terms
+       SET is_ended = true, ended_at = NOW(), ended_by = $1,
+           report_generation_status = 'done', report_generation_errors = $2
+       WHERE id = $3`,
+      [userId, errors, termId],
+    );
+  } catch (err) {
+    console.error("endTerm background job failed:", err);
+    await pool.query(
+      `UPDATE academic_terms SET report_generation_status = 'failed', report_generation_errors = $1 WHERE id = $2`,
+      [[err.message], termId],
+    ).catch(() => {});
+  }
+}
+
+exports.endTerm = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+
+  const { id: termId } = req.params;
+
+  try {
+    const termRes = await pool.query(
+      "SELECT id, school_id, report_generation_status FROM academic_terms WHERE id = $1",
+      [termId],
+    );
+    const term = termRes.rows[0];
+    if (!term) {
+      return res.status(404).json({ success: false, message: "Term not found" });
+    }
+    if (term.report_generation_status === "in_progress") {
+      return res.status(409).json({ success: false, message: "Report generation is already in progress for this term" });
+    }
+
+    // Fire-and-forget — deliberately not awaited, see runEndTermJob's
+    // comment above for why.
+    runEndTermJob(termId, term.school_id, req.session.user.id);
+
+    res.json({ success: true, status: "in_progress" });
+  } catch (err) {
+    console.error("Error starting endTerm job:", err);
+    res.status(500).json({ success: false, message: "Error starting report generation" });
+  }
+};
+
+exports.getEndTermStatus = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+
+  const { id: termId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT report_generation_status AS status, report_generation_total AS total,
+              report_generation_completed AS completed, report_generation_errors AS errors,
+              is_ended, ended_at
+       FROM academic_terms WHERE id = $1`,
+      [termId],
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: "Term not found" });
+    }
+    res.json({ success: true, ...result.rows[0] });
+  } catch (err) {
+    console.error("Error fetching endTerm status:", err);
+    res.status(500).json({ success: false, message: "Error fetching status" });
+  }
 };
 
 exports.removeStudentFromTerm = async (req, res) => {

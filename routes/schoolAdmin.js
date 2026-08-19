@@ -1,9 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const schoolAdminController = require("../controllers/schoolAdminController");
+const adminController = require("../controllers/adminController");
 const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
+const { requireSchoolAdmin } = require("../middlewares/auth");
 const multer = require("multer");
 const path = require("path");
+
+// Every route below requires a logged-in school_admin who owns a school —
+// see middlewares/auth.js's requireSchoolAdmin for what this actually
+// fixes (it wasn't just missing, req.session.user.school_id was never
+// populated at all, breaking several routes below outright).
+router.use(requireSchoolAdmin);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -223,8 +231,15 @@ router.get(
 
 router.get(
   "/attendance/stats",
-  
+
   schoolAdminController.getWeeklyAttendanceStats,
+);
+
+// Must come before the /attendance/:id wildcard below, or Express would
+// match "summary" as an :id.
+router.get(
+  "/attendance/summary",
+  schoolAdminController.getAttendanceSummary,
 );
 
 router.get(
@@ -258,9 +273,44 @@ router.get(
 
 router.get(
   "/quotes/:id/payments",
-  
+
   schoolAdminController.getPaymentHistory,
 );
 
+router.get(
+  "/payments/:id/receipt",
+  schoolAdminController.downloadPaymentReceipt,
+);
+
+// =============================
+// ANALYTICS & REPORTS
+// Parity with what the platform admin can see about a school — student
+// progress detail, term/classroom growth+retention analytics, and a
+// school-wide summary PDF — all scoped to the requesting school admin's
+// own school only. Term/student report CARDS are generated only by the
+// platform admin (see adminController.js's endTerm) — a school admin
+// only ever views what's already stored, gated by whether the admin has
+// marked the term ended (see getClassTermReportStatus below).
+// =============================
+router.get("/students/:id/progress", adminController.viewStudentProgress);
+router.get("/term-analytics", schoolAdminController.getTermAnalytics);
+router.get("/download-progress", schoolAdminController.downloadSchoolProgressReport);
+router.get(
+  "/reports/:classroomId/:termId/status",
+  schoolAdminController.getClassTermReportStatus,
+);
+router.get(
+  "/classrooms/:classroomId/dashboard",
+  schoolAdminController.getClassroomDashboard,
+);
+router.get(
+  "/classrooms/:classroomId/dashboard/export",
+  schoolAdminController.exportClassroomSummary,
+);
+
+// Reports the platform admin generated and stored for this school (see
+// services/classTermReportStore.js) — view-only, no regeneration.
+router.get("/stored-reports", schoolAdminController.listStoredReports);
+router.get("/stored-reports/:id/download", schoolAdminController.downloadStoredReport);
 
 module.exports = router;

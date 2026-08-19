@@ -748,6 +748,32 @@ async function createTables() {
 
         `)
 
+    // "Ending" a term is a distinct admin action from is_active above
+    // (is_active reflects the calendar; ended reflects "reports are
+    // finalized") — marking a term ended triggers bulk-generating every
+    // classroom + student report for it (see adminController.js's
+    // markTermEnded), and is what gates whether a school admin can see
+    // those reports at all (see schoolAdminController.js's loadSection
+    // "terms" branch).
+    await pool.query(`
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS is_ended BOOLEAN DEFAULT false;
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP;
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS ended_by INTEGER REFERENCES users2(id);
+    `)
+
+    // Bulk report generation (adminController.js's endTerm) runs as a
+    // detached background job, not inside the triggering HTTP request —
+    // generating a report per classroom + per student can take minutes
+    // for a school with many of either. These columns are the job's
+    // progress, polled by the admin UI instead of the request just
+    // hanging until everything finishes.
+    await pool.query(`
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS report_generation_status TEXT DEFAULT 'idle';
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS report_generation_total INTEGER DEFAULT 0;
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS report_generation_completed INTEGER DEFAULT 0;
+      ALTER TABLE academic_terms ADD COLUMN IF NOT EXISTS report_generation_errors TEXT[] DEFAULT '{}';
+    `)
+
         await pool.query(`
           CREATE TABLE IF NOT EXISTS student_term_enrollments (
             id SERIAL PRIMARY KEY,
@@ -1272,6 +1298,81 @@ CREATE TABLE IF NOT EXISTS report_generation_log (
   error_message TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+`);
+
+    // Term report cards (whole-class or one student) that the platform
+    // admin generates from a classroom + term — persisted here (the PDF
+    // bytes themselves, not just a file path, since a generated file on
+    // disk isn't guaranteed to survive a redeploy) so the school admin can
+    // view/download the same copy later without regenerating it.
+    // student_id is NULL for a whole-class report; the partial unique
+    // index below treats every NULL as the same "no student" slot per
+    // classroom+term, which a plain UNIQUE constraint on a nullable column
+    // can't do (Postgres treats every NULL as distinct).
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS class_term_reports (
+  id SERIAL PRIMARY KEY,
+  school_id INTEGER REFERENCES schools(id) ON DELETE CASCADE,
+  classroom_id INTEGER REFERENCES classrooms(id) ON DELETE CASCADE,
+  term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+  student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+  pdf BYTEA NOT NULL,
+  filename TEXT NOT NULL,
+  generated_by INTEGER REFERENCES users2(id),
+  generated_at TIMESTAMP DEFAULT NOW()
+);
+`);
+
+    await pool.query(`
+CREATE UNIQUE INDEX IF NOT EXISTS class_term_reports_unique_idx
+ON class_term_reports (school_id, classroom_id, term_id, COALESCE(student_id, 0));
+`);
+
+    // Which term a course was authorized for a school — nullable so
+    // existing rows (assigned before terms had this concept) keep
+    // meaning "authorized regardless of term". The old UNIQUE(school_id,
+    // course_id) only allowed one row per course ever, which can't
+    // represent "authorized again for a later term" as its own record —
+    // replaced with a term-aware unique index (COALESCE'd so every
+    // legacy NULL-term row still collapses to one slot per course, same
+    // as before).
+    await pool.query(`
+      ALTER TABLE school_courses ADD COLUMN IF NOT EXISTS term_id INTEGER REFERENCES academic_terms(id) ON DELETE SET NULL;
+    `);
+    await pool.query(`
+      ALTER TABLE school_courses DROP CONSTRAINT IF EXISTS school_courses_school_id_course_id_key;
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS school_courses_unique_idx
+      ON school_courses (school_id, course_id, COALESCE(term_id, 0));
+    `);
+
+    // Confirmed record of "this course was actually worked on, in this
+    // classroom, during this term" — backed by real lesson/quiz activity
+    // evidence (see services/courseTermLinkService.js), not just a live
+    // date-range guess. Populated two ways: a one-time backfill over a
+    // school's past terms (using existing activity timestamps), and
+    // ongoing real-time inserts as students complete lessons/quizzes
+    // today. This is the source of truth classroom analytics and the
+    // student past-course lock use for "what course happened in what
+    // term", replacing on-the-fly date-windowing for terms that have
+    // confirmed links.
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS course_term_links (
+  id SERIAL PRIMARY KEY,
+  school_id INTEGER REFERENCES schools(id) ON DELETE CASCADE,
+  classroom_id INTEGER REFERENCES classrooms(id) ON DELETE CASCADE,
+  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+  term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+  first_activity_at TIMESTAMP,
+  last_activity_at TIMESTAMP,
+  source TEXT DEFAULT 'backfill',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+`);
+    await pool.query(`
+CREATE UNIQUE INDEX IF NOT EXISTS course_term_links_unique_idx
+ON course_term_links (classroom_id, course_id, term_id);
 `);
 
     console.log("✅ All tables are updated and ready.");

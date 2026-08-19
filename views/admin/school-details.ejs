@@ -190,6 +190,12 @@
               <td><%= term.student_count %></td>
               <td>
                 <%= term.statusLabel %>
+                <br>
+                <% if (term.is_ended) { %>
+                  <span style="color:green; font-size:12px;">✅ Ended <%= new Date(term.ended_at).toLocaleDateString() %></span>
+                <% } else { %>
+                  <span style="color:#888; font-size:12px;">Not ended</span>
+                <% } %>
               </td>
               <td>
                 ₦<%= term.quote?.price_per_student || 0 %>
@@ -239,6 +245,19 @@
 
                 <a href="/admin/terms/<%= term.term_id %>/export-excel" class="no-bg">
                   <i class="fa-solid fa-file-excel" style="color: green;"></i>
+                </a>
+
+                <a href="#" id="endTermBtn-<%= term.term_id %>" class="no-bg endterm-btn"
+                   data-term-id="<%= term.term_id %>"
+                   data-generation-status="<%= term.report_generation_status || 'idle' %>"
+                   data-is-ended="<%= term.is_ended %>"
+                   title="<%= term.is_ended ? 'Regenerate all reports for this term' : 'Mark term ended and generate all reports' %>"
+                   onclick="endTerm(event, '<%= term.term_id %>', <%= term.is_ended %>); return false;">
+                  <% if (term.report_generation_status === 'in_progress') { %>
+                    ⏳ <%= term.report_generation_completed || 0 %>/<%= term.report_generation_total || 0 %>
+                  <% } else { %>
+                    <i class="fa-solid fa-flag-checkered" style="color: <%= term.is_ended ? '#c0762a' : '#333' %>;"></i>
+                  <% } %>
                 </a>
                 <% if (term.quote) { %>
                   <a href="/admin/quotes/<%= term.quote.id %>/download" class="no-bg">
@@ -2577,6 +2596,99 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("❌ Failed");
     }
   }
+</script>
+
+<!-- Script for ending a term (bulk-generates + persists every report) -->
+<script>
+  // Generation runs as a background job on the server (see
+  // adminController.js's endTerm/runEndTermJob) — this just starts it
+  // and polls for progress instead of holding one request open for
+  // however long every classroom + student report takes to render.
+  async function endTerm(event, termId, alreadyEnded) {
+    const message = alreadyEnded
+      ? "This term was already marked ended. Regenerate every class and student report for it? This can take a while for a school with many classrooms."
+      : "Mark this term ended? This generates a full-class report and an individual report for every enrolled student, and makes them all visible to the school admin. This can take a while for a school with many classrooms.";
+
+    if (!confirm(message)) return;
+
+    const btn = event.currentTarget;
+    const originalHTML = btn.innerHTML;
+
+    try {
+      const res = await fetch(`/admin/terms/${termId}/end`, { method: "POST" });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert("❌ " + (data.message || "Failed to start report generation"));
+        return;
+      }
+
+      pollEndTermStatus(termId, btn, originalHTML);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Failed to start report generation");
+      btn.innerHTML = originalHTML;
+    }
+  }
+
+  async function pollEndTermStatus(termId, btn, originalHTML) {
+    try {
+      const res = await fetch(`/admin/terms/${termId}/end-status`);
+      const data = await res.json();
+
+      if (!data.success) {
+        btn.innerHTML = originalHTML;
+        alert("❌ " + (data.message || "Failed to check progress"));
+        return;
+      }
+
+      if (data.status === "in_progress") {
+        btn.innerHTML = `⏳ ${data.completed}/${data.total}`;
+        setTimeout(() => pollEndTermStatus(termId, btn, originalHTML), 3000);
+        return;
+      }
+
+      if (data.status === "done") {
+        let summary = `✅ Report generation finished (${data.completed}/${data.total}).`;
+        if (data.errors && data.errors.length) {
+          summary += `\n\n⚠️ ${data.errors.length} failed:\n` + data.errors.join("\n");
+        }
+        alert(summary);
+        location.reload();
+        return;
+      }
+
+      if (data.status === "failed") {
+        btn.innerHTML = originalHTML;
+        alert("❌ Report generation failed: " + (data.errors && data.errors[0] ? data.errors[0] : "Unknown error"));
+        return;
+      }
+
+      // status === "idle" shouldn't happen right after a successful
+      // start, but don't leave the button stuck spinning if it does.
+      btn.innerHTML = originalHTML;
+    } catch (err) {
+      console.error(err);
+      // Transient network hiccup while polling — keep trying rather than
+      // abandoning a job that may still be running server-side.
+      setTimeout(() => pollEndTermStatus(termId, btn, originalHTML), 3000);
+    }
+  }
+
+  // The generation job survives a page refresh (it's a detached
+  // server-side function, not tied to the request or the browser) —
+  // but the in-browser polling loop above doesn't. Without this, a
+  // refresh mid-generation would show the button as if nothing had been
+  // triggered at all, with no sign a job is still running. On load,
+  // resume polling for any term whose row still says "in_progress".
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.endterm-btn[data-generation-status="in_progress"]').forEach((btn) => {
+      const termId = btn.dataset.termId;
+      const isEnded = btn.dataset.isEnded === "true";
+      const fallbackHTML = `<i class="fa-solid fa-flag-checkered" style="color: ${isEnded ? '#c0762a' : '#333'};"></i>`;
+      pollEndTermStatus(termId, btn, fallbackHTML);
+    });
+  });
 </script>
 
 <!-- script for filter student in a classroom to be selectd -->

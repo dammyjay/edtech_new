@@ -574,8 +574,8 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
         <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
     </div>
     <!-- <a style="text-decoration: none; color: white;" href="/admin/students">⬅ Back to Students</a> -->
-     <a style="text-decoration: none; color: white;" 
-   href="<%= from === 'parent' ? '/parent/dashboard' : '/admin/students' %>">
+     <a style="text-decoration: none; color: white;"
+   href="<%= from === 'parent' ? '/parent/dashboard' : from === 'school_admin' ? '/school-admin/dashboard' : '/admin/students' %>">
    ⬅ Back to Students
 </a>
   </header>
