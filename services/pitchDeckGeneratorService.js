@@ -16,6 +16,7 @@ const schoolsDeckTemplate = require("./pitchDecks/schoolsDeckTemplate");
 const grantsDeckTemplate = require("./pitchDecks/grantsDeckTemplate");
 const investorsDeckTemplate = require("./pitchDecks/investorsDeckTemplate");
 const partnersDeckTemplate = require("./pitchDecks/partnersDeckTemplate");
+const proposalDeckTemplate = require("./pitchDecks/proposalDeckTemplate");
 
 const TEMPLATES = {
   schools: schoolsDeckTemplate,
@@ -76,4 +77,104 @@ async function generatePitchDeck(audience, { triggeredByUserId } = {}) {
   }
 }
 
-module.exports = { generatePitchDeck };
+// ---------------------------------------------------------------------
+// Partnership proposal — a two-step flow, unlike the one-shot decks above:
+// 1. generateProposalPreview() fetches real platform data + an AI draft
+//    and returns it as plain JSON (no file built yet) so the admin can
+//    review/edit it in the dashboard.
+// 2. buildProposalDeckFromContent() takes whatever content the admin
+//    actually approved (edits included) and renders the final .pptx from
+//    exactly that — no AI call here, so downloading never silently
+//    diverges from what was previewed.
+// ---------------------------------------------------------------------
+
+async function getProposalPlatformData() {
+  const [overview, schools, learning, courses] = await Promise.all([
+    analyticsAggregationService.getOverviewAnalytics(null),
+    analyticsAggregationService.getSchoolsAnalytics(null),
+    analyticsAggregationService.getLearningAnalytics(null),
+    pool.query(`
+      SELECT title, description, level
+      FROM courses
+      ORDER BY sort_order, id
+      LIMIT 12
+    `),
+  ]);
+
+  return {
+    totalUsers: overview.totalUsers,
+    totalSchools: schools.totalSchools,
+    totalStudents: schools.totalStudents,
+    totalTeachers: schools.totalTeachers,
+    totalCourses: learning.totalCourses,
+    certificatesIssued: overview.certificatesIssued,
+    avgQuizScore: overview.avgQuizScore,
+    courseCatalog: courses.rows,
+  };
+}
+
+async function generateProposalPreview({ recipientName, focusNotes, triggeredByUserId } = {}) {
+  const [platformData, companyInfo] = await Promise.all([
+    getProposalPlatformData(),
+    getCompanyInfo(),
+  ]);
+
+  const draft = await platformReportAIService.generateProposalDraft({
+    recipientName,
+    focusNotes,
+    platformData: { ...platformData, companyName: companyInfo.company_name },
+  });
+
+  return {
+    recipientName: recipientName || "",
+    companyName: companyInfo.company_name || "",
+    tagline: draft.tagline || "",
+    aboutUs: draft.aboutUs || "",
+    trackRecordStats: [
+      { label: "Partner Schools", value: String(platformData.totalSchools) },
+      { label: "Students Reached", value: String(platformData.totalStudents) },
+      { label: "Certificates Issued", value: String(platformData.certificatesIssued) },
+    ],
+    trackRecordQuote: draft.trackRecordQuote || "",
+    programs: draft.programs || [],
+    programDeepDives: draft.programDeepDives || [],
+    curriculumSteps: draft.curriculumSteps || [],
+    benefits: draft.benefits || [],
+    processSteps: draft.processSteps || [],
+    faq: draft.faq || [],
+    pricing: {
+      amount: "PER PUPIL",
+      price: "",
+      unit: "per term",
+      note2: "",
+      includes: [],
+      note: "",
+    },
+    contacts: [],
+    connectPreamble: "",
+  };
+}
+
+async function buildProposalDeckFromContent(content, { triggeredByUserId } = {}) {
+  try {
+    const companyInfo = await getCompanyInfo();
+    const buffer = await proposalDeckTemplate.buildDeck(content, companyInfo);
+
+    await logPitchDeckGeneration({ audience: "proposal", triggeredByUserId, status: "success" });
+
+    return {
+      buffer,
+      filename: `partnership-proposal-${(content.recipientName || "draft").replace(/[^\w-]+/g, "_")}.pptx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    };
+  } catch (err) {
+    await logPitchDeckGeneration({ audience: "proposal", triggeredByUserId, status: "error", errorMessage: err.message });
+    throw err;
+  }
+}
+
+module.exports = {
+  generatePitchDeck,
+  generateProposalPreview,
+  buildProposalDeckFromContent,
+};

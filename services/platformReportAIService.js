@@ -239,9 +239,48 @@ ${JSON.stringify(shape, null, 2)}
   return parseJsonResponse(result, shape);
 }
 
+const PROPOSAL_DRAFT_SHAPE = {
+  tagline: "",
+  aboutUs: "",
+  trackRecordQuote: "",
+  programs: [{ title: "", description: "" }],
+  programDeepDives: [{ title: "", description: "", specs: [{ label: "", value: "" }], features: [""] }],
+  curriculumSteps: [{ title: "", description: "" }],
+  benefits: [{ title: "", description: "" }],
+  processSteps: [{ title: "", description: "" }],
+  faq: [{ question: "", answer: "" }],
+};
+
+// Draft content for a partnership-proposal pitch deck (services/pitchDecks/proposalDeckTemplate.js).
+// Unlike generatePitchDeckNarrative's 4 fixed audiences, this is a single
+// flexible shape meant to be reviewed and edited by an admin before the
+// final deck is built — see services/pitchDeckGeneratorService.js's
+// generateProposalPreview()/buildProposalDeckFromContent() split. Pricing
+// is deliberately NOT part of this shape — that's always admin-entered,
+// never AI-guessed, since it's a real business decision.
+async function generateProposalDraft({ recipientName, focusNotes, platformData }) {
+  const prompt = `
+You are writing the narrative content for a partnership proposal pitch deck that ${platformData.companyName || "this EdTech platform"} will send to a prospective partner${recipientName ? ` named "${recipientName}"` : ""}.
+
+The goal is to make the reader genuinely excited to partner — professional, warm, and grounded in real numbers, not generic filler. Model the structure and tone on a well-produced partnership proposal: a confident "About Us", a track-record section backed by real stats, a clear breakdown of programs/offerings with concrete specifics (age range, format, frequency — invent reasonable, realistic operational specifics consistent with an EdTech coding/tech-skills platform for schools, since exact specifics aren't in the data below), a short curriculum/learning-path outline, a benefits section explaining why this matters for pupils, a numbered "how a partnership works" process, and an FAQ addressing likely objections a school would have.
+
+${focusNotes ? `SPECIFIC FOCUS REQUESTED BY THE ADMIN PREPARING THIS PROPOSAL: ${focusNotes}` : ""}
+
+REAL PLATFORM DATA (use these facts for anything you state as a statistic or track-record claim — do not invent numbers not present here):
+${JSON.stringify(platformData, null, 2)}
+
+Return ONLY JSON in this exact shape — "programs" should have 3-4 items, "programDeepDives" should cover 1-2 of the most important programs with 3-5 specs each and 3-5 features each, "curriculumSteps" should have exactly 3 items (a beginner/intermediate/advanced-style progression), "benefits" should have 5-6 items, "processSteps" should have 4-5 items, "faq" should have 5-6 items:
+${JSON.stringify(PROPOSAL_DRAFT_SHAPE, null, 2)}
+`;
+
+  const result = await askTutor({ question: prompt, maxTokens: 3000 });
+  return parseJsonResponse(result, PROPOSAL_DRAFT_SHAPE);
+}
+
 module.exports = {
   generateSectionCommentary,
   generateExecutiveSummary,
   generatePitchDeckNarrative,
+  generateProposalDraft,
   summarizeSectionForAI,
 };

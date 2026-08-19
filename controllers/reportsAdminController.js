@@ -7,7 +7,11 @@
 
 const pool = require("../models/db");
 const { generatePlatformReport } = require("../services/reportOrchestratorService");
-const { generatePitchDeck } = require("../services/pitchDeckGeneratorService");
+const {
+  generatePitchDeck,
+  generateProposalPreview,
+  buildProposalDeckFromContent,
+} = require("../services/pitchDeckGeneratorService");
 const sendEmailWithAttachment = require("../utils/sendEmailWithAttachment");
 const { sendEmailWithAttachments } = sendEmailWithAttachment;
 
@@ -112,6 +116,46 @@ exports.downloadPitchDeck = async (req, res) => {
   } catch (err) {
     console.error("downloadPitchDeck error:", err);
     res.status(500).json({ success: false, message: "Failed to generate pitch deck" });
+  }
+};
+
+exports.previewProposal = async (req, res) => {
+  if (!isAdminSession(req)) {
+    return res.status(403).json({ success: false, message: "Admin access required" });
+  }
+
+  try {
+    const { recipientName, focusNotes } = req.body;
+    const preview = await generateProposalPreview({
+      recipientName: String(recipientName || "").trim(),
+      focusNotes: String(focusNotes || "").trim(),
+      triggeredByUserId: req.session.user.id,
+    });
+    res.json({ success: true, content: preview });
+  } catch (err) {
+    console.error("previewProposal error:", err);
+    res.status(500).json({ success: false, message: "Failed to generate proposal preview" });
+  }
+};
+
+exports.downloadProposal = async (req, res) => {
+  if (!isAdminSession(req)) {
+    return res.status(403).json({ success: false, message: "Admin access required" });
+  }
+
+  try {
+    const content = req.body.content;
+    if (!content || typeof content !== "object") {
+      return res.status(400).json({ success: false, message: "Missing proposal content" });
+    }
+
+    const deck = await buildProposalDeckFromContent(content, { triggeredByUserId: req.session.user.id });
+    res.setHeader("Content-Type", deck.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename=${deck.filename}`);
+    res.send(deck.buffer);
+  } catch (err) {
+    console.error("downloadProposal error:", err);
+    res.status(500).json({ success: false, message: "Failed to generate proposal deck" });
   }
 };
 

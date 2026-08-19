@@ -136,6 +136,28 @@ function addBulletSlide(pptx, title, bullets, options = {}) {
   return slide;
 }
 
+// --- Plain flowing-paragraph slide (e.g. "About Us") — addBulletSlide
+// always adds bullet markers, which don't suit prose. ---
+function addParagraphSlide(pptx, title, text, options = {}) {
+  const slide = addContentSlide(pptx, title);
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.55, y: 1.5, w: 12.23, h: 5.3, rectRadius: 0.08,
+    fill: { color: WHITE }, line: { color: "EBDFC0", width: 1 }, shadow: CARD_SHADOW,
+  });
+  slide.addShape(pptx.ShapeType.rect, { x: 1.0, y: 1.9, w: 0.08, h: 0.6, fill: { color: BRAND_GOLD }, line: { type: "none" } });
+  if (options.quote) {
+    slide.addText(options.quote, {
+      x: 1.25, y: 1.85, w: 10.5, h: 0.7, fontSize: 15, italic: true, bold: true, color: BRAND_GOLD, valign: "middle",
+    });
+  }
+  slide.addText(text, {
+    x: 1.0, y: options.quote ? 2.75 : 1.9, w: 10.83, h: options.quote ? 3.85 : 4.7,
+    fontSize: 14, color: TEXT_DARK, valign: "top", lineSpacing: 22,
+  });
+  return slide;
+}
+
 function addStatSlide(pptx, title, stats) {
   const slide = addContentSlide(pptx, title);
   const cols = Math.min(stats.length, 4);
@@ -277,6 +299,244 @@ function addAiSlide(pptx, title, ai) {
   return slide;
 }
 
+// --- Agenda / table of contents: numbered two-column grid of section
+// names, matching the reference proposal's "What's Inside" page. ---
+function addTocSlide(pptx, title, items) {
+  const slide = addContentSlide(pptx, title);
+  const cols = 2;
+  const rows = Math.ceil(items.length / cols);
+  const cellW = 5.95;
+  const cellH = Math.min(1.05, (5.3 - (rows - 1) * 0.15) / rows);
+  const gapX = 0.33;
+  const gapY = 0.15;
+  const startX = 0.55;
+  const startY = 1.55;
+
+  items.forEach((item, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (cellW + gapX);
+    const y = startY + row * (cellH + gapY);
+
+    slide.addShape(pptx.ShapeType.rect, {
+      x, y, w: cellW, h: cellH, fill: { color: BRAND_GOLD_PALE }, line: { type: "none" },
+    });
+    slide.addText(String(i + 1).padStart(2, "0"), {
+      x: x + 0.2, y, w: 0.9, h: cellH, valign: "middle", fontSize: 22, bold: true, color: BRAND_GOLD_LIGHT,
+    });
+    slide.addText(item, {
+      x: x + 1.05, y, w: cellW - 1.2, h: cellH, valign: "middle", fontSize: 13, bold: true, color: TEXT_DARK,
+    });
+  });
+
+  return slide;
+}
+
+// --- Feature grid: title+description cards, used for "Our Programs" and
+// "Why It Matters" style sections. ---
+function addFeatureGridSlide(pptx, title, items, description) {
+  const slide = addContentSlide(pptx, title);
+  let top = 1.4;
+
+  if (description) {
+    slide.addText(description, { x: 0.55, y: top, w: 12.23, h: 0.5, fontSize: 13, italic: true, color: TEXT_MUTED });
+    top += 0.55;
+  }
+
+  const cols = 2;
+  const rows = Math.ceil(items.length / cols);
+  const cellW = 5.95;
+  const gapX = 0.33;
+  const gapY = 0.22;
+  const availH = 7.15 - top;
+  const cellH = Math.min(1.7, (availH - (rows - 1) * gapY) / rows);
+  const startX = 0.55;
+
+  items.forEach((item, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (cellW + gapX);
+    const y = top + row * (cellH + gapY);
+
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x, y, w: cellW, h: cellH, rectRadius: 0.06,
+      fill: { color: WHITE }, line: { color: "EBDFC0", width: 1 }, shadow: CARD_SHADOW,
+    });
+    slide.addShape(pptx.ShapeType.rect, { x, y, w: 0.08, h: cellH, fill: { color: BRAND_GOLD }, line: { type: "none" } });
+    slide.addText(item.title, {
+      x: x + 0.25, y: y + 0.12, w: cellW - 0.45, h: 0.4, fontSize: 14, bold: true, color: BRAND_DARK,
+    });
+    slide.addText(item.description || "", {
+      x: x + 0.25, y: y + 0.52, w: cellW - 0.45, h: cellH - 0.65, fontSize: 11, color: TEXT_MUTED, valign: "top",
+    });
+  });
+
+  return slide;
+}
+
+// --- Spec table + optional checklist, for a single program/offering
+// "deep dive" page (age range, class size, frequency, etc.). ---
+function addSpecTableSlide(pptx, title, description, specs, features) {
+  const slide = addContentSlide(pptx, title);
+  let top = 1.4;
+
+  if (description) {
+    slide.addText(description, { x: 0.55, y: top, w: 12.23, h: 0.5, fontSize: 13, italic: true, color: TEXT_MUTED });
+    top += 0.55;
+  }
+
+  const rowH = 0.5;
+  (specs || []).forEach((spec, i) => {
+    const y = top + i * rowH;
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0.55, y, w: 12.23, h: rowH,
+      fill: { color: i % 2 === 0 ? BRAND_GOLD_PALE : WHITE }, line: { type: "none" },
+    });
+    slide.addText(spec.label.toUpperCase(), { x: 0.75, y, w: 3.2, h: rowH, valign: "middle", fontSize: 11, bold: true, color: BRAND_GOLD });
+    slide.addText(spec.value, { x: 4.1, y, w: 8.5, h: rowH, valign: "middle", fontSize: 12.5, color: TEXT_DARK });
+  });
+
+  if (features && features.length) {
+    const featTop = top + (specs || []).length * rowH + 0.35;
+    slide.addText(
+      features.map((f) => ({ text: f, options: { bullet: { code: "2713", indent: 20 }, breakLine: true, color: ACCENT_GREEN } })),
+      { x: 0.55, y: featTop, w: 12.23, h: Math.max(0.5, 6.9 - featTop), fontSize: 12.5, color: TEXT_DARK, valign: "top", paraSpaceAfter: 8 }
+    );
+  }
+
+  return slide;
+}
+
+// --- Numbered vertical process steps ("How a Partnership Works"). ---
+function addProcessSlide(pptx, title, steps) {
+  const slide = addContentSlide(pptx, title);
+  const rowH = Math.min(1.05, 5.3 / steps.length);
+  const startY = 1.5;
+
+  steps.forEach((step, i) => {
+    const y = startY + i * rowH;
+    slide.addShape(pptx.ShapeType.ellipse, {
+      x: 0.55, y: y + 0.08, w: 0.55, h: 0.55, fill: { color: BRAND_GOLD }, line: { type: "none" },
+    });
+    slide.addText(String(i + 1), {
+      x: 0.55, y: y + 0.08, w: 0.55, h: 0.55, align: "center", valign: "middle", fontSize: 16, bold: true, color: WHITE,
+    });
+    slide.addText(step.title, {
+      x: 1.3, y, w: 11.4, h: 0.4, fontSize: 14, bold: true, color: BRAND_DARK,
+    });
+    slide.addText(step.description || "", {
+      x: 1.3, y: y + 0.38, w: 11.4, h: rowH - 0.4, fontSize: 11.5, color: TEXT_MUTED, valign: "top",
+    });
+  });
+
+  return slide;
+}
+
+// --- Pricing card + includes checklist + optional note banner. ---
+function addPricingSlide(pptx, title, pricing) {
+  const slide = addContentSlide(pptx, title);
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.55, y: 1.5, w: 4.2, h: 3.6, rectRadius: 0.1,
+    fill: { color: BRAND_DARK }, line: { type: "none" }, shadow: CARD_SHADOW,
+  });
+  slide.addText((pricing.amount || "").toUpperCase(), {
+    x: 0.75, y: 1.75, w: 3.8, h: 0.4, align: "center", fontSize: 11, color: "D9A73B", charSpacing: 1,
+  });
+  slide.addText(pricing.price || "", {
+    x: 0.75, y: 2.15, w: 3.8, h: 1.1, align: "center", fontSize: 38, bold: true, color: BRAND_GOLD_LIGHT,
+  });
+  slide.addText(pricing.unit || "", {
+    x: 0.75, y: 3.25, w: 3.8, h: 0.4, align: "center", fontSize: 12, color: WHITE,
+  });
+  if (pricing.note2) {
+    slide.addText(pricing.note2, { x: 0.75, y: 3.65, w: 3.8, h: 1.2, align: "center", fontSize: 10, color: "D9A73B", valign: "top" });
+  }
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 5.15, y: 1.5, w: 7.63, h: 3.6, rectRadius: 0.1,
+    fill: { color: WHITE }, line: { color: "EBDFC0", width: 1 }, shadow: CARD_SHADOW,
+  });
+  slide.addText("WHAT'S INCLUDED", { x: 5.4, y: 1.65, w: 7, h: 0.35, fontSize: 12, bold: true, color: BRAND_GOLD, charSpacing: 1 });
+  slide.addText(
+    (pricing.includes || []).map((inc) => ({ text: inc, options: { bullet: { code: "2713", indent: 20 }, breakLine: true, color: ACCENT_GREEN } })),
+    { x: 5.4, y: 2.05, w: 7.15, h: 2.95, fontSize: 12.5, color: TEXT_DARK, valign: "top", paraSpaceAfter: 8 }
+  );
+
+  if (pricing.note) {
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 0.55, y: 5.3, w: 12.23, h: 1.35, rectRadius: 0.08, fill: { color: BRAND_GOLD_PALE }, line: { type: "none" },
+    });
+    slide.addText(pricing.note, {
+      x: 0.85, y: 5.45, w: 11.6, h: 1.05, fontSize: 11.5, italic: true, color: TEXT_DARK, valign: "middle",
+    });
+  }
+
+  return slide;
+}
+
+// --- FAQ: question/answer pairs, auto-paginated across as many slides as
+// needed rather than overflowing one page. ---
+function addFaqSlides(pptx, title, faqItems, perSlide = 5) {
+  const chunks = [];
+  for (let i = 0; i < faqItems.length; i += perSlide) {
+    chunks.push(faqItems.slice(i, i + perSlide));
+  }
+
+  chunks.forEach((chunk, chunkIndex) => {
+    const slideTitle = chunks.length > 1 ? `${title} (${chunkIndex + 1}/${chunks.length})` : title;
+    const slide = addContentSlide(pptx, slideTitle);
+    const rowH = 5.3 / chunk.length;
+    const startY = 1.5;
+
+    chunk.forEach((item, i) => {
+      const y = startY + i * rowH;
+      slide.addText(`Q: ${item.question}`, {
+        x: 0.55, y, w: 12.23, h: 0.35, fontSize: 13, bold: true, color: BRAND_GOLD,
+      });
+      slide.addText(item.answer, {
+        x: 0.75, y: y + 0.35, w: 12.0, h: rowH - 0.4, fontSize: 11.5, color: TEXT_DARK, valign: "top",
+      });
+    });
+  });
+}
+
+// --- Contact/closing slide with a 3-column contact-details block above
+// the closing banner (phone/WhatsApp, email, social) — a richer variant
+// of addClosingSlide for proposal-style decks that need to leave the
+// reader with concrete next-step contact info, not just a CTA. ---
+function addContactSlide(pptx, { preamble, contacts, headline, cta }) {
+  const slide = addContentSlide(pptx, "Let's Connect");
+
+  let top = 1.5;
+  if (preamble) {
+    slide.addText(preamble, { x: 0.55, y: top, w: 12.23, h: 0.8, fontSize: 13, color: TEXT_MUTED, valign: "top" });
+    top += 0.9;
+  }
+
+  const cols = contacts.length;
+  const gap = 0.3;
+  const cellW = (12.23 - gap * (cols - 1)) / cols;
+  contacts.forEach((c, i) => {
+    const x = 0.55 + i * (cellW + gap);
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x, y: top, w: cellW, h: 1.3, rectRadius: 0.08,
+      fill: { color: WHITE }, line: { color: "EBDFC0", width: 1 }, shadow: CARD_SHADOW,
+    });
+    slide.addText(c.label.toUpperCase(), { x: x + 0.15, y: top + 0.15, w: cellW - 0.3, h: 0.35, fontSize: 10, bold: true, color: TEXT_MUTED, charSpacing: 1 });
+    slide.addText(c.value, { x: x + 0.15, y: top + 0.5, w: cellW - 0.3, h: 0.7, fontSize: 13, bold: true, color: BRAND_DARK, valign: "top" });
+  });
+
+  const bandY = top + 1.65;
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.55, y: bandY, w: 12.23, h: 1.1, rectRadius: 0.08, fill: { color: BRAND_DARK }, line: { type: "none" },
+  });
+  slide.addText(headline, { x: 0.85, y: bandY + 0.12, w: 11.6, h: 0.5, align: "center", fontSize: 16, bold: true, color: WHITE });
+  slide.addText(cta, { x: 0.85, y: bandY + 0.6, w: 11.6, h: 0.4, align: "center", fontSize: 11.5, color: "D9A73B" });
+
+  return slide;
+}
+
 function addClosingSlide(pptx, { headline, cta }) {
   const slide = pptx.addSlide();
   slide.background = { color: BRAND_DARK };
@@ -309,9 +569,17 @@ module.exports = {
   addSectionHeader,
   addContentSlide,
   addBulletSlide,
+  addParagraphSlide,
   addStatSlide,
   addLineChartSlide,
   addBarChartSlide,
   addAiSlide,
+  addTocSlide,
+  addFeatureGridSlide,
+  addSpecTableSlide,
+  addProcessSlide,
+  addPricingSlide,
+  addFaqSlides,
+  addContactSlide,
   addClosingSlide,
 };

@@ -649,6 +649,16 @@ router.get(
 );
 
 router.post(
+  "/pitch-decks/proposal/preview",
+  reportsAdminController.previewProposal,
+);
+
+router.post(
+  "/pitch-decks/proposal/download",
+  reportsAdminController.downloadProposal,
+);
+
+router.post(
   "/schools/:schoolId/bulk-add-users",
   upload2.single("file"),
   activityLoggerMiddleware(

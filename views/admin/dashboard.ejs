@@ -955,6 +955,69 @@
     <p id="deckStatus" style="margin-top:10px; color:#666;"></p>
   </div>
 
+  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+    <h3>Partnership Proposal</h3>
+    <p style="color:#666;">Generate a full partnership proposal deck (about us, track record, programs, pricing, FAQ) — draft it with AI first, review and edit everything, then download.</p>
+
+    <div class="filter-bar" style="flex-wrap:wrap; gap:10px;">
+      <input type="text" id="proposalRecipient" placeholder="Recipient / School name (e.g. Greenwood Schools)" style="min-width:280px;">
+    </div>
+    <textarea id="proposalFocusNotes" placeholder="Optional: anything specific to emphasize (e.g. 'focus on STEM coding for primary pupils')" style="width:100%; min-height:50px; margin-top:10px;"></textarea>
+
+    <button onclick="generateProposalPreview()" id="generateProposalPreviewBtn" style="margin-top:10px;">Generate Preview</button>
+    <p id="proposalPreviewStatus" style="margin-top:10px; color:#666;"></p>
+
+    <div id="proposalEditArea" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+
+      <label><strong>Tagline</strong></label>
+      <input type="text" id="proposalTagline" style="width:100%; margin-bottom:12px;">
+
+      <label><strong>About Us</strong></label>
+      <textarea id="proposalAboutUs" style="width:100%; min-height:90px; margin-bottom:12px;"></textarea>
+
+      <label><strong>Track Record — pull quote</strong></label>
+      <input type="text" id="proposalTrackRecordQuote" style="width:100%; margin-bottom:6px;">
+      <p style="color:#888; font-size:13px; margin-bottom:12px;">Stats shown in the deck (from real platform data, not editable): <span id="proposalStatsPreview"></span></p>
+
+      <label><strong>Our Programs</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Title | Description</span></label>
+      <textarea id="proposalPrograms" style="width:100%; min-height:90px; margin-bottom:12px;"></textarea>
+
+      <label><strong>Why It Matters (benefits)</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Title | Description</span></label>
+      <textarea id="proposalBenefits" style="width:100%; min-height:90px; margin-bottom:12px;"></textarea>
+
+      <label><strong>How a Partnership Works</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Step title | Description</span></label>
+      <textarea id="proposalProcessSteps" style="width:100%; min-height:90px; margin-bottom:12px;"></textarea>
+
+      <label><strong>FAQ</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Question? | Answer</span></label>
+      <textarea id="proposalFaq" style="width:100%; min-height:110px; margin-bottom:12px;"></textarea>
+
+      <p style="color:#888; font-size:13px; margin-bottom:4px;"><em>Program deep-dive pages and the curriculum outline are included in the deck as AI-drafted (not editable here yet) — everything else on this page is exactly what will appear.</em></p>
+
+      <hr style="margin:18px 0;">
+
+      <label><strong>Investment / Pricing</strong> <span style="color:#c0762a;">(always set this yourself — never AI-generated)</span></label>
+      <div class="filter-bar" style="flex-wrap:wrap; gap:10px; margin-top:8px;">
+        <input type="text" id="proposalPriceAmount" placeholder="Label, e.g. PER PUPIL" style="min-width:160px;">
+        <input type="text" id="proposalPriceValue" placeholder="Price, e.g. ₦8,000" style="min-width:140px;">
+        <input type="text" id="proposalPriceUnit" placeholder="Unit, e.g. per term" style="min-width:140px;">
+        <input type="text" id="proposalPriceNote2" placeholder="Small note under price, e.g. Materials included" style="min-width:220px;">
+      </div>
+      <textarea id="proposalPriceIncludes" placeholder="What's included — one item per line" style="width:100%; min-height:70px; margin-top:8px;"></textarea>
+      <textarea id="proposalPriceNote" placeholder="Note banner, e.g. custom pricing for whole-school partnerships..." style="width:100%; min-height:50px; margin-top:8px;"></textarea>
+
+      <hr style="margin:18px 0;">
+
+      <label><strong>Contact Details</strong> <span style="color:#888; font-weight:normal;">— one per line, format: Label | Value</span></label>
+      <textarea id="proposalContacts" placeholder="Call / WhatsApp | 080-0000-0000&#10;Email | partnerships@example.com&#10;Website | acad.jkthub.com" style="width:100%; min-height:80px; margin-bottom:12px;"></textarea>
+
+      <label><strong>Connect page intro (optional)</strong></label>
+      <input type="text" id="proposalConnectPreamble" style="width:100%; margin-bottom:12px;">
+
+      <button onclick="downloadProposal()" id="downloadProposalBtn">Download Proposal</button>
+      <p id="proposalDownloadStatus" style="margin-top:10px; color:#666;"></p>
+    </div>
+  </div>
+
   <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
     <h3>Recent Reports</h3>
     <div class="table-responsive">
@@ -1916,6 +1979,159 @@
         }
       }
 
+      // ---- Partnership Proposal ----
+      // Line-delimited "Title | Description" (or "Question | Answer")
+      // textareas are parsed into arrays of objects, and rebuilt the same
+      // way when populating the form from a preview response — a plain,
+      // readable edit format that doesn't need a dynamic list-builder UI.
+      function parsePipeList(text, keys) {
+        return String(text || "")
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const parts = line.split("|").map((p) => p.trim());
+            const obj = {};
+            keys.forEach((k, i) => { obj[k] = parts[i] || ""; });
+            return obj;
+          });
+      }
+
+      function formatPipeList(items, keys) {
+        return (items || []).map((item) => keys.map((k) => item[k] || "").join(" | ")).join("\n");
+      }
+
+      let proposalPreviewContent = null;
+
+      async function generateProposalPreview() {
+        const btn = document.getElementById("generateProposalPreviewBtn");
+        const status = document.getElementById("proposalPreviewStatus");
+        const recipientName = document.getElementById("proposalRecipient").value.trim();
+
+        if (!recipientName) {
+          status.innerText = "Please enter a recipient / school name first.";
+          return;
+        }
+
+        btn.disabled = true;
+        status.innerText = "Drafting proposal with AI — this can take up to a minute...";
+        document.getElementById("proposalEditArea").style.display = "none";
+
+        try {
+          const res = await fetch("/admin/pitch-decks/proposal/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipientName,
+              focusNotes: document.getElementById("proposalFocusNotes").value.trim(),
+            }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            status.innerText = "Failed to generate preview: " + (data.message || "Unknown error");
+            return;
+          }
+
+          proposalPreviewContent = data.content;
+
+          document.getElementById("proposalTagline").value = data.content.tagline || "";
+          document.getElementById("proposalAboutUs").value = data.content.aboutUs || "";
+          document.getElementById("proposalTrackRecordQuote").value = data.content.trackRecordQuote || "";
+          document.getElementById("proposalStatsPreview").innerText =
+            (data.content.trackRecordStats || []).map((s) => `${s.value} ${s.label}`).join("  •  ");
+          document.getElementById("proposalPrograms").value = formatPipeList(data.content.programs, ["title", "description"]);
+          document.getElementById("proposalBenefits").value = formatPipeList(data.content.benefits, ["title", "description"]);
+          document.getElementById("proposalProcessSteps").value = formatPipeList(data.content.processSteps, ["title", "description"]);
+          document.getElementById("proposalFaq").value = formatPipeList(data.content.faq, ["question", "answer"]);
+
+          document.getElementById("proposalPriceAmount").value = "PER PUPIL";
+          document.getElementById("proposalPriceValue").value = "";
+          document.getElementById("proposalPriceUnit").value = "per term";
+          document.getElementById("proposalPriceNote2").value = "";
+          document.getElementById("proposalPriceIncludes").value = "";
+          document.getElementById("proposalPriceNote").value = "";
+          document.getElementById("proposalContacts").value = "";
+          document.getElementById("proposalConnectPreamble").value = "";
+
+          document.getElementById("proposalEditArea").style.display = "block";
+          status.innerText = "Draft ready — review and edit below, then download when you're happy with it.";
+        } catch (err) {
+          console.error(err);
+          status.innerText = "Error generating preview. Check console.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function downloadProposal() {
+        const btn = document.getElementById("downloadProposalBtn");
+        const status = document.getElementById("proposalDownloadStatus");
+
+        if (!proposalPreviewContent) {
+          status.innerText = "Generate a preview first.";
+          return;
+        }
+
+        const priceValue = document.getElementById("proposalPriceValue").value.trim();
+        if (!priceValue) {
+          status.innerText = "Please set a price before downloading — pricing is never auto-generated.";
+          return;
+        }
+
+        btn.disabled = true;
+        status.innerText = "Building the final deck...";
+
+        const content = {
+          ...proposalPreviewContent,
+          tagline: document.getElementById("proposalTagline").value.trim(),
+          aboutUs: document.getElementById("proposalAboutUs").value.trim(),
+          trackRecordQuote: document.getElementById("proposalTrackRecordQuote").value.trim(),
+          programs: parsePipeList(document.getElementById("proposalPrograms").value, ["title", "description"]),
+          benefits: parsePipeList(document.getElementById("proposalBenefits").value, ["title", "description"]),
+          processSteps: parsePipeList(document.getElementById("proposalProcessSteps").value, ["title", "description"]),
+          faq: parsePipeList(document.getElementById("proposalFaq").value, ["question", "answer"]),
+          pricing: {
+            amount: document.getElementById("proposalPriceAmount").value.trim(),
+            price: priceValue,
+            unit: document.getElementById("proposalPriceUnit").value.trim(),
+            note2: document.getElementById("proposalPriceNote2").value.trim(),
+            includes: document.getElementById("proposalPriceIncludes").value.split("\n").map((s) => s.trim()).filter(Boolean),
+            note: document.getElementById("proposalPriceNote").value.trim(),
+          },
+          contacts: parsePipeList(document.getElementById("proposalContacts").value, ["label", "value"]),
+          connectPreamble: document.getElementById("proposalConnectPreamble").value.trim(),
+        };
+
+        try {
+          const res = await fetch("/admin/pitch-decks/proposal/download", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            status.innerText = "Failed to generate proposal: " + (data.message || res.statusText);
+            return;
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `partnership-proposal-${(content.recipientName || "draft").replace(/[^\w-]+/g, "_")}.pptx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          status.innerText = "Proposal downloaded.";
+          loadReportHistory();
+        } catch (err) {
+          console.error(err);
+          status.innerText = "Error generating proposal. Check console.";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
       const REPORT_TYPE_LABELS = {
         platform_analytics: "Analytics Report",
         pitch_deck: "Pitch Deck",
@@ -1926,6 +2142,7 @@
         grants: "Grant Applications",
         investors: "Investors",
         partners: "Partners",
+        proposal: "Partnership Proposal",
       };
 
       async function loadReportHistory() {
