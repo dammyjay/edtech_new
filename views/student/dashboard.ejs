@@ -654,6 +654,35 @@
         </div>
       <% } %>
 
+      <% if (typeof lockedTerms !== 'undefined' && lockedTerms.length > 0) { %>
+        <hr style="margin:30px 0;">
+        <h3>🔒 Locked Terms <small style="font-weight:normal; color:#666;">(term ended)</small></h3>
+        <p style="color:#666; font-size:13px;">
+          These terms have ended. Anything you already completed stays viewable, but unfinished lessons/quizzes are locked until the term is reactivated — pay from your wallet, or ask your school to reactivate it for you.
+        </p>
+        <% lockedTerms.forEach(term => { %>
+          <div class="course-card3" style="flex-direction: column; opacity:0.9; margin-bottom:15px;">
+            <div>
+              <h4>🔒 <%= term.termName %></h4>
+              <p style="color:#888; font-size:13px;">
+                <%= term.courses.length %> course<%= term.courses.length === 1 ? '' : 's' %> with unfinished lessons
+              </p>
+              <ul style="margin:8px 0; padding-left:20px; font-size:13px; color:#555;">
+                <% term.courses.forEach(course => { %>
+                  <li><%= course.title %> — <%= course.completedLessons %>/<%= course.totalLessons %> lessons done</li>
+                <% }) %>
+              </ul>
+              <p><strong>Reactivation price: ₦<%= term.totalPrice.toLocaleString() %></strong></p>
+            </div>
+            <div>
+              <a href="/student/terms/<%= term.termId %>/reactivate" class="btn-view" style="text-decoration: none;">
+                🔓 Reactivate This Term
+              </a>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+
     </div>
 
 
@@ -823,9 +852,9 @@
                 
 
                 <button class="lesson-toggle no-bg"
-                        onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>)"
+                        onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>, <%= !!lesson.termLocked %>)"
                         style="text-align: left; <%= lesson.unlocked ? '' : 'opacity:0.5; cursor:not-allowed;' %>">
-                  <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %> ▾
+                  <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %><% if (lesson.termLocked) { %> <span style="color:#e67e22; font-size:12px;">⏳ term ended</span><% } %> ▾
                 </button>
 
                 <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
@@ -2142,10 +2171,13 @@ window.closeEditModal = function (id) {
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
 
-  window.handleLessonClick = function (lessonId, unlocked) {
+  window.handleLessonClick = function (lessonId, unlocked, termLocked) {
     if (!unlocked) {
       alert("This lesson is locked. Complete previous lessons first.");
       return;
+    }
+    if (termLocked) {
+      alert("The term you were enrolled in for this course has ended. You can view what you've already done, but new lessons/quizzes here need the term to be reactivated first — see the Locked Terms section on your dashboard.");
     }
     toggleLessonMenu(lessonId);
   }
@@ -3220,6 +3252,24 @@ let reviewIndex = 0;
   );
 }
 
+  // Shared rendering for a locked-quiz response (term ended, or a
+  // previous-classroom course) — used both when loading a quiz and
+  // when a submit attempt gets rejected server-side.
+  function renderQuizLockNotice(container, data) {
+    if (data.locked === "term_ended" && data.termId) {
+      container.innerHTML = `
+        <div style="padding:20px; background:#fff8e1; border:1px solid #f0d060; border-radius:8px;">
+          <h3 style="margin-top:0;">🔒 Term Ended</h3>
+          <p>${data.message || "The term you were enrolled in has ended."}</p>
+          <a href="/student/terms/${data.termId}/reactivate" class="btn-view" style="text-decoration:none; display:inline-block; margin-top:10px;">
+            🔓 Reactivate This Term
+          </a>
+        </div>`;
+    } else {
+      container.innerHTML = `<p>🔒 ${data.message || "This content is locked."}</p>`;
+    }
+  }
+
   function loadQuizInline(lessonId) {
     showLoading();
     fetch(`/student/lessons/${lessonId}/quiz`)
@@ -3228,7 +3278,11 @@ let reviewIndex = 0;
         const container = document.getElementById("lessonMainArea");
 
         if (!data.success) {
-          container.innerHTML = "<p>No quiz available.</p>";
+          if (data.locked) {
+            renderQuizLockNotice(container, data);
+          } else {
+            container.innerHTML = "<p>No quiz available.</p>";
+          }
           hideLoading();
           return;
         }
@@ -3563,11 +3617,17 @@ function submitQuizAnswers(lessonId){
 
     })
   })
-    .then(res => {
-      if (!res.ok) {
-        throw new Error("Server did not respond correctly.");
+    .then(async res => {
+      // Parse the body regardless of status — a 403 (e.g. term ended)
+      // still carries a real JSON message/locked payload we want to show,
+      // not just a generic failure.
+      let body;
+      try {
+        body = await res.json();
+      } catch (e) {
+        body = { success: false, message: "Server did not respond correctly." };
       }
-      return res.json();
+      return body;
     })
     .then(result => {
       // ⭐ Small delay ensures backend finishes grading before displaying
@@ -3581,8 +3641,12 @@ function submitQuizAnswers(lessonId){
         document.getElementById("lessonMainArea");
 
       if (!result.success) {
-        quizContainer.innerHTML =
-          `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
+        if (result.locked) {
+          renderQuizLockNotice(quizContainer, result);
+        } else {
+          quizContainer.innerHTML =
+            `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
+        }
         return;
       }
 
@@ -3928,11 +3992,17 @@ function submitQuizInline(e, lessonId) {
 
     })
   })
-    .then(res => {
-      if (!res.ok) {
-        throw new Error("Server did not respond correctly.");
+    .then(async res => {
+      // Parse the body regardless of status — a 403 (e.g. term ended)
+      // still carries a real JSON message/locked payload we want to show,
+      // not just a generic failure.
+      let body;
+      try {
+        body = await res.json();
+      } catch (e) {
+        body = { success: false, message: "Server did not respond correctly." };
       }
-      return res.json();
+      return body;
     })
     .then(result => {
       // ⭐ Small delay ensures backend finishes grading before displaying
@@ -3946,8 +4016,12 @@ function submitQuizInline(e, lessonId) {
         document.getElementById("lessonMainArea");
 
       if (!result.success) {
-        quizContainer.innerHTML =
-          `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
+        if (result.locked) {
+          renderQuizLockNotice(quizContainer, result);
+        } else {
+          quizContainer.innerHTML =
+            `<p class="error">❌ Quiz submission failed. ${result.message || ""}</p>`;
+        }
         return;
       }
 

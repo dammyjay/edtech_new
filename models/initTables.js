@@ -1375,6 +1375,26 @@ CREATE UNIQUE INDEX IF NOT EXISTS course_term_links_unique_idx
 ON course_term_links (classroom_id, course_id, term_id);
 `);
 
+    // Records a student paying (from wallet) or a school admin manually
+    // reactivating a specific ended term for a specific student, so they
+    // regain access to continue any incomplete lessons/quizzes in that
+    // term's courses. One row per (student, term) — reactivation is an
+    // all-or-nothing state for that term, not per-course.
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS student_term_reactivations (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+  school_id INTEGER REFERENCES schools(id) ON DELETE CASCADE,
+  term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+  amount_paid NUMERIC NOT NULL DEFAULT 0,
+  reactivated_by TEXT NOT NULL CHECK (reactivated_by IN ('student_payment', 'admin')),
+  reactivated_by_user_id INTEGER REFERENCES users2(id),
+  transaction_reference TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(student_id, term_id)
+);
+`);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

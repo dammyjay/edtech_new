@@ -19,7 +19,7 @@
             <select id="termSelect" onchange="window.location.href='/school-admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
                 <% terms.forEach(t => { %>
                 <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
-                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %>
+                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %><%= t.is_ended ? ' (Ended)' : '' %>
                 </option>
                 <% }) %>
             </select>
@@ -216,6 +216,46 @@
     </table>
   </div>
 </section>
+
+<% if (selectedTerm && selectedTerm.is_ended) { %>
+<hr>
+
+<section class="section">
+  <h3>🔒 Locked Students <small style="font-weight:normal; color:#666;">(term ended)</small></h3>
+  <p style="color:#666; font-size:13px;">
+    This term has ended. Students below have unfinished lessons in it and are locked out of continuing
+    until the term is reactivated for them — either they pay from their own wallet, or the platform admin
+    reactivates it for them. School admins can't reactivate a term directly.
+  </p>
+
+  <% if (!lockedStudents || !lockedStudents.length) { %>
+    <p style="color:#666;">✅ No students have unfinished, locked content in this term.</p>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="user-table sortable-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Locked Courses</th>
+            <th>Reactivation Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% lockedStudents.forEach(stu => { %>
+            <tr>
+              <td><%= stu.fullname %></td>
+              <td>
+                <%= stu.priceInfo.courses.map(c => c.title + ' (' + c.completedLessons + '/' + c.totalLessons + ')').join(', ') %>
+              </td>
+              <td>₦<%= stu.priceInfo.totalPrice.toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+<% } %>
 
 <% } %>
 

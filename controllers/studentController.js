@@ -10,6 +10,13 @@ const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
+const {
+  isLockedByEndedTerm,
+  findLockingTermId,
+  getLockedEndedTermsForStudent,
+  computeReactivationPrice,
+  reactivateTerm,
+} = require("../services/termReactivationService");
 const bcrypt = require("bcrypt");
 const getAnnouncements = require("../utils/getAnnouncements");
 
@@ -214,6 +221,14 @@ exports.getDashboard = async (req, res) => {
       enrolledCourses = enrolledCoursesRes.rows;
     }
 
+    // Ended terms this student was enrolled in that still have
+    // incomplete, not-yet-reactivated course content — not gated on
+    // `classroom` (unlike pastCourses) since a student can be locked out
+    // of an ended term's content even if their live classroom has since
+    // changed or been unassigned.
+    const lockedTerms =
+      role === "student" ? await getLockedEndedTermsForStudent(studentId) : [];
+
     // --- Parent requests
     const requestsRes = await pool.query(
       `SELECT r.id, u.fullname AS parent_name, u.email AS parent_email, r.status
@@ -405,6 +420,20 @@ exports.getDashboard = async (req, res) => {
           );
         }
       }
+
+      // Term-end lock flag, per lesson — resolved once per course (not
+      // per lesson) and reused across all of that course's lessons.
+      const moduleIdToCourseId = {};
+      modulesRes.rows.forEach((m) => {
+        moduleIdToCourseId[m.id] = m.course_id;
+      });
+      const termLockedByCourseId = {};
+      for (const courseId of new Set(Object.values(moduleIdToCourseId))) {
+        termLockedByCourseId[courseId] = await isLockedByEndedTerm(studentId, courseId);
+      }
+      lessonsRes.rows.forEach((lesson) => {
+        lesson.termLocked = !!termLockedByCourseId[moduleIdToCourseId[lesson.module_id]];
+      });
 
       lessonsRes.rows.forEach((lesson) => {
         if (!moduleLessons[lesson.module_id])
@@ -833,6 +862,11 @@ exports.getDashboard = async (req, res) => {
               [moduleIdsForThisCourse, studentId]
             );
 
+            const courseTermLocked = await isLockedByEndedTerm(studentId, moduleInfo.course_id);
+            lessonsRes2.rows.forEach((lsn) => {
+              lsn.termLocked = courseTermLocked;
+            });
+
             moduleLessons = {};
             lessonsRes2.rows.forEach((lsn) => {
               if (!moduleLessons[lsn.module_id])
@@ -951,6 +985,7 @@ exports.getDashboard = async (req, res) => {
       subscribed: req.query.subscribed,
       enrolledCourses,
       pastCourses,
+      lockedTerms,
       pathwayCourses,
       courseModules,
       moduleLessons,
@@ -1152,6 +1187,18 @@ exports.getEnrolledCourses = async (req, res) => {
           [studentId, firstLesson.id]
         );
       }
+
+      const moduleIdToCourseId = {};
+      modulesRes.rows.forEach((m) => {
+        moduleIdToCourseId[m.id] = m.course_id;
+      });
+      const termLockedByCourseId = {};
+      for (const courseId of new Set(Object.values(moduleIdToCourseId))) {
+        termLockedByCourseId[courseId] = await isLockedByEndedTerm(studentId, courseId);
+      }
+      lessonsRes.rows.forEach((lesson) => {
+        lesson.termLocked = !!termLockedByCourseId[moduleIdToCourseId[lesson.module_id]];
+      });
 
       lessonsRes.rows.forEach((lesson) => {
         if (!moduleLessons[lesson.module_id])
@@ -1469,6 +1516,16 @@ exports.completeLesson = async (req, res) => {
             "This course is from a previous term and is now view-only — you can no longer complete new lessons in it.",
         });
       }
+      const lockingTermId = await findLockingTermId(userId, courseId);
+      if (lockingTermId) {
+        return res.status(403).json({
+          success: false,
+          locked: "term_ended",
+          termId: lockingTermId,
+          message:
+            "The term you were enrolled in for this course has ended. Ask your school to reactivate it, or pay to reactivate it yourself from your wallet, to continue.",
+        });
+      }
     }
 
     // 1️⃣ Mark lesson as completed
@@ -1738,6 +1795,137 @@ exports.enrollInCourse = async (req, res) => {
   }
 };
 
+// GET: price breakdown for reactivating one of the student's ended terms.
+exports.viewTermReactivation = async (req, res) => {
+  const studentId = req.session.user.id;
+  const termId = parseInt(req.params.termId, 10);
+
+  try {
+    const steRes = await pool.query(
+      `SELECT ste.term_id, at.name AS term_name, at.is_ended
+       FROM student_term_enrollments ste
+       JOIN academic_terms at ON at.id = ste.term_id
+       WHERE ste.student_id = $1 AND ste.term_id = $2`,
+      [studentId, termId]
+    );
+    const term = steRes.rows[0];
+    if (!term || !term.is_ended) {
+      return res.redirect("/student/dashboard?msg=Term not found or not ended");
+    }
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
+
+    const walletResult = await pool.query(
+      "SELECT wallet_balance2 FROM users2 WHERE id = $1",
+      [studentId]
+    );
+    const walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+
+    const priceInfo = await computeReactivationPrice(studentId, termId);
+
+    res.render("student/termReactivation", {
+      info,
+      users: req.session.user,
+      walletBalance,
+      term,
+      priceInfo,
+    });
+  } catch (err) {
+    console.error("Error loading term reactivation:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
+// POST: pay for a term reactivation from the student's wallet.
+exports.payTermReactivation = async (req, res) => {
+  const studentId = req.session.user.id;
+  const termId = parseInt(req.params.termId, 10);
+
+  try {
+    const steRes = await pool.query(
+      `SELECT ste.term_id, ste.school_id, at.is_ended
+       FROM student_term_enrollments ste
+       JOIN academic_terms at ON at.id = ste.term_id
+       WHERE ste.student_id = $1 AND ste.term_id = $2`,
+      [studentId, termId]
+    );
+    const enrollment = steRes.rows[0];
+    if (!enrollment || !enrollment.is_ended) {
+      return res.redirect("/student/dashboard?msg=Term not found or not ended");
+    }
+
+    // Recomputed live — never trust a client-submitted amount.
+    const priceInfo = await computeReactivationPrice(studentId, termId);
+    if (priceInfo.alreadyReactivated) {
+      return res.redirect("/student/dashboard?msg=Term already reactivated");
+    }
+
+    if (priceInfo.totalPrice === 0) {
+      await reactivateTerm(studentId, enrollment.school_id, termId, {
+        reactivatedBy: "student_payment",
+        amountPaid: 0,
+      });
+      return res.redirect("/student/dashboard?msg=Term reactivated");
+    }
+
+    const userRes = await pool.query(
+      "SELECT wallet_balance2, fullname, email FROM users2 WHERE id = $1",
+      [studentId]
+    );
+    const user = userRes.rows[0];
+    const wallet = user.wallet_balance2;
+
+    if (wallet < priceInfo.totalPrice) {
+      return res.redirect("/student/dashboard?msg=Insufficient wallet balance");
+    }
+
+    const reference = `TERM-REACT-${termId}-${studentId}-${Date.now()}`;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      await client.query(
+        "UPDATE users2 SET wallet_balance2 = wallet_balance2 - $1 WHERE id = $2",
+        [priceInfo.totalPrice, studentId]
+      );
+
+      await client.query(
+        `INSERT INTO transactions (fullname, email, amount, reference, status)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.fullname, user.email, priceInfo.totalPrice, reference, "success"]
+      );
+
+      const inserted = await client.query(
+        `INSERT INTO student_term_reactivations
+           (student_id, school_id, term_id, amount_paid, reactivated_by, transaction_reference)
+         VALUES ($1, $2, $3, $4, 'student_payment', $5)
+         ON CONFLICT (student_id, term_id) DO NOTHING
+         RETURNING id`,
+        [studentId, enrollment.school_id, termId, priceInfo.totalPrice, reference]
+      );
+
+      if (!inserted.rows.length) {
+        await client.query("ROLLBACK");
+        return res.redirect("/student/dashboard?msg=Term already reactivated");
+      }
+
+      await client.query("COMMIT");
+      res.redirect("/student/dashboard?msg=Term reactivated");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("Error reactivating term:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
 exports.editProfile = async (req, res) => {
 
   const { fullname, gender, dob, current_password, new_password, confirm_password } = req.body;
@@ -2003,6 +2191,30 @@ exports.getLessonQuiz = async (req, res) => {
 
     }
 
+    // 2️⃣.5 Not yet submitted — before handing out fresh questions,
+    // check whether this lesson's course is locked (previous classroom,
+    // or an ended term never reactivated). No point letting a student
+    // spend time answering a quiz that submitLessonQuiz will 403 on.
+    const quizCourseId = await getCourseIdForLesson(lessonId);
+    if (await isCourseLocked(studentId, quizCourseId)) {
+      return res.json({
+        success: false,
+        locked: "previous_course",
+        message:
+          "This course is from a previous term and is now view-only — you can no longer take new quizzes in it.",
+      });
+    }
+    const quizLockingTermId = await findLockingTermId(studentId, quizCourseId);
+    if (quizLockingTermId) {
+      return res.json({
+        success: false,
+        locked: "term_ended",
+        termId: quizLockingTermId,
+        message:
+          "The term you were enrolled in for this course has ended. Ask your school to reactivate it, or pay to reactivate it yourself from your wallet, to continue.",
+      });
+    }
+
     // 3️⃣ Otherwise, fetch quiz questions
     const questionsRes = await pool.query(
       `SELECT id, question, question_type, options
@@ -2067,6 +2279,16 @@ exports.submitLessonQuiz = async (req, res) => {
         success: false,
         message:
           "This course is from a previous term and is now view-only — you can no longer submit quizzes in it.",
+      });
+    }
+    const lockingTermId = await findLockingTermId(studentId, lockedCourseId);
+    if (lockingTermId) {
+      return res.status(403).json({
+        success: false,
+        locked: "term_ended",
+        termId: lockingTermId,
+        message:
+          "The term you were enrolled in for this course has ended. Ask your school to reactivate it, or pay to reactivate it yourself from your wallet, to continue.",
       });
     }
 

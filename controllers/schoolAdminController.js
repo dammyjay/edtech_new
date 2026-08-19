@@ -10,6 +10,7 @@ const axios = require("axios");
 const getAnnouncements = require("../utils/getAnnouncements");
 const { listReportsForSchool, getReportById } = require("../services/classTermReportStore");
 const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = require("../services/classroomTermAnalyticsService");
+const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
@@ -1540,14 +1541,35 @@ const schoolId = schoolRes.rows[0].id;
       [schoolId]
     );
 
-    // ✅ Only fetch courses assigned to this school (via school_courses)
+    // Only courses authorized for the school's CURRENTLY ACTIVE term (or
+    // general/term-less authorizations, term_id IS NULL). school_courses
+    // rows are scoped per (school, term) by the platform admin and never
+    // cleaned up when a term ends (see adminController.assignSchoolCourses),
+    // so without this a course only ever authorized for a long-ended term
+    // would stay selectable here forever.
+    const activeTermRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      [schoolId]
+    );
+    const activeTermId = activeTermRes.rows[0]?.id || null;
+
+    // GROUP BY + STRING_AGG rather than a plain JOIN: a course can
+    // qualify through more than one school_courses row at once (e.g. a
+    // general/NULL-term authorization AND the active term's own row),
+    // which would otherwise render as a duplicate option in the
+    // dropdown. Aggregating collapses that into one row per course with
+    // a combined "which term(s) is this good for" label for display.
     const courses = await pool.query(
-      `SELECT c.id, c.title
+      `SELECT c.id, c.title,
+              STRING_AGG(COALESCE(at.name, 'General'), ', ' ORDER BY sc.term_id NULLS FIRST) AS term_label
        FROM courses c
        INNER JOIN school_courses sc ON c.id = sc.course_id
+       LEFT JOIN academic_terms at ON at.id = sc.term_id
        WHERE sc.school_id = $1
+         AND (sc.term_id IS NULL OR sc.term_id = $2)
+       GROUP BY c.id, c.title
        ORDER BY c.title`,
-      [schoolId]
+      [schoolId, activeTermId]
     );
 
     console.log("Allowed Courses for this school:", courses.rows);
@@ -1585,10 +1607,20 @@ exports.assignCourseToClassroom = async (req, res) => {
 
 const schoolId = schoolRes.rows[0].id;
 
-    // ✅ Check that this course actually belongs to the school
+    // Check that this course is authorized for the school's currently
+    // active term (or a general, term-less authorization) — same
+    // active-term scoping as getClassroomCourses' dropdown, so a course
+    // whose authorization only ever covered a since-ended term can't be
+    // assigned by directly posting its id either.
+    const activeTermRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      [schoolId]
+    );
+    const activeTermId = activeTermRes.rows[0]?.id || null;
+
     const validCourse = await pool.query(
-      "SELECT 1 FROM school_courses WHERE school_id=$1 AND course_id=$2",
-      [schoolId, courseId]
+      "SELECT 1 FROM school_courses WHERE school_id=$1 AND course_id=$2 AND (term_id IS NULL OR term_id = $3)",
+      [schoolId, courseId, activeTermId]
     );
     if (!validCourse.rows.length) {
       return res.status(403).send("Not allowed to assign this course.");
@@ -1618,6 +1650,42 @@ exports.updateClassroomCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
     const { id } = req.params; // classroom_course.id
+
+    const schoolRes = await pool.query(
+      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
+      [req.session.user.id]
+    );
+    const schoolId = schoolRes.rows[0].id;
+
+    // Confirm this classroom_courses row actually belongs to THIS
+    // school (previously unchecked — a school admin could otherwise
+    // update any classroom's course by guessing/iterating ids).
+    const rowRes = await pool.query(
+      `SELECT cc.id FROM classroom_courses cc
+       JOIN classrooms c ON c.id = cc.classroom_id
+       WHERE cc.id = $1 AND c.school_id = $2`,
+      [id, schoolId]
+    );
+    if (!rowRes.rows.length) {
+      return res.status(403).send("Not allowed to update this classroom's course.");
+    }
+
+    // Same active-term (or general/term-less) scoping as
+    // assignCourseToClassroom — a course only ever authorized for a
+    // since-ended term shouldn't be assignable here either.
+    const activeTermRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      [schoolId]
+    );
+    const activeTermId = activeTermRes.rows[0]?.id || null;
+
+    const validCourse = await pool.query(
+      "SELECT 1 FROM school_courses WHERE school_id=$1 AND course_id=$2 AND (term_id IS NULL OR term_id = $3)",
+      [schoolId, courseId, activeTermId]
+    );
+    if (!validCourse.rows.length) {
+      return res.status(403).send("Not allowed to assign this course.");
+    }
 
     await pool.query(
       "UPDATE classroom_courses SET course_id=$1 WHERE id=$2",
@@ -3430,10 +3498,30 @@ exports.getClassroomDashboard = async (req, res) => {
     );
     const info = infoResult.rows[0] || {};
 
+    // Ended-term lock panel: for each roster student, the same prorated
+    // price a student would see/pay for themselves — read-only here.
+    // Reactivation itself is a platform-admin action (see
+    // classroomAnalyticsController.reactivateStudentTerm), not something
+    // the school admin can trigger.
+    //
+    // Batched (see getLockedStudentsForRoster) rather than one lock
+    // check per student — this DB has real per-query network latency,
+    // and a sequential per-student chain turns a large roster into a
+    // painfully slow page load.
+    let lockedStudents = [];
+    if (result.selectedTerm && result.selectedTerm.is_ended) {
+      const studentIds = result.studentMetrics.map((stu) => stu.id);
+      const lockedByStudent = await getLockedStudentsForRoster(studentIds, classroomId, result.selectedTerm.id);
+      lockedStudents = result.studentMetrics
+        .filter((stu) => lockedByStudent.has(stu.id))
+        .map((stu) => ({ id: stu.id, fullname: stu.fullname, priceInfo: lockedByStudent.get(stu.id) }));
+    }
+
     res.render("school-admin/classroomDashboard", {
       ...result,
       info,
       users: req.session.user,
+      lockedStudents,
     });
   } catch (err) {
     console.error("Error loading classroom dashboard:", err);

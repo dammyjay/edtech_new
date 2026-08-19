@@ -22,4 +22,13 @@ router.get(
   classroomAnalyticsController.exportClassroomSummary
 );
 
+/**
+ * Reactivate a student's ended term for free (platform admin only —
+ * see classroomAnalyticsController.reactivateStudentTerm)
+ */
+router.post(
+  "/admin/classrooms/:classroomId/terms/:termId/students/:studentId/reactivate",
+  classroomAnalyticsController.reactivateStudentTerm
+);
+
 module.exports = router;

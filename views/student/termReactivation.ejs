@@ -1,0 +1,323 @@
+<%- include('../partials/header', { title: term.term_name }) %>
+
+<style>
+  .reactivate-wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  .reactivate-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .reactivate-back:hover { color: var(--brand-pri-dark); }
+
+  .reactivate-hero {
+    background: linear-gradient(135deg, var(--brand-pri), var(--brand-pri-dark));
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 32px 30px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .reactivate-hero::after {
+    content: "";
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .reactivate-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.22);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 5px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+  .reactivate-hero h1 {
+    margin: 0 0 10px;
+    font-size: 1.7rem;
+    font-weight: 800;
+    position: relative;
+  }
+  .reactivate-hero p {
+    margin: 0;
+    max-width: 620px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.92);
+    font-size: 14.5px;
+    position: relative;
+  }
+
+  .reactivate-panel {
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 28px;
+    margin-top: 22px;
+  }
+
+  .reactivate-empty {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .reactivate-empty .icon {
+    font-size: 2.6rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .reactivate-empty h2 {
+    margin: 0 0 8px;
+    font-size: 1.2rem;
+  }
+  .reactivate-empty p {
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .reactivate-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+  }
+
+  .course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+
+  .course-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+  }
+
+  .course-row-icon {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--brand-tint);
+    color: var(--brand-pri-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .course-row-body { flex: 1 1 auto; min-width: 0; }
+  .course-row-body h4 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .course-row-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .course-row-meta .progress-bar {
+    flex: 1 1 auto;
+    max-width: 220px;
+    margin: 0;
+  }
+
+  .course-row-price {
+    flex: 0 0 auto;
+    text-align: right;
+    font-weight: 800;
+    color: var(--brand-pri-dark);
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .reactivate-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .reactivate-cta {
+    text-align: center;
+  }
+
+  .reactivate-cta button,
+  .reactivate-cta a.btn-fund {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 30px;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .reactivate-cta button {
+    background: linear-gradient(135deg, var(--brand-pri), var(--brand-pri-dark));
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .reactivate-cta button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .insufficient-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fdecea;
+    color: #c0392b;
+    border: 1px solid #f5c6cb;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    justify-content: center;
+  }
+
+  .reactivate-cta a.btn-fund {
+    background: #fff;
+    color: var(--text-primary);
+    border: 1px solid var(--border-dark);
+  }
+  .reactivate-cta a.btn-fund:hover {
+    background: var(--bg-secondary);
+  }
+
+  .already-active {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #eafaf1;
+    color: #1e7e42;
+    border: 1px solid #bfe8cc;
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    font-weight: 600;
+  }
+  .already-active .icon { font-size: 1.6rem; }
+</style>
+
+<div class="reactivate-wrap">
+
+  <a href="/student/dashboard?section=progress" class="reactivate-back">← Back to My Courses</a>
+
+  <div class="reactivate-hero">
+    <span class="reactivate-hero-badge">🔒 Term Ended</span>
+    <h1><%= term.term_name %></h1>
+    <p>
+      This term has ended. Anything you already completed stays viewable on your dashboard for good.
+      To pick back up where you left off on the rest, reactivate this term below — pay from your wallet,
+      or ask your school admin to reactivate it for you.
+    </p>
+  </div>
+
+  <div class="reactivate-panel">
+
+    <% if (priceInfo.alreadyReactivated) { %>
+      <div class="already-active">
+        <span class="icon">✅</span>
+        <div>
+          <strong>This term has already been reactivated.</strong><br>
+          <span style="font-weight:400; color:#2f8a55;">You have full access to continue where you left off.</span>
+        </div>
+      </div>
+
+    <% } else if (!priceInfo.courses.length) { %>
+      <div class="reactivate-empty">
+        <span class="icon">🎉</span>
+        <h2>Nothing left to reactivate</h2>
+        <p>Every course in this term is already complete — great work!</p>
+      </div>
+
+    <% } else { %>
+
+      <p class="reactivate-section-title">Locked Courses</p>
+      <div class="course-list">
+        <% priceInfo.courses.forEach(course => { %>
+          <% const pct = course.totalLessons > 0 ? Math.round((course.completedLessons / course.totalLessons) * 100) : 0; %>
+          <div class="course-row">
+            <div class="course-row-icon">📘</div>
+            <div class="course-row-body">
+              <h4 title="<%= course.title %>"><%= course.title %></h4>
+              <div class="course-row-meta">
+                <span><%= course.completedLessons %>/<%= course.totalLessons %> lessons done</span>
+                <div class="progress-bar">
+                  <div class="filled" style="width: <%= pct %>%;"></div>
+                </div>
+                <span><%= pct %>%</span>
+              </div>
+            </div>
+            <div class="course-row-price">₦<%= course.proratedPrice.toLocaleString() %></div>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="reactivate-summary">
+        <div class="stat-box students">
+          <i class="fa-solid fa-lock"></i>
+          <h4>Total to Reactivate</h4>
+          <p>₦<%= priceInfo.totalPrice.toLocaleString() %></p>
+        </div>
+        <div class="stat-box">
+          <i class="fa-solid fa-wallet"></i>
+          <h4>Your Wallet Balance</h4>
+          <p>₦<%= Number(walletBalance).toLocaleString() %></p>
+        </div>
+      </div>
+
+      <div class="reactivate-cta">
+        <% if (Number(walletBalance) < priceInfo.totalPrice) { %>
+          <div class="insufficient-notice">
+            ⚠️ Your wallet balance isn't enough to reactivate this term yet.
+          </div>
+          <a href="/make-payment" class="btn-fund">💳 Fund Wallet</a>
+        <% } else { %>
+          <form method="POST" action="/student/terms/<%= term.term_id %>/reactivate">
+            <button type="submit">🔓 Pay &amp; Reactivate Term</button>
+          </form>
+        <% } %>
+      </div>
+
+    <% } %>
+
+  </div>
+
+</div>

@@ -11,7 +11,7 @@
   <select name="courseId" required>
     <option value="">-- Select Course --</option>
     <% courses.forEach(cr => { %>
-      <option value="<%= cr.id %>"><%= cr.title %></option>
+      <option value="<%= cr.id %>"><%= cr.title %> (<%= cr.term_label %>)</option>
     <% }) %>
   </select>
 
@@ -108,7 +108,7 @@
           <select name="courseId" required style="width:100%; padding:5px; margin-bottom:5px;">
             <% courses.forEach(cr => { %>
               <option value="<%= cr.id %>" <%= cr.title === cc.course ? "selected" : "" %>>
-                <%= cr.title %>
+                <%= cr.title %> (<%= cr.term_label %>)
               </option>
             <% }) %>
           </select>

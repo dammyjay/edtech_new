@@ -22,7 +22,7 @@
             <select id="analyticsTermSelect" onchange="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
                 <% terms.forEach(t => { %>
                 <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
-                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %>
+                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %><%= t.is_ended ? ' (Ended)' : '' %>
                 </option>
                 <% }) %>
             </select>
@@ -329,6 +329,53 @@
     </table>
   </div>
 </section>
+
+<% if (selectedTerm && selectedTerm.is_ended) { %>
+<hr>
+
+<section class="section">
+  <h3>🔒 Locked Students <small style="font-weight:normal; color:#666;">(term ended)</small></h3>
+  <p style="color:#666; font-size:13px;">
+    This term has ended. Students below have unfinished lessons in it and are locked out of continuing
+    until the term is reactivated for them — pay from their wallet (student-initiated), or reactivate here for free.
+  </p>
+
+  <% if (!lockedStudents || !lockedStudents.length) { %>
+    <p style="color:#666;">✅ No students have unfinished, locked content in this term.</p>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="user-table sortable-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Locked Courses</th>
+            <th>Reactivation Price</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% lockedStudents.forEach(stu => { %>
+            <tr>
+              <td><%= stu.fullname %></td>
+              <td>
+                <%= stu.priceInfo.courses.map(c => c.title + ' (' + c.completedLessons + '/' + c.totalLessons + ')').join(', ') %>
+              </td>
+              <td>₦<%= stu.priceInfo.totalPrice.toLocaleString() %></td>
+              <td>
+                <form method="POST" action="/admin/classrooms/<%= classroom.id %>/terms/<%= selectedTerm.id %>/students/<%= stu.id %>/reactivate">
+                  <button type="submit" class="btn-edit" style="background:#2ecc71; color:#fff; padding:5px 8px; border-radius:4px; border:none; cursor:pointer;">
+                    🔓 Reactivate
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+<% } %>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

@@ -35,7 +35,7 @@ async function computeClassroomTermAnalytics(schoolId, classroomId, requestedTer
   const classroom = classroomRes.rows[0];
 
   const termsRes = await pool.query(
-    `SELECT id, name, start_date, end_date, is_active
+    `SELECT id, name, start_date, end_date, is_active, is_ended
      FROM academic_terms
      WHERE school_id = $1
      ORDER BY start_date DESC`,
