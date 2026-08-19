@@ -13,8 +13,24 @@
 
         <div class="multi-btn">
             <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= classroom.school_id %>'">← Back to School Details</button>
-            <button class="btn-pri" onclick="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard/export'">Download Classroom PDF</button>
+            <button class="btn-pri" onclick="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard/export<%= selectedTerm ? '?term_id=' + selectedTerm.id : '' %>'">Download Classroom PDF</button>
         </div>
+
+        <% if (terms && terms.length) { %>
+        <div style="margin-top:15px;">
+            <label for="analyticsTermSelect"><strong>Analytics Term:</strong></label>
+            <select id="analyticsTermSelect" onchange="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
+                <% terms.forEach(t => { %>
+                <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
+                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %>
+                </option>
+                <% }) %>
+            </select>
+            <p style="color:#666; font-size:12px; margin-top:6px;">
+                Controls the metrics/leaderboard/course breakdown below. Separate from the Report Centre's own term selector further down.
+            </p>
+        </div>
+        <% } %>
 
         <hr>
 
@@ -178,6 +194,42 @@
 <hr>
 
 <section class="section">
+    <h3>📚 Courses This Term</h3>
+    <div class="table-responsive">
+        <table class="user-table sortable-table">
+            <thead>
+                <tr>
+                    <th>Course</th>
+                    <th>Level</th>
+                    <th>Lessons</th>
+                    <th>Students Engaged</th>
+                    <th>Avg Completion</th>
+                    <th>Avg Quiz Score</th>
+                </tr>
+            </thead>
+            <tbody>
+            <% if (courseBreakdown && courseBreakdown.length) { %>
+                <% courseBreakdown.forEach(course => { %>
+                <tr>
+                    <td><%= course.title %></td>
+                    <td><%= course.level || '-' %></td>
+                    <td><%= course.totalLessons %></td>
+                    <td><%= course.studentsEngaged %> / <%= course.totalStudents %></td>
+                    <td><%= course.avgCompletion %>%</td>
+                    <td><%= course.avgQuiz %>%</td>
+                </tr>
+                <% }) %>
+            <% } else { %>
+                <tr><td colspan="6" style="text-align:center;">No courses assigned to this classroom yet</td></tr>
+            <% } %>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<hr>
+
+<section class="section">
     <h3>📈 Lesson Completion Chart</h3>
     <canvas id="completionChart"></canvas>
 </section>
@@ -193,6 +245,7 @@
                     <th>Lessons</th>
                     <th>Completion %</th>
                     <th>Quiz Avg</th>
+                    <th>Pace</th>
                     <th>Overall</th>
                     <th>Progress</th>
                 </tr>
@@ -203,11 +256,12 @@
                     <td><%= index + 1 %></td>
                     <td><%= student.fullname %></td>
                     <td>
-                        <%= student.completedLessons %> / 
+                        <%= student.completedLessons %> /
                         <%= student.totalLessons %>
                     </td>
                     <td><%= student.completionPercent %>%</td>
                     <td><%= student.quizAvg %>%</td>
+                    <td><%= student.avgDaysToComplete !== null ? student.avgDaysToComplete + 'd avg' : '-' %></td>
                     <td><strong><%= student.overallScore %>%</strong></td>
                     <td>
                         <a href="/admin/students/<%= student.id %>/progress?from=admin"
