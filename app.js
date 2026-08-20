@@ -9,6 +9,7 @@ require("./cron/assignmentReminderJobs");
 require("./cron/parentAssignmentReminder");
 require("./cron/newsletterCron");
 require("./cron/analyticsReportCron");
+require("./cron/lessonReminderJob");
 // const notificationRoutes = require("./routes/notificationRoutes");
 // const runNewsletterScheduler = require("./cron/newsletterScheduler");
 // const runDevotionalScheduler = require("./cron/cronJobs");

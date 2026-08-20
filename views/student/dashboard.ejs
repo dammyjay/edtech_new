@@ -27,11 +27,25 @@
   </div>
 
   <div class="dash-sect" style="border: #555; border-width: 1px; border-style: solid;">
-    <h2 style="font-size: 14px; color: #e5f0ff;">🪙 Xp: <%= student.xp %> points</h2>
+    <h2 style="font-size: 14px; color: #e5f0ff; margin-bottom:2px;">🪙 Xp: <%= student.xp %> points</h2>
+    <p style="font-size:12px; color:var(--brand-pri-light,#D9A82C); margin:0 0 4px; font-weight:700;">
+      <%= levelInfo.name %> · Level <%= levelInfo.level %>
+    </p>
+    <% if (levelInfo.xpForNextLevel) { %>
+      <div class="progress-bar" style="margin:0 0 10px; background:rgba(255,255,255,0.15);">
+        <div class="filled" style="width: <%= levelInfo.progressPercent %>%;"></div>
+      </div>
+    <% } %>
+    <h2 style="font-size: 14px; color: #e5f0ff;">
+      <%= streak.currentStreak > 0 ? "🔥" : "💤" %> Streak: <%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %>
+    </h2>
     <h2 style="font-size: 14px; color: #e5f0ff;">Wallet: ₦<%= walletBalance.toLocaleString() %></h2>
     <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard">🏠 Dashboard</a></h2>
     <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=profile">👤 My Profile</a></h2>
     <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=progress">📊 My Progress</a></h2>
+    <% if (role === 'student' && classroom) { %>
+      <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=leaderboard">🏆 Leaderboard</a></h2>
+    <% } %>
   </div>
 
 
@@ -140,6 +154,17 @@
   </div>
 </div>
 
+<!-- LEVEL UP MODAL -->
+<div id="levelUpCelebration" class="celebration-modal">
+  <div class="celebration-content badge-mode">
+    <div class="confetti"></div>
+    <h2>⬆️ Level Up!</h2>
+    <div style="font-size:48px; margin:10px 0;">🎉</div>
+    <h3 id="levelUpName"></h3>
+    <button onclick="closeLevelUpCelebration()">Keep Going! 🚀</button>
+  </div>
+</div>
+
 <!-- BADGE AWARD MODAL -->
 <div id="badgeCelebration" class="celebration-modal">
   <div class="celebration-content badge-mode">
@@ -164,19 +189,36 @@
       Congratulations! You have successfully completed this course.
     </p>
 
-    <div class="xp-box">
-      <h3>🏆 Achievement Unlocked</h3>
-      <p>Certificate of Completion Awarded</p>
-    </div>
+    <img id="certificatePreviewImg" src="" alt="Your certificate"
+         style="max-width:100%; max-height:280px; object-fit:contain; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.15); margin:12px 0; cursor:pointer;"
+         onclick="openCertificateLightbox(window.certificateUrl)" />
 
-    <button onclick="downloadCertificate()">
-      View Certificate
+    <button onclick="openCertificateLightbox(window.certificateUrl)">
+      🔍 View Full Certificate
     </button>
 
     <button onclick="closeCertificateCelebration()">
       Continue Learning
     </button>
 
+  </div>
+</div>
+
+<!-- CERTIFICATE LIGHTBOX — a properly-sized, downloadable view. Both
+     this modal AND the "My Certificates" grid thumbnails open it,
+     instead of the old behavior of firing window.open() on the raw
+     3504x2480px certificate image directly, which just dumped a huge
+     image into a new tab that the browser auto-shrinks — unreadable
+     without manually zooming in. -->
+<div id="certificateLightbox" class="modal-overlay">
+  <div class="modal-content" style="max-width:900px; text-align:center;">
+    <span class="close" onclick="closeCertificateLightbox()">&times;</span>
+    <img id="certificateLightboxImg" src="" alt="Certificate"
+         style="width:100%; height:auto; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.15);" />
+    <a id="certificateLightboxDownload" href="" download
+       class="btn-view" style="display:inline-block; text-decoration:none; margin-top:16px;">
+      ⬇️ Download Certificate
+    </a>
   </div>
 </div>
 
@@ -247,11 +289,11 @@
                 <div class="certificate-card">
 
                   <% if (cert.certificate_url) { %>
-                    <a href="<%= cert.certificate_url %>" target="_blank">
-                      <img src="<%= cert.certificate_url %>" 
-                          alt="<%= cert.course_title %>" 
-                          class="certificate-img" />
-                    </a>
+                    <img src="<%= cert.certificate_url %>"
+                        alt="<%= cert.course_title %>"
+                        class="certificate-img"
+                        style="cursor:pointer;"
+                        onclick="openCertificateLightbox('<%= cert.certificate_url %>')" />
                   <% } %>
 
                   <p class="certificate-title"><%= cert.course_title %></p>
@@ -494,11 +536,11 @@
                 <% certificates.forEach(cert => { %>
                   <div class="certificate-card">
                     <% if (cert.certificate_url) { %>
-                      <a href="<%= cert.certificate_url %>" target="_blank">
-                        <img src="<%= cert.certificate_url %>" 
-                            alt="<%= cert.course_title %>" 
-                            class="certificate-img" />
-                      </a>
+                      <img src="<%= cert.certificate_url %>"
+                          alt="<%= cert.course_title %>"
+                          class="certificate-img"
+                          style="cursor:pointer;"
+                          onclick="openCertificateLightbox('<%= cert.certificate_url %>')" />
                     <% } %>
 
                     <p class="certificate-title"><%= cert.course_title %></p>
@@ -829,7 +871,7 @@
   <% } else if (section === 'module') { %>
   <% if (moduleInfo) { %>
   <!-- LEARNING VIEW -->
-  <div class="learning-container">
+  <div class="learning-container" id="learningContainer">
     <!-- Mini Sidebar -->
 
 
@@ -837,6 +879,7 @@
     <!-- Toggle Handle -->
     <div id="sidebarHandle" class="sidebar-handle">❮</div>
 
+    <button id="focusModeBtn" class="focus-mode-btn" onclick="toggleFocusMode()">🎯 Focus Mode</button>
     <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>" style="display:inline-block; margin-bottom:10px; font-size:13px; text-decoration:none; color:var(--text-secondary,#666);">← Back to All Modules</a>
     <% Object.keys(courseModules).forEach(courseId => { %>
       <% courseModules[courseId].forEach(module => { %>
@@ -1017,6 +1060,46 @@
     <p style="padding:20px;">No modules found for this course yet.</p>
   <% } %>
 
+  <% } else if (section === 'leaderboard') { %>
+    <div style="padding:20px; max-width:800px; margin:0 auto;">
+      <h2>🏆 Class Leaderboard</h2>
+      <% if (!leaderboardData) { %>
+        <p style="color:var(--text-secondary,#666);">
+          Leaderboards are only available for students enrolled through a school classroom.
+        </p>
+      <% } else if (!leaderboardData.leaderboard.length) { %>
+        <p style="color:var(--text-secondary,#666);">No leaderboard data yet for <%= leaderboardData.classroom.name %> — get started on a lesson to appear here!</p>
+      <% } else { %>
+        <p style="color:var(--text-secondary,#666); font-size:14px;">
+          <%= leaderboardData.classroom.name %><% if (leaderboardData.selectedTerm) { %> · <%= leaderboardData.selectedTerm.name %><% } %>
+        </p>
+        <div class="table-responsive">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Completion %</th>
+                <th>Quiz Avg</th>
+                <th>Overall</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% leaderboardData.leaderboard.forEach((s, i) => { %>
+                <tr style="<%= s.id === student.id ? 'background:var(--brand-tint,#FBF3DD); font-weight:700;' : '' %>">
+                  <td><%= i + 1 %><%= i === 0 ? ' 🥇' : i === 1 ? ' 🥈' : i === 2 ? ' 🥉' : '' %></td>
+                  <td><%= s.fullname %><%= s.id === student.id ? ' (You)' : '' %></td>
+                  <td><%= s.completionPercent %>%</td>
+                  <td><%= s.quizAvg %>%</td>
+                  <td><strong><%= s.overallScore %>%</strong></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
   <% } else if (!selectedPathway || !pathwayCourses[selectedPathway]) { %>
     <!-- DASHBOARD VIEW -->
      <section>
@@ -1093,11 +1176,11 @@
             <% certificates.forEach(cert => { %>
               <div class="certificate-card">
                 <% if (cert.certificate_url) { %>
-                  <a href="<%= cert.certificate_url %>" target="_blank">
-                    <img src="<%= cert.certificate_url %>" 
-                        alt="<%= cert.course_title %>" 
-                        class="certificate-img" />
-                  </a>
+                  <img src="<%= cert.certificate_url %>"
+                      alt="<%= cert.course_title %>"
+                      class="certificate-img"
+                      style="cursor:pointer;"
+                      onclick="openCertificateLightbox('<%= cert.certificate_url %>')" />
                 <% } %>
 
                 <p class="certificate-title"><%= cert.course_title %></p>
@@ -2028,8 +2111,8 @@ if(classroomId){
   // Optional: Auto close sidebar after clicking lesson on mobile
   document.addEventListener("click", function(e) {
     if (isMobile()) {
-      if (e.target.closest(".lesson-toggle") || 
-          e.target.closest(".module-toggle") || 
+      if (e.target.closest(".lesson-toggle") ||
+          e.target.closest(".module-toggle") ||
           e.target.closest(".assignment-btn")) {
 
         lessonsidebar.classList.remove("mobile-open");
@@ -2044,6 +2127,29 @@ if(classroomId){
     }
   });
 
+</script>
+
+<!-- Focus Mode toggle — deliberately its OWN script tag, not appended to
+     the sidebar-collapse script above: that one starts with
+     document.getElementById("lessonSidebar") unguarded and throws on
+     every page that isn't the learning view once a sidebar-collapsed
+     preference is saved, which would silently prevent anything placed
+     after it in the SAME block from ever registering. A separate tag
+     runs independently regardless of what happens in that one. -->
+<script>
+  const learningContainer = document.getElementById("learningContainer");
+  const focusModeBtn = document.getElementById("focusModeBtn");
+  if (learningContainer && focusModeBtn) {
+    if (localStorage.getItem("focusMode") === "true") {
+      learningContainer.classList.add("focus-mode");
+      focusModeBtn.classList.add("active");
+    }
+    window.toggleFocusMode = function () {
+      const isOn = learningContainer.classList.toggle("focus-mode");
+      focusModeBtn.classList.toggle("active", isOn);
+      localStorage.setItem("focusMode", isOn);
+    };
+  }
 </script>
 
 <!-- script to Highlight active navbar -->
@@ -3238,6 +3344,7 @@ document.addEventListener("visibilitychange", () => {
 function showCertificateCelebration(url) {
 
   window.certificateUrl = url;
+  document.getElementById("certificatePreviewImg").src = url;
 
   document.getElementById(
     "certificateCelebration"
@@ -3250,10 +3357,25 @@ function closeCertificateCelebration() {
   ).style.display = "none";
 }
 
+// Properly-sized certificate view, reused by the celebration modal's
+// preview image AND every "My Certificates" grid thumbnail — see the
+// #certificateLightbox markup for why this replaced window.open().
+function openCertificateLightbox(url) {
+  if (!url) return;
+  document.getElementById("certificateLightboxImg").src = url;
+  document.getElementById("certificateLightboxDownload").href = url;
+  document.getElementById("certificateLightbox").style.display = "flex";
+}
+
+function closeCertificateLightbox() {
+  document.getElementById("certificateLightbox").style.display = "none";
+}
+
+// Kept for any old inline onclick="downloadCertificate()" references —
+// now opens the lightbox instead of dumping the raw image into a new
+// tab.
 function downloadCertificate() {
-  if (window.certificateUrl) {
-    window.open(window.certificateUrl, "_blank");
-  }
+  openCertificateLightbox(window.certificateUrl);
 }
 
 </script>
@@ -3726,6 +3848,12 @@ function submitQuizAnswers(lessonId){
 
       showQuizCelebration(result.score, result.xpEarned);
 
+      if (result.levelUp) {
+        setTimeout(() => {
+          showLevelUpCelebration(result.newLevelName);
+        }, 900);
+      }
+
       if (result.badgeAwarded) {
         setTimeout(() => {
           showBadgeCelebration(result.badgeName, result.badgeImage);
@@ -4051,6 +4179,15 @@ function closeBadgeCelebration() {
   document.getElementById("badgeCelebration").style.display = "none";
 }
 
+function showLevelUpCelebration(levelName) {
+  document.getElementById("levelUpName").textContent = levelName;
+  document.getElementById("levelUpCelebration").style.display = "flex";
+}
+
+function closeLevelUpCelebration() {
+  document.getElementById("levelUpCelebration").style.display = "none";
+}
+
 function submitQuizInline(e, lessonId) {
   e.preventDefault();
   sendLessonDuration(); // save previous
@@ -4105,6 +4242,12 @@ function submitQuizInline(e, lessonId) {
       }
 
       showQuizCelebration(result.score, result.xpEarned);
+
+      if (result.levelUp) {
+        setTimeout(() => {
+          showLevelUpCelebration(result.newLevelName);
+        }, 900);
+      }
 
       if (result.badgeAwarded) {
         setTimeout(() => {

@@ -95,7 +95,12 @@ exports.saveArticle = async (req, res) => {
 
 
 
-  const subsResult = await pool.query("SELECT * FROM subscriptions");
+  // Subscriptions are written to push_subscriptions (see
+  // routes/userRoutes.js POST /subscribe) — this used to query a
+  // different, permanently-empty "subscriptions" table, so every push
+  // notification silently went to zero recipients despite 300+ real
+  // subscriptions sitting in the actual table.
+  const subsResult = await pool.query("SELECT * FROM push_subscriptions");
   const payload = JSON.stringify({
     title: title,
     message: "A new article has been posted!",
@@ -103,9 +108,20 @@ exports.saveArticle = async (req, res) => {
   });
 
   for (const sub of subsResult.rows) {
+    // keys is stored as a JSON string (JSON.stringify'd on insert), not
+    // JSONB, so it needs parsing back into the {p256dh, auth} object
+    // webpush.sendNotification expects.
+    let keys;
+    try {
+      keys = typeof sub.keys === "string" ? JSON.parse(sub.keys) : sub.keys;
+    } catch (err) {
+      console.error("Skipping push subscription with malformed keys:", sub.id);
+      continue;
+    }
+
     const pushSubscription = {
       endpoint: sub.endpoint,
-      keys: sub.keys,
+      keys,
     };
 
     try {

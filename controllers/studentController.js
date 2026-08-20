@@ -19,6 +19,9 @@ const {
 } = require("../services/termReactivationService");
 const bcrypt = require("bcrypt");
 const getAnnouncements = require("../utils/getAnnouncements");
+const { getLevelForXp } = require("../utils/xpLevels");
+const { getStudentStreak } = require("../services/streakService");
+const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -48,6 +51,12 @@ exports.getDashboard = async (req, res) => {
       studentId,
     ]);
     const student = studentRes.rows[0];
+
+    // Derived, not stored: level is just a named milestone view over the
+    // existing raw XP total; streak is computed live off
+    // user_lesson_progress.completed_at (see services/streakService.js).
+    const levelInfo = getLevelForXp(student.xp);
+    const streak = await getStudentStreak(studentId);
 
     // Vars that differ per role
     let school = null;
@@ -930,6 +939,17 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
+    // Reuses the exact same analytics the school-admin/platform-admin
+    // dashboards already show for a classroom — students just get a
+    // read-only view scoped to their own classroom's current term, with
+    // their own row picked out. Only meaningful for school-linked
+    // students; individual/self-paced students have no classroom to
+    // rank within.
+    let leaderboardData = null;
+    if (req.query.section === "leaderboard" && role === "student" && school && classroom) {
+      leaderboardData = await computeClassroomTermAnalytics(school.id, classroom.id, null);
+    }
+
     // Pathway filter (same)
     if (req.query.pathway && pathwayCourses[req.query.pathway]) {
       pathwayCourses = {
@@ -1028,6 +1048,10 @@ exports.getDashboard = async (req, res) => {
       users: req.session.user,
       info,
       walletBalance,
+      levelInfo,
+      streak,
+      leaderboardData,
+      role,
       school,
       classroom,
       teacher,
@@ -2506,6 +2530,16 @@ ${JSON.stringify(reviewData, null, 2)}
     recordActivityForLesson(studentId, lessonId);
 
     const xpGained = 10;
+
+    const xpBeforeRes = await pool.query(
+      "SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1",
+      [studentId],
+    );
+    const xpBefore = xpBeforeRes.rows[0].xp;
+    const levelBefore = getLevelForXp(xpBefore);
+    const levelAfter = getLevelForXp(xpBefore + xpGained);
+    const levelUp = levelAfter.level > levelBefore.level;
+
     await pool.query(
       "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
       [xpGained, studentId],
@@ -2752,6 +2786,9 @@ ${JSON.stringify(reviewData, null, 2)}
       badgeName: moduleResult?.badgeName || null,
       badgeImage: moduleResult?.badgeImage || null,
       xpEarned: xpGained,
+      levelUp,
+      newLevel: levelAfter.level,
+      newLevelName: levelAfter.name,
       nextLessonId,
       nextModuleUnlocked,
       nextModuleId,

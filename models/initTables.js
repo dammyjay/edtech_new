@@ -11,6 +11,16 @@ async function createTables() {
         keys TEXT NOT NULL
       );
     `);
+    // Nullable: existing/anonymous subscriptions stay valid for
+    // broadcast-only sends (e.g. new-article alerts). Only subscriptions
+    // captured while a student is logged in get a user_id, which is what
+    // makes a PERSONALIZED reminder (e.g. "come back and finish your
+    // lesson") possible at all — without this there's no way to know
+    // which subscription belongs to which student.
+    await pool.query(`
+      ALTER TABLE push_subscriptions
+        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE;
+    `);
 
     // table for push notifications
     await pool.query(`

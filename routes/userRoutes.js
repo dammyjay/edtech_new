@@ -36,9 +36,14 @@ router.get("/vapid-public-key", (req, res) => {
 
 router.post("/subscribe", async (req, res) => {
   const subscription = req.body;
+  // Captures who's logged in, if anyone — this is what lets a later
+  // reminder job target a SPECIFIC student ("come finish your lesson")
+  // instead of only ever broadcasting to everyone. Stays null for a
+  // logged-out visitor, which is still fine for broadcast-only sends.
+  const userId = req.session?.user?.id || null;
   await pool.query(
-    "INSERT INTO push_subscriptions (endpoint, keys) VALUES ($1, $2)",
-    [subscription.endpoint, JSON.stringify(subscription.keys)]
+    "INSERT INTO push_subscriptions (endpoint, keys, user_id) VALUES ($1, $2, $3)",
+    [subscription.endpoint, JSON.stringify(subscription.keys), userId]
   );
   res.sendStatus(201);
 });

@@ -157,10 +157,9 @@ body {
   font-weight: 700;
 }
 
-.lesson-main-area {
-    padding: 15px;
-    width: 100%;
-}
+/* .lesson-main-area lives in styles2.css now (the redesigned learning
+   view) — this duplicate used to fight with it over `width` vs the
+   later file's `flex:1`, an ambiguous combination across browsers. */
 
 /* Style the dropdown container */
 .dropdown {

@@ -901,9 +901,16 @@
 
 .lesson-main-area {
     flex: 1;              /* 🔥 Important */
-    padding: 15px;
-    transition: all 0.3s ease;
+    padding: 28px;
+    transition: max-width 0.25s ease, margin 0.25s ease;
     min-width: 0;         /* Prevent overflow issues */
+    background: var(--bg-primary, #fff);
+    margin: 16px;
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    line-height: 1.7;
+    font-size: 15.5px;
+    color: var(--text-primary, #222);
 }
 
 
@@ -1652,6 +1659,40 @@ canvas {
 .learning-container {
     display: flex;
     width: 100%;
+    min-height: 100vh;
+    background: var(--bg-secondary, #f5f6fa);
+}
+
+/* Focus Mode: hides the AI tutor widget and centers the lesson content
+   at a comfortable reading width — the "wider view, fewer distractions"
+   toggle. Persisted in localStorage the same way the sidebar collapse
+   state already was. */
+.learning-container.focus-mode #ai-tutor,
+.learning-container.focus-mode #ai-float {
+    display: none !important;
+}
+.learning-container.focus-mode .lesson-main-area {
+    max-width: 760px;
+    margin: 0 auto;
+}
+.focus-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-secondary, #666);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 14px;
+}
+.focus-mode-btn.active {
+    background: var(--brand-tint, #FBF3DD);
+    color: var(--brand-pri-dark, #4C3802);
+    border-color: var(--brand-pri-light, #D9A82C);
 }
 
 .celebration-modal {
@@ -1697,76 +1738,112 @@ canvas {
 
 /* Sidebar */
 .lesson-sidebar {
-    width: 220px;
+    width: 260px;
     flex-shrink: 0;
     position: relative;
     height: 100vh;
     overflow-y: auto;
-    background: #f9f9f9; 
-    border-right: 1px solid #ddd;
-    padding: 10px;
-    transition: all 0.3s ease;
+    background: var(--bg-primary, #fff);
+    border-right: 1px solid var(--border-light, #e0e0e0);
+    padding: 16px 14px;
+    transition: width 0.25s ease, padding 0.25s ease;
 }
 
-
+/* A real 44px rail with its own label, not just a bare sliver — still a
+   genuine click target once collapsed, instead of a 20px line that was
+   easy to miss and awkward to grab. */
 .lesson-sidebar.collapsed {
-  width: 20px;
-  padding: 0;
+  width: 44px;
+  padding: 16px 4px;
   overflow: hidden;
+  text-align: center;
+}
+.lesson-sidebar.collapsed > *:not(#sidebarHandle) {
+  display: none;
 }
 
 /* Handle button */
 .sidebar-handle {
   position: absolute;
-  top: 50%;
+  top: 20px;
   right: -1px;
-  transform: translateY(-50%);
-  background: #007bff;
+  transform: none;
+  background: var(--brand-pri, #A17807);
   color: #fff;
-  padding: 8px 6px;
+  padding: 8px 7px;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
   font-size: 14px;
   user-select: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
   transition: background 0.2s ease;
   z-index: 1000; /* ensures it stays clickable */
 }
 .sidebar-handle:hover {
-    background: #0056b3;
+    background: var(--brand-pri-dark, #4C3802);
 }
 
 .lesson-sidebar h3 {
-    font-size: 16px;
-    margin-bottom: 10px;
-    color: #333;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 12px;
+    color: var(--text-secondary, #666);
 }
 
+.module-block {
+    background: var(--bg-secondary, #f5f6fa);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius, 10px);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+
+.module-toggle {
+    width: 100%;
+    font-weight: 700;
+    color: var(--text-primary, #222);
+}
 
 .lesson-list {
     list-style: none;
     padding: 0;
+    margin: 8px 0 0;
 }
 
 .lesson-list li {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+.lesson-toggle,
+.assignment-btn {
+    width: 100%;
+    border-radius: var(--radius-sm, 8px);
+    padding: 7px 8px !important;
+    transition: background 0.15s ease;
+}
+.lesson-toggle:hover,
+.assignment-btn:hover:not(:disabled) {
+    background: var(--brand-tint, #FBF3DD) !important;
+    color: var(--brand-pri-dark, #4C3802) !important;
+    text-decoration: none !important;
 }
 
 .lesson-list a {
     display: block;
     padding: 8px 10px;
-    border-radius: 5px;
+    border-radius: var(--radius-sm, 8px);
     text-decoration: none;
-    color: #444;
+    color: var(--text-primary, #444);
     transition: background 0.2s;
 }
 
 .lesson-list a:hover {
-    background: #e3f2fd;
+    background: var(--brand-tint, #FBF3DD);
 }
 
 .lesson-list .active-lesson a {
-    background: #2196f3;
+    background: var(--brand-pri, #A17807);
     color: white;
 }
 
@@ -1890,19 +1967,13 @@ canvas {
 }
 
 .no-bg:hover {
-    color: #007bff;
+    color: var(--brand-pri-dark, #4C3802);
     text-decoration: underline;
     background: none;
 }
 
-.lesson-list {
-    list-style: none;
-    padding-left: 15px;
-}
-
-.lesson-list li {
-    margin: 5px 0;
-}
+/* .lesson-list/.lesson-list li consolidated into the single definition
+   near .lesson-sidebar above — this was a second, conflicting copy. */
 
 .chatbox {
     border: 1px solid #ddd;
