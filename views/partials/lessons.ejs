@@ -647,6 +647,8 @@ function closeEditLessonModal() {
 }
 
 /* ---------------- FORM SUBMISSION ---------------- */
+const MAX_SLIDE_FILE_MB = 10;
+
 document.addEventListener('submit', function (e) {
   for (let instance in CKEDITOR.instances) {
     CKEDITOR.instances[instance].updateElement();
@@ -654,6 +656,7 @@ document.addEventListener('submit', function (e) {
 
   const content = e.target.querySelector('textarea[name="content"]');
   const plan = e.target.querySelector('textarea[name="lesson_plan"]');
+  const slideFileInput = e.target.querySelector('input[name="slide_file"]');
 
   if (content && !content.value.trim()) {
     e.preventDefault();
@@ -664,6 +667,12 @@ document.addEventListener('submit', function (e) {
   if (plan && !plan.value.trim()) {
     e.preventDefault();
     alert("Teacher lesson plan is required");
+    return false;
+  }
+
+  if (slideFileInput && slideFileInput.files[0] && slideFileInput.files[0].size > MAX_SLIDE_FILE_MB * 1024 * 1024) {
+    e.preventDefault();
+    alert(`That slide deck is larger than ${MAX_SLIDE_FILE_MB}MB, which is the maximum this app currently accepts. Try compressing the images in the presentation and upload again.`);
     return false;
   }
 });

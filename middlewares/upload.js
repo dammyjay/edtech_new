@@ -52,10 +52,18 @@ const lessonStorage = new CloudinaryStorage({
     };
   },
 });
+// NOTE: Cloudinary rejects any raw file (pdf/doc/docx/ppt/pptx) over 10MB on
+// this account's current plan — confirmed directly against the API, and it
+// applies even to chunked/upload_large uploads, so there's no way to raise
+// this from the app side without upgrading the Cloudinary plan. The limit
+// below matches that cap so oversized files fail fast (before spending time
+// uploading) instead of failing only after the browser finishes uploading.
+const MAX_LESSON_FILE_BYTES = 10 * 1024 * 1024;
+
 const lessonUpload = multer({
   storage: lessonStorage,
   limits: {
-    fileSize: 25 * 1024 * 1024, // 25MB, applies to the uploaded slide file
+    fileSize: MAX_LESSON_FILE_BYTES,
     fieldSize: 10 * 1024 * 1024, // 10MB, applies to text fields (lesson content/plan HTML)
   },
   fileFilter: (req, file, cb) => {
@@ -83,12 +91,21 @@ function lessonSlideUpload(req, res, next) {
     if (!err) return next();
 
     console.error("Lesson slide upload error:", err);
-    const message =
-      (err && err.message) ||
-      (err && err.error && err.error.message) ||
-      "Upload rejected by storage provider (check file type/size).";
+    const isTooLarge =
+      err.code === "LIMIT_FILE_SIZE" || /file size too large/i.test(err.message || "");
+    const message = isTooLarge
+      ? "This slide deck is larger than 10MB, which is the maximum this app currently accepts. Try compressing the images in the presentation (or exporting a smaller version) and upload again."
+      : (err && err.message) ||
+        (err && err.error && err.error.message) ||
+        "Upload rejected by storage provider (check file type/size).";
 
-    return res.status(400).send(`Error uploading slide deck: ${message}`);
+    return res.status(400).send(`
+      <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; text-align: center;">
+        <h2 style="color:#c0392b;">Slide deck upload failed</h2>
+        <p>${message}</p>
+        <a href="javascript:history.back()" style="display:inline-block; margin-top:16px; padding:10px 20px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px;">Go back</a>
+      </div>
+    `);
   });
 }
 
