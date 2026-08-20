@@ -1,6 +1,7 @@
 const pool = require("../models/db");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
+const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
 
 exports.sendChatMessage = async (req, res) => {
   try {
@@ -1477,7 +1478,7 @@ exports.downloadQuizReport = async (req, res) => {
 
     // --- Submission info
     const submissionRes = await pool.query(
-      `SELECT id, score, created_at, review_data
+      `SELECT id, score, passed, created_at, review_data
        FROM quiz_submissions
        WHERE quiz_id = $1 AND student_id = $2
        ORDER BY created_at DESC LIMIT 1`,
@@ -1495,114 +1496,19 @@ exports.downloadQuizReport = async (req, res) => {
       }
     }
 
-    // Calculate stats
-    const totalQuestions = reviewData.length;
-    const answeredCount = reviewData.filter(
-      (r) => r.yourAnswer && r.yourAnswer.trim() !== ""
-    ).length;
-    const correctCount = reviewData.filter((r) => r.isCorrect).length;
-    const wrongCount = answeredCount - correctCount;
-
-    // --- Build HTML
-    const html = `
-  <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header img { max-height: 80px; margin: 0 10px; vertical-align: middle; }
-        .header h1 { margin: 5px 0; color: #2c3e50; }
-        .header h2 { margin: 0; font-size: 16px; color: #555; }
-        h2 { margin-top: 30px; color: #2980b9; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-        .meta { margin: 20px 0; padding: 10px; background: #ecf0f1; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; vertical-align: top; }
-        th { background: #2c3e50; color: white; text-align: left; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .correct { color: #28a745; font-weight: bold; } /* green text */
-        .wrong { color: #dc3545; font-weight: bold; }   /* red text */
-        .footer { margin-top: 30px; font-size: 10px; text-align: center; color: gray; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        ${
-          info.logo_url ? `<img src="${info.logo_url}" alt="Company Logo">` : ""
-        }
-        ${
-          student.school_logo
-            ? `<img src="${student.school_logo}" alt="School Logo">`
-            : ""
-        }
-        <h1>${info.company_name || "Our Company"}</h1>
-        <h2>${student.school_name || "Unknown School"}</h2>
-      </div>
-
-      <h1>📝 Quiz Report</h1>
-      <p style="text-align:center; color: gray;">Generated on: ${new Date().toLocaleString()}</p>
-
-      <div class="meta">
-        <h2>👤 Student</h2>
-        <p><strong>Name:</strong> ${student.fullname}</p>
-        <p><strong>Email:</strong> ${student.email}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📚 Course Info</h2>
-        <p><strong>Course:</strong> ${quiz.course_title}</p>
-        <p><strong>Module:</strong> ${quiz.module_title}</p>
-        <p><strong>Lesson:</strong> ${quiz.lesson_title}</p>
-        <p><strong>Quiz:</strong> ${quiz.quiz_title}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📊 Quiz Result</h2>
-        <p><strong>Score:</strong> ${submission ? submission.score : "N/A"}</p>
-        <p><strong>Date:</strong> ${
-          submission
-            ? new Date(submission.created_at).toLocaleString()
-            : "Not taken"
-        }</p>
-        <p><strong>Answered:</strong> ${answeredCount}/${totalQuestions}</p>
-        <p><strong>Correct:</strong> ${correctCount}</p>
-        <p><strong>Wrong:</strong> ${wrongCount}</p>
-      </div>
-
-      ${
-        reviewData.length
-          ? `
-          <h2>📄 Answers</h2>
-          <table>
-            <tr>
-              <th>Question</th>
-              <th>Your Answer</th>
-              <th>Correct Answer</th>
-              <th>AI Feedback</th>
-            </tr>
-            ${reviewData
-              .map(
-                (r) => `
-                <tr>
-                  <td>${r.question}</td>
-                  <td class="${r.isCorrect ? "correct" : "wrong"}">
-                    ${r.yourAnswer || "—"}
-                  </td>
-                  <td>${r.correctAnswer}</td>
-                  <td>${r.feedback || ""}</td>
-                </tr>`
-              )
-              .join("")}
-          </table>
-        `
-          : "<p>No answers recorded.</p>"
-      }
-
-      <div class="footer">© ${new Date().getFullYear()} ${
-      info.company_name || "Company"
-    } Quiz Report</div>
-    </body>
-  </html>
-`;
+    // --- Build HTML (shared gamified report template)
+    const html = renderQuizReportHtml({
+      info,
+      student,
+      courseTitle: quiz.course_title,
+      moduleTitle: quiz.module_title,
+      lessonTitle: quiz.lesson_title,
+      quizTitle: quiz.quiz_title,
+      score: submission ? submission.score : null,
+      passed: submission ? submission.passed : false,
+      takenAt: submission ? submission.created_at : null,
+      reviewData,
+    });
 
     // --- Generate PDF
     const pdf = await generatePdf(html);
@@ -1625,6 +1531,11 @@ exports.downloadQuizReport = async (req, res) => {
 exports.downloadStudentReport = async (req, res) => {
   try {
     const studentId = req.params.id;
+
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
 
     // 1️⃣ Fetch student info + classroom + school
     const studentRes = await pool.query(
@@ -1717,7 +1628,7 @@ exports.downloadStudentReport = async (req, res) => {
 
     // 7️⃣ Fetch badges per module
     const badgesRes = await pool.query(
-      `SELECT badge_name, module_id
+      `SELECT badge_name, badge_image, awarded_at, module_id
        FROM user_badges
        WHERE user_id = $1`,
       [studentId]
@@ -1725,7 +1636,7 @@ exports.downloadStudentReport = async (req, res) => {
     const badgeMap = {};
     badgesRes.rows.forEach(b => {
       if (!badgeMap[b.module_id]) badgeMap[b.module_id] = [];
-      badgeMap[b.module_id].push(b.badge_name);
+      badgeMap[b.module_id].push(b);
     });
 
     // 8️⃣ Fetch certificates per course
@@ -1791,81 +1702,29 @@ exports.downloadStudentReport = async (req, res) => {
       return { ...course, modules, totalLessons, completedLessons, overallPercent, certificate };
     });
 
-    // 1️⃣1️⃣ Build HTML for PDF
-    const html = `
-<html>
-<head>
-<style>
-body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-h1 { text-align: center; color: #2c3e50; }
-h2 { margin-top: 30px; color: #2980b9; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-h3 { margin-top: 20px; color: #16a085; }
-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-th, td { border: 1px solid #ccc; padding: 6px; font-size: 12px; }
-th { background-color: #34495e; color: white; }
-tr:nth-child(even) { background-color: #f9f9f9; }
-.meta { margin-top: 20px; padding: 10px; background: #ecf0f1; border-radius: 8px; }
-.footer { margin-top: 30px; text-align: center; font-size: 10px; color: gray; }
-.badges { color: #e67e22; font-weight: bold; }
-.certificate { color: #27ae60; font-weight: bold; }
-</style>
-</head>
-<body>
-<h1>📑 Student Progress Report</h1>
-<p style="text-align:center; color:gray;">Generated on ${new Date().toLocaleString()}</p>
-
-<div class="meta">
-<h2>👤 Student Info</h2>
-<p><strong>Name:</strong> ${student.fullname}</p>
-<p><strong>Email:</strong> ${student.email}</p>
-<p><strong>Classroom:</strong> ${student.classroom_name}</p>
-<p><strong>School:</strong> ${student.school_name}</p>
-<p><strong>XP:</strong> ${xpData.xp} | Level: ${xpData.level}</p>
-</div>
-
-${courses.map(course => `
-<div class="meta">
-<h2>📚 Course: ${course.course_title} — Overall Progress: ${course.overallPercent}%</h2>
-${course.certificate ? `<p class="certificate">🏆 Certificate Earned: <a href="${course.certificate.certificate_url}">View</a> (${new Date(course.certificate.issued_at).toLocaleDateString()})</p>` : ''}
-${course.modules.map(module => `
-<h3>Module: ${module.module_title} — ${module.percentLessons}% Lessons Completed</h3>
-${module.badges.length ? `<p class="badges">🏅 Badges: ${module.badges.join(', ')}</p>` : ''}
-<table>
-<tr><th>Lesson</th><th>Status</th></tr>
-${module.lessons.map(l => `<tr><td>${l.lesson_title}</td><td>${l.status}</td></tr>`).join('')}
-</table>
-
-<h4>Quizzes</h4>
-${module.quizzes.length
-  ? `<table>
-       <tr><th>Quiz</th><th>Score</th></tr>
-       ${module.quizzes
-         .map(q => `<tr><td>Quiz for: ${q.lesson_title}</td><td>${q.score ?? 'N/A'}</td></tr>`)
-         .join('')}
-     </table>`
-  : '<p>No quizzes yet</p>'}
-
-<h4>Assignments</h4>
-${module.assignments.length ? `<table><tr><th>Assignment</th><th>Score</th></tr>${module.assignments.map(a => `<tr><td>${a.assignment_title}</td><td>${a.grade ?? 'N/A'}</td></tr>`).join('')}</table>` : '<p>No assignments yet</p>'}
-
-`).join('')}
-</div>
-`).join('')}
-
-<div class="footer">© ${new Date().getFullYear()} Student Progress Report</div>
-</body>
-</html>
-`;
-
-    // 1️⃣2️⃣ Generate PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    // Build HTML (shared gamified report template) + generate PDF
+    const html = renderStudentFullReportHtml({
+      info,
+      student,
+      xp: xpData.xp,
+      level: xpData.level,
+      courses: courses.map((course) => ({
+        title: course.course_title,
+        certificate: course.certificate,
+        modules: course.modules.map((m) => ({
+          title: m.module_title,
+          lessons: m.lessons.map((l) => ({ title: l.lesson_title, completed_at: l.completed })),
+          quizzes: m.quizzes,
+          assignments: m.assignments.map((a) => ({ title: a.assignment_title, total: a.grade })),
+          badges: m.badges || [],
+        })),
+        badges: course.modules.flatMap((m) =>
+          (m.badges || []).map((b) => ({ ...b, module_title: m.module_title }))
+        ),
+      })),
     });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdf = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+
+    const pdf = await generatePdf(html);
 
     // 1️⃣3️⃣ Send PDF
     res.setHeader("Content-Type", "application/pdf");

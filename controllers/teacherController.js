@@ -2,6 +2,7 @@ const pool = require("../models/db");
 const userController = require("./userController");
 const getAnnouncements = require("../utils/getAnnouncements");
 const generatePdf = require("../utils/generatePdf");
+const { renderQuizReportHtml } = require("../utils/reportTemplate");
 // const puppeteer = require("puppeteer");
 
 // ----------------- DASHBOARD WRAPPER -----------------
@@ -834,7 +835,7 @@ exports.downloadQuizReport = async (req, res) => {
 
     // --- Submission info
     const submissionRes = await pool.query(
-      `SELECT id, score, created_at, review_data
+      `SELECT id, score, passed, created_at, review_data
        FROM quiz_submissions
        WHERE quiz_id = $1 AND student_id = $2
        ORDER BY created_at DESC LIMIT 1`,
@@ -852,124 +853,22 @@ exports.downloadQuizReport = async (req, res) => {
       }
     }
 
-    // Calculate stats
-    const totalQuestions = reviewData.length;
-    const answeredCount = reviewData.filter(
-      (r) => r.yourAnswer && r.yourAnswer.trim() !== ""
-    ).length;
-    const correctCount = reviewData.filter((r) => r.isCorrect).length;
-    const wrongCount = answeredCount - correctCount;
-
-    // --- Build HTML
-    const html = `
-  <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header img { max-height: 80px; margin: 0 10px; vertical-align: middle; }
-        .header h1 { margin: 5px 0; color: #2c3e50; }
-        .header h2 { margin: 0; font-size: 16px; color: #555; }
-        h2 { margin-top: 30px; color: #2980b9; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-        .meta { margin: 20px 0; padding: 10px; background: #ecf0f1; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; vertical-align: top; }
-        th { background: #2c3e50; color: white; text-align: left; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .correct { color: #28a745; font-weight: bold; } /* green text */
-        .wrong { color: #dc3545; font-weight: bold; }   /* red text */
-        .footer { margin-top: 30px; font-size: 10px; text-align: center; color: gray; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        ${
-          info.logo_url ? `<img src="${info.logo_url}" alt="Company Logo">` : ""
-        }
-        ${
-          student.school_logo
-            ? `<img src="${student.school_logo}" alt="School Logo">`
-            : ""
-        }
-        <h1>${info.company_name || "Our Company"}</h1>
-        <h2>${student.school_name || "Unknown School"}</h2>
-      </div>
-
-      <h1>📝 Quiz Report</h1>
-      <p style="text-align:center; color: gray;">Generated on: ${new Date().toLocaleString()}</p>
-
-      <div class="meta">
-        <h2>👤 Student</h2>
-        <p><strong>Name:</strong> ${student.fullname}</p>
-        <p><strong>Email:</strong> ${student.email}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📚 Course Info</h2>
-        <p><strong>Course:</strong> ${quiz.course_title}</p>
-        <p><strong>Module:</strong> ${quiz.module_title}</p>
-        <p><strong>Lesson:</strong> ${quiz.lesson_title}</p>
-        <p><strong>Quiz:</strong> ${quiz.quiz_title}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📊 Quiz Result</h2>
-        <p><strong>Score:</strong> ${submission ? submission.score : "N/A"}</p>
-        <p><strong>Date:</strong> ${
-          submission
-            ? new Date(submission.created_at).toLocaleString()
-            : "Not taken"
-        }</p>
-        <p><strong>Answered:</strong> ${answeredCount}/${totalQuestions}</p>
-        <p><strong>Correct:</strong> ${correctCount}</p>
-        <p><strong>Wrong:</strong> ${wrongCount}</p>
-      </div>
-
-      ${
-        reviewData.length
-          ? `
-          <h2>📄 Answers</h2>
-          <table>
-            <tr>
-              <th>Question</th>
-              <th>Your Answer</th>
-              <th>Correct Answer</th>
-              <th>AI Feedback</th>
-            </tr>
-            ${reviewData
-              .map(
-                (r) => `
-                <tr>
-                  <td>${r.question}</td>
-                  <td class="${r.isCorrect ? "correct" : "wrong"}">
-                    ${r.yourAnswer || "—"}
-                  </td>
-                  <td>${r.correctAnswer}</td>
-                  <td>${r.feedback || ""}</td>
-                </tr>`
-              )
-              .join("")}
-          </table>
-        `
-          : "<p>No answers recorded.</p>"
-      }
-
-      <div class="footer">© ${new Date().getFullYear()} ${
-      info.company_name || "Company"
-    } Quiz Report</div>
-    </body>
-  </html>
-`;
+    // --- Build HTML (shared gamified report template)
+    const html = renderQuizReportHtml({
+      info,
+      student,
+      courseTitle: quiz.course_title,
+      moduleTitle: quiz.module_title,
+      lessonTitle: quiz.lesson_title,
+      quizTitle: quiz.quiz_title,
+      score: submission ? submission.score : null,
+      passed: submission ? submission.passed : false,
+      takenAt: submission ? submission.created_at : null,
+      reviewData,
+    });
 
     // --- Generate PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    const pdfBuffer = await generatePdf(html);
 
     // --- File name with student + quiz
     res.setHeader(

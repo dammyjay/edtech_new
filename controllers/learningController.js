@@ -1,8 +1,8 @@
 const pool = require("../models/db");
 const cloudinary = require("../utils/cloudinary");
-const fs = require("fs");
 // controllers/learningController.js
 const { askTutor } = require("../utils/ai");
+const { getCompanyInfo } = require("../utils/companyInfo");
 
 exports.updateCourse = async (req, res) => {
   const { id } = req.params;
@@ -101,25 +101,17 @@ exports.createModule = async (req, res) => {
   try {
     const { title, description, objectives, learning_outcomes, order_number, course_id } = req.body;
 
-    let thumbnailUrl = null;
-    let badgeUrl = null;
+    // Thumbnail/badge uploads are optional — multer-storage-cloudinary has
+    // already uploaded them to Cloudinary by this point (req.files.*[0].path
+    // is the Cloudinary URL, not a local path), so no re-upload is needed.
+    // When either is left blank, fall back to the platform's own logo.
+    let thumbnailUrl = req.files?.thumbnail?.[0]?.path || null;
+    let badgeUrl = req.files?.badge_image?.[0]?.path || null;
 
-    // Upload thumbnail if provided
-    if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
-      const thumb = await cloudinary.uploader.upload(req.files.thumbnail[0].path, {
-        folder: "modules",
-      });
-      thumbnailUrl = thumb.secure_url;
-      if (fs.existsSync(req.files.thumbnail[0].path)) fs.unlinkSync(req.files.thumbnail[0].path);
-    }
-
-    // Upload badge image if provided
-    if (req.files && req.files.badge_image && req.files.badge_image[0]) {
-      const badge = await cloudinary.uploader.upload(req.files.badge_image[0].path, {
-        folder: "badges",
-      });
-      badgeUrl = badge.secure_url;
-      if (fs.existsSync(req.files.badge_image[0].path)) fs.unlinkSync(req.files.badge_image[0].path);
+    if (!thumbnailUrl || !badgeUrl) {
+      const companyInfo = await getCompanyInfo();
+      if (!thumbnailUrl) thumbnailUrl = companyInfo.logo_url;
+      if (!badgeUrl) badgeUrl = companyInfo.logo_url;
     }
 
     await pool.query(
@@ -150,18 +142,21 @@ exports.editModule = async (req, res) => {
     let thumbnailUrl = oldModule.rows[0].thumbnail;
     let badgeUrl = oldModule.rows[0].badge_image;
 
-    // Upload new thumbnail if provided
+    // multer-storage-cloudinary has already uploaded these by this point —
+    // req.files.*[0].path is the Cloudinary URL, no re-upload needed.
     if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
-      const thumb = await cloudinary.uploader.upload(req.files.thumbnail[0].path, { folder: "modules" });
-      thumbnailUrl = thumb.secure_url;
-      if (fs.existsSync(req.files.thumbnail[0].path)) fs.unlinkSync(req.files.thumbnail[0].path);
+      thumbnailUrl = req.files.thumbnail[0].path;
+    }
+    if (req.files && req.files.badge_image && req.files.badge_image[0]) {
+      badgeUrl = req.files.badge_image[0].path;
     }
 
-    // Upload new badge if provided
-    if (req.files && req.files.badge_image && req.files.badge_image[0]) {
-      const badge = await cloudinary.uploader.upload(req.files.badge_image[0].path, { folder: "badges" });
-      badgeUrl = badge.secure_url;
-      if (fs.existsSync(req.files.badge_image[0].path)) fs.unlinkSync(req.files.badge_image[0].path);
+    // Optional fields — if the module still has neither a real thumbnail nor
+    // badge (no prior upload, none provided now), fall back to the platform logo.
+    if (!thumbnailUrl || !badgeUrl) {
+      const companyInfo = await getCompanyInfo();
+      if (!thumbnailUrl) thumbnailUrl = companyInfo.logo_url;
+      if (!badgeUrl) badgeUrl = companyInfo.logo_url;
     }
 
     await pool.query(

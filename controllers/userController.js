@@ -7,6 +7,7 @@ const generatePdf = require("../utils/generatePdf");
 const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
 const getAnnouncements = require("../utils/getAnnouncements");
+const { renderQuizReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 
 exports.showSignup = (req, res) => {
   // res.sendFile(path.join(__dirname, 'signup.html'));
@@ -705,7 +706,7 @@ exports.downloadQuizReport = async (req, res) => {
 
     // --- Submission info
     const submissionRes = await pool.query(
-      `SELECT id, score, created_at, review_data
+      `SELECT id, score, passed, created_at, review_data
        FROM quiz_submissions
        WHERE quiz_id = $1 AND student_id = $2
        ORDER BY created_at DESC LIMIT 1`,
@@ -723,118 +724,21 @@ exports.downloadQuizReport = async (req, res) => {
       }
     }
 
-    // Calculate stats
-    const totalQuestions = reviewData.length;
-    const answeredCount = reviewData.filter(
-      (r) => r.yourAnswer && r.yourAnswer.trim() !== ""
-    ).length;
-    const correctCount = reviewData.filter((r) => r.isCorrect).length;
-    const wrongCount = answeredCount - correctCount;
-
-    // --- Build HTML
-    const html = `
-  <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header img { max-height: 80px; margin: 0 10px; vertical-align: middle; }
-        .header h1 { margin: 5px 0; color: #2c3e50; }
-        .header h2 { margin: 0; font-size: 16px; color: #555; }
-        h2 { margin-top: 30px; color: #2980b9; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-        .meta { margin: 20px 0; padding: 10px; background: #ecf0f1; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; vertical-align: top; }
-        th { background: #2c3e50; color: white; text-align: left; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .correct { color: #28a745; font-weight: bold; } /* green text */
-        .wrong { color: #dc3545; font-weight: bold; }   /* red text */
-        .footer { margin-top: 30px; font-size: 10px; text-align: center; color: gray; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        ${
-          info.logo_url ? `<img src="${info.logo_url}" alt="Company Logo">` : ""
-        }
-        <h1>${info.company_name || "Our Company"}</h1>\
-      </div>
-
-      <h1>📝 Quiz Report</h1>
-      <p style="text-align:center; color: gray;">Generated on: ${new Date().toLocaleString()}</p>
-
-      <div class="meta">
-        <h2>👤 Student</h2>
-        <p><strong>Name:</strong> ${student.fullname}</p>
-        <p><strong>Email:</strong> ${student.email}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📚 Course Info</h2>
-        <p><strong>Course:</strong> ${quiz.course_title}</p>
-        <p><strong>Module:</strong> ${quiz.module_title}</p>
-        <p><strong>Lesson:</strong> ${quiz.lesson_title}</p>
-        <p><strong>Quiz:</strong> ${quiz.quiz_title}</p>
-      </div>
-
-      <div class="meta">
-        <h2>📊 Quiz Result</h2>
-        <p><strong>Score:</strong> ${submission ? submission.score : "N/A"}</p>
-        <p><strong>Date:</strong> ${
-          submission
-            ? new Date(submission.created_at).toLocaleString()
-            : "Not taken"
-        }</p>
-        <p><strong>Answered:</strong> ${answeredCount}/${totalQuestions}</p>
-        <p><strong>Correct:</strong> ${correctCount}</p>
-        <p><strong>Wrong:</strong> ${wrongCount}</p>
-      </div>
-
-      ${
-        reviewData.length
-          ? `
-          <h2>📄 Answers</h2>
-          <table>
-            <tr>
-              <th>Question</th>
-              <th>Your Answer</th>
-              <th>Correct Answer</th>
-              <th>AI Feedback</th>
-            </tr>
-            ${reviewData
-              .map(
-                (r) => `
-                <tr>
-                  <td>${r.question}</td>
-                  <td class="${r.isCorrect ? "correct" : "wrong"}">
-                    ${r.yourAnswer || "—"}
-                  </td>
-                  <td>${r.correctAnswer}</td>
-                  <td>${r.feedback || ""}</td>
-                </tr>`
-              )
-              .join("")}
-          </table>
-        `
-          : "<p>No answers recorded.</p>"
-      }
-
-      <div class="footer">© ${new Date().getFullYear()} ${
-      info.company_name || "Company"
-    } Quiz Report</div>
-    </body>
-  </html>
-`;
+    // --- Build HTML (shared gamified report template)
+    const html = renderQuizReportHtml({
+      info,
+      student,
+      courseTitle: quiz.course_title,
+      moduleTitle: quiz.module_title,
+      lessonTitle: quiz.lesson_title,
+      quizTitle: quiz.quiz_title,
+      score: submission ? submission.score : null,
+      passed: submission ? submission.passed : false,
+      takenAt: submission ? submission.created_at : null,
+      reviewData,
+    });
 
     // --- Generate PDF
-    // const browser = await puppeteer.launch({
-    //   headless: true,
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
-    // const page = await browser.newPage();
-    // await page.setContent(html, { waitUntil: "networkidle0" });
-    // const pdf = await page.pdf({ format: "A4", printBackground: true });
-    // await browser.close();
     const pdf = await generatePdf(html);
 
     // --- File name with student + quiz
@@ -928,217 +832,42 @@ exports.downloadCourseSummary = async (req, res) => {
     );
     const assignments = assignmentsRes.rows;
 
-    // --- Global Summary stats
-    const totalLessons = lessons.length;
-    const completedLessons = lessons.filter((l) => l.completed_at).length;
-    const lessonPercent = totalLessons
-      ? Math.round((completedLessons / totalLessons) * 100)
-      : 0;
+    // --- Badges
+    const badgesRes = await pool.query(
+      `SELECT ub.badge_name, ub.badge_image, ub.awarded_at, ub.module_id, m.title AS module_title
+       FROM user_badges ub
+       JOIN modules m ON ub.module_id = m.id
+       WHERE ub.user_id = $1 AND m.course_id = $2
+       ORDER BY ub.awarded_at`,
+      [studentId, courseId]
+    );
+    const badges = badgesRes.rows;
 
-    const quizAvg =
-      quizzes.length > 0
-        ? Math.round(
-            quizzes.reduce((a, q) => a + (q.score || 0), 0) / quizzes.length
-          )
-        : "N/A";
+    // --- Certificate
+    const certRes = await pool.query(
+      `SELECT certificate_url, issued_at FROM user_certificates WHERE user_id = $1 AND course_id = $2 LIMIT 1`,
+      [studentId, courseId]
+    );
+    const certificate = certRes.rows[0] || null;
 
-    const assignmentAvg =
-      assignments.length > 0
-        ? Math.round(
-            assignments.reduce((a, x) => a + (x.total || 0), 0) /
-              assignments.length
-          )
-        : "N/A";
-
-    // --- Build styled HTML template with logo + module summaries
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #2c3e50; }
-            header { text-align: center; border-bottom: 2px solid #b99a29ff; padding-bottom: 10px; margin-bottom: 20px; }
-            header img { max-height: 60px; margin-bottom: 8px; }
-            header h1 { margin: 0; color: #b9b429ff; font-size: 20px; }
-            header p { font-size: 12px; color: gray; margin: 0; }
-
-            h2 { margin-top: 30px; color: #b9a329ff; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-            h3 { margin-top: 20px; color: #000000ff; }
-
-            .summary { margin: 20px 0; padding: 15px; background: #d9d9d6ff; border-radius: 8px; }
-            .summary ul { list-style: none; padding: 0; }
-            .summary li { margin: 5px 0; }
-
-            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
-            th { background: #000000ff; color: white; text-align: left; }
-            tr:nth-child(even) { background: #f9f9f9; }
-
-            .module-summary { margin: 10px 0; padding: 10px; background: #f5f5f5; border-left: 4px solid #b99a29ff; }
-            .module-summary p { margin: 4px 0; }
-
-            footer { margin-top: 40px; font-size: 10px; text-align: center; color: gray; }
-            .watermark {
-              position: fixed;
-              top: 40%;
-              left: 20%;
-              font-size: 80px;
-              color: rgba(180, 180, 180, 0.15);
-              transform: rotate(-30deg);
-              z-index: -1;
-              width: 100%;
-              text-align: center;
-              pointer-events: none;
-            }
-
-          </style>
-        </head>
-        <body>
-          <div class="watermark">${info.company_name} Report</div>
-          <header>
-            ${
-              info.logo_url
-                ? `<img src="${info.logo_url}" alt="Company Logo"/>`
-                : ""
-            }
-            <h1>${info.company_name}</h1>
-            <p>📊 Student Progress Report</p>
-            <p>Generated on: ${new Date().toLocaleString()}</p>
-          </header>
-
-          <h2>👤 Student Info</h2>
-          <p><strong>Name:</strong> ${student.fullname}</p>
-          <p><strong>Email:</strong> ${student.email}</p>
-          <p><strong>Course:</strong> ${course.title}</p>
-
-          <div class="summary">
-            <h2>📌 Summary Statistics</h2>
-            <ul>
-              <li>Total Lessons: ${totalLessons}</li>
-              <li>Completed Lessons: ${completedLessons}</li>
-              <li>Progress: ${lessonPercent}%</li>
-              <li>Quiz Average: ${quizAvg}</li>
-              <li>Assignment Average: ${assignmentAvg}</li>
-            </ul>
-          </div>
-
-          ${modules
-            .map((m) => {
-              const moduleLessons = lessons.filter((l) => l.module_id === m.id);
-              const moduleAssignments = assignments.filter(
-                (a) => a.module_id === m.id
-              );
-              const moduleQuizzes = quizzes.filter((q) => q.module_id === m.id);
-
-              const moduleCompletedLessons = moduleLessons.filter(
-                (l) => l.completed_at
-              ).length;
-
-              const moduleQuizAvg =
-                moduleQuizzes.length > 0
-                  ? Math.round(
-                      moduleQuizzes.reduce((a, q) => a + (q.score || 0), 0) /
-                        moduleQuizzes.length
-                    )
-                  : "N/A";
-
-              const moduleAssignmentAvg =
-                moduleAssignments.length > 0
-                  ? Math.round(
-                      moduleAssignments.reduce(
-                        (a, x) => a + (x.total || 0),
-                        0
-                      ) / moduleAssignments.length
-                    )
-                  : "N/A";
-
-              return `
-                <h2>📦 Module: ${m.title}</h2>
-                <div class="module-summary">
-                  <p><strong>Total Lessons:</strong> ${moduleLessons.length}</p>
-                  <p><strong>Completed Lessons:</strong> ${moduleCompletedLessons}</p>
-                  <p><strong>Total Assignments:</strong> ${
-                    moduleAssignments.length
-                  }</p>
-                  <p><strong>Quiz Average:</strong> ${moduleQuizAvg}</p>
-                  <p><strong>Assignment Average:</strong> ${moduleAssignmentAvg}</p>
-                </div>
-
-                <h3>📚 Lessons</h3>
-                <table>
-                  <tr><th>Lesson</th><th>Status</th></tr>
-                  ${moduleLessons
-                    .map(
-                      (l) => `
-                    <tr>
-                      <td>${l.title}</td>
-                      <td>${
-                        l.completed_at ? "✅ Completed" : "❌ Not completed"
-                      }</td>
-                    </tr>`
-                    )
-                    .join("")}
-                </table>
-
-                <h3>📝 Quizzes</h3>
-                <table>
-                  <tr><th>Quiz</th><th>Score</th><th>Date</th></tr>
-                  ${moduleQuizzes
-                    .map(
-                      (q) => `
-                    <tr>
-                      <td>${q.title}</td>
-                      <td>${q.score ?? "N/A"}</td>
-                      <td>${
-                        q.taken_at
-                          ? new Date(q.taken_at).toLocaleDateString()
-                          : "Not taken"
-                      }</td>
-                    </tr>`
-                    )
-                    .join("")}
-                </table>
-
-                <h3>📑 Assignments</h3>
-                <table>
-                  <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Submitted</th></tr>
-                  ${moduleAssignments
-                    .map(
-                      (a) => `
-                    <tr>
-                      <td>${a.title}</td>
-                      <td>${a.total ?? "Pending"}</td>
-                      <td>${a.grade ?? "-"}</td>
-                      <td>${a.ai_feedback ?? "No feedback"}</td>
-                      <td>${
-                        a.submitted_at
-                          ? new Date(a.submitted_at).toLocaleDateString()
-                          : "Not submitted"
-                      }</td>
-                    </tr>`
-                    )
-                    .join("")}
-                </table>
-              `;
-            })
-            .join("")}
-
-          <footer>© ${new Date().getFullYear()} ${info.company_name}</footer>
-        </body>
-      </html>
-    `;
-
-    // --- Generate PDF
-    const browser = await browserPromise;
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 0 });
-
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" },
+    // --- Build HTML (shared gamified report template)
+    const html = renderCourseReportHtml({
+      info,
+      student,
+      courseTitle: course.title,
+      certificate,
+      badges,
+      modules: modules.map((m) => ({
+        title: m.title,
+        lessons: lessons.filter((l) => l.module_id === m.id),
+        quizzes: quizzes.filter((q) => q.module_id === m.id),
+        assignments: assignments.filter((a) => a.module_id === m.id),
+        badges: badges.filter((b) => b.module_id === m.id),
+      })),
     });
 
-    await page.close();
+    // --- Generate PDF
+    const pdf = await generatePdf(html, { margin: { top: "40px", bottom: "40px", left: "20px", right: "20px" } });
 
     // --- Send PDF response
     res.setHeader(

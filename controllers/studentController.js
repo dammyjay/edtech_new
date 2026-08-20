@@ -22,6 +22,9 @@ const getAnnouncements = require("../utils/getAnnouncements");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
+const { getStudentProgressDetail } = require("../services/studentProgressDetailService");
+const generatePdf = require("../utils/generatePdf");
+const { renderQuizReportHtml, renderModuleReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 
 // GET: Student Dashboard
 exports.getDashboard = async (req, res) => {
@@ -1040,6 +1043,14 @@ exports.getDashboard = async (req, res) => {
     const pendingAssignmentCount =
       parseInt(pendingAssignmentsRes.rows[0].count) || 0;
 
+    // Per-course/module progress breakdown — only computed when the
+    // "My Progress" section is actually being viewed, since it's several
+    // extra queries not needed on any other dashboard view.
+    let progressDetail = null;
+    if (req.query.section === "progress") {
+      progressDetail = await getStudentProgressDetail(studentId);
+    }
+
     // --- Render
     res.render("student/dashboard", {
       student,
@@ -1093,10 +1104,265 @@ exports.getDashboard = async (req, res) => {
       query: req.query,
       pendingAssignmentCount,
       announcements,
+      progressDetail,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
     res.status(500).send("Server Error");
+  }
+};
+
+// Same access check as getStudentProgressDetail's course query — a course
+// counts as the student's own if they're directly enrolled OR it's linked
+// to their (current or past) classroom. Reused by all three "My Progress"
+// PDF downloads below so a student can't download another student's report
+// by guessing an id in the URL.
+async function studentOwnsCourse(studentId, courseId) {
+  const r = await pool.query(
+    `SELECT 1
+     FROM courses c
+     LEFT JOIN course_enrollments e ON e.course_id = c.id AND e.user_id = $1
+     LEFT JOIN classroom_courses cc ON cc.course_id = c.id
+     LEFT JOIN user_school us ON us.classroom_id = cc.classroom_id AND us.user_id = $1
+     WHERE c.id = $2 AND (e.user_id IS NOT NULL OR us.user_id IS NOT NULL)
+     LIMIT 1`,
+    [studentId, courseId]
+  );
+  return r.rows.length > 0;
+}
+
+// GET /student/quizzes/:id/report/download — the student's own quiz result as PDF.
+exports.downloadMyQuizReport = async (req, res) => {
+  try {
+    const studentId = req.session.user.id;
+    const { id } = req.params;
+
+    const subRes = await pool.query(
+      `SELECT qs.score, qs.passed, qs.created_at, qs.review_data,
+              q.title AS quiz_title, l.title AS lesson_title,
+              m.title AS module_title, c.title AS course_title
+       FROM quiz_submissions qs
+       JOIN quizzes q ON qs.quiz_id = q.id
+       JOIN lessons l ON q.lesson_id = l.id
+       JOIN modules m ON l.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE qs.id = $1 AND qs.student_id = $2`,
+      [id, studentId]
+    );
+    if (!subRes.rows.length) return res.status(404).send("Quiz result not found");
+    const sub = subRes.rows[0];
+
+    let reviewData = [];
+    try {
+      reviewData = typeof sub.review_data === "string" ? JSON.parse(sub.review_data) : (sub.review_data || []);
+    } catch (e) {
+      reviewData = [];
+    }
+
+    const [studentRes, infoRes] = await Promise.all([
+      pool.query(`SELECT fullname, email FROM users2 WHERE id = $1`, [studentId]),
+      pool.query(`SELECT * FROM company_info ORDER BY id DESC LIMIT 1`),
+    ]);
+    const student = studentRes.rows[0];
+
+    const html = renderQuizReportHtml({
+      info: infoRes.rows[0] || {},
+      student,
+      courseTitle: sub.course_title,
+      moduleTitle: sub.module_title,
+      lessonTitle: sub.lesson_title,
+      quizTitle: sub.quiz_title,
+      score: sub.score,
+      passed: sub.passed,
+      takenAt: sub.created_at,
+      reviewData,
+    });
+
+    const pdf = await generatePdf(html);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${sub.lesson_title.replace(/\s+/g, "_")}_Quiz_Report.pdf`
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdf);
+  } catch (err) {
+    console.error("Download my quiz report error:", err.message);
+    res.status(500).send("Error generating quiz report");
+  }
+};
+
+// GET /student/modules/:id/report/download — a module's lessons/quiz/assignment report as PDF.
+exports.downloadMyModuleReport = async (req, res) => {
+  try {
+    const studentId = req.session.user.id;
+    const { id } = req.params;
+
+    const moduleRes = await pool.query(
+      `SELECT m.id, m.title, c.id AS course_id, c.title AS course_title
+       FROM modules m
+       JOIN courses c ON m.course_id = c.id
+       WHERE m.id = $1`,
+      [id]
+    );
+    if (!moduleRes.rows.length) return res.status(404).send("Module not found");
+    const module = moduleRes.rows[0];
+
+    if (!(await studentOwnsCourse(studentId, module.course_id))) {
+      return res.status(404).send("Module not found");
+    }
+
+    const [lessonsRes, quizzesRes, assignmentsRes, badgesRes, studentRes, infoRes] = await Promise.all([
+      pool.query(
+        `SELECT l.id, l.title, ulp.completed_at
+         FROM lessons l
+         LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
+         WHERE l.module_id = $2
+         ORDER BY l.order_number ASC`,
+        [studentId, id]
+      ),
+      pool.query(
+        `SELECT q.title AS quiz_title, l.title AS lesson_title, qs.score
+         FROM quizzes q
+         JOIN lessons l ON q.lesson_id = l.id
+         LEFT JOIN quiz_submissions qs ON qs.quiz_id = q.id AND qs.student_id = $1
+         WHERE l.module_id = $2
+         ORDER BY q.id`,
+        [studentId, id]
+      ),
+      pool.query(
+        `SELECT ma.title, s.total
+         FROM module_assignments ma
+         LEFT JOIN assignment_submissions s ON s.assignment_id = ma.id AND s.student_id = $1
+         WHERE ma.module_id = $2
+         ORDER BY ma.id`,
+        [studentId, id]
+      ),
+      pool.query(
+        `SELECT badge_name, badge_image, awarded_at FROM user_badges WHERE user_id = $1 AND module_id = $2 ORDER BY awarded_at`,
+        [studentId, id]
+      ),
+      pool.query(`SELECT fullname, email FROM users2 WHERE id = $1`, [studentId]),
+      pool.query(`SELECT * FROM company_info ORDER BY id DESC LIMIT 1`),
+    ]);
+    const student = studentRes.rows[0];
+
+    const html = renderModuleReportHtml({
+      info: infoRes.rows[0] || {},
+      student,
+      courseTitle: module.course_title,
+      moduleTitle: module.title,
+      lessons: lessonsRes.rows,
+      quizzes: quizzesRes.rows,
+      assignments: assignmentsRes.rows,
+      badges: badgesRes.rows,
+    });
+
+    const pdf = await generatePdf(html);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${module.title.replace(/\s+/g, "_")}_Module_Report.pdf`
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdf);
+  } catch (err) {
+    console.error("Download my module report error:", err.message);
+    res.status(500).send("Error generating module report");
+  }
+};
+
+// GET /student/courses/:id/report/download — a whole course's progress report as PDF.
+exports.downloadMyCourseReport = async (req, res) => {
+  try {
+    const studentId = req.session.user.id;
+    const { id } = req.params;
+
+    if (!(await studentOwnsCourse(studentId, id))) {
+      return res.status(404).send("Course not found");
+    }
+
+    const courseRes = await pool.query(`SELECT id, title FROM courses WHERE id = $1`, [id]);
+    if (!courseRes.rows.length) return res.status(404).send("Course not found");
+    const course = courseRes.rows[0];
+
+    const modulesRes = await pool.query(`SELECT id, title FROM modules WHERE course_id = $1 ORDER BY id`, [id]);
+    const moduleIds = modulesRes.rows.map((m) => m.id);
+
+    const [lessonsRes, quizzesRes, assignmentsRes, badgesRes, studentRes, infoRes] = await Promise.all([
+      moduleIds.length
+        ? pool.query(
+            `SELECT l.id, l.title, l.module_id, ulp.completed_at
+             FROM lessons l
+             LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
+             WHERE l.module_id = ANY($2)
+             ORDER BY l.order_number ASC`,
+            [studentId, moduleIds]
+          )
+        : { rows: [] },
+      moduleIds.length
+        ? pool.query(
+            `SELECT q.title AS quiz_title, l.module_id, qs.score
+             FROM quizzes q
+             JOIN lessons l ON q.lesson_id = l.id
+             LEFT JOIN quiz_submissions qs ON qs.quiz_id = q.id AND qs.student_id = $1
+             WHERE l.module_id = ANY($2)
+             ORDER BY q.id`,
+            [studentId, moduleIds]
+          )
+        : { rows: [] },
+      moduleIds.length
+        ? pool.query(
+            `SELECT ma.title, ma.module_id, s.total
+             FROM module_assignments ma
+             LEFT JOIN assignment_submissions s ON s.assignment_id = ma.id AND s.student_id = $1
+             WHERE ma.module_id = ANY($2)
+             ORDER BY ma.id`,
+            [studentId, moduleIds]
+          )
+        : { rows: [] },
+      pool.query(
+        `SELECT ub.badge_name, ub.badge_image, ub.awarded_at, ub.module_id, m.title AS module_title
+         FROM user_badges ub
+         JOIN modules m ON ub.module_id = m.id
+         WHERE ub.user_id = $1 AND m.course_id = $2
+         ORDER BY ub.awarded_at`,
+        [studentId, id]
+      ),
+      pool.query(`SELECT fullname, email FROM users2 WHERE id = $1`, [studentId]),
+      pool.query(`SELECT * FROM company_info ORDER BY id DESC LIMIT 1`),
+    ]);
+    const student = studentRes.rows[0];
+
+    const certRes = await pool.query(
+      `SELECT certificate_url, issued_at FROM user_certificates WHERE user_id = $1 AND course_id = $2 LIMIT 1`,
+      [studentId, id]
+    );
+    const certificate = certRes.rows[0] || null;
+
+    const html = renderCourseReportHtml({
+      info: infoRes.rows[0] || {},
+      student,
+      courseTitle: course.title,
+      certificate,
+      modules: modulesRes.rows.map((m) => ({
+        title: m.title,
+        lessons: lessonsRes.rows.filter((l) => l.module_id === m.id),
+        quizzes: quizzesRes.rows.filter((q) => q.module_id === m.id),
+        assignments: assignmentsRes.rows.filter((a) => a.module_id === m.id),
+        badges: badgesRes.rows.filter((b) => b.module_id === m.id),
+      })),
+      badges: badgesRes.rows,
+    });
+
+    const pdf = await generatePdf(html);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${student.fullname.replace(/\s+/g, "_")}_${course.title.replace(/\s+/g, "_")}_Course_Report.pdf`
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(pdf);
+  } catch (err) {
+    console.error("Download my course report error:", err.message);
+    res.status(500).send("Error generating course report");
   }
 };
 

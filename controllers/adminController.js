@@ -13,12 +13,15 @@ const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
+const { renderCourseReportHtml, renderModuleReportHtml } = require("../utils/reportTemplate");
 const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
 const axios = require("axios");
 const analyticsAggregationService = require("../services/analyticsAggregationService");
 const { generateClassReport, generateStudentReport } = require("../services/reportGeneratorService");
 const { saveReport } = require("../services/classTermReportStore");
+const { getStudentStreak } = require("../services/streakService");
+const { getLevelForXp } = require("../utils/xpLevels");
 
 // require at top of file
 const Sentiment = require('sentiment');
@@ -3577,6 +3580,7 @@ exports.viewStudentProgress = async (req, res) => {
       SELECT DISTINCT
         c.id,
         c.title AS course_title,
+        c.thumbnail_url,
         COALESCE(e.enrolled_at, cc.assigned_at) AS enrolled_at
       FROM courses c
       LEFT JOIN course_enrollments e 
@@ -4179,6 +4183,148 @@ exports.viewStudentProgress = async (req, res) => {
       },
     };
 
+    // =========================
+    // GAMIFICATION: STREAK + XP LEVEL
+    // =========================
+    const streak = await getStudentStreak(id);
+    const xpTotalRes = await pool.query(
+      `SELECT COALESCE(SUM(xp), 0) AS total FROM xp_history WHERE user_id = $1`,
+      [id],
+    );
+    const levelInfo = getLevelForXp(xpTotalRes.rows[0].total);
+
+    // =========================
+    // BADGES + CERTIFICATES
+    // =========================
+    const progBadgesRes = await pool.query(
+      `SELECT ub.badge_name, ub.badge_image, ub.awarded_at, ub.module_id, m.title AS module_title, c.title AS course_title
+       FROM user_badges ub
+       JOIN modules m ON ub.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE ub.user_id = $1
+       ORDER BY ub.awarded_at DESC`,
+      [id],
+    );
+    const badges = progBadgesRes.rows;
+
+    const certificatesRes = await pool.query(
+      `SELECT uc.certificate_url, uc.issued_at, c.title AS course_title
+       FROM user_certificates uc
+       JOIN courses c ON uc.course_id = c.id
+       WHERE uc.user_id = $1
+       ORDER BY uc.issued_at DESC`,
+      [id],
+    );
+    const certificates = certificatesRes.rows;
+
+    // =========================
+    // ACTIVITY HEATMAP — GitHub-style contribution calendar, built from
+    // activeDaysAll (already computed above for the engagement stats).
+    // =========================
+    const activeDaysMap = new Map(activeDaysAll.map((d) => [d.date, d.count]));
+    const heatmapWeeks = [];
+    {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const totalDays = 371; // ~53 weeks
+      const start = new Date(today);
+      start.setDate(start.getDate() - (totalDays - 1));
+      start.setDate(start.getDate() - start.getDay()); // roll back to Sunday for clean week columns
+
+      let cursor = new Date(start);
+      while (cursor <= today) {
+        const week = [];
+        for (let d = 0; d < 7; d++) {
+          const iso = cursor.toISOString().split("T")[0];
+          const inFuture = cursor > today;
+          const count = inFuture ? null : activeDaysMap.get(iso) || 0;
+          let level = 0;
+          if (count >= 8) level = 4;
+          else if (count >= 5) level = 3;
+          else if (count >= 3) level = 2;
+          else if (count >= 1) level = 1;
+          week.push({ date: iso, count, level });
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        heatmapWeeks.push(week);
+      }
+    }
+
+    // =========================
+    // CLASSROOM PERCENTILE — quiz performance vs classmates, school-linked
+    // students only (nothing to compare against for individual students).
+    // =========================
+    let classroomPercentile = null;
+    {
+      const classroomRes = await pool.query(
+        `SELECT classroom_id FROM user_school WHERE user_id = $1 AND role_in_school = 'student' AND approved = true LIMIT 1`,
+        [id],
+      );
+      const classroomId = classroomRes.rows[0]?.classroom_id || null;
+      if (classroomId) {
+        const classmatesRes = await pool.query(
+          `SELECT us.user_id, COALESCE(ROUND(AVG(qs.score)), 0) AS quiz_avg
+           FROM user_school us
+           LEFT JOIN quiz_submissions qs ON qs.student_id = us.user_id
+           WHERE us.classroom_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+           GROUP BY us.user_id`,
+          [classroomId],
+        );
+        const classSize = classmatesRes.rows.length;
+        if (classSize > 1) {
+          const belowOrEqual = classmatesRes.rows.filter((r) => Number(r.quiz_avg) <= quizAvgMetric).length;
+          classroomPercentile = {
+            percentile: Math.round((belowOrEqual / classSize) * 100),
+            classSize,
+            quizAvg: quizAvgMetric,
+          };
+        }
+      }
+    }
+
+    // =========================
+    // PREDICTED COMPLETION PACE — extrapolated from the last 30 days of
+    // lesson completions. Stays null (no wild guess) if there's been no
+    // recent activity to base a pace on.
+    // =========================
+    let predictedCompletion = null;
+    {
+      const completionDates = lessonsRes.rows.filter((l) => l.completed_at).map((l) => new Date(l.completed_at));
+      const now = Date.now();
+      const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+      const recentCompletions = completionDates.filter((d) => d.getTime() >= thirtyDaysAgo).length;
+      const velocityPerDay = recentCompletions / 30;
+      const remainingLessons = totalLessonsCount - completedLessonsCount;
+
+      if (remainingLessons === 0 && totalLessonsCount > 0) {
+        predictedCompletion = { remainingLessons: 0 };
+      } else if (remainingLessons > 0 && velocityPerDay > 0) {
+        const daysToFinish = Math.ceil(remainingLessons / velocityPerDay);
+        predictedCompletion = {
+          remainingLessons,
+          velocityPerWeek: Math.round(velocityPerDay * 7 * 10) / 10,
+          estimatedDate: new Date(now + daysToFinish * 24 * 60 * 60 * 1000),
+        };
+      }
+    }
+
+    // =========================
+    // STRENGTH / WEAKNESS BY MODULE — ranked by quiz average.
+    // =========================
+    const moduleQuizRankings = [];
+    courses.forEach((c) => {
+      c.modules.forEach((m) => {
+        if (m.quizAvg !== null && m.quizAvg !== undefined) {
+          moduleQuizRankings.push({ moduleTitle: m.module_title, courseTitle: c.course_title, quizAvg: m.quizAvg });
+        }
+      });
+    });
+    const strengths = [...moduleQuizRankings].sort((a, b) => b.quizAvg - a.quizAvg).slice(0, 3);
+    const weaknesses =
+      moduleQuizRankings.length > 3
+        ? [...moduleQuizRankings].sort((a, b) => a.quizAvg - b.quizAvg).slice(0, 3)
+        : [];
+
     res.render("admin/studentProgress", {
       student,
       courses,
@@ -4190,6 +4336,15 @@ exports.viewStudentProgress = async (req, res) => {
       from,
       metrics,
       membershipDuration,
+      streak,
+      levelInfo,
+      badges,
+      certificates,
+      heatmapWeeks,
+      classroomPercentile,
+      predictedCompletion,
+      strengths,
+      weaknesses,
     });
   } catch (err) {
     console.error("View student progress error:", err.message);
@@ -4461,11 +4616,12 @@ function calculateGrade(score) {
       const assignments = assignmentsRes.rows;
 
       const badgesRes = await pool.query(
-        `SELECT 
+        `SELECT
             ub.id,
             ub.badge_name,
             ub.badge_image,
             ub.awarded_at,
+            ub.module_id,
             m.title AS module_title
         FROM user_badges ub
         JOIN modules m ON ub.module_id = m.id
@@ -4766,428 +4922,21 @@ function calculateGrade(score) {
         BUILD BEAUTIFUL HTML
       ========================== */
 
-      const html = `
-  <!DOCTYPE html>
-  <html>
-  <head>
-  <meta charset="utf-8">
-  <title>Detailed Course Report</title>
-
-  <link rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
-  <style>
-  body { 
-    font-family: Arial; 
-    padding:40px; 
-    background:#f4f6f9; 
-    color:#2c3e50; 
-  }
-
-  /* WATERMARK */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 30%;
-    left: 20%;
-    width: 60%;
-    height: 60%;
-    background-image: url('${COMPANY_LOGO}');
-    background-repeat: no-repeat;
-    background-size: contain;
-    opacity: 0.05;
-    z-index: 0;
-  }
-
-  /* CONTENT ABOVE WATERMARK */
-  body > * {
-    position: relative;
-    z-index: 2;
-  }
-
-
-  /* HEADER */
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-  }
-
-  .school-info {
-    text-align: right;
-  }
-
-  .school-logo {
-    max-height: 60px;
-  }
-
-  /* FOOTER */
-  .footer {
-    position: fixed;
-    bottom: 10px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 11px;
-    color: #666;
-  }
-
-  h1 { 
-    text-align:center; 
-    color:#1e2a38; 
-  }
-
-  .section { 
-    margin-top:40px; 
-  }
-
-  .grid { 
-    display:grid; 
-    grid-template-columns:repeat(4,1fr); 
-    gap:20px; 
-    margin-top:20px; 
-  }
-
-  .card {
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 4px 10px rgba(0,0,0,0.08);
-    text-align:center;
-  }
-
-  .card-info {
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    text-align:Left;
-    box-shadow:0 4px 10px rgba(0,0,0,0.08);
-  }
-
-  .card h2 { margin:10px 0; }
-
-  table {
-    width:100%;
-    border-collapse:collapse;
-    margin-top:15px;
-    background:white;
-    font-size:12px;
-  }
-
-  th {
-    background:#1e2a38;
-    color:white;
-    padding:8px;
-    text-align:left;
-  }
-
-  td {
-    padding:8px;
-    border:1px solid #ddd;
-  }
-
-  tr:nth-child(even) { background:#f9f9f9; }
-
-  .module-block {
-    page-break-inside: avoid;
-    margin-top:40px;
-  }
-
-  .page-break {
-    page-break-after: always;
-  }
-
-  .comment-box {
-    background:white;
-    padding:20px;
-    border-left:6px solid #2980b9;
-    margin-top:20px;
-  }
-
-  .footer {
-    margin-top:40px;
-    text-align:center;
-    font-size:11px;
-    color:#888;
-  }
-  </style>
-  </head>
-
-  <body>
-  <div class="header">
-    <div>
-      <h2>Student Course Report</h2>
-    </div>
-
-    ${
-      school
-        ? `
-    <div class="school-info">
-      <strong>${school.name}</strong><br/>
-      ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
-    </div>
-    `
-        : ""
-    }
-  </div>
-
-
-  <h1><i class="fa-solid fa-graduation-cap"></i> Detailed Student Course Report</h1>
-  <p style="text-align:center;">Generated: ${new Date().toLocaleString()}</p>
-
-  <div class="card-info">
-    <p><strong>Student:</strong> ${student.fullname}</p><br/>
-    <p><strong>Email:</strong> ${student.email}</p><br/>
-    <p><strong>Course:</strong> ${course.title}</p><br/>
-    <p>
-  </div>
-
-  <div class="section grid">
-    <div class="card">
-      <i style="color: #3498db;" class="fa-solid fa-layer-group fa-2x"></i>
-      <h2>${totalModules}</h2>
-      <p>Total Modules</p>
-    </div>
-    <div class="card">
-      <i style="color: #27ae60;" class="fa-solid fa-book fa-2x"></i>
-      <h2>${totalLessons}</h2>
-      <p>Total Lessons</p>
-    </div>
-    <div class="card">
-      <i style="color: #f39c12;" class="fa-solid fa-clipboard-check fa-2x"></i>
-      <h2>${totalQuizzes}</h2>
-      <p>Total Quizzes</p>
-    </div>
-    <div class="card">
-      <i style="color: #e74c3c;" class="fa-solid fa-pen-to-square fa-2x"></i>
-      <h2>${totalAssignments}</h2>
-      <p>Total Assignments</p>
-    </div>
-    
-  </div>
-
-  <div class="section grid">
-    <div style="color: #3498db;" class="card"><h2>${lessonPercent}%</h2><p>Completion</p></div>
-    <div style="color: #27ae60;" class="card"><h2>${quizAvg}%</h2><p>Quiz Average</p></div>
-    ${
-      hasAssignments
-        ? `
-    <div style="color: #f39c12;" class="card">
-      <h2>${assignmentAvg}%</h2>
-      <p>Assignment Average</p>
-    </div>`
-        : ""
-    }
-
-    <div style="color: #f39c12;;" class="card">
-      <h2>${overallScore}%</h2>
-      <p>Course Score</p>
-    </div>
-
-    <div style="color: #ceba05;" class="card"><h2>${courseGrade}</h2><p>Course Grade</p></div>
-
-    <div class="card">
-      <i style="color: #9b59b6;" class="fa-solid fa-award fa-2x"></i>
-      <h2>${totalBadges}</h2>
-      <p>Badges Earned</p>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>🏅 Course Badges Earned</h2>
-
-    ${
-      badges.length === 0
-        ? `
-    <p>No badges earned yet.</p>
-    `
-        : `
-    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
-    ${badges
-      .map(
-        (b) => `
-      <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
-        
-        ${
-          b.badge_image
-            ? `
-          <img src="${b.badge_image}" 
-              style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
-        `
-            : ""
-        }
-          <hr><br>
-        <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
-
-      </div>
-    `,
-      )
-      .join("")}
-    </div>
-    `
-    }
-  </div>
-
-  <div class="section">
-    <h2>🎓 Course Certificate</h2>
-
-    ${
-      certificate
-        ? `
-    <div style="background:white;padding:20px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
-
-      <img src="${certificate.certificate_url}" 
-          style="max-width:100%; margin-bottom:20px; border:1px solid #ddd;"/>
-
-      <p><strong>Certificate Code:</strong> ${certificate.certificate_code}</p>
-      <p><strong>Issued:</strong> ${new Date(certificate.issued_at).toLocaleDateString()}</p>
-
-    </div>
-    `
-        : `
-    <p>No certificate issued yet.</p>
-    `
-    }
-
-  </div>
-
-  <div class="section">
-    <h2>Performance Evaluation</h2>
-
-    <div class="card" style="margin-bottom:20px;">
-      <h2>${overallScore}%</h2>
-      <p>Overall Course Score</p>
-    </div>
-
-    <div class="comment-box">
-      ${evaluation}
-    </div>
-  </div>
-
-  ${modules
-    .map(
-      (m) => `
-  <div class="module-block">
-  <h2>📦 Module: ${m.title}</h2>
-
-  <div class="section grid">
-
-    <div class="card" style="background-color: #bb1188; color: #ffffff">
-      <h2>${modulePerformanceMap[m.id].completionPercent}%</h2>
-      <p>Completion</p>
-    </div>
-
-    <div class="card" style="background-color: #280dc2; color: #ffffff">
-      <h2>${modulePerformanceMap[m.id].quizAvg}%</h2>
-      <p>Quiz Average</p>
-    </div>
-
-    ${
-      assignments.some((a) => a.module_id === m.id)
-        ? `
-        <div class="card">
-          <h2>${modulePerformanceMap[m.id].assignmentAvg}%</h2>
-          <p>Assignment Average</p>
-        </div>
-        `
-        : ""
-    }
-
-    <div class="card" style="background-color: #c20d86; color: #ffffff">
-      <h2>${modulePerformanceMap[m.id].moduleScore}%</h2>
-      <p>Module Score</p>
-    </div>
-
-    <div class="card" style="background-color: #11b447; color: #ffffff">
-      <h2>${modulePerformanceMap[m.id].moduleGrade}</h2>
-      <p>Module Grade</p>
-    </div>
-    <div class="card" style="background-color: #743b07; color: #ffffff">
-      <h2>${moduleTimeMap[m.id].formatted}</h2>
-      <p>Total Learning Time</p>
-    </div>
-  </div>
-
-  
-
-  <div class="comment-box">
-    <strong>Consistency Analysis:</strong>
-    ${modulePerformanceMap[m.id].consistencyComment}
-  </div>
-
-  <h3>📚 Lessons</h3>
-  <table>
-  <tr><th>Lesson</th><th>Status</th><th>Time Spent</th><th>Completion Date</th></tr>
-  ${lessons
-    .filter((l) => l.module_id === m.id)
-    .map(
-      (l) => `
-  <tr>
-  <td>${l.title}</td>
-  <td style="color: ${l.completed_at ? "#27ae60" : "#e74c3c"};">
-    ${l.completed_at ? "Completed" : "Not Completed"}
-  </td>
-  <td>${l.timeSpent}</td>
-  <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
-  </tr>`,
-    )
-    .join("")}
-  </table>
-
-  <h3>📝 Quizzes</h3>
-  <table>
-  <tr><th>lesson</th><th>Quiz</th><th>Score</th><th>Date Taken</th></tr>
-  ${quizzes
-    .filter((q) => q.module_id === m.id)
-    .map(
-      (q) => `
-  <tr>
-  <td>${q.lesson_title}</td>
-  <td>${q.quiz_title}</td>
-  <td style="color: ${q.score !== null ? "#27ae60" : "#e74c3c"};">
-    ${q.score ?? "N/A"}
-  </td>
-  <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "Not Taken"}</td>
-  </tr>`,
-    )
-    .join("")}
-  </table>
-
-  <h3>📑 Assignments</h3>
-  <table>
-  <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Submitted</th></tr>
-  ${assignments
-    .filter((a) => a.module_id === m.id)
-    .map(
-      (a) => `
-  <tr>
-  <td>${a.title}</td>
-  <td>${a.total ?? "Pending"}</td>
-  <td>${a.grade ?? "-"}</td>
-  <td>${a.ai_feedback ?? "No Feedback"}</td>
-  <td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "Not Submitted"}</td>
-  </tr>`,
-    )
-    .join("")}
-  </table>
-  </div>
-  <div class="page-break"></div>
-  `,
-    )
-    .join("")}
-
-
-  <div class="footer">
-    © ${new Date().getFullYear()} ${company.company_name || ""} |
-    Confidential Academic Performance Report |
-    Generated on ${new Date().toLocaleDateString()}
-  </div>
-
-
-  </body>
-  </html>
-  `;
+      const html = renderCourseReportHtml({
+        info: company,
+        student,
+        courseTitle: course.title,
+        modules: modules.map((m) => ({
+          title: m.title,
+          lessons: lessons.filter((l) => l.module_id === m.id),
+          quizzes: quizzes.filter((q) => q.module_id === m.id),
+          assignments: assignments.filter((a) => a.module_id === m.id),
+          badges: badges.filter((b) => b.module_id === m.id),
+          timeSpent: moduleTimeMap[m.id]?.formatted,
+        })),
+        badges,
+        certificate,
+      });
 
       /* ==========================
         GENERATE PDF
@@ -5478,282 +5227,17 @@ function calculateGrade(score) {
 
       /* ================= BUILD HTML ================= */
 
-      const html = `
-      <html>
-      <head>
-      <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
-      <style>
-      body { font-family: Arial; padding:40px; background:#f4f6f9; }
-      
-  /* WATERMARK */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 30%;
-    left: 20%;
-    width: 60%;
-    height: 60%;
-    background-image: url('${COMPANY_LOGO}');
-    background-repeat: no-repeat;
-    background-size: contain;
-    opacity: 0.05;
-    z-index: 0;
-  }
-
-  /* CONTENT ABOVE WATERMARK */
-  body > * {
-    position: relative;
-    z-index: 2;
-  }
-
-
-  /* HEADER */
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-  }
-
-  .school-info {
-    text-align: right;
-  }
-
-  .school-logo {
-    max-height: 60px;
-  }
-
-  /* FOOTER */
-  .footer {
-    position: fixed;
-    bottom: 10px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 11px;
-    color: #666;
-  }
-      h1 { text-align:center; color:#1e2a38; }
-      .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:20px; }
-
-      .card {
-        background:white;
-        padding:20px;
-        border-radius:10px;
-        text-align:center;
-        box-shadow:0 4px 10px rgba(0,0,0,0.08);
-      }
-      
-      .card-info {
-        background:white;
-        padding:20px;
-        border-radius:10px;
-        text-align:Left;
-        box-shadow:0 4px 10px rgba(0,0,0,0.08);
-      }
-
-      table {
-        width:100%;
-        border-collapse:collapse;
-        margin-top:15px;
-        background:white;
-        font-size:12px;
-      }
-
-      th {
-        background:#1e2a38;
-        color:white;
-        padding:8px;
-        text-align:left;
-      }
-
-      td {
-        padding:8px;
-        border:1px solid #ddd;
-      }
-
-      tr:nth-child(even) { background:#f9f9f9; }
-
-      .section { margin-top:40px; }
-
-      </style>
-      </head>
-
-      <body>
-      <div class="header">
-    <div>
-      <h2>Student Course Report</h2>
-    </div>
-
-    ${
-      school
-        ? `
-    <div class="school-info">
-      <strong>${school.name}</strong><br/>
-      ${school.logo_url ? `<img src="${school.logo_url}" class="school-logo"/>` : ""}
-    </div>
-    `
-        : ""
-    }
-  </div>
-
-      <h1><i class="fa-solid fa-box"></i> Module Performance Report</h1>
-
-      <div class="card-info">
-        <p><strong>Student:</strong> ${student.fullname}</p>
-        <p><strong>Email:</strong> ${student.email}</p>
-        <p><strong>Course:</strong> ${module.course_title}</p>
-        <p><strong>Module:</strong> ${module.title}</p>
-        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-      </div>
-
-      <div class="grid">
-        <div class="card" style="background-color: #bb1188; color: #ffffff">
-          <h2>${percent}%</h2>
-          <p>Completion</p>
-        </div>
-        <div class="card" style="background-color: #280dc2; color: #ffffff">
-          <h2>${quizAvg}%</h2>
-          <p>Quiz Average</p>
-        </div>
-        ${
-          hasModuleAssignments
-            ? `
-        <div class="card" style="background-color: #d6a812;">
-          <h2>${assignmentAvg}%</h2>
-          <p>Assignment Average</p>
-        </div>`
-            : ""
-        }
-
-        <div class="card" style="background-color: #11b447; color: #ffffff">
-          <h2>${moduleGrade}</h2>
-          <p>Module Grade</p>
-        </div>
-        <div class="card" style="background-color: #9b59b6; color: #ffffff">
-          <h2>${totalBadges}</h2>
-          <p>Badges Earned</p>
-        </div>
-        <div class="card" style="background: #6b4303; color:  white;">
-          <h2>${moduleTotalTime}</h2>
-          <p>Total Learning Time</p>
-        </div>
-        <div class="card" style="background-color: #280dc2; color: #ffffff">
-          <h2>${moduleScore}%</h2>
-          <p>Module Score</p>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Lessons</h2>
-        <table>
-        <tr><th>Lesson</th><th>Status</th><th>Time Spent</th><th>Date</th></tr>
-        ${lessons
-          .map(
-            (l) => `
-          <tr>
-            <td>${l.title}</td>
-            <td>${l.completed_at ? "Completed" : "Not Completed"}</td>
-             <td>${l.timeSpent}</td>
-            <td>${l.completed_at ? new Date(l.completed_at).toLocaleDateString() : "-"}</td>
-          </tr>`,
-          )
-          .join("")}
-        </table>
-      </div>
-
-      <div class="section">
-        <h2>Quiz Results</h2>
-        <table>
-        <tr><th>Lesson</th><th>Quiz</th><th>Score</th><th>Date</th></tr>
-        ${quizzes
-          .map(
-            (q) => `
-          <tr>
-            <td>${q.lesson_title}</td>
-            <td>${q.quiz_title}</td>
-            <td>${q.score ?? "N/A"}</td>
-            <td>${q.taken_at ? new Date(q.taken_at).toLocaleDateString() : "-"}</td>
-          </tr>`,
-          )
-          .join("")}
-        </table>
-      </div>
-
-      <div class="section">
-        <h2>Assignments</h2>
-        <table>
-        <tr><th>Assignment</th><th>Score</th><th>Grade</th><th>Feedback</th><th>Date</th></tr>
-        ${assignments
-          .map(
-            (a) => `
-          <tr>
-            <td>${a.title}</td>
-            <td>${a.total ?? "-"}</td>
-            <td>${a.grade ?? "-"}</td>
-            <td>${a.ai_feedback ?? "No Feedback"}</td>
-            <td>${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "-"}</td>
-          </tr>`,
-          )
-          .join("")}
-        </table>
-
-        <div class="section">
-          <h2>🏅 Course Badges Earned</h2>
-
-          ${
-            badges.length === 0
-              ? `
-          <p>No badges earned yet.</p>
-          `
-              : `
-          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
-          ${badges
-            .map(
-              (b) => `
-            <div style="background:white;padding:15px;border-radius:10px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);">
-              
-              ${
-                b.badge_image
-                  ? `
-                <img src="${b.badge_image}" 
-                    style="width:200px;height:200px;object-fit:contain;margin-bottom:10px;">
-              `
-                  : ""
-              }
-                <hr><br>
-              <small>Awarded: ${new Date(b.awarded_at).toLocaleDateString()}</small>
-
-            </div>
-          `,
-            )
-            .join("")}
-          </div>
-          `
-          }
-        </div>
-
-        <div class="section">
-          <h2>Evaluation</h2>
-          <div class="card">
-            Overall Score: ${moduleScore}% <br/><br/>
-            ${consistencyComment}
-          </div>
-        </div>
-
-      </div>
-
-      <div class="footer">
-        © ${new Date().getFullYear()} ${company.company_name || ""} |
-        Confidential Academic Performance Report |
-        Generated on ${new Date().toLocaleDateString()}
-      </div>
-
-      </body>
-      </html>
-      `;
+      const html = renderModuleReportHtml({
+        info: company,
+        student,
+        courseTitle: module.course_title,
+        moduleTitle: module.title,
+        lessons,
+        quizzes,
+        assignments,
+        badges,
+        timeSpent: moduleTotalTime,
+      });
       const pdf = await generatePdf(html);
 
       res.setHeader(

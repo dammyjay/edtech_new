@@ -152,6 +152,10 @@ router.post(
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);
 
+router.get("/quizzes/:id/report/download", ensureAuthenticated, studentController.downloadMyQuizReport);
+router.get("/modules/:id/report/download", ensureAuthenticated, studentController.downloadMyModuleReport);
+router.get("/courses/:id/report/download", ensureAuthenticated, studentController.downloadMyCourseReport);
+
 
 
 

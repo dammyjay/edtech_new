@@ -494,6 +494,20 @@
           <p><%= certificatesCount %></p>
           <small style="cursor:pointer;">View All ➜</small>
         </div>
+
+        <% if (typeof progressDetail !== 'undefined' && progressDetail && progressDetail.quizAvg !== null) { %>
+          <div class="stat-box light-pink">
+            <h4>🧠 Quiz Average</h4>
+            <p><%= progressDetail.quizAvg %>%</p>
+          </div>
+        <% } %>
+
+        <% if (typeof progressDetail !== 'undefined' && progressDetail && progressDetail.assignmentAvg !== null) { %>
+          <div class="stat-box light-blue">
+            <h4>📝 Assignment Average</h4>
+            <p><%= progressDetail.assignmentAvg %>%</p>
+          </div>
+        <% } %>
       </div>
 
           <!-- BADGE MODAL -->
@@ -662,6 +676,86 @@
           </a>
         <% }) %>
 
+      </div>
+
+      <% if (typeof progressDetail !== 'undefined' && progressDetail && progressDetail.courses.length > 0) { %>
+        <hr style="margin:30px 0;">
+        <h3>🎮 My Learning Journey</h3>
+        <p style="color:var(--text-secondary,#666); font-size:13px;">
+          Tap a course, then a module, to see how each lesson went.
+        </p>
+
+        <div class="progress-breakdown">
+          <% progressDetail.courses.forEach(course => { %>
+            <details class="progress-course-card">
+              <summary class="progress-course-header">
+                <div class="progress-ring" style="--pct: <%= course.percent %>;">
+                  <div class="progress-ring-inner"><%= course.percent %>%</div>
+                </div>
+                <div class="progress-course-info">
+                  <span class="progress-course-title"><%= course.title %></span>
+                  <span class="progress-course-sub">
+                    <% if (course.totalModules > 0 && course.modulesComplete === course.totalModules) { %>
+                      🏆 All modules mastered!
+                    <% } else { %>
+                      🧩 <%= course.modulesComplete %>/<%= course.totalModules %> modules mastered
+                    <% } %>
+                  </span>
+                </div>
+                <a class="report-download-btn" href="/student/courses/<%= course.id %>/report/download" onclick="event.stopPropagation()" title="Download course report">⬇️ PDF</a>
+              </summary>
+
+              <% if (course.modules.length > 0) { %>
+                <div class="progress-module-list">
+                  <% course.modules.forEach(mod => { %>
+                    <details class="progress-module-card">
+                      <summary class="progress-module-header">
+                        <span class="progress-module-icon">
+                          <%= mod.percent === 100 ? '🏆' : (mod.percent > 0 ? '📖' : '⭕') %>
+                        </span>
+                        <span class="progress-module-title"><%= mod.title %></span>
+                        <span class="progress-module-percent"><%= mod.percent %>%</span>
+                        <a class="report-download-btn report-download-btn-sm" href="/student/modules/<%= mod.id %>/report/download" onclick="event.stopPropagation()" title="Download module report">⬇️</a>
+                      </summary>
+
+                      <% if (mod.lessons.length > 0) { %>
+                        <div class="progress-lesson-list">
+                          <% mod.lessons.forEach(lesson => { %>
+                            <div class="progress-lesson-row">
+                              <span class="progress-lesson-status"><%= lesson.completed ? '✅' : '⭕' %></span>
+                              <span class="progress-lesson-title"><%= lesson.title %></span>
+                              <% if (lesson.quiz) { %>
+                                <button type="button"
+                                  class="progress-score-chip <%= lesson.quiz.score >= 80 ? 'score-great' : (lesson.quiz.score >= 60 ? 'score-good' : 'score-try-again') %>"
+                                  onclick="openQuizResultModal(<%= lesson.quiz.submissionId %>)">
+                                  <%= lesson.quiz.score >= 80 ? '🌟' : (lesson.quiz.score >= 60 ? '👍' : '💪') %> <%= lesson.quiz.score %>%
+                                </button>
+                              <% } %>
+                            </div>
+                          <% }) %>
+                        </div>
+                      <% } else { %>
+                        <p style="padding:8px 16px; color:var(--text-secondary,#666); font-size:12.5px;">No lessons yet in this module.</p>
+                      <% } %>
+                    </details>
+                  <% }) %>
+                </div>
+              <% } else { %>
+                <p style="padding:10px 16px; color:var(--text-secondary,#666); font-size:13px;">No modules yet for this course.</p>
+              <% } %>
+            </details>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- QUIZ RESULT MODAL -->
+      <div id="quizResultModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeQuizResultModal()">&times;</span>
+          <div id="quizResultBody">
+            <p>Loading your result... ⏳</p>
+          </div>
+        </div>
       </div>
 
       <% if (typeof pastCourses !== 'undefined' && pastCourses.length > 0) { %>
@@ -1902,13 +1996,88 @@ if(classroomId){
   function closeProjectModal() {
     document.getElementById("projectModal").style.display = "none";
   }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  async function openQuizResultModal(submissionId) {
+    const modal = document.getElementById("quizResultModal");
+    const body = document.getElementById("quizResultBody");
+    body.innerHTML = "<p>Loading your result... ⏳</p>";
+    modal.style.display = "block";
+
+    try {
+      const res = await fetch(`/student/quizzes/submission/${submissionId}`);
+      const data = await res.json();
+      if (!data.success) {
+        body.innerHTML = "<p>Couldn't load this result — try again in a bit.</p>";
+        return;
+      }
+      const sub = data.submission;
+      let review = [];
+      try {
+        review = typeof sub.review_data === "string" ? JSON.parse(sub.review_data) : (sub.review_data || []);
+      } catch (e) {
+        review = [];
+      }
+
+      const scoreClass = sub.score >= 80 ? "score-great" : (sub.score >= 60 ? "score-good" : "score-try-again");
+      const scoreEmoji = sub.score >= 80 ? "🌟" : (sub.score >= 60 ? "👍" : "💪");
+      const bannerText = sub.passed
+        ? "Great job, you passed! 🎉"
+        : "Nice try — a little more practice and you'll get it! 💪";
+
+      let html = `
+        <div class="quiz-result-header">
+          <div class="quiz-result-score-ring ${scoreClass}">${sub.score}%</div>
+          <div style="flex:1;">
+            <h3 style="margin:0 0 4px;">${escapeHtml(sub.lesson_title)}</h3>
+            <p style="margin:0; color:var(--text-secondary,#666); font-size:13px;">${escapeHtml(sub.module_title)} · ${escapeHtml(sub.course_title)}</p>
+            <p class="quiz-result-banner">${scoreEmoji} ${bannerText}</p>
+          </div>
+          <a class="report-download-btn" href="/student/quizzes/${submissionId}/report/download" title="Download as PDF">⬇️ PDF</a>
+        </div>
+        <h4 style="margin:20px 0 10px;">📝 Question by Question</h4>
+      `;
+
+      if (review && review.length) {
+        review.forEach((q) => {
+          html += `
+            <div class="quiz-review-card ${q.isCorrect ? 'quiz-review-correct' : 'quiz-review-wrong'}">
+              <p class="quiz-review-question">${escapeHtml(q.question)}</p>
+              <p><strong>Your answer:</strong> ${escapeHtml(q.yourAnswer || "No answer")}</p>
+              ${!q.isCorrect ? `<p><strong>Correct answer:</strong> ${escapeHtml(q.correctAnswer)}</p>` : ""}
+              <p class="quiz-review-status">${q.isCorrect ? "✅ Correct!" : "❌ Not quite"}</p>
+              ${q.feedback ? `<div class="quiz-review-feedback">🤖 ${escapeHtml(q.feedback)}</div>` : ""}
+            </div>
+          `;
+        });
+      } else {
+        html += '<p style="color:var(--text-secondary,#666);">No detailed breakdown available for this quiz.</p>';
+      }
+
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = "<p>Something went wrong loading this result.</p>";
+    }
+  }
+
+  function closeQuizResultModal() {
+    document.getElementById("quizResultModal").style.display = "none";
+  }
+
   window.onclick = function(event) {
     const modal = document.getElementById("badgeModal");
     const certModal = document.getElementById("certificateModal");
     const projectModal = document.getElementById("projectModal");
+    const quizResultModal = document.getElementById("quizResultModal");
     if (event.target === modal) modal.style.display = "none";
     if (event.target === certModal) certModal.style.display = "none";
     if (event.target === projectModal) projectModal.style.display = "none"
+    if (event.target === quizResultModal) quizResultModal.style.display = "none";
   };
 </script>
 

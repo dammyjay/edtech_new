@@ -4,6 +4,18 @@ const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../utils/cloudinary");
 
+// Cloudinary public_ids reject characters like &, (), and other punctuation
+// (confirmed via a real upload failure: "public_id (...) is invalid" for a
+// filename containing "&" and parentheses). Strip anything that isn't a
+// letter/digit/dash/underscore so any original filename is safe to use.
+function sanitizeForPublicId(name) {
+  const cleaned = name
+    .replace(/[^\w\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return cleaned.slice(0, 100) || "file";
+}
+
 /* ============================
    📂 General Upload Storage
    Handles: thumbnails, curriculums, logos, etc.
@@ -12,8 +24,10 @@ const generalStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     let folder = "uploads";
+    const isModuleRoute = req.originalUrl && req.originalUrl.includes("/modules/");
 
-    if (file.fieldname === "thumbnail") folder = "courses/thumbnails";
+    if (file.fieldname === "thumbnail") folder = isModuleRoute ? "modules" : "courses/thumbnails";
+    else if (file.fieldname === "badge_image") folder = "badges";
     else if (file.fieldname === "curriculum") folder = "courses/curriculums";
     else if (file.fieldname === "logo") folder = "ministry-logos";
 
@@ -22,7 +36,7 @@ const generalStorage = new CloudinaryStorage({
       resource_type: "auto", // auto-detects image, video, or doc
       use_filename: true,
       unique_filename: false,
-      public_id: `${Date.now()}-${file.originalname.split(".")[0]}`,
+      public_id: `${Date.now()}-${sanitizeForPublicId(file.originalname.split(".")[0])}`,
     };
   },
 });
@@ -48,7 +62,7 @@ const lessonStorage = new CloudinaryStorage({
       // format not allowed") even when explicitly named. Extension is
       // enforced below via multer's fileFilter instead.
       format: ext, // keeps the correct extension on the delivered URL
-      public_id: `${Date.now()}-${baseName}`,
+      public_id: `${Date.now()}-${sanitizeForPublicId(baseName)}`,
     };
   },
 });
