@@ -75,20 +75,36 @@ async function computeClassroomTermAnalytics(schoolId, classroomId, requestedTer
   const studentIds = students.map((s) => s.id);
 
   // For the active/current term, show every course assigned to the
-  // classroom (matches what's actually available to work on right now,
-  // even before any activity exists yet to confirm it). For a past
-  // term, use the confirmed course_term_links record instead — the
-  // real, evidence-backed list of what was actually worked on that
-  // term, which can be a strict subset of everything ever assigned to
-  // the classroom.
+  // classroom AND still authorized for this term (school_courses, kept
+  // term-scoped by the platform admin's School Courses page) — matches
+  // what's actually available to work on right now, even before any
+  // activity exists yet to confirm it.
+  //
+  // The school_courses join matters: classroom_courses has no term_id
+  // column at all, and assigning a new course for a new term (via
+  // "Assign") doesn't remove the classroom's old course row — nothing
+  // ever did. Without this join, a classroom's analytics would keep
+  // showing last term's course forever once a new one is assigned,
+  // since classroom_courses just accumulates every course ever attached
+  // to the classroom. school_courses IS properly term-scoped (or
+  // term_id IS NULL for a standing/general authorization), so filtering
+  // through it is what makes a stale prior-term course actually drop
+  // off the active term's view once it's no longer authorized for it.
+  //
+  // For a past term, use the confirmed course_term_links record instead
+  // — the real, evidence-backed list of what was actually worked on
+  // that term, which can be a strict subset of everything ever assigned
+  // to the classroom.
   const coursesRes = selectedTerm.is_active
     ? await pool.query(
-        `SELECT c.id, c.title, c.level
+        `SELECT DISTINCT c.id, c.title, c.level
          FROM classroom_courses cc
          JOIN courses c ON c.id = cc.course_id
+         JOIN school_courses sc ON sc.course_id = cc.course_id AND sc.school_id = $2
          WHERE cc.classroom_id = $1
+           AND (sc.term_id IS NULL OR sc.term_id = $3)
          ORDER BY c.title`,
-        [classroomId]
+        [classroomId, schoolId, selectedTerm.id]
       )
     : await pool.query(
         `SELECT DISTINCT c.id, c.title, c.level

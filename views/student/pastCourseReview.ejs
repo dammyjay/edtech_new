@@ -17,7 +17,7 @@
         <% (lessonsByModule[mod.id] || []).forEach(lesson => { %>
           <li style="padding:10px; border-bottom:1px solid #f3f3f3; display:flex; justify-content:space-between; align-items:center;">
             <span>
-              <%= lesson.completed ? "✅" : "🔒" %> <%= lesson.title %>
+              <%= lesson.completed ? "✅" : "🔒" %> Lesson <%= lesson.order_number %>: <%= lesson.title.replace(/^lesson\s+\d+\s*[:.\-]?\s*/i, '') %>
             </span>
             <% if (lesson.completed) { %>
               <button class="btn-view" onclick="loadPastLesson(<%= lesson.id %>)">👁 View</button>

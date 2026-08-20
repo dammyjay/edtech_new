@@ -5,14 +5,21 @@ module.exports = [
   "ai_tutor_logs",
   "announcements",
   "announcement_views",
+  "assignment_submission_guides",
   "assignment_submissions",
   "attendance_records",
   "attendance_sessions",
   "benefits",
+  // "candidates" and "votes" exist in the DB but aren't created by
+  // models/initTables.js and aren't referenced anywhere in the app code
+  // — orphaned/legacy, not part of any current feature. Included here
+  // anyway per an explicit request to expose every table that exists,
+  // not just ones the app actively uses.
+  "candidates",
   "career_pathways",
   "categories",
   "class_messages",
-  "muted_students",
+  "class_term_reports",
   "classroom_courses",
   "classroom_instructors",
   "classroom_teachers",
@@ -20,6 +27,7 @@ module.exports = [
   "company_info",
   "course_enrollments",
   "course_projects",
+  "course_term_links",
   "courses",
   "event_registrations",
   "events",
@@ -31,11 +39,13 @@ module.exports = [
   "lab_projects",
   "lab_submissions",
   "learning_guides",
-  "lessons",
+  "lesson_assignments",
   "lesson_labs",
+  "lessons",
   "messages",
   "module_assignments",
   "modules",
+  "muted_students",
   "newsletters",
   "newsletter_recipients",
   "parent_child_requests",
@@ -50,12 +60,14 @@ module.exports = [
   "quiz_submissions",
   "quizzes",
   "quotes",
+  "report_generation_log",
   "school_courses",
   "school_payment_adjustments",
   "school_payments",
   "schools",
   "student_badges",
   "student_term_enrollments",
+  "student_term_reactivations",
   "student_xp",
   "students",
   "subscriptions",
@@ -68,7 +80,13 @@ module.exports = [
   "user_certificates",
   "user_lesson_progress",
   "user_school",
+  // Legacy/orphaned like "candidates"/"votes" above — no app code
+  // reads or writes a table literally named "users" anywhere; the real
+  // users table is "users2". Included for completeness, not because
+  // it's in active use.
+  "users",
   "users2",
+  "votes",
   "xp_history",
 
   // add more gradually

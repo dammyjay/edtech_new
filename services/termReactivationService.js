@@ -7,79 +7,99 @@ const pool = require("../models/db");
 // reactivates it for free. Already-completed lessons stay viewable
 // forever, unaffected by any of this.
 //
+// The lock is permanent-until-reactivated, full stop — it is NOT
+// cleared just because the same course later gets reassigned to a new
+// active term the student is also enrolled in. Since a school only ever
+// has one active term at a time, "also open elsewhere" can only mean "a
+// newer term now offers this course" — silently treating that as an
+// unlock would let creating Term N+1 wipe out every student's Term N
+// lock for free, with no payment and no admin action.
+//
+// A course CAN legitimately be confirmed (via course_term_links) under
+// more than one ended term — e.g. it was taught again the following
+// term, before anyone ever reactivated the first one. That's still ONE
+// underlying set of remaining lessons (there's only one
+// user_lesson_progress row per (user, lesson), not one per term), so a
+// student must never be asked to pay for it twice, and reactivating
+// EITHER confirming term is sufficient to unlock it everywhere. All the
+// "is this locked" logic below is built around that: it always resolves
+// every ended term that confirms a given course before deciding, rather
+// than checking one term in isolation.
+//
 // This is a SEPARATE gate from services/studentCourseAccessService.js,
 // which locks a course when a student has left the classroom that had
 // it. Both gates run independently in completeLesson/submitLessonQuiz.
 
-// Courses that counted as "belonging to" classroomId for termId — same
-// convention as classroomTermAnalyticsService.computeClassroomTermAnalytics
-// (lines 84-100): the active term's courses are read live off
-// classroom_courses (current assignment, even before any activity
-// exists), any other term (ended, or superseded-but-never-ended) uses
-// the confirmed course_term_links evidence, since classroom_courses only
-// reflects "right now" and would misrepresent a stale term.
-async function resolveTermCourseIds(classroomId, termId, isActive) {
+// Courses confirmed (via course_term_links) as having belonged to
+// classroomId for termId — the same evidence source
+// classroomTermAnalyticsService.computeClassroomTermAnalytics uses for
+// any non-active term, since classroom_courses only reflects the
+// classroom's CURRENT assignment and would misrepresent a past term.
+async function resolveTermCourseIds(classroomId, termId) {
   if (!classroomId) return new Set();
-  const result = isActive
-    ? await pool.query(
-        "SELECT course_id FROM classroom_courses WHERE classroom_id = $1",
-        [classroomId]
-      )
-    : await pool.query(
-        "SELECT DISTINCT course_id FROM course_term_links WHERE classroom_id = $1 AND term_id = $2",
-        [classroomId, termId]
-      );
+  const result = await pool.query(
+    "SELECT DISTINCT course_id FROM course_term_links WHERE classroom_id = $1 AND term_id = $2",
+    [classroomId, termId]
+  );
   return new Set(result.rows.map((r) => r.course_id));
 }
 
-// Union of course ids reachable through the student's genuinely ACTIVE
-// term enrollment(s) — i.e. their live, current access right now. A
-// course that recurs in both an ended term and the current active term
-// is never considered locked.
-//
-// Deliberately keyed on is_active, not "not ended": a term that's been
-// superseded by a newer one (is_active=false) but never explicitly
-// ended (is_ended=false) is NOT "open" — it's just a term nobody
-// clicked "End Term" on yet. classroom_courses isn't cleared when a
-// term ends, so if this counted any non-ended term as open, a course
-// that recurred in that stale prior term would stay "open" forever and
-// never lock, even after the term actually being checked has ended.
-async function getOpenCourseIds(studentId, excludeTermId) {
-  const enrollmentsRes = await pool.query(
-    `SELECT ste.term_id, ste.classroom_id
-     FROM student_term_enrollments ste
-     JOIN academic_terms at ON at.id = ste.term_id
-     WHERE ste.student_id = $1 AND at.is_active = true
-       AND ste.term_id IS DISTINCT FROM $2`,
-    [studentId, excludeTermId || null]
+async function isTermReactivated(studentId, termId) {
+  const r = await pool.query(
+    "SELECT 1 FROM student_term_reactivations WHERE student_id = $1 AND term_id = $2",
+    [studentId, termId]
   );
-
-  const openCourseIds = new Set();
-  for (const ste of enrollmentsRes.rows) {
-    const courseIds = await resolveTermCourseIds(ste.classroom_id, ste.term_id, true);
-    courseIds.forEach((id) => openCourseIds.add(id));
-  }
-  return openCourseIds;
+  return r.rows.length > 0;
 }
 
-// For one ended student_term_enrollments row: the courses that are
-// actually locked (belonged to that term, not also open elsewhere),
-// each annotated with lesson counts and the prorated reactivation price.
-// Courses with zero lessons, or already fully completed, are excluded —
-// nothing to lock, nothing to charge.
-async function getLockedCoursesForEnrollment(studentId, ste) {
-  if (!ste.classroom_id) return [];
+// The core primitive: every course confirmed under ANY of this
+// student's ended term enrollments, each with the full set of ended
+// term ids that confirm it (ordered most-recently-ended first) and
+// whether it's still locked (true only if NONE of those confirming
+// terms have been reactivated). Computed once per student and reused by
+// every function below, so "reactivating term X unlocks a course
+// everywhere it recurred" and "never list/charge the same course twice"
+// both fall out of a single source of truth instead of being
+// re-derived (and potentially drifting) in each caller.
+async function getStudentLockedCourseMap(studentId) {
+  const enrollmentsRes = await pool.query(
+    `SELECT ste.term_id, ste.classroom_id, at.end_date
+     FROM student_term_enrollments ste
+     JOIN academic_terms at ON at.id = ste.term_id
+     WHERE ste.student_id = $1 AND at.is_ended = true
+     ORDER BY at.end_date DESC`,
+    [studentId]
+  );
 
-  const termCourseIds = await resolveTermCourseIds(ste.classroom_id, ste.term_id, false);
-  if (!termCourseIds.size) return [];
+  const map = new Map(); // courseId -> { confirmingTermIds: number[] (most-recent first), locked: bool }
+  for (const ste of enrollmentsRes.rows) {
+    const courseIds = await resolveTermCourseIds(ste.classroom_id, ste.term_id);
+    for (const courseId of courseIds) {
+      if (!map.has(courseId)) map.set(courseId, { confirmingTermIds: [], locked: true });
+      map.get(courseId).confirmingTermIds.push(ste.term_id);
+    }
+  }
 
-  const openCourseIds = await getOpenCourseIds(studentId, ste.term_id);
-  const lockedCourseIds = [...termCourseIds].filter((id) => !openCourseIds.has(id));
-  if (!lockedCourseIds.length) return [];
+  for (const [, entry] of map) {
+    for (const termId of entry.confirmingTermIds) {
+      if (await isTermReactivated(studentId, termId)) {
+        entry.locked = false;
+        break;
+      }
+    }
+  }
+
+  return map;
+}
+
+// Attaches lesson-progress/pricing detail to a set of course ids —
+// shared tail end of the "what's locked and what does it cost" queries.
+async function buildLockedCourseDetails(studentId, courseIds) {
+  if (!courseIds.length) return [];
 
   const coursesRes = await pool.query(
     `SELECT c.id, c.title, c.amount FROM courses c WHERE c.id = ANY($1) ORDER BY c.title`,
-    [lockedCourseIds]
+    [courseIds]
   );
 
   const progressRes = await pool.query(
@@ -91,7 +111,7 @@ async function getLockedCoursesForEnrollment(studentId, ste) {
      LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $2
      WHERE m.course_id = ANY($1)
      GROUP BY m.course_id`,
-    [lockedCourseIds, studentId]
+    [courseIds, studentId]
   );
   const progressByCourseId = {};
   progressRes.rows.forEach((r) => {
@@ -107,33 +127,24 @@ async function getLockedCoursesForEnrollment(studentId, ste) {
     const remainingLessons = progress.totalLessons - progress.completedLessons;
     if (progress.totalLessons === 0 || remainingLessons <= 0) continue;
 
-    const proratedPrice = Math.round(
-      Number(course.amount) * (remainingLessons / progress.totalLessons)
-    );
-
     locked.push({
       id: course.id,
       title: course.title,
       totalLessons: progress.totalLessons,
       completedLessons: progress.completedLessons,
       remainingLessons,
-      proratedPrice,
+      proratedPrice: Math.round(Number(course.amount) * (remainingLessons / progress.totalLessons)),
     });
   }
   return locked;
 }
 
-async function isTermReactivated(studentId, termId) {
-  const r = await pool.query(
-    "SELECT 1 FROM student_term_reactivations WHERE student_id = $1 AND term_id = $2",
-    [studentId, termId]
-  );
-  return r.rows.length > 0;
-}
-
-// The single price authority — used by the price-display page AND the
-// payment handler (recomputed live at charge time, never trust a
-// client-submitted amount).
+// The single price authority for reactivating one specific term — used
+// by the price-display page AND the payment handler (recomputed live at
+// charge time, never trust a client-submitted amount). Courses this
+// term confirms that are already unlocked via a different, already-
+// reactivated confirming term are excluded — nothing left to charge for
+// them here.
 async function computeReactivationPrice(studentId, termId) {
   const steRes = await pool.query(
     `SELECT term_id, classroom_id FROM student_term_enrollments
@@ -144,36 +155,53 @@ async function computeReactivationPrice(studentId, termId) {
   if (!ste) return { termId, classroomId: null, courses: [], totalPrice: 0, alreadyReactivated: false };
 
   const alreadyReactivated = await isTermReactivated(studentId, termId);
-  const courses = await getLockedCoursesForEnrollment(studentId, ste);
+  const termCourseIds = await resolveTermCourseIds(ste.classroom_id, termId);
+
+  let courses = [];
+  if (!alreadyReactivated && termCourseIds.size) {
+    const lockedMap = await getStudentLockedCourseMap(studentId);
+    const stillLockedIds = [...termCourseIds].filter((id) => lockedMap.get(id)?.locked);
+    courses = await buildLockedCourseDetails(studentId, stillLockedIds);
+  }
   const totalPrice = courses.reduce((sum, c) => sum + c.proratedPrice, 0);
 
   return { termId, classroomId: ste.classroom_id, courses, totalPrice, alreadyReactivated };
 }
 
-// Every ended, not-yet-reactivated term with locked courses, for this
-// student — used to render the dashboard's locked-terms summary.
+// Every ended term with still-locked courses, for this student's
+// dashboard summary — grouped so each locked course appears under
+// exactly ONE term card (its most-recently-ended confirming term,
+// courtesy of getStudentLockedCourseMap's ordering), never duplicated
+// across cards just because it recurred.
 async function getLockedEndedTermsForStudent(studentId) {
-  const enrollmentsRes = await pool.query(
-    `SELECT ste.term_id, ste.classroom_id, at.name AS term_name,
-            at.start_date, at.end_date, at.school_id
-     FROM student_term_enrollments ste
-     JOIN academic_terms at ON at.id = ste.term_id
-     WHERE ste.student_id = $1 AND at.is_ended = true
-     ORDER BY at.end_date DESC`,
-    [studentId]
+  const lockedMap = await getStudentLockedCourseMap(studentId);
+
+  const courseIdsByPrimaryTerm = new Map(); // termId -> [courseId, ...]
+  for (const [courseId, entry] of lockedMap) {
+    if (!entry.locked) continue;
+    const primaryTermId = entry.confirmingTermIds[0]; // most-recently-ended, per the map's ordering
+    if (!courseIdsByPrimaryTerm.has(primaryTermId)) courseIdsByPrimaryTerm.set(primaryTermId, []);
+    courseIdsByPrimaryTerm.get(primaryTermId).push(courseId);
+  }
+  if (!courseIdsByPrimaryTerm.size) return [];
+
+  const termIds = [...courseIdsByPrimaryTerm.keys()];
+  const termsRes = await pool.query(
+    `SELECT id, name, start_date, end_date, school_id FROM academic_terms
+     WHERE id = ANY($1) ORDER BY end_date DESC`,
+    [termIds]
   );
 
   const lockedTerms = [];
-  for (const ste of enrollmentsRes.rows) {
-    if (await isTermReactivated(studentId, ste.term_id)) continue;
-    const courses = await getLockedCoursesForEnrollment(studentId, ste);
+  for (const term of termsRes.rows) {
+    const courses = await buildLockedCourseDetails(studentId, courseIdsByPrimaryTerm.get(term.id));
     if (!courses.length) continue;
     lockedTerms.push({
-      termId: ste.term_id,
-      termName: ste.term_name,
-      startDate: ste.start_date,
-      endDate: ste.end_date,
-      schoolId: ste.school_id,
+      termId: term.id,
+      termName: term.name,
+      startDate: term.start_date,
+      endDate: term.end_date,
+      schoolId: term.school_id,
       courses,
       totalPrice: courses.reduce((sum, c) => sum + c.proratedPrice, 0),
     });
@@ -181,33 +209,21 @@ async function getLockedEndedTermsForStudent(studentId) {
   return lockedTerms;
 }
 
-// Finds the ended, not-yet-reactivated term (if any) that is currently
-// locking this course for this student — i.e. the term a "pay/ask to
-// reactivate" prompt should point at. Returns the term id, or null if
-// the course isn't locked. Used by completeLesson/submitLessonQuiz/
+// Finds the ended term (if any) currently locking this course for this
+// student — i.e. the term a "pay/ask to reactivate" prompt should point
+// at. Reactivating it is guaranteed sufficient to unlock the course
+// (getStudentLockedCourseMap already only calls a course "locked" when
+// NONE of its confirming terms are reactivated, so this just needs to
+// name one of them — the most-recently-ended). Returns null if the
+// course isn't locked. Used by completeLesson/submitLessonQuiz/
 // getLessonQuiz so their 403/locked responses can carry a termId the
 // client can link straight to /student/terms/:termId/reactivate.
 async function findLockingTermId(studentId, courseId) {
   if (!courseId) return null;
-
-  const enrollmentsRes = await pool.query(
-    `SELECT ste.term_id, ste.classroom_id
-     FROM student_term_enrollments ste
-     JOIN academic_terms at ON at.id = ste.term_id
-     WHERE ste.student_id = $1 AND at.is_ended = true`,
-    [studentId]
-  );
-  if (!enrollmentsRes.rows.length) return null;
-
-  for (const ste of enrollmentsRes.rows) {
-    if (await isTermReactivated(studentId, ste.term_id)) continue;
-    const termCourseIds = await resolveTermCourseIds(ste.classroom_id, ste.term_id, false);
-    if (!termCourseIds.has(courseId)) continue;
-
-    const openCourseIds = await getOpenCourseIds(studentId, ste.term_id);
-    if (!openCourseIds.has(courseId)) return ste.term_id;
-  }
-  return null;
+  const lockedMap = await getStudentLockedCourseMap(studentId);
+  const entry = lockedMap.get(courseId);
+  if (!entry || !entry.locked) return null;
+  return entry.confirmingTermIds[0];
 }
 
 // The boolean gate used by completeLesson/submitLessonQuiz.
@@ -218,70 +234,84 @@ async function isLockedByEndedTerm(studentId, courseId) {
 // Batched equivalent of calling computeReactivationPrice once per
 // roster student — used by the admin/school-admin classroom dashboards,
 // which need this for every student in a classroom+term at once.
-// computeReactivationPrice's per-student query chain is fine for a
-// single student (one lock check, one price page), but this DB has real
-// network latency per round-trip (measured ~300ms even warm), and
-// running that chain sequentially per student turns a 21-student roster
+// Doing that sequentially, one full lock-check chain per student, is
+// fine for a single student but this DB has real per-round-trip network
+// latency (measured ~300ms even warm), so a 21-student roster turned
 // into 100+ sequential round-trips — tens of seconds for one page load.
-// This does the same "locked courses + prorated price" computation in a
-// fixed handful of batched queries, regardless of roster size.
+// This computes the same "locked courses + prorated price" in a fixed
+// handful of batched queries, cross-term-aware (a course a student
+// already unlocked by reactivating a DIFFERENT confirming term is
+// correctly excluded here too, not just in the student-facing paths).
 //
 // Returns a Map<studentId, {courses, totalPrice}> containing ONLY
 // students who actually have locked, unreactivated content — students
-// with nothing locked (or already reactivated) simply aren't in the map.
+// with nothing locked (or already covered) simply aren't in the map.
 async function getLockedStudentsForRoster(studentIds, classroomId, termId) {
   const result = new Map();
   if (!studentIds.length) return result;
 
-  const termCourseIds = [...(await resolveTermCourseIds(classroomId, termId, false))];
+  const termCourseIds = [...(await resolveTermCourseIds(classroomId, termId))];
   if (!termCourseIds.length) return result;
 
-  const reactivatedRes = await pool.query(
-    `SELECT student_id FROM student_term_reactivations
-     WHERE term_id = $1 AND student_id = ANY($2)`,
-    [termId, studentIds]
-  );
-  const reactivatedSet = new Set(reactivatedRes.rows.map((r) => r.student_id));
-  const candidateIds = studentIds.filter((id) => !reactivatedSet.has(id));
-  if (!candidateIds.length) return result;
-
-  // Every OTHER active-term enrollment these students have, batched into
-  // one query — mirrors getOpenCourseIds' is_active-only definition of
-  // "open", just for many students at once.
-  const openEnrollmentsRes = await pool.query(
-    `SELECT ste.student_id, ste.classroom_id
+  // Every ended enrollment these students have, across ANY classroom —
+  // needed to know every term that confirms each course, not just termId.
+  const allEndedRes = await pool.query(
+    `SELECT ste.student_id, ste.term_id, ste.classroom_id
      FROM student_term_enrollments ste
      JOIN academic_terms at ON at.id = ste.term_id
-     WHERE ste.student_id = ANY($1) AND at.is_active = true
-       AND ste.term_id IS DISTINCT FROM $2`,
-    [candidateIds, termId]
+     WHERE ste.student_id = ANY($1) AND at.is_ended = true`,
+    [studentIds]
   );
-  const activeClassroomIds = [...new Set(openEnrollmentsRes.rows.map((r) => r.classroom_id))];
-  const activeClassroomCourses = new Map(); // classroomId -> Set(courseIds)
-  if (activeClassroomIds.length) {
-    const r = await pool.query(
-      "SELECT classroom_id, course_id FROM classroom_courses WHERE classroom_id = ANY($1)",
-      [activeClassroomIds]
-    );
-    r.rows.forEach((row) => {
-      if (!activeClassroomCourses.has(row.classroom_id)) activeClassroomCourses.set(row.classroom_id, new Set());
-      activeClassroomCourses.get(row.classroom_id).add(row.course_id);
-    });
-  }
-  const openCourseIdsByStudent = new Map(); // studentId -> Set(courseIds)
-  openEnrollmentsRes.rows.forEach((row) => {
-    const courses = activeClassroomCourses.get(row.classroom_id);
+  if (!allEndedRes.rows.length) return result;
+
+  const classroomTermPairs = [...new Set(allEndedRes.rows.map((r) => `${r.classroom_id}:${r.term_id}`))]
+    .map((key) => key.split(":").map(Number));
+  const pairClassroomIds = classroomTermPairs.map((p) => p[0]);
+  const pairTermIds = classroomTermPairs.map((p) => p[1]);
+
+  const linksRes = pairClassroomIds.length
+    ? await pool.query(
+        `SELECT classroom_id, term_id, course_id FROM course_term_links
+         WHERE classroom_id = ANY($1) AND term_id = ANY($2)`,
+        [pairClassroomIds, pairTermIds]
+      )
+    : { rows: [] };
+  const confirmedCourses = new Map(); // "classroomId:termId" -> Set(courseId)
+  linksRes.rows.forEach((r) => {
+    const key = `${r.classroom_id}:${r.term_id}`;
+    if (!confirmedCourses.has(key)) confirmedCourses.set(key, new Set());
+    confirmedCourses.get(key).add(r.course_id);
+  });
+
+  const reactivatedRes = await pool.query(
+    "SELECT student_id, term_id FROM student_term_reactivations WHERE student_id = ANY($1)",
+    [studentIds]
+  );
+  const reactivatedPairs = new Set(reactivatedRes.rows.map((r) => `${r.student_id}:${r.term_id}`));
+
+  // Per student: courseId -> [confirming term ids]
+  const courseTermsByStudent = new Map();
+  allEndedRes.rows.forEach((row) => {
+    const courses = confirmedCourses.get(`${row.classroom_id}:${row.term_id}`);
     if (!courses) return;
-    if (!openCourseIdsByStudent.has(row.student_id)) openCourseIdsByStudent.set(row.student_id, new Set());
-    const set = openCourseIdsByStudent.get(row.student_id);
-    courses.forEach((c) => set.add(c));
+    if (!courseTermsByStudent.has(row.student_id)) courseTermsByStudent.set(row.student_id, new Map());
+    const byCourse = courseTermsByStudent.get(row.student_id);
+    courses.forEach((courseId) => {
+      if (!byCourse.has(courseId)) byCourse.set(courseId, []);
+      byCourse.get(courseId).push(row.term_id);
+    });
   });
 
   const lockedCourseIdsByStudent = new Map(); // studentId -> [courseId, ...]
   const allLockedCourseIds = new Set();
-  for (const studentId of candidateIds) {
-    const open = openCourseIdsByStudent.get(studentId);
-    const locked = open ? termCourseIds.filter((id) => !open.has(id)) : termCourseIds;
+  for (const studentId of studentIds) {
+    const byCourse = courseTermsByStudent.get(studentId);
+    if (!byCourse) continue;
+    const locked = termCourseIds.filter((courseId) => {
+      const confirmingTermIds = byCourse.get(courseId);
+      if (!confirmingTermIds) return false; // this term doesn't actually confirm it for this student
+      return !confirmingTermIds.some((tId) => reactivatedPairs.has(`${studentId}:${tId}`));
+    });
     if (locked.length) {
       lockedCourseIdsByStudent.set(studentId, locked);
       locked.forEach((id) => allLockedCourseIds.add(id));

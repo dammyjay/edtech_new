@@ -432,14 +432,30 @@ exports.loadSection = async (req, res) => {
       [schoolId]
     );
 
-    // ✅ Only fetch courses assigned to this school
-    const courses = await pool.query(
-      `SELECT c.id, c.title
-     FROM courses c
-     INNER JOIN school_courses sc ON c.id = sc.course_id
-     WHERE sc.school_id = $1
-     ORDER BY c.title`,
+    // Only courses authorized for the school's CURRENTLY ACTIVE term (or
+    // general/term-less authorizations, term_id IS NULL) — see
+    // exports.getClassroomCourses (same fix, duplicated here because
+    // this is the actual live code path: routes/schoolAdmin.js registers
+    // "/section/:section" (this function) BEFORE the more specific
+    // "/section/classroom-courses" route, so that one never actually
+    // gets hit and getClassroomCourses is dead code. TODO: consolidate.
+    const activeTermRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
       [schoolId]
+    );
+    const activeTermId = activeTermRes.rows[0]?.id || null;
+
+    const courses = await pool.query(
+      `SELECT c.id, c.title,
+              STRING_AGG(COALESCE(at.name, 'General'), ', ' ORDER BY sc.term_id NULLS FIRST) AS term_label
+       FROM courses c
+       INNER JOIN school_courses sc ON c.id = sc.course_id
+       LEFT JOIN academic_terms at ON at.id = sc.term_id
+       WHERE sc.school_id = $1
+         AND (sc.term_id IS NULL OR sc.term_id = $2)
+       GROUP BY c.id, c.title
+       ORDER BY c.title`,
+      [schoolId, activeTermId]
     );
 
     const classroomCourses = await pool.query(
@@ -453,7 +469,7 @@ exports.loadSection = async (req, res) => {
 
     return res.render("partials/classroom-courses", {
       classrooms: classrooms.rows,
-      courses: courses.rows, // ✅ now only school courses
+      courses: courses.rows,
       classroomCourses: classroomCourses.rows,
     });
   }
@@ -1525,78 +1541,6 @@ exports.updatePayment = async (req, res) => {
 // ------------------ CLASSROOM ↔ COURSES ------------------ //
 
 // 📌 School Admin: Manage classroom-course assignments
-exports.getClassroomCourses = async (req, res) => {
-  try {
-    const schoolRes = await pool.query(
-  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-  [req.session.user.id]
-);
-
-const schoolId = schoolRes.rows[0].id;
-    console.log("School Admin Dashboard -> School ID:", schoolId);
-
-    // ✅ Only classrooms for this school
-    const classrooms = await pool.query(
-      "SELECT id, name FROM classrooms WHERE school_id=$1",
-      [schoolId]
-    );
-
-    // Only courses authorized for the school's CURRENTLY ACTIVE term (or
-    // general/term-less authorizations, term_id IS NULL). school_courses
-    // rows are scoped per (school, term) by the platform admin and never
-    // cleaned up when a term ends (see adminController.assignSchoolCourses),
-    // so without this a course only ever authorized for a long-ended term
-    // would stay selectable here forever.
-    const activeTermRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
-      [schoolId]
-    );
-    const activeTermId = activeTermRes.rows[0]?.id || null;
-
-    // GROUP BY + STRING_AGG rather than a plain JOIN: a course can
-    // qualify through more than one school_courses row at once (e.g. a
-    // general/NULL-term authorization AND the active term's own row),
-    // which would otherwise render as a duplicate option in the
-    // dropdown. Aggregating collapses that into one row per course with
-    // a combined "which term(s) is this good for" label for display.
-    const courses = await pool.query(
-      `SELECT c.id, c.title,
-              STRING_AGG(COALESCE(at.name, 'General'), ', ' ORDER BY sc.term_id NULLS FIRST) AS term_label
-       FROM courses c
-       INNER JOIN school_courses sc ON c.id = sc.course_id
-       LEFT JOIN academic_terms at ON at.id = sc.term_id
-       WHERE sc.school_id = $1
-         AND (sc.term_id IS NULL OR sc.term_id = $2)
-       GROUP BY c.id, c.title
-       ORDER BY c.title`,
-      [schoolId, activeTermId]
-    );
-
-    console.log("Allowed Courses for this school:", courses.rows);
-
-    // ✅ Classroom-course assignments only for this school
-    const classroomCourses = await pool.query(
-      `SELECT cc.id, c.name AS classroom, cr.title AS course
-       FROM classroom_courses cc
-       JOIN classrooms c ON cc.classroom_id = c.id
-       JOIN courses cr ON cc.course_id = cr.id
-       WHERE c.school_id=$1
-       ORDER BY c.name, cr.title`,
-      [schoolId]
-    );
-
-    res.render("partials/classroom-courses", {
-      classrooms: classrooms.rows,
-      courses: courses.rows, // ✅ filtered by school
-      classroomCourses: classroomCourses.rows,
-    });
-  } catch (err) {
-    console.error("Error fetching classroom courses:", err);
-    res.status(500).send("Server Error");
-  }
-};
-
-
 exports.assignCourseToClassroom = async (req, res) => {
   try {
     const { classroomId, courseId } = req.body;
@@ -1623,7 +1567,10 @@ const schoolId = schoolRes.rows[0].id;
       [schoolId, courseId, activeTermId]
     );
     if (!validCourse.rows.length) {
-      return res.status(403).send("Not allowed to assign this course.");
+      return res.status(403).json({
+        success: false,
+        message: "Not allowed to assign this course — it isn't authorized for the school's current term.",
+      });
     }
 
     // ✅ Prevent duplicates
@@ -1639,10 +1586,10 @@ const schoolId = schoolRes.rows[0].id;
       );
     }
     await logActivityForUser(req, "course assigned to classroom", `Classroom ID: ${classroomId}`);
-    res.redirect("/school-admin/dashboard");
+    res.json({ success: true, message: "Course assigned to classroom." });
   } catch (err) {
     console.error("Error assigning course:", err);
-    res.status(500).send("Server Error");
+    res.status(500).json({ success: false, message: "Server error — please try again." });
   }
 };
 
@@ -1667,7 +1614,10 @@ exports.updateClassroomCourse = async (req, res) => {
       [id, schoolId]
     );
     if (!rowRes.rows.length) {
-      return res.status(403).send("Not allowed to update this classroom's course.");
+      return res.status(403).json({
+        success: false,
+        message: "Not allowed to update this classroom's course.",
+      });
     }
 
     // Same active-term (or general/term-less) scoping as
@@ -1684,7 +1634,10 @@ exports.updateClassroomCourse = async (req, res) => {
       [schoolId, courseId, activeTermId]
     );
     if (!validCourse.rows.length) {
-      return res.status(403).send("Not allowed to assign this course.");
+      return res.status(403).json({
+        success: false,
+        message: "Not allowed to assign this course — it isn't authorized for the school's current term.",
+      });
     }
 
     await pool.query(
@@ -1693,10 +1646,10 @@ exports.updateClassroomCourse = async (req, res) => {
     );
     await logActivityForUser(req, "Classroom course updated", `Course ID: ${courseId}`);
 
-    res.redirect("/school-admin/dashboard");
+    res.json({ success: true, message: "Classroom course updated." });
   } catch (err) {
     console.error("Error updating classroom course:", err);
-    res.status(500).send("Server Error");
+    res.status(500).json({ success: false, message: "Server error — please try again." });
   }
 };
 

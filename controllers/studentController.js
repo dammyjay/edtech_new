@@ -811,69 +811,121 @@ exports.getDashboard = async (req, res) => {
     let moduleInfo = null;
     let lessons = [];
     let selectedLesson = null;
+    // Populated when courseId is given without a specific moduleId — a
+    // grid of that course's modules (name/progress/lock state), the
+    // landing page every course card links to. Clicking a card's "View
+    // Lessons" then supplies moduleId, switching to the focused
+    // single-module view below.
+    let moduleGridCourseId = null;
+    let moduleGridCourseTitle = null;
+    let moduleGridModules = null;
+    // The next module in this course, if any AND already unlocked —
+    // powers the "Next Module" link at the bottom of the focused view.
+    // Deliberately only set when unlocked: linking to it regardless
+    // would let a student route around the module-unlock gate just by
+    // following the link.
+    let nextModuleId = null;
 
     if (req.query.section === "module") {
 
-      // 🔥 If moduleId is NOT provided but courseId is → auto-pick first module
-      if (!req.query.moduleId && req.query.courseId) {
+      // Local variable, NOT a mutation of req.query — Express 5's
+      // req.query is a getter that re-parses the URL fresh on every
+      // access, so `req.query.moduleId = X` would silently do nothing
+      // (the write is discarded, the very next read still reflects the
+      // raw URL) if this tried to mutate it the way an earlier version
+      // of this code did.
+      const moduleId = req.query.moduleId;
+      const courseId = req.query.courseId;
 
-        const firstModuleRes = await pool.query(
-          `SELECT id FROM modules
-          WHERE course_id = $1
-          ORDER BY order_number ASC
-          LIMIT 1`,
-          [req.query.courseId]
-        );
-
-        if (firstModuleRes.rows.length > 0) {
-          req.query.moduleId = firstModuleRes.rows[0].id;
-        }
-      }
-
-      // ✅ Now load module normally
-      if (req.query.moduleId) {
+      if (moduleId) {
+        // Focused view: exactly one module's lessons/assignments.
         const moduleRes = await pool.query(
           `SELECT * FROM modules WHERE id = $1 LIMIT 1`,
-          [req.query.moduleId]
+          [moduleId]
         );
         moduleInfo = moduleRes.rows[0] || null;
 
-        // 🔑 Only keep modules from this course
         if (moduleInfo) {
-          const modsRes = await pool.query(
-            `SELECT * FROM modules WHERE course_id = $1 ORDER BY id ASC`,
-            [moduleInfo.course_id]
+          courseModules = { [moduleInfo.course_id]: [moduleInfo] };
+
+          const lessonsRes2 = await pool.query(
+            `SELECT l.*,
+                    EXISTS(
+                      SELECT 1 FROM unlocked_lessons ul
+                      WHERE ul.student_id = $2 AND ul.lesson_id = l.id
+                    ) AS unlocked,
+                    EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+            FROM lessons l
+            WHERE module_id = $1
+            ORDER BY l.order_number ASC`,
+            [moduleInfo.id, studentId]
           );
-          courseModules = { [moduleInfo.course_id]: modsRes.rows };
 
-          // also refetch lessons only for this course
-          const moduleIdsForThisCourse = modsRes.rows.map((m) => m.id);
-          if (moduleIdsForThisCourse.length > 0) {
-            const lessonsRes2 = await pool.query(
-              `SELECT l.*,
-                      EXISTS(
-                        SELECT 1 FROM unlocked_lessons ul
-                        WHERE ul.student_id = $2 AND ul.lesson_id = l.id
-                      ) AS unlocked,
-                      EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
-              FROM lessons l
-              WHERE module_id = ANY($1)
-              ORDER BY l.order_number ASC`,
-              [moduleIdsForThisCourse, studentId]
-            );
+          const courseTermLocked = await isLockedByEndedTerm(studentId, moduleInfo.course_id);
+          lessonsRes2.rows.forEach((lsn) => {
+            lsn.termLocked = courseTermLocked;
+          });
 
-            const courseTermLocked = await isLockedByEndedTerm(studentId, moduleInfo.course_id);
-            lessonsRes2.rows.forEach((lsn) => {
-              lsn.termLocked = courseTermLocked;
-            });
+          moduleLessons = { [moduleInfo.id]: lessonsRes2.rows };
 
-            moduleLessons = {};
-            lessonsRes2.rows.forEach((lsn) => {
-              if (!moduleLessons[lsn.module_id])
-                moduleLessons[lsn.module_id] = [];
-              moduleLessons[lsn.module_id].push(lsn);
-            });
-          }
+          const nextModRes = await pool.query(
+            `SELECT m.id
+             FROM modules m
+             WHERE m.course_id = $1
+               AND m.order_number > $2
+               AND EXISTS(
+                 SELECT 1 FROM unlocked_modules um
+                 WHERE um.student_id = $3 AND um.module_id = m.id
+               )
+             ORDER BY m.order_number ASC
+             LIMIT 1`,
+            [moduleInfo.course_id, moduleInfo.order_number, studentId]
+          );
+          nextModuleId = nextModRes.rows[0]?.id || null;
+        }
+      } else if (courseId) {
+        // Module grid: every module in this course, with per-module
+        // progress and lock state, so the student picks which one to
+        // open rather than always landing on the first.
+        const modsRes = await pool.query(
+          `SELECT m.*,
+                  EXISTS(
+                    SELECT 1 FROM unlocked_modules um
+                    WHERE um.student_id = $2 AND um.module_id = m.id
+                  ) AS unlocked
+           FROM modules m
+           WHERE m.course_id = $1
+           ORDER BY m.order_number ASC`,
+          [courseId, studentId]
+        );
+
+        if (modsRes.rows.length) {
+          const moduleIds = modsRes.rows.map((m) => m.id);
+          const progressRes = await pool.query(
+            `SELECT l.module_id,
+                    COUNT(DISTINCT l.id) AS total_lessons,
+                    COUNT(DISTINCT ulp.lesson_id) AS completed_lessons
+             FROM lessons l
+             LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $2
+             WHERE l.module_id = ANY($1)
+             GROUP BY l.module_id`,
+            [moduleIds, studentId]
+          );
+          const progressByModule = {};
+          progressRes.rows.forEach((r) => {
+            const total = Number(r.total_lessons);
+            const completed = Number(r.completed_lessons);
+            progressByModule[r.module_id] = total > 0 ? Math.round((completed / total) * 100) : 0;
+          });
+
+          const courseRes = await pool.query("SELECT title FROM courses WHERE id = $1", [courseId]);
+
+          moduleGridCourseId = courseId;
+          moduleGridCourseTitle = courseRes.rows[0]?.title || "";
+          moduleGridModules = modsRes.rows.map((m) => ({
+            ...m,
+            progress: progressByModule[m.id] || 0,
+          }));
         }
       }
     }
@@ -1002,6 +1054,10 @@ exports.getDashboard = async (req, res) => {
       selectedPathway: req.query.pathway || null,
       section: req.query.section || null,
       moduleInfo,
+      moduleGridCourseId,
+      moduleGridCourseTitle,
+      moduleGridModules,
+      nextModuleId,
       lessons: [],
       selectedLesson: null,
       parentRequests,
@@ -2462,26 +2518,33 @@ ${JSON.stringify(reviewData, null, 2)}
     );
 
     // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
+    // Tracked outside the if/else below so the success response can tell
+    // the client exactly where "Next Lesson"/"next module unlocked"
+    // should point, instead of the client having to guess.
+    let nextLessonId = null;
+    let nextModuleUnlocked = false;
+    let nextModuleId = null;
+
     const nextLessonRes = await pool.query(
-      `SELECT id FROM lessons 
+      `SELECT id FROM lessons
        WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
          AND id > $1
        ORDER BY id ASC
        LIMIT 1`,
       [lessonId],
     );
-    
+
     // 🔥 Get current lesson info (module + order)
     if (nextLessonRes.rows.length > 0) {
       // unlock the next lesson
-      const nextLessonId = nextLessonRes.rows[0].id;
+      nextLessonId = nextLessonRes.rows[0].id;
       await pool.query(
         `INSERT INTO unlocked_lessons (student_id, lesson_id)
          VALUES ($1, $2)
          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
         [studentId, nextLessonId],
       );
-    
+
     } else {
   // Last lesson quiz completed
 
@@ -2518,7 +2581,8 @@ ${JSON.stringify(reviewData, null, 2)}
   );
 
   if (nextModuleRes.rows.length > 0) {
-    const nextModuleId = nextModuleRes.rows[0].id;
+    nextModuleId = nextModuleRes.rows[0].id;
+    nextModuleUnlocked = true;
 
     // unlock module
     await pool.query(
@@ -2539,11 +2603,12 @@ ${JSON.stringify(reviewData, null, 2)}
     );
 
     if (firstLessonRes.rows.length > 0) {
+      nextLessonId = firstLessonRes.rows[0].id;
       await pool.query(
         `INSERT INTO unlocked_lessons (student_id, lesson_id)
          VALUES ($1, $2)
          ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-        [studentId, firstLessonRes.rows[0].id]
+        [studentId, nextLessonId]
       );
     }
   }
@@ -2686,103 +2751,11 @@ ${JSON.stringify(reviewData, null, 2)}
       badgeAwarded: moduleResult?.badgeAwarded || false,
       badgeName: moduleResult?.badgeName || null,
       badgeImage: moduleResult?.badgeImage || null,
+      xpEarned: xpGained,
+      nextLessonId,
+      nextModuleUnlocked,
+      nextModuleId,
     });
-
-    // ✅ Count completed lessons
-    const completedRes = await pool.query(
-      `SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1`,
-      [studentId],
-    );
-    const completedCount = parseInt(completedRes.rows[0].count);
-
-    // ✅ Count total lessons
-    const totalRes = await pool.query(`SELECT COUNT(*) FROM lessons`);
-    const totalLessons = parseInt(totalRes.rows[0].count) || 1;
-
-    // ✅ Calculate completion %
-    const completionRate = (completedCount / totalLessons) * 100;
-
-    // ✅ Award badges based on % completed
-    // if (completionRate >= 20) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Beginner', NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate >= 50) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Intermediate', NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate >= 80) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Advanced', NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-    // if (completionRate === 100) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, awarded_at)
-    //  VALUES ($1, 'Master', NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId]
-    //   );
-    // }
-
-    // Get module ID and badge image for the lesson
-    //   const moduleRes = await pool.query(
-    //     `SELECT id, badge_image FROM modules
-    //  WHERE id = (SELECT module_id FROM lessons WHERE id=$1)`,
-    //     [lessonId]
-    //   );
-    //   const moduleId = moduleRes.rows[0]?.id;
-    //   const badgeImage = moduleRes.rows[0]?.badge_image || null;
-
-    // Award badges with module_id and badge_image
-    // if (completionRate >= 20) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Beginner', $2, $3, NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-    // if (completionRate >= 50) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Intermediate', $2, $3, NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-
-    // if (completionRate >= 80) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Advance', $2, $3, NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-
-    // if (completionRate >= 100) {
-    //   await pool.query(
-    //     `INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-    //  VALUES ($1, 'Master', $2, $3, NOW())
-    //  ON CONFLICT DO NOTHING`,
-    //     [studentId, moduleId, badgeImage]
-    //   );
-    // }
-    // ... same for Advanced and Master
-
-    // ✅ Respond to frontend
   } catch (err) {
     console.error("Quiz submit error:", err.message);
     res.status(500).json({ success: false, message: "Failed to submit quiz." });

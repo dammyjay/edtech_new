@@ -95,6 +95,57 @@
     document.getElementById("editClassroomForm").action = "/school-admin/classrooms/" + classroomId + "/edit";
     openModal("editClassroomModal");
   }
+
+  // Shared feedback modal for the "Classroom Courses" tab's assign/update
+  // forms (#courseActionModal, defined in partials/classroom-courses.ejs
+  // — only ever present in the DOM while that section is loaded, which is
+  // fine since these functions are only ever called from within it).
+  // Submitting used to be a plain <form method="POST">, so a rejection
+  // (e.g. "not allowed to assign this course") landed on a bare text
+  // page outside the dashboard shell — this intercepts the submit,
+  // shows a spinner, then swaps to a result icon/message and
+  // auto-closes, refreshing the section on success.
+  function resetCourseActionModal() {
+    document.getElementById("courseActionSpinner").style.display = "block";
+    document.getElementById("courseActionIcon").style.display = "none";
+    document.getElementById("courseActionMessage").textContent = "Working on it…";
+  }
+
+  function finishCourseActionModal(success, message) {
+    document.getElementById("courseActionSpinner").style.display = "none";
+    const icon = document.getElementById("courseActionIcon");
+    icon.textContent = success ? "✅" : "❌";
+    icon.style.display = "block";
+    document.getElementById("courseActionMessage").textContent = message;
+
+    setTimeout(() => {
+      closeModal("courseActionModal");
+      if (success) loadSection("classroom-courses");
+    }, 1600);
+  }
+
+  async function submitCourseAction(form) {
+    resetCourseActionModal();
+    openModal("courseActionModal");
+
+    try {
+      const body = new URLSearchParams(new FormData(form));
+      const res = await fetch(form.action, { method: "POST", body });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = { success: res.ok, message: res.ok ? "Done." : "Something went wrong." };
+      }
+
+      finishCourseActionModal(!!data.success, data.message || (data.success ? "Done!" : "Something went wrong."));
+    } catch (err) {
+      finishCourseActionModal(false, "Network error — please try again.");
+    }
+
+    return false; // stop the native form submission/page navigation
+  }
 </script>
 
 <script>

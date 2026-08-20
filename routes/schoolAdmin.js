@@ -156,7 +156,6 @@ router.get("/section/payments", schoolAdminController.getPayments);
 router.post("/payments/update", schoolAdminController.updatePayment);
 
 // Courses & Classrooms
-router.get("/section/classroom-courses", schoolAdminController.getClassroomCourses);
 router.post("/classroom-courses/assign", schoolAdminController.assignCourseToClassroom);
 
 router.post(

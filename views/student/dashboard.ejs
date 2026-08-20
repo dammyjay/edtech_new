@@ -591,35 +591,33 @@
       <div class="course-grid">
 
         <% enrolledCourses.forEach(course => { %>
-          <div class="course-card3" style="flex-direction: column;">
+          <a href="/student/dashboard?section=module&courseId=<%= course.id %>"
+             class="course-card3" style="flex-direction: column; align-items: stretch;">
 
-            <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" />
+            <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" style="width:100%; height:110px; border-radius: var(--radius, 10px);" />
             <div>
               <h4><%= course.title %></h4>
               <p><%= course.progress %>% complete</p>
             </div>
-            
+
             <div class="progress-bar">
               <div class="filled" style="width: <%= course.progress %>%"></div>
             </div>
 
-            <div>
-              
-              <!-- Child-friendly encouragement -->
-              <% if (course.progress == 100) { %>
-                <p style="color:green;">🎉 You finished this course!</p>
-              <% } else if (course.progress >= 50) { %>
-                <p style="color:orange;">🔥 You're doing great!</p>
-              <% } else { %>
-                <p style="color:#555;">💪 Keep going!</p>
-              <% } %>
+            <!-- Child-friendly encouragement, as a little badge/chip -->
+            <% if (course.progress == 100) { %>
+              <span style="display:inline-block; margin-top:8px; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#eafaf1; color:#1e7e42; align-self:flex-start;">🎉 Course complete!</span>
+            <% } else if (course.progress >= 50) { %>
+              <span style="display:inline-block; margin-top:8px; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#fff4e5; color:#b5651d; align-self:flex-start;">🔥 Doing great!</span>
+            <% } else { %>
+              <span style="display:inline-block; margin-top:8px; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:var(--brand-tint, #FBF3DD); color:var(--brand-pri-dark, #4C3802); align-self:flex-start;">💪 Keep going!</span>
+            <% } %>
 
-              <a href="/student/dashboard?section=module&courseId=<%= course.id %>" class="btn-view" style="text-decoration: none;">
-                📖 View Course
-              </a>
-            </div>
+            <span class="btn-view" style="text-decoration:none; text-align:center; margin-top:12px; border-radius: var(--radius, 10px);">
+              📖 View Course
+            </span>
 
-          </div>
+          </a>
         <% }) %>
 
       </div>
@@ -828,17 +826,18 @@
   <% } %>
 
 
-  <% } else if (section === 'module' && moduleInfo) { %>
+  <% } else if (section === 'module') { %>
+  <% if (moduleInfo) { %>
   <!-- LEARNING VIEW -->
   <div class="learning-container">
     <!-- Mini Sidebar -->
-    
+
 
   <aside class="lesson-sidebar" id="lessonSidebar">
     <!-- Toggle Handle -->
     <div id="sidebarHandle" class="sidebar-handle">❮</div>
 
-    <h3>All Modules</h3>
+    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>" style="display:inline-block; margin-bottom:10px; font-size:13px; text-decoration:none; color:var(--text-secondary,#666);">← Back to All Modules</a>
     <% Object.keys(courseModules).forEach(courseId => { %>
       <% courseModules[courseId].forEach(module => { %>
         <div class="module-block">
@@ -851,10 +850,11 @@
               <li>
                 
 
-                <button class="lesson-toggle no-bg"
+                <button id="lesson-toggle-<%= lesson.id %>" class="lesson-toggle no-bg"
                         onclick="handleLessonClick(<%= lesson.id %>, <%= lesson.unlocked %>, <%= !!lesson.termLocked %>)"
+                        data-term-locked="<%= !!lesson.termLocked %>"
                         style="text-align: left; <%= lesson.unlocked ? '' : 'opacity:0.5; cursor:not-allowed;' %>">
-                  <%= lesson.unlocked ? "📚" : "🔒" %> <%= lesson.title %><% if (lesson.termLocked) { %> <span style="color:#e67e22; font-size:12px;">⏳ term ended</span><% } %> ▾
+                  <span id="lesson-icon-<%= lesson.id %>"><%= lesson.unlocked ? "📚" : "🔒" %></span> Lesson <%= lesson.order_number %>: <%= lesson.title.replace(/^lesson\s+\d+\s*[:.\-]?\s*/i, '') %><% if (lesson.termLocked) { %> <span style="color:#e67e22; font-size:12px;">⏳ term ended</span><% } %> ▾
                 </button>
 
                 <ul id="lesson-menu-<%= lesson.id %>" style="display:none; padding-left:15px;">
@@ -899,6 +899,12 @@
     <% } %>
   <% }) %>
 
+  <% if (nextModuleId) { %>
+    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>&moduleId=<%= nextModuleId %>"
+       class="btn-view" style="display:block; text-align:center; text-decoration:none; margin-top:16px;">
+      ➡️ Next Module
+    </a>
+  <% } %>
 
   </aside>
     <!-- Lesson Content Area -->
@@ -977,20 +983,40 @@
   <!-- FLOATING MINIMIZED ICON -->
   <div id="ai-float" class="ai-float" title="Open AI Tutor">🤖</div>
 
-    <!-- Quiz Results Overlay -->
-    <div id="quizResultsOverlay" style="display:none;">
-      <div class="overlay-content">
-        <h2>Your Quiz Results</h2>
-        <p id="quizScore"></p>
-        <p id="quizMessage"></p>
-        <button onclick="reviewQuiz()">🔍 Review Quiz</button>
-        <button onclick="goToNextLesson()">➡ Next Lesson</button>
-        <button onclick="closeResults()">❌ Close</button>
-      </div>
-    </div>
   </div>
 
-  
+  <% } else if (moduleGridModules && moduleGridModules.length) { %>
+    <!-- MODULE GRID: every module in this course, pick one to open -->
+    <div class="module-grid-view" style="padding:20px;">
+      <a href="/student/dashboard?section=progress" style="display:inline-block; margin-bottom:14px; font-size:13px; text-decoration:none; color:var(--text-secondary,#666);">← Back to My Courses</a>
+      <h2>📦 <%= moduleGridCourseTitle %> — All Modules</h2>
+      <div class="course-grid">
+        <% moduleGridModules.forEach(mod => { %>
+          <% if (mod.unlocked) { %>
+          <a href="/student/dashboard?section=module&courseId=<%= moduleGridCourseId %>&moduleId=<%= mod.id %>"
+             class="course-card3" style="flex-direction:column; align-items:stretch;">
+          <% } else { %>
+          <div class="course-card3" style="flex-direction:column; align-items:stretch; opacity:0.6;">
+          <% } %>
+            <img src="<%= mod.thumbnail || '/images/JKT logo bg.png' %>" style="width:100%; height:100px; object-fit:contain; border-radius:var(--radius,10px); background:var(--brand-tint,#FBF3DD);" />
+            <div>
+              <h4>📦 Module <%= mod.order_number %>: <%= mod.title %></h4>
+              <p><%= mod.progress %>% complete</p>
+            </div>
+            <div class="progress-bar"><div class="filled" style="width:<%= mod.progress %>%"></div></div>
+            <% if (mod.unlocked) { %>
+              <span class="btn-view" style="text-decoration:none; text-align:center; margin-top:12px; border-radius:var(--radius,10px);">📖 View Lessons</span>
+            <% } else { %>
+              <span class="btn-view" style="text-decoration:none; text-align:center; margin-top:12px; border-radius:var(--radius,10px); background:#999;">🔒 Locked</span>
+            <% } %>
+          <% if (mod.unlocked) { %></a><% } else { %></div><% } %>
+        <% }) %>
+      </div>
+    </div>
+  <% } else { %>
+    <p style="padding:20px;">No modules found for this course yet.</p>
+  <% } %>
+
   <% } else if (!selectedPathway || !pathwayCourses[selectedPathway]) { %>
     <!-- DASHBOARD VIEW -->
      <section>
@@ -1163,7 +1189,7 @@
     <h2>Continue Learning</h2>
     <div class="course-grid">
       <% enrolledCourses.forEach(course => { %>
-      <div class="course-card3">
+      <a href="/student/dashboard?section=module&courseId=<%= course.id %>" class="course-card3">
         <img src="<%= course.thumbnail_url %>" alt="" />
         <div>
           <h4><%= course.title %></h4>
@@ -1172,7 +1198,7 @@
             <div class="filled" style="width: <%= course.progress %>%"></div>
           </div>
         </div>
-      </div>
+      </a>
       <% }) %>
     </div>
 
@@ -1224,34 +1250,29 @@
     <section class="pathway-section">
       <h2><%= selectedPathway %> Courses</h2>
 
-      <% pathwayCourses[selectedPathway].forEach(course => { %>
-      <div class="course-section">
-        <h3><%= course.title %></h3>
-
-      <div class="modules-scroll">
-  <% (courseModules[course.id] || []).forEach(mod => { %>
-    <div class="module-card">
-      <img
-        style="width: 100%; height: 100px; object-fit: contain"
-        src="<%= mod.thumbnail || '/images/JKT logo bg.png' %>"
-        alt=""
-      />
-      <h4 style="font-size: 12px;"><%= mod.title %></h4>
-      <p><%= lessonCounts[mod.id] || 0 %> Lessons</p>
-       <!-- <a href="/student/dashboard?section=module&moduleId=<%= mod.id %>">View Module</a> -->
-          <% if (!mod.unlocked) { %>
-            <span class="locked-tag">🔒 Locked</span>
-          <% } else { %>
-            <a href="/student/dashboard?section=module&moduleId=<%= mod.id %>">View Module</a>
-          <% } %>
-
-      
-    </div>
-  <% }) %>
-</div>
-
-
-      <% }) %>
+      <!-- One course card per course in this pathway — clicking it goes
+           straight to that course's own module list (section=module),
+           same destination as every other course card in the app, so
+           there's one consistent "how do I get to my modules" path
+           instead of this view jumping straight into a raw module grid. -->
+      <div class="course-grid">
+        <% pathwayCourses[selectedPathway].forEach(course => { %>
+          <a href="/student/dashboard?section=module&courseId=<%= course.id %>"
+             class="course-card3" style="flex-direction: column; align-items: stretch;">
+            <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" style="width:100%; height:110px; border-radius: var(--radius, 10px);" />
+            <div>
+              <h4><%= course.title %></h4>
+              <p><%= course.progress || 0 %>% complete</p>
+            </div>
+            <div class="progress-bar">
+              <div class="filled" style="width: <%= course.progress || 0 %>%"></div>
+            </div>
+            <span class="btn-view" style="text-decoration:none; text-align:center; margin-top:12px; border-radius: var(--radius, 10px);">
+              📦 View Modules
+            </span>
+          </a>
+        <% }) %>
+      </div>
     </section>
   <% } %>
 
@@ -2180,6 +2201,26 @@ window.closeEditModal = function (id) {
       alert("The term you were enrolled in for this course has ended. You can view what you've already done, but new lessons/quizzes here need the term to be reactivated first — see the Locked Terms section on your dashboard.");
     }
     toggleLessonMenu(lessonId);
+  }
+
+  // Patches a sidebar lesson button live once it's been unlocked server-
+  // side (e.g. right after finishing the previous lesson's quiz) — the
+  // button's locked/unlocked state was baked in from the page's initial
+  // server render, so without this it stays showing 🔒 and rejecting
+  // clicks until the next full page load, even though loadLessonPart
+  // itself already works fine via the Next Lesson button.
+  window.unlockSidebarLesson = function (lessonId) {
+    const btn = document.getElementById("lesson-toggle-" + lessonId);
+    if (!btn) return; // lesson isn't in the currently-rendered module's sidebar
+
+    const termLocked = btn.dataset.termLocked === "true";
+    btn.style.opacity = "";
+    btn.style.cursor = "";
+    btn.setAttribute("onclick", "");
+    btn.onclick = () => handleLessonClick(lessonId, true, termLocked);
+
+    const icon = document.getElementById("lesson-icon-" + lessonId);
+    if (icon) icon.textContent = "📚";
   }
 
   window.toggleLessonMenu = function (lessonId) {
@@ -3294,7 +3335,10 @@ let reviewIndex = 0;
             : [];
 
           window.currentReviewLesson = lessonId;
-          
+          // Reviewing an already-graded quiz later, not a fresh
+          // submission — no "next lesson just unlocked" moment to show.
+          window.lastQuizNextInfo = null;
+
           reviewQuestions =
             data.reviewData || [];
 
@@ -3479,9 +3523,30 @@ function renderQuizSummary() {
   const lessonMain =
     document.getElementById("lessonMainArea");
 
+  // Where "Next Lesson"/"Next Module" below should point — set by
+  // submitQuizAnswers/submitQuizInline right after a fresh submission,
+  // straight from the server's own unlock logic. Cleared before a later
+  // read-only review of an already-graded quiz, so no stale button
+  // shows there.
+  const nextInfo = window.lastQuizNextInfo || {};
+
+  const moduleUnlockedBanner = nextInfo.nextModuleUnlocked ? `
+    <div style="background:linear-gradient(135deg, var(--brand-pri, #A17807), var(--brand-pri-dark, #4C3802)); color:#fff; border-radius:var(--radius-lg, 16px); padding:16px 20px; margin-bottom:18px; text-align:center; font-weight:700;">
+      🎉 Module Complete — the next module is unlocked!
+    </div>
+  ` : "";
+
+  const nextActionButton = nextInfo.nextModuleUnlocked
+    ? `<button class="quiz-btn quiz-btn-primary" onclick="goToNextModule(${nextInfo.nextModuleId})">🎉 Next Module</button>`
+    : nextInfo.nextLessonId
+      ? `<button class="quiz-btn quiz-btn-primary" onclick="loadLessonPart(${nextInfo.nextLessonId}, 'content')">➡️ Next Lesson</button>`
+      : "";
+
   lessonMain.innerHTML = `
 
   <div class="quiz-summary-container">
+
+    ${moduleUnlockedBanner}
 
     <h2>📊 Quiz Summary</h2>
 
@@ -3539,6 +3604,8 @@ function renderQuizSummary() {
         Start Review
       </button>
 
+      ${nextActionButton}
+
       <button
         class="quiz-btn quiz-btn-secondary"
         onclick="loadLessonPart(${currentQuizLessonId}, 'content')"
@@ -3551,6 +3618,13 @@ function renderQuizSummary() {
   </div>
 
   `;
+}
+
+// Full navigation (not an in-place fetch) — the target module's whole
+// module+lesson sidebar needs a fresh server render to reflect the
+// unlock that just happened, same as any other section=module load.
+function goToNextModule(moduleId) {
+  window.location.href = "/student/dashboard?section=module&moduleId=" + moduleId;
 }
 
 function selectAnswer(questionId, answer){
@@ -3650,9 +3724,7 @@ function submitQuizAnswers(lessonId){
         return;
       }
 
-      if (result.success) {
-        showQuizCelebration(result.score, result.xpEarned);
-      }
+      showQuizCelebration(result.score, result.xpEarned);
 
       if (result.badgeAwarded) {
         setTimeout(() => {
@@ -3669,45 +3741,52 @@ function submitQuizAnswers(lessonId){
       }, 1500);
     }
 
-      // Save review data globally
-      window.quizReviewData = result.reviewData;
-      window.currentReviewLesson = lessonId;
-
-      quizContainer.innerHTML = `
-        <h3>Quiz Results</h3>
-        <p><strong>Score:</strong> ${result.score}%</p>
-        <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
-        <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
-        <hr>
-        <h3>Detailed Review</h3>
-        <div id="quiz-review-${lessonId}"></div>
-        <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
-      `;
-
-      // reviewQuizInline(lessonId);
-      reviewQuestions =
-        result.reviewData || [];
-
-      reviewIndex = 0;
-
-      // renderReviewQuestion();
-      renderQuizSummary();
-
-      // 🚀 Unlock next lesson if passed
-      if (result.passed) {
-        const nextLessonBtn = document.querySelector(
-          `#lesson-btn-${lessonId + 1}`
-        );
-
-        if (nextLessonBtn) {
-          nextLessonBtn.removeAttribute("disabled");
-          nextLessonBtn.style.opacity = "1";
-          nextLessonBtn.style.cursor = "pointer";
+      // The submission itself is already fully saved server-side at this
+      // point — everything from here down is just building the follow-up
+      // UI (review screen, next-lesson button, etc.), which used to be
+      // inside the SAME try as the fetch. A DOM/rendering hiccup in here
+      // would throw, get caught by the .catch() below, and overwrite the
+      // screen with "Error submitting quiz" — misleading, since the quiz
+      // had already submitted successfully (confirmed by the celebration
+      // modal above already showing). Isolated in its own try/catch so a
+      // display problem can never masquerade as a failed submission.
+      try {
+        // Save review data globally
+        window.quizReviewData = result.reviewData;
+        window.currentReviewLesson = lessonId;
+        // Where "Next Lesson"/"Next Module" in the summary screen below
+        // should point — comes straight from the server's unlock logic
+        // (submitLessonQuiz), not guessed client-side.
+        window.lastQuizNextInfo = {
+          nextLessonId: result.nextLessonId || null,
+          nextModuleUnlocked: !!result.nextModuleUnlocked,
+          nextModuleId: result.nextModuleId || null,
+        };
+        if (result.nextLessonId) {
+          unlockSidebarLesson(result.nextLessonId);
         }
-      }
 
-      if (result.feedback) {
-        pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
+        quizContainer.innerHTML = `
+          <h3>Quiz Results</h3>
+          <p><strong>Score:</strong> ${result.score}%</p>
+          <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
+          <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
+          <hr>
+          <h3>Detailed Review</h3>
+          <div id="quiz-review-${lessonId}"></div>
+          <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
+        `;
+
+        reviewQuestions = result.reviewData || [];
+        reviewIndex = 0;
+
+        renderQuizSummary();
+
+        if (result.feedback) {
+          pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
+        }
+      } catch (renderErr) {
+        console.error("Quiz saved, but the results screen failed to render:", renderErr);
       }
     })
     .catch(err => {
@@ -4025,9 +4104,7 @@ function submitQuizInline(e, lessonId) {
         return;
       }
 
-      if (result.success) {
-        showQuizCelebration(result.score, result.xpEarned);
-      }
+      showQuizCelebration(result.score, result.xpEarned);
 
       if (result.badgeAwarded) {
         setTimeout(() => {
@@ -4044,38 +4121,40 @@ function submitQuizInline(e, lessonId) {
       }, 1500);
     }
 
-      // Save review data globally
-      window.quizReviewData = result.reviewData;
-      window.currentReviewLesson = lessonId;
-
-      quizContainer.innerHTML = `
-        <h3>Quiz Results</h3>
-        <p><strong>Score:</strong> ${result.score}%</p>
-        <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
-        <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
-        <hr>
-        <h3>Detailed Review</h3>
-        <div id="quiz-review-${lessonId}"></div>
-        <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
-      `;
-
-      reviewQuizInline(lessonId);
-
-      // 🚀 Unlock next lesson if passed
-      if (result.passed) {
-        const nextLessonBtn = document.querySelector(
-          `#lesson-btn-${lessonId + 1}`
-        );
-
-        if (nextLessonBtn) {
-          nextLessonBtn.removeAttribute("disabled");
-          nextLessonBtn.style.opacity = "1";
-          nextLessonBtn.style.cursor = "pointer";
+      // The submission is already fully saved server-side by this point
+      // — see the identical comment in submitQuizAnswers above. Isolated
+      // in its own try/catch so a display hiccup below can never
+      // masquerade as a failed submission.
+      try {
+        window.quizReviewData = result.reviewData;
+        window.currentReviewLesson = lessonId;
+        window.lastQuizNextInfo = {
+          nextLessonId: result.nextLessonId || null,
+          nextModuleUnlocked: !!result.nextModuleUnlocked,
+          nextModuleId: result.nextModuleId || null,
+        };
+        if (result.nextLessonId) {
+          unlockSidebarLesson(result.nextLessonId);
         }
-      }
 
-      if (result.feedback) {
-        pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
+        quizContainer.innerHTML = `
+          <h3>Quiz Results</h3>
+          <p><strong>Score:</strong> ${result.score}%</p>
+          <p><strong>Status:</strong> ${result.passed ? "✅ Passed" : "❌ Failed"}</p>
+          <div class="ai-feedback"><strong>🤖 AI Feedback Summary:</strong> ${result.feedback}</div>
+          <hr>
+          <h3>Detailed Review</h3>
+          <div id="quiz-review-${lessonId}"></div>
+          <button onclick="loadLessonPart(${lessonId}, 'content')">⬅ Back to Lesson</button>
+        `;
+
+        reviewQuizInline(lessonId);
+
+        if (result.feedback) {
+          pushMsg("AI Quiz Feedback: " + result.feedback, "bot");
+        }
+      } catch (renderErr) {
+        console.error("Quiz saved, but the results screen failed to render:", renderErr);
       }
     })
     .catch(err => {

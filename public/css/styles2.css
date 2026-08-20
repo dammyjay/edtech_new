@@ -960,20 +960,11 @@
     color: var(--text-primary);
 }
 
-.progress-bar {
-    width: 100%;
-    background: #eee;
-    height: 10px;
-    border-radius: 5px;
-    margin: 5px 0 10px;
-    overflow: hidden;
-}
-
-.progress-bar .filled {
-    height: 100%;
-    background: #4fc3f7;
-    transition: width 0.4s ease;
-}
+/* .progress-bar/.filled consolidated into one definition — see the
+   redesigned block near .course-card3 below. There used to be TWO
+   conflicting definitions of these same classes in this file (this one
+   and another further down); whichever loaded last silently won,
+   making the "real" styling non-obvious. Now there's exactly one. */
 
 /* === Gamification Section === */
 .gamification {
@@ -1431,31 +1422,64 @@ canvas {
     gap: 20px;
 }
 
+/* Friendlier, more "for children" course card: rounded, a soft-lift
+   hover (matches .metric-card:hover elsewhere in the app), and a warm
+   white body instead of a flat solid-color block, so the thumbnail and
+   brand-gold progress bar are what carry the color. */
 .course-card3 {
-    background: #e3f2fd;
-    padding: 15px;
-    border-radius: 8px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-light, #e0e0e0);
+    padding: 16px;
+    border-radius: var(--radius-lg, 16px);
     display: flex;
-    gap: 10px;
+    gap: 14px;
     align-items: center;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+}
+
+.course-card3:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
 }
 
 .course-card3 img {
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
     object-fit: cover;
+    border-radius: var(--radius, 10px);
+    flex-shrink: 0;
+    background: var(--brand-tint, #FBF3DD);
+}
+
+.course-card3 h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    color: var(--text-primary, #222);
+}
+
+.course-card3 > div > p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand-pri-dark, #4C3802);
 }
 
 .progress-bar {
-    height: 6px;
-    background: #cfd8dc;
-    margin-top: 4px;
-    border-radius: 4px;
+    height: 10px;
+    background: var(--bg-secondary, #eee);
+    margin-top: 6px;
+    border-radius: 999px;
+    overflow: hidden;
 }
 
 .progress-bar .filled {
     height: 100%;
-    background: #2196f3;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    transition: width 0.4s ease;
 }
 
 .sidebar-nav {
