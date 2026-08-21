@@ -24,13 +24,25 @@
     <div class="article-card2">
       <div class="card-images" style="display: flex;">
         <div>
-          <p>Thumbnail</p>
+          <p>Thumbnail
+            <% if (module.thumbnail_source === 'auto') { %>
+              <span style="font-size:11px; color:#666;">(auto-generated)</span>
+            <% } else if (module.thumbnail_source === 'upload') { %>
+              <span style="font-size:11px; color:#666;">(custom upload)</span>
+            <% } %>
+          </p>
           <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
         </div>
         <!-- Badge Image -->
         <% if (module.badge_image) { %>
           <div>
-            <p>🏅 Badge</p>
+            <p>🏅 Badge
+              <% if (module.badge_source === 'auto') { %>
+                <span style="font-size:11px; color:#666;">(auto-generated)</span>
+              <% } else if (module.badge_source === 'upload') { %>
+                <span style="font-size:11px; color:#666;">(custom upload)</span>
+              <% } %>
+            </p>
             <img src="<%= module.badge_image %>" alt="Badge">
           </div>
         <% } else { %>
@@ -73,14 +85,35 @@
             <label for="">Learning Outcomes</label> 
             <textarea name="learning_outcomes" id="editckeditor2-<%= module.id %>"><%= module.learning_outcomes %></textarea>
             
-            <label for="">Thumbnail</label>
-            <input type="file" name="thumbnail" placeholder="Thumbnail">
-
-            <label>Badge Image (optional)</label>
-            <input type="file" name="badge_image" accept="image/*">
-            <% if (module.badge_image) { %>
-              <img src="<%= module.badge_image %>" alt="Badge" width="80">
+            <label for="">Thumbnail (optional — leave blank to keep the current one)</label>
+            <% if (module.thumbnail) { %>
+              <div>
+                <img src="<%= module.thumbnail %>" alt="Thumbnail" width="120">
+                <span style="font-size:12px; color:#666;">
+                  <%= module.thumbnail_source === 'auto' ? 'Currently auto-generated' : (module.thumbnail_source === 'upload' ? 'Currently a custom upload' : '') %>
+                </span>
+              </div>
             <% } %>
+            <input type="file" name="thumbnail" placeholder="Thumbnail">
+            <label style="font-weight:normal;">
+              <input type="checkbox" name="regenerate_thumbnail" value="on">
+              Regenerate an auto thumbnail instead (replaces the current thumbnail above; ignored if you also choose a file to upload)
+            </label>
+
+            <label>Badge Image (optional — leave blank to keep the current one)</label>
+            <% if (module.badge_image) { %>
+              <div>
+                <img src="<%= module.badge_image %>" alt="Badge" width="80">
+                <span style="font-size:12px; color:#666;">
+                  <%= module.badge_source === 'auto' ? 'Currently auto-generated' : (module.badge_source === 'upload' ? 'Currently a custom upload' : '') %>
+                </span>
+              </div>
+            <% } %>
+            <input type="file" name="badge_image" accept="image/*">
+            <label style="font-weight:normal;">
+              <input type="checkbox" name="regenerate_badge" value="on">
+              Regenerate an auto badge instead (replaces the current badge above; ignored if you also choose a file to upload)
+            </label>
 
             <label for="">Order Number</label>
             <input type="number" name="order_number" value="<%= module.order_number %>" required>
@@ -126,10 +159,10 @@
   <label>Learning Outcomes</label>
   <textarea name="learning_outcomes" id="ckeditor2"></textarea>
 
-  <label>Thumbnail</label>
-  <input type="file" name="thumbnail" required>
+  <label>Thumbnail (optional — leave blank to auto-generate one)</label>
+  <input type="file" name="thumbnail">
 
-  <label>Badge Image (optional)</label>
+  <label>Badge Image (optional — leave blank to auto-generate one)</label>
   <input type="file" name="badge_image" accept="image/*">
 
   <label>Order Number</label>

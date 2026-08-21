@@ -1,8 +1,55 @@
 const pool = require("../models/db");
 const cloudinary = require("../utils/cloudinary");
+const fs = require("fs");
 // controllers/learningController.js
 const { askTutor } = require("../utils/ai");
 const { getCompanyInfo } = require("../utils/companyInfo");
+const generateModuleBadge = require("../utils/generateModuleBadge");
+const generateThumbnail = require("../utils/generateThumbnail");
+
+// Renders a badge via utils/generateModuleBadge, uploads it to Cloudinary,
+// and cleans up the local temp file — the one place both createModule and
+// editModule go through so the two stay in sync.
+async function generateAndUploadBadge({ moduleTitle, courseTitle, index }) {
+  const companyInfo = await getCompanyInfo();
+  const { outputPath } = await generateModuleBadge({
+    moduleTitle,
+    courseTitle,
+    companyName: companyInfo.company_name,
+    logoUrl: companyInfo.logo_url,
+    index,
+  });
+  try {
+    const uploaded = await cloudinary.uploader.upload(outputPath, {
+      folder: "badges/auto-generated",
+      resource_type: "image",
+    });
+    return uploaded.secure_url;
+  } finally {
+    fs.unlink(outputPath, () => {});
+  }
+}
+
+// Same idea as generateAndUploadBadge, for a module's thumbnail — pass the
+// same `index` used for that module's badge so the two come out
+// color-matched (utils/generateThumbnail.js shares generateModuleBadge.js's
+// palette on purpose).
+async function generateAndUploadModuleThumbnail({ moduleTitle, courseTitle, index }) {
+  const { outputPath } = await generateThumbnail({
+    title: moduleTitle,
+    subtitle: courseTitle,
+    index,
+  });
+  try {
+    const uploaded = await cloudinary.uploader.upload(outputPath, {
+      folder: "thumbnails/auto-generated",
+      resource_type: "image",
+    });
+    return uploaded.secure_url;
+  } finally {
+    fs.unlink(outputPath, () => {});
+  }
+}
 
 exports.updateCourse = async (req, res) => {
   const { id } = req.params;
@@ -103,22 +150,51 @@ exports.createModule = async (req, res) => {
 
     // Thumbnail/badge uploads are optional — multer-storage-cloudinary has
     // already uploaded them to Cloudinary by this point (req.files.*[0].path
-    // is the Cloudinary URL, not a local path), so no re-upload is needed.
-    // When either is left blank, fall back to the platform's own logo.
+    // is the Cloudinary URL, not a local path).
     let thumbnailUrl = req.files?.thumbnail?.[0]?.path || null;
+    let thumbnailSource = thumbnailUrl ? "upload" : null;
     let badgeUrl = req.files?.badge_image?.[0]?.path || null;
+    let badgeSource = badgeUrl ? "upload" : null;
 
+    // Neither uploaded is common — auto-generate whatever's missing instead
+    // of just falling back to the company logo, so every module gets
+    // something badge/thumbnail-like by default. The content creator can
+    // replace either with a real upload, or ask to regenerate it, any time
+    // from the edit form.
     if (!thumbnailUrl || !badgeUrl) {
-      const companyInfo = await getCompanyInfo();
-      if (!thumbnailUrl) thumbnailUrl = companyInfo.logo_url;
-      if (!badgeUrl) badgeUrl = companyInfo.logo_url;
+      const courseRes = await pool.query("SELECT title FROM courses WHERE id=$1", [course_id]);
+      const courseTitle = courseRes.rows[0]?.title || "";
+      const moduleCountRes = await pool.query("SELECT COUNT(*) FROM modules WHERE course_id=$1", [course_id]);
+      const index = parseInt(moduleCountRes.rows[0].count, 10) || 0;
+
+      if (!thumbnailUrl) {
+        try {
+          thumbnailUrl = await generateAndUploadModuleThumbnail({ moduleTitle: title, courseTitle, index });
+          thumbnailSource = "auto";
+        } catch (thumbErr) {
+          console.error("Auto thumbnail generation failed, falling back to company logo:", thumbErr.message);
+          const companyInfo = await getCompanyInfo();
+          thumbnailUrl = companyInfo.logo_url;
+        }
+      }
+
+      if (!badgeUrl) {
+        try {
+          badgeUrl = await generateAndUploadBadge({ moduleTitle: title, courseTitle, index });
+          badgeSource = "auto";
+        } catch (badgeErr) {
+          console.error("Auto badge generation failed, falling back to company logo:", badgeErr.message);
+          const companyInfo = await getCompanyInfo();
+          badgeUrl = companyInfo.logo_url;
+        }
+      }
     }
 
     await pool.query(
-      `INSERT INTO modules 
-       (title, description, objectives, learning_outcomes, thumbnail, badge_image, order_number, course_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [title, description, objectives, learning_outcomes, thumbnailUrl, badgeUrl, order_number, course_id]
+      `INSERT INTO modules
+       (title, description, objectives, learning_outcomes, thumbnail, thumbnail_source, badge_image, badge_source, order_number, course_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, course_id]
     );
 
     // res.redirect("/admin/courses/" + course_id);
@@ -132,37 +208,71 @@ exports.createModule = async (req, res) => {
 // EDIT MODULE
 exports.editModule = async (req, res) => {
   try {
-    const { title, description, objectives, learning_outcomes, order_number } = req.body;
+    const { title, description, objectives, learning_outcomes, order_number, regenerate_badge, regenerate_thumbnail } = req.body;
     const { id } = req.params;
 
     // Fetch existing module to get current images
-    const oldModule = await pool.query("SELECT thumbnail, badge_image, course_id FROM modules WHERE id=$1", [id]);
+    const oldModule = await pool.query(
+      "SELECT thumbnail, thumbnail_source, badge_image, badge_source, course_id FROM modules WHERE id=$1",
+      [id]
+    );
     if (!oldModule.rows[0]) return res.status(404).send("Module not found");
 
     let thumbnailUrl = oldModule.rows[0].thumbnail;
+    let thumbnailSource = oldModule.rows[0].thumbnail_source;
     let badgeUrl = oldModule.rows[0].badge_image;
+    let badgeSource = oldModule.rows[0].badge_source;
+
+    const wantsThumbnailRegen = regenerate_thumbnail === "on" || regenerate_thumbnail === "true";
+    const wantsBadgeRegen = regenerate_badge === "on" || regenerate_badge === "true";
+    let courseTitle = null;
+    if (wantsThumbnailRegen || wantsBadgeRegen) {
+      const courseRes = await pool.query("SELECT title FROM courses WHERE id=$1", [oldModule.rows[0].course_id]);
+      courseTitle = courseRes.rows[0]?.title || "";
+    }
+    const index = parseInt(order_number, 10) || 0;
 
     // multer-storage-cloudinary has already uploaded these by this point —
     // req.files.*[0].path is the Cloudinary URL, no re-upload needed.
     if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
+      // A real upload always wins over regenerating.
       thumbnailUrl = req.files.thumbnail[0].path;
-    }
-    if (req.files && req.files.badge_image && req.files.badge_image[0]) {
-      badgeUrl = req.files.badge_image[0].path;
+      thumbnailSource = "upload";
+    } else if (wantsThumbnailRegen) {
+      // Content creator explicitly asked for a fresh auto-generated
+      // thumbnail — e.g. to switch back from a custom upload, or to re-roll
+      // an older module that predates this feature and never got one.
+      try {
+        thumbnailUrl = await generateAndUploadModuleThumbnail({ moduleTitle: title, courseTitle, index });
+        thumbnailSource = "auto";
+      } catch (thumbErr) {
+        console.error("Thumbnail regeneration failed, keeping existing thumbnail:", thumbErr.message);
+      }
     }
 
-    // Optional fields — if the module still has neither a real thumbnail nor
-    // badge (no prior upload, none provided now), fall back to the platform logo.
-    if (!thumbnailUrl || !badgeUrl) {
+    if (req.files && req.files.badge_image && req.files.badge_image[0]) {
+      badgeUrl = req.files.badge_image[0].path;
+      badgeSource = "upload";
+    } else if (wantsBadgeRegen) {
+      try {
+        badgeUrl = await generateAndUploadBadge({ moduleTitle: title, courseTitle, index });
+        badgeSource = "auto";
+      } catch (badgeErr) {
+        console.error("Badge regeneration failed, keeping existing badge:", badgeErr.message);
+      }
+    }
+
+    // Optional field — if the module still has no thumbnail at all (no
+    // prior upload, none provided now), fall back to the platform logo.
+    if (!thumbnailUrl) {
       const companyInfo = await getCompanyInfo();
-      if (!thumbnailUrl) thumbnailUrl = companyInfo.logo_url;
-      if (!badgeUrl) badgeUrl = companyInfo.logo_url;
+      thumbnailUrl = companyInfo.logo_url;
     }
 
     await pool.query(
       `UPDATE modules SET title=$1, description=$2, objectives=$3, learning_outcomes=$4,
-       thumbnail=$5, badge_image=$6, order_number=$7 WHERE id=$8`,
-      [title, description, objectives, learning_outcomes, thumbnailUrl, badgeUrl, order_number, id]
+       thumbnail=$5, thumbnail_source=$6, badge_image=$7, badge_source=$8, order_number=$9 WHERE id=$10`,
+      [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, id]
     );
 
     // res.redirect("/admin/courses/" + oldModule.rows[0].course_id);

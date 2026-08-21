@@ -129,13 +129,21 @@ async function createTables() {
         sort_order INTEGER DEFAULT 0,
         amount INTEGER DEFAULT 0,
         created_by TEXT DEFAULT 'admin',
-        instructor_id INT REFERENCES users2(id), 
+        instructor_id INT REFERENCES users2(id),
         created_at TIMESTAMP DEFAULT NOW(),
         curriculum_url TEXT
       );
-      
+
       `
     );
+
+    // thumbnail_source distinguishes an auto-generated thumbnail
+    // (adminController.createCourse/editCourse generates one via
+    // utils/generateThumbnail.js whenever no thumbnail is uploaded) from a
+    // content creator's own upload — same idea as modules.badge_source.
+    await pool.query(`
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS thumbnail_source TEXT;
+    `);
 
     // table for transactions
     await pool.query(
@@ -293,6 +301,19 @@ async function createTables() {
       );
       `
     );
+
+    // badge_image itself already existed in live databases (added directly,
+    // outside this file, before this comment was written) — declared here
+    // too so a fresh database gets it. badge_source distinguishes an
+    // auto-generated badge (learningController.createModule/editModule
+    // generates one via utils/generateModuleBadge.js whenever no badge is
+    // uploaded) from a content creator's own upload, so the admin UI can
+    // label which one is currently in use and offer "regenerate".
+    await pool.query(`
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS badge_image TEXT;
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS badge_source TEXT;
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS thumbnail_source TEXT;
+    `);
 
     // table for lessons
     await pool.query(
