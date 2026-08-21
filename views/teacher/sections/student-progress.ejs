@@ -244,8 +244,16 @@
                             <% if (lessonQuizzes.length) { %>
                                 <ul>
                                 <% lessonQuizzes.forEach(q => { %>
+                                    <%
+                                      // Older quizzes were auto-titled "Quiz for Lesson <id>" —
+                                      // a raw id is meaningless here; the lesson title (l.title,
+                                      // already shown as this row's context) is what matters.
+                                      const quizLabel = /^quiz for lesson\s*\d+$/i.test((q.title || '').trim())
+                                        ? `Quiz for Lesson: ${l.title}`
+                                        : (q.title || 'Quiz');
+                                    %>
                                     <li>
-                                    <%= q.title %> — 
+                                    <%= quizLabel %> —
                                     <% if (q.score !== null) { %>
                                         Score: <%= q.score %> | 
                                         <a href="/teacher/student/<%= student.id %>/quizzes/<%= q.id %>/download">📥 Download</a>

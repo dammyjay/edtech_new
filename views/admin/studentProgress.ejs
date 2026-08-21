@@ -59,6 +59,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 26px; font-weight: 800; flex-shrink: 0;
   }
+  
   .sp-hero-info { flex: 1; min-width: 200px; }
   .sp-hero-info h1 { margin: 0; font-size: 21px; }
   .sp-hero-info p { margin: 4px 0 0; opacity: 0.92; font-size: 12.5px; }
@@ -275,6 +276,17 @@
       if (score >= 60) return 'C';
       if (score >= 50) return 'D';
       return 'F';
+    }
+    // Many quizzes were auto-titled "Quiz for Lesson <id>" at creation
+    // time — a raw database id means nothing to a parent/admin reading
+    // this page. Swap in the actual lesson title when that pattern shows
+    // up; leave any genuinely custom quiz title untouched.
+    function spFriendlyQuizTitle(q) {
+      const raw = (q.title || '').trim();
+      if (q.lesson_title && /^quiz for lesson\s*\d+$/i.test(raw)) {
+        return `Quiz for Lesson: ${q.lesson_title}`;
+      }
+      return raw || q.lesson_title || 'Quiz';
     }
     const platformScore = metrics.overall.platformScore;
     let riskClass = "risk-healthy";
@@ -633,8 +645,8 @@
           <div class="sp-list-card">
             <span class="sp-badge <%= t.cls %>"><%= t.emoji %> <%= q.score %>%</span>
             <div class="main">
-              <div class="title"><%= q.title %></div>
-              <div class="sub"><%= q.lesson_title %> · <%= new Date(q.taken_at).toLocaleString() %></div>
+              <div class="title"><%= spFriendlyQuizTitle(q) %></div>
+              <div class="sub"><%= new Date(q.taken_at).toLocaleString() %></div>
             </div>
             <div class="actions">
               <a class="sp-icon-btn" href="/student/<%= student.id %>/quiz/<%= q.id %>/report/download" title="Download quiz report"><i class="fa-solid fa-download"></i></a>

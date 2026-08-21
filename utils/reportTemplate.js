@@ -16,13 +16,25 @@ function esc(str) {
     .replace(/>/g, "&gt;");
 }
 
+// Many quizzes were auto-titled "Quiz for Lesson <id>" at creation time —
+// a raw database id means nothing to a student or parent reading a report.
+// Swap in the actual lesson title whenever it's available; leave any
+// genuinely custom quiz title (e.g. "Midterm Review") untouched.
+function friendlyQuizTitle(q) {
+  const raw = (q.quiz_title || q.title || "").trim();
+  if (q.lesson_title && /^quiz for lesson\s*\d+$/i.test(raw)) {
+    return `Quiz for Lesson: ${q.lesson_title}`;
+  }
+  return raw || q.lesson_title || "Quiz";
+}
+
 function scoreTier(score) {
   if (score === null || score === undefined) {
-    return { emoji: "📋", className: "tier-neutral" };
+    return { emoji: "<i class='fa-solid fa-clipboard rp-icon rp-icon-gray'></i>", className: "tier-neutral" };
   }
-  if (score >= 80) return { emoji: "🌟", className: "tier-great" };
-  if (score >= 60) return { emoji: "👍", className: "tier-good" };
-  return { emoji: "💪", className: "tier-try" };
+  if (score >= 80) return { emoji: "<i class='fa-solid fa-star rp-icon'></i>", className: "tier-great" };
+  if (score >= 60) return { emoji: "<i class='fa-solid fa-thumbs-up rp-icon'></i>", className: "tier-good" };
+  return { emoji: "<i class='fa-solid fa-dumbbell rp-icon'></i>", className: "tier-try" };
 }
 
 function scoreBadge(score, { size = "md" } = {}) {
@@ -75,14 +87,14 @@ function badgeImageHtml(badge, size = 40) {
   if (!badge) return "";
   return badge.badge_image
     ? `<img src="${esc(badge.badge_image)}" class="rp-badge-icon-img" style="width:${size}px;height:${size}px;" alt="${esc(badge.badge_name || "Badge")}" />`
-    : `<span class="rp-badge-icon-fallback" style="font-size:${Math.round(size * 0.6)}px;">🏅</span>`;
+    : `<span class="rp-badge-icon-fallback" style="font-size:${Math.round(size * 0.6)}px;"><i class='fa-solid fa-medal rp-icon rp-icon-gold'></i></span>`;
 }
 
 function badgesSectionHtml(badges = []) {
   if (!badges.length) return "";
   return `
     <div class="rp-section">
-      <h2>🏅 Badges Earned</h2>
+      <h2><i class='fa-solid fa-medal rp-icon rp-icon-gold'></i> Badges Earned</h2>
       <div class="rp-badge-gallery">
         ${badges
           .map(
@@ -102,11 +114,11 @@ function certificateSectionHtml(certificate) {
   if (!certificate) return "";
   return `
     <div class="rp-section" style="text-align:center;">
-      <h2>🎓 Certificate of Completion</h2>
+      <h2><i class='fa-solid fa-graduation-cap rp-icon rp-icon-purple'></i> Certificate of Completion</h2>
       ${
         certificate.certificate_url
           ? `<img src="${esc(certificate.certificate_url)}" class="rp-certificate-img" alt="Certificate" />`
-          : "<p>🏆 Certificate earned!</p>"
+          : "<p><i class='fa-solid fa-trophy rp-icon rp-icon-gold'></i> Certificate earned!</p>"
       }
       ${certificate.issued_at ? `<p style="color:#8a7841; font-size:12px; margin-top:10px;">Issued ${new Date(certificate.issued_at).toLocaleDateString()}</p>` : ""}
     </div>`;
@@ -114,7 +126,7 @@ function certificateSectionHtml(certificate) {
 
 function inProgressBannerHtml(percent) {
   if (percent >= 100) return "";
-  return `<div class="rp-inprogress-banner">🚧 <strong>Still in progress</strong> — ${percent}% complete so far. Keep going!</div>`;
+  return `<div class="rp-inprogress-banner"><i class='fa-solid fa-triangle-exclamation rp-icon rp-icon-orange'></i> <strong>Still in progress</strong> — ${percent}% complete so far. Keep going!</div>`;
 }
 
 function progressBar(percent) {
@@ -382,6 +394,28 @@ const SHARED_STYLES = `
     color: #8a7841;
     margin-top: 26px;
   }
+
+  /* Icons use Font Awesome (a plain vector glyph font) instead of color
+     emoji — Chromium's PDF export pipeline (page.pdf()) frequently fails
+     to embed color/bitmap emoji glyphs even though the same page screenshots
+     fine, leaving blank boxes in the actual downloaded PDF depending on the
+     viewer. A normal icon font doesn't have that problem. */
+  .rp-icon { margin-right: 5px; color: inherit; }
+  /* Deliberate per-meaning colors so icons still read as lively/gamified
+     even though they're plain vector glyphs now (not color emoji) — see
+     the comment above about why color emoji don't survive PDF export.
+     Score-tier icons (star/thumbs-up in scoreTier()) are left on
+     color:inherit on purpose, since they already pick up their tier's
+     green/gold/orange from the badge they sit inside. */
+  .rp-icon-gold { color: #A17807; }
+  .rp-icon-green { color: #1E6B34; }
+  .rp-icon-blue { color: #2980b9; }
+  .rp-icon-purple { color: #8e44ad; }
+  .rp-icon-orange { color: #e67e22; }
+  .rp-icon-teal { color: #16a085; }
+  .rp-icon-pink { color: #d63384; }
+  .rp-icon-red { color: #c0392b; }
+  .rp-icon-gray { color: #999; }
 `;
 
 function reportShell({ title, subtitle, info, student, bodyHtml, badgeEmoji }) {
@@ -392,6 +426,7 @@ function reportShell({ title, subtitle, info, student, bodyHtml, badgeEmoji }) {
     <head>
       <meta charset="utf-8" />
       <title>${esc(title)}</title>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
       <style>${SHARED_STYLES}</style>
     </head>
     <body>
@@ -400,7 +435,7 @@ function reportShell({ title, subtitle, info, student, bodyHtml, badgeEmoji }) {
         <div class="rp-header">
           ${info?.logo_url ? `<img src="${esc(info.logo_url)}" class="rp-logo" alt="Logo" />` : ""}
           <div>
-            <h1>${badgeEmoji || "🎓"} ${esc(title)}</h1>
+            <h1>${badgeEmoji || "<i class='fa-solid fa-graduation-cap rp-icon rp-icon-purple'></i>"} ${esc(title)}</h1>
             ${subtitle ? `<p class="rp-subtitle">${esc(subtitle)}</p>` : ""}
           </div>
         </div>
@@ -431,33 +466,34 @@ function reportShell({ title, subtitle, info, student, bodyHtml, badgeEmoji }) {
 // ---------------------------------------------------------------------
 function renderQuizReportHtml(data) {
   const { info, student, courseTitle, moduleTitle, lessonTitle, quizTitle, score, passed, takenAt, reviewData = [] } = data;
+  const friendlyTitle = friendlyQuizTitle({ quiz_title: quizTitle, lesson_title: lessonTitle });
   const tier = scoreTier(score);
   const bannerText =
     score === null || score === undefined
       ? "This quiz hasn't been taken yet."
       : passed
-      ? "Great job, this quiz was passed! 🎉"
-      : "Nice try — a little more practice and you'll get it! 💪";
+      ? "Great job, this quiz was passed! <i class='fa-solid fa-champagne-glasses rp-icon rp-icon-pink'></i>"
+      : "Nice try — a little more practice and you'll get it! <i class='fa-solid fa-dumbbell rp-icon rp-icon-orange'></i>";
 
   const answered = reviewData.filter((r) => r.yourAnswer && String(r.yourAnswer).trim() !== "").length;
   const correct = reviewData.filter((r) => r.isCorrect).length;
 
   const body = `
     <div class="rp-section">
-      <h2>📚 Where This Came From</h2>
+      <h2><i class='fa-solid fa-book-open-reader rp-icon rp-icon-blue'></i> Where This Came From</h2>
       <div class="rp-stat-grid" style="grid-template-columns: repeat(3, 1fr);">
-        ${statCard("📘", "Course", courseTitle || "—")}
-        ${statCard("🧩", "Module", moduleTitle || "—")}
-        ${statCard("📖", "Lesson", lessonTitle || "—")}
+        ${statCard("<i class='fa-solid fa-book rp-icon rp-icon-blue'></i>", "Course", courseTitle || "—")}
+        ${statCard("<i class='fa-solid fa-puzzle-piece rp-icon rp-icon-green'></i>", "Module", moduleTitle || "—")}
+        ${statCard("<i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i>", "Lesson", lessonTitle || "—")}
       </div>
     </div>
 
     <div class="rp-section">
-      <h2>📊 Result — ${esc(quizTitle || "Quiz")}</h2>
+      <h2><i class='fa-solid fa-chart-column rp-icon rp-icon-purple'></i> Result — ${esc(friendlyTitle)}</h2>
       <div class="rp-score-hero">
         <div class="rp-score-ring ${tier.className}">${score !== null && score !== undefined ? score + "%" : "—"}</div>
         <div>
-          <p class="rp-score-hero-banner">${tier.emoji} ${esc(bannerText)}</p>
+          <p class="rp-score-hero-banner">${tier.emoji} ${bannerText}</p>
           <p style="margin:2px 0 0; font-size:12px; color:#7a6a3f;">
             ${answered}/${reviewData.length} answered · ${correct}/${reviewData.length} correct
             ${takenAt ? ` · Taken ${new Date(takenAt).toLocaleDateString()}` : ""}
@@ -470,7 +506,7 @@ function renderQuizReportHtml(data) {
       reviewData.length
         ? `
       <div class="rp-section">
-        <h2>📝 Question by Question</h2>
+        <h2><i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i> Question by Question</h2>
         ${reviewData
           .map(
             (q) => `
@@ -478,8 +514,8 @@ function renderQuizReportHtml(data) {
             <p style="font-weight:700;">${esc(q.question)}</p>
             <p><strong>Your answer:</strong> ${esc(q.yourAnswer || "No answer")}</p>
             ${!q.isCorrect ? `<p><strong>Correct answer:</strong> ${esc(q.correctAnswer)}</p>` : ""}
-            <p class="rp-quiz-review-status">${q.isCorrect ? "✅ Correct!" : "❌ Not quite"}</p>
-            ${q.feedback ? `<div class="rp-quiz-review-feedback">🤖 ${esc(q.feedback)}</div>` : ""}
+            <p class="rp-quiz-review-status">${q.isCorrect ? "<i class='fa-solid fa-circle-check rp-icon rp-icon-green'></i> Correct!" : "<i class='fa-solid fa-circle-xmark rp-icon rp-icon-red'></i> Not quite"}</p>
+            ${q.feedback ? `<div class="rp-quiz-review-feedback"><i class='fa-solid fa-robot rp-icon rp-icon-blue'></i> ${esc(q.feedback)}</div>` : ""}
           </div>`
           )
           .join("")}
@@ -490,11 +526,11 @@ function renderQuizReportHtml(data) {
 
   return reportShell({
     title: "Quiz Report",
-    subtitle: quizTitle,
+    subtitle: friendlyTitle,
     info,
     student,
     bodyHtml: body,
-    badgeEmoji: "📝",
+    badgeEmoji: "<i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i>",
   });
 }
 
@@ -525,17 +561,17 @@ function renderModuleReportHtml(data) {
   const grade = smartScore(percent, quizAvg, assignmentAvg);
 
   const statCards = [
-    statCard(percent === 100 ? "🏆" : "📖", "Lessons Complete", `${completedLessons}/${totalLessons}`),
-    statCard("🧠", "Quiz Average", quizAvg !== null ? `${quizAvg}%` : "—"),
-    statCard("📝", "Assignment Average", assignmentAvg !== null ? `${assignmentAvg}%` : "—"),
+    statCard(percent === 100 ? "<i class='fa-solid fa-trophy rp-icon rp-icon-gold'></i>" : "<i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i>", "Lessons Complete", `${completedLessons}/${totalLessons}`),
+    statCard("<i class='fa-solid fa-brain rp-icon rp-icon-purple'></i>", "Quiz Average", quizAvg !== null ? `${quizAvg}%` : "—"),
+    statCard("<i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i>", "Assignment Average", assignmentAvg !== null ? `${assignmentAvg}%` : "—"),
   ];
-  if (timeSpent) statCards.push(statCard("⏱️", "Time Spent", timeSpent));
+  if (timeSpent) statCards.push(statCard("<i class='fa-solid fa-stopwatch rp-icon rp-icon-teal'></i>", "Time Spent", timeSpent));
 
   const body = `
     <div class="rp-section">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
         <h2 style="border:none; padding:0; margin:0; flex:1;">
-          ${badges.length ? badgeImageHtml(badges[0], 28) + " " : ""}🧩 ${esc(moduleTitle)}
+          ${badges.length ? badgeImageHtml(badges[0], 28) + " " : ""}<i class='fa-solid fa-puzzle-piece rp-icon rp-icon-green'></i> ${esc(moduleTitle)}
           <span style="font-size:12px; font-weight:400; color:#8a7841;">— ${esc(courseTitle || "")}</span>
         </h2>
         ${gradeCircle(grade, "Grade")}
@@ -547,13 +583,13 @@ function renderModuleReportHtml(data) {
     </div>
 
     <div class="rp-section">
-      <h2>📖 Lessons</h2>
+      <h2><i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i> Lessons</h2>
       <ul class="rp-row-list">
         ${lessons
           .map(
             (l) => `
           <li>
-            <span>${l.completed_at ? "✅" : "⭕"}</span>
+            <span>${l.completed_at ? "<i class='fa-solid fa-circle-check rp-icon rp-icon-green'></i>" : "<i class='fa-regular fa-circle rp-icon rp-icon-gray'></i>"}</span>
             <span class="rp-row-title">${esc(l.title)}</span>
           </li>`
           )
@@ -562,13 +598,13 @@ function renderModuleReportHtml(data) {
     </div>
 
     <div class="rp-section">
-      <h2>🧠 Quizzes</h2>
+      <h2><i class='fa-solid fa-brain rp-icon rp-icon-purple'></i> Quizzes</h2>
       <ul class="rp-row-list">
         ${quizzes
           .map(
             (q) => `
           <li>
-            <span class="rp-row-title">${esc(q.quiz_title || q.title || q.lesson_title)}</span>
+            <span class="rp-row-title">${esc(friendlyQuizTitle(q))}</span>
             ${scoreBadge(q.score)}
           </li>`
           )
@@ -577,7 +613,7 @@ function renderModuleReportHtml(data) {
     </div>
 
     <div class="rp-section">
-      <h2>📝 Assignments</h2>
+      <h2><i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i> Assignments</h2>
       <ul class="rp-row-list">
         ${assignments
           .map(
@@ -600,7 +636,7 @@ function renderModuleReportHtml(data) {
     info,
     student,
     bodyHtml: body,
-    badgeEmoji: "🧩",
+    badgeEmoji: "<i class='fa-solid fa-puzzle-piece rp-icon rp-icon-green'></i>",
   });
 }
 
@@ -649,17 +685,17 @@ function buildCourseSectionHtml(courseTitle, modules = []) {
   const modulesComplete = enriched.filter((m) => m.totalLessons > 0 && m.percent === 100).length;
 
   const statCards = [
-    statCard("🧩", "Modules Mastered", `${modulesComplete}/${enriched.length}`),
-    statCard(coursePercent === 100 ? "🏆" : "📖", "Lessons Complete", `${completedLessons}/${totalLessons}`),
-    statCard("🧠", "Quiz Average", courseQuizAvg !== null ? `${courseQuizAvg}%` : "—"),
-    statCard("📝", "Assignment Average", courseAssignmentAvg !== null ? `${courseAssignmentAvg}%` : "—"),
+    statCard("<i class='fa-solid fa-puzzle-piece rp-icon rp-icon-green'></i>", "Modules Mastered", `${modulesComplete}/${enriched.length}`),
+    statCard(coursePercent === 100 ? "<i class='fa-solid fa-trophy rp-icon rp-icon-gold'></i>" : "<i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i>", "Lessons Complete", `${completedLessons}/${totalLessons}`),
+    statCard("<i class='fa-solid fa-brain rp-icon rp-icon-purple'></i>", "Quiz Average", courseQuizAvg !== null ? `${courseQuizAvg}%` : "—"),
+    statCard("<i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i>", "Assignment Average", courseAssignmentAvg !== null ? `${courseAssignmentAvg}%` : "—"),
   ];
 
   return `
     <div class="rp-section">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
-        <h2 style="border:none; padding:0; margin:0; flex:1;">📘 ${esc(courseTitle)}</h2>
-        ${gradeCircle(courseGrade, "Course Grade")}
+        <h2 style="border:none; padding:0; margin:0; flex:1;"><i class='fa-solid fa-book rp-icon rp-icon-blue'></i> ${esc(courseTitle)}</h2>
+        ${gradeCircle(courseGrade, "Grade")}
       </div>
       <div style="height:10px;"></div>
       ${progressBar(coursePercent)}
@@ -673,28 +709,28 @@ function buildCourseSectionHtml(courseTitle, modules = []) {
         (mod) => `
       <div class="rp-module-card">
         <div class="rp-module-card-header">
-          <h3>${mod.badges.length ? badgeImageHtml(mod.badges[0], 22) + " " : ""}${mod.percent === 100 ? "🏆" : mod.percent > 0 ? "📖" : "⭕"} ${esc(mod.title)}</h3>
+          <h3>${mod.badges.length ? badgeImageHtml(mod.badges[0], 22) + " " : ""}${mod.percent === 100 ? "<i class='fa-solid fa-trophy rp-icon rp-icon-gold'></i>" : mod.percent > 0 ? "<i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i>" : "<i class='fa-regular fa-circle rp-icon rp-icon-gray'></i>"} ${esc(mod.title)}</h3>
           <div style="display:flex; align-items:center; gap:8px;">
             ${gradeChip(mod.grade)}
-            <span style="font-weight:800; color:#4C3802; font-size:13px;">${mod.percent}%${mod.timeSpent ? ` · ⏱️ ${esc(mod.timeSpent)}` : ""}</span>
+            <span style="font-weight:800; color:#4C3802; font-size:13px;">${mod.percent}%${mod.timeSpent ? ` · <i class='fa-solid fa-stopwatch rp-icon rp-icon-teal'></i> ${esc(mod.timeSpent)}` : ""}</span>
           </div>
         </div>
         ${progressBar(mod.percent)}
 
-        <h3>📖 Lessons</h3>
+        <h3><i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i> Lessons</h3>
         <ul class="rp-row-list">
           ${mod.lessons
-            .map((l) => `<li><span>${l.completed_at ? "✅" : "⭕"}</span><span class="rp-row-title">${esc(l.title)}</span></li>`)
+            .map((l) => `<li><span>${l.completed_at ? "<i class='fa-solid fa-circle-check rp-icon rp-icon-green'></i>" : "<i class='fa-regular fa-circle rp-icon rp-icon-gray'></i>"}</span><span class="rp-row-title">${esc(l.title)}</span></li>`)
             .join("") || "<li>No lessons yet.</li>"}
         </ul>
 
         ${
           mod.quizzes.length
             ? `
-        <h3>🧠 Quizzes</h3>
+        <h3><i class='fa-solid fa-brain rp-icon rp-icon-purple'></i> Quizzes</h3>
         <ul class="rp-row-list">
           ${mod.quizzes
-            .map((q) => `<li><span class="rp-row-title">${esc(q.quiz_title || q.title || q.lesson_title)}</span>${scoreBadge(q.score)}</li>`)
+            .map((q) => `<li><span class="rp-row-title">${esc(friendlyQuizTitle(q))}</span>${scoreBadge(q.score)}</li>`)
             .join("")}
         </ul>`
             : ""
@@ -703,7 +739,7 @@ function buildCourseSectionHtml(courseTitle, modules = []) {
         ${
           mod.assignments.length
             ? `
-        <h3>📝 Assignments</h3>
+        <h3><i class='fa-solid fa-pen-to-square rp-icon rp-icon-orange'></i> Assignments</h3>
         <ul class="rp-row-list">
           ${mod.assignments.map((a) => `<li><span class="rp-row-title">${esc(a.title)}</span>${scoreBadge(a.total)}</li>`).join("")}
         </ul>`
@@ -733,7 +769,7 @@ function renderCourseReportHtml(data) {
     info,
     student,
     bodyHtml: body,
-    badgeEmoji: "📘",
+    badgeEmoji: "<i class='fa-solid fa-book rp-icon rp-icon-blue'></i>",
   });
 }
 
@@ -746,8 +782,8 @@ function renderStudentFullReportHtml(data) {
   const { info, student, courses = [], xp, level } = data;
 
   const topStats = [];
-  if (xp !== undefined && xp !== null) topStats.push(statCard("⚡", "Total XP", xp));
-  if (level !== undefined && level !== null) topStats.push(statCard("🎮", "Level", level));
+  if (xp !== undefined && xp !== null) topStats.push(statCard("<i class='fa-solid fa-bolt rp-icon'></i>", "Total XP", xp));
+  if (level !== undefined && level !== null) topStats.push(statCard("<i class='fa-solid fa-gamepad rp-icon'></i>", "Level", level));
 
   const body = `
     ${topStats.length ? `<div class="rp-section">${statGrid(topStats)}</div>` : ""}
@@ -767,7 +803,7 @@ function renderStudentFullReportHtml(data) {
     info,
     student,
     bodyHtml: body,
-    badgeEmoji: "📑",
+    badgeEmoji: "<i class='fa-solid fa-file-lines rp-icon rp-icon-gold'></i>",
   });
 }
 
