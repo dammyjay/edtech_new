@@ -634,7 +634,7 @@ async function viewNewsletter(id){
 
 async function deleteNewsletter(id){
 
-    if(!confirm("Delete this newsletter?")) return;
+    if(!(await showConfirm("Delete this newsletter?"))) return;
 
     const res = await fetch(`/admin/newsletters/${id}`,{
         method:"DELETE"
@@ -646,7 +646,7 @@ async function deleteNewsletter(id){
 
     }else{
 
-        alert("Unable to delete newsletter.");
+        showAlert("Unable to delete newsletter.");
 
     }
 
@@ -726,7 +726,7 @@ window.editNewsletter = async function(id){
 
         console.error(err);
 
-        alert("Unable to load newsletter.");
+        showAlert("Unable to load newsletter.");
 
     }
 

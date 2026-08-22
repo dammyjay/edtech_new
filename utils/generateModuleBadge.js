@@ -12,11 +12,13 @@ const path = require("path");
 const puppeteer = require("puppeteer");
 const { v4: uuidv4 } = require("uuid");
 
-// Eight visually distinct gem-tone gradients so badges across a course's
-// modules don't all look identical. Each has a light/mid/dark stop so the
-// radial "gem" fill in buildHtml has real depth, not a flat two-color wash.
-// Picked by index (see pickBadgeColor below), not randomly, so the same
-// module always regenerates the same look.
+// Thirty visually distinct gem-tone gradients so badges across a large
+// catalog of modules don't start repeating. Each has a light/mid/dark stop
+// so the radial "gem" fill in buildHtml has real depth, not a flat
+// two-color wash. Picked by index (see pickBadgeColor below), not randomly,
+// so the same module always regenerates the same look. Kept in sync with
+// generateThumbnail.js's PALETTE (same order, same values) so a module's
+// badge and its thumbnail always land on the same color for a given index.
 const PALETTE = [
   ["#E9A6FF", "#8B2FC9", "#4A1568"], // purple
   ["#FF8A8A", "#B23A3A", "#5C1414"], // deep red
@@ -26,6 +28,28 @@ const PALETTE = [
   ["#A6F0B4", "#1B7A3D", "#0C3A1B"], // green
   ["#F5DA8A", "#A17807", "#5A4204"], // brand gold
   ["#FFB0D6", "#C9327A", "#6B1740"], // pink
+  ["#FFA3F0", "#C230A8", "#5E1352"], // magenta
+  ["#A6E9FF", "#1C8FC9", "#0B4568"], // sky/cyan
+  ["#D4FF9E", "#6EA82A", "#365A12"], // lime
+  ["#FFEA9E", "#D9A521", "#6B4E0A"], // amber
+  ["#C3B8FF", "#5539C9", "#2A1B68"], // indigo
+  ["#FFB3C1", "#D63A5C", "#6B1526"], // rose
+  ["#B8D4FF", "#3B6EC9", "#1C3568"], // steel blue
+  ["#A6FFDA", "#1CA872", "#0C5238"], // mint
+  ["#FFB09E", "#D9552E", "#6B2510"], // coral
+  ["#E0A8E9", "#8B3AB2", "#451858"], // plum
+  ["#9EF5EA", "#1C9C93", "#0C4D48"], // turquoise
+  ["#E4FFA0", "#9CBF2C", "#4A5C14"], // chartreuse
+  ["#E9A0A6", "#8B2C36", "#451418"], // maroon
+  ["#A0B8E9", "#2C4B8B", "#142445"], // navy
+  ["#FFC0A0", "#D97A4C", "#6B3C24"], // salmon
+  ["#E0DFA0", "#8B892C", "#454414"], // olive
+  ["#E9A0BC", "#8B2C52", "#451428"], // burgundy
+  ["#A0EFFF", "#2C9CC9", "#144D68"], // aqua
+  ["#FFF0A0", "#E0C42C", "#705E14"], // sunflower
+  ["#A0F5C0", "#159C56", "#0A4E2A"], // emerald
+  ["#A0C0FF", "#2C5CC9", "#142C68"], // sapphire
+  ["#C8A0FF", "#6B2CC9", "#351468"], // amethyst
 ];
 
 function pickBadgeColor(index) {

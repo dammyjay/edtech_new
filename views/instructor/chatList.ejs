@@ -119,7 +119,7 @@
   document.getElementById("searchForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const query = document.getElementById("searchInput").value.trim();
-    if (!query) return alert("Enter a student name or class");
+    if (!query) return showAlert("Enter a student name or class");
 
     const res = await fetch(`/instructor/search-student?q=${encodeURIComponent(query)}`);
     const data = await res.json();

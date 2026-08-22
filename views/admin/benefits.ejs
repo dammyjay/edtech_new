@@ -35,7 +35,7 @@
 
             <div class="article-buttons" style="margin-top: 10px;">
             <button class="btn-edit" onclick="openEditModal('<%= benefit.id %>')">Edit</button>
-            <form action="/admin/benefits/delete/<%= benefit.id %>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure?');">
+            <form action="/admin/benefits/delete/<%= benefit.id %>" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Are you sure?')">
                 <button type="submit">Delete</button>
             </form>
             </div>

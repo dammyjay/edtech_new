@@ -372,7 +372,7 @@ async function loadAttendanceHistory() {
 
   } catch (err) {
     console.error(err);
-    alert("Failed to load attendance history");
+    showAlert("Failed to load attendance history");
   }
 }
 
@@ -383,7 +383,7 @@ async function loadAttendanceSummary() {
   const termId = document.getElementById("attendanceFilterTerm")?.value;
   const box = document.getElementById("attendanceSummaryReport");
   if (!termId) {
-    alert("Select a term first.");
+    showAlert("Select a term first.");
     return;
   }
 
@@ -457,7 +457,7 @@ function exportPDF(sessionId) {
 
 function exportExcel(termId) {
   if (!termId) {
-    alert("Missing term ID");
+    showAlert("Missing term ID");
     return;
   }
 
@@ -480,7 +480,7 @@ async function checkTermReportStatus() {
   const termId = document.getElementById("reportTerm").value;
   const box = document.getElementById("termReportStudents");
   if (!classroomId || !termId) {
-    alert("Select a classroom and a term first.");
+    showAlert("Select a classroom and a term first.");
     return;
   }
 
@@ -563,7 +563,7 @@ async function viewAttendance(sessionId) {
 
   } catch (err) {
     console.error(err);
-    alert("Failed to load attendance details");
+    showAlert("Failed to load attendance details");
   }
 }
 </script>
@@ -702,7 +702,7 @@ function attachEvents() {
 
     const select = document.getElementById("student-select-" + classroomId);
     const studentId = select.value;
-    if (!studentId) return alert("Please select a student.");
+    if (!studentId) return showAlert("Please select a student.");
 
     try {
       const res = await fetch(`/school-admin/classrooms/${classroomId}/add-student`, {
@@ -724,7 +724,7 @@ function attachEvents() {
       <td>
         <form method="POST" action="/school-admin/students/${data.student.id}/delete" 
               style="display:inline;" 
-              onsubmit="return confirm('Remove this student?')">
+              onsubmit="return handleConfirmSubmit(event, 'Remove this student?')">
           <button class="btn-delete">🗑 Remove</button>
         </form>
       </td>
@@ -753,7 +753,7 @@ function attachEvents() {
 
   } catch (err) {
       console.error(err);
-      alert("Server error while adding student.");
+      showAlert("Server error while adding student.");
     }
   }
 

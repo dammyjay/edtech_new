@@ -605,7 +605,7 @@ function renderRecordingFrame() {
 async function startRecording() {
     document.getElementById("recordCursor").style.display = "block";
     const useMic =
-        confirm(
+        await showConfirm(
             "Do you want to record with microphone narration?"
         );
 
@@ -691,7 +691,7 @@ async function recordStage(useMic) {
 
         } catch (err) {
 
-            alert(
+            showAlert(
                 "Microphone permission denied"
             );
 
@@ -882,7 +882,7 @@ async function runCode() {
     );
 
     if (!runBlock) {
-      alert("Add a When Run Clicked block");
+      showAlert("Add a When Run Clicked block");
       return;
     }
 

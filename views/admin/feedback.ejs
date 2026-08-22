@@ -511,7 +511,7 @@ function renderCards(rows) {
 
   document.querySelectorAll(".delete-btn").forEach(btn => {
     btn.onclick = async () => {
-      if (!confirm("Delete this feedback?")) return;
+      if (!(await showConfirm("Delete this feedback?"))) return;
 
       await fetch(`/admin/feedback/delete/${btn.dataset.id}`, {
         method: "DELETE"

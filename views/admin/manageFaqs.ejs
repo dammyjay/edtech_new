@@ -13,7 +13,7 @@
           <form
             action="/admin/faqs/delete/<%= faq.id %>"
             method="POST"
-            onsubmit="return confirm('Are you sure you want to delete this FAQ?');"
+            onsubmit="return handleConfirmSubmit(event, 'Are you sure you want to delete this FAQ?')"
           >
             <button type="submit">Delete</button>
           </form>

@@ -30,8 +30,9 @@
         <!-- </a> -->
         <script>
           function promptLogin() {
-            alert("Please login to make a payment.");
-            window.location.href = "/admin/login";
+            showAlert("Please login to make a payment.").then(() => {
+              window.location.href = "/admin/login";
+            });
           }
         </script>
       <% } %>
@@ -222,9 +223,9 @@
 
     <!-- script for confirm enrollment -->
     <script>
-      function confirmEnroll(amount) {
+      async function confirmEnroll(amount) {
         if (amount === 0) return true;
-        return confirm(`This course costs ₦${amount.toLocaleString()}. Proceed to enroll using your wallet balance?`);
+        return await showConfirm(`This course costs ₦${amount.toLocaleString()}. Proceed to enroll using your wallet balance?`);
       }
     </script>
 
@@ -286,7 +287,7 @@
         localStorage.setItem("lastPromptTime", Date.now());
 
         if (permission !== 'granted') {
-        alert("❌ Notification permission denied.");
+        await showAlert("❌ Notification permission denied.");
         dismissBanner();
         return;
         }
@@ -304,7 +305,7 @@
             body: JSON.stringify(subscription)
         });
 
-        alert("✅ Subscribed to notifications!");
+        await showAlert("✅ Subscribed to notifications!");
         localStorage.setItem("pushStatus", "granted");
         dismissBanner();
         } catch (err) {

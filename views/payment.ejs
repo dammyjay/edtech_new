@@ -102,6 +102,7 @@
         }
       }
     </style>
+    <script src="/js/uiAlerts.js"></script>
   </head>
   <body>
     <div class="payment-container">
@@ -228,7 +229,7 @@
               });
           },
           onClose: function () {
-            alert("Transaction cancelled");
+            showAlert("Transaction cancelled");
           },
         });
 

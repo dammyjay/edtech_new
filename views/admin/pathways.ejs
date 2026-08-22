@@ -46,7 +46,7 @@
           <form
             action="/admin/pathways/delete/<%= pathway.id %>"
             method="POST"
-            onsubmit="return confirm('Delete this pathway?');"
+            onsubmit="return handleConfirmSubmit(event, 'Delete this pathway?')"
           >
             <button type="submit">Delete</button>
           </form>

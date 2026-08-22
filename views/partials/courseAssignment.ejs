@@ -106,7 +106,7 @@ document.getElementById('createAssignmentForm').addEventListener('submit', async
 
   const content = createAssignmentEditor ? createAssignmentEditor.getData().trim() : '';
   if (!content) {
-    alert('Content is required.');
+    showAlert('Content is required.');
     return;
   }
   this.querySelector('textarea[name="instructions"]').value = content;
@@ -140,7 +140,7 @@ document.getElementById('createAssignmentForm').addEventListener('submit', async
     createAssignmentEditor.setData('');
     closeAssignmentModal();
   } else {
-    alert('Error creating assignment');
+    showAlert('Error creating assignment');
   }
 });
 
@@ -172,7 +172,7 @@ document.getElementById('editAssignmentForm').addEventListener('submit', async f
   const id = document.getElementById('editAssignmentId').value;
   const content = editAssignmentEditor ? editAssignmentEditor.getData().trim() : '';
   if (!content) {
-    alert('Content is required.');
+    showAlert('Content is required.');
     return;
   }
   this.querySelector('textarea[name="instructions"]').value = content;
@@ -197,20 +197,20 @@ document.getElementById('editAssignmentForm').addEventListener('submit', async f
 
     closeEditAssignmentModal();
   } else {
-    alert('Error updating assignment');
+    showAlert('Error updating assignment');
   }
 });
 
 // ----- DELETE via AJAX -----
 async function deleteAssignment(id) {
-  if (!confirm('Delete assignment?')) return;
+  if (!(await showConfirm('Delete assignment?'))) return;
 
   const res = await fetch(`/admin/assignments/${id}/delete`, { method: 'POST' });
   if (res.ok) {
     const card = document.querySelector(`.article-card[data-id="${id}"]`);
     if (card) card.remove();
   } else {
-    alert('Error deleting assignment');
+    showAlert('Error deleting assignment');
   }
 }
 

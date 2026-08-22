@@ -335,7 +335,7 @@ async function loadCourses() {
       await Promise.all([ loadOverview(), loadUsers(), loadCourses(), loadQuizzes(), loadActivity(), loadFinance() ]);
     } catch (err) {
       console.error(err);
-      alert('Failed to load analytics: ' + err.message);
+      showAlert('Failed to load analytics: ' + err.message);
     } finally {
       document.getElementById('refreshBtn').disabled = false;
     }

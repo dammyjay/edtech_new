@@ -6,6 +6,7 @@
   <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
   <script src="https://js.paystack.co/v1/inline.js"></script>
   <link rel="stylesheet" href="/css/style.css" />
+  <script src="/js/uiAlerts.js"></script>
 </head>
 <body>
   <div class="payment-container">
@@ -119,15 +120,16 @@
           .then(res => res.json())
           .then(data => {
             if (data.success) {
-              alert("🎉 Payment successful!");
-              window.location.href = "/events/<%= reg.event_id %>?paid=success";
+              showAlert("🎉 Payment successful!").then(() => {
+                window.location.href = "/events/<%= reg.event_id %>?paid=success";
+              });
             } else {
-              alert("❌ " + data.message);
+              showAlert("❌ " + data.message);
             }
           });
         },
         onClose: function() {
-          alert("Payment cancelled");
+          showAlert("Payment cancelled");
         }
       });
 

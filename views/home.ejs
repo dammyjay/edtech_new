@@ -484,8 +484,9 @@
     <% } else { %>
       <script>
         function promptLogin() {
-          alert("Please login to make a payment.");
-          window.location.href = "/admin/login";
+          showAlert("Please login to make a payment.").then(() => {
+            window.location.href = "/admin/login";
+          });
         }
       </script>
     <% } %>
@@ -666,7 +667,7 @@ function showLess(idx) {
     localStorage.setItem("lastPromptTime", Date.now());
 
     if (permission !== 'granted') {
-      alert("❌ Notification permission denied.");
+      await showAlert("❌ Notification permission denied.");
       dismissBanner();
       return;
     }
@@ -684,7 +685,7 @@ function showLess(idx) {
         body: JSON.stringify(subscription)
       });
 
-      alert("✅ Subscribed to notifications!");
+      await showAlert("✅ Subscribed to notifications!");
       localStorage.setItem("pushStatus", "granted");
       dismissBanner();
     } catch (err) {

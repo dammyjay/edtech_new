@@ -329,14 +329,14 @@ document.getElementById("feedbackForm").addEventListener("submit", async functio
       showPopup();
       this.reset(); // clear form
     } else {
-      alert("Something went wrong.");
+      showAlert("Something went wrong.");
     }
 
-    
-    
+
+
   } catch(err) {
     console.error(err);
-    alert("Could not submit feedback");
+    showAlert("Could not submit feedback");
   }
 });
 

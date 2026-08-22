@@ -269,17 +269,18 @@
 
 <script>
 document.getElementById("approveAllBtn").addEventListener("click", async () => {
-  if (!confirm("Approve all pending users?")) return;
+  if (!(await showConfirm("Approve all pending users?"))) return;
   const res = await fetch("/school-admin/approve-all", {
     method: "POST",
     headers: { "X-Requested-With": "XMLHttpRequest" }
   });
   const data = await res.json();
   if (data.success) {
-    alert("All users approved!");
-    location.reload(); // or dynamically remove rows if you want no reload
+    showAlert("All users approved!").then(() => {
+      location.reload(); // or dynamically remove rows if you want no reload
+    });
   } else {
-    alert("Error: " + data.error);
+    showAlert("Error: " + data.error);
   }
 });
 
@@ -293,7 +294,7 @@ async function approveUser(userId) {
   if (data.success) {
     document.querySelector(`#user-row-${userId}`).remove();
   } else {
-    alert("Error: " + data.error);
+    showAlert("Error: " + data.error);
   }
 }
 </script>
@@ -497,7 +498,7 @@ async function approveUser(userId) {
 
                     
                     <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete" 
-                        onsubmit="return confirm('Delete this classroom?')">
+                        onsubmit="return handleConfirmSubmit(event, 'Delete this classroom?')">
                         <button type="submit" class="btn-delete">🗑 Delete</button>
                     </form>
 

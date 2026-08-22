@@ -118,10 +118,11 @@ document.getElementById("editSchoolForm").addEventListener("submit", async (e) =
 
   const data = await res.json();
   if (data.ok) {
-    alert("✅ School info updated successfully!");
-    window.location.reload();
+    showAlert("✅ School info updated successfully!").then(() => {
+      window.location.reload();
+    });
   } else {
-    alert("⚠️ " + data.error);
+    showAlert("⚠️ " + data.error);
   }
 });
 </script>

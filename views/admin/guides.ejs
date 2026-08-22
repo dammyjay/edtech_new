@@ -275,7 +275,7 @@ async function loadGuide(type){
 
    if(!data.success){
 
-        alert("Unable to load guide.");
+        showAlert("Unable to load guide.");
 
         return;
 
@@ -306,7 +306,7 @@ async function deleteGuide(){
     const type =
         document.getElementById("guideType").value;
 
-    if(!confirm("Delete this guide?")){
+    if(!(await showConfirm("Delete this guide?"))){
         return;
     }
 
@@ -320,9 +320,11 @@ async function deleteGuide(){
 
     if(data.success){
 
-        alert("Guide deleted.");
+        showAlert("Guide deleted.").then(() => {
 
-        closeGuideModal();
+            closeGuideModal();
+
+        });
 
     }
 
@@ -353,9 +355,11 @@ async function deleteGuide(){
 
     if(data.success){
 
-        alert("Guide Saved");
+        showAlert("Guide Saved").then(() => {
 
-        closeGuideModal();
+            closeGuideModal();
+
+        });
 
     }
 

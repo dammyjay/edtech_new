@@ -234,6 +234,10 @@ router.post(
   adminController.editCourse
 );
 
+// One-click regenerate — no other fields to fill in, unlike the full edit
+// form's "regenerate" checkbox.
+router.post("/courses/:id/regenerate-thumbnail", adminController.regenerateCourseThumbnail);
+
 // routes/courses.js
 router.get(
   "/courses/:id/curriculum/download",
@@ -351,6 +355,11 @@ router.post(
   ]),
   learningController.editModule
 );
+
+// One-click regenerate — no other fields to fill in, unlike the full edit
+// form's "regenerate" checkboxes.
+router.post("/modules/:id/regenerate-thumbnail", learningController.regenerateModuleThumbnail);
+router.post("/modules/:id/regenerate-badge", learningController.regenerateModuleBadge);
 
 router.post("/modules/delete/:id", learningController.deleteModule);
 

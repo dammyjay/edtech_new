@@ -30,6 +30,10 @@
           <small style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></small>
           <div class="article-buttons">
             <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+            <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Replace the current thumbnail with a new auto-generated one?')">
+              <input type="hidden" name="redirect_to" value="/admin/pathways/<%= pathway.id %>/courses" />
+              <button type="submit">🖼️ Regenerate Thumbnail</button>
+            </form>
             <button class="btn-delete" onclick="openDeleteModal(<%= course.id %>)">Delete</button>
           </div>
         </div>
@@ -41,6 +45,7 @@
             <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
             <h2>Edit Course</h2>
             <form action="/admin/courses/<%= course.id %>/edit" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="redirect_to" value="/admin/pathways/<%= pathway.id %>/courses" />
             <input type="text" name="title" value="<%= course.title %>" required /><br />
 
             <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea><br />
@@ -109,6 +114,7 @@
           <span class="close" onclick="closeDeleteModal(<%= course.id %>)">&times;</span>
           <h3>Are you sure you want to delete "<%= course.title %>"?</h3>
           <form action="/admin/courses/delete/<%= course.id %>" method="POST">
+            <input type="hidden" name="redirect_to" value="/admin/pathways/<%= pathway.id %>/courses" />
             <button type="submit">Yes, Delete</button>
           </form>
         </div>
@@ -181,6 +187,7 @@
 
 
       <input type="number" name="sort_order" placeholder="Sort Order" /><br />
+      <label style="font-weight:normal; font-size:13px;">Thumbnail (optional — leave blank to auto-generate one)</label>
       <input type="file" name="thumbnail" /><br />
 
       <div class="container" id="amountContainer">

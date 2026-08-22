@@ -462,7 +462,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             if (data.exists) {
                 const when = data.generatedAt ? new Date(data.generatedAt).toLocaleString() : "earlier";
-                if (!confirm(`A report was already generated on ${when} and is available to the school admin. Generate again and replace it?`)) {
+                if (!(await showConfirm(`A report was already generated on ${when} and is available to the school admin. Generate again and replace it?`))) {
                     return;
                 }
             }
@@ -474,7 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fullBtn.addEventListener("click", () => {
         const termId = document.getElementById("termSelect").value;
-        if (!termId) { alert("Select a term first."); return; }
+        if (!termId) { showAlert("Select a term first."); return; }
 
         generateReport(
             `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/exists`,
@@ -485,7 +485,7 @@ document.addEventListener("DOMContentLoaded", () => {
     studentBtn.addEventListener("click", () => {
         const termId = document.getElementById("termSelect").value;
         const studentId = document.getElementById("studentSelect").value;
-        if (!termId || !studentId) { alert("Select a term and a student first."); return; }
+        if (!termId || !studentId) { showAlert("Select a term and a student first."); return; }
 
         generateReport(
             `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/exists`,

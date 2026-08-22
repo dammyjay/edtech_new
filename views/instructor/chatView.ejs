@@ -48,7 +48,7 @@ chatContainer.scrollTop = chatContainer.scrollHeight;
 // ✅ Send message
 async function sendMessage() {
   const message = document.getElementById('chatMessage').value.trim();
-  if (!message) return alert('Please type a message.');
+  if (!message) return showAlert('Please type a message.');
 
   try {
     const res = await fetch('/student/chat/send', {
@@ -62,11 +62,11 @@ async function sendMessage() {
       document.getElementById('chatMessage').value = '';
       await loadNewMessages();
     } else {
-      alert('❌ ' + data.message);
+      showAlert('❌ ' + data.message);
     }
   } catch (err) {
     console.error('Send message error:', err);
-    alert('Server error sending message.');
+    showAlert('Server error sending message.');
   }
 }
 

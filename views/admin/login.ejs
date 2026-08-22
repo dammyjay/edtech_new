@@ -48,6 +48,7 @@
   } */
 
 </style>
+<script src="/js/uiAlerts.js"></script>
 </head>
 
 <!-- class="signup-body" -->
@@ -436,7 +437,8 @@
     function openClassroomModal(){
 
       if(!selectedSchoolId){
-        return alert("Please select a school first");
+        showAlert("Please select a school first");
+        return;
       }
 
       document.getElementById("classroomModal")
@@ -677,7 +679,8 @@
         .value;
 
       if(!pin){
-        return alert("Enter PIN");
+        showAlert("Enter PIN");
+        return;
       }
 
       try{
@@ -704,7 +707,7 @@
 
         }else{
 
-          alert(data.message || "Login failed");
+          showAlert(data.message || "Login failed");
 
         }
 
@@ -712,7 +715,7 @@
 
         console.error(err);
 
-        alert("Server error");
+        showAlert("Server error");
 
       }
 
@@ -732,7 +735,8 @@
         localStorage.getItem("pendingEmail");
 
       if(!email){
-        return alert("Email not found");
+        showAlert("Email not found");
+        return;
       }
 
       try{
@@ -752,7 +756,7 @@
         const data =
           await res.json();
 
-        alert(data.message);
+        showAlert(data.message);
 
         if(data.success){
 
@@ -767,7 +771,7 @@
 
         console.error(err);
 
-        alert("OTP verification failed");
+        showAlert("OTP verification failed");
 
       }
 
@@ -798,7 +802,7 @@
         const data =
           await res.json();
 
-        alert(data.message);
+        showAlert(data.message);
 
       });
 

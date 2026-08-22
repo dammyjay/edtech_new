@@ -167,12 +167,12 @@
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          alert(`Done. ${data.total} course-term link(s) confirmed/updated.`);
+          showAlert(`Done. ${data.total} course-term link(s) confirmed/updated.`);
         } else {
-          alert("Backfill failed: " + (data.message || "Unknown error"));
+          showAlert("Backfill failed: " + (data.message || "Unknown error"));
         }
       })
-      .catch(() => alert("Backfill failed."))
+      .catch(() => showAlert("Backfill failed."))
       .finally(() => {
         btn.disabled = false;
         btn.textContent = original;

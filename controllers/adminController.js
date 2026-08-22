@@ -22,6 +22,24 @@ const { generateClassReport, generateStudentReport } = require("../services/repo
 const { saveReport } = require("../services/classTermReportStore");
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
+const generateThumbnail = require("../utils/generateThumbnail");
+const { withFeedback, safeRedirectTarget } = require("../utils/adminFeedback");
+
+// Renders a thumbnail via utils/generateThumbnail, uploads it to
+// Cloudinary, and cleans up the local temp file — the one place both
+// createCourse and editCourse go through so the two stay in sync.
+async function generateAndUploadCourseThumbnail({ title, subtitle, index }) {
+  const { outputPath } = await generateThumbnail({ title, subtitle, index });
+  try {
+    const uploaded = await cloudinary.uploader.upload(outputPath, {
+      folder: "thumbnails/auto-generated",
+      resource_type: "image",
+    });
+    return uploaded.secure_url;
+  } finally {
+    fs.unlink(outputPath, () => {});
+  }
+}
 
 // require at top of file
 const Sentiment = require('sentiment');
@@ -2747,37 +2765,44 @@ exports.createCourse = async (req, res) => {
   const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
     req.body;
 
-  let thumbnail_url = null;
+  // multer-storage-cloudinary has already uploaded this to Cloudinary by
+  // this point — req.files.thumbnail[0].path is the Cloudinary URL, not a
+  // local path, so no re-upload through cloudinary.uploader.upload() is
+  // needed (that was doubling every upload and slowing it down for nothing).
+  let thumbnail_url = req.files?.thumbnail?.[0]?.path || null;
+  let thumbnail_source = thumbnail_url ? "upload" : null;
 
   try {
-    // ✅ Upload thumbnail (image)
-    if (req.files?.thumbnail?.[0]) {
-      const thumbPath = req.files.thumbnail[0].path;
-      const thumbResult = await cloudinary.uploader.upload(thumbPath, {
-        folder: "courses/thumbnails",
-        resource_type: "image",
-        use_filename: true,
-        unique_filename: false,
-      });
-      thumbnail_url = thumbResult.secure_url;
-      if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+    // No thumbnail uploaded — auto-generate a themed one instead of
+    // leaving it blank, so every course gets a real thumbnail by default.
+    // The content creator can replace it with a real upload, or ask to
+    // regenerate it, any time from the edit form.
+    if (!thumbnail_url) {
+      try {
+        const countRes = await pool.query("SELECT COUNT(*) FROM courses");
+        const index = parseInt(countRes.rows[0].count, 10) || 0;
+        thumbnail_url = await generateAndUploadCourseThumbnail({ title, subtitle: level, index });
+        thumbnail_source = "auto";
+      } catch (thumbErr) {
+        console.error("Auto thumbnail generation failed:", thumbErr.message);
+      }
     }
-
 
     await pool.query(
       `INSERT INTO courses (
         title, description, level, career_pathway_id,
-        thumbnail_url, sort_order, amount,
+        thumbnail_url, thumbnail_source, sort_order, amount,
         created_by, instructor_id,
         curriculum_content
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         title,
         description,
         level,
         career_pathway_id || null,
         thumbnail_url,
+        thumbnail_source,
         sort_order || 0,
         amount || 0,
         req.user.role === "instructor" ? "instructor" : "admin",
@@ -2804,9 +2829,10 @@ exports.createCourse = async (req, res) => {
 exports.editCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } = req.body;
+    const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content, regenerate_thumbnail } = req.body;
 
     let thumbnailUrl = null;
+    let thumbnailSource = null;
     let curriculumUrl = null;
     let certificateUrl = null;
 
@@ -2822,14 +2848,30 @@ exports.editCourse = async (req, res) => {
 
     const course = existingCourse.rows[0];
 
-    // Upload new files if provided
-    if (req.files?.thumbnail) {
-      const uploadedThumb = await cloudinary.uploader.upload(
-        req.files.thumbnail[0].path
-      );
-      thumbnailUrl = uploadedThumb.secure_url;
+    // multer-storage-cloudinary has already uploaded this to Cloudinary by
+    // this point — req.files.thumbnail[0].path is the Cloudinary URL, not a
+    // local path, so no re-upload is needed (that was doubling every
+    // upload for nothing).
+    if (req.files?.thumbnail?.[0]) {
+      thumbnailUrl = req.files.thumbnail[0].path;
+      thumbnailSource = "upload";
+    } else if (regenerate_thumbnail === "on" || regenerate_thumbnail === "true") {
+      // Content creator explicitly asked for a fresh auto-generated
+      // thumbnail — e.g. to switch back from a custom upload, or to
+      // re-roll an older course that predates this feature.
+      try {
+        const countRes = await pool.query("SELECT COUNT(*) FROM courses");
+        const index = parseInt(countRes.rows[0].count, 10) || 0;
+        thumbnailUrl = await generateAndUploadCourseThumbnail({ title, subtitle: level, index });
+        thumbnailSource = "auto";
+      } catch (thumbErr) {
+        console.error("Thumbnail regeneration failed, keeping existing thumbnail:", thumbErr.message);
+        thumbnailUrl = course.thumbnail_url;
+        thumbnailSource = course.thumbnail_source;
+      }
     } else {
       thumbnailUrl = course.thumbnail_url;
+      thumbnailSource = course.thumbnail_source;
     }
 
     if (req.files?.curriculum) {
@@ -2855,16 +2897,17 @@ exports.editCourse = async (req, res) => {
     await pool.query(
       `UPDATE courses SET
         title=$1, description=$2, level=$3, career_pathway_id=$4,
-        thumbnail_url=$5, sort_order=$6, amount=$7,
-        created_by=$8, instructor_id=$9,
-        curriculum_content=$10
-      WHERE id=$11`,
+        thumbnail_url=$5, thumbnail_source=$6, sort_order=$7, amount=$8,
+        created_by=$9, instructor_id=$10,
+        curriculum_content=$11
+      WHERE id=$12`,
       [
         title,
         description,
         level,
         career_pathway_id || null,
         thumbnailUrl,
+        thumbnailSource,
         sort_order || 0,
         amount || 0,
         req.user.role === "instructor" ? "instructor" : "admin",
@@ -2893,10 +2936,36 @@ exports.editCourse = async (req, res) => {
     //   ]
     // );
 
-    res.redirect("back");
+    const redirectTo = safeRedirectTarget(req.body.redirect_to, "/admin/courses");
+    res.redirect(withFeedback(redirectTo, "Course updated successfully.", "success"));
   } catch (error) {
     console.error("❌ Error editing course:", error);
     res.status(500).send("Server error while editing course");
+  }
+};
+
+// ONE-CLICK REGENERATE — a standalone action from the course card itself,
+// separate from the "regenerate" checkbox buried in the full edit form
+// (that one still exists for when you're already editing other fields
+// anyway). Same generation logic, just triggered directly.
+exports.regenerateCourseThumbnail = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const courseRes = await pool.query("SELECT title, level FROM courses WHERE id=$1", [id]);
+    if (!courseRes.rows[0]) return res.status(404).send("Course not found");
+    const course = courseRes.rows[0];
+
+    const countRes = await pool.query("SELECT COUNT(*) FROM courses");
+    const index = parseInt(countRes.rows[0].count, 10) || 0;
+
+    const thumbnailUrl = await generateAndUploadCourseThumbnail({ title: course.title, subtitle: course.level, index });
+    await pool.query("UPDATE courses SET thumbnail_url=$1, thumbnail_source='auto' WHERE id=$2", [thumbnailUrl, id]);
+
+    const redirectTo = safeRedirectTarget(req.body.redirect_to, "/admin/courses");
+    res.redirect(withFeedback(redirectTo, "Thumbnail regenerated.", "success"));
+  } catch (error) {
+    console.error("Error regenerating course thumbnail:", error);
+    res.status(500).send("Error regenerating thumbnail");
   }
 };
 
@@ -2926,7 +2995,8 @@ exports.deleteCourse = async (req, res) => {
     // ✅ Delete course
     await pool.query("DELETE FROM courses WHERE id = $1", [id]);
 
-    res.redirect("/admin/courses");
+    const redirectTo = safeRedirectTarget(req.body.redirect_to, "/admin/courses");
+    res.redirect(withFeedback(redirectTo, "Course deleted.", "success"));
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error.");

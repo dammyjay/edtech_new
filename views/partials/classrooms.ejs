@@ -17,7 +17,7 @@
             <div class="article-buttons">
             <a class="btn-sec" href="/school-admin/classrooms/<%= c.id %>/dashboard">📊 View Analytics</a>
             <button class="btn-edit" onclick="openEditModal(<%= c.id %>, '<%= c.name %>', <%- JSON.stringify(c.teacher_ids || []) %>)">✏ Edit Classroom</button>
-            <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete" onsubmit="return confirm('Delete this classroom?')">
+            <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete" onsubmit="return handleConfirmSubmit(event, 'Delete this classroom?')">
               <button type="submit" class="btn-delete">🗑 Delete Classroom</button>
             </form>
             </div>
@@ -45,7 +45,7 @@
                         <td style="display: inline; align-items: center;">
                             <div class="article-buttons">
                                 <!-- CRUD for student -->
-                                <form method="POST" action="/school-admin/students/<%= s.id %>/delete" style="display:inline;" onsubmit="return confirm('Remove this student?')">
+                                <form method="POST" action="/school-admin/students/<%= s.id %>/delete" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Remove this student?')">
                                     <button class="btn-delete">🗑 Remove</button>
                                 </form>
                             </div>

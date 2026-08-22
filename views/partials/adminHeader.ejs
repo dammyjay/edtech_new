@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <script src="https://cdn.ckeditor.com/4.21.0/standard/ckeditor.js"></script>
+    <script src="/js/uiAlerts.js"></script>
 </head>
 <body>
         <!-- Header -->
@@ -298,6 +299,77 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 });
+</script>
+
+<!-- CRUD feedback toast: any redirect can append ?toast=...&toastType=success|error
+     and this shows it once, then strips it from the URL so a refresh doesn't
+     re-show it. -->
+<style>
+  #admin-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    max-width: 360px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  #admin-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  #admin-toast.success { background: #1f9d55; }
+  #admin-toast.error { background: #d64545; }
+  #admin-toast button {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    margin-left: auto;
+    opacity: 0.85;
+  }
+  #admin-toast button:hover { opacity: 1; }
+</style>
+<div id="admin-toast" role="status" aria-live="polite">
+  <span id="admin-toast-message"></span>
+  <button type="button" onclick="document.getElementById('admin-toast').classList.remove('show')">&times;</button>
+</div>
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var message = params.get('toast');
+    if (!message) return;
+
+    var type = params.get('toastType') === 'error' ? 'error' : 'success';
+    var toast = document.getElementById('admin-toast');
+    document.getElementById('admin-toast-message').textContent = message;
+    toast.classList.add(type, 'show');
+
+    setTimeout(function () {
+      toast.classList.remove('show');
+    }, 4500);
+
+    // Strip toast params from the URL so a page refresh doesn't re-show it.
+    params.delete('toast');
+    params.delete('toastType');
+    var query = params.toString();
+    var cleanUrl = window.location.pathname + (query ? '?' + query : '') + window.location.hash;
+    window.history.replaceState({}, '', cleanUrl);
+  })();
 </script>
 </body>
 </html>

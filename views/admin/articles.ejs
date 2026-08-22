@@ -72,7 +72,7 @@
           <form
             action="/admin/articles/delete/<%= article.id %>"
             method="POST"
-            onsubmit="return confirm('Are you sure you want to delete this article?');"
+            onsubmit="return handleConfirmSubmit(event, 'Are you sure you want to delete this article?')"
           >
             <button type="submit">Delete</button>
           </form>

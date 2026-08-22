@@ -87,10 +87,10 @@
                 method="POST"
                 action="/admin/gallery/delete-image/<%= img.id %>"
                 style="display: inline"
+                onsubmit="return handleConfirmSubmit(event, 'Delete this image?')"
               >
                 <button
                   type="submit"
-                  onclick="return confirm('Delete this image?')"
                 >
                   🗑 Delete
                 </button>
@@ -136,10 +136,10 @@
                   action="/admin/gallery/delete-category/<%= cat.id %>"
                   method="POST"
                   style="display: inline"
+                  onsubmit="return handleConfirmSubmit(event, 'Delete this image?')"
                 >
                   <button
                     class="btn-delete"
-                    onclick="return confirm('Delete this image?')"
                     type="submit"
                   >
                     🗑 Delete

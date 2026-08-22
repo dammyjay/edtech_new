@@ -133,7 +133,7 @@
             })
         })
 
-        alert("Student muted")
+        showAlert("Student muted")
 
     }
 
@@ -148,7 +148,7 @@
             })
         })
 
-        alert("Student unmuted")
+        showAlert("Student unmuted")
 
     }
 
@@ -296,7 +296,7 @@
             body:JSON.stringify({ classroomId })
         })
 
-        alert("Chat locked")
+        showAlert("Chat locked")
 
     }
 
@@ -308,13 +308,13 @@
         body:JSON.stringify({ classroomId })
     })
 
-    alert("Chat unlocked")
+    showAlert("Chat unlocked")
 
     }
 
     async function deleteMessage(messageId){
 
-        if(!confirm("Delete this message?")) return
+        if(!(await showConfirm("Delete this message?"))) return
 
         await fetch("/instructor/class/delete-message",{
             method:"POST",
@@ -346,7 +346,7 @@
             updateLockButton()
 
         }else{
-            alert("Action failed")
+            showAlert("Action failed")
         }
 
     }

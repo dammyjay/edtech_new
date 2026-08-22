@@ -117,7 +117,12 @@
                   <p style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></p>
                   <div class="article-buttons">
                     <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
-                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return confirm('Delete this course?');">
+                    <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Replace the current thumbnail with a new auto-generated one?')">
+                      <input type="hidden" name="redirect_to" value="/admin/courses" />
+                      <button type="submit">🖼️ Regenerate Thumbnail</button>
+                    </form>
+                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return handleConfirmSubmit(event, 'Delete this course?')">
+                      <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button class="btn-delete" type="submit">Delete</button>
                     </form>
                   </div>
@@ -130,6 +135,7 @@
                   <span class="close" onclick="closeEditModal(<%= course.id %>)">&times;</span>
                   <h2>Edit Course</h2>
                   <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="redirect_to" value="/admin/courses" />
                     <input type="text" name="title" value="<%= course.title %>" required /><br />
                     <!-- <textarea id="content" name="description"><%- course.description %></textarea><br /> -->
                     <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea>
@@ -151,10 +157,20 @@
                     <label for="">Sort Number</label>
                     <input type="number" name="sort_order" value="<%= course.sort_order %>" /><br />
 
+                    <label for="">Thumbnail (optional — leave blank to keep the current one)</label>
                     <% if (course.thumbnail_url) { %>
-                      <img src="<%= course.thumbnail_url %>" width="100" /><br />
+                      <div>
+                        <img src="<%= course.thumbnail_url %>" width="100" /><br />
+                        <span style="font-size:12px; color:#666;">
+                          <%= course.thumbnail_source === 'auto' ? 'Currently auto-generated' : (course.thumbnail_source === 'upload' ? 'Currently a custom upload' : '') %>
+                        </span>
+                      </div>
                     <% } %>
                     <input type="file" name="thumbnail" /><br />
+                    <label style="font-weight:normal; font-size:13px;">
+                      <input type="checkbox" name="regenerate_thumbnail" value="on">
+                      Regenerate an auto thumbnail instead (replaces the current thumbnail above; ignored if you also choose a file to upload)
+                    </label><br />
                     <div class="container" id="amountContainer">
                       <input
                         type="number"

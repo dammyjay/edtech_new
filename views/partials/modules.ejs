@@ -59,6 +59,16 @@
        <div class="article-buttons">
         <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
 
+        <!-- Regenerate Thumbnail -->
+        <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
+          <button type="submit" onclick="showConfirm('Replace the current thumbnail with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🖼️ Regenerate Thumbnail</button>
+        </form>
+
+        <!-- Regenerate Badge -->
+        <form action="/admin/modules/<%= module.id %>/regenerate-badge" method="POST" style="display:inline;">
+          <button type="submit" onclick="showConfirm('Replace the current badge with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🏅 Regenerate Badge</button>
+        </form>
+
         <!-- Delete Form -->
         <form action="/admin/modules/delete/<%= module.id %>" method="POST" style="display:inline;">
           <button class="btn-deleteype="submit">🗑️ Delete</button>

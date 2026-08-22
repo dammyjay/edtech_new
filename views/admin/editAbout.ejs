@@ -37,7 +37,7 @@
               method="POST"
               action="/admin/about/delete/<%= section.id %>"
               style="display: inline"
-              onsubmit="return confirm('Are you sure you want to delete this section?')"
+              onsubmit="return handleConfirmSubmit(event, 'Are you sure you want to delete this section?')"
             >
               <button
                 class="btn-delete"

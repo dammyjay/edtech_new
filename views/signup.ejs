@@ -22,6 +22,7 @@
        const ogUrl = 'https://acad.jkthub.com/signup';
        const ogType = 'website'; %>
     <%- include('./partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <script src="/js/uiAlerts.js"></script>
     </head>
 
     <style>
@@ -274,11 +275,11 @@ window.addEventListener("DOMContentLoaded", async () => {
             document.getElementById("otp-modal").style.display = "flex";
             document.getElementById("signup-form").style.display = "none";
           } else {
-            alert(data.message);
+            await showAlert(data.message);
             window.location.href = "/admin/login"; // or redirect somewhere else
           }
         } else {
-          alert("Signup failed: " + (await res.text()));
+          showAlert("Signup failed: " + (await res.text()));
         }
         
       };
@@ -319,7 +320,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           localStorage.getItem("pendingEmail");
 
         if (!email) {
-          alert("Email not found. Please sign up again.");
+          await showAlert("Email not found. Please sign up again.");
           return;
         }
 
@@ -336,7 +337,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
 
         const data = await res.json();
-        alert(data.message);
+        await showAlert(data.message);
 
         if (data.success) {
           localStorage.removeItem("pendingEmail");

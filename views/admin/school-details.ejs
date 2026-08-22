@@ -1051,27 +1051,27 @@
 
       if (data.success) {
 
-        alert("Avatar generated successfully");
-
-        location.reload();
+        showAlert("Avatar generated successfully").then(() => {
+          location.reload();
+        });
 
       } else {
 
-        alert(data.message || "Failed");
+        showAlert(data.message || "Failed");
 
       }
 
     } catch (err) {
 
       console.error(err);
-      alert("Something went wrong");
+      showAlert("Something went wrong");
 
     }
   }
 
   async function bulkGenerateAvatars() {
 
-    const confirmBulk = confirm(
+    const confirmBulk = await showConfirm(
       "Generate avatars for all students?"
     );
 
@@ -1092,13 +1092,13 @@
 
       if (data.success) {
 
-        alert(data.message);
-
-        location.reload();
+        showAlert(data.message).then(() => {
+          location.reload();
+        });
 
       } else {
 
-        alert(data.message || "Failed");
+        showAlert(data.message || "Failed");
 
       }
 
@@ -1106,7 +1106,7 @@
 
       console.error(err);
 
-      alert("Something went wrong");
+      showAlert("Something went wrong");
 
     }
   }
@@ -1122,22 +1122,22 @@
     const data = await res.json();
 
     if (data.success) {
-      alert(
+      showAlert(
         data.enabled
           ? `Avatar Login ENABLED\nPIN: ${data.user.pin}`
           : "Avatar Login DISABLED"
-      );
-
-      location.reload();
+      ).then(() => {
+        location.reload();
+      });
     } else {
-      alert(data.message);
+      showAlert(data.message);
     }
   }
 
   async function bulkEnableAvatarLogin() {
     const schoolId = "<%= school.id %>";
 
-    if (!confirm("Enable avatar login for ALL students in this school?")) return;
+    if (!(await showConfirm("Enable avatar login for ALL students in this school?"))) return;
 
     const res = await fetch(`/admin/schools/${schoolId}/bulk-enable-avatar-login`, {
       method: "POST"
@@ -1146,15 +1146,16 @@
     const data = await res.json();
 
     if (data.success) {
-      alert(data.message);
-      location.reload();
+      showAlert(data.message).then(() => {
+        location.reload();
+      });
     } else {
-      alert(data.message);
+      showAlert(data.message);
     }
   }
 
   async function runMigration() {
-    if (!confirm("Run migration for all students?")) return;
+    if (!(await showConfirm("Run migration for all students?"))) return;
 
     const res = await fetch("/admin/migrate-student-login", {
       method: "POST"
@@ -1162,7 +1163,7 @@
 
     const data = await res.json();
 
-    alert(data.message);
+    showAlert(data.message);
   }
 </script>
 
@@ -1268,8 +1269,9 @@
       const data = await res.json();
 
       if (data.success) {
-        alert("Attendance saved!");
-        closeModal("attendanceModal");
+        showAlert("Attendance saved!").then(() => {
+          closeModal("attendanceModal");
+        });
       }
     });
  
@@ -1503,13 +1505,14 @@ async function loadAttendanceHistory() {
       });
     }
 
-    alert("Updated successfully");
-    closeModal("editAttendanceModal");
-    loadAttendanceHistory();
+    showAlert("Updated successfully").then(() => {
+      closeModal("editAttendanceModal");
+      loadAttendanceHistory();
+    });
   });
 
   async function deleteSession(id) {
-    if (!confirm("Delete this attendance session?")) return;
+    if (!(await showConfirm("Delete this attendance session?"))) return;
 
     const res = await fetch(`/admin/attendance/session/${id}`, {
       method: "DELETE"
@@ -1518,8 +1521,9 @@ async function loadAttendanceHistory() {
     const data = await res.json();
 
     if (data.success) {
-      alert("Deleted");
-      loadAttendanceHistory();
+      showAlert("Deleted").then(() => {
+        loadAttendanceHistory();
+      });
     }
   }
 
@@ -1647,10 +1651,11 @@ function exportExcel() {
   });
 
   if (res.ok) {
-    alert("Saved successfully!");
-    location.reload();
+    showAlert("Saved successfully!").then(() => {
+      location.reload();
+    });
   } else {
-    alert("Failed: " + (await res.text()));
+    showAlert("Failed: " + (await res.text()));
   }
 };
 
@@ -1710,14 +1715,15 @@ function exportExcel() {
 
 <script>
   async function deleteUser(userId) {
-    if (!confirm("Are you sure?")) return;
+    if (!(await showConfirm("Are you sure?"))) return;
     const schoolId = "<%= school.id %>";
     const res = await fetch(`/admin/schools/${schoolId}/users/${userId}`, { method: "DELETE" });
     if (res.ok) {
-      alert("Deleted successfully!");
-      location.reload();
+      showAlert("Deleted successfully!").then(() => {
+        location.reload();
+      });
     } else {
-      alert("Delete failed");
+      showAlert("Delete failed");
     }
   }
   
@@ -1923,7 +1929,7 @@ function exportExcel() {
     const schoolId = "<%= school.id %>";
 
     if (!newPassword) {
-      return alert("Password cannot be empty");
+      return showAlert("Password cannot be empty");
     }
 
     const res = await fetch(`/admin/schools/${schoolId}/users/${userId}/reset-password`, {
@@ -1933,11 +1939,12 @@ function exportExcel() {
     });
 
     if (res.ok) {
-      alert("Password reset successfully ✅");
-      document.getElementById("newPassword").value = "";
-      closeUserModal();
+      showAlert("Password reset successfully ✅").then(() => {
+        document.getElementById("newPassword").value = "";
+        closeUserModal();
+      });
     } else {
-      alert("Failed: " + (await res.text()));
+      showAlert("Failed: " + (await res.text()));
     }
   };
 
@@ -2019,7 +2026,7 @@ function exportExcel() {
         .map(o => parseInt(o.value, 10));
 
       if (selected.length === 0) {
-        return alert(`Please select at least one ${role}.`);
+        return showAlert(`Please select at least one ${role}.`);
       }
 
       try {
@@ -2031,7 +2038,7 @@ function exportExcel() {
 
         const data = await res.json();
         if (data.success) {
-          alert(`✅ ${selected.length} ${role}(s) assigned successfully!`);
+          showAlert(`✅ ${selected.length} ${role}(s) assigned successfully!`);
 
           // 🔄 Refresh list inline
           if (role === "student") {
@@ -2061,11 +2068,11 @@ function exportExcel() {
             select.appendChild(opt);
           }
         } else {
-          alert("❌ Failed: " + data.message);
+          showAlert("❌ Failed: " + data.message);
         }
       } catch (err) {
         console.error(err);
-        alert("❌ Request failed.");
+        showAlert("❌ Request failed.");
       }
     }
 
@@ -2148,7 +2155,7 @@ function exportExcel() {
       const classroomId = document.getElementById("assignClassroom").value;
       const schoolId = "<%= school.id %>";
 
-      if (!classroomId) return alert("Please select a classroom");
+      if (!classroomId) return showAlert("Please select a classroom");
 
       const res = await fetch(`/admin/classrooms/${classroomId}/assign`, {
         method: "POST",
@@ -2158,11 +2165,12 @@ function exportExcel() {
 
       const data = await res.json();
       if (data.success) {
-        alert(`✅ ${role} assigned successfully!`);
-        closeAssignModal();
-        location.reload(); // reload to reflect classroom assignment
+        showAlert(`✅ ${role} assigned successfully!`).then(() => {
+          closeAssignModal();
+          location.reload(); // reload to reflect classroom assignment
+        });
       } else {
-        alert("❌ Failed: " + data.message);
+        showAlert("❌ Failed: " + data.message);
       }
     };
   
@@ -2211,34 +2219,35 @@ function exportExcel() {
 
     const data = await res.json();
     if (data.success) {
-      alert("✅ Classroom created!");
-      const classroom = data.classroom;
+      showAlert("✅ Classroom created!").then(() => {
+        const classroom = data.classroom;
 
-      // 🔄 Add new row to classrooms table
-      const tbody = document.querySelector("table.user-table tbody");
-      const tr = document.createElement("tr");
-      tr.setAttribute("id", `classroom-row-${classroom.id}`);
-      tr.innerHTML = `
-        <td>${classroom.name}</td>
-        <td id="student-count-${classroom.id}">${classroom.student_count}</td>
-        <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
-        <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
-        <td>
-          <div class="multi-btn">
-            <button class="btn-blue" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
-            <button class="btn-green" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
+        // 🔄 Add new row to classrooms table
+        const tbody = document.querySelector("table.user-table tbody");
+        const tr = document.createElement("tr");
+        tr.setAttribute("id", `classroom-row-${classroom.id}`);
+        tr.innerHTML = `
+          <td>${classroom.name}</td>
+          <td id="student-count-${classroom.id}">${classroom.student_count}</td>
+          <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
+          <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
+          <td>
+            <div class="multi-btn">
+              <button class="btn-blue" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
+              <button class="btn-green" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
 
-      // 🔄 Update dropdowns (teacher filter, student filter, assign modal)
-      addClassroomToDropdowns(classroom);
+        // 🔄 Update dropdowns (teacher filter, student filter, assign modal)
+        addClassroomToDropdowns(classroom);
 
-      closeModal("createClassroomModal");
-      e.target.reset();
+        closeModal("createClassroomModal");
+        e.target.reset();
+      });
     } else {
-      alert("❌ " + data.message);
+      showAlert("❌ " + data.message);
     }
   };
 
@@ -2262,30 +2271,31 @@ function exportExcel() {
 
     const data = await res.json();
     if (data.success) {
-      alert("✏ Classroom updated!");
-      const classroom = data.classroom;
+      showAlert("✏ Classroom updated!").then(() => {
+        const classroom = data.classroom;
 
-      // 🔄 Update the table row
-      const row = document.getElementById(`classroom-row-${classroom.id}`);
-      if (row) {
-        row.innerHTML = `
-          <td>${classroom.name}</td>
-          <td id="student-count-${classroom.id}">${classroom.student_count}</td>
-          <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
-          <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
-          <td>
-            <button class="btn-edit" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
-            <button class="btn-edit" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
-          </td>
-        `;
-      }
+        // 🔄 Update the table row
+        const row = document.getElementById(`classroom-row-${classroom.id}`);
+        if (row) {
+          row.innerHTML = `
+            <td>${classroom.name}</td>
+            <td id="student-count-${classroom.id}">${classroom.student_count}</td>
+            <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
+            <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
+            <td>
+              <button class="btn-edit" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
+              <button class="btn-edit" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
+            </td>
+          `;
+        }
 
-      // 🔄 Update classroom name in dropdowns
-      updateClassroomInDropdowns(classroom);
+        // 🔄 Update classroom name in dropdowns
+        updateClassroomInDropdowns(classroom);
 
-      closeModal("editClassroomModal");
+        closeModal("editClassroomModal");
+      });
     } else {
-      alert("❌ " + data.message);
+      showAlert("❌ " + data.message);
     }
   };
 
@@ -2318,7 +2328,7 @@ function exportExcel() {
   // ✏️ Edit Classroom
 async function updateClassroom(id) {
   const name = prompt("Enter new classroom name:");
-  if (!name) return alert("Classroom name is required.");
+  if (!name) return showAlert("Classroom name is required.");
 
   try {
     const res = await fetch(`/admin/classrooms/${id}`, {
@@ -2328,21 +2338,22 @@ async function updateClassroom(id) {
     });
 
     if (res.ok) {
-      alert("✅ Classroom updated successfully!");
-      location.reload();
+      showAlert("✅ Classroom updated successfully!").then(() => {
+        location.reload();
+      });
     } else {
       const data = await res.json();
-      alert("❌ " + data.message);
+      showAlert("❌ " + data.message);
     }
   } catch (err) {
     console.error(err);
-    alert("⚠️ Network or server error.");
+    showAlert("⚠️ Network or server error.");
   }
 }
 
 // 🗑️ Delete Classroom
 async function deleteClassroom(id) {
-  if (!confirm("Are you sure you want to delete this classroom?")) return;
+  if (!(await showConfirm("Are you sure you want to delete this classroom?"))) return;
 
   try {
     const res = await fetch(`/admin/classrooms/${id}`, {
@@ -2350,15 +2361,16 @@ async function deleteClassroom(id) {
     });
 
     if (res.ok) {
-      alert("🗑 Classroom deleted successfully!");
-      location.reload();
+      showAlert("🗑 Classroom deleted successfully!").then(() => {
+        location.reload();
+      });
     } else {
       const data = await res.json();
-      alert("❌ " + data.message);
+      showAlert("❌ " + data.message);
     }
   } catch (err) {
     console.error(err);
-    alert("⚠️ Error deleting classroom.");
+    showAlert("⚠️ Error deleting classroom.");
   }
 }
 
@@ -2376,7 +2388,7 @@ async function assignCourseToClassroom(e) {
     .map(opt => opt.value);
 
   if (!classroomId || selectedCourses.length === 0) {
-    return alert("⚠️ Please select a classroom and at least one course.");
+    return showAlert("⚠️ Please select a classroom and at least one course.");
   }
 
   try {
@@ -2389,12 +2401,12 @@ async function assignCourseToClassroom(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to assign courses.");
 
-    alert("✅ Courses assigned successfully!");
+    await showAlert("✅ Courses assigned successfully!");
     await refreshAllClassroomCourses(); // refresh table courses
 
   } catch (err) {
     console.error("Assignment error:", err);
-    alert("❌ " + (err.message || "Request failed. Try again."));
+    showAlert("❌ " + (err.message || "Request failed. Try again."));
   }
 }
 
@@ -2572,10 +2584,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (res.ok) {
-      alert("✅ Updated");
-      location.reload();
+      showAlert("✅ Updated").then(() => {
+        location.reload();
+      });
     } else {
-      alert("❌ Failed");
+      showAlert("❌ Failed");
     }
   };
 </script>
@@ -2583,17 +2596,18 @@ document.addEventListener("DOMContentLoaded", () => {
 <!-- Script for deleting term -->
 <script>
   async function deleteTerm(termId) {
-    if (!confirm("Delete this term?")) return;
+    if (!(await showConfirm("Delete this term?"))) return;
 
     const res = await fetch(`/admin/terms/${termId}`, {
       method: "DELETE"
     });
 
     if (res.ok) {
-      alert("🗑 Deleted");
-      location.reload();
+      showAlert("🗑 Deleted").then(() => {
+        location.reload();
+      });
     } else {
-      alert("❌ Failed");
+      showAlert("❌ Failed");
     }
   }
 </script>
@@ -2609,7 +2623,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ? "This term was already marked ended. Regenerate every class and student report for it? This can take a while for a school with many classrooms."
       : "Mark this term ended? This generates a full-class report and an individual report for every enrolled student, and makes them all visible to the school admin. This can take a while for a school with many classrooms.";
 
-    if (!confirm(message)) return;
+    if (!(await showConfirm(message))) return;
 
     const btn = event.currentTarget;
     const originalHTML = btn.innerHTML;
@@ -2619,14 +2633,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (!data.success) {
-        alert("❌ " + (data.message || "Failed to start report generation"));
+        showAlert("❌ " + (data.message || "Failed to start report generation"));
         return;
       }
 
       pollEndTermStatus(termId, btn, originalHTML);
     } catch (err) {
       console.error(err);
-      alert("❌ Failed to start report generation");
+      showAlert("❌ Failed to start report generation");
       btn.innerHTML = originalHTML;
     }
   }
@@ -2638,7 +2652,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!data.success) {
         btn.innerHTML = originalHTML;
-        alert("❌ " + (data.message || "Failed to check progress"));
+        showAlert("❌ " + (data.message || "Failed to check progress"));
         return;
       }
 
@@ -2653,14 +2667,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.errors && data.errors.length) {
           summary += `\n\n⚠️ ${data.errors.length} failed:\n` + data.errors.join("\n");
         }
-        alert(summary);
-        location.reload();
+        showAlert(summary).then(() => {
+          location.reload();
+        });
         return;
       }
 
       if (data.status === "failed") {
         btn.innerHTML = originalHTML;
-        alert("❌ Report generation failed: " + (data.errors && data.errors[0] ? data.errors[0] : "Unknown error"));
+        showAlert("❌ Report generation failed: " + (data.errors && data.errors[0] ? data.errors[0] : "Unknown error"));
         return;
       }
 
@@ -2722,15 +2737,16 @@ document.addEventListener("DOMContentLoaded", () => {
 <!-- script for removing student from term  -->
  <script>
   async function removeStudentFromTerm(termId, studentId) {
-    if (!confirm("Remove this student from term?")) return;
+    if (!(await showConfirm("Remove this student from term?"))) return;
 
     const res = await fetch(`/admin/terms/${termId}/students/${studentId}`, {
       method: "DELETE"
     });
 
     if (res.ok) {
-      alert("Removed");
-      location.reload();
+      showAlert("Removed").then(() => {
+        location.reload();
+      });
     }
   }
 </script>
@@ -2751,7 +2767,7 @@ async function togglePayment(quoteId, currentStatus) {
   if (res.ok) {
     location.reload(); // simple refresh
   } else {
-    alert('Failed to update');
+    showAlert('Failed to update');
   }
 }
 </script>

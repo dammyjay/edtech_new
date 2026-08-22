@@ -1858,7 +1858,7 @@ async function sendClassMessage(){
   const data=await res.json()
 
   if(!data.success){
-    alert(data.message)
+    await showAlert(data.message)
     showWarning(data.message)
     return
   }
@@ -2156,7 +2156,7 @@ if(classroomId){
     const end = document.getElementById("endDate").value;
 
     if (!start || !end) {
-      alert("Please select both dates");
+      showAlert("Please select both dates");
       return;
     }
 
@@ -2467,13 +2467,13 @@ window.closeEditModal = function (id) {
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
 
-  window.handleLessonClick = function (lessonId, unlocked, termLocked) {
+  window.handleLessonClick = async function (lessonId, unlocked, termLocked) {
     if (!unlocked) {
-      alert("This lesson is locked. Complete previous lessons first.");
+      showAlert("This lesson is locked. Complete previous lessons first.");
       return;
     }
     if (termLocked) {
-      alert("The term you were enrolled in for this course has ended. You can view what you've already done, but new lessons/quizzes here need the term to be reactivated first — see the Locked Terms section on your dashboard.");
+      await showAlert("The term you were enrolled in for this course has ended. You can view what you've already done, but new lessons/quizzes here need the term to be reactivated first — see the Locked Terms section on your dashboard.");
     }
     toggleLessonMenu(lessonId);
   }
@@ -2694,7 +2694,7 @@ window.closeEditModal = function (id) {
     if (!document.fullscreenElement) {
       slideView.requestFullscreen().catch(err => {
         console.error("Fullscreen error:", err);
-        alert("Your browser doesn't support fullscreen mode.");
+        showAlert("Your browser doesn't support fullscreen mode.");
       });
     } else {
       document.exitFullscreen();
@@ -3009,7 +3009,7 @@ document.addEventListener("visibilitychange", () => {
       console.log("Response:", responseText);
 
       if (!res.ok) {
-          alert("Could not load assignment");
+          showAlert("Could not load assignment");
           return;
       }
 
@@ -3380,7 +3380,7 @@ document.addEventListener("visibilitychange", () => {
 
               
             } else {
-              alert(result.message || "❌ Submission failed.");
+              showAlert(result.message || "❌ Submission failed.");
             }
           });
       }
@@ -3388,7 +3388,7 @@ document.addEventListener("visibilitychange", () => {
     } catch (err) {
       hideLoading();
       console.error("Error loading assignment:", err);
-      alert("Could not load assignment");
+      showAlert("Could not load assignment");
     }
   }
 
@@ -3413,7 +3413,7 @@ document.addEventListener("visibilitychange", () => {
       const res = await fetch("/student/assignments/mine");
       const data = await res.json();
       if (!data.success) {
-        alert(data.message || "Could not load submissions");
+        showAlert(data.message || "Could not load submissions");
         return;
       }
 
@@ -3455,7 +3455,7 @@ document.addEventListener("visibilitychange", () => {
       `;
     } catch (err) {
       console.error("Error loading past submissions:", err);
-      alert("Could not load past submissions");
+      showAlert("Could not load past submissions");
     }
   }
 
@@ -3465,7 +3465,7 @@ document.addEventListener("visibilitychange", () => {
       const res = await fetch(`/student/assignments/submission/${subId}`);
       const data = await res.json();
       if (!data.success) {
-        alert(data.message || "Could not load submission");
+        showAlert(data.message || "Could not load submission");
         return;
       }
 
@@ -3506,7 +3506,7 @@ document.addEventListener("visibilitychange", () => {
       `;
     } catch (err) {
       console.error("Error reviewing submission:", err);
-      alert("Could not review submission");
+      showAlert("Could not review submission");
     }
   }
 
@@ -3575,7 +3575,7 @@ let reviewIndex = 0;
       quizQuestions[currentQuestionIndex].id
     ]
   ){
-    alert("Please select an answer.");
+    showAlert("Please select an answer.");
     return;
   }
 
@@ -3947,7 +3947,7 @@ function nextQuestion(){
   if(
     !quizAnswers[currentQuestion.id]
   ){
-    alert(
+    showAlert(
       "Please select an answer."
     );
     return;
@@ -4245,7 +4245,7 @@ function speakQuestionWithOptions(question, options) {
 
   function speakText(text) {
     if (!("speechSynthesis" in window)) {
-      alert("Text-to-speech is not supported in this browser.");
+      showAlert("Text-to-speech is not supported in this browser.");
       return;
     }
 
@@ -4485,7 +4485,7 @@ function submitQuizInline(e, lessonId) {
 
   function reviewQuizInline(lessonId) {
     if (!window.quizReviewData || !Array.isArray(window.quizReviewData) || window.quizReviewData.length === 0) {
-      alert("No review data available.");
+      showAlert("No review data available.");
       return;
     }
 
@@ -4553,7 +4553,7 @@ function submitQuizInline(e, lessonId) {
       const res = await fetch("/student/quizzes/mine");
       const data = await res.json();
       if (!data.success) {
-        alert(data.message || "Could not load quiz submissions");
+        showAlert(data.message || "Could not load quiz submissions");
         return;
       }
 
@@ -4576,7 +4576,7 @@ function submitQuizInline(e, lessonId) {
       `;
     } catch (err) {
       console.error("Error loading past quizzes:", err);
-      alert("Could not load past quizzes");
+      showAlert("Could not load past quizzes");
     }
   }
 
@@ -4585,7 +4585,7 @@ function submitQuizInline(e, lessonId) {
       const res = await fetch(`/student/quizzes/submission/${subId}`);
       const data = await res.json();
       if (!data.success) {
-        alert(data.message || "Could not load submission");
+        showAlert(data.message || "Could not load submission");
         return;
       }
 
@@ -4621,7 +4621,7 @@ function submitQuizInline(e, lessonId) {
       lessonMain.innerHTML = reviewHTML;
     } catch (err) {
       console.error("Error reviewing quiz:", err);
-      alert("Could not review quiz submission");
+      showAlert("Could not review quiz submission");
     }
   }
 

@@ -17,7 +17,7 @@
               <button type="submit"><%= t.is_published ? "Unpublish" : "Publish" %></button>
             </form>
 
-            <form action="/admin/testimonies/delete/<%= t.id %>" method="POST" onsubmit="return confirm('Delete this testimony?');">
+            <form action="/admin/testimonies/delete/<%= t.id %>" method="POST" onsubmit="return handleConfirmSubmit(event, 'Delete this testimony?')">
               <button type="submit" style="color: red;">Delete</button>
             </form>
           </div>

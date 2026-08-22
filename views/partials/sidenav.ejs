@@ -410,7 +410,7 @@ document.getElementById("assignClassForm").addEventListener("submit", async func
   const studentId = document.getElementById("modalStudentId").value;
   const classroomId = document.getElementById("modalClassroomSelect").value;
 
-  if (!classroomId) return alert("Please select a classroom.");
+  if (!classroomId) return showAlert("Please select a classroom.");
 
   try {
     const res = await fetch(`/school-admin/students/${studentId}/assign-classroom`, {
@@ -422,17 +422,17 @@ document.getElementById("assignClassForm").addEventListener("submit", async func
     const data = await res.json();
 
     if (data.success) {
-      alert(`${data.student.fullname} assigned to ${data.classroom.name}`);
+      showAlert(`${data.student.fullname} assigned to ${data.classroom.name}`);
       closeAssignClassroomModal();
       // Optionally update the table dynamically:
       const row = document.querySelector(`tr[data-student-id='${studentId}'] td[data-classroom]`);
       if(row) row.textContent = data.classroom.name;
     } else {
-      alert(data.message || "Failed to assign classroom.");
+      showAlert(data.message || "Failed to assign classroom.");
     }
   } catch (err) {
     console.error(err);
-    alert("Server error while assigning classroom.");
+    showAlert("Server error while assigning classroom.");
   }
 });
 

@@ -6,6 +6,7 @@ const { askTutor } = require("../utils/ai");
 const { getCompanyInfo } = require("../utils/companyInfo");
 const generateModuleBadge = require("../utils/generateModuleBadge");
 const generateThumbnail = require("../utils/generateThumbnail");
+const { withFeedback, safeRedirectTarget } = require("../utils/adminFeedback");
 
 // Renders a badge via utils/generateModuleBadge, uploads it to Cloudinary,
 // and cleans up the local temp file — the one place both createModule and
@@ -133,8 +134,10 @@ exports.updateCourse = async (req, res) => {
     //   ]
     // );
 
-    // 🟢 Redirect to course details tab
-    res.redirect(`/admin/courses/${id}?tab=details`);
+    // 🟢 Redirect back to wherever this edit was triggered from (falls back
+    // to the course details tab if no redirect_to was supplied).
+    const redirectTo = safeRedirectTarget(req.body.redirect_to, `/admin/courses/${id}?tab=details`);
+    res.redirect(withFeedback(redirectTo, "Course updated successfully.", "success"));
   } catch (err) {
     console.error("❌ Error updating course:", err);
     res.status(500).send("Server Error");
@@ -197,8 +200,7 @@ exports.createModule = async (req, res) => {
       [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, course_id]
     );
 
-    // res.redirect("/admin/courses/" + course_id);
-    res.redirect(`/admin/courses/${course_id}?tab=modules`);
+    res.redirect(withFeedback(`/admin/courses/${course_id}?tab=modules`, "Module created successfully.", "success"));
   } catch (error) {
     console.error("Error creating module:", error);
     res.status(500).send("Server error");
@@ -275,13 +277,58 @@ exports.editModule = async (req, res) => {
       [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, id]
     );
 
-    // res.redirect("/admin/courses/" + oldModule.rows[0].course_id);
-    res.redirect(`/admin/courses/${oldModule.rows[0].course_id}?tab=modules`);
+    res.redirect(withFeedback(`/admin/courses/${oldModule.rows[0].course_id}?tab=modules`, "Module updated successfully.", "success"));
   } catch (error) {
     console.error("Error editing module:", error);
     res.status(500).send("Server error");
   }
 
+};
+
+// ONE-CLICK REGENERATE — a standalone action from the module card itself,
+// separate from the "regenerate" checkbox buried in the full edit form
+// (that one still exists for when you're already editing other fields
+// anyway). Same generation logic, just triggered directly.
+exports.regenerateModuleThumbnail = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const moduleRes = await pool.query("SELECT title, course_id, order_number FROM modules WHERE id=$1", [id]);
+    if (!moduleRes.rows[0]) return res.status(404).send("Module not found");
+    const mod = moduleRes.rows[0];
+
+    const courseRes = await pool.query("SELECT title FROM courses WHERE id=$1", [mod.course_id]);
+    const courseTitle = courseRes.rows[0]?.title || "";
+    const index = parseInt(mod.order_number, 10) || 0;
+
+    const thumbnailUrl = await generateAndUploadModuleThumbnail({ moduleTitle: mod.title, courseTitle, index });
+    await pool.query("UPDATE modules SET thumbnail=$1, thumbnail_source='auto' WHERE id=$2", [thumbnailUrl, id]);
+
+    res.redirect(withFeedback(`/admin/courses/${mod.course_id}?tab=modules`, "Thumbnail regenerated.", "success"));
+  } catch (error) {
+    console.error("Error regenerating module thumbnail:", error);
+    res.status(500).send("Error regenerating thumbnail");
+  }
+};
+
+exports.regenerateModuleBadge = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const moduleRes = await pool.query("SELECT title, course_id, order_number FROM modules WHERE id=$1", [id]);
+    if (!moduleRes.rows[0]) return res.status(404).send("Module not found");
+    const mod = moduleRes.rows[0];
+
+    const courseRes = await pool.query("SELECT title FROM courses WHERE id=$1", [mod.course_id]);
+    const courseTitle = courseRes.rows[0]?.title || "";
+    const index = parseInt(mod.order_number, 10) || 0;
+
+    const badgeUrl = await generateAndUploadBadge({ moduleTitle: mod.title, courseTitle, index });
+    await pool.query("UPDATE modules SET badge_image=$1, badge_source='auto' WHERE id=$2", [badgeUrl, id]);
+
+    res.redirect(withFeedback(`/admin/courses/${mod.course_id}?tab=modules`, "Badge regenerated.", "success"));
+  } catch (error) {
+    console.error("Error regenerating module badge:", error);
+    res.status(500).send("Error regenerating badge");
+  }
 };
 
 exports.deleteModule = async (req, res) => {
@@ -295,7 +342,7 @@ exports.deleteModule = async (req, res) => {
   const course_id = result.rows[0].course_id;
 
   await pool.query("DELETE FROM modules WHERE id = $1", [id]);
-  res.redirect(`/admin/courses/${course_id}?tab=modules`);
+  res.redirect(withFeedback(`/admin/courses/${course_id}?tab=modules`, "Module deleted.", "success"));
 };
 
 exports.getLessonsPage = async (req, res) => {

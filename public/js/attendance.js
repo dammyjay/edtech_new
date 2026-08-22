@@ -163,7 +163,7 @@ const payload = {
   });
 
   const data = await res.json();
-  alert(data.success ? "Saved!" : "Error saving");
+  showAlert(data.success ? "Saved!" : "Error saving");
 }
 
 async function toggleAttendanceDetails(sessionId) {

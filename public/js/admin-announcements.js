@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
         location.reload();
     }
 
-        alert(data.message);
+        showAlert(data.message);
 
         closeModal();
 
@@ -212,7 +212,7 @@ async function viewAnnouncement(id) {
     const data = await res.json();
 
     if (!data.success) {
-      return alert(data.message);
+      return showAlert(data.message);
     }
 
     const a = data.announcement;
@@ -271,7 +271,7 @@ async function editAnnouncement(id){
         const data = await res.json();
 
         if(!data.success){
-            return alert(data.message);
+            return showAlert(data.message);
         }
 
         const a = data.announcement;
@@ -880,7 +880,7 @@ function statusBadge(status) {
 
 async function publishAnnouncement(id) {
 
-    if (!confirm("Publish this announcement?")) return;
+    if (!(await showConfirm("Publish this announcement?"))) return;
 
     try {
 
@@ -893,7 +893,7 @@ async function publishAnnouncement(id) {
 
         const data = await res.json();
 
-        alert(data.message);
+        showAlert(data.message);
 
         loadAnnouncements();
 
@@ -901,7 +901,7 @@ async function publishAnnouncement(id) {
 
         console.error(err);
 
-        alert("Unable to publish announcement.");
+        showAlert("Unable to publish announcement.");
 
     }
 
@@ -914,7 +914,7 @@ async function publishAnnouncement(id) {
 
 async function archiveAnnouncement(id) {
 
-    if (!confirm("Archive this announcement?")) return;
+    if (!(await showConfirm("Archive this announcement?"))) return;
 
     try {
 
@@ -927,7 +927,7 @@ async function archiveAnnouncement(id) {
 
         const data = await res.json();
 
-        alert(data.message);
+        showAlert(data.message);
 
         loadAnnouncements();
 
@@ -935,7 +935,7 @@ async function archiveAnnouncement(id) {
 
         console.error(err);
 
-        alert("Unable to archive announcement.");
+        showAlert("Unable to archive announcement.");
 
     }
 
@@ -948,7 +948,7 @@ async function archiveAnnouncement(id) {
 
 async function deleteAnnouncement(id) {
 
-    if (!confirm("Delete this announcement permanently?")) return;
+    if (!(await showConfirm("Delete this announcement permanently?"))) return;
 
     try {
 
@@ -961,7 +961,7 @@ async function deleteAnnouncement(id) {
 
         const data = await res.json();
 
-        alert(data.message);
+        showAlert(data.message);
 
         loadAnnouncements();
 
@@ -969,7 +969,7 @@ async function deleteAnnouncement(id) {
 
         console.error(err);
 
-        alert("Unable to delete announcement.");
+        showAlert("Unable to delete announcement.");
 
     }
 

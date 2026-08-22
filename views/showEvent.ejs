@@ -91,7 +91,7 @@
         localStorage.setItem("lastPromptTime", Date.now());
 
         if (permission !== 'granted') {
-        alert("❌ Notification permission denied.");
+        await showAlert("❌ Notification permission denied.");
         dismissBanner();
         return;
         }
@@ -109,7 +109,7 @@
             body: JSON.stringify(subscription)
         });
 
-        alert("✅ Subscribed to notifications!");
+        await showAlert("✅ Subscribed to notifications!");
         localStorage.setItem("pushStatus", "granted");
         dismissBanner();
         } catch (err) {

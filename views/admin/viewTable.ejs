@@ -213,8 +213,8 @@ function closeEditModal() {
 
 <!-- to delete record -->
  <script>
-function confirmDelete(id) {
-  if (!confirm("Are you sure you want to delete this record?")) return;
+async function confirmDelete(id) {
+  if (!(await showConfirm("Are you sure you want to delete this record?"))) return;
 
   fetch(`/admin/db/<%= table %>/delete/${id}`, {
     method: "POST"
@@ -223,10 +223,10 @@ function confirmDelete(id) {
     if (res.ok) {
       location.reload();
     } else {
-      alert("Delete failed");
+      showAlert("Delete failed");
     }
   })
-  .catch(() => alert("Error deleting record"));
+  .catch(() => showAlert("Error deleting record"));
 }
 </script>
 
@@ -315,12 +315,12 @@ document.getElementById("createForm").addEventListener("submit", async function(
       loadTable();
     } else {
       const error = await res.text();
-      alert("Create failed: " + error);
+      showAlert("Create failed: " + error);
     }
 
   } catch (err) {
     console.error(err);
-    alert("Network error");
+    showAlert("Network error");
   }
 });
 

@@ -1200,8 +1200,8 @@
 
     <!-- script for delete user -->
     <script>
-      function confirmDelete(userId) {
-        if (!confirm("Delete this user?")) return;
+      async function confirmDelete(userId) {
+        if (!(await showConfirm("Delete this user?"))) return;
 
         fetch(`/admin/users/delete/${userId}`, {
           method: "POST",
@@ -1213,15 +1213,16 @@
         })
           .then((res) => {
             if (res.ok) {
-              alert("User deleted successfully");
-              location.reload(); // reload page to refresh user list
+              showAlert("User deleted successfully").then(() => {
+                location.reload(); // reload page to refresh user list
+              });
             } else {
-              alert("Failed to delete user");
+              showAlert("Failed to delete user");
             }
           })
           .catch((err) => {
             console.error(err);
-            alert("Error deleting user");
+            showAlert("Error deleting user");
           });
       }
     </script>

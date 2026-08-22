@@ -237,7 +237,7 @@ function buildSlidesView(rawContent, lessonTitle) {
     if (!document.fullscreenElement) {
       slideView.requestFullscreen().catch(err => {
         console.error("Fullscreen error:", err);
-        alert("Your browser doesn't support fullscreen mode.");
+        showAlert("Your browser doesn't support fullscreen mode.");
       });
     } else {
       document.exitFullscreen();
