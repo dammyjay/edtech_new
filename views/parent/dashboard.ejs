@@ -1,117 +1,454 @@
 <%- include('../partials/header', { title: 'Dashboard' }) %>
 <%- include("../partials/announcementPopup") %>
 
-<h1>👨‍👩‍👧 Parent Dashboard</h1>
-<p>Welcome, <%= parent.fullname %></p>
+<style>
+  .pd-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff;
+    border-radius: var(--radius-lg, 16px);
+    padding: 24px 26px;
+    margin: 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pd-hero-info h1 { margin: 0 0 4px; font-size: 22px; }
+  .pd-hero-info p { margin: 0; opacity: 0.92; font-size: 13px; }
+  .pd-hero-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; flex: 1; min-width: 220px; }
+  .pd-hero-stat { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 10px 16px; text-align: center; }
+  .pd-hero-stat .val { display: block; font-size: 19px; font-weight: 800; }
+  .pd-hero-stat .lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; margin-top: 2px; }
 
-<div style="margin-bottom:20px; text-align: right; width: 90%;">
-  <a href="/admin/logout" 
-     style="text-decoration:none; color:white; background-color: red; padding: 5px 10px ; border-radius: 5px;">
-     Logout
-  </a>
+  .pd-section-title { margin: 28px 0 14px; font-size: 17px; color: var(--brand-pri-dark, #4C3802); }
+
+  .pd-alerts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+  .pd-alert { display: flex; align-items: center; gap: 12px; border-radius: 12px; padding: 12px 16px; background: #f8f9fa; flex-wrap: wrap; }
+  .pd-alert-balance { background: #FFF4E5; border: 1px solid #F0B23A55; }
+  .pd-alert-info { background: #EEF3FB; border: 1px solid #4A90D955; }
+  .pd-alert-success { background: #EAF6EE; border: 1px solid #34C77B55; }
+  .pd-alert-icon { font-size: 18px; flex-shrink: 0; }
+  .pd-alert-balance .pd-alert-icon { color: #C97A0F; }
+  .pd-alert-info .pd-alert-icon { color: #2C5FA8; }
+  .pd-alert-success .pd-alert-icon { color: #1E6B34; }
+  .pd-alert-body { flex: 1; font-size: 13.5px; min-width: 200px; }
+  .pd-alert-price { font-weight: 800; margin-top: 2px; color: #8A5300; }
+
+  .pd-btn { border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity 0.15s ease, transform 0.1s ease; }
+  .pd-btn:hover { opacity: 0.9; }
+  .pd-btn:active { transform: scale(0.97); }
+  .pd-btn-primary { background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); color: #fff; }
+  .pd-btn-secondary { background: #f0f0f0; color: #333; text-decoration: none; display: inline-block; }
+  .pd-btn-pay { background: linear-gradient(135deg, #F0B23A, #C97A0F); color: #fff; }
+  .pd-btn-sm { padding: 5px 10px; font-size: 11.5px; }
+
+  .pd-child-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .pd-child-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 18px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+  .pd-child-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .pd-child-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
+  .pd-child-card-top h3 { margin: 0 0 4px; font-size: 15px; }
+  .pd-level-chip { display: inline-block; background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .pd-xp-bar-wrap { margin-bottom: 14px; }
+  .pd-xp-bar { background: #eee; border-radius: 999px; height: 8px; overflow: hidden; }
+  .pd-xp-bar-fill { background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); height: 100%; border-radius: 999px; }
+  .pd-xp-label { display: block; font-size: 11px; color: #777; margin-top: 5px; }
+
+  .pd-child-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+  .pd-child-stat { background: #f8f9fa; border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+  .pd-child-stat strong { display: block; font-size: 15px; color: var(--brand-pri-dark, #4C3802); }
+  .pd-child-stat span { color: #777; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .pd-child-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .pd-leaderboard { display: flex; flex-direction: column; gap: 8px; }
+  .pd-leaderboard-row { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 10px 14px; flex-wrap: wrap; }
+  .pd-lb-rank { font-weight: 800; color: var(--brand-pri, #A17807); width: 26px; }
+  .pd-lb-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .pd-lb-name { min-width: 100px; font-weight: 600; font-size: 13px; }
+  .pd-lb-bar-wrap { flex: 1; min-width: 80px; background: #eee; border-radius: 999px; height: 8px; overflow: hidden; }
+  .pd-lb-bar { background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); height: 100%; }
+  .pd-lb-xp { font-size: 12px; font-weight: 700; min-width: 70px; text-align: right; }
+  .pd-lb-streak { font-size: 12px; min-width: 50px; text-align: right; }
+
+  .pd-fund-widget { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 16px; }
+  .pd-fund-widget select, .pd-fund-widget input { padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; }
+
+  .pd-table-wrap { overflow-x: auto; }
+  .pd-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: var(--radius-lg, 16px); overflow: hidden; }
+  .pd-table th, .pd-table td { padding: 10px 14px; text-align: left; font-size: 12.5px; border-bottom: 1px solid #f0f0f0; }
+  .pd-table th { background: #f8f9fa; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.04em; color: #777; }
+  .pd-tx-credit { color: #1E6B34; font-weight: 600; }
+  .pd-tx-debit { color: #A83232; font-weight: 600; }
+
+  .pd-requests { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .pd-request-row { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 9px 14px; font-size: 13px; flex-wrap: wrap; }
+  .pd-status-chip { padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+  .pd-status-pending { background: #FFF4E5; color: #8A5300; }
+  .pd-status-approved { background: #EAF6EE; color: #1E6B34; }
+  .pd-status-rejected { background: #FBEAEA; color: #A83232; }
+
+  .pd-add-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .pd-add-form input { padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; flex: 1; min-width: 200px; }
+
+  .pd-empty { color: #888; font-size: 13.5px; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 768px) {
+    .pd-hero { flex-direction: column; align-items: stretch; padding: 20px; }
+    .pd-hero-stats { min-width: 0; }
+    .pd-child-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .pd-fund-widget { flex-direction: column; align-items: stretch; }
+    .pd-fund-widget select, .pd-fund-widget input, .pd-fund-widget button { width: 100%; }
+    .pd-add-form { flex-direction: column; align-items: stretch; }
+    .pd-add-form input, .pd-add-form button { width: 100%; }
+    .pd-leaderboard-row { gap: 8px; }
+    .pd-lb-name { min-width: 70px; font-size: 12px; }
+    .pd-table th, .pd-table td { padding: 8px 10px; font-size: 11.5px; }
+  }
+
+  @media (max-width: 480px) {
+    .pd-hero-info h1 { font-size: 19px; }
+    .pd-hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .pd-child-grid { grid-template-columns: 1fr; }
+    .pd-child-stats { grid-template-columns: repeat(2, 1fr); }
+    .pd-child-actions { flex-direction: column; align-items: stretch; }
+    .pd-child-actions .pd-btn { width: 100%; text-align: center; }
+    .pd-alert { flex-direction: column; align-items: stretch; text-align: center; }
+    .pd-request-row { flex-direction: column; align-items: flex-start; }
+    .pd-lb-bar-wrap { flex-basis: 100%; order: 5; }
+  }
+</style>
+
+<div class="pd-hero">
+  <div class="pd-hero-info">
+    <h1>👋 Welcome back, <%= parent.fullname %></h1>
+    <p>Here's how your family is doing today.</p>
+  </div>
+  <div class="pd-hero-stats">
+    <div class="pd-hero-stat">
+      <span class="val"><%= children.length %></span>
+      <span class="lbl">Children</span>
+    </div>
+    <div class="pd-hero-stat">
+      <span class="val">🔥 <%= children.reduce((sum, c) => sum + c.streak.currentStreak, 0) %></span>
+      <span class="lbl">Combined Streak</span>
+    </div>
+    <div class="pd-hero-stat">
+      <span class="val">🏅 <%= children.reduce((sum, c) => sum + c.badgeCount, 0) %></span>
+      <span class="lbl">Total Badges</span>
+    </div>
+    <div class="pd-hero-stat">
+      <span class="val"><%= children.reduce((sum, c) => sum + c.levelInfo.xp, 0).toLocaleString() %></span>
+      <span class="lbl">Family XP</span>
+    </div>
+  </div>
 </div>
 
-<!-- ✅ Success/Error Banner -->
-<div id="messageBox" style="display:none; margin-bottom:15px; padding:10px; border-radius:5px;"></div>
+<% if (balanceAlerts.length || activityAlerts.length) { %>
+  <div class="pd-alerts">
+    <% balanceAlerts.forEach(alert => { %>
+      <div class="pd-alert pd-alert-balance">
+        <div class="pd-alert-icon"><i class="fa-solid fa-lock"></i></div>
+        <div class="pd-alert-body">
+          <strong><%= alert.childName %></strong>'s term "<%= alert.termName %>" ended —
+          <%= alert.courses.length %> course<%= alert.courses.length === 1 ? '' : 's' %> locked.
+          <div class="pd-alert-price">₦<%= alert.totalPrice.toLocaleString() %> owed</div>
+        </div>
+        <button
+          class="pd-btn pd-btn-pay pd-pay-btn"
+          data-child-id="<%= alert.childId %>"
+          data-term-id="<%= alert.termId %>"
+          data-amount="<%= alert.totalPrice %>"
+          data-child-name="<%= alert.childName %>"
+        >
+          Pay ₦<%= alert.totalPrice.toLocaleString() %> & Unlock
+        </button>
+      </div>
+    <% }) %>
+    <% activityAlerts.forEach(alert => { %>
+      <% if (alert.type === 'inactive') { %>
+        <div class="pd-alert pd-alert-info">
+          <div class="pd-alert-icon"><i class="fa-solid fa-clock"></i></div>
+          <div class="pd-alert-body"><strong><%= alert.childName %></strong> hasn't been active in <%= alert.daysSince %> days.</div>
+        </div>
+      <% } else if (alert.type === 'new_badge') { %>
+        <div class="pd-alert pd-alert-success">
+          <div class="pd-alert-icon"><i class="fa-solid fa-medal"></i></div>
+          <div class="pd-alert-body"><strong><%= alert.childName %></strong> just earned the "<%= alert.badgeName %>" badge! 🎉</div>
+        </div>
+      <% } %>
+    <% }) %>
+  </div>
+<% } %>
 
-<!-- Add Child Form -->
-<h3>Add Child</h3>
-<form id="addChildForm" style="margin-bottom:20px;">
-  <input type="email" name="childEmail" placeholder="Child's email" required />
-  <button type="submit" id="submitBtn">➕ Add</button>
-  <!-- Spinner (hidden by default) -->
-  <span id="spinner" style="display:none; margin-left:10px;">⏳ Sending...</span>
-</form>
-
-<script>
-document.getElementById("addChildForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const childEmail = e.target.childEmail.value;
-  const messageBox = document.getElementById("messageBox");
-  const spinner = document.getElementById("spinner");
-  const submitBtn = document.getElementById("submitBtn");
-
-  // Show spinner + disable button
-  spinner.style.display = "inline";
-  submitBtn.disabled = true;
-
-  try {
-    const res = await fetch("/parent/add-child", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ childEmail })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-      messageBox.style.display = "block";
-      messageBox.style.background = "#f8d7da"; // red
-      messageBox.style.color = "#721c24";
-      messageBox.innerText = "❌ " + data.error;
-    } else {
-      messageBox.style.display = "block";
-      messageBox.style.background = "#d4edda"; // green
-      messageBox.style.color = "#155724";
-      messageBox.innerText = data.message;
-
-      // redirect after short delay
-      setTimeout(() => {
-        window.location.href = data.redirect;
-      }, 1500);
-    }
-  } catch (err) {
-    console.error("Error submitting form:", err);
-    messageBox.style.display = "block";
-    messageBox.style.background = "#f8d7da";
-    messageBox.style.color = "#721c24";
-    messageBox.innerText = "❌ Failed to send request";
-  } finally {
-    // Hide spinner + re-enable button
-    spinner.style.display = "none";
-    submitBtn.disabled = false;
-  }
-});
-</script>
-
-
-<!-- List of Linked Children -->
-<h3>Your Children</h3>
+<h2 class="pd-section-title">Your Children</h2>
 <% if (children.length) { %>
-  <div class="table-responsive">
-    <table class="user-table" style="width:90%; margin-top:20px;">
-      <thead>
-        <tr>
-          <th>Profile</th>
-          <th>Full Name</th>
-          <th>Email</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
+  <div class="pd-child-grid">
+    <% children.forEach(child => { %>
+      <div class="pd-child-card">
+        <div class="pd-child-card-top">
+          <img class="pd-child-avatar" src="<%= child.profile_picture || '/profile.webp' %>" alt="">
+          <div>
+            <h3><%= child.fullname %></h3>
+            <span class="pd-level-chip">Lvl <%= child.levelInfo.level %> · <%= child.levelInfo.name %></span>
+          </div>
+        </div>
+
+        <div class="pd-xp-bar-wrap">
+          <div class="pd-xp-bar"><div class="pd-xp-bar-fill" style="width:<%= child.levelInfo.progressPercent %>%"></div></div>
+          <span class="pd-xp-label">
+            <%= child.levelInfo.xp.toLocaleString() %> XP
+            <% if (child.levelInfo.xpForNextLevel) { %>
+              · <%= (child.levelInfo.xpForNextLevel - child.levelInfo.xpIntoLevel).toLocaleString() %> to next level
+            <% } else { %>
+              · Max level!
+            <% } %>
+          </span>
+        </div>
+
+        <div class="pd-child-stats">
+          <div class="pd-child-stat">🔥 <strong><%= child.streak.currentStreak %></strong><span>Day Streak</span></div>
+          <div class="pd-child-stat">🏅 <strong><%= child.badgeCount %></strong><span>Badges</span></div>
+          <div class="pd-child-stat">🎓 <strong><%= child.coursesCompleted %></strong><span>Completed</span></div>
+          <div class="pd-child-stat">💰 <strong>₦<%= Number(child.wallet_balance2 || 0).toLocaleString() %></strong><span>Wallet</span></div>
+        </div>
+
+        <div class="pd-child-actions">
+          <a href="/admin/students/<%= child.id %>/progress?from=parent" class="pd-btn pd-btn-secondary">📊 Full Progress</a>
+          <button class="pd-btn pd-btn-primary pd-fund-btn" data-child-id="<%= child.id %>">💰 Fund Wallet</button>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } else { %>
+  <p class="pd-empty">No children linked yet — add one below.</p>
+<% } %>
+
+<% if (leaderboard.length) { %>
+  <h2 class="pd-section-title">🏆 Family Leaderboard</h2>
+  <div class="pd-leaderboard">
+    <% leaderboard.forEach(entry => { %>
+      <div class="pd-leaderboard-row">
+        <span class="pd-lb-rank">#<%= entry.rank %></span>
+        <img class="pd-lb-avatar" src="<%= entry.profilePicture || '/profile.webp' %>" alt="">
+        <span class="pd-lb-name"><%= entry.childName %></span>
+        <div class="pd-lb-bar-wrap">
+          <div class="pd-lb-bar" style="width:<%= leaderboard[0].xp ? Math.max(6, Math.round((entry.xp / leaderboard[0].xp) * 100)) : 6 %>%"></div>
+        </div>
+        <span class="pd-lb-xp"><%= entry.xp.toLocaleString() %> XP</span>
+        <span class="pd-lb-streak">🔥 <%= entry.streak %></span>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<h2 class="pd-section-title">💰 Fund a Child's Wallet</h2>
+<% if (children.length) { %>
+  <div class="pd-fund-widget" id="fundWidget">
+    <select id="fundChildSelect">
+      <% children.forEach(child => { %>
+        <option value="<%= child.id %>" data-email="<%= child.email %>"><%= child.fullname %></option>
+      <% }) %>
+    </select>
+    <input type="number" id="fundAmount" placeholder="Amount in ₦" min="100" step="1">
+    <button class="pd-btn pd-btn-primary" id="startFundingBtn">Pay with Paystack</button>
+  </div>
+<% } else { %>
+  <p class="pd-empty">Link a child first to fund their wallet.</p>
+<% } %>
+
+<h2 class="pd-section-title">📜 Wallet & Spending History</h2>
+<% if (walletHistory.length) { %>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead><tr><th>Child</th><th>Activity</th><th>Amount</th><th>Date</th></tr></thead>
       <tbody>
-        <% children.forEach(child => { %>
+        <% walletHistory.forEach(tx => { %>
           <tr>
+            <td><%= tx.child_name %></td>
             <td>
-              <img src="<%= child.profile_picture || '/profile.webp' %>" 
-                   alt="Profile"
-                   style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
+              <span class="pd-tx-<%= tx.direction %>">
+                <%= tx.direction === 'credit' ? '+' : '−' %> <%= tx.description || tx.type %>
+              </span>
             </td>
-            <td><%= child.fullname %></td>
-            <td><%= child.email %></td>
-            <td style="display:flex; gap:10px; justify-content:center; align-items:center;">
-              <!-- View Progress -->
-              <a href="/admin/students/<%= child.id %>/progress?from=parent"
-                 class="btn-edit"
-                 style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                 📊View Progress
-              </a>
-            </td>
+            <td>₦<%= Number(tx.amount).toLocaleString() %></td>
+            <td><%= new Date(tx.created_at).toLocaleDateString() %></td>
           </tr>
         <% }) %>
       </tbody>
     </table>
   </div>
 <% } else { %>
-  <p>No children linked yet.</p>
+  <p class="pd-empty">No wallet activity yet.</p>
 <% } %>
+
+<h2 class="pd-section-title">➕ Add a Child</h2>
+<% if (pendingRequests.length) { %>
+  <div class="pd-requests">
+    <% pendingRequests.forEach(r => { %>
+      <div class="pd-request-row">
+        <span><%= r.fullname %> (<%= r.email %>)</span>
+        <span class="pd-status-chip pd-status-<%= r.status %>"><%= r.status %></span>
+        <% if (r.status === 'rejected') { %>
+          <button class="pd-btn pd-btn-secondary pd-btn-sm pd-resend-btn" data-email="<%= r.email %>">Resend</button>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<form id="addChildForm" class="pd-add-form">
+  <input type="email" name="childEmail" placeholder="Child's email" required />
+  <button type="submit" id="submitBtn">➕ Add</button>
+  <span id="spinner" style="display:none;">⏳ Sending...</span>
+</form>
+
+<div style="margin: 24px 0; text-align: right;">
+  <a href="/admin/logout" class="pd-btn" style="background:#d64545; color:#fff; text-decoration:none;">Logout</a>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+  var PAYSTACK_PUBLIC_KEY = 'pk_live_c89f9942dce6fde45efd45f565408fd80ee09e12';
+  var PARENT_EMAIL = <%- JSON.stringify(parent.email) %>;
+  var PARENT_NAME = <%- JSON.stringify(parent.fullname) %>;
+
+  // ---------- Add / resend child link request ----------
+  function submitAddChild(childEmail) {
+    var spinner = document.getElementById('spinner');
+    var submitBtn = document.getElementById('submitBtn');
+    if (spinner) spinner.style.display = 'inline';
+    if (submitBtn) submitBtn.disabled = true;
+
+    fetch('/parent/add-child', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ childEmail: childEmail })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.error) {
+          showAlert(data.error, 'error');
+        } else {
+          showAlert(data.message, 'success').then(function () {
+            window.location.href = data.redirect || '/parent/dashboard';
+          });
+        }
+      })
+      .catch(function () { showAlert('Failed to send request', 'error'); })
+      .finally(function () {
+        if (spinner) spinner.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  }
+
+  var addChildForm = document.getElementById('addChildForm');
+  if (addChildForm) {
+    addChildForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitAddChild(e.target.childEmail.value);
+    });
+  }
+
+  document.querySelectorAll('.pd-resend-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      submitAddChild(btn.dataset.email);
+    });
+  });
+
+  // ---------- Fund a child's wallet ----------
+  function openFundWidget(childId) {
+    var select = document.getElementById('fundChildSelect');
+    if (select) select.value = String(childId);
+    var widget = document.getElementById('fundWidget');
+    if (widget) widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  document.querySelectorAll('.pd-fund-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openFundWidget(btn.dataset.childId);
+    });
+  });
+
+  function startChildFunding() {
+    var select = document.getElementById('fundChildSelect');
+    var childId = select.value;
+    var childEmail = select.selectedOptions[0].dataset.email;
+    var amount = parseFloat(document.getElementById('fundAmount').value);
+
+    if (!childId) { showAlert('Please select a child.'); return; }
+    if (!amount || amount < 100) { showAlert('Please enter a valid amount (minimum ₦100).'); return; }
+
+    var handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: childEmail,
+      amount: Math.round(amount * 100),
+      metadata: { custom_fields: [{ display_name: 'Funded By', value: PARENT_NAME }] },
+      callback: function (response) {
+        fetch('/parent/fund-child/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference: response.reference, childId: childId })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            showAlert(data.message, data.success ? 'success' : 'error').then(function () {
+              if (data.success) window.location.reload();
+            });
+          })
+          .catch(function () { showAlert('Something went wrong verifying the payment.', 'error'); });
+      },
+      onClose: function () {
+        showAlert('Funding cancelled.');
+      }
+    });
+    handler.openIframe();
+  }
+
+  var startFundingBtn = document.getElementById('startFundingBtn');
+  if (startFundingBtn) startFundingBtn.addEventListener('click', startChildFunding);
+
+  // ---------- Pay to unlock a locked term ----------
+  function payReactivation(childId, termId, amount, childName) {
+    showConfirm('Pay ₦' + amount.toLocaleString() + ' to unlock ' + childName + "'s course(s)?").then(function (ok) {
+      if (!ok) return;
+
+      var handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: PARENT_EMAIL,
+        amount: Math.round(amount * 100),
+        metadata: { custom_fields: [{ display_name: 'Reactivation For', value: childName }] },
+        callback: function (response) {
+          fetch('/parent/reactivate-term/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: response.reference, childId: childId, termId: termId })
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              showAlert(data.message, data.success ? 'success' : 'error').then(function () {
+                if (data.success) window.location.reload();
+              });
+            })
+            .catch(function () { showAlert('Something went wrong verifying the payment.', 'error'); });
+        },
+        onClose: function () {
+          showAlert('Payment cancelled.');
+        }
+      });
+      handler.openIframe();
+    });
+  }
+
+  document.querySelectorAll('.pd-pay-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      payReactivation(
+        parseInt(btn.dataset.childId, 10),
+        parseInt(btn.dataset.termId, 10),
+        parseFloat(btn.dataset.amount),
+        btn.dataset.childName
+      );
+    });
+  });
+</script>

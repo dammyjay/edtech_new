@@ -3621,6 +3621,23 @@ exports.viewStudentProgress = async (req, res) => {
       }
     }
 
+    // Same idea for a parent viewing their child's progress — previously
+    // this branch had NO ownership check at all, so any logged-in (or even
+    // logged-out) request could view any student's full progress page just
+    // by hitting this URL with ?from=parent.
+    if (from === "parent") {
+      if (!req.session.user || req.session.user.role !== "parent") {
+        return res.status(403).send("Access denied");
+      }
+      const parentOwnershipCheck = await pool.query(
+        `SELECT 1 FROM parent_children WHERE parent_id = $1 AND child_id = $2`,
+        [req.session.user.id, id],
+      );
+      if (!parentOwnershipCheck.rows.length) {
+        return res.status(404).send("Student not found");
+      }
+    }
+
     // =========================
     // 1. COMPANY INFO
     // =========================

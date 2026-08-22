@@ -2117,6 +2117,12 @@ exports.enrollInCourse = async (req, res) => {
         [course.amount, userId]
       );
 
+      await pool.query(
+        `INSERT INTO wallet_transactions (user_id, type, direction, amount, description)
+         VALUES ($1, 'course_enrollment', 'debit', $2, $3)`,
+        [userId, course.amount, `Enrolled in ${course.title}`]
+      );
+
       // Optional: log new balance
       const updatedWalletRes = await pool.query(
         "SELECT wallet_balance2 FROM users2 WHERE id = $1",
@@ -2242,6 +2248,12 @@ exports.payTermReactivation = async (req, res) => {
         `INSERT INTO transactions (fullname, email, amount, reference, status)
          VALUES ($1, $2, $3, $4, $5)`,
         [user.fullname, user.email, priceInfo.totalPrice, reference, "success"]
+      );
+
+      await client.query(
+        `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference)
+         VALUES ($1, 'term_reactivation', 'debit', $2, $3, $4)`,
+        [studentId, priceInfo.totalPrice, "Paid to reactivate a locked term", reference]
       );
 
       const inserted = await client.query(

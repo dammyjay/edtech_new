@@ -158,6 +158,30 @@ async function createTables() {
       );`
     );
 
+    // Per-user wallet ledger — `transactions` above only records raw
+    // Paystack charges (no user_id, no purpose), so it can't answer "what
+    // happened to this specific user's wallet." This is the audit trail
+    // used by the parent dashboard's wallet/spending history, populated by
+    // every existing wallet credit/debit path (self-funding, course
+    // enrollment, term reactivation) plus the new parent-funds-child and
+    // parent-pays-reactivation flows.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        type TEXT NOT NULL CHECK (type IN ('fund', 'parent_fund', 'course_enrollment', 'term_reactivation', 'parent_term_reactivation')),
+        direction TEXT NOT NULL CHECK (direction IN ('credit', 'debit')),
+        amount NUMERIC NOT NULL,
+        description TEXT,
+        reference TEXT,
+        related_user_id INTEGER REFERENCES users2(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_wallet_transactions_user_id ON wallet_transactions(user_id);`
+    );
+
     //table for benefits
     await pool.query(
       `CREATE TABLE IF NOT EXISTS benefits (
@@ -1424,6 +1448,18 @@ CREATE TABLE IF NOT EXISTS student_term_reactivations (
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(student_id, term_id)
 );
+`);
+
+    // Allow a parent to be the one who paid for a reactivation too (the
+    // parent dashboard's "Pay & Unlock" flow), not just the student
+    // themself or an admin. The CHECK above was declared inline at table
+    // creation, so Postgres auto-named it
+    // `student_term_reactivations_reactivated_by_check` — drop-and-recreate
+    // is the idempotent way to widen an inline CHECK's allowed values.
+    await pool.query(`
+ALTER TABLE student_term_reactivations DROP CONSTRAINT IF EXISTS student_term_reactivations_reactivated_by_check;
+ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations_reactivated_by_check
+  CHECK (reactivated_by IN ('student_payment', 'admin', 'parent_payment'));
 `);
 
     console.log("✅ All tables are updated and ready.");

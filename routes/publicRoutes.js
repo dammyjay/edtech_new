@@ -594,10 +594,18 @@ router.post("/verify-payment", async (req, res) => {
       );
 
       // ✅ Update user's wallet balance
-      await pool.query(
-        `UPDATE users2 SET wallet_balance2 = wallet_balance2 + $1 WHERE email = $2`,
+      const updatedUser = await pool.query(
+        `UPDATE users2 SET wallet_balance2 = wallet_balance2 + $1 WHERE email = $2 RETURNING id`,
         [amount, email]
       );
+
+      if (updatedUser.rows[0]) {
+        await pool.query(
+          `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference)
+           VALUES ($1, 'fund', 'credit', $2, 'Wallet funded via Paystack', $3)`,
+          [updatedUser.rows[0].id, amount, reference]
+        );
+      }
 
       return res.json({
         success: true,

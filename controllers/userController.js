@@ -8,6 +8,14 @@ const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
 const getAnnouncements = require("../utils/getAnnouncements");
 const { renderQuizReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
+const axios = require("axios");
+const { getStudentStreak } = require("../services/streakService");
+const { getLevelForXp } = require("../utils/xpLevels");
+const {
+  getLockedEndedTermsForStudent,
+  computeReactivationPrice,
+  reactivateTerm,
+} = require("../services/termReactivationService");
 
 exports.showSignup = (req, res) => {
   // res.sendFile(path.join(__dirname, 'signup.html'));
@@ -542,6 +550,50 @@ exports.showEvent = async (req, res) => {
   }
 };
 
+// Lightweight per-child gamification summary for the parent dashboard —
+// deliberately NOT the full viewStudentProgress computation (that stays a
+// click-through detail page); this only pulls what a dashboard card needs
+// so a parent with several children doesn't pay for a heavy page load.
+async function getChildSummary(childId) {
+  const streak = await getStudentStreak(childId);
+
+  const xpTotalRes = await pool.query(
+    `SELECT COALESCE(SUM(xp), 0) AS total FROM xp_history WHERE user_id = $1`,
+    [childId]
+  );
+  const levelInfo = getLevelForXp(xpTotalRes.rows[0].total);
+
+  const badgeCountRes = await pool.query(
+    `SELECT COUNT(*) FROM user_badges WHERE user_id = $1`,
+    [childId]
+  );
+
+  const coursesCompletedRes = await pool.query(
+    `SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND progress >= 100`,
+    [childId]
+  );
+
+  const recentBadgeRes = await pool.query(
+    `SELECT badge_name, badge_image, awarded_at
+     FROM user_badges
+     WHERE user_id = $1
+     ORDER BY awarded_at DESC
+     LIMIT 1`,
+    [childId]
+  );
+
+  const lockedTerms = await getLockedEndedTermsForStudent(childId);
+
+  return {
+    streak,
+    levelInfo,
+    badgeCount: parseInt(badgeCountRes.rows[0].count, 10) || 0,
+    coursesCompleted: parseInt(coursesCompletedRes.rows[0].count, 10) || 0,
+    recentBadge: recentBadgeRes.rows[0] || null,
+    lockedTerms,
+  };
+}
+
 exports.getParentDashboard = async (req, res) => {
   const user = req.session.user;
   if (!user || user.role !== "parent") {
@@ -550,24 +602,122 @@ exports.getParentDashboard = async (req, res) => {
 
   try {
     const announcements = await getAnnouncements("dashboard");
-    // Company Info
-        const infoResult = await pool.query(
-          "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-        );
-        const info = infoResult.rows[0] || {};
+    const infoResult = await pool.query(
+      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoResult.rows[0] || {};
     const profilePic = req.session.user?.profile_picture || null;
-    
-    const children = await pool.query(
-      `SELECT u.id, u.fullname, u.email, u.profile_picture
+
+    const childrenRes = await pool.query(
+      `SELECT u.id, u.fullname, u.email, u.profile_picture, u.wallet_balance2
        FROM parent_children pc
        JOIN users2 u ON pc.child_id = u.id
-       WHERE pc.parent_id = $1`,
+       WHERE pc.parent_id = $1
+       ORDER BY u.fullname`,
       [user.id]
     );
 
+    const children = await Promise.all(
+      childrenRes.rows.map(async (child) => ({
+        ...child,
+        ...(await getChildSummary(child.id)),
+      }))
+    );
+
+    // Balance alerts flattened across every child, most-recently-ended term first.
+    const balanceAlerts = children
+      .flatMap((child) =>
+        child.lockedTerms.map((term) => ({
+          childId: child.id,
+          childName: child.fullname,
+          ...term,
+        }))
+      )
+      .sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+
+    // Activity/milestone alerts — derived entirely from data already
+    // fetched above, no new tracking table needed.
+    const INACTIVITY_ALERT_DAYS = 5;
+    const activityAlerts = [];
+    children.forEach((child) => {
+      if (child.streak.lastActiveDate) {
+        const daysSince = Math.floor(
+          (Date.now() - new Date(child.streak.lastActiveDate).getTime()) / 86400000
+        );
+        if (daysSince >= INACTIVITY_ALERT_DAYS) {
+          activityAlerts.push({
+            type: "inactive",
+            childId: child.id,
+            childName: child.fullname,
+            daysSince,
+          });
+        }
+      }
+      if (child.recentBadge) {
+        const daysSinceBadge = Math.floor(
+          (Date.now() - new Date(child.recentBadge.awarded_at).getTime()) / 86400000
+        );
+        if (daysSinceBadge <= 7) {
+          activityAlerts.push({
+            type: "new_badge",
+            childId: child.id,
+            childName: child.fullname,
+            badgeName: child.recentBadge.badge_name,
+            daysSinceBadge,
+          });
+        }
+      }
+    });
+
+    // Family leaderboard — only meaningful with 2+ children, positive framing.
+    const leaderboard =
+      children.length >= 2
+        ? [...children]
+            .sort((a, b) => b.levelInfo.xp - a.levelInfo.xp)
+            .map((child, index) => ({
+              rank: index + 1,
+              childId: child.id,
+              childName: child.fullname,
+              profilePicture: child.profile_picture,
+              xp: child.levelInfo.xp,
+              levelName: child.levelInfo.name,
+              streak: child.streak.currentStreak,
+            }))
+        : [];
+
+    // Parent's own sent child-link requests, so a pending/rejected one is
+    // visible instead of disappearing after submission.
+    const pendingRequestsRes = await pool.query(
+      `SELECT r.id, r.child_id, r.status, r.created_at, u.fullname, u.email
+       FROM parent_child_requests r
+       JOIN users2 u ON u.id = r.child_id
+       WHERE r.parent_id = $1
+       ORDER BY r.created_at DESC`,
+      [user.id]
+    );
+
+    // Combined wallet/spending history across every linked child.
+    const childIds = children.map((c) => c.id);
+    const walletHistoryRes = childIds.length
+      ? await pool.query(
+          `SELECT wt.*, u.fullname AS child_name
+           FROM wallet_transactions wt
+           JOIN users2 u ON u.id = wt.user_id
+           WHERE wt.user_id = ANY($1)
+           ORDER BY wt.created_at DESC
+           LIMIT 50`,
+          [childIds]
+        )
+      : { rows: [] };
+
     res.render("parent/dashboard", {
       parent: user,
-      children: children.rows,
+      children,
+      balanceAlerts,
+      activityAlerts,
+      leaderboard,
+      pendingRequests: pendingRequestsRes.rows,
+      walletHistory: walletHistoryRes.rows,
       info,
       profilePic,
       title: "Parent Dashboard",
@@ -578,6 +728,231 @@ exports.getParentDashboard = async (req, res) => {
   } catch (err) {
     console.error("Error loading parent dashboard:", err);
     res.status(500).send("Failed to load dashboard");
+  }
+};
+
+// POST /parent/fund-child/verify — body: { reference, childId }
+// Verifies a Paystack charge and credits the CHILD's wallet directly (the
+// "direct pay-to-child" model) — never trusts a client-supplied amount or
+// target; both are always re-derived from a verified Paystack response and
+// a verified parent_children ownership row.
+exports.fundChildWallet = async (req, res) => {
+  const parent = req.session.user;
+  if (!parent || parent.role !== "parent") {
+    return res.status(403).json({ success: false, message: "Only parents can fund a child's wallet" });
+  }
+
+  const { reference, childId } = req.body;
+  if (!reference || !childId) {
+    return res.status(400).json({ success: false, message: "Missing reference or child" });
+  }
+
+  try {
+    const ownershipCheck = await pool.query(
+      `SELECT id, fullname, email FROM users2
+       WHERE id = $1 AND id IN (SELECT child_id FROM parent_children WHERE parent_id = $2)`,
+      [childId, parent.id]
+    );
+    const child = ownershipCheck.rows[0];
+    if (!child) {
+      return res.status(403).json({ success: false, message: "You are not linked to this child" });
+    }
+
+    const verifyRes = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
+    );
+    const payment = verifyRes.data.data;
+
+    if (payment.status !== "success") {
+      return res.status(400).json({ success: false, message: "Payment verification failed" });
+    }
+
+    const amount = payment.amount / 100; // always trust Paystack's verified amount, never the client's
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      try {
+        await client.query(
+          `INSERT INTO transactions (fullname, email, amount, reference, status)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [child.fullname, child.email, amount, reference, "success"]
+        );
+      } catch (insertErr) {
+        if (insertErr.code === "23505") {
+          // Duplicate reference — this exact charge was already processed
+          // by an earlier request (retry/double-submit). Not an error:
+          // just don't credit the wallet twice.
+          await client.query("ROLLBACK");
+          return res.json({ success: true, message: "Payment already processed" });
+        }
+        throw insertErr;
+      }
+
+      await client.query(
+        `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference, related_user_id)
+         VALUES ($1, 'parent_fund', 'credit', $2, $3, $4, $5)`,
+        [childId, amount, `Wallet funded by parent (${parent.fullname})`, reference, parent.id]
+      );
+
+      const updated = await client.query(
+        "UPDATE users2 SET wallet_balance2 = wallet_balance2 + $1 WHERE id = $2 RETURNING wallet_balance2",
+        [amount, childId]
+      );
+
+      await client.query("COMMIT");
+
+      return res.json({
+        success: true,
+        message: `₦${amount.toLocaleString()} added to ${child.fullname}'s wallet`,
+        newBalance: updated.rows[0].wallet_balance2,
+      });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("Error funding child wallet:", err.response?.data || err.message);
+    return res.status(500).json({ success: false, message: "Server error while funding wallet" });
+  }
+};
+
+// POST /parent/reactivate-term/verify — body: { reference, childId, termId }
+// Mirrors studentController.payTermReactivation's shape, but the parent's
+// card is charged directly via Paystack instead of deducting a wallet —
+// nothing is deducted from the child's wallet_balance2 in this flow.
+exports.payTermReactivationAsParent = async (req, res) => {
+  const parent = req.session.user;
+  if (!parent || parent.role !== "parent") {
+    return res.status(403).json({ success: false, message: "Only parents can pay this" });
+  }
+
+  const { reference, childId } = req.body;
+  const termId = parseInt(req.body.termId, 10);
+  if (!childId || !termId) {
+    return res.status(400).json({ success: false, message: "Missing child or term" });
+  }
+
+  try {
+    const ownershipCheck = await pool.query(
+      `SELECT id, fullname, email FROM users2
+       WHERE id = $1 AND id IN (SELECT child_id FROM parent_children WHERE parent_id = $2)`,
+      [childId, parent.id]
+    );
+    const child = ownershipCheck.rows[0];
+    if (!child) {
+      return res.status(403).json({ success: false, message: "You are not linked to this child" });
+    }
+
+    const steRes = await pool.query(
+      `SELECT ste.term_id, ste.school_id, at.is_ended
+       FROM student_term_enrollments ste
+       JOIN academic_terms at ON at.id = ste.term_id
+       WHERE ste.student_id = $1 AND ste.term_id = $2`,
+      [childId, termId]
+    );
+    const enrollment = steRes.rows[0];
+    if (!enrollment || !enrollment.is_ended) {
+      return res.status(404).json({ success: false, message: "Term not found or not ended" });
+    }
+
+    // Recomputed live — never trust a client-submitted amount, including
+    // whatever price was shown on the dashboard before this request.
+    const priceInfo = await computeReactivationPrice(childId, termId);
+    if (priceInfo.alreadyReactivated) {
+      return res.json({ success: true, message: "Already reactivated" });
+    }
+
+    if (priceInfo.totalPrice === 0) {
+      await reactivateTerm(childId, enrollment.school_id, termId, {
+        reactivatedBy: "parent_payment",
+        reactivatedByUserId: parent.id,
+        amountPaid: 0,
+      });
+      return res.json({ success: true, message: "Term reactivated" });
+    }
+
+    if (!reference) {
+      return res.status(400).json({ success: false, message: "Missing payment reference" });
+    }
+
+    const verifyRes = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
+    );
+    const payment = verifyRes.data.data;
+
+    if (payment.status !== "success") {
+      return res.status(400).json({ success: false, message: "Payment verification failed" });
+    }
+
+    const amountPaid = payment.amount / 100;
+    if (amountPaid !== priceInfo.totalPrice) {
+      console.error(
+        `Term reactivation amount mismatch: paid ${amountPaid}, owed ${priceInfo.totalPrice} (student ${childId}, term ${termId})`
+      );
+      return res.status(400).json({
+        success: false,
+        message: "Payment amount didn't match the amount owed — please try again",
+      });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      try {
+        await client.query(
+          `INSERT INTO transactions (fullname, email, amount, reference, status)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [child.fullname, child.email, amountPaid, reference, "success"]
+        );
+      } catch (insertErr) {
+        if (insertErr.code === "23505") {
+          await client.query("ROLLBACK");
+          return res.json({ success: true, message: "Payment already processed" });
+        }
+        throw insertErr;
+      }
+
+      await client.query(
+        `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference, related_user_id)
+         VALUES ($1, 'parent_term_reactivation', 'debit', $2, $3, $4, $5)`,
+        [parent.id, amountPaid, `Paid to unlock ${child.fullname}'s locked term`, reference, childId]
+      );
+
+      const inserted = await client.query(
+        `INSERT INTO student_term_reactivations
+           (student_id, school_id, term_id, amount_paid, reactivated_by, reactivated_by_user_id, transaction_reference)
+         VALUES ($1, $2, $3, $4, 'parent_payment', $5, $6)
+         ON CONFLICT (student_id, term_id) DO NOTHING
+         RETURNING id`,
+        [childId, enrollment.school_id, termId, amountPaid, parent.id, reference]
+      );
+
+      // Always commit here regardless of whether the reactivation row was
+      // actually inserted — the Paystack charge is real either way, and the
+      // transactions/wallet_transactions audit rows above must survive even
+      // if a concurrent request already reactivated this exact term first.
+      await client.query("COMMIT");
+
+      if (!inserted.rows.length) {
+        return res.json({ success: true, message: "Already reactivated (payment recorded)" });
+      }
+      return res.json({ success: true, message: `Reactivated — ${child.fullname}'s course is unlocked again` });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("Error reactivating term as parent:", err.response?.data || err.message);
+    return res.status(500).json({ success: false, message: "Server error while processing payment" });
   }
 };
 
