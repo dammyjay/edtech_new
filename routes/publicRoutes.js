@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../models/db");
+const crypto = require("crypto");
 const {upload} = require("../middlewares/upload");
 const cloudinary = require("../utils/cloudinary");
 const fs = require("fs");
@@ -15,6 +16,19 @@ const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates");
 const buildFeedbackAdminEmail = require("../utils/feedbackAdminEmail");
 const getAnnouncements = require("../utils/getAnnouncements");
 const { getCompanyInfo } = require("../utils/companyInfo");
+
+// No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
+// an HMAC of the user id (same secret the session already uses), so no new
+// token column/table is needed just for this one link.
+router.get("/unsubscribe/weekly-digest/:userId/:token", async (req, res) => {
+  const { userId, token } = req.params;
+  const expected = crypto.createHmac("sha256", process.env.SESSION_SECRET).update(String(userId)).digest("hex");
+  if (token !== expected) {
+    return res.status(403).send("Invalid unsubscribe link");
+  }
+  await pool.query(`UPDATE users2 SET weekly_digest_opt_out = true WHERE id = $1`, [userId]);
+  res.send("You've been unsubscribed from the weekly digest email.");
+});
 
 router.get("/events/:id", userController.showEvent);
 

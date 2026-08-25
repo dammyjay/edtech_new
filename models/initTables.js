@@ -1588,6 +1588,13 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
   CHECK (reactivated_by IN ('student_payment', 'admin', 'parent_payment'));
 `);
 
+    // Lets a parent opt out of the weekly digest email (cron/parentWeeklyDigest.js)
+    // via a no-login-required unsubscribe link, without needing a full
+    // notification-preferences table for just this one flag.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS weekly_digest_opt_out BOOLEAN DEFAULT false;
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);
