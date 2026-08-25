@@ -404,8 +404,13 @@ window.onclick = function(event) {
   }
 };
 
-// Handle form submission
-document.getElementById("assignClassForm").addEventListener("submit", async function(e) {
+// Handle form submission — #assignClassForm lives inside partials/students.ejs,
+// an AJAX-loaded section swapped in via loadSection()'s plain innerHTML=
+// (no script re-execution), so a direct addEventListener here at initial
+// page load would attach before the form ever exists. Delegating from
+// document works regardless of when that section loads.
+document.addEventListener("submit", async function(e) {
+  if (e.target.id !== "assignClassForm") return;
   e.preventDefault();
   const studentId = document.getElementById("modalStudentId").value;
   const classroomId = document.getElementById("modalClassroomSelect").value;

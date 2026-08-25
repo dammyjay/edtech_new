@@ -1,152 +1,85 @@
-<h1>👨‍🏫 Teacher Dashboard</h1>
-
-<!-- ✅ Class Selector -->
-<div class="class-selector">
-  <label for="classSelect">Select Class:</label>
-  <select id="classSelect">
-    <option value="all">All Classes</option>
-    <% classStats.forEach(c => { %>
-      <option value="<%= c.id %>"><%= c.class_name %></option>
-    <% }) %>
-  </select>
+<div class="tc-hero">
+  <div class="tc-hero-info">
+    <img class="tc-hero-avatar" src="<%= profile.profile_picture || '/profile.webp' %>" alt="">
+    <div>
+      <h1>👨‍🏫 Welcome, <%= profile.fullname %></h1>
+      <p><%= profile.email %> · <%= new Date().toLocaleDateString() %></p>
+    </div>
+  </div>
+  <div class="tc-hero-stats">
+    <div class="tc-hero-stat"><span class="val"><%= keyStats.total_classes || 0 %></span><span class="lbl">Classes</span></div>
+    <div class="tc-hero-stat"><span class="val"><%= keyStats.total_students || 0 %></span><span class="lbl">Students</span></div>
+    <div class="tc-hero-stat"><span class="val"><%= keyStats.lessons_completed || 0 %>/<%= keyStats.total_lessons || 0 %></span><span class="lbl">Lessons Done</span></div>
+    <div class="tc-hero-stat"><span class="val"><%= keyStats.avg_quiz_score || "–" %></span><span class="lbl">Avg Quiz</span></div>
+  </div>
 </div>
 
-<!-- ✅ Profile / Greeting -->
-<div class="profile-box">
-  <img src="<%= profile.profile_picture || '/images/default-avatar.png' %>" 
-       alt="Profile" class="profile-pic">
+<div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:16px;">
   <div>
-    <h2>Welcome, <%= profile.fullname %> 👋</h2>
-    <p><%= profile.email %></p>
-    <p><%= new Date().toLocaleDateString() %></p>
+    <label for="classSelect" style="font-weight:600; margin-right:8px;">Select Class:</label>
+    <select id="classSelect">
+      <option value="all">All Classes</option>
+      <% classStats.forEach(c => { %>
+        <option value="<%= c.id %>" <%= String(c.id) === String(classId) ? 'selected' : '' %>><%= c.class_name %></option>
+      <% }) %>
+    </select>
   </div>
+  <% if (terms && terms.length > 1) { %>
+    <div>
+      <label for="termSelect" style="font-weight:600; margin-right:8px;">Term:</label>
+      <select id="termSelect">
+        <% terms.forEach(t => { %>
+          <option value="<%= t.id %>" <%= String(t.id) === String(selectedTermId) ? 'selected' : '' %>>
+            <%= t.name %><%= t.is_active ? ' (active)' : '' %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+  <% } %>
 </div>
 
-<!-- ✅ Dashboard Content -->
 <div id="dashboardContent">
-  <!-- ✅ Key Stats -->
-  <div class="cards">
-    <div class="card">👥 Students <h3><%= keyStats.total_students || 0 %></h3></div>
-    <div class="card">🏫 Classes <h3><%= keyStats.total_classes || 0 %></h3></div>
-    <div class="card">📖 Lessons <h3><%= keyStats.lessons_completed || 0 %>/<%= keyStats.total_lessons || 0 %></h3></div>
-    <div class="card">📝 Avg Quiz <h3><%= keyStats.avg_quiz_score || "N/A" %></h3></div>
-    <div class="card">📑 Avg Assignment <h3><%= keyStats.avg_assignment_score || "N/A" %></h3></div>
-    <div class="card">⏳ Engagement <h3><%= keyStats.engagement_last7 || 0 %>%</h3></div>
-  </div>
-
-  <!-- ✅ Class Overview -->
-  <h2>📚 Classes</h2>
-  <div class="cards">
-    <% classStats.forEach(c => { %>
-      <div class="card">
-        <h3><%= c.class_name %></h3>
-        <p>👥 Students: <%= c.students %></p>
-        <p>📖 Lessons: <%= c.lessons_completed %> / <%= c.total_lessons %> 
-           (<%= c.total_lessons ? Math.round((c.lessons_completed / c.total_lessons) * 100) : 0 %>%)</p>
-        <p>📝 Avg Quiz: <%= c.avg_quiz_score || "N/A" %></p>
-        <p>📑 Avg Assignment: <%= c.avg_assignment_score || "N/A" %></p>
-        <p>⏳ Engagement: <%= c.engagement || 0 %>%</p>
-        <a class="btn-view" href="/teacher/classroom/<%= c.id %>/students">View Students</a>
-      </div>
-    <% }) %>
-  </div>
-
-  <!-- ✅ Charts -->
-  <h2>📈 Class Progress</h2>
-  <canvas id="lessonChart"></canvas>
-  <canvas id="quizChart"></canvas>
-
-  <!-- ✅ Student Snapshots -->
-  <h2>👨‍🎓 Top Students</h2>
-  <div class="user-table-wrapper">
-    <table class="user-table sortable-table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Average Quiz</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% topStudents.forEach(s => { %>
-          <tr>
-            <td><%= s.fullname %></td>
-            <td><%= s.avg_score || "N/A" %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-
-  <h2>⚠️ Struggling Students</h2>
-  <div class="user-table-wrapper">
-    <table class="user-table sortable-table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Lessons Done</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% strugglingStudents.forEach(s => { %>
-          <tr>
-            <td><%= s.fullname %></td>
-            <td><%= s.lessons_done || 0 %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ✅ Notifications -->
-  <h2>📬 Notifications</h2>
-  <p>Pending Assignments to Grade: <%= pendingAssignments %></p>
+  <%- include('./dashboard-inner', { keyStats, classStats, topStudents, strugglingStudents, pendingAssignments, analytics }) %>
 </div>
-
-<!-- ✅ Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-  const labels = <%- JSON.stringify(classStats.map(c => c.class_name || "Unnamed Class")) %>;
-  const lessonData = <%- JSON.stringify(classStats.map(c => {
-    const completed = c.lessons_completed || 0;
-    const total = c.total_lessons || 0;
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
-  })) %>;
-  const quizData = <%- JSON.stringify(classStats.map(c => c.avg_quiz_score || 0)) %>;
+// IIFE — this section can be re-loaded more than once in the same page
+// (loadSection('dashboard') fires on every visit, including returning to
+// it), and runScripts() appends a fresh <script> each time without
+// removing the previous one, so a bare top-level const here would throw
+// "already declared" on the second visit.
+(function () {
+  function refreshTeacherDashboard() {
+    const classId = document.getElementById('classSelect').value;
+    const termSelect = document.getElementById('termSelect');
+    const termId = termSelect ? termSelect.value : '';
+    const params = new URLSearchParams({ classId, partial: '1' });
+    if (termId) params.set('termId', termId);
 
-  new Chart(document.getElementById('lessonChart'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Lesson Completion %', data: lessonData, backgroundColor: '#27ae60' }] },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+    // ?partial=1 tells the server to render only the inner content (see
+    // getDashboardData) — without it, this AJAX refresh would re-render
+    // the WHOLE dashboard (hero + selectors + #dashboardContent again) and
+    // nest a duplicate copy inside #dashboardContent.
+    if (window.showLoading) window.showLoading();
+    fetch(`/teacher/dashboard/data?${params.toString()}`)
+      .then(res => res.text())
+      .then(html => {
+        const container = document.getElementById('dashboardContent');
+        container.innerHTML = html;
+        container.querySelectorAll("script").forEach(oldScript => {
+          const newScript = document.createElement("script");
+          if (oldScript.src) newScript.src = oldScript.src;
+          else newScript.textContent = oldScript.textContent;
+          document.body.appendChild(newScript);
+          oldScript.remove();
+        });
+      })
+      .catch(err => console.error('Error loading class dashboard:', err))
+      .finally(() => { if (window.hideLoading) window.hideLoading(); });
+  }
 
-  new Chart(document.getElementById('quizChart'), {
-    type: 'line',
-    data: { labels, datasets: [{ label: 'Average Quiz Score', data: quizData, borderColor: '#2980b9', fill: false }] },
-    options: { responsive: true }
-  });
-
-  document.getElementById('classSelect').addEventListener('change', async function() {
-    const classId = this.value;
-    try {
-      const res = await fetch(`/teacher/dashboard/data?classId=${classId}`);
-      const html = await res.text();
-      document.getElementById('dashboardContent').innerHTML = html;
-
-      // re-run scripts inside new content (for charts)
-      const scriptTags = document.getElementById('dashboardContent').querySelectorAll("script");
-      scriptTags.forEach(oldScript => {
-        const newScript = document.createElement("script");
-        if (oldScript.src) {
-          newScript.src = oldScript.src;
-        } else {
-          newScript.textContent = oldScript.textContent;
-        }
-        document.body.appendChild(newScript);
-        oldScript.remove();
-      });
-    } catch (err) {
-      console.error('Error loading class dashboard:', err);
-    }
-  });
+  document.getElementById('classSelect').addEventListener('change', refreshTeacherDashboard);
+  const termSelectEl = document.getElementById('termSelect');
+  if (termSelectEl) termSelectEl.addEventListener('change', refreshTeacherDashboard);
+})();
 </script>

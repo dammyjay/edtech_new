@@ -10,6 +10,7 @@ const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
+const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
   isLockedByEndedTerm,
   findLockingTermId,
@@ -3398,9 +3399,18 @@ Return ONLY valid JSON, e.g.:
       [total, grade, feedbackText, criteria ? JSON.stringify(criteria) : null, submission.id]
     );
 
+    await notifyUser(studentId, {
+      type: "grade_posted",
+      title: "Your assignment was graded",
+      message: grade
+        ? `${assignment.title} — grade: ${grade}`
+        : `${assignment.title} — submitted, AI grading unavailable`,
+      url: "/student/dashboard",
+    });
+
     // ✅ Get linked parent
     const parentRes = await pool.query(
-      `SELECT u.fullname, u.email
+      `SELECT u.id, u.fullname, u.email
       FROM users2 u
       JOIN parent_children pc ON pc.parent_id = u.id
       WHERE pc.child_id = $1
@@ -3409,6 +3419,16 @@ Return ONLY valid JSON, e.g.:
     );
 
     const parent = parentRes.rows[0];
+
+    if (parent && grade) {
+      const studentNameRes = await pool.query(`SELECT fullname FROM users2 WHERE id=$1`, [studentId]);
+      await notifyUser(parent.id, {
+        type: "grade_posted",
+        title: `${studentNameRes.rows[0]?.fullname || "Your child"}'s assignment was graded`,
+        message: `${assignment.title} — grade: ${grade}`,
+        url: "/parent/dashboard",
+      });
+    }
 
     try {
       if (parent) {
@@ -3600,9 +3620,9 @@ exports.respondToParentRequest = async (req, res) => {
       return res.status(400).send("❌ Invalid request");
     }
 
-    if (action === "approve") {
-      const parentId = reqRes.rows[0].parent_id;
+    const parentId = reqRes.rows[0].parent_id;
 
+    if (action === "approve") {
       // 1. Update request status
       await pool.query(
         `UPDATE parent_child_requests SET status='approved' WHERE id=$1`,
@@ -3616,11 +3636,27 @@ exports.respondToParentRequest = async (req, res) => {
          ON CONFLICT DO NOTHING`,
         [parentId, studentId]
       );
+
+      const studentNameRes = await pool.query(`SELECT fullname FROM users2 WHERE id=$1`, [studentId]);
+      await notifyUser(parentId, {
+        type: "parent_link_response",
+        title: "Link request approved",
+        message: `${studentNameRes.rows[0]?.fullname || "Your child"} approved your link request.`,
+        url: "/parent/dashboard",
+      });
     } else if (action === "reject") {
       await pool.query(
         `UPDATE parent_child_requests SET status='rejected' WHERE id=$1`,
         [requestId]
       );
+
+      const studentNameRes = await pool.query(`SELECT fullname FROM users2 WHERE id=$1`, [studentId]);
+      await notifyUser(parentId, {
+        type: "parent_link_response",
+        title: "Link request declined",
+        message: `${studentNameRes.rows[0]?.fullname || "The student"} declined your link request.`,
+        url: "/parent/dashboard",
+      });
     }
 
     res.redirect("/student/dashboard?section=profile");
@@ -3753,6 +3789,7 @@ exports.sendChatMessage = async (req, res) => {
        VALUES ($1, $2, $3)`,
       [senderId, receiverId, message]
     );
+    await notifyNewDirectMessage({ senderId, receiverId, message });
 
     res.json({ success: true, message: "Message sent successfully" });
   } catch (err) {
@@ -3874,6 +3911,7 @@ exports.sendClassMessage = async (req, res) => {
        VALUES ($1,$2,$3)`,
       [classroomId, senderId, message]
     )
+    await notifyNewClassMessage({ senderId, classroomId, message });
 
     res.json({success:true})
 
@@ -3911,6 +3949,35 @@ exports.getClassMessages = async (req, res) => {
     res.status(500).json({success:false})
   }
 }
+
+// Read-only: classroom-scoped announcements a teacher posted, shown as a
+// pinned panel above the class chat. Ownership check is "is this student
+// actually in this classroom" via user_school, not classroom_teachers
+// (that's the teacher-side check) — any student in the classroom can read.
+exports.getClassroomAnnouncements = async (req, res) => {
+  try {
+    const classroomId = req.params.id;
+    const studentId = req.session.user?.id;
+
+    const membershipCheck = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND classroom_id = $2 AND role_in_school = 'student'`,
+      [studentId, classroomId]
+    );
+    if (!membershipCheck.rowCount) {
+      return res.status(403).json({ success: false, message: "Not in this classroom" });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, title, message, created_at FROM classroom_announcements
+       WHERE classroom_id = $1 ORDER BY created_at DESC`,
+      [classroomId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Get classroom announcements error:", err);
+    res.status(500).json({ success: false });
+  }
+};
 
 exports.submitProject = async (req, res) => {
   try {

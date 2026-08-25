@@ -1,9 +1,8 @@
-<h2>🎓 My Students</h2>
+<h2 class="tc-section-title">🎓 My Students</h2>
 <div class="table-responsive">
-  <table class="user-table sortable-table"  border="1" cellpadding="8" cellspacing="0" width="100%">
+  <table class="user-table sortable-table" width="100%">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Full Name</th>
         <th>Email</th>
         <th>Classroom</th>
@@ -14,16 +13,15 @@
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
-            <td><a href="/teacher/student/<%= stu.id %>/progress">📊 View Progress</a></td>
+            <td><button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="loadUrl('/teacher/student/<%= stu.id %>/progress', 'students')">📊 View Progress</button></td>
           </tr>
         <% }) %>
       <% } else { %>
         <tr>
-          <td colspan="5">No students found.</td>
+          <td colspan="4" class="tc-empty">No students found.</td>
         </tr>
       <% } %>
     </tbody>

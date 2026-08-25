@@ -1,29 +1,30 @@
-<h2>📑 Student Reports</h2>
+<button type="button" class="back-btn" onclick="loadSection('dashboard')">⬅ Back to dashboard</button>
+
+<h2 class="tc-section-title">📑 Student Reports</h2>
+<p class="tc-empty" style="margin-top:-8px;">Pick a student to choose which course's report to review — reports open as a page, not a downloadable file.</p>
 <div class="table-responsive">
-  <table class="user-table sortable-table" border="1" cellpadding="8" cellspacing="0" width="100%">
+  <table class="user-table sortable-table" width="100%">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Full Name</th>
         <th>Email</th>
         <th>Classroom</th>
-        <th>Download Report</th>
+        <th>Report</th>
       </tr>
     </thead>
     <tbody>
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
-            <td><a href="/teacher/student/<%= stu.id %>/report">⬇️ Download</a></td>
+            <td><button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="loadUrl('/teacher/student/<%= stu.id %>/report', 'reports')">👁️ View Reports</button></td>
           </tr>
         <% }) %>
       <% } else { %>
         <tr>
-          <td colspan="5">No reports available.</td>
+          <td colspan="4" class="tc-empty">No reports available.</td>
         </tr>
       <% } %>
     </tbody>

@@ -211,6 +211,7 @@ router.post("/chat/markRead/:receiverId", studentController.markMessagesAsRead);
 
 router.post("/class/send", studentController.sendClassMessage)
 router.get("/class/messages/:classroomId",studentController.getClassMessages)
+router.get("/classroom/:id/announcements", studentController.getClassroomAnnouncements)
 
 router.post(
   "/projects/submit",

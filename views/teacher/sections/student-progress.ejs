@@ -1,213 +1,119 @@
-
-
-
-
 <style>
-  /* Sidebar */
-  .sidenav {
-    width: 220px;
-    background: var(--brand-pri);
-    color: #fff;
-    height: 100vh;
-    padding: 15px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1000;
+  .tc-sp-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff; border-radius: var(--radius-lg, 16px); padding: 22px 24px; margin: 16px 0;
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap; justify-content: space-between;
   }
+  .tc-sp-hero-left { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .tc-sp-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.5); flex-shrink: 0; }
+  .tc-sp-hero-info h2 { margin: 0 0 4px; font-size: 20px; }
+  .tc-sp-hero-info p { margin: 0; opacity: 0.9; font-size: 13px; }
+  .tc-sp-level-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-top: 8px; }
+  .tc-sp-xp-bar-wrap { margin-top: 8px; width: 220px; max-width: 100%; }
+  .tc-sp-xp-bar { background: rgba(255,255,255,0.25); border-radius: 999px; height: 8px; overflow: hidden; }
+  .tc-sp-xp-bar-fill { background: #fff; height: 100%; border-radius: 999px; }
+  .tc-sp-xp-label { font-size: 10.5px; opacity: 0.85; margin-top: 4px; display: block; }
+  .tc-sp-streak-block { text-align: center; }
+  .tc-sp-streak-val { font-size: 26px; font-weight: 800; line-height: 1; }
+  .tc-sp-streak-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
 
-  .sidenav h2 {
-    margin-bottom: 20px;
-  }
+  .tc-sp-badge-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; margin: 14px 0; }
+  .tc-sp-badge-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 12px; text-align: center; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+  .tc-sp-badge-card img { width: 64px; height: 64px; object-fit: contain; margin-bottom: 6px; }
+  .tc-sp-badge-card .name { font-size: 11.5px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); }
+  .tc-sp-badge-card .sub { font-size: 10px; color: #888; margin-top: 2px; }
 
-  .sidenav ul {
-    list-style: none;
-    padding: 0;
-  }
+  .tc-sp-cert-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin: 14px 0; }
+  .tc-sp-cert-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 10px; text-align: center; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+  .tc-sp-cert-card img { width: 100%; border-radius: 8px; margin-bottom: 6px; }
+  .tc-sp-cert-card .title { font-size: 11.5px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); }
 
-  .sidenav ul li {
-    margin: 10px 0;
-  }
+  .tc-sp-score-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  .tc-sp-score-great { background: #EAF6EE; color: #1E6B34; }
+  .tc-sp-score-good { background: #FFF4E5; color: #8A5300; }
+  .tc-sp-score-try { background: #FBEAEA; color: #A83232; }
+  .tc-sp-score-neutral { background: #f0f0f0; color: #666; }
 
-  .sidenav ul li a {
-    color: #fff;
-    text-decoration: none;
-    display: block;
-    padding: 8px;
-    border-radius: 4px;
-  }
+  .course-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+  .course-card > h3 { margin: 0 0 10px; font-size: 15px; color: var(--brand-pri-dark, #4C3802); }
+  .module-card { border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 10px; }
+  .module-card h4.collapsible { margin: 0; font-size: 13.5px; font-weight: 700; color: #444; }
 
-  .sidenav ul li a:hover {
-    background: var(--brand-pri-dark);
-  }
-
-  /* Main content */
-  .main-content {
-    margin-left: 240px;
-    padding: 20px;
-    transition: margin-left 0.3s ease-in-out;
-  }
-
-  /* Toggle button */
-  .toggle-btn {
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: var(--brand-pri);
-    color: #fff;
-    border: none;
-    padding: 10px 14px;
-    font-size: 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    z-index: 1100;
-  }
-
-  .table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    /* allows horizontal scroll if needed */
-    -webkit-overflow-scrolling: touch;
-    /* smooth scrolling on iOS */
-    max-height: 400px;
-        /* Adjust height as needed */
-        overflow-y: auto;
-        margin-top: 20px;
-}
-
-.user-table-wrapper {
-    max-height: 400px;
-    /* Adjust height as needed */
-    overflow-y: auto;
-    margin-top: 20px;
-    border: 1px solid #ddd;
-    border-radius: 6px;   
-}
-
-.user-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px;
-    font-family: sans-serif;
-}
-
-.user-table th {
-    position: sticky;
-        top: 0;
-    background-color: #333;
-    color: white;
-    text-align: left;
-    padding: 12px;
-}
-
-.user-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-.user-table tr:hover {
-    background-color: #f5f5f5;
-}
-
-.btn-edit {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-view {
-    background-color: #000000;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-edit:hover {
-    background-color: #45a049;
-}
-.btn-delete {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.btn-delete:hover {
-    background-color: #e53935;
-}
-
-.back-btn {
-  display: inline-block;
-  background-color: #000;
-  color: #fff;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: background 0.2s ease-in-out;
-  margin-bottom: 15px;
-}
-
-.back-btn:hover {
-  background-color: #333;
-}
-.btns{
-  display: flex;
-  justify-content: space-between;
-  margin: auto;
-}
-  /* Responsive */
-  @media (max-width: 768px) {
-    .sidenav {
-      transform: translateX(-100%);
-    }
-    .sidenav.active {
-      transform: translateX(0);
-    }
-    .main-content {
-      margin-left: 0;
-      padding: 15px;
-    }
-    .toggle-btn {
-      display: block;
-    }
-    .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            /* allows horizontal scroll if needed */
-            -webkit-overflow-scrolling: touch;
-            /* smooth scrolling on iOS */   }
-    .user-table th,
-    .user-table td {
-        padding: 8px 6px;
-        font-size: 12px;
-    }
-    .user-table img {
-        width: 35px !important;
-        height: 35px !important;
-    }
+  /* Printing is disabled for teacher-viewed student progress — matches the
+     "view, never download/print" restriction; this blanks the page on
+     print (a JS-level nudge, not a real security boundary — nothing a
+     browser page renders can stop a screenshot or a phone photo of the
+     screen, only make casual copy/print/save meaningfully less convenient). */
+  @media print {
+    body { display: none !important; }
   }
 </style>
 
+<div id="tcStudentProgressRoot">
+  <div class="btns" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <button type="button" class="back-btn" onclick="goBackSection()">⬅ Back</button>
+  </div>
 
-<div >
-    <div class="btns">
-   <a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back to students</a>
-   
-   <a class="back-btn" 
-    href="/teacher/dashboard">⬅ Back to dashboard</a>
-</div>
-  <h2>📊 Student Progress: <%= student.fullname %></h2>
-  <p><strong>Email:</strong> <%= student.email %></p>
+  <div class="tc-sp-hero">
+    <div class="tc-sp-hero-left">
+      <img class="tc-sp-avatar" src="<%= student.profile_picture || '/profile.webp' %>" alt="">
+      <div class="tc-sp-hero-info">
+        <h2>📊 <%= student.fullname %></h2>
+        <p><%= student.email %></p>
+        <span class="tc-sp-level-chip">🎮 Lvl <%= levelInfo.level %> · <%= levelInfo.name %></span>
+        <div class="tc-sp-xp-bar-wrap">
+          <div class="tc-sp-xp-bar"><div class="tc-sp-xp-bar-fill" style="width:<%= levelInfo.progressPercent %>%"></div></div>
+          <span class="tc-sp-xp-label">
+            <%= levelInfo.xp.toLocaleString() %> XP
+            <% if (levelInfo.xpForNextLevel) { %>
+              · <%= (levelInfo.xpForNextLevel - levelInfo.xpIntoLevel).toLocaleString() %> to next level
+            <% } else { %>
+              · Max level!
+            <% } %>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="tc-sp-streak-block">
+      <div class="tc-sp-streak-val">🔥 <%= streak.currentStreak %></div>
+      <div class="tc-sp-streak-lbl">Day Streak</div>
+    </div>
+  </div>
 
+  <div class="tc-stat-grid">
+    <div class="tc-stat-card"><div class="icon">🎓</div><div class="val"><%= courses.length %></div><div class="lbl">Courses</div></div>
+    <div class="tc-stat-card"><div class="icon">📘</div><div class="val"><%= courses.length ? Math.round(courses.reduce((s,c)=>s+c.percent,0)/courses.length) : 0 %>%</div><div class="lbl">Avg Completion</div></div>
+    <div class="tc-stat-card"><div class="icon">📊</div><div class="val"><%= overallQuizAvg !== null ? overallQuizAvg : '–' %></div><div class="lbl">Quiz Avg</div></div>
+    <div class="tc-stat-card"><div class="icon">📑</div><div class="val"><%= overallAssignmentAvg !== null ? overallAssignmentAvg : '–' %></div><div class="lbl">Assignment Avg</div></div>
+    <div class="tc-stat-card"><div class="icon">🏅</div><div class="val"><%= badges.length %></div><div class="lbl">Badges</div></div>
+  </div>
+
+  <% if (badges.length) { %>
+    <h2 class="tc-section-title">🏅 Badges Earned</h2>
+    <div class="tc-sp-badge-gallery">
+      <% badges.forEach(b => { %>
+        <div class="tc-sp-badge-card">
+          <% if (b.badge_image) { %><img src="<%= b.badge_image %>" alt=""><% } else { %><div style="font-size:40px;">🏅</div><% } %>
+          <div class="name"><%= b.badge_name %></div>
+          <% if (b.module_title) { %><div class="sub"><%= b.module_title %></div><% } %>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (certificates.length) { %>
+    <h2 class="tc-section-title">🎖️ Certificates</h2>
+    <div class="tc-sp-cert-gallery">
+      <% certificates.forEach(c => { %>
+        <div class="tc-sp-cert-card">
+          <img src="<%= c.certificate_url %>" alt="">
+          <div class="title"><%= c.course_title %></div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <h2 class="tc-section-title">📚 Course Progress</h2>
   <% if (courses.length) { %>
     <% courses.forEach(c => { %>
       <div class="course-card">
@@ -219,13 +125,11 @@
               📦 <%= m.module_title %> — <%= m.percent %>% complete
             </h4>
 
-            <div class="content" style="display: none; padding: 10px; border: 1px solid #ddd; margin-top: 5px;">
-              <!-- Lessons + Quizzes -->
-               <div class="table-responsive">
-                <table class="user-table sortable-table" border="1" cellpadding="8" cellspacing="0" width="100%">
+            <div class="content" style="display: none; padding: 10px; border: 1px solid #eee; margin-top: 8px; border-radius: 8px;">
+              <div class="table-responsive">
+                <table class="user-table sortable-table" width="100%">
                     <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Lesson</th>
                         <th>Status</th>
                         <th>Quiz</th>
@@ -234,58 +138,47 @@
                     <tbody>
                     <% m.lessons.forEach(l => { %>
                         <tr>
-                        <td><%= l.id %></td>
                         <td><%= l.title %></td>
-                        <td><%= l.completed ? "✅ Completed" : "❌ Not Completed" %></td>
+                        <td><span class="tc-sp-score-chip <%= l.completed ? 'tc-sp-score-great' : 'tc-sp-score-neutral' %>"><%= l.completed ? "✅ Completed" : "Not yet" %></span></td>
                         <td>
-                            <% 
-                                const lessonQuizzes = m.quizzes.filter(q => q.lesson_id === l.id); 
+                            <%
+                                const lessonQuizzes = m.quizzes.filter(q => q.lesson_id === l.id);
                             %>
                             <% if (lessonQuizzes.length) { %>
-                                <ul>
                                 <% lessonQuizzes.forEach(q => { %>
                                     <%
-                                      // Older quizzes were auto-titled "Quiz for Lesson <id>" —
-                                      // a raw id is meaningless here; the lesson title (l.title,
-                                      // already shown as this row's context) is what matters.
                                       const quizLabel = /^quiz for lesson\s*\d+$/i.test((q.title || '').trim())
                                         ? `Quiz for Lesson: ${l.title}`
                                         : (q.title || 'Quiz');
+                                      const tier = q.score === null ? 'neutral' : (q.score >= 80 ? 'great' : q.score >= 60 ? 'good' : 'try');
                                     %>
-                                    <li>
-                                    <%= quizLabel %> —
-                                    <% if (q.score !== null) { %>
-                                        Score: <%= q.score %> | 
-                                        <a href="/teacher/student/<%= student.id %>/quizzes/<%= q.id %>/download">📥 Download</a>
-                                    <% } else { %>
-                                        Score: N/A
-                                    <% } %>
-                                    </li>
+                                    <div style="margin-bottom:4px;">
+                                      <%= quizLabel %> —
+                                      <span class="tc-sp-score-chip tc-sp-score-<%= tier %>"><%= q.score !== null ? q.score : 'N/A' %></span>
+                                    </div>
                                 <% }) %>
-                                </ul>
                             <% } else { %>
-                                N/A
+                                <span class="tc-empty">N/A</span>
                             <% } %>
-                            </td>
-
-
+                        </td>
                         </tr>
                     <% }) %>
                     </tbody>
                 </table>
               </div>
 
-              <!-- Module Assignments -->
               <div class="module-assignments" style="margin-top:15px;">
-                <h5>📑 Module Assignments</h5>
+                <h5 style="margin:0 0 8px; font-size:12.5px; color:#666;">📑 Module Assignments</h5>
                 <% if (m.assignments.length) { %>
-                  <ul>
-                    <% m.assignments.forEach(a => { %>
-                      <li><%= a.title %> — Grade: <%= a.grade ?? "Pending" %> (Total: <%= a.total ?? "-" %>)</li>
-                    <% }) %>
-                  </ul>
+                  <% m.assignments.forEach(a => { %>
+                    <% const gTier = a.total === null ? 'neutral' : (a.total >= 80 ? 'great' : a.total >= 60 ? 'good' : 'try'); %>
+                    <div style="margin-bottom:4px;">
+                      <%= a.title %> —
+                      <span class="tc-sp-score-chip tc-sp-score-<%= gTier %>"><%= a.grade ?? "Pending" %><%= a.total !== null ? ` (${a.total})` : '' %></span>
+                    </div>
+                  <% }) %>
                 <% } else { %>
-                  <p>No assignments for this module.</p>
+                  <p class="tc-empty">No assignments for this module.</p>
                 <% } %>
               </div>
             </div>
@@ -294,11 +187,12 @@
       </div>
     <% }) %>
   <% } else { %>
-    <p>No progress data available.</p>
+    <p class="tc-empty">No progress data available.</p>
   <% } %>
 </div>
 
 <script>
+(function () {
   // Simple collapsible toggle
   document.querySelectorAll(".collapsible").forEach(header => {
     header.style.cursor = "pointer";
@@ -307,4 +201,15 @@
       content.style.display = content.style.display === "none" ? "block" : "none";
     });
   });
+
+  // Same copy/right-click deterrent already used elsewhere in this app
+  // (e.g. views/admin/courses.ejs's article body) — a convenience friction,
+  // not a real security boundary; it doesn't and can't block screenshots.
+  const root = document.getElementById('tcStudentProgressRoot');
+  if (root) {
+    root.style.userSelect = 'none';
+    root.addEventListener('contextmenu', e => e.preventDefault());
+    root.addEventListener('copy', e => e.preventDefault());
+  }
+})();
 </script>

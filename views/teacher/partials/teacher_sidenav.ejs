@@ -1,22 +1,31 @@
-
  <div id="sidenav" class="sidenav">
   <h2>📌 Teacher Menu</h2>
   <ul>
-    <li><a href="javascript:void(0)" onclick="loadSection('dashboard')">Dashboard</a></li>
-    <li><a href="javascript:void(0)" onclick="loadSection('classes')">Classes</a></li>
-    <li><a href="javascript:void(0)" onclick="loadSection('students')">Students</a></li>
-    <li><a href="javascript:void(0)" onclick="loadSection('reports')">Reports</a></li>
+    <li><a href="javascript:void(0)" data-section="dashboard" onclick="loadSection('dashboard')">Dashboard</a></li>
+    <li><a href="javascript:void(0)" data-section="classes" onclick="loadSection('classes')">Classes</a></li>
+    <li><a href="javascript:void(0)" data-section="students" onclick="loadSection('students')">Students</a></li>
+    <li><a href="javascript:void(0)" data-section="attendance" onclick="loadSection('attendance')">Attendance</a></li>
+    <li><a href="javascript:void(0)" data-section="grading" onclick="loadSection('grading')">Grading</a></li>
+    <li><a href="javascript:void(0)" data-section="reports" onclick="loadSection('reports')">Reports</a></li>
     <li><a href="/admin/logout">🚪 Logout</a></li>
   </ul>
 </div>
 
 <button id="toggleBtn" class="toggle-btn">☰</button>
 
+<!-- No topbar exists in this shell (sidenav + full-width #main-content
+     only), so the bell gets its own fixed top-right slot, offset left of
+     the mobile toggle-btn (which sits at top:10px;right:10px). -->
+<div style="position: fixed; top: 10px; right: 60px; z-index: 1150;">
+  <%- include('../../partials/notificationBell') %>
+</div>
+
 
 <style>
   /* Sidebar */
   .sidenav {
     width: 220px;
+    box-sizing: border-box;
     background: var(--sidebar-bg);
     color: var(--sidebar-text);
     height: 100vh;
@@ -24,6 +33,7 @@
     position: fixed;
     top: 0;
     left: 0;
+    overflow-y: auto;
     transition: transform 0.3s ease-in-out;
     z-index: 1000;
   }
@@ -57,11 +67,26 @@
     color: var(--brand-pri-light);
   }
 
-  /* Main content */
+  .sidenav ul li a.active {
+    background: var(--sidebar-bg-active);
+    color: var(--brand-pri-light);
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 var(--brand-pri-light, #D9A82C);
+  }
+
+  /* Main content — a fixed-position sidenav is removed from normal flow,
+     but a global `body { display: flex }` rule elsewhere in the shared
+     CSS still turns .main-content into a flex item, where `width: 100%`
+     (from the shared style.css .main-content rule) resolves against the
+     full flex container instead of "container minus the sidebar," causing
+     it to overflow under/behind the sidenav. An explicit calc() width
+     sidesteps that regardless of whether the ancestor is flex or block. */
   .main-content {
     margin-left: 240px;
+    width: calc(100% - 240px);
+    box-sizing: border-box;
     padding: 20px;
-    transition: margin-left 0.3s ease-in-out;
+    transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
   }
 
   /* Toggle button */
@@ -83,196 +108,319 @@
   .table-responsive {
     width: 100%;
     overflow-x: auto;
-    /* allows horizontal scroll if needed */
     -webkit-overflow-scrolling: touch;
-    /* smooth scrolling on iOS */
     max-height: 400px;
-        /* Adjust height as needed */
-        overflow-y: auto;
-        margin-top: 20px;
-}
+    overflow-y: auto;
+    margin-top: 20px;
+  }
 
-.user-table-wrapper {
+  .user-table-wrapper {
     max-height: 400px;
-    /* Adjust height as needed */
     overflow-y: auto;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     margin-top: 20px;
     border: 1px solid #ddd;
-    border-radius: 6px;   
-}
+    border-radius: 6px;
+  }
 
-.user-table {
+  .user-table {
     width: 100%;
     border-collapse: collapse;
     min-width: 600px;
     font-family: sans-serif;
-}
+  }
 
-.user-table th {
+  .user-table th {
     position: sticky;
-        top: 0;
-    background-color: #333;
-    color: white;
+    top: 0;
+    background: var(--brand-pri);
+    color: #fff;
     text-align: left;
     padding: 12px;
-}
+    z-index: 1;
+  }
 
-.user-table td {
+  .user-table td {
     padding: 10px;
     border-bottom: 1px solid #ddd;
-}
-
-.user-table tr:hover {
-    background-color: #f5f5f5;
-}
-
-.btn-edit {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-view {
-    background-color: #000000;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-edit:hover {
-    background-color: #45a049;
-}
-.btn-delete {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.btn-delete:hover {
-    background-color: #e53935;
-}
-
-  .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 1rem; margin: 1rem 0; }
-  .card { background: #fff; padding: 1rem; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-  .btn-view { display:inline-block; margin-top:.5rem; padding:.4rem .8rem; background:#2980b9; color:#fff; border-radius:6px; }
-  .profile-box { display:flex; align-items:center; gap:1rem; margin:1rem 0; }
-  .profile-pic { width:60px; height:60px; border-radius:50%; object-fit:cover; }
-
-.user-table th, .user-table td {
-  text-align: left;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
-
-.user-table th {
-  background: var(--brand-pri);
-  color: #fff;
-  position: sticky;
-  top: 0;
-}
-
-.user-table tr:hover {
-  background: #f9f9f9;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .user-table th, .user-table td {
-    font-size: 13px;
-    padding: 8px 6px;
   }
-}
 
+  .user-table tr:hover {
+    background-color: #f9f9f9;
+  }
 
-  /* Responsive */
+  .btn-edit { background-color: #4CAF50; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; }
+  .btn-edit:hover { background-color: #45a049; }
+  .btn-view { background-color: #000000; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; display:inline-block; text-decoration:none; }
+  .btn-delete { background-color: #f44336; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; }
+  .btn-delete:hover { background-color: #e53935; }
+
+  .back-btn {
+    display: inline-block;
+    background-color: #000;
+    color: #fff;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+  .back-btn:hover { background-color: #333; }
+
+  /* ================= .tc- gamified component library =================
+     Shared across every teacher/sections/*.ejs fragment — declared once
+     here since teacher_sidenav.ejs is included once per real page load,
+     not re-fetched by the AJAX section swapper. Follows the same
+     --brand-pri token system as the .sp- (studentProgress.ejs) and .pd-
+     (parent dashboard) gamified patterns elsewhere in this app. */
+
+  .tc-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff;
+    border-radius: var(--radius-lg, 16px);
+    padding: 24px 26px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .tc-hero-info { display: flex; align-items: center; gap: 14px; }
+  .tc-hero-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.6); }
+  .tc-hero-info h1 { margin: 0 0 4px; font-size: 21px; }
+  .tc-hero-info p { margin: 0; opacity: 0.92; font-size: 13px; }
+  .tc-hero-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; flex: 1; min-width: 260px; }
+  .tc-hero-stat { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 10px 16px; text-align: center; }
+  .tc-hero-stat .val { display: block; font-size: 18px; font-weight: 800; }
+  .tc-hero-stat .lbl { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; margin-top: 2px; }
+
+  .tc-section-title { margin: 26px 0 14px; font-size: 16.5px; color: var(--brand-pri-dark, #4C3802); }
+
+  .tc-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 1rem 0; }
+  .tc-stat-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 16px; text-align: center; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .tc-stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.09); }
+  .tc-stat-card .icon { font-size: 20px; margin-bottom: 6px; }
+  .tc-stat-card .val { font-size: 19px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); word-break: break-word; }
+  .tc-stat-card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #777; margin-top: 3px; }
+
+  .tc-classroom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 1rem 0; }
+  .tc-classroom-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 18px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .tc-classroom-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+  .tc-classroom-card h3 { margin: 0 0 10px; font-size: 15px; color: var(--brand-pri-dark, #4C3802); }
+  .tc-classroom-card p { margin: 4px 0; font-size: 13px; color: #555; }
+  .tc-classroom-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+  .tc-alerts { display: flex; flex-direction: column; gap: 10px; margin: 1rem 0; }
+  .tc-alert { display: flex; align-items: center; gap: 12px; border-radius: 12px; padding: 12px 16px; flex-wrap: wrap; }
+  .tc-alert-risk { background: #FBEAEA; border: 1px solid #E5747455; }
+  .tc-alert-info { background: #EEF3FB; border: 1px solid #4A90D955; }
+  .tc-alert-icon { font-size: 18px; flex-shrink: 0; }
+  .tc-alert-risk .tc-alert-icon { color: #A83232; }
+  .tc-alert-info .tc-alert-icon { color: #2C5FA8; }
+  .tc-alert-body { flex: 1; font-size: 13.5px; min-width: 200px; }
+
+  .tc-leaderboard { display: flex; flex-direction: column; gap: 8px; margin: 1rem 0; }
+  .tc-leaderboard-row { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 10px 14px; flex-wrap: wrap; transition: background 0.15s ease; }
+  .tc-leaderboard-row:hover { background: var(--brand-tint, #FBF3DD); }
+  .tc-lb-rank { font-weight: 800; color: var(--brand-pri, #A17807); width: 26px; }
+  .tc-lb-name { min-width: 100px; font-weight: 600; font-size: 13px; flex: 1; }
+  .tc-lb-metric { font-size: 12px; font-weight: 700; min-width: 60px; text-align: right; }
+
+  .tc-chip { display: inline-block; background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .tc-streak { font-size: 12px; font-weight: 700; color: #C97A0F; }
+  .tc-badge-count { font-size: 12px; color: #555; }
+
+  .tc-btn { border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block; transition: opacity 0.15s ease, transform 0.1s ease; }
+  .tc-btn:hover { opacity: 0.9; }
+  .tc-btn:active { transform: scale(0.97); }
+  .tc-btn-primary { background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); color: #fff; }
+  .tc-btn-secondary { background: #f0f0f0; color: #333; }
+  .tc-btn-danger { background: linear-gradient(135deg, #E9615C, #D64545); color: #fff; }
+  .tc-btn-sm { padding: 5px 10px; font-size: 11.5px; }
+
+  .tc-empty { color: #888; font-size: 13.5px; padding: 20px 0; text-align: center; }
+
+  .user-table th, .user-table td {
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  canvas { max-width: 100%; }
+
+  /* ---------- Responsive ---------- */
   @media (max-width: 768px) {
-    .sidenav {
-      transform: translateX(-100%);
-    }
-    .sidenav.active {
-      transform: translateX(0);
-    }
-    .main-content {
-      margin-left: 0;
-      padding: 15px;
-    }
-    .toggle-btn {
-      display: block;
-    }
-    .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            /* allows horizontal scroll if needed */
-            -webkit-overflow-scrolling: touch;
-            /* smooth scrolling on iOS */   }
-    .user-table th,
-    .user-table td {
-        padding: 8px 6px;
-        font-size: 12px;
-    }
-    .user-table img {
-        width: 35px !important;
-        height: 35px !important;
-    }
+    .sidenav { transform: translateX(-100%); }
+    .sidenav.active { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
+    .main-content { margin-left: 0; width: 100%; padding: 16px 14px; }
+    .toggle-btn { display: block; }
+
+    .user-table th, .user-table td { padding: 8px 6px; font-size: 12px; }
+    .user-table img { width: 35px !important; height: 35px !important; }
+
+    .tc-hero { flex-direction: column; align-items: stretch; padding: 18px; }
+    .tc-hero-info { flex-wrap: wrap; }
+    .tc-hero-stats { min-width: 0; }
+    .tc-classroom-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .tc-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .tc-btn { font-size: 12.5px; padding: 8px 13px; }
+  }
+
+  @media (max-width: 480px) {
+    .main-content { padding: 14px 10px; }
+    .tc-hero-info { gap: 10px; }
+    .tc-hero-avatar { width: 44px; height: 44px; }
+    .tc-hero-info h1 { font-size: 18px; }
+    .tc-hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .tc-classroom-grid { grid-template-columns: 1fr; }
+    .tc-stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .tc-stat-card { padding: 12px; }
+    .tc-section-title { font-size: 15px; }
+    .tc-classroom-actions, .tc-child-actions { flex-direction: column; align-items: stretch; }
+    .tc-classroom-actions .tc-btn { text-align: center; width: 100%; }
+    .tc-leaderboard-row { justify-content: space-between; }
+    .back-btn { width: 100%; text-align: center; box-sizing: border-box; }
   }
 </style>
 
 <script>
   const sidenav = document.getElementById("sidenav");
   const toggleBtn = document.getElementById("toggleBtn");
-  const mainContent = document.querySelector(".main-content");
+  // Queried fresh on every use, not cached here — this partial is included
+  // BEFORE the #main-content div appears in dashboard.ejs's HTML, so a
+  // top-level `const mainContent = document.querySelector(...)` at parse
+  // time would always resolve to null.
+  function getMainContent() {
+    return document.getElementById("main-content");
+  }
 
   toggleBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     sidenav.classList.toggle("active");
   });
 
-  
-  // Close when clicking a link inside sidenav
   sidenav.querySelectorAll("a").forEach(link => {
     link.addEventListener("click", () => {
-      if (window.innerWidth <= 768) { // only on mobile
+      if (window.innerWidth <= 768) {
         sidenav.classList.remove("active");
       }
     });
   });
 
-  // Close when clicking outside sidenav
   document.addEventListener("click", (e) => {
     if (
-      window.innerWidth <= 768 && // only mobile
-      sidenav.classList.contains("active") && 
-      !sidenav.contains(e.target) && 
+      window.innerWidth <= 768 &&
+      sidenav.classList.contains("active") &&
+      !sidenav.contains(e.target) &&
       e.target !== toggleBtn
     ) {
       sidenav.classList.remove("active");
     }
   });
 
+  // "Back" buttons inside a drill-down (a classroom's overview, a single
+  // student's progress) call this instead of hardcoding where to return to
+  // — it just reloads whichever top-level section is currently highlighted
+  // in the sidenav, which loadSection/loadUrl already kept in sync with
+  // wherever the user actually came from.
+  function goBackSection() {
+    const activeLink = sidenav.querySelector("a[data-section].active");
+    loadSection(activeLink ? activeLink.dataset.section : "dashboard");
+  }
 
-  // load section dynamically
+  // Marks whichever sidenav link matches `section` as active, clearing the
+  // rest — driven from JS rather than the URL, since every teacher view
+  // (including drill-downs like a single classroom's overview) loads via
+  // AJAX into #main-content and the address bar never actually changes.
+  function setActiveNav(section) {
+    sidenav.querySelectorAll("a[data-section]").forEach(link => {
+      link.classList.toggle("active", link.dataset.section === section);
+    });
+  }
+
+  function runScripts(container) {
+    container.querySelectorAll("script").forEach(oldScript => {
+      const newScript = document.createElement("script");
+      if (oldScript.src) newScript.src = oldScript.src;
+      else newScript.textContent = oldScript.textContent;
+      document.body.appendChild(newScript);
+      oldScript.remove();
+    });
+  }
+
+  // A section can leave something running that needs to stop before the
+  // next one loads (e.g. class chat's 5s message-polling interval) — if it
+  // registered window.__teacherSectionCleanup, call it and clear the slot
+  // so an unrelated later section doesn't accidentally inherit it.
+  function cleanupPreviousSection() {
+    if (window.__teacherSectionCleanup) {
+      window.__teacherSectionCleanup();
+      window.__teacherSectionCleanup = null;
+    }
+  }
+
+  // showLoading/hideLoading are defined in dashboard.ejs (right next to the
+  // #loadingOverlay markup itself), guarded here in case some future
+  // section fragment executes before that's registered.
+  function showTeacherLoading() { if (window.showLoading) window.showLoading(); }
+  function hideTeacherLoading() { if (window.hideLoading) window.hideLoading(); }
+
   async function loadSection(section) {
+    cleanupPreviousSection();
+    showTeacherLoading();
+    const mainContent = getMainContent();
     try {
       const res = await fetch(`/teacher/section/${section}`);
       const html = await res.text();
       mainContent.innerHTML = html;
+      runScripts(mainContent);
+      setActiveNav(section);
       if (window.innerWidth <= 768) sidenav.classList.remove("active");
     } catch (err) {
-      mainContent.innerHTML = "<p style='color:red'>Error loading section</p>";
+      console.error("Error loading section:", err);
+      if (mainContent) mainContent.innerHTML = "<p style='color:red'>Error loading section</p>";
+    } finally {
+      hideTeacherLoading();
     }
   }
 
-  // load dashboard on page load
-  window.addEventListener("DOMContentLoaded", () => loadSection("dashboard"));
+  // Generic loader for teacher pages that don't fit the /teacher/section/:name
+  // shape (a specific classroom's overview, a single student's report/
+  // progress view, etc.) — same AJAX-into-#main-content behavior as
+  // loadSection, just against an arbitrary URL. `navSection`, if given, is
+  // whichever top-level sidenav item should stay highlighted (e.g. a
+  // classroom drill-down keeps "Classes" active).
+  async function loadUrl(url, navSection) {
+    cleanupPreviousSection();
+    showTeacherLoading();
+    const mainContent = getMainContent();
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      mainContent.innerHTML = html;
+      runScripts(mainContent);
+      if (navSection) setActiveNav(navSection);
+      if (window.innerWidth <= 768) sidenav.classList.remove("active");
+      mainContent.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      console.error("Error loading page:", err);
+      if (mainContent) mainContent.innerHTML = "<p style='color:red'>Error loading page</p>";
+    } finally {
+      hideTeacherLoading();
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    // A notification's url can deep-link straight into a section (e.g. a
+    // classroom's chat) instead of always landing on the dashboard — see
+    // views/partials/notificationBell.ejs / utils/notify.js.
+    const params = new URLSearchParams(location.search);
+    const target = params.get("target");
+    if (target) loadUrl(target, params.get("section") || "dashboard");
+    else loadSection("dashboard");
+  });
 </script>
 
 <script>
@@ -293,56 +441,36 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbody = table.querySelector("tbody");
         const rows = Array.from(tbody.querySelectorAll("tr"));
 
-        // Remove previous sort indicators
         headers.forEach(h => {
           h.classList.remove("sort-asc", "sort-desc");
         });
 
         rows.sort((a, b) => {
 
-          let aText =
-            a.children[columnIndex]?.innerText.trim() || "";
+          let aText = a.children[columnIndex]?.innerText.trim() || "";
+          let bText = b.children[columnIndex]?.innerText.trim() || "";
 
-          let bText =
-            b.children[columnIndex]?.innerText.trim() || "";
-
-          // Numeric sorting
-          const aNum =
-            parseFloat(aText.replace(/[^\d.-]/g, ""));
-
-          const bNum =
-            parseFloat(bText.replace(/[^\d.-]/g, ""));
+          const aNum = parseFloat(aText.replace(/[^\d.-]/g, ""));
+          const bNum = parseFloat(bText.replace(/[^\d.-]/g, ""));
 
           if (!isNaN(aNum) && !isNaN(bNum)) {
-            return ascending
-              ? aNum - bNum
-              : bNum - aNum;
+            return ascending ? aNum - bNum : bNum - aNum;
           }
 
-          // Date sorting
           const aDate = Date.parse(aText);
           const bDate = Date.parse(bText);
 
           if (!isNaN(aDate) && !isNaN(bDate)) {
-            return ascending
-              ? aDate - bDate
-              : bDate - aDate;
+            return ascending ? aDate - bDate : bDate - aDate;
           }
 
-          // Text sorting
-          return ascending
-            ? aText.localeCompare(bText)
-            : bText.localeCompare(aText);
-
+          return ascending ? aText.localeCompare(bText) : bText.localeCompare(aText);
         });
 
         tbody.innerHTML = "";
         rows.forEach(row => tbody.appendChild(row));
 
-        header.classList.add(
-          ascending ? "sort-asc" : "sort-desc"
-        );
-
+        header.classList.add(ascending ? "sort-asc" : "sort-desc");
         ascending = !ascending;
       });
 
@@ -352,4 +480,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
-

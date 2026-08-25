@@ -9,6 +9,7 @@
   <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/js/uiAlerts.js"></script>
   <style>
     
     .announcement-thumb{
@@ -74,45 +75,39 @@
   <%- include('./partials/teacher_sidenav') %>
   <%- include("../partials/announcementPopup") %>
 
+  <!-- Loading overlay — same breathing-logo pattern used in
+       partials/header.ejs (#loadingOverlay/.spin, styled in styles2.css,
+       already loaded above), shown while any AJAX section is loading. -->
+  <div id="loadingOverlay">
+    <div class="spin">
+      <% if (info?.logo_url) { %>
+      <img src="<%= info.logo_url %>" alt="">
+      <% } %>
+    </div>
+  </div>
+
   <!-- AJAX-loaded content -->
   <div class="main-content" id="main-content">
     <p>Welcome, <%= teacher.fullname %> 👋</p>
     <p>Select a section from the menu</p>
   </div>
 
+  <!-- loadSection() itself, plus the DOMContentLoaded initial load, are
+       defined once in ./partials/teacher_sidenav.ejs (included above) so
+       they don't need redeclaring here. -->
+
   <script>
-    // Load a section dynamically
-    function loadSection(section) {
-      fetch(`/teacher/section/${section}`)
-        .then(res => res.text())
-        .then(html => {
-          document.getElementById("main-content").innerHTML = html;
-        })
-        .catch(err => {
-          document.getElementById("main-content").innerHTML = "<p>Error loading section</p>";
-          console.error(err);
-        });
+    // Same function names as partials/header.ejs's own loadingOverlay, kept
+    // consistent across the app even though this is a separate element.
+    function showLoading() {
+      const el = document.getElementById("loadingOverlay");
+      if (el) el.style.display = "flex";
+    }
+    function hideLoading() {
+      const el = document.getElementById("loadingOverlay");
+      if (el) el.style.display = "none";
     }
   </script>
-
-  <script>
-  // Load dashboard section immediately on page load
-  window.addEventListener("DOMContentLoaded", () => {
-    loadSection("dashboard");
-  });
-
-  function loadSection(section) {
-    fetch(`/teacher/section/${section}`)
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("main-content").innerHTML = html;
-      })
-      .catch(err => {
-        document.getElementById("main-content").innerHTML = "<p>Error loading section</p>";
-        console.error(err);
-      });
-  }
-</script>
 
 </body>
 </html>

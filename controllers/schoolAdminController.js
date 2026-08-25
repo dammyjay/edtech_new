@@ -11,6 +11,7 @@ const getAnnouncements = require("../utils/getAnnouncements");
 const { listReportsForSchool, getReportById } = require("../services/classTermReportStore");
 const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = require("../services/classroomTermAnalyticsService");
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
+const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
@@ -923,11 +924,19 @@ exports.approveUser = async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(
-      `UPDATE user_school 
-       SET approved = true 
+      `UPDATE user_school
+       SET approved = true
        WHERE user_id = $1 AND school_id = $2`,
       [id, req.session.user.school_id]
     );
+
+    const roleRes = await pool.query(`SELECT role FROM users2 WHERE id = $1`, [id]);
+    await notifyUser(id, {
+      type: "school_approval",
+      title: "You've been approved",
+      message: "Your school registration was approved — you're all set.",
+      url: DASHBOARD_URL_BY_ROLE[roleRes.rows[0]?.role] || "/",
+    });
 
     await logActivityForUser(req, "User approved", `Approved user ID: ${id}`);
 
@@ -945,12 +954,31 @@ exports.approveUser = async (req, res) => {
 // Bulk approval
 exports.approveAllUsers = async (req, res) => {
   try {
-    await pool.query(
+    const updated = await pool.query(
       `UPDATE user_school
        SET approved = true
-       WHERE school_id = $1 AND approved = false`,
+       WHERE school_id = $1 AND approved = false
+       RETURNING user_id`,
       [req.session.user.school_id]
     );
+
+    if (updated.rows.length) {
+      const roles = await pool.query(
+        `SELECT id, role FROM users2 WHERE id = ANY($1)`,
+        [updated.rows.map((r) => r.user_id)]
+      );
+      const roleById = new Map(roles.rows.map((r) => [r.id, r.role]));
+      await Promise.all(
+        updated.rows.map((r) =>
+          notifyUser(r.user_id, {
+            type: "school_approval",
+            title: "You've been approved",
+            message: "Your school registration was approved — you're all set.",
+            url: DASHBOARD_URL_BY_ROLE[roleById.get(r.user_id)] || "/",
+          })
+        )
+      );
+    }
 
     await logActivityForUser(req, "Bulk approval", "Approved all pending users");
 
@@ -969,10 +997,16 @@ exports.approveAllUsers = async (req, res) => {
 exports.rejectUser = async (req, res) => {
   const { id } = req.params;
   await pool.query(
-    `DELETE FROM user_school 
+    `DELETE FROM user_school
      WHERE user_id = $1 AND school_id = $2`,
     [id, req.session.user.school_id]
   );
+  await notifyUser(id, {
+    type: "school_approval",
+    title: "Registration declined",
+    message: "Your school registration request was declined.",
+    url: "/",
+  });
   res.redirect("/school-admin/dashboard");
 };
 

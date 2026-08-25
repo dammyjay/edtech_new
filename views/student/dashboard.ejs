@@ -1624,6 +1624,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("ai-toggle");
   const fullscreenBtn = document.getElementById("ai-fullscreen");
 
+  // The AI tutor widget only renders when section === 'module' (viewing a
+  // lesson) — on every other dashboard section these are all null.
+  if (!sendBtn || !input || !messages || !aiTutor || !aiFloat || !toggleBtn || !fullscreenBtn) return;
+
   // ✅ Push message helper
   function pushMsg(text, who = "user") {
     const msg = document.createElement("div");
@@ -2249,6 +2253,10 @@ if(classroomId){
     return window.innerWidth <= 600;
   }
 
+  // The lesson sidebar only renders when section === 'module' (viewing a
+  // lesson) — on every other dashboard section lessonsidebar/handle are null.
+  if (lessonsidebar && handle) {
+
   // Restore saved desktop state only
   if (!isMobile()) {
     const isSavedCollapsed = localStorage.getItem("lessonSidebarCollapsed") === "true";
@@ -2296,6 +2304,30 @@ if(classroomId){
     }
   });
 
+  }
+</script>
+
+<!-- Focus Mode toggle — deliberately its OWN script tag, not appended to
+     the sidebar-collapse script above: that one starts with
+     document.getElementById("lessonSidebar") unguarded and throws on
+     every page that isn't the learning view once a sidebar-collapsed
+     preference is saved, which would silently prevent anything placed
+     after it in the SAME block from ever registering. A separate tag
+     runs independently regardless of what happens in that one. -->
+<script>
+  const learningContainer = document.getElementById("learningContainer");
+  const focusModeBtn = document.getElementById("focusModeBtn");
+  if (learningContainer && focusModeBtn) {
+    if (localStorage.getItem("focusMode") === "true") {
+      learningContainer.classList.add("focus-mode");
+      focusModeBtn.classList.add("active");
+    }
+    window.toggleFocusMode = function () {
+      const isOn = learningContainer.classList.toggle("focus-mode");
+      focusModeBtn.classList.toggle("active", isOn);
+      localStorage.setItem("focusMode", isOn);
+    };
+  }
 </script>
 
 <!-- Focus Mode toggle — deliberately its OWN script tag, not appended to
@@ -2369,6 +2401,9 @@ window.closeEditModal = function (id) {
     const sendBtn = document.getElementById("ai-send");
     const input = document.getElementById("ai-question");
     const messages = document.getElementById("ai-messages");
+
+    // Only present when section === 'module' (viewing a lesson).
+    if (!sendBtn || !input || !messages) return;
 
     // helper: render message (✅ allow HTML so answers can be styled)
     function pushMsg(text, who = "user") {
@@ -4631,6 +4666,7 @@ function submitQuizInline(e, lessonId) {
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     const aiTutor = document.getElementById("ai-tutor");
+    if (!aiTutor) return; // only present when section === 'module'
     const header = aiTutor.querySelector(".ai-tutor-header");
 
     let isDragging = false;

@@ -7,6 +7,7 @@ const sendEmailWithAttachment = require("../utils/sendEmailWithAttachment");
 const cloudinary = require("../utils/cloudinary");
 const buildFeedbackPDF = require("../utils/feedbackPdfTemplate");
 const buildAnalyticsPDF = require("../utils/buildAnalyticsPDF");
+const { notifyNewDirectMessage } = require("../utils/notify");
 const csv = require("csv-parser");
 const fs = require("fs");
 const { Parser } = require("json2csv");
@@ -12545,6 +12546,7 @@ exports.sendChatMessage = async (req, res) => {
        VALUES ($1, $2, $3)`,
       [senderId, receiverId, message]
     );
+    await notifyNewDirectMessage({ senderId, receiverId, message });
 
     res.json({ success: true, message: "Message sent successfully" });
   } catch (err) {

@@ -1,0 +1,140 @@
+<div class="tc-stat-grid">
+  <div class="tc-stat-card"><div class="icon">👥</div><div class="val"><%= keyStats.total_students || 0 %></div><div class="lbl">Students</div></div>
+  <div class="tc-stat-card"><div class="icon">🏫</div><div class="val"><%= keyStats.total_classes || 0 %></div><div class="lbl">Classes</div></div>
+  <div class="tc-stat-card"><div class="icon">📖</div><div class="val"><%= keyStats.lessons_completed || 0 %>/<%= keyStats.total_lessons || 0 %></div><div class="lbl">Lessons</div></div>
+  <div class="tc-stat-card"><div class="icon">📝</div><div class="val"><%= keyStats.avg_quiz_score || "N/A" %></div><div class="lbl">Avg Quiz</div></div>
+  <div class="tc-stat-card"><div class="icon">📑</div><div class="val"><%= keyStats.avg_assignment_score || "N/A" %></div><div class="lbl">Avg Assignment</div></div>
+  <div class="tc-stat-card"><div class="icon">🔥</div><div class="val"><%= keyStats.engagement_last7 || 0 %>%</div><div class="lbl">Engagement (7d)</div></div>
+</div>
+
+<% if (pendingAssignments > 0) { %>
+  <div class="tc-alerts">
+    <div class="tc-alert tc-alert-info">
+      <div class="tc-alert-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+      <div class="tc-alert-body"><strong><%= pendingAssignments %></strong> assignment<%= pendingAssignments === 1 ? '' : 's' %> waiting to be graded.</div>
+      <a class="tc-btn tc-btn-primary tc-btn-sm" href="javascript:void(0)" onclick="loadSection('grading')">Review Now</a>
+    </div>
+  </div>
+<% } %>
+
+<h2 class="tc-section-title">📚 My Classes</h2>
+<div class="tc-classroom-grid">
+  <% classStats.forEach(c => { %>
+    <div class="tc-classroom-card">
+      <h3><%= c.class_name %></h3>
+      <p>👥 Students: <%= c.students %></p>
+      <p>📖 Lessons: <%= c.lessons_completed %> / <%= c.total_lessons %>
+         (<%= c.total_lessons ? Math.round((c.lessons_completed / c.total_lessons) * 100) : 0 %>%)</p>
+      <p>📝 Avg Quiz: <%= c.avg_quiz_score || "N/A" %></p>
+      <p>🔥 Engagement: <%= c.engagement || 0 %>%</p>
+      <div class="tc-classroom-actions">
+        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="loadUrl('/teacher/classroom/<%= c.id %>/students', 'classes')">View Students</button>
+        <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" onclick="loadUrl('/teacher/class-chat/<%= c.id %>', 'classes')">💬 Class Chat</button>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<% if (analytics && analytics.some(a => (a.atRiskStudents || []).length)) { %>
+  <h2 class="tc-section-title">⚠️ At-Risk Students</h2>
+  <div class="tc-alerts">
+    <% analytics.forEach(a => { %>
+      <% (a.atRiskStudents || []).forEach(s => { %>
+        <div class="tc-alert tc-alert-risk">
+          <div class="tc-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="tc-alert-body">
+            <strong><%= s.fullname %></strong> (<%= a.classroomName %>) — <%= Math.round(s.completionPercent || 0) %>% complete, quiz avg <%= Math.round(s.quizAvg || 0) %>
+          </div>
+        </div>
+      <% }) %>
+    <% }) %>
+  </div>
+<% } %>
+
+<% if (analytics && analytics.some(a => (a.leaderboard || []).length)) { %>
+  <h2 class="tc-section-title">🏆 Leaderboards</h2>
+  <% analytics.forEach(a => { %>
+    <% if ((a.leaderboard || []).length) { %>
+      <h3 style="font-size:14px; color:#555; margin:14px 0 8px;"><%= a.classroomName %></h3>
+      <div class="tc-leaderboard">
+        <% a.leaderboard.slice(0, 5).forEach((s, i) => { %>
+          <div class="tc-leaderboard-row">
+            <span class="tc-lb-rank">#<%= i + 1 %></span>
+            <span class="tc-lb-name"><%= s.fullname %></span>
+            <span class="tc-lb-metric"><%= Math.round(s.completionPercent || 0) %>%</span>
+            <span class="tc-lb-metric">Q: <%= Math.round(s.quizAvg || 0) %></span>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  <% }) %>
+<% } %>
+
+<h2 class="tc-section-title">👨‍🎓 Top Students</h2>
+<div class="user-table-wrapper">
+  <table class="user-table sortable-table">
+    <thead><tr><th>Student</th><th>Average Quiz</th></tr></thead>
+    <tbody>
+      <% topStudents.forEach(s => { %>
+        <tr><td><%= s.fullname %></td><td><%= s.avg_score || "N/A" %></td></tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="tc-section-title">📉 Needs Encouragement</h2>
+<div class="user-table-wrapper">
+  <table class="user-table sortable-table">
+    <thead><tr><th>Student</th><th>Lessons Done</th></tr></thead>
+    <tbody>
+      <% strugglingStudents.forEach(s => { %>
+        <tr><td><%= s.fullname %></td><td><%= s.lessons_done || 0 %></td></tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="tc-section-title">📈 Class Progress</h2>
+<canvas id="lessonChart"></canvas>
+<canvas id="quizChart"></canvas>
+
+<script>
+// IIFE — this fragment can be re-rendered more than once in the same page
+// (the dashboard's class/term selectors AJAX-refresh just #dashboardContent,
+// and the whole dashboard section itself can be revisited too), and
+// runScripts() appends a fresh <script> each time without removing the
+// previous one, so bare top-level const bindings would throw "already
+// declared" from the second render onward.
+(function () {
+  function renderCharts() {
+    const tcLabels = <%- JSON.stringify(classStats.map(c => c.class_name || "Unnamed Class")) %>;
+    const tcLessonData = <%- JSON.stringify(classStats.map(c => {
+      const completed = c.lessons_completed || 0;
+      const total = c.total_lessons || 0;
+      return total > 0 ? Math.round((completed / total) * 100) : 0;
+    })) %>;
+    const tcQuizData = <%- JSON.stringify(classStats.map(c => c.avg_quiz_score || 0)) %>;
+
+    new Chart(document.getElementById('lessonChart'), {
+      type: 'bar',
+      data: { labels: tcLabels, datasets: [{ label: 'Lesson Completion %', data: tcLessonData, backgroundColor: '#A17807' }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    new Chart(document.getElementById('quizChart'), {
+      type: 'line',
+      data: { labels: tcLabels, datasets: [{ label: 'Average Quiz Score', data: tcQuizData, borderColor: '#D9A82C', fill: false }] },
+      options: { responsive: true }
+    });
+  }
+
+  if (window.Chart) {
+    renderCharts();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+    s.onload = renderCharts;
+    document.body.appendChild(s);
+  }
+})();
+</script>

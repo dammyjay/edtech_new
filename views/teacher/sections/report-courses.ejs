@@ -1,0 +1,40 @@
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+  <button type="button" class="back-btn" onclick="goBackSection()">⬅ Back</button>
+  <% if (terms && terms.length > 1) { %>
+    <select id="reportTermSelect" onchange="loadUrl('/teacher/student/<%= student.id %>/report?termId=' + this.value, 'reports')">
+      <% terms.forEach(t => { %>
+        <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
+          <%= t.name %><%= t.is_active ? ' (active)' : (t.is_ended ? ' (ended)' : '') %>
+        </option>
+      <% }) %>
+    </select>
+  <% } %>
+</div>
+
+<h2 class="tc-section-title">📑 <%= student.fullname %>'s Reports</h2>
+<% if (selectedTerm) { %>
+  <p class="tc-empty" style="margin-top:-8px;">
+    Showing: <%= selectedTerm.name %><%= selectedTerm.is_active ? ' (active term, progress as of today)' : '' %> —
+    pick a course to view its report as of this term.
+  </p>
+<% } else { %>
+  <p class="tc-empty" style="margin-top:-8px;">Pick a course to view its report.</p>
+<% } %>
+
+<% if (courses.length) { %>
+  <div class="tc-classroom-grid">
+    <% courses.forEach(c => { %>
+      <div class="tc-classroom-card">
+        <h3>🎓 <%= c.title %></h3>
+        <p>📘 Progress: <%= c.percent %>% complete<%= selectedTerm ? ' (as of this term)' : '' %></p>
+        <div class="tc-classroom-actions">
+          <a class="tc-btn tc-btn-primary tc-btn-sm"
+             href="/teacher/student/<%= student.id %>/report/<%= c.id %><%= selectedTerm ? '?termId=' + selectedTerm.id : '' %>"
+             target="_blank" rel="noopener">👁️ View Report</a>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } else { %>
+  <p class="tc-empty">No courses found for this term.</p>
+<% } %>

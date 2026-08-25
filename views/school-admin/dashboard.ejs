@@ -794,10 +794,16 @@ function attachEvents() {
   //   }
   // });
 
-  document.getElementById("bulkUploadForm").addEventListener("submit", async function(e) {
+  // #bulkUploadForm lives inside partials/students.ejs, an AJAX-loaded
+  // section swapped into #dashboard-content via loadSection()'s plain
+  // innerHTML= (no script re-execution) — so a direct addEventListener
+  // here, at initial page load, would attach before the form ever exists.
+  // Delegating from document works regardless of when that section loads.
+  document.addEventListener("submit", async function(e) {
+    if (e.target.id !== "bulkUploadForm") return;
     e.preventDefault();
 
-    const formData = new FormData(this);
+    const formData = new FormData(e.target);
 
     const res = await fetch("/school-admin/bulk-add-students", {
       method: "POST",

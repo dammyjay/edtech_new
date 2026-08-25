@@ -1,0 +1,102 @@
+<h2 class="tc-section-title">📝 Grading Queue</h2>
+
+<div style="margin-bottom:15px; display:flex; gap:8px; flex-wrap:wrap;">
+  <button class="tc-btn <%= filter === 'ungraded' ? 'tc-btn-primary' : 'tc-btn-secondary' %>" onclick="loadGrading('ungraded')">Ungraded</button>
+  <button class="tc-btn <%= filter === 'unreviewed' ? 'tc-btn-primary' : 'tc-btn-secondary' %>" onclick="loadGrading('unreviewed')">AI-Graded, Not Reviewed</button>
+  <button class="tc-btn <%= filter === 'all' ? 'tc-btn-primary' : 'tc-btn-secondary' %>" onclick="loadGrading('all')">All</button>
+</div>
+
+<% if (!submissions.length) { %>
+  <p class="tc-empty">Nothing here — you're all caught up! 🎉</p>
+<% } else { %>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <% submissions.forEach(s => { %>
+      <div class="tc-classroom-card">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center;">
+          <div>
+            <h3 style="margin:0 0 4px;"><%= s.assignment_title %></h3>
+            <p style="margin:0; color:#777; font-size:12.5px;"><%= s.student_name %> · <%= s.classroom_name %> · <%= new Date(s.created_at).toLocaleDateString() %></p>
+          </div>
+          <% if (s.manually_graded_at) { %>
+            <span class="tc-chip">✅ Reviewed</span>
+          <% } else if (s.grade) { %>
+            <span class="tc-chip">🤖 AI-graded</span>
+          <% } else { %>
+            <span class="tc-chip">⏳ Ungraded</span>
+          <% } %>
+        </div>
+
+        <p style="margin:10px 0; font-size:13.5px; white-space:pre-wrap;"><%= s.description %></p>
+
+        <% if (s.grade || s.ai_feedback) { %>
+          <div style="background:#f8f9fa; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12.5px;">
+            <strong>AI suggestion:</strong> Grade <%= s.grade || "–" %>, Total <%= s.total ?? "–" %>
+            <% if (s.ai_feedback) { %><br><%= s.ai_feedback %><% } %>
+          </div>
+        <% } %>
+
+        <form class="tc-grade-form" data-id="<%= s.id %>" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600;">Grade</label>
+            <input type="text" name="grade" value="<%= s.grade || '' %>" style="width:70px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600;">Total</label>
+            <input type="number" name="total" value="<%= s.total ?? '' %>" min="0" max="100" style="width:70px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <label style="display:block; font-size:11px; font-weight:600;">Feedback</label>
+            <input type="text" name="teacher_feedback" value="<%= s.teacher_feedback || '' %>" placeholder="Feedback for the student" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          </div>
+          <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm">Save Grade</button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<script>
+  function loadGrading(filter) {
+    loadSectionWithFilter('grading', filter);
+  }
+
+  // loadSection() (in teacher_sidenav.ejs) always hits /teacher/section/:name
+  // with no query string — this adds one for the grading filter buttons.
+  async function loadSectionWithFilter(section, filter) {
+    if (window.showLoading) window.showLoading();
+    try {
+      const res = await fetch(`/teacher/grading?filter=${filter}`);
+      const html = await res.text();
+      const mainContent = document.querySelector('.main-content');
+      mainContent.innerHTML = html;
+      mainContent.querySelectorAll('script').forEach(oldScript => {
+        const newScript = document.createElement('script');
+        if (oldScript.src) newScript.src = oldScript.src;
+        else newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+        oldScript.remove();
+      });
+    } finally {
+      if (window.hideLoading) window.hideLoading();
+    }
+  }
+
+  document.querySelectorAll('.tc-grade-form').forEach(form => {
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const id = form.dataset.id;
+      const grade = form.grade.value;
+      const total = form.total.value;
+      const teacher_feedback = form.teacher_feedback.value;
+
+      const res = await fetch(`/teacher/grading/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade, score: total, total, teacher_feedback })
+      });
+      const data = await res.json();
+      showAlert(data.message || (data.success ? 'Grade saved' : 'Error saving grade'), data.success ? 'success' : 'error');
+      if (data.success) loadSection('grading');
+    });
+  });
+</script>

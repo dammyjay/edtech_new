@@ -1,369 +1,194 @@
-<style>
-  /* Sidebar */
-  .sidenav {
-    width: 220px;
-    background: var(--brand-pri);
-    color: #fff;
-    height: 100vh;
-    padding: 15px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1000;
-  }
-
-  .sidenav h2 {
-    margin-bottom: 20px;
-  }
-
-  .sidenav ul {
-    list-style: none;
-    padding: 0;
-  }
-
-  .sidenav ul li {
-    margin: 10px 0;
-  }
-
-  .sidenav ul li a {
-    color: #fff;
-    text-decoration: none;
-    display: block;
-    padding: 8px;
-    border-radius: 4px;
-  }
-
-  .sidenav ul li a:hover {
-    background: var(--brand-pri-dark);
-  }
-
-  /* Main content */
-  .main-content {
-    margin-left: 240px;
-    padding: 20px;
-    transition: margin-left 0.3s ease-in-out;
-  }
-
-  /* Toggle button */
-  .toggle-btn {
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: var(--brand-pri);
-    color: #fff;
-    border: none;
-    padding: 10px 14px;
-    font-size: 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    z-index: 1100;
-  }
-
-  .table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    /* allows horizontal scroll if needed */
-    -webkit-overflow-scrolling: touch;
-    /* smooth scrolling on iOS */
-    max-height: 400px;
-        /* Adjust height as needed */
-        overflow-y: auto;
-        margin-top: 20px;
-}
-
-.user-table-wrapper {
-    max-height: 400px;
-    /* Adjust height as needed */
-    overflow-y: auto;
-    margin-top: 20px;
-    border: 1px solid #ddd;
-    border-radius: 6px;   
-}
-
-.user-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px;
-    font-family: sans-serif;
-}
-
-.user-table th {
-    position: sticky;
-        top: 0;
-    background-color: #333;
-    color: white;
-    text-align: left;
-    padding: 12px;
-}
-
-.user-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-.user-table tr:hover {
-    background-color: #f5f5f5;
-}
-
-.btn-edit {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-view {
-    background-color: #000000;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-edit:hover {
-    background-color: #45a049;
-}
-.btn-delete {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.btn-delete:hover {
-    background-color: #e53935;
-}
-
-/* Card grid */
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-  margin: 20px 0;
-}
-
-.card {
-  background: #f4f4f4;
-  padding: 20px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-}
-
-.card h3 {
-  margin-bottom: 10px;
-  font-size: 1.1rem;
-}
-
-.card-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: var(--brand-pri);
-}
-
-.back-btn {
-  display: inline-block;
-  background-color: #000;
-  color: #fff;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: background 0.2s ease-in-out;
-  margin-bottom: 15px;
-}
-
-.back-btn:hover {
-  background-color: #333;
-}
-.btns{
-  display: flex;
-  justify-content: space-between;
-  margin: auto;
-}
-
-
-/* On very large screens, limit card width */
-@media (min-width: 1200px) {
-  .card-grid {
-    max-width: 1000px;
-  }
-}
-
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .sidenav {
-      transform: translateX(-100%);
-    }
-    .sidenav.active {
-      transform: translateX(0);
-    }
-    .main-content {
-      margin-left: 0;
-      padding: 15px;
-    }
-    .toggle-btn {
-      display: block;
-    }
-    .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            /* allows horizontal scroll if needed */
-            -webkit-overflow-scrolling: touch;
-            /* smooth scrolling on iOS */   }
-    .user-table th,
-    .user-table td {
-        padding: 8px 6px;
-        font-size: 12px;
-    }
-    .user-table img {
-        width: 35px !important;
-        height: 35px !important;
-    }
-    .card-grid {
-    width: 100%;
-  }
-  }
-</style>
-
-<div class="btns">
-   <a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back to classes</a>
-   
-   <a class="back-btn" 
-    href="/teacher/dashboard">⬅ Back to dashboard</a>
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+  <button type="button" class="back-btn" onclick="loadSection('classes')">⬅ Back to classes</button>
+  <% if (termAnalytics.terms && termAnalytics.terms.length > 1) { %>
+    <select id="termSelect" class="tc-term-select" onchange="loadUrl('/teacher/classroom/<%= classroomId %>/students?termId=' + this.value, 'classes')">
+      <% termAnalytics.terms.forEach(t => { %>
+        <option value="<%= t.id %>" <%= termAnalytics.selectedTerm && termAnalytics.selectedTerm.id === t.id ? 'selected' : '' %>>
+          <%= t.name %><%= t.is_active ? ' (active)' : '' %>
+        </option>
+      <% }) %>
+    </select>
+  <% } %>
 </div>
 
+<h2 class="tc-section-title">📊 <%= classroomName %> — Classroom Overview</h2>
+<% if (termAnalytics.selectedTerm) { %>
+  <p class="tc-empty" style="margin-top:-10px;">Showing: <%= termAnalytics.selectedTerm.name %></p>
+<% } %>
 
-<h2>📊 Classroom Overview</h2>
-
-<div class="card-grid">
- 
-  <div class="card">
-    <h3>📘 Avg Progress</h3>
-    <p class="card-value"><%= avgProgress %>%</p>
-  </div>
-
- 
-  <div class="card">
-    <h3>🏅 Top Student</h3>
+<div class="tc-stat-grid">
+  <div class="tc-stat-card"><div class="icon">👥</div><div class="val"><%= termAnalytics.totalStudents || 0 %></div><div class="lbl">Students</div></div>
+  <div class="tc-stat-card"><div class="icon">📘</div><div class="val"><%= termAnalytics.averageCompletion || 0 %>%</div><div class="lbl">Avg Completion</div></div>
+  <div class="tc-stat-card"><div class="icon">📊</div><div class="val"><%= termAnalytics.averageQuiz || 0 %></div><div class="lbl">Avg Quiz Score</div></div>
+  <div class="tc-stat-card">
+    <div class="icon">🏅</div>
     <% if (topStudent && topStudent.fullname) { %>
-      <p><strong><%= topStudent.fullname %></strong></p>
-      <p>Quiz Avg: <%= topStudent.avg_quiz_score || "–" %></p>
+      <div class="val" style="font-size:14px;"><%= topStudent.fullname %></div>
+      <div class="lbl">Top by Quiz Avg</div>
     <% } else { %>
-      <p>No student data</p>
+      <div class="lbl">No student data</div>
     <% } %>
   </div>
-
-
-  <div class="card">
-    <h3>👩‍🎓 Gender Ratio</h3>
-    <canvas id="genderChart"></canvas>
-  </div>
 </div>
 
-<!-- Charts -->
-<h2>📈 Class Analytics</h2>
+<% if (termAnalytics.atRiskStudents && termAnalytics.atRiskStudents.length) { %>
+  <h2 class="tc-section-title">⚠️ Needs Attention</h2>
+  <div class="tc-alerts">
+    <% termAnalytics.atRiskStudents.forEach(s => { %>
+      <div class="tc-alert tc-alert-risk">
+        <div class="tc-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="tc-alert-body">
+          <strong><%= s.fullname %></strong> — <%= s.completionPercent %>% complete, quiz avg <%= s.quizAvg %>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<% if (termAnalytics.leaderboard && termAnalytics.leaderboard.length) { %>
+  <h2 class="tc-section-title">🏆 Leaderboard</h2>
+  <div class="tc-leaderboard">
+    <% termAnalytics.leaderboard.forEach((s, i) => { %>
+      <div class="tc-leaderboard-row">
+        <span class="tc-lb-rank">#<%= i + 1 %></span>
+        <span class="tc-lb-name"><%= s.fullname %></span>
+        <span class="tc-lb-metric"><%= s.completionPercent %>% done</span>
+        <span class="tc-lb-metric">Quiz <%= s.quizAvg %></span>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<% if (termAnalytics.courseBreakdown && termAnalytics.courseBreakdown.length) { %>
+  <h2 class="tc-section-title">📚 Course Breakdown</h2>
+  <div class="table-responsive">
+    <table class="user-table sortable-table" width="100%">
+      <thead>
+        <tr><th>Course</th><th>Engaged</th><th>Avg Completion</th><th>Avg Quiz</th></tr>
+      </thead>
+      <tbody>
+        <% termAnalytics.courseBreakdown.forEach(c => { %>
+          <tr>
+            <td><%= c.title %></td>
+            <td><%= c.studentsEngaged %> / <%= c.totalStudents %></td>
+            <td><%= c.avgCompletion %>%</td>
+            <td><%= c.avgQuiz %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<h2 class="tc-section-title">📈 Class Analytics</h2>
 <div style="display:flex; gap:30px; flex-wrap:wrap;">
-  <div style="flex:1; min-width:300px;">
-    <h3>Progress Distribution</h3>
+  <div style="flex:1; min-width:280px;">
+    <h3 style="font-size:14px; color:#555;">Gender</h3>
+    <canvas id="genderChart" style="max-height:180px;"></canvas>
+  </div>
+  <div style="flex:1; min-width:280px;">
+    <h3 style="font-size:14px; color:#555;">Progress Distribution</h3>
     <canvas id="progressChart"></canvas>
   </div>
-  <div style="flex:1; min-width:300px;">
-    <h3>Quiz Performance</h3>
+  <div style="flex:1; min-width:280px;">
+    <h3 style="font-size:14px; color:#555;">Quiz Performance</h3>
     <canvas id="quizChart"></canvas>
   </div>
 </div>
 
-<!-- Student Table -->
-<h2>👥 Student Details</h2>
+<h2 class="tc-section-title">👥 Student Details</h2>
 <div class="table-responsive">
-  <table class="user-table sortable-table" border="1" cellpadding="8" cellspacing="0" width="100%">
+  <table class="user-table sortable-table" width="100%">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Full Name</th>
-        <th>Email</th>
-        <th>Gender</th>
+        <th>Level</th>
+        <th>Streak</th>
+        <th>Badges</th>
         <th>Lessons</th>
         <th>Quiz Avg</th>
         <th>Assignment Avg</th>
         <th>Last Active</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
-            <td><%= stu.email %></td>
-            <td><%= stu.gender || "–" %></td>
+            <td><span class="tc-chip">Lvl <%= stu.levelInfo.level %> · <%= stu.levelInfo.name %></span></td>
+            <td><span class="tc-streak">🔥 <%= stu.streak.currentStreak %></span></td>
+            <td><span class="tc-badge-count">🏅 <%= stu.badgeCount %></span></td>
             <td><%= stu.lessons_completed %> / <%= stu.total_lessons %></td>
             <td><%= stu.avg_quiz_score || "–" %></td>
             <td><%= stu.avg_assignment_score || "–" %></td>
-            <td><%= stu.last_login ? stu.last_login.toLocaleString() : "Never" %></td>
+            <td><%= stu.last_login ? new Date(stu.last_login).toLocaleString() : "Never" %></td>
+            <td><button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="loadUrl('/teacher/student/<%= stu.id %>/progress', 'classes')">View Progress</button></td>
           </tr>
         <% }) %>
       <% } else { %>
-        <tr>
-          <td colspan="8">No students found in this class.</td>
-        </tr>
+        <tr><td colspan="9">No students found in this class.</td></tr>
       <% } %>
     </tbody>
   </table>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .tc-term-select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; font-weight: 600; }
+</style>
+
 <script>
-  // Gender chart
-  new Chart(document.getElementById('genderChart'), {
-    type: 'doughnut',
-    data: {
-      labels: <%- JSON.stringify(genderSummary.map(g => g.gender || "Unknown")) %>,
-      datasets: [{
-        data: <%- JSON.stringify(genderSummary.map(g => parseInt(g.count))) %>,
-        backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56']
-      }]
-    }
-  });
+(function () {
+  // Chart.js is already loaded once by the dashboard shell; guard against
+  // re-declaring it if this fragment gets swapped in more than once.
+  function renderCharts() {
+    new Chart(document.getElementById('genderChart'), {
+      type: 'doughnut',
+      data: {
+        labels: <%- JSON.stringify(genderSummary.map(g => g.gender || "Unknown")) %>,
+        datasets: [{
+          data: <%- JSON.stringify(genderSummary.map(g => parseInt(g.count))) %>,
+          backgroundColor: ['#A17807', '#D9A82C', '#4C3802']
+        }]
+      },
+      options: { plugins: { legend: { display: false } } }
+    });
 
-  // Progress distribution
-  new Chart(document.getElementById('progressChart'), {
-    type: 'bar',
-    data: {
-      labels: ['0–49%', '50–74%', '75–100%'],
-      datasets: [{
-        label: 'Number of Students',
-        data: [<%= progressDist.low %>, <%= progressDist.mid %>, <%= progressDist.high %>],
-        backgroundColor: ['#e74c3c', '#f39c12', '#27ae60']
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+    new Chart(document.getElementById('progressChart'), {
+      type: 'bar',
+      data: {
+        labels: ['0–49%', '50–74%', '75–100%'],
+        datasets: [{
+          label: 'Number of Students',
+          data: [<%= progressDist.low %>, <%= progressDist.mid %>, <%= progressDist.high %>],
+          backgroundColor: ['#E9615C', '#F0B23A', '#34C77B']
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
 
-  // Quiz scores per student
-  new Chart(document.getElementById('quizChart'), {
-    type: 'bar',
-    data: {
-      labels: <%- JSON.stringify(students.map(s => s.fullname)) %>,
-      datasets: [{
-        label: 'Avg Quiz Score',
-        data: <%- JSON.stringify(students.map(s => s.avg_quiz_score || 0)) %>,
-        backgroundColor: '#2980b9'
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+    new Chart(document.getElementById('quizChart'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(students.map(s => s.fullname)) %>,
+        datasets: [{
+          label: 'Avg Quiz Score',
+          data: <%- JSON.stringify(students.map(s => s.avg_quiz_score || 0)) %>,
+          backgroundColor: '#A17807'
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  if (window.Chart) {
+    renderCharts();
+  } else {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+    s.onload = renderCharts;
+    document.body.appendChild(s);
+  }
+})();
 </script>

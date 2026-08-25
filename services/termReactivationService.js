@@ -1,4 +1,5 @@
 const pool = require("../models/db");
+const { notifyUser } = require("../utils/notify");
 
 // Term-end locking: once a term a student was enrolled in has ended
 // (academic_terms.is_ended = true), any lesson they haven't completed
@@ -392,6 +393,18 @@ async function reactivateTerm(
      RETURNING id`,
     [studentId, schoolId, termId, amountPaid, reactivatedBy, reactivatedByUserId, transactionReference]
   );
+
+  // Only on an actual insert — ON CONFLICT DO NOTHING means a concurrent
+  // request already reactivated this exact term, which already notified.
+  if (result.rows.length) {
+    await notifyUser(studentId, {
+      type: "term_reactivated",
+      title: "Term reactivated",
+      message: "Your locked term has been reactivated — you can continue your courses again.",
+      url: "/student/dashboard",
+    });
+  }
+
   return result.rows[0] || null;
 }
 

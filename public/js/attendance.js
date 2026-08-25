@@ -127,9 +127,15 @@ async function loadAttendanceStudents() {
   document.getElementById("attendanceStudentList").innerHTML = html;
 }
 
-document
-  .getElementById("sessionStatus")
-  .addEventListener("change", loadAttendanceStudents);
+// This file is loaded once via a persistent <script src> in
+// instructor/dashboard.ejs's shell, but #sessionStatus lives inside
+// instructor/sections/attendance.ejs, an AJAX-loaded section swapped in
+// later via plain innerHTML= (no script re-execution) — so attaching
+// directly here would either throw (element not present yet) or silently
+// never fire. Delegating from document works regardless of load order.
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "sessionStatus") loadAttendanceStudents();
+});
 
 async function saveAttendance() {
   const term_id = document.getElementById("attendanceFilterTerm").value;

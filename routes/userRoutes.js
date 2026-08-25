@@ -44,7 +44,8 @@ router.post("/subscribe", async (req, res) => {
   // logged-out visitor, which is still fine for broadcast-only sends.
   const userId = req.session?.user?.id || null;
   await pool.query(
-    "INSERT INTO push_subscriptions (endpoint, keys, user_id) VALUES ($1, $2, $3)",
+    `INSERT INTO push_subscriptions (endpoint, keys, user_id) VALUES ($1, $2, $3)
+     ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id`,
     [subscription.endpoint, JSON.stringify(subscription.keys), userId]
   );
   res.sendStatus(201);

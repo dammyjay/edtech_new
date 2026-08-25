@@ -19,6 +19,13 @@ function ensureParent(req, res, next) {
   return res.status(403).send("Access denied");
 }
 
+function ensureTeacher(req, res, next) {
+  if (req.session.user && req.session.user.role === "teacher") {
+    return next();
+  }
+  return res.status(403).send("Access denied");
+}
+
 function ensureInstructorOrAdmin(req, res, next) {
   if (
     req.isAuthenticated &&
@@ -80,6 +87,7 @@ async function requireSchoolAdmin(req, res, next) {
 module.exports = {
   ensureAuthenticated,
   ensureParent,
+  ensureTeacher,
   ensureInstructorOrAdmin,
   requireSchoolAdmin,
 };

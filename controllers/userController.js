@@ -16,6 +16,7 @@ const {
   computeReactivationPrice,
   reactivateTerm,
 } = require("../services/termReactivationService");
+const { notifyUser } = require("../utils/notify");
 
 exports.showSignup = (req, res) => {
   // res.sendFile(path.join(__dirname, 'signup.html'));
@@ -608,6 +609,16 @@ exports.getParentDashboard = async (req, res) => {
     const info = infoResult.rows[0] || {};
     const profilePic = req.session.user?.profile_picture || null;
 
+    // req.session.user only ever carries {id, email, role, profile_picture}
+    // (set at login, controllers/adminController.js) — never fullname. The
+    // view needs it (PARENT_NAME, used as the Paystack "Funded By" label),
+    // so fetch it here rather than passing the bare session user through.
+    const parentFullnameRes = await pool.query(
+      "SELECT fullname FROM users2 WHERE id = $1",
+      [user.id]
+    );
+    const parent = { ...user, fullname: parentFullnameRes.rows[0]?.fullname || "" };
+
     const childrenRes = await pool.query(
       `SELECT u.id, u.fullname, u.email, u.profile_picture, u.wallet_balance2
        FROM parent_children pc
@@ -711,7 +722,7 @@ exports.getParentDashboard = async (req, res) => {
       : { rows: [] };
 
     res.render("parent/dashboard", {
-      parent: user,
+      parent,
       children,
       balanceAlerts,
       activityAlerts,
@@ -758,6 +769,12 @@ exports.fundChildWallet = async (req, res) => {
       return res.status(403).json({ success: false, message: "You are not linked to this child" });
     }
 
+    // req.session.user never carries fullname (same gap fixed in
+    // getParentDashboard) — fetch it so the wallet_transactions description
+    // below doesn't literally say "(undefined)".
+    const parentFullnameRes = await pool.query(`SELECT fullname FROM users2 WHERE id = $1`, [parent.id]);
+    const parentName = parentFullnameRes.rows[0]?.fullname || "a parent";
+
     const verifyRes = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
@@ -794,7 +811,7 @@ exports.fundChildWallet = async (req, res) => {
       await client.query(
         `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference, related_user_id)
          VALUES ($1, 'parent_fund', 'credit', $2, $3, $4, $5)`,
-        [childId, amount, `Wallet funded by parent (${parent.fullname})`, reference, parent.id]
+        [childId, amount, `Wallet funded by parent (${parentName})`, reference, parent.id]
       );
 
       const updated = await client.query(
@@ -803,6 +820,13 @@ exports.fundChildWallet = async (req, res) => {
       );
 
       await client.query("COMMIT");
+
+      await notifyUser(childId, {
+        type: "wallet_funded",
+        title: "Your wallet was funded",
+        message: `${parentName} added ₦${amount.toLocaleString()} to your wallet`,
+        url: "/student/dashboard",
+      });
 
       return res.json({
         success: true,
@@ -987,6 +1011,11 @@ exports.addChild = async (req, res) => {
 
     const child = childRes.rows[0];
 
+    // req.session.user never carries fullname (see the identical parent/
+    // dashboard.ejs bug fixed elsewhere) — fetch it for the notification text.
+    const parentFullnameRes = await pool.query(`SELECT fullname FROM users2 WHERE id = $1`, [parent.id]);
+    const parentName = parentFullnameRes.rows[0]?.fullname || "A parent";
+
     // 🔎 Check if request already exists
     const existingRes = await pool.query(
       `SELECT * FROM parent_child_requests 
@@ -1011,6 +1040,12 @@ exports.addChild = async (req, res) => {
            WHERE id = $1`,
           [existing.id]
         );
+        await notifyUser(child.id, {
+          type: "parent_link_request",
+          title: "Parent link request",
+          message: `${parentName} wants to link to your account — approve it from your dashboard.`,
+          url: "/student/dashboard",
+        });
 
         return res.status(200).json({
           message: "🔁 Request re-sent! Waiting for the student’s approval.",
@@ -1025,6 +1060,12 @@ exports.addChild = async (req, res) => {
        VALUES ($1, $2, 'pending')`,
       [parent.id, child.id]
     );
+    await notifyUser(child.id, {
+      type: "parent_link_request",
+      title: "Parent link request",
+      message: `${parentName} wants to link to your account — approve it from your dashboard.`,
+      url: "/student/dashboard",
+    });
 
     await logActivityForUser(
       req,

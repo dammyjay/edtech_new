@@ -1,4 +1,5 @@
 const pool = require("../models/db");
+const { notifyNewDirectMessage } = require("../utils/notify");
 
 // ✅ Send Message
 exports.sendMessage = async (req, res) => {
@@ -14,6 +15,7 @@ exports.sendMessage = async (req, res) => {
       `INSERT INTO messages (sender_id, receiver_id, message) VALUES ($1, $2, $3)`,
       [senderId, receiver_id, message]
     );
+    await notifyNewDirectMessage({ senderId, receiverId: receiver_id, message });
 
     res.json({ success: true, message: "Message sent" });
   } catch (err) {

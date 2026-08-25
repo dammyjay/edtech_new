@@ -552,6 +552,32 @@ async function createTables() {
       `
     );
 
+    // Grading is otherwise 100% AI-only (studentController's assignment
+    // submit handler grades synchronously right after insert) — these
+    // columns let a teacher review/override that grade, and distinguish
+    // "never graded" (AI call failed) from "AI-graded, not yet reviewed"
+    // from "a human has actually looked at this."
+    await pool.query(`
+      ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS graded_by INTEGER REFERENCES users2(id);
+      ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS teacher_feedback TEXT;
+      ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS manually_graded_at TIMESTAMP;
+    `);
+
+    // Classroom-scoped announcements — deliberately separate from the
+    // platform-wide `announcements` table, which has no per-classroom
+    // targeting concept. A teacher posts here for just their own
+    // classroom(s); students read them via a small panel in class chat.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classroom_announcements (
+        id SERIAL PRIMARY KEY,
+        classroom_id INTEGER REFERENCES classrooms(id) ON DELETE CASCADE,
+        teacher_id INTEGER REFERENCES users2(id),
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     // Quiz Submissions
     await pool.query(`
       CREATE TABLE IF NOT EXISTS quiz_submissions (
@@ -1393,6 +1419,106 @@ ON class_term_reports (school_id, classroom_id, term_id, COALESCE(student_id, 0)
     // as before).
     await pool.query(`
       ALTER TABLE school_courses ADD COLUMN IF NOT EXISTS term_id INTEGER REFERENCES academic_terms(id) ON DELETE SET NULL;
+    `);
+    await pool.query(`
+      ALTER TABLE school_courses DROP CONSTRAINT IF EXISTS school_courses_school_id_course_id_key;
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS school_courses_unique_idx
+      ON school_courses (school_id, course_id, COALESCE(term_id, 0));
+    `);
+
+    // Confirmed record of "this course was actually worked on, in this
+    // classroom, during this term" — backed by real lesson/quiz activity
+    // evidence (see services/courseTermLinkService.js), not just a live
+    // date-range guess. Populated two ways: a one-time backfill over a
+    // school's past terms (using existing activity timestamps), and
+    // ongoing real-time inserts as students complete lessons/quizzes
+    // today. This is the source of truth classroom analytics and the
+    // student past-course lock use for "what course happened in what
+    // term", replacing on-the-fly date-windowing for terms that have
+    // confirmed links.
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS course_term_links (
+  id SERIAL PRIMARY KEY,
+  school_id INTEGER REFERENCES schools(id) ON DELETE CASCADE,
+  classroom_id INTEGER REFERENCES classrooms(id) ON DELETE CASCADE,
+  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+  term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+  first_activity_at TIMESTAMP,
+  last_activity_at TIMESTAMP,
+  source TEXT DEFAULT 'backfill',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+`);
+    await pool.query(`
+CREATE UNIQUE INDEX IF NOT EXISTS course_term_links_unique_idx
+ON course_term_links (classroom_id, course_id, term_id);
+`);
+
+    // Records a student paying (from wallet) or a school admin manually
+    // reactivating a specific ended term for a specific student, so they
+    // regain access to continue any incomplete lessons/quizzes in that
+    // term's courses. One row per (student, term) — reactivation is an
+    // all-or-nothing state for that term, not per-course.
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS student_term_reactivations (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+  school_id INTEGER REFERENCES schools(id) ON DELETE CASCADE,
+  term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+  amount_paid NUMERIC NOT NULL DEFAULT 0,
+  reactivated_by TEXT NOT NULL CHECK (reactivated_by IN ('student_payment', 'admin')),
+  reactivated_by_user_id INTEGER REFERENCES users2(id),
+  transaction_reference TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(student_id, term_id)
+);
+`);
+
+    // Allow a parent to be the one who paid for a reactivation too (the
+    // parent dashboard's "Pay & Unlock" flow), not just the student
+    // themself or an admin. The CHECK above was declared inline at table
+    // creation, so Postgres auto-named it
+    // `student_term_reactivations_reactivated_by_check` — drop-and-recreate
+    // is the idempotent way to widen an inline CHECK's allowed values.
+    await pool.query(`
+ALTER TABLE student_term_reactivations DROP CONSTRAINT IF EXISTS student_term_reactivations_reactivated_by_check;
+ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations_reactivated_by_check
+  CHECK (reactivated_by IN ('student_payment', 'admin', 'parent_payment'));
+`);
+
+    // Cross-role in-app notification feed. One row per notification per
+    // recipient (fan-out is done at insert time, not read time) so
+    // per-user read state is a plain boolean column, no join table needed.
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT,
+  url TEXT,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
+`);
+
+    // push_subscriptions never had a uniqueness guarantee on endpoint, so
+    // the same browser subscription could accumulate duplicate rows, and
+    // POST /subscribe had no way to correct a stale user_id (e.g. a shared
+    // device where someone else logs in later) — dedupe existing rows
+    // before adding the constraint that makes the upsert in routes/userRoutes.js
+    // possible, same drop-then-add idempotent pattern used above for
+    // student_term_reactivations' CHECK constraint.
+    await pool.query(`
+      DELETE FROM push_subscriptions a USING push_subscriptions b
+      WHERE a.id > b.id AND a.endpoint = b.endpoint;
+    `);
+    await pool.query(`
+      ALTER TABLE push_subscriptions DROP CONSTRAINT IF EXISTS push_subscriptions_endpoint_key;
+      ALTER TABLE push_subscriptions ADD CONSTRAINT push_subscriptions_endpoint_key UNIQUE(endpoint);
     `);
     await pool.query(`
       ALTER TABLE school_courses DROP CONSTRAINT IF EXISTS school_courses_school_id_course_id_key;

@@ -2,6 +2,7 @@ const pool = require("../models/db");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
+const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 
 exports.sendChatMessage = async (req, res) => {
   try {
@@ -21,6 +22,7 @@ exports.sendChatMessage = async (req, res) => {
    VALUES ($1, $2, $3, FALSE)`,
       [senderId, receiverId, message]
     );
+    await notifyNewDirectMessage({ senderId, receiverId, message });
 
 
     res.json({ success: true, message: "Message sent successfully" });
@@ -443,6 +445,7 @@ exports.sendClassMessage = async (req, res) => {
        VALUES ($1,$2,$3)`,
       [classroomId, senderId, message]
     );
+    await notifyNewClassMessage({ senderId, classroomId, message });
 
     res.json({ success: true });
 
