@@ -58,15 +58,17 @@
           enctype="multipart/form-data"
         >
 
+        <input type="hidden" name="ref" id="refInput" value="" />
+
         <div class="container">
             <label for="">Role</label>
             <select name="role" id="role" required>
               <option value="">-- Select Role --</option>
-              <option value="school_admin">School Admin</option>
-              <option value="teacher">Teacher</option>
-              <option value="student">School Student</option>
-              <option value="user">Individual User</option>
-              <option value="parent">Parent</option>
+              <option value="school_admin" <%= role === 'school_admin' ? 'selected' : '' %>>School Admin</option>
+              <option value="teacher" <%= role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+              <option value="student" <%= role === 'student' ? 'selected' : '' %>>School Student</option>
+              <option value="user" <%= role === 'user' ? 'selected' : '' %>>Individual User</option>
+              <option value="parent" <%= role === 'parent' ? 'selected' : '' %>>Parent</option>
             </select>
           </div> <br>
           
@@ -214,6 +216,17 @@
       </div>
     </div>
     
+
+<script>
+// Carries a referral link's ?ref=CODE through to the signup POST body —
+// the form has no other hidden fields, submission is a plain FormData
+// built off this <form>, so populating this one input is all that's needed.
+(function () {
+  const ref = new URLSearchParams(window.location.search).get("ref");
+  const refInput = document.getElementById("refInput");
+  if (ref && refInput) refInput.value = ref;
+})();
+</script>
 
 <script>
 window.addEventListener("DOMContentLoaded", async () => {

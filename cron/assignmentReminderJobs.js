@@ -1,6 +1,14 @@
+// cron/assignmentReminderJobs.js
+//
+// This file used to have a near-exact duplicate in cron/parentAssignmentReminder.js
+// (same query, same "0 10 */3 * *" schedule) — parents were getting this
+// reminder twice, from two separate cron jobs, every 3 days. That file has
+// been removed; this is now the single source of truth for both the
+// parent-facing email and the student-facing in-app reminder.
 const cron = require("node-cron");
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
+const { notifyUser } = require("../utils/notify");
 
 cron.schedule("0 10 */3 * *", async () => {
   console.log("Checking parent assignment reminders...");
@@ -43,13 +51,19 @@ cron.schedule("0 10 */3 * *", async () => {
       </p>
     `;
 
-    await sendEmail(parent.email, "Pending Assignment Reminder", message);
-
-    console.log(`Reminder sent to ${parent.email}`);
+    try {
+      await sendEmail(parent.email, "Pending Assignment Reminder", message);
+      console.log(`Reminder sent to ${parent.email}`);
+    } catch (err) {
+      console.error(`Assignment reminder failed for ${parent.email}:`, err.message);
+    }
   }
 });
 
-
+// Same "any pending, unsubmitted assignment" check, for the student
+// themselves — this previously called an undefined createNotification()
+// (never imported anywhere in this file), so it silently never sent
+// anything. Now wired to the real notification system.
 cron.schedule("0 9 * * *", async () => {
   const result = await pool.query(`
     SELECT DISTINCT
@@ -65,10 +79,15 @@ cron.schedule("0 9 * * *", async () => {
   `);
 
   for (const student of result.rows) {
-    await createNotification({
-      userId: student.id,
-      title: "Assignment Reminder",
-      message: "You have pending assignments waiting for submission.",
-    });
+    try {
+      await notifyUser(student.id, {
+        type: "assignment_reminder",
+        title: "Assignment Reminder",
+        message: "You have pending assignments waiting for submission.",
+        url: "/student/dashboard",
+      });
+    } catch (err) {
+      console.error(`Student assignment reminder failed for user ${student.id}:`, err.message);
+    }
   }
 });

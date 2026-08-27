@@ -30,6 +30,7 @@ router.get("/parent/dashboard", userController.getParentDashboard);
 router.post("/parent/add-child", userController.addChild);
 router.post("/parent/fund-child/verify", userController.fundChildWallet);
 router.post("/parent/reactivate-term/verify", userController.payTermReactivationAsParent);
+router.post("/parent/child/:childId/public-profile", userController.setChildPublicProfile);
 
 
 router.get("/vapid-public-key", (req, res) => {

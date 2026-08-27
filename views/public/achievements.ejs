@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= displayName %>'s Achievements — <%= (company.company_name || 'JKT Hub').trim() %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <% if (company.logo_url) { %><link rel="icon" type="image/x-icon" href="<%= company.logo_url %>" /><% } %>
+  <style>
+    body {
+      margin: 0;
+      background: var(--bg-secondary, #f8f9fa);
+      font-family: Arial, sans-serif;
+      color: var(--text-primary, #222);
+    }
+    .pa-wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    .pa-hero {
+      background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+      color: #fff;
+      border-radius: var(--radius-lg, 16px);
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+    }
+    .pa-avatar {
+      width: 92px; height: 92px; border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.2);
+      object-fit: cover;
+      margin-bottom: 12px;
+    }
+    .pa-name { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+    .pa-level-chip {
+      display: inline-block;
+      background: rgba(255,255,255,0.22);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .pa-xp-bar-wrap { background: rgba(255,255,255,0.25); border-radius: 999px; height: 10px; overflow: hidden; max-width: 260px; margin: 0 auto; }
+    .pa-xp-bar { background: #fff; height: 100%; }
+    .pa-xp-label { font-size: 11px; opacity: 0.9; margin-top: 6px; }
+
+    .pa-stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+    .pa-stat-card {
+      background: #fff; border-radius: var(--radius, 10px); padding: 14px 8px; text-align: center;
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-stat-card strong { display: block; font-size: 20px; color: var(--brand-pri-dark, #4C3802); }
+    .pa-stat-card span { font-size: 10.5px; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.03em; }
+
+    .pa-section-title { font-size: 15px; font-weight: 800; margin: 28px 0 12px; color: var(--text-primary, #222); }
+    .pa-empty { color: var(--text-secondary, #666); font-size: 13px; background: #fff; border-radius: var(--radius, 10px); padding: 16px; text-align: center; }
+
+    .pa-badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px; }
+    .pa-badge { background: #fff; border-radius: var(--radius, 10px); padding: 12px 8px; text-align: center; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+    .pa-badge img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    .pa-badge-fallback { font-size: 32px; }
+    .pa-badge-name { font-size: 10.5px; margin-top: 6px; color: var(--text-secondary, #666); }
+    .pa-badge-share {
+      display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 700;
+      color: var(--brand-pri, #A17807); text-decoration: none;
+    }
+
+    .pa-cert-list { display: flex; flex-direction: column; gap: 10px; }
+    .pa-cert-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: #fff; border-radius: var(--radius, 10px); padding: 12px 16px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-cert-title { font-weight: 700; font-size: 13.5px; }
+    .pa-cert-date { font-size: 11px; color: var(--text-secondary, #666); }
+    .pa-cert-link {
+      background: var(--brand-pri, #A17807); color: #fff; text-decoration: none;
+      padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap;
+    }
+
+    .pa-cta {
+      margin-top: 36px; text-align: center; background: #fff; border-radius: var(--radius-lg, 16px);
+      padding: 24px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-cta img { width: 40px; margin-bottom: 10px; }
+    .pa-cta p { color: var(--text-secondary, #666); font-size: 13.5px; margin: 0 0 14px; }
+    .pa-cta a {
+      display: inline-block; background: var(--brand-pri, #A17807); color: #fff; text-decoration: none;
+      padding: 12px 26px; border-radius: 8px; font-weight: 700; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="pa-wrap">
+
+    <div class="pa-hero">
+      <% if (avatarUrl) { %>
+        <img class="pa-avatar" src="<%= avatarUrl %>" alt="" />
+      <% } %>
+      <h1 class="pa-name"><%= displayName %></h1>
+      <div class="pa-level-chip">🏆 Level <%= levelInfo.level %> — <%= levelInfo.name %></div>
+      <% if (levelInfo.xpForNextLevel) { %>
+        <div class="pa-xp-bar-wrap"><div class="pa-xp-bar" style="width:<%= levelInfo.progressPercent %>%;"></div></div>
+        <div class="pa-xp-label"><%= levelInfo.xpIntoLevel %> / <%= levelInfo.xpForNextLevel %> XP to next level</div>
+      <% } else { %>
+        <div class="pa-xp-label">Max level reached! 🎉</div>
+      <% } %>
+    </div>
+
+    <div class="pa-stat-strip">
+      <div class="pa-stat-card"><strong><%= coursesCompleted %></strong><span>Courses Done</span></div>
+      <div class="pa-stat-card"><strong><%= streak.currentStreak %></strong><span>Day Streak</span></div>
+      <div class="pa-stat-card"><strong><%= badges.length %></strong><span>Badges</span></div>
+    </div>
+
+    <h2 class="pa-section-title">🏅 Badges</h2>
+    <% if (badges.length) { %>
+      <div class="pa-badge-grid">
+        <% badges.forEach(b => { %>
+          <div class="pa-badge">
+            <% if (b.badge_image) { %>
+              <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" />
+            <% } else { %>
+              <div class="pa-badge-fallback">🏅</div>
+            <% } %>
+            <div class="pa-badge-name"><%= b.badge_name %></div>
+            <a class="pa-badge-share" href="/achievements/<%= slug %>/badge/<%= b.id %>">Share</a>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pa-empty">No badges earned yet — check back soon!</p>
+    <% } %>
+
+    <h2 class="pa-section-title">🎓 Certificates</h2>
+    <% if (certificates.length) { %>
+      <div class="pa-cert-list">
+        <% certificates.forEach(c => { %>
+          <div class="pa-cert-row">
+            <div>
+              <div class="pa-cert-title"><%= c.course_title %></div>
+              <div class="pa-cert-date">Issued <%= new Date(c.issued_at).toDateString() %></div>
+            </div>
+            <a class="pa-cert-link" href="/achievements/<%= slug %>/certificate/<%= c.id %>">Share</a>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pa-empty">No certificates earned yet — check back soon!</p>
+    <% } %>
+
+    <div class="pa-cta">
+      <% if (company.logo_url) { %><img src="<%= company.logo_url %>" alt="" /><% } %>
+      <p>Start your own learning journey with <%= (company.company_name || 'JKT Hub').trim() %>.</p>
+      <a href="https://acad.jkthub.com/">Get Started</a>
+    </div>
+
+  </div>
+</body>
+</html>

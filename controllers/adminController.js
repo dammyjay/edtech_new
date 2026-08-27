@@ -3651,7 +3651,7 @@ exports.viewStudentProgress = async (req, res) => {
     // 2. STUDENT
     // =========================
     const studentRes = await pool.query(
-      `SELECT id, fullname, email, created_at FROM users2 WHERE id = $1`,
+      `SELECT id, fullname, email, created_at, public_profile_enabled, public_profile_slug FROM users2 WHERE id = $1`,
       [id],
     );
 
@@ -4285,7 +4285,7 @@ exports.viewStudentProgress = async (req, res) => {
     // BADGES + CERTIFICATES
     // =========================
     const progBadgesRes = await pool.query(
-      `SELECT ub.badge_name, ub.badge_image, ub.awarded_at, ub.module_id, m.title AS module_title, c.title AS course_title
+      `SELECT ub.id, ub.badge_name, ub.badge_image, ub.awarded_at, ub.module_id, m.title AS module_title, c.title AS course_title
        FROM user_badges ub
        JOIN modules m ON ub.module_id = m.id
        JOIN courses c ON m.course_id = c.id
@@ -4296,7 +4296,7 @@ exports.viewStudentProgress = async (req, res) => {
     const badges = progBadgesRes.rows;
 
     const certificatesRes = await pool.query(
-      `SELECT uc.certificate_url, uc.issued_at, c.title AS course_title
+      `SELECT uc.id, uc.certificate_url, uc.issued_at, c.title AS course_title
        FROM user_certificates uc
        JOIN courses c ON uc.course_id = c.id
        WHERE uc.user_id = $1
@@ -4428,6 +4428,8 @@ exports.viewStudentProgress = async (req, res) => {
       levelInfo,
       badges,
       certificates,
+      publicProfileEnabled: student.public_profile_enabled,
+      publicProfileSlug: student.public_profile_slug,
       heatmapWeeks,
       classroomPercentile,
       predictedCompletion,

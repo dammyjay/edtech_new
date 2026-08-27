@@ -10,6 +10,7 @@ const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
+const { maybeAwardReferralBonus } = require("../services/referralService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
   isLockedByEndedTerm,
@@ -24,6 +25,7 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 const { getStudentProgressDetail } = require("../services/studentProgressDetailService");
+const { getStudentSkillTreeData } = require("../services/skillTreeService");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderModuleReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 
@@ -1052,6 +1054,11 @@ exports.getDashboard = async (req, res) => {
       progressDetail = await getStudentProgressDetail(studentId);
     }
 
+    let skillTreeData = null;
+    if (req.query.section === "skill-tree") {
+      skillTreeData = await getStudentSkillTreeData(studentId);
+    }
+
     // --- Render
     res.render("student/dashboard", {
       student,
@@ -1106,6 +1113,7 @@ exports.getDashboard = async (req, res) => {
       pendingAssignmentCount,
       announcements,
       progressDetail,
+      skillTreeData,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
@@ -1875,6 +1883,16 @@ exports.completeLesson = async (req, res) => {
       }
     }
 
+    // Taken BEFORE the insert below — a count of 0 here means this
+    // completion (once it lands) is the student's first lesson ever,
+    // which is what services/referralService.js treats as "real activity"
+    // worth a referral bonus (not signup alone, which is gameable).
+    const priorCompletions = await pool.query(
+      "SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1",
+      [userId]
+    );
+    const isFirstEverCompletion = parseInt(priorCompletions.rows[0].count, 10) === 0;
+
     // 1️⃣ Mark lesson as completed
     await pool.query(
       `
@@ -1884,6 +1902,12 @@ exports.completeLesson = async (req, res) => {
       `,
       [userId, lessonId]
     );
+
+    if (isFirstEverCompletion) {
+      maybeAwardReferralBonus(userId).catch((err) =>
+        console.error("Referral bonus check failed:", err.message)
+      );
+    }
 
     // Best-effort, non-blocking: record which term this activity
     // happened in, for the classroom-course-term link table.
@@ -2069,6 +2093,36 @@ exports.completeLesson = async (req, res) => {
   } catch (err) {
     console.error("Lesson completion error:", err.message);
     res.status(500).json({ error: "Server error completing lesson" });
+  }
+};
+
+// POST /student/lessons/:lessonId/reflect — body: { what_clicked, still_fuzzy }.
+// Shown after the quiz-submission celebration chain in
+// views/student/dashboard.ejs; entirely optional (a student can skip it
+// client-side without ever hitting this endpoint), so both fields are
+// allowed to be empty. Resubmitting for the same lesson overwrites the
+// prior answer rather than keeping history — kept deliberately simple.
+exports.submitReflection = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id || req.body.studentId;
+  const { lessonId } = req.params;
+  const { what_clicked, still_fuzzy } = req.body;
+
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO lesson_reflections (user_id, lesson_id, what_clicked, still_fuzzy)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, lesson_id) DO UPDATE
+         SET what_clicked = EXCLUDED.what_clicked, still_fuzzy = EXCLUDED.still_fuzzy, created_at = NOW()`,
+      [studentId, lessonId, what_clicked || null, still_fuzzy || null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Submit reflection error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -2796,6 +2850,17 @@ ${JSON.stringify(reviewData, null, 2)}
     [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
   );
 
+    // Taken BEFORE the insert below — this is the REAL lesson-completion
+    // path (unlike the dead controllers/studentController.js completeLesson,
+    // never called from the frontend), so this is where "first ever
+    // completion" for the referral bonus (services/referralService.js)
+    // actually needs to be detected.
+    const priorCompletionsRes = await pool.query(
+      "SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1",
+      [studentId]
+    );
+    const isFirstEverCompletion = parseInt(priorCompletionsRes.rows[0].count, 10) === 0;
+
     // ✅ Mark lesson as completed when quiz is submitted
     await pool.query(
       `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
@@ -2803,6 +2868,12 @@ ${JSON.stringify(reviewData, null, 2)}
    ON CONFLICT (user_id, lesson_id) DO NOTHING`,
       [studentId, lessonId],
     );
+
+    if (isFirstEverCompletion) {
+      maybeAwardReferralBonus(studentId).catch((err) =>
+        console.error("Referral bonus check failed:", err.message)
+      );
+    }
 
     // Best-effort, non-blocking: record which term this activity
     // happened in, for the classroom-course-term link table.
@@ -3175,6 +3246,21 @@ exports.askAITutor = async (req, res) => {
 
         lessonContext = `Lesson Title: ${title}\n\nSummary of Lesson:\n${shortText}`;
       }
+
+      // If this student already left a reflection on this lesson, fold it
+      // in — lets the tutor address what they said was still fuzzy instead
+      // of re-explaining from scratch. askTutor (utils/ai.js) is stateless
+      // per-call, so this is the only way past context reaches it.
+      const reflectionRes = await pool.query(
+        `SELECT what_clicked, still_fuzzy FROM lesson_reflections WHERE user_id = $1 AND lesson_id = $2`,
+        [userId, lessonId]
+      );
+      const reflection = reflectionRes.rows[0];
+      if (reflection && (reflection.what_clicked || reflection.still_fuzzy)) {
+        lessonContext += `\n\nThe student previously reflected on this lesson: ${
+          reflection.what_clicked ? `what clicked for them was "${reflection.what_clicked}". ` : ""
+        }${reflection.still_fuzzy ? `What's still fuzzy for them: "${reflection.still_fuzzy}".` : ""}`;
+      }
     }
 
     const userName = req.session?.user?.fullname || "Student";
@@ -3490,15 +3576,14 @@ Return ONLY valid JSON, e.g.:
         </div>
         `;
 
-        // await sendEmail(parentEmail, "ASSIGNMENT SUBMITTED", message);
-
         // extra reference email
         const referenceEmail = "jaykirchtechhub@gmail.com";
 
-        // combine emails
-        const recipients = [parentEmail, referenceEmail]
-          .filter(Boolean)
-          .join(",");
+        // sendEmail's `to` param only fans out to multiple recipients when
+        // given a real array — a comma-joined string here was being sent
+        // as a single malformed "to" address instead (see utils/sendEmail.js),
+        // so this almost certainly never reached the parent.
+        const recipients = [parentEmail, referenceEmail].filter(Boolean);
 
         await sendEmail(recipients, "ASSIGNMENT SUBMITTED", message);
       }
@@ -3643,6 +3728,7 @@ exports.respondToParentRequest = async (req, res) => {
         title: "Link request approved",
         message: `${studentNameRes.rows[0]?.fullname || "Your child"} approved your link request.`,
         url: "/parent/dashboard",
+        email: true,
       });
     } else if (action === "reject") {
       await pool.query(
@@ -3656,6 +3742,7 @@ exports.respondToParentRequest = async (req, res) => {
         title: "Link request declined",
         message: `${studentNameRes.rows[0]?.fullname || "The student"} declined your link request.`,
         url: "/parent/dashboard",
+        email: true,
       });
     }
 

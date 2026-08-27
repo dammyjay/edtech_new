@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= displayName %> completed <%= certificate.course_title %> — <%= (company.company_name || 'JKT Hub').trim() %></title>
+
+  <!-- Open Graph tags for a nice link preview. Deliberately does NOT use
+       the real certificate image (it has the student's full legal name
+       printed on it) — falls back to the company logo instead, which is
+       generic and safe. -->
+  <meta property="og:title" content="<%= displayName %> completed <%= certificate.course_title %>! 🎓" />
+  <meta property="og:description" content="Issued <%= new Date(certificate.issued_at).toDateString() %>" />
+  <% if (company.logo_url) { %><meta property="og:image" content="<%= company.logo_url %>" /><% } %>
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="/css/style.css" />
+  <% if (company.logo_url) { %><link rel="icon" type="image/x-icon" href="<%= company.logo_url %>" /><% } %>
+  <style>
+    body { margin: 0; background: var(--bg-secondary, #f8f9fa); font-family: Arial, sans-serif; color: var(--text-primary, #222); }
+    .pa-wrap { max-width: 480px; margin: 0 auto; padding: 40px 16px 60px; text-align: center; }
+    .pa-cert-card {
+      background: #fff; border-radius: var(--radius-lg, 16px); padding: 36px 28px;
+      box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+      border: 3px solid var(--brand-pri-light, #D9A82C);
+      position: relative;
+    }
+    .pa-cert-ribbon { font-size: 40px; margin-bottom: 10px; }
+    .pa-cert-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary, #666); margin-bottom: 10px; }
+    .pa-cert-name { font-size: 22px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); margin-bottom: 6px; }
+    .pa-cert-course { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+    .pa-cert-date { font-size: 12px; color: var(--text-secondary, #666); }
+    .pa-share-back { display: inline-block; margin-top: 22px; font-size: 13px; color: var(--brand-pri, #A17807); text-decoration: none; font-weight: 700; }
+    .pa-cta { margin-top: 28px; }
+    .pa-cta p { color: var(--text-secondary, #666); font-size: 13px; margin: 0 0 12px; }
+    .pa-cta a { display: inline-block; background: var(--brand-pri, #A17807); color: #fff; text-decoration: none; padding: 11px 24px; border-radius: 8px; font-weight: 700; font-size: 13.5px; }
+  </style>
+</head>
+<body>
+  <div class="pa-wrap">
+    <div class="pa-cert-card">
+      <div class="pa-cert-ribbon">🎓</div>
+      <div class="pa-cert-heading">Certificate of Completion</div>
+      <div class="pa-cert-name"><%= displayName %></div>
+      <div class="pa-cert-course"><%= certificate.course_title %></div>
+      <div class="pa-cert-date">Issued <%= new Date(certificate.issued_at).toDateString() %></div>
+    </div>
+
+    <a class="pa-share-back" href="/achievements/<%= slug %>">← View full achievement page</a>
+
+    <div class="pa-cta">
+      <p>Start your own learning journey with <%= (company.company_name || 'JKT Hub').trim() %>.</p>
+      <a href="https://acad.jkthub.com/">Get Started</a>
+    </div>
+  </div>
+</body>
+</html>

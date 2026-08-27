@@ -1,5 +1,8 @@
 const pool = require("../models/db");
 const webpush = require("./webpushConfig");
+const sendEmail = require("./sendEmail");
+const { getCompanyInfo } = require("./companyInfo");
+const { buildNotificationEmail } = require("./emailTemplates");
 
 // Every one of these helpers swallows its own errors and never rejects —
 // they're always called from inside an existing chat/message send handler,
@@ -21,11 +24,17 @@ function preview(message) {
   return text.length > 80 ? text.slice(0, 77) + "..." : text;
 }
 
-// Inserts the in-app row, then best-effort delivers a browser push to every
-// subscription this user has. A dead subscription (404/410 from the push
-// service) is deleted on the spot — self-healing, unlike the existing
-// cron/lessonReminderJob.js sender this pattern is based on.
-async function notifyUser(userId, { type, title, message, url }) {
+// Inserts the in-app row, delivers a browser push to every subscription
+// this user has, and — only when the caller opts in via `email: true`
+// (most notification types don't need it; email is reserved for the
+// handful the platform owner actually wants a reliable inbox copy of,
+// e.g. at-risk alerts) — also sends an email. Each of the three channels
+// is independent: a failure in one (a bad push subscription, a missing
+// email address) never skips the others. A dead push subscription
+// (404/410 from the push service) is deleted on the spot — self-healing,
+// unlike the existing cron/lessonReminderJob.js sender this pattern is
+// based on.
+async function notifyUser(userId, { type, title, message, url, email }) {
   if (!userId) return;
 
   try {
@@ -37,30 +46,41 @@ async function notifyUser(userId, { type, title, message, url }) {
     console.error("notifyUser: failed to insert notification:", err.message);
   }
 
-  let subs;
   try {
-    subs = await pool.query(`SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1`, [userId]);
+    const subs = await pool.query(`SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1`, [userId]);
+    const payload = JSON.stringify({ title, message, url });
+    for (const sub of subs.rows) {
+      let keys;
+      try {
+        keys = typeof sub.keys === "string" ? JSON.parse(sub.keys) : sub.keys;
+      } catch {
+        continue;
+      }
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys }, payload);
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await pool.query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]).catch(() => {});
+        } else {
+          console.error("notifyUser: push send failed:", err.message);
+        }
+      }
+    }
   } catch (err) {
     console.error("notifyUser: failed to load push subscriptions:", err.message);
-    return;
   }
 
-  const payload = JSON.stringify({ title, message, url });
-  for (const sub of subs.rows) {
-    let keys;
+  if (email) {
     try {
-      keys = typeof sub.keys === "string" ? JSON.parse(sub.keys) : sub.keys;
-    } catch {
-      continue;
-    }
-    try {
-      await webpush.sendNotification({ endpoint: sub.endpoint, keys }, payload);
-    } catch (err) {
-      if (err.statusCode === 404 || err.statusCode === 410) {
-        await pool.query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]).catch(() => {});
-      } else {
-        console.error("notifyUser: push send failed:", err.message);
+      const userRes = await pool.query(`SELECT email FROM users2 WHERE id = $1`, [userId]);
+      const recipientEmail = userRes.rows[0]?.email;
+      if (recipientEmail) {
+        const company = await getCompanyInfo();
+        const html = buildNotificationEmail({ title, message, url, company });
+        await sendEmail(recipientEmail, title, html);
       }
+    } catch (err) {
+      console.error("notifyUser: email send failed:", err.message);
     }
   }
 }

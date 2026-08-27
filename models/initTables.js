@@ -1595,6 +1595,64 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE users2 ADD COLUMN IF NOT EXISTS weekly_digest_opt_out BOOLEAN DEFAULT false;
     `);
 
+    // Public shareable achievement page — parent-only opt-in (off by
+    // default), access only via an unguessable slug, never the raw id.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS public_profile_enabled BOOLEAN DEFAULT false;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS public_profile_slug TEXT UNIQUE;
+    `);
+
+    // Referral program (services/referralService.js) — referral_code is a
+    // parent's own shareable invite code (lazy-generated, same pattern as
+    // public_profile_slug above); referred_by_user_id records which
+    // parent's code a new parent signed up through; referral_reward_given
+    // is a one-shot claim flag on the REFERRED parent's row so the badge
+    // bonus can only ever fire once, from controllers/studentController.js
+    // completeLesson's first-ever-lesson check.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS referred_by_user_id INTEGER REFERENCES users2(id);
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS referral_reward_given BOOLEAN DEFAULT false;
+      ALTER TABLE pending_users ADD COLUMN IF NOT EXISTS referral_code TEXT;
+    `);
+
+    // Note: the referral bonus check actually lives in submitLessonQuiz now
+    // (completeLesson, mentioned when the columns above were added, turned
+    // out to be dead/never called from the frontend — fixed alongside the
+    // two tables below).
+
+    // One reflection per student per lesson — "what clicked / what's still
+    // fuzzy", shown after quiz-submission's existing celebration-modal
+    // chain in views/student/dashboard.ejs. Resubmitting overwrites via
+    // ON CONFLICT DO UPDATE in the controller, kept simple (no history).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lesson_reflections (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        lesson_id INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+        what_clicked TEXT,
+        still_fuzzy TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, lesson_id)
+      );
+    `);
+
+    // Peer review on lab_projects — classroom scope is derived at query
+    // time via user_school (controllers/peerReviewController.js), not
+    // stored here, so this never needs to change if a project's owner
+    // moves classrooms. One review per (project, reviewer).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS project_reviews (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER REFERENCES lab_projects(id) ON DELETE CASCADE,
+        reviewer_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(project_id, reviewer_id)
+      );
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

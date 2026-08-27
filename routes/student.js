@@ -149,6 +149,8 @@ router.post(
   studentController.submitLessonQuiz
 );
 
+router.post("/lessons/:lessonId/reflect", express.json(), studentController.submitReflection);
+
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);
 

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="/js/uiAlerts.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -414,7 +415,23 @@
   </div>
 
   <!-- ============ ACHIEVEMENTS ============ -->
+  <% const canManagePublicProfile = (from === 'parent' || from === 'admin'); %>
   <div id="achievements" class="sp-panel">
+
+    <% if (canManagePublicProfile) { %>
+    <div class="sp-section" id="publicProfileSection"
+         data-student-id="<%= student.id %>"
+         data-enabled="<%= publicProfileEnabled ? '1' : '0' %>"
+         data-slug="<%= publicProfileSlug || '' %>">
+      <h2>🌟 Public Achievement Page</h2>
+      <p style="margin:0 0 10px; font-size:13px; color:var(--text-secondary,#666);">
+        When turned on, anyone with the link can view a public page showing <%= student.fullname.split(' ')[0] %>'s level, streak,
+        badges, and certificates — first name only, no photo, no email.
+      </p>
+      <button type="button" id="publicProfileToggleBtn" class="sp-icon-btn" style="width:auto; padding:8px 16px;"></button>
+    </div>
+    <% } %>
+
     <div class="sp-section">
       <h2>🏅 Badges Earned (<%= badges.length %>)</h2>
       <% if (badges.length) { %>
@@ -428,6 +445,11 @@
               <% } %>
               <div class="name"><%= b.badge_name %></div>
               <div class="ctx"><%= b.module_title %> · <%= b.course_title %></div>
+              <% if (canManagePublicProfile) { %>
+                <a class="pub-share-link" data-kind="badge" data-item-id="<%= b.id %>"
+                   href="<%= publicProfileSlug ? '/achievements/' + publicProfileSlug + '/badge/' + b.id : '#' %>" target="_blank" rel="noopener"
+                   style="display:<%= publicProfileEnabled ? 'inline-block' : 'none' %>; margin-top:6px; font-size:11px; font-weight:700; color:var(--brand-pri,#A17807); text-decoration:none;">Share</a>
+              <% } %>
             </div>
           <% }) %>
         </div>
@@ -445,6 +467,11 @@
               <% if (c.certificate_url) { %><img src="<%= c.certificate_url %>" alt="Certificate" /><% } %>
               <div class="cert-title"><%= c.course_title %></div>
               <div class="cert-date">Issued <%= c.issued_at ? new Date(c.issued_at).toLocaleDateString() : '' %></div>
+              <% if (canManagePublicProfile) { %>
+                <a class="pub-share-link" data-kind="certificate" data-item-id="<%= c.id %>"
+                   href="<%= publicProfileSlug ? '/achievements/' + publicProfileSlug + '/certificate/' + c.id : '#' %>" target="_blank" rel="noopener"
+                   style="display:<%= publicProfileEnabled ? 'inline-block' : 'none' %>; margin-top:6px; font-size:11px; font-weight:700; color:var(--brand-pri,#A17807); text-decoration:none;">Share</a>
+              <% } %>
             </div>
           <% }) %>
         </div>
@@ -692,6 +719,68 @@
       document.querySelector(`.sp-tab[onclick="openTab('${tabId}')"]`).classList.add('active');
       document.getElementById(tabId).classList.add('active');
     }
+
+    // ---------- Public achievement page toggle (parent/admin only) ----------
+    (function () {
+      const section = document.getElementById('publicProfileSection');
+      if (!section) return;
+      const btn = document.getElementById('publicProfileToggleBtn');
+      const childId = section.dataset.studentId;
+      let enabled = section.dataset.enabled === '1';
+      let slug = section.dataset.slug;
+
+      function render() {
+        btn.textContent = enabled ? '🔗 Manage Public Link' : '🌟 Make Public';
+        document.querySelectorAll('.pub-share-link').forEach(function (link) {
+          link.style.display = enabled ? 'inline-block' : 'none';
+          if (enabled && slug) {
+            link.href = '/achievements/' + slug + '/' + link.dataset.kind + '/' + link.dataset.itemId;
+          }
+        });
+      }
+      render();
+
+      async function setPublicProfile(nextEnabled) {
+        const res = await fetch('/parent/child/' + childId + '/public-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: nextEnabled }),
+        });
+        return res.json();
+      }
+
+      btn.addEventListener('click', async function () {
+        if (!enabled) {
+          const ok = await showConfirm(
+            'Make this student\'s achievement page public? Anyone with the link can view it — first name, level, ' +
+            'streak, badges, and certificates only. No photo, email, or full name is shown.'
+          );
+          if (!ok) return;
+          const data = await setPublicProfile(true);
+          if (data.success) {
+            enabled = true;
+            slug = data.slug;
+            render();
+            await showAlert('Public page created! Link: https://acad.jkthub.com/achievements/' + slug, 'success');
+          } else {
+            showAlert(data.message || 'Failed to enable public page', 'error');
+          }
+        } else {
+          const turnOff = await showConfirm(
+            'Public link: https://acad.jkthub.com/achievements/' + slug + '\n\nTurn off this public page?'
+          );
+          if (!turnOff) return;
+          const data = await setPublicProfile(false);
+          if (data.success) {
+            enabled = false;
+            render();
+            showAlert('Public page turned off.', 'success');
+          } else {
+            showAlert(data.message || 'Failed to update', 'error');
+          }
+        }
+      });
+    })();
 
     function toggleCourse(index) {
       const body = document.getElementById("course-body-" + index);

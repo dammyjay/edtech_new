@@ -45,7 +45,9 @@
     <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=progress">📊 My Progress</a></h2>
     <% if (role === 'student' && classroom) { %>
       <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=leaderboard">🏆 Leaderboard</a></h2>
+      <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=peer-review">🔍 Peer Review</a></h2>
     <% } %>
+    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=skill-tree">🗺️ Skill Tree</a></h2>
   </div>
 
 
@@ -201,6 +203,23 @@
       Continue Learning
     </button>
 
+  </div>
+</div>
+
+<!-- REFLECTION PROMPT MODAL — last in the post-quiz celebration chain,
+     entirely optional (Skip sends nothing). -->
+<div id="reflectionPrompt" class="celebration-modal">
+  <div class="celebration-content" style="text-align:left;">
+    <h2 style="text-align:center;">💭 Quick Reflection</h2>
+    <p style="text-align:center; color:#666; font-size:13.5px;">Totally optional — takes 10 seconds.</p>
+    <label style="font-size:13px; font-weight:600; display:block; margin:10px 0 4px;">What clicked for you?</label>
+    <textarea id="reflectionWhatClicked" rows="2" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-family:inherit;"></textarea>
+    <label style="font-size:13px; font-weight:600; display:block; margin:12px 0 4px;">What's still fuzzy?</label>
+    <textarea id="reflectionStillFuzzy" rows="2" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-family:inherit;"></textarea>
+    <div style="display:flex; gap:10px; margin-top:16px; justify-content:center;">
+      <button onclick="closeReflectionPrompt()" style="background:#eee; color:#333;">Skip</button>
+      <button onclick="submitReflectionPrompt()">Submit</button>
+    </div>
   </div>
 </div>
 
@@ -1153,6 +1172,98 @@
   <% } else { %>
     <p style="padding:20px;">No modules found for this course yet.</p>
   <% } %>
+
+  <% } else if (section === 'peer-review') { %>
+    <div style="padding:20px; max-width:900px; margin:0 auto;">
+      <h2>🔍 Peer Review</h2>
+      <p style="color:var(--text-secondary,#666); font-size:14px;">Review your classmates' submitted projects, and see the reviews you've received.</p>
+
+      <h3 style="margin-top:24px;">📥 Projects to Review</h3>
+      <div id="reviewableProjectsList">
+        <p style="color:#888;">Loading...</p>
+      </div>
+
+      <h3 style="margin-top:32px;">⭐ Reviews You've Received</h3>
+      <div id="myReviewsList">
+        <p style="color:#888;">Loading...</p>
+      </div>
+    </div>
+
+  <% } else if (section === 'skill-tree') { %>
+    <div style="padding:20px; max-width:1000px; margin:0 auto;">
+      <h2>🗺️ Skill Tree</h2>
+      <p style="color:var(--text-secondary,#666); font-size:14px;">Your path through each pathway, staged from Beginner to Advanced. Any course can be started anytime — this is just a map of where you've been and what's next.</p>
+
+      <% if (!skillTreeData || !Object.keys(skillTreeData).length) { %>
+        <p style="color:#888;">No pathways available yet.</p>
+      <% } else { %>
+        <% Object.keys(skillTreeData).forEach(pathwayTitle => { %>
+          <div class="skill-tree-pathway">
+            <h3 style="margin:28px 0 4px;"><%= pathwayTitle %></h3>
+            <% ['Beginner', 'Intermediate', 'Advanced'].forEach((level, levelIdx) => {
+                const stageCourses = skillTreeData[pathwayTitle][level];
+                if (!stageCourses.length) return;
+            %>
+              <div class="skill-tree-stage">
+                <div class="skill-tree-stage-label">
+                  <span class="skill-tree-stage-dot"></span>
+                  <%= level %>
+                </div>
+                <div class="skill-tree-nodes">
+                  <% stageCourses.forEach(c => { %>
+                    <a href="/courses/<%= c.id %>" class="skill-tree-node skill-tree-node--<%= c.state %>">
+                      <% if (c.thumbnail_url) { %>
+                        <img src="<%= c.thumbnail_url %>" alt="" class="skill-tree-node-thumb" />
+                      <% } %>
+                      <span class="skill-tree-node-title"><%= c.title %></span>
+                      <% if (c.state === 'completed') { %>
+                        <span class="skill-tree-node-badge">✅ Completed</span>
+                      <% } else if (c.state === 'in-progress') { %>
+                        <span class="skill-tree-node-badge"><%= c.progress %>% done</span>
+                      <% } else if (c.state === 'not-started') { %>
+                        <span class="skill-tree-node-badge">▶️ Start</span>
+                      <% } else { %>
+                        <span class="skill-tree-node-badge skill-tree-node-badge--muted">Not enrolled</span>
+                      <% } %>
+                    </a>
+                  <% }) %>
+                </div>
+              </div>
+              <% if (levelIdx < 2) { %>
+                <div class="skill-tree-connector"></div>
+              <% } %>
+            <% }) %>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <style>
+      .skill-tree-stage { display:flex; align-items:flex-start; gap:16px; }
+      .skill-tree-stage-label {
+        min-width:110px; display:flex; align-items:center; gap:6px;
+        font-weight:700; font-size:13px; color:var(--brand-pri,#1c4e8a); padding-top:10px;
+      }
+      .skill-tree-stage-dot { width:10px; height:10px; border-radius:50%; background:var(--brand-pri,#1c4e8a); display:inline-block; }
+      .skill-tree-nodes { display:flex; gap:14px; flex-wrap:wrap; flex:1; }
+      .skill-tree-connector { width:2px; height:22px; background:#ddd; margin-left:115px; }
+      .skill-tree-node {
+        display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+        width:140px; padding:12px; border-radius:12px; border:2px solid #eee; text-decoration:none; color:#333;
+        background:#fff; transition:transform .15s ease;
+      }
+      .skill-tree-node:hover { transform:translateY(-3px); }
+      .skill-tree-node-thumb { width:100%; height:70px; object-fit:cover; border-radius:8px; }
+      .skill-tree-node-title { font-size:13px; font-weight:600; }
+      .skill-tree-node-badge { font-size:11px; padding:3px 8px; border-radius:999px; background:#f1f1f1; color:#555; }
+      .skill-tree-node--completed { border-color:#2a9d5c; }
+      .skill-tree-node--completed .skill-tree-node-badge { background:#e6f6ec; color:#1e7a45; }
+      .skill-tree-node--in-progress { border-color:#D9A82C; }
+      .skill-tree-node--in-progress .skill-tree-node-badge { background:#fdf3d9; color:#93710f; }
+      .skill-tree-node--not-started { border-color:#ccc; }
+      .skill-tree-node--not-enrolled { border-style:dashed; opacity:0.65; }
+      .skill-tree-node-badge--muted { background:transparent; color:#999; }
+    </style>
 
   <% } else if (section === 'leaderboard') { %>
     <div style="padding:20px; max-width:800px; margin:0 auto;">
@@ -3561,6 +3672,120 @@ function closeCertificateCelebration() {
   ).style.display = "none";
 }
 
+let reflectionLessonId = null;
+
+function showReflectionPrompt(lessonId) {
+  reflectionLessonId = lessonId;
+  document.getElementById("reflectionWhatClicked").value = "";
+  document.getElementById("reflectionStillFuzzy").value = "";
+  document.getElementById("reflectionPrompt").style.display = "flex";
+}
+
+function closeReflectionPrompt() {
+  document.getElementById("reflectionPrompt").style.display = "none";
+}
+
+async function submitReflectionPrompt() {
+  const what_clicked = document.getElementById("reflectionWhatClicked").value.trim();
+  const still_fuzzy = document.getElementById("reflectionStillFuzzy").value.trim();
+  closeReflectionPrompt();
+  if (!what_clicked && !still_fuzzy) return; // nothing to save
+  try {
+    await fetch(`/student/lessons/${reflectionLessonId}/reflect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ what_clicked, still_fuzzy }),
+    });
+  } catch (err) {
+    console.error("Failed to save reflection:", err);
+  }
+}
+
+async function loadReviewableProjects() {
+  const container = document.getElementById("reviewableProjectsList");
+  if (!container) return;
+  try {
+    const res = await fetch("/labs/peer-review/reviewable");
+    const data = await res.json();
+    if (!data.success || !data.projects.length) {
+      container.innerHTML = "<p style='color:#888;'>No projects to review right now.</p>";
+      return;
+    }
+    container.innerHTML = data.projects.map(p => `
+      <div class="project-card" style="margin-bottom:12px; padding:14px; border:1px solid #eee; border-radius:10px;">
+        <h4 style="margin:0 0 6px;">${escapeHtml(p.project_name || p.lab_type)}</h4>
+        <p style="margin:0 0 8px; color:#666; font-size:13px;">By ${escapeHtml(p.student_name)}</p>
+        ${p.already_reviewed
+          ? `<p style="color:#2a9d5c; font-size:13px;">✅ You already reviewed this</p>`
+          : `<div>
+              <select id="rating-${p.id}" style="margin-right:8px; padding:4px;">
+                <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                <option value="4">⭐⭐⭐⭐ (4)</option>
+                <option value="3">⭐⭐⭐ (3)</option>
+                <option value="2">⭐⭐ (2)</option>
+                <option value="1">⭐ (1)</option>
+              </select>
+              <br/>
+              <textarea id="comment-${p.id}" rows="2" placeholder="Leave a comment (optional)" style="width:100%; margin-top:6px; padding:6px; border-radius:6px; border:1px solid #ddd;"></textarea>
+              <button onclick="submitProjectReview(${p.id})" style="margin-top:6px;">Submit Review</button>
+            </div>`
+        }
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Failed to load reviewable projects:", err);
+    container.innerHTML = "<p style='color:#c00;'>Failed to load projects.</p>";
+  }
+}
+
+async function submitProjectReview(projectId) {
+  const rating = document.getElementById(`rating-${projectId}`).value;
+  const comment = document.getElementById(`comment-${projectId}`).value.trim();
+  try {
+    const res = await fetch("/labs/peer-review/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, rating, comment }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || "Could not submit review");
+      return;
+    }
+    loadReviewableProjects();
+  } catch (err) {
+    console.error("Failed to submit review:", err);
+  }
+}
+
+async function loadMyReviews() {
+  const container = document.getElementById("myReviewsList");
+  if (!container) return;
+  try {
+    const res = await fetch("/labs/peer-review/mine");
+    const data = await res.json();
+    if (!data.success || !data.reviews.length) {
+      container.innerHTML = "<p style='color:#888;'>No reviews yet.</p>";
+      return;
+    }
+    container.innerHTML = data.reviews.map(r => `
+      <div style="margin-bottom:12px; padding:14px; border:1px solid #eee; border-radius:10px;">
+        <p style="margin:0 0 4px;">${"⭐".repeat(r.rating)} <strong>${escapeHtml(r.project_name || r.lab_type)}</strong></p>
+        ${r.comment ? `<p style="margin:0 0 4px; color:#444;">"${escapeHtml(r.comment)}"</p>` : ""}
+        <p style="margin:0; color:#888; font-size:12px;">— ${escapeHtml(r.reviewer_name)}</p>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Failed to load my reviews:", err);
+    container.innerHTML = "<p style='color:#c00;'>Failed to load reviews.</p>";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadReviewableProjects();
+  loadMyReviews();
+});
+
 // Properly-sized certificate view, reused by the celebration modal's
 // preview image AND every "My Certificates" grid thumbnail — see the
 // #certificateLightbox markup for why this replaced window.open().
@@ -4073,6 +4298,13 @@ function submitQuizAnswers(lessonId){
       }, 1500);
     }
 
+    // 💭 Reflection prompt — last in the chain, entirely optional (Skip
+    // closes it with no request sent; the endpoint itself also treats
+    // both fields as optional either way).
+    setTimeout(() => {
+      showReflectionPrompt(lessonId);
+    }, 1800);
+
       // The submission itself is already fully saved server-side at this
       // point — everything from here down is just building the follow-up
       // UI (review screen, next-lesson button, etc.), which used to be
@@ -4467,6 +4699,10 @@ function submitQuizInline(e, lessonId) {
         );
       }, 1500);
     }
+
+    setTimeout(() => {
+      showReflectionPrompt(lessonId);
+    }, 1800);
 
       // The submission is already fully saved server-side by this point
       // — see the identical comment in submitQuizAnswers above. Isolated

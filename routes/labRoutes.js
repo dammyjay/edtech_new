@@ -26,4 +26,8 @@ router.post("/project/save", labController.saveProject);
 
 router.post("/project/submit", labController.submitProject);
 
+router.get("/peer-review/reviewable", labController.getReviewableProjects);
+router.post("/peer-review/submit", express.json(), labController.submitReview);
+router.get("/peer-review/mine", labController.getMyProjectReviews);
+
 module.exports = router;

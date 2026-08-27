@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= displayName %> earned "<%= badge.badge_name %>" — <%= (company.company_name || 'JKT Hub').trim() %></title>
+
+  <!-- Open Graph tags so this looks good as a link preview when shared
+       (WhatsApp/Twitter/Facebook/etc.) — badge_image is safe to use here,
+       it's a generic per-module icon, never a photo or personalized image. -->
+  <meta property="og:title" content="<%= displayName %> earned a new badge! 🏅" />
+  <meta property="og:description" content="<%= badge.badge_name %> — earned on <%= new Date(badge.awarded_at).toDateString() %>" />
+  <% if (badge.badge_image) { %><meta property="og:image" content="<%= badge.badge_image %>" /><% } %>
+  <meta property="og:type" content="website" />
+
+  <link rel="stylesheet" href="/css/style.css" />
+  <% if (company.logo_url) { %><link rel="icon" type="image/x-icon" href="<%= company.logo_url %>" /><% } %>
+  <style>
+    body { margin: 0; background: var(--bg-secondary, #f8f9fa); font-family: Arial, sans-serif; color: var(--text-primary, #222); }
+    .pa-wrap { max-width: 420px; margin: 0 auto; padding: 40px 16px 60px; text-align: center; }
+    .pa-share-card {
+      background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+      border-radius: var(--radius-lg, 16px); padding: 32px 24px; color: #fff;
+      box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+    }
+    .pa-share-card img { width: 96px; height: 96px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.2); }
+    .pa-share-fallback { font-size: 72px; }
+    .pa-share-badge-name { font-size: 19px; font-weight: 800; margin: 14px 0 4px; }
+    .pa-share-sub { font-size: 13px; opacity: 0.9; }
+    .pa-share-back { display: inline-block; margin-top: 20px; font-size: 13px; color: var(--brand-pri, #A17807); text-decoration: none; font-weight: 700; }
+    .pa-cta { margin-top: 28px; }
+    .pa-cta p { color: var(--text-secondary, #666); font-size: 13px; margin: 0 0 12px; }
+    .pa-cta a { display: inline-block; background: var(--brand-pri, #A17807); color: #fff; text-decoration: none; padding: 11px 24px; border-radius: 8px; font-weight: 700; font-size: 13.5px; }
+  </style>
+</head>
+<body>
+  <div class="pa-wrap">
+    <div class="pa-share-card">
+      <% if (badge.badge_image) { %>
+        <img src="<%= badge.badge_image %>" alt="<%= badge.badge_name %>" />
+      <% } else { %>
+        <div class="pa-share-fallback">🏅</div>
+      <% } %>
+      <div class="pa-share-badge-name"><%= badge.badge_name %></div>
+      <div class="pa-share-sub"><%= displayName %> · earned <%= new Date(badge.awarded_at).toDateString() %></div>
+    </div>
+
+    <a class="pa-share-back" href="/achievements/<%= slug %>">← View full achievement page</a>
+
+    <div class="pa-cta">
+      <p>Start your own learning journey with <%= (company.company_name || 'JKT Hub').trim() %>.</p>
+      <a href="https://acad.jkthub.com/">Get Started</a>
+    </div>
+  </div>
+</body>
+</html>

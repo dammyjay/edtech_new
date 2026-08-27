@@ -232,4 +232,75 @@ function buildWeeklyDigestEmail({ parentName, children, company = {}, unsubscrib
   `;
 }
 
-module.exports = { buildFeedbackThankYouEmail, buildWeeklyDigestEmail };
+// Generic email wrapper for anything sent through utils/notify.js's
+// notifyUser({..., email: true}) — same visual shape as
+// buildFeedbackThankYouEmail, just swapping the body for whatever
+// title/message the notification already carries, plus a CTA to `url`.
+function buildNotificationEmail({ title, message, url, company = {} }) {
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      @media only screen and (max-width: 600px) {
+        .container {
+          width: 100% !important;
+          padding: 15px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="background: #f5f7fb; padding: 20px; font-family: Arial, sans-serif;">
+    <div class="container" style="
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    ">
+
+      <div style="text-align: center;">
+        ${company.logo_url ? `<img src="${company.logo_url}" width="100" style="margin-bottom: 15px;" />` : ""}
+        <h2 style="color: #333; margin-bottom: 5px;">${title}</h2>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+
+      <p style="font-size: 15px; color: #444; line-height: 1.5;">
+        ${message || ""}
+      </p>
+
+      ${
+        url
+          ? `<div style="text-align: center; margin-top: 25px;">
+        <a href="https://acad.jkthub.com${url}"
+          style="
+            background: #4a76fd;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+          ">
+          View on ${(company.company_name || "JKT Hub").trim()}
+        </a>
+      </div>`
+          : ""
+      }
+
+      <br><br>
+
+      <p style="font-size: 12px; color: #999; text-align: center;">
+        © ${new Date().getFullYear()} ${company.company_name || ""} — Empowering the Future with Technology.
+      </p>
+
+    </div>
+  </body>
+  </html>
+  `;
+}
+
+module.exports = { buildFeedbackThankYouEmail, buildWeeklyDigestEmail, buildNotificationEmail };

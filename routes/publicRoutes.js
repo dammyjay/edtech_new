@@ -16,6 +16,9 @@ const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates");
 const buildFeedbackAdminEmail = require("../utils/feedbackAdminEmail");
 const getAnnouncements = require("../utils/getAnnouncements");
 const { getCompanyInfo } = require("../utils/companyInfo");
+const { getStudentStreak } = require("../services/streakService");
+const { getLevelForXp } = require("../utils/xpLevels");
+const { getPublicStudentBySlug } = require("../services/publicAchievementService");
 
 // No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
 // an HMAC of the user id (same secret the session already uses), so no new
@@ -28,6 +31,119 @@ router.get("/unsubscribe/weekly-digest/:userId/:token", async (req, res) => {
   }
   await pool.query(`UPDATE users2 SET weekly_digest_opt_out = true WHERE id = $1`, [userId]);
   res.send("You've been unsubscribed from the weekly digest email.");
+});
+
+// Shareable public achievement page — parent-only opt-in
+// (controllers/userController.js setChildPublicProfile), reached only via
+// an unguessable slug, never the raw user id. Displays "First L." only,
+// never the full name, and a DiceBear avatar (never a real photo) — see
+// the privacy notes on this feature's plan for why.
+//
+// IMPORTANT: certificate_url points at a generated image/PDF that has the
+// student's REAL FULL NAME printed on it (services/issueCertificate.js
+// passes student.fullname to generateCertificate) — linking to it directly
+// from here would leak the exact name this page otherwise redacts. Never
+// render uc.certificate_url on this page or pass it to the view; the
+// per-certificate share route below renders a redacted card instead.
+router.get("/achievements/:slug", async (req, res) => {
+  try {
+    const student = await getPublicStudentBySlug(req.params.slug);
+    if (!student) {
+      return res.status(404).send("This page isn't available.");
+    }
+
+    const [streak, xpTotalRes, badgesRes, certificatesRes, coursesCompletedRes, company] = await Promise.all([
+      getStudentStreak(student.id),
+      pool.query(`SELECT COALESCE(SUM(xp), 0) AS total FROM xp_history WHERE user_id = $1`, [student.id]),
+      pool.query(
+        `SELECT id, badge_name, badge_image, awarded_at FROM user_badges WHERE user_id = $1 ORDER BY awarded_at DESC`,
+        [student.id]
+      ),
+      pool.query(
+        `SELECT uc.id, uc.issued_at, c.title AS course_title
+         FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
+         WHERE uc.user_id = $1 ORDER BY uc.issued_at DESC`,
+        [student.id]
+      ),
+      pool.query(`SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND progress >= 100`, [student.id]),
+      getCompanyInfo(),
+    ]);
+
+    res.render("public/achievements", {
+      slug: req.params.slug,
+      displayName: student.displayName,
+      avatarUrl: student.avatar_url || null,
+      levelInfo: getLevelForXp(xpTotalRes.rows[0].total),
+      streak,
+      badges: badgesRes.rows,
+      certificates: certificatesRes.rows,
+      coursesCompleted: parseInt(coursesCompletedRes.rows[0].count, 10) || 0,
+      company,
+    });
+  } catch (err) {
+    console.error("Public achievement page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+// Individual badge share page — badge_image is a generic per-module icon
+// (generateAndUploadBadge takes only moduleTitle/courseTitle, never a
+// student name), so unlike certificates it's safe to show/link directly,
+// including as the og:image for link previews.
+router.get("/achievements/:slug/badge/:badgeId", async (req, res) => {
+  try {
+    const student = await getPublicStudentBySlug(req.params.slug);
+    if (!student) return res.status(404).send("This page isn't available.");
+
+    const badgeRes = await pool.query(
+      `SELECT badge_name, badge_image, awarded_at FROM user_badges WHERE id = $1 AND user_id = $2`,
+      [req.params.badgeId, student.id]
+    );
+    const badge = badgeRes.rows[0];
+    if (!badge) return res.status(404).send("Badge not found.");
+
+    const company = await getCompanyInfo();
+    res.render("public/badgeShare", {
+      slug: req.params.slug,
+      displayName: student.displayName,
+      badge,
+      company,
+    });
+  } catch (err) {
+    console.error("Public badge share page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+// Individual certificate share page — deliberately does NOT render or link
+// uc.certificate_url (see the note on the main achievements route above).
+// Renders a redacted card instead, built fresh from data that's already
+// public-safe (course title, issue date, "First L.").
+router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
+  try {
+    const student = await getPublicStudentBySlug(req.params.slug);
+    if (!student) return res.status(404).send("This page isn't available.");
+
+    const certRes = await pool.query(
+      `SELECT uc.issued_at, c.title AS course_title
+       FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
+       WHERE uc.id = $1 AND uc.user_id = $2`,
+      [req.params.certId, student.id]
+    );
+    const certificate = certRes.rows[0];
+    if (!certificate) return res.status(404).send("Certificate not found.");
+
+    const company = await getCompanyInfo();
+    res.render("public/certificateShare", {
+      slug: req.params.slug,
+      displayName: student.displayName,
+      certificate,
+      company,
+    });
+  } catch (err) {
+    console.error("Public certificate share page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
 });
 
 router.get("/events/:id", userController.showEvent);

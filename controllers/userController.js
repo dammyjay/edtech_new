@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
+const { getCompanyInfo } = require("../utils/companyInfo");
+const { buildNotificationEmail } = require("../utils/emailTemplates");
 const PDFDocument = require("pdfkit");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
@@ -39,6 +41,7 @@ exports.signup = async (req, res) => {
     schoolName,
     schoolAddress,
     schoolId,
+    ref: referralCode,
   } = req.body;
   const file = req.file;
 
@@ -62,9 +65,9 @@ exports.signup = async (req, res) => {
     // ====== CASE 1: OTP roles (admin, parent, user) ======
    if (["school_admin", "parent", "user"].includes(role)) {
      await pool.query(
-       `INSERT INTO pending_users 
-      (fullname, email, phone, gender, password, otp_code, otp_expires, profile_picture, role, created_at, dob) 
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+       `INSERT INTO pending_users
+      (fullname, email, phone, gender, password, otp_code, otp_expires, profile_picture, role, created_at, dob, referral_code)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
        [
          username,
          email,
@@ -77,6 +80,7 @@ exports.signup = async (req, res) => {
          role,
          created_at,
          dob,
+         referralCode || null,
        ]
      );
 
@@ -298,10 +302,21 @@ exports.verifyOtp = async (req, res) => {
     if (new Date(user.otp_expires) < new Date()) return res.status(400).json({ success: false, message: "OTP expired" });
 
 
+    // Referral program is parent→parent only (services/referralService.js
+    // awards a badge to both families once the referred child completes
+    // their first lesson). Resolved here, not at signup time, since the
+    // referrer's code must still be valid at the moment the real users2
+    // row is actually created.
+    let referredByUserId = null;
+    if (user.role === "parent" && user.referral_code) {
+      const referrerRes = await pool.query(`SELECT id FROM users2 WHERE referral_code = $1`, [user.referral_code]);
+      referredByUserId = referrerRes.rows[0]?.id || null;
+    }
+
     // insert into users2
     const newUserResult = await pool.query(
-      `INSERT INTO users2 (fullname, email, phone, gender, password, profile_picture, role, created_at, dob) 
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      `INSERT INTO users2 (fullname, email, phone, gender, password, profile_picture, role, created_at, dob, referred_by_user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [
         user.fullname,
         user.email,
@@ -312,6 +327,7 @@ exports.verifyOtp = async (req, res) => {
         user.role,
         created_at,
         user.dob,
+        referredByUserId,
       ]
     );
     const newUser = newUserResult.rows[0];
@@ -614,13 +630,23 @@ exports.getParentDashboard = async (req, res) => {
     // view needs it (PARENT_NAME, used as the Paystack "Funded By" label),
     // so fetch it here rather than passing the bare session user through.
     const parentFullnameRes = await pool.query(
-      "SELECT fullname FROM users2 WHERE id = $1",
+      "SELECT fullname, referral_code FROM users2 WHERE id = $1",
       [user.id]
     );
+    let referralCode = parentFullnameRes.rows[0]?.referral_code;
+    if (!referralCode) {
+      // Lazily generated on first dashboard visit, same pattern as
+      // public_profile_slug — every parent can always share one, no
+      // opt-in/off state needed since it's just an invite code, not PII.
+      referralCode = crypto.randomBytes(6).toString("hex");
+      await pool.query(`UPDATE users2 SET referral_code = $1 WHERE id = $2`, [referralCode, user.id]);
+    }
     const parent = { ...user, fullname: parentFullnameRes.rows[0]?.fullname || "" };
+    const referralLink = `https://acad.jkthub.com/signup?role=parent&ref=${referralCode}`;
 
     const childrenRes = await pool.query(
-      `SELECT u.id, u.fullname, u.email, u.profile_picture, u.wallet_balance2
+      `SELECT u.id, u.fullname, u.email, u.profile_picture, u.wallet_balance2,
+              u.public_profile_enabled, u.public_profile_slug
        FROM parent_children pc
        JOIN users2 u ON pc.child_id = u.id
        WHERE pc.parent_id = $1
@@ -696,6 +722,31 @@ exports.getParentDashboard = async (req, res) => {
             }))
         : [];
 
+    // Weekly family XP goal ("beat last week"), same 2+ children gate as
+    // the leaderboard above — a rolling 7-day window, not calendar-week
+    // boundaries, matching every other "this week" feature this session
+    // (services/parentDigestService.js, cron/spacedReviewNudge.js).
+    let familyChallenge = null;
+    if (children.length >= 2) {
+      const childIds = children.map((c) => c.id);
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const [thisWeekRes, lastWeekRes] = await Promise.all([
+        pool.query(`SELECT COALESCE(SUM(xp),0) AS total FROM xp_history WHERE user_id = ANY($1) AND earned_at >= $2`, [
+          childIds,
+          weekAgo,
+        ]),
+        pool.query(
+          `SELECT COALESCE(SUM(xp),0) AS total FROM xp_history WHERE user_id = ANY($1) AND earned_at >= $2 AND earned_at < $3`,
+          [childIds, twoWeeksAgo, weekAgo]
+        ),
+      ]);
+      familyChallenge = {
+        thisWeekXp: parseInt(thisWeekRes.rows[0].total, 10) || 0,
+        lastWeekXp: parseInt(lastWeekRes.rows[0].total, 10) || 0,
+      };
+    }
+
     // Parent's own sent child-link requests, so a pending/rejected one is
     // visible instead of disappearing after submission.
     const pendingRequestsRes = await pool.query(
@@ -727,6 +778,8 @@ exports.getParentDashboard = async (req, res) => {
       balanceAlerts,
       activityAlerts,
       leaderboard,
+      familyChallenge,
+      referralLink,
       pendingRequests: pendingRequestsRes.rows,
       walletHistory: walletHistoryRes.rows,
       info,
@@ -741,6 +794,29 @@ exports.getParentDashboard = async (req, res) => {
     res.status(500).send("Failed to load dashboard");
   }
 };
+
+// Shared by both branches of payTermReactivationAsParent (free and paid) —
+// a direct email receipt, not routed through notifyUser, since the parent
+// doesn't need an in-app/push nudge about a payment they just made
+// themselves in this same request.
+async function sendTermReactivationReceipt({ parent, child, amountPaid }) {
+  if (!parent.email) return;
+  try {
+    const company = await getCompanyInfo();
+    const html = buildNotificationEmail({
+      title: "Term reactivated",
+      message:
+        amountPaid > 0
+          ? `Your payment of ₦${amountPaid.toLocaleString()} unlocked ${child.fullname}'s term — they can continue their courses again.`
+          : `${child.fullname}'s term has been reactivated at no charge — they can continue their courses again.`,
+      url: "/parent/dashboard",
+      company,
+    });
+    await sendEmail(parent.email, "Term reactivation receipt", html);
+  } catch (err) {
+    console.error("Term reactivation receipt email failed:", err.message);
+  }
+}
 
 // POST /parent/fund-child/verify — body: { reference, childId }
 // Verifies a Paystack charge and credits the CHILD's wallet directly (the
@@ -828,6 +904,27 @@ exports.fundChildWallet = async (req, res) => {
         url: "/student/dashboard",
       });
 
+      // Parent receipt — a direct email, not routed through notifyUser,
+      // since the parent doesn't need an in-app/push nudge about an action
+      // they just performed themselves; a confirmation email is still
+      // worth sending as a receipt.
+      if (parent.email) {
+        try {
+          const company = await getCompanyInfo();
+          const html = buildNotificationEmail({
+            title: "Wallet funding successful",
+            message: `You added ₦${amount.toLocaleString()} to ${child.fullname}'s wallet. New balance: ₦${Number(
+              updated.rows[0].wallet_balance2
+            ).toLocaleString()}.`,
+            url: "/parent/dashboard",
+            company,
+          });
+          await sendEmail(parent.email, "Wallet funding receipt", html);
+        } catch (err) {
+          console.error("Wallet funding receipt email failed:", err.message);
+        }
+      }
+
       return res.json({
         success: true,
         message: `₦${amount.toLocaleString()} added to ${child.fullname}'s wallet`,
@@ -897,6 +994,7 @@ exports.payTermReactivationAsParent = async (req, res) => {
         reactivatedByUserId: parent.id,
         amountPaid: 0,
       });
+      await sendTermReactivationReceipt({ parent, child, amountPaid: 0 });
       return res.json({ success: true, message: "Term reactivated" });
     }
 
@@ -967,6 +1065,7 @@ exports.payTermReactivationAsParent = async (req, res) => {
       if (!inserted.rows.length) {
         return res.json({ success: true, message: "Already reactivated (payment recorded)" });
       }
+      await sendTermReactivationReceipt({ parent, child, amountPaid });
       return res.json({ success: true, message: `Reactivated — ${child.fullname}'s course is unlocked again` });
     } catch (err) {
       await client.query("ROLLBACK");
@@ -980,6 +1079,55 @@ exports.payTermReactivationAsParent = async (req, res) => {
   }
 };
 
+// POST /parent/child/:childId/public-profile — body: { enabled }
+// Parent opt-in for the shareable achievement page (routes/publicRoutes.js
+// GET /achievements/:slug), OR a platform admin managing it on a student's
+// behalf (e.g. from views/admin/studentProgress.ejs's Achievements tab) —
+// nobody else (school_admin, teacher, the student themselves) can reach
+// this. A parent must own the child via parent_children; an admin can
+// manage any student, no ownership check. The slug is generated once, on
+// first enable, and kept stable across later disable/re-enable cycles —
+// disabling just flips the flag, which the public route checks live, so it
+// takes effect immediately regardless of whether the slug still exists.
+exports.setChildPublicProfile = async (req, res) => {
+  const requester = req.session.user;
+  const isAdmin = requester?.role === "admin";
+  const isParent = requester?.role === "parent";
+  if (!requester || (!isAdmin && !isParent)) {
+    return res.status(403).json({ success: false, message: "Only a parent or platform admin can manage this" });
+  }
+
+  const { childId } = req.params;
+  const enabled = !!req.body.enabled;
+
+  try {
+    const lookupQuery = isAdmin
+      ? `SELECT id, public_profile_slug FROM users2 WHERE id = $1`
+      : `SELECT id, public_profile_slug FROM users2
+         WHERE id = $1 AND id IN (SELECT child_id FROM parent_children WHERE parent_id = $2)`;
+    const ownershipCheck = await pool.query(lookupQuery, isAdmin ? [childId] : [childId, requester.id]);
+    const child = ownershipCheck.rows[0];
+    if (!child) {
+      return res.status(403).json({ success: false, message: "You are not linked to this child" });
+    }
+
+    let slug = child.public_profile_slug;
+    if (enabled && !slug) {
+      slug = crypto.randomBytes(8).toString("hex");
+      await pool.query(`UPDATE users2 SET public_profile_enabled = true, public_profile_slug = $1 WHERE id = $2`, [
+        slug,
+        childId,
+      ]);
+    } else {
+      await pool.query(`UPDATE users2 SET public_profile_enabled = $1 WHERE id = $2`, [enabled, childId]);
+    }
+
+    return res.json({ success: true, enabled, slug: enabled ? slug : null });
+  } catch (err) {
+    console.error("Error setting child public profile:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 
 exports.addChild = async (req, res) => {
   const parent = req.session.user;
@@ -1045,6 +1193,7 @@ exports.addChild = async (req, res) => {
           title: "Parent link request",
           message: `${parentName} wants to link to your account — approve it from your dashboard.`,
           url: "/student/dashboard",
+          email: true,
         });
 
         return res.status(200).json({
@@ -1065,6 +1214,7 @@ exports.addChild = async (req, res) => {
       title: "Parent link request",
       message: `${parentName} wants to link to your account — approve it from your dashboard.`,
       url: "/student/dashboard",
+      email: true,
     });
 
     await logActivityForUser(

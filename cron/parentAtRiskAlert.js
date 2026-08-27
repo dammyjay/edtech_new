@@ -3,14 +3,17 @@
 // Turns the already-existing at-risk detection in
 // services/classroomTermAnalyticsService.js (completion<40% or quiz<50%,
 // only ever surfaced today via a teacher/school-admin dashboard view) into
-// a proactive parent alert. In-app + push only (utils/notify.js), not
-// email — sidesteps the Brevo daily-quota constraint entirely and better
-// fits something meant to be seen promptly rather than batched weekly.
+// a proactive parent alert — in-app + push + email (utils/notify.js's
+// notifyUser with email:true). This is one of the few notification types
+// worth the Brevo-quota cost of an email: the whole point is preventing a
+// surprise term-lockout, and push alone risks being missed if the parent
+// never granted browser-push permission.
 //
 // No "already alerted" dedup, matching every other reminder-style cron in
 // this codebase (cron/lessonReminderJob.js, the assignment reminders) — a
-// student who stays at-risk gets a fresh alert each run. Deliberate scoping
-// choice, not an oversight.
+// student who stays at-risk gets a fresh alert each run (email included).
+// Deliberate scoping choice, not an oversight — worth revisiting if it
+// turns out to feel repetitive at the weekly cadence this runs on.
 
 const cron = require("node-cron");
 const pool = require("../models/db");
@@ -44,6 +47,7 @@ async function runAtRiskAlertJob() {
                 title: `${student.fullname} may need some extra support`,
                 message: `${analytics.selectedTerm.name}: ${student.completionPercent}% of lessons complete, ${student.quizAvg}% quiz average.`,
                 url: "/parent/dashboard",
+                email: true,
               });
               alertCount++;
             }
