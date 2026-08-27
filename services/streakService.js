@@ -5,19 +5,31 @@ const pool = require("../models/db");
 // today," so no new table is needed to track it. A "day" is compared
 // using DATE(completed_at), in the DB's own timezone, matching how the
 // rest of this codebase already treats timestamps.
+//
+// streak_freezes (services/coinService.js-purchased, controllers/
+// studentController.js freezeStreak) records dates a student paid coins
+// to protect — merged in below as if they were activity days, so a
+// frozen date bridges what would otherwise be a broken streak. It never
+// becomes lastActiveDate, which stays tied to real activity only.
 async function getStudentStreak(studentId) {
-  const result = await pool.query(
-    `SELECT DISTINCT completed_at::date AS day
-     FROM user_lesson_progress
-     WHERE user_id = $1
-     ORDER BY day DESC`,
-    [studentId]
-  );
+  const [activityResult, freezeResult] = await Promise.all([
+    pool.query(
+      `SELECT DISTINCT completed_at::date AS day
+       FROM user_lesson_progress
+       WHERE user_id = $1
+       ORDER BY day DESC`,
+      [studentId]
+    ),
+    pool.query(`SELECT freeze_date AS day FROM streak_freezes WHERE user_id = $1`, [studentId]),
+  ]);
 
-  const days = result.rows.map((r) => new Date(r.day).getTime());
-  if (!days.length) {
+  if (!activityResult.rows.length) {
     return { currentStreak: 0, longestStreak: 0, lastActiveDate: null };
   }
+
+  const realDays = activityResult.rows.map((r) => new Date(r.day).getTime());
+  const frozenDays = freezeResult.rows.map((r) => new Date(r.day).getTime());
+  const days = Array.from(new Set([...realDays, ...frozenDays])).sort((a, b) => b - a);
 
   const oneDayMs = 24 * 60 * 60 * 1000;
   const today = new Date();
@@ -60,7 +72,7 @@ async function getStudentStreak(studentId) {
   return {
     currentStreak,
     longestStreak: Math.max(longestStreak, currentStreak),
-    lastActiveDate: result.rows[0].day,
+    lastActiveDate: activityResult.rows[0].day,
   };
 }
 

@@ -1,5 +1,6 @@
 const pool = require("../models/db");
 const { notifyUser } = require("../utils/notify");
+const { awardCoins } = require("./coinService");
 
 async function awardReferralBadgeToFamily(parentId, badgeName, notifyTitle) {
   const kids = await pool.query(`SELECT child_id FROM parent_children WHERE parent_id = $1`, [parentId]);
@@ -8,6 +9,7 @@ async function awardReferralBadgeToFamily(parentId, badgeName, notifyTitle) {
       child_id,
       badgeName,
     ]);
+    await awardCoins(child_id, 20, `Badge: ${badgeName}`);
     await notifyUser(child_id, { type: "referral_badge", title: notifyTitle, message: badgeName, url: "/student/dashboard" });
   }
   await notifyUser(parentId, {

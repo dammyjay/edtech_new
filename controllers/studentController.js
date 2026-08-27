@@ -26,6 +26,9 @@ const { getStudentStreak } = require("../services/streakService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 const { getStudentProgressDetail } = require("../services/studentProgressDetailService");
 const { getStudentSkillTreeData } = require("../services/skillTreeService");
+const { awardCoins, spendCoins } = require("../services/coinService");
+const { exchangeXp: exchangeXpService } = require("../services/xpExchangeService");
+const { AVATAR_FRAMES, getFrameByKey } = require("../utils/avatarFrames");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderModuleReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 
@@ -63,6 +66,29 @@ exports.getDashboard = async (req, res) => {
     // user_lesson_progress.completed_at (see services/streakService.js).
     const levelInfo = getLevelForXp(student.xp);
     const streak = await getStudentStreak(studentId);
+
+    // Daily login-streak coin bonus — once per calendar day, claimed
+    // atomically via last_streak_coin_date so a page refresh can't award
+    // it twice. Updates the in-memory `student` object too, since it's
+    // fetched above and passed straight into the render below.
+    const equippedFrame = student.equipped_avatar_frame ? getFrameByKey(student.equipped_avatar_frame) : null;
+    const equippedFrameStyle = equippedFrame ? equippedFrame.style + " border-radius:50%;" : "";
+
+    let streakBonusCoins = 0;
+    if (streak.currentStreak > 0) {
+      const bonus = 5 + Math.min(streak.currentStreak, 10);
+      const claim = await pool.query(
+        `UPDATE users2 SET last_streak_coin_date = CURRENT_DATE
+         WHERE id = $1 AND last_streak_coin_date IS DISTINCT FROM CURRENT_DATE
+         RETURNING id`,
+        [studentId]
+      );
+      if (claim.rows.length) {
+        await awardCoins(studentId, bonus, `Daily streak bonus (day ${streak.currentStreak})`);
+        student.coins = (student.coins || 0) + bonus;
+        streakBonusCoins = bonus;
+      }
+    }
 
     // Vars that differ per role
     let school = null;
@@ -1114,6 +1140,9 @@ exports.getDashboard = async (req, res) => {
       announcements,
       progressDetail,
       skillTreeData,
+      streakBonusCoins,
+      equippedFrameStyle,
+      avatarFrames: AVATAR_FRAMES,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
@@ -1794,34 +1823,6 @@ exports.getAnalytics = async (req, res) => {
   }
 };
 
-// POST: Update XP and log it
-exports.updateXP = async (req, res) => {
-  const userId = req.user.id;
-  const { xpGained, activity = "learning" } = req.body;
-
-  try {
-    const user = await pool.query("SELECT xp FROM users2 WHERE id = $1", [
-      userId,
-    ]);
-    const currentXP = user.rows[0]?.xp || 0;
-    const newXP = currentXP + Number(xpGained);
-
-    await Promise.all([
-      pool.query("UPDATE users2 SET xp = $1 WHERE id = $2", [newXP, userId]),
-      pool.query(
-        `INSERT INTO xp_history (user_id, xp, activity)
-         VALUES ($1, $2, $3)`,
-        [userId, xpGained, activity]
-      ),
-    ]);
-
-    res.json({ message: "XP updated", xp: newXP });
-  } catch (err) {
-    console.error("XP update error:", err);
-    res.status(500).json({ error: "Server error updating XP" });
-  }
-};
-
 exports.awardBadge = async (req, res) => {
   const userId = req.user.id;
   const { badge_name, module_id } = req.body; // pass module_id from frontend
@@ -1847,6 +1848,161 @@ exports.awardBadge = async (req, res) => {
   } catch (err) {
     console.error("Badge awarding error:", err.message);
     res.status(500).json({ error: "Server error awarding badge" });
+  }
+};
+
+const STREAK_FREEZE_COST = 10;
+
+// Spend coins to protect today's streak gap — only when there's actually
+// a gap to protect (active yesterday or earlier, nothing yet today, and
+// a real streak > 0 per services/streakService.js). Freezing a day that
+// already has activity, or a streak that's already broken, is rejected
+// server-side so coins can't be wasted.
+exports.freezeStreak = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const streak = await getStudentStreak(studentId);
+    if (streak.currentStreak <= 0) {
+      return res.json({ success: false, message: "You don't have an active streak to freeze." });
+    }
+
+    const todayCheck = await pool.query(
+      `SELECT 1 FROM user_lesson_progress WHERE user_id = $1 AND completed_at::date = CURRENT_DATE LIMIT 1`,
+      [studentId]
+    );
+    if (todayCheck.rows.length > 0) {
+      return res.json({ success: false, message: "You're already active today — no need to freeze!" });
+    }
+
+    const newBalance = await spendCoins(studentId, STREAK_FREEZE_COST, "Streak freeze");
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    await pool.query(
+      `INSERT INTO streak_freezes (user_id, freeze_date) VALUES ($1, CURRENT_DATE)
+       ON CONFLICT (user_id, freeze_date) DO NOTHING`,
+      [studentId]
+    );
+
+    res.json({ success: true, message: "Streak frozen for today!", coins: newBalance });
+  } catch (err) {
+    console.error("freezeStreak error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.getAvatarFrames = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const [ownedRes, studentRes] = await Promise.all([
+      pool.query("SELECT frame_key FROM user_unlocked_frames WHERE user_id = $1", [studentId]),
+      pool.query("SELECT equipped_avatar_frame FROM users2 WHERE id = $1", [studentId]),
+    ]);
+    const ownedKeys = new Set(ownedRes.rows.map((r) => r.frame_key));
+
+    res.json({
+      success: true,
+      frames: AVATAR_FRAMES.map((f) => ({ ...f, owned: ownedKeys.has(f.key) })),
+      equipped: studentRes.rows[0]?.equipped_avatar_frame || null,
+    });
+  } catch (err) {
+    console.error("getAvatarFrames error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.unlockAvatarFrame = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { frameKey } = req.body;
+    const frame = getFrameByKey(frameKey);
+    if (!frame) {
+      return res.status(400).json({ success: false, message: "Unknown frame" });
+    }
+
+    const existing = await pool.query(
+      "SELECT 1 FROM user_unlocked_frames WHERE user_id = $1 AND frame_key = $2",
+      [studentId, frameKey]
+    );
+    if (existing.rows.length) {
+      return res.json({ success: true, message: "Already unlocked", alreadyOwned: true });
+    }
+
+    const newBalance = await spendCoins(studentId, frame.price, `Avatar frame: ${frame.name}`);
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    await pool.query(
+      "INSERT INTO user_unlocked_frames (user_id, frame_key) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [studentId, frameKey]
+    );
+
+    res.json({ success: true, coins: newBalance });
+  } catch (err) {
+    console.error("unlockAvatarFrame error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.equipAvatarFrame = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { frameKey } = req.body;
+
+    if (frameKey) {
+      const owned = await pool.query(
+        "SELECT 1 FROM user_unlocked_frames WHERE user_id = $1 AND frame_key = $2",
+        [studentId, frameKey]
+      );
+      if (!owned.rows.length) {
+        return res.status(403).json({ success: false, message: "You haven't unlocked this frame yet." });
+      }
+    }
+
+    await pool.query("UPDATE users2 SET equipped_avatar_frame = $1 WHERE id = $2", [frameKey || null, studentId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("equipAvatarFrame error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.exchangeXp = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const amount = parseInt(req.body.amount, 10);
+    const { target } = req.body;
+
+    if (!amount || amount <= 0 || (target !== "coins" && target !== "wallet")) {
+      return res.status(400).json({ success: false, message: "Invalid exchange request" });
+    }
+
+    const result = await exchangeXpService(studentId, amount, target);
+    if (result === null) {
+      return res.json({ success: false, message: "Not enough redeemable points." });
+    }
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("exchangeXp error:", err.message);
+    res.status(500).json({ success: false });
   }
 };
 
@@ -2861,13 +3017,21 @@ ${JSON.stringify(reviewData, null, 2)}
     );
     const isFirstEverCompletion = parseInt(priorCompletionsRes.rows[0].count, 10) === 0;
 
-    // ✅ Mark lesson as completed when quiz is submitted
-    await pool.query(
+    // ✅ Mark lesson as completed when quiz is submitted — RETURNING id
+    // lets us tell a genuinely new completion apart from a resubmission
+    // of an already-completed lesson. This now matters beyond just the
+    // completion record itself: XP must only ever be awarded once per
+    // lesson, not once per submission, now that it's cashable for real
+    // coins/Naira (services/xpExchangeService.js) — resubmitting the same
+    // quiz used to just inflate a cosmetic number, not real value.
+    const progressInsert = await pool.query(
       `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
    VALUES ($1, $2, NOW())
-   ON CONFLICT (user_id, lesson_id) DO NOTHING`,
+   ON CONFLICT (user_id, lesson_id) DO NOTHING
+   RETURNING id`,
       [studentId, lessonId],
     );
+    const isNewCompletion = progressInsert.rows.length > 0;
 
     if (isFirstEverCompletion) {
       maybeAwardReferralBonus(studentId).catch((err) =>
@@ -2879,7 +3043,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // happened in, for the classroom-course-term link table.
     recordActivityForLesson(studentId, lessonId);
 
-    const xpGained = 10;
+    const xpGained = isNewCompletion ? 10 : 0;
 
     const xpBeforeRes = await pool.query(
       "SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1",
@@ -2890,16 +3054,21 @@ ${JSON.stringify(reviewData, null, 2)}
     const levelAfter = getLevelForXp(xpBefore + xpGained);
     const levelUp = levelAfter.level > levelBefore.level;
 
-    await pool.query(
-      "UPDATE users2 SET xp = COALESCE(xp, 0) + $1 WHERE id = $2",
-      [xpGained, studentId],
-    );
+    if (isNewCompletion) {
+      // redeemable_xp tracks alongside xp (never separately, never
+      // instead of it) — xp/Level only ever go up either way; only
+      // redeemable_xp is ever drawn down, by the exchange endpoint.
+      await pool.query(
+        "UPDATE users2 SET xp = COALESCE(xp, 0) + $1, redeemable_xp = COALESCE(redeemable_xp, 0) + $1 WHERE id = $2",
+        [xpGained, studentId],
+      );
 
-    await pool.query(
-      `INSERT INTO xp_history (user_id, xp, activity)
+      await pool.query(
+        `INSERT INTO xp_history (user_id, xp, activity)
    VALUES ($1, $2, $3)`,
-      [studentId, xpGained, `Completed quiz for lesson ${lessonId}`],
-    );
+        [studentId, xpGained, `Completed quiz for lesson ${lessonId}`],
+      );
+    }
 
     // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
     // Tracked outside the if/else below so the success response can tell
@@ -3218,10 +3387,35 @@ exports.getLesson = async (req, res) => {
   }
 };
 
+const FREE_DAILY_AI_QUESTIONS = 5;
+const EXTRA_AI_QUESTION_COST = 3;
+
 exports.askAITutor = async (req, res) => {
   try {
     const userId = req.user?.id || req.session.user?.id;
     const { question, lessonId } = req.body;
+
+    // ai_tutor_logs previously existed but nothing ever wrote to it — now
+    // doubles as both the usage log and the free-daily-cap counter, since
+    // there was no rate limiting on this endpoint before Coins needed one.
+    const usageCountRes = await pool.query(
+      `SELECT COUNT(*) FROM ai_tutor_logs WHERE user_id = $1 AND created_at::date = CURRENT_DATE`,
+      [userId]
+    );
+    const usedToday = parseInt(usageCountRes.rows[0].count, 10);
+
+    let coinsBalanceAfterSpend = null;
+    if (usedToday >= FREE_DAILY_AI_QUESTIONS) {
+      const newBalance = await spendCoins(userId, EXTRA_AI_QUESTION_COST, "Extra AI tutor question");
+      if (newBalance === null) {
+        return res.json({
+          ok: false,
+          needsCoins: true,
+          message: `You've used today's ${FREE_DAILY_AI_QUESTIONS} free questions and don't have enough coins for more — come back tomorrow!`,
+        });
+      }
+      coinsBalanceAfterSpend = newBalance;
+    }
 
     let lessonContext = "";
 
@@ -3268,7 +3462,17 @@ exports.askAITutor = async (req, res) => {
     // ✅ Now ask the tutor safely
     const answer = await askTutor({ question, lessonContext, userName });
 
-    res.json({ ok: true, answer });
+    await pool.query(
+      `INSERT INTO ai_tutor_logs (user_id, lesson_id, question, answer) VALUES ($1, $2, $3, $4)`,
+      [userId, lessonId || null, question || null, answer || null]
+    );
+
+    res.json({
+      ok: true,
+      answer,
+      coinsSpent: coinsBalanceAfterSpend !== null ? EXTRA_AI_QUESTION_COST : 0,
+      coins: coinsBalanceAfterSpend,
+    });
   } catch (e) {
     console.error("AI tutor error:", e.message);
     res.status(500).json({ ok: false, error: "Tutor is unavailable." });

@@ -14,7 +14,6 @@ router.get("/past-courses/:courseId", ensureAuthenticated, studentController.vie
 router.get("/terms/:termId/reactivate", ensureAuthenticated, studentController.viewTermReactivation);
 router.post("/terms/:termId/reactivate", ensureAuthenticated, studentController.payTermReactivation);
 router.get("/analytics", studentController.getAnalytics);
-router.post("/update-xp", studentController.updateXP);
 router.post("/award-badge", studentController.awardBadge);
 // Mark lesson complete
 router.post("/lessons/:lessonId/complete", studentController.completeLesson);
@@ -150,6 +149,12 @@ router.post(
 );
 
 router.post("/lessons/:lessonId/reflect", express.json(), studentController.submitReflection);
+
+router.post("/streak/freeze", express.json(), studentController.freezeStreak);
+router.get("/avatar-frames", studentController.getAvatarFrames);
+router.post("/avatar-frames/unlock", express.json(), studentController.unlockAvatarFrame);
+router.post("/avatar-frames/equip", express.json(), studentController.equipAvatarFrame);
+router.post("/xp/exchange", express.json(), studentController.exchangeXp);
 
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);

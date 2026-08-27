@@ -1653,6 +1653,118 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );
     `);
 
+    // Coins: a spendable gamification currency, deliberately separate from
+    // both XP (decorative, never spent) and wallet_balance2 (real Paystack
+    // money) — see services/coinService.js. last_streak_coin_date dedupes
+    // the once-per-day login-streak bonus; equipped_avatar_frame is a key
+    // into the hardcoded catalog in utils/avatarFrames.js, not a table,
+    // since the catalog isn't admin-editable in v1.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS coins INTEGER DEFAULT 0;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS last_streak_coin_date DATE;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS equipped_avatar_frame TEXT;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coin_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        amount INTEGER NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Records which calendar date a streak-freeze protected — see
+    // services/streakService.js, which treats a frozen date as a valid
+    // bridge day when walking back through activity dates.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS streak_freezes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        freeze_date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, freeze_date)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_unlocked_frames (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        frame_key TEXT NOT NULL,
+        unlocked_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, frame_key)
+      );
+    `);
+
+    // XP exchange: redeemable_xp is a spendable balance kept separate from
+    // xp itself, which drives Level (utils/xpLevels.js) and must never go
+    // down. redeemable_xp increases in lockstep with xp whenever it's
+    // earned (see the isNewCompletion gate in submitLessonQuiz), but only
+    // redeemable_xp decreases when a student cashes points in for coins
+    // or wallet credit (services/xpExchangeService.js) — xp/Level stay
+    // exactly as they'd be with no exchange feature at all.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS redeemable_xp INTEGER DEFAULT 0;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS redeemable_xp_initialized BOOLEAN DEFAULT false;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS welcome_bonus_awarded BOOLEAN DEFAULT false;
+    `);
+
+    // One-time backfill: give every pre-existing user (who has never had
+    // this run before) redeemable_xp matching their current xp total, so
+    // XP they already earned under the old code is actually cashable.
+    // Guarded by redeemable_xp_initialized so this is a no-op on every
+    // boot after the first — never re-syncs redeemable_xp back up to xp
+    // for someone who's since legitimately spent some down.
+    await pool.query(`
+      UPDATE users2 SET redeemable_xp = xp, redeemable_xp_initialized = true
+      WHERE redeemable_xp_initialized = false OR redeemable_xp_initialized IS NULL;
+    `);
+
+    // One-time backfill: 200 welcome-bonus coins for every user who
+    // predates this feature. Same idempotency guard pattern — safe to
+    // rerun on every boot, only ever awards once per user.
+    await pool.query(`
+      WITH awarded AS (
+        UPDATE users2 SET coins = COALESCE(coins,0) + 200, welcome_bonus_awarded = true
+        WHERE welcome_bonus_awarded = false OR welcome_bonus_awarded IS NULL
+        RETURNING id
+      )
+      INSERT INTO coin_history (user_id, amount, reason)
+      SELECT id, 200, 'Welcome bonus' FROM awarded;
+    `);
+
+    // Trigger (not JS) so every future users2 row — self-signup, school
+    // admin adding a student/teacher, platform admin creating a user, a
+    // parent adding a child, or any path added later nobody remembers to
+    // wire up individually — gets the 200-coin welcome bonus with no
+    // exceptions. A deliberate one-off deviation from this codebase's
+    // usual all-in-JS convention, justified by that "no exceptions, ever"
+    // requirement — grepping INSERT INTO users2 turns up 8+ separate call
+    // sites already, and missing one silently breaks the guarantee.
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION award_welcome_coins() RETURNS TRIGGER AS $$
+      BEGIN
+        UPDATE users2 SET coins = COALESCE(coins,0) + 200, welcome_bonus_awarded = true WHERE id = NEW.id;
+        INSERT INTO coin_history (user_id, amount, reason) VALUES (NEW.id, 200, 'Welcome bonus');
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await pool.query(`DROP TRIGGER IF EXISTS trg_welcome_coins ON users2;`);
+    await pool.query(`
+      CREATE TRIGGER trg_welcome_coins AFTER INSERT ON users2
+      FOR EACH ROW EXECUTE FUNCTION award_welcome_coins();
+    `);
+
+    // wallet_transactions.type needs a new value for XP->wallet cash-outs.
+    await pool.query(`
+      ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;
+      ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
+        CHECK (type IN ('fund','parent_fund','course_enrollment','term_reactivation','parent_term_reactivation','xp_exchange'));
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

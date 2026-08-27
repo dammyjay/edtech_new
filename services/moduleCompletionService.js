@@ -2,6 +2,7 @@
 // services/moduleCompletionService.js
 
 const pool = require("../models/db");
+const { awardCoins } = require("./coinService");
 
 async function checkAndCompleteModule(studentId, moduleId) {
   try {
@@ -79,10 +80,14 @@ async function checkAndCompleteModule(studentId, moduleId) {
 
     // 6️⃣ Insert badge
     await pool.query(
-      `INSERT INTO user_badges 
+      `INSERT INTO user_badges
        (user_id, module_id, badge_name, badge_image, awarded_at)
        VALUES ($1, $2, $3, $4, NOW())`,
       [studentId, moduleId, badgeName, badgeImage]
+    );
+
+    awardCoins(studentId, 20, `Badge: ${badgeName}`).catch((err) =>
+      console.error("Badge coin award failed:", err.message)
     );
 
     return {
