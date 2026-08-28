@@ -1,5 +1,7 @@
 const pool = require("../models/db");
 const { notifyUser } = require("../utils/notify");
+const { getLevelForXp } = require("../utils/xpLevels");
+const { getStudentStreak } = require("../services/streakService");
 
 /**
  * LAB TEMPLATES (your real system now)
@@ -31,10 +33,42 @@ const LAB_TEMPLATES = {
 };
 
 exports.getLabDashboard = async (req, res) => {
-  res.render("labs/dashboard", {
-    title: "Learning Labs",
-    layout: "layout",
-  });
+  try {
+    const studentId = req.session.user.id;
+
+    const studentRes = await pool.query(
+      "SELECT id, fullname, xp, coins, profile_picture FROM users2 WHERE id = $1",
+      [studentId]
+    );
+    const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+    const levelInfo = getLevelForXp(student.xp);
+    const streak = await getStudentStreak(studentId);
+
+    const projectsRes = await pool.query(
+      `SELECT lab_type, COUNT(*) AS count, MAX(updated_at) AS last_updated
+       FROM lab_projects WHERE student_id = $1 GROUP BY lab_type`,
+      [studentId]
+    );
+    const projectsByType = {};
+    projectsRes.rows.forEach((r) => {
+      projectsByType[r.lab_type] = {
+        count: parseInt(r.count, 10),
+        lastUpdated: r.last_updated,
+      };
+    });
+
+    res.render("labs/dashboard", {
+      title: "Learning Labs",
+      users: req.session.user,
+      student,
+      levelInfo,
+      streak,
+      projectsByType,
+    });
+  } catch (err) {
+    console.error("getLabDashboard error:", err.message);
+    res.status(500).send("Server error");
+  }
 };
 
 exports.getWebLab = async (req, res) => {

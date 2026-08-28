@@ -292,11 +292,11 @@ jsGenerator.forBlock["key_pressed"] = function (block) {
 };
 
 jsGenerator.forBlock["sprite_x_position"] = function () {
-  return ["spriteX", javascript.Order.ATOMIC];
+  return ["getRuntimeSprite().x", javascript.Order.MEMBER];
 };
 
 jsGenerator.forBlock["sprite_y_position"] = function () {
-  return ["spriteY", javascript.Order.ATOMIC];
+  return ["getRuntimeSprite().y", javascript.Order.MEMBER];
 };
 
 jsGenerator.forBlock["ask_and_wait"] = function (block) {

@@ -30,10 +30,9 @@ Blockly.Blocks["set_background_image"] = {
       .appendField("Set Background Image to")
       .appendField(
         new Blockly.FieldDropdown([
-          ["Beach", "beach"],
-          ["Forest", "forest"],
-          ["Space", "space"],
-          ["City", "city"],
+          ["Beach", "beach.webp"],
+          ["Beach 2", "beach2.webp"],
+          ["Underwater", "underwater.webp"],
         ]),
         "IMAGE",
       );
@@ -75,15 +74,6 @@ Blockly.Blocks["add_sprite"] = {
           ],
           [
             {
-              src: "/labs/images/sprites/robot.png",
-              width: 30,
-              height: 30,
-              alt: "Robot",
-            },
-            "robot",
-          ],
-          [
-            {
               src: "/labs/images/sprites/dog.png",
               width: 30,
               height: 30,
@@ -120,15 +110,6 @@ Blockly.Blocks["set_sprite"] = {
               alt: "Cat",
             },
             "cat",
-          ],
-          [
-            {
-              src: "/labs/images/sprites/robot.png",
-              width: 30,
-              height: 30,
-              alt: "Robot",
-            },
-            "robot",
           ],
           [
             {
@@ -232,10 +213,9 @@ Blockly.Blocks["set_background_image"] = {
       .appendField("Set Background Image to")
       .appendField(
         new Blockly.FieldDropdown([
-          ["Beach", "beach"],
-          ["Forest", "forest"],
-          ["City", "city"],
-          ["Space", "space"],
+          ["Beach", "beach.webp"],
+          ["Beach 2", "beach2.webp"],
+          ["Underwater", "underwater.webp"],
         ]),
         "IMAGE",
       );

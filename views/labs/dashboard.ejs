@@ -1,29 +1,239 @@
-<div class="labs-container">
+<%- include('../partials/header', { title: 'Learning Labs' }) %>
 
-    <h1>Learning Labs</h1>
+<div class="labs-page">
 
-    <div class="lab-grid">
-
-        <a href="/labs/web">
-            Web Development Lab
-        </a>
-
-        <a href="/labs/blockly">
-            Blockly Lab
-        </a>
-
-        <a href="/labs/arduino">
-            Arduino Lab
-        </a>
-
-        <a href="/labs/appinventor">
-            App Inventor Lab
-        </a>
-
-        <a href="/labs/ai">
-            AI Lab
-        </a>
-
+  <div class="labs-hero">
+    <div class="labs-hero-text">
+      <h1>🧪 Learning Labs</h1>
+      <p>Pick a lab, build something real, and level up while you're at it.</p>
     </div>
 
+    <div class="labs-stats">
+      <div class="labs-stat">
+        <span class="labs-stat-icon">⭐</span>
+        <div>
+          <strong><%= levelInfo.name %></strong>
+          <small>Level <%= levelInfo.level %></small>
+        </div>
+      </div>
+      <div class="labs-stat">
+        <span class="labs-stat-icon"><%= streak.currentStreak > 0 ? "🔥" : "💤" %></span>
+        <div>
+          <strong><%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %></strong>
+          <small>Streak</small>
+        </div>
+      </div>
+      <div class="labs-stat">
+        <span class="labs-stat-icon">💰</span>
+        <div>
+          <strong><%= student.coins || 0 %></strong>
+          <small>Coins</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lab-grid">
+    <%
+      const labs = [
+        {
+          type: "web",
+          href: "/labs/web",
+          icon: "🌐",
+          title: "Web Development Lab",
+          blurb: "Build real websites with HTML, CSS & JavaScript.",
+          accent: "#4C97FF",
+        },
+        {
+          type: "blockly",
+          href: "/labs/blockly",
+          icon: "🧩",
+          title: "Blockly Lab",
+          blurb: "Drag-and-drop block coding — sprites, movement, and games.",
+          accent: "#9966FF",
+        },
+        {
+          type: "arduino",
+          href: "/labs/arduino",
+          icon: "🔌",
+          title: "Arduino Lab",
+          blurb: "Program circuits and bring hardware to life.",
+          accent: "#0fBD8C",
+        },
+        {
+          type: "appinventor",
+          href: "/labs/appinventor",
+          icon: "📱",
+          title: "App Inventor Lab",
+          blurb: "Design and build your own mobile apps.",
+          accent: "#FF8C42",
+        },
+        {
+          type: "ai",
+          href: "/labs/ai",
+          icon: "🤖",
+          title: "AI Lab",
+          blurb: "Explore and experiment with artificial intelligence.",
+          accent: "#FF5C8D",
+        },
+      ];
+    %>
+
+    <% labs.forEach(lab => {
+      const progress = projectsByType[lab.type];
+    %>
+      <a class="lab-card" href="<%= lab.href %>" style="--lab-accent: <%= lab.accent %>;">
+        <div class="lab-card-icon"><%= lab.icon %></div>
+        <h3><%= lab.title %></h3>
+        <p><%= lab.blurb %></p>
+
+        <% if (progress) { %>
+          <span class="lab-card-status lab-card-status--active">
+            🚀 Continue — <%= progress.count %> project<%= progress.count === 1 ? "" : "s" %>
+          </span>
+        <% } else { %>
+          <span class="lab-card-status lab-card-status--new">✨ Start Building</span>
+        <% } %>
+      </a>
+    <% }) %>
+  </div>
+
 </div>
+
+<style>
+  .labs-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  .labs-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: linear-gradient(135deg, var(--brand-pri, #A17807), var(--brand-pri-dark, #4C3802));
+    color: #fff;
+    border-radius: var(--radius-lg, 16px);
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .labs-hero-text h1 {
+    margin: 0 0 6px;
+    font-size: 28px;
+  }
+
+  .labs-hero-text p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 14px;
+  }
+
+  .labs-stats {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .labs-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 8px 14px;
+    backdrop-filter: blur(2px);
+  }
+
+  .labs-stat-icon {
+    font-size: 22px;
+  }
+
+  .labs-stat strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  .labs-stat small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  .lab-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .lab-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--text-primary, #222);
+    background: #fff;
+    border-radius: var(--radius-lg, 16px);
+    padding: 24px 20px;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-top: 5px solid var(--lab-accent, var(--brand-pri, #A17807));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .lab-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.14);
+  }
+
+  .lab-card-icon {
+    font-size: 40px;
+    line-height: 1;
+  }
+
+  .lab-card h3 {
+    margin: 4px 0 0;
+    font-size: 17px;
+  }
+
+  .lab-card p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    flex: 1;
+  }
+
+  .lab-card-status {
+    display: inline-block;
+    align-self: flex-start;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-top: 6px;
+  }
+
+  .lab-card-status--active {
+    background: var(--brand-tint, #FBF3DD);
+    color: var(--brand-pri-dark, #4C3802);
+  }
+
+  .lab-card-status--new {
+    background: #f1f1f1;
+    color: var(--text-secondary, #666);
+  }
+
+  @media (max-width: 640px) {
+    .labs-hero {
+      padding: 22px;
+    }
+    .labs-hero-text h1 {
+      font-size: 22px;
+    }
+  }
+</style>

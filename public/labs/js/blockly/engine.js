@@ -1,11 +1,22 @@
-window.spriteX = 100;
-window.spriteY = 100;
-window.spriteRotation = 0;
-window.spriteSpeed = 1;
-window.spriteVisible = true;
 window.sprites = [];
 
 window.currentSprite = null;
+
+// Which sprite's code is executing right now — distinct from
+// currentSprite (which sprite is open in the editor). Every generated
+// script runs with this set to the sprite it belongs to (see runCode /
+// compileEvents in blocklyLab.js), so a block like moveSprite() always
+// moves the right sprite instead of one hardcoded global one.
+window.currentRuntimeSprite = null;
+
+function getRuntimeSprite() {
+  const sprite = window.currentRuntimeSprite || window.currentSprite;
+  if (!sprite) {
+    console.warn("A block ran with no active sprite context.");
+  }
+  return sprite;
+}
+
 window.backgrounds = [];
 
 window.penDownState = false;
@@ -23,28 +34,22 @@ window.penCtx = null;
 // SPRITE RENDER
 // =========================
 
+// Pushes one sprite's x/y/rotation/visible state onto its own DOM
+// element. Every mutation function below calls this with the sprite it
+// just changed, instead of the old single hardcoded #sprite element.
+window.renderSprite = function (sprite) {
+  sprite = sprite || getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
+
+  sprite.element.style.left = sprite.x + "px";
+  sprite.element.style.top = sprite.y + "px";
+  sprite.element.style.transform = `rotate(${sprite.rotation}deg)`;
+  sprite.element.style.display = sprite.visible ? "block" : "none";
+};
+
+// Back-compat wrapper for any lingering direct callers.
 window.updateSprite = function () {
-  const sprite = document.getElementById("sprite");
-
-  if (!sprite) return;
-
-  sprite.style.left = spriteX + "px";
-  sprite.style.top = spriteY + "px";
-
-  sprite.style.transform = `rotate(${spriteRotation}deg)`;
-
-  sprite.style.display = spriteVisible ? "block" : "none";
-
-  // UPDATE RECORDING DATA
-
-  const mainSprite = window.sprites.find((s) => s.id === "mainSprite");
-
-  if (mainSprite) {
-    mainSprite.x = spriteX;
-    mainSprite.y = spriteY;
-    mainSprite.rotation = spriteRotation;
-    mainSprite.visible = spriteVisible;
-  }
+  renderSprite(getRuntimeSprite());
 };
 
 // =========================
@@ -53,12 +58,16 @@ window.updateSprite = function () {
 
 window.keyEvents = {};
 
+// Registered at "compile" time (see compileEvents in blocklyLab.js),
+// which sets currentRuntimeSprite to the owning sprite before running
+// each sprite's event-setup code — so the {sprite, callback} pair
+// captured here always remembers which sprite this handler belongs to.
 window.registerKeyEvent = function (key, callback) {
   if (!window.keyEvents[key]) {
     window.keyEvents[key] = [];
   }
 
-  window.keyEvents[key].push(callback);
+  window.keyEvents[key].push({ sprite: window.currentRuntimeSprite, callback });
 };
 
 document.addEventListener("keydown", async (e) => {
@@ -66,25 +75,47 @@ document.addEventListener("keydown", async (e) => {
 
   if (!list) return;
 
-  for (const fn of list) {
-    await fn();
+  for (const { sprite, callback } of list) {
+    window.currentRuntimeSprite = sprite;
+    await callback();
   }
+
+  window.currentRuntimeSprite = null;
 });
 
+// compileEvents() re-registers every sprite's event blocks on every
+// workspace change — remove each sprite's previous click handler first
+// so they don't stack up into duplicates over repeated edits.
 window.registerSpriteClick = function (callback) {
-  const sprite = document.getElementById("sprite");
+  const sprite = window.currentRuntimeSprite;
+  if (!sprite || !sprite.element) return;
 
-  sprite.addEventListener("click", callback);
+  if (sprite._clickHandler) {
+    sprite.element.removeEventListener("click", sprite._clickHandler);
+  }
+
+  sprite._clickHandler = async () => {
+    window.currentRuntimeSprite = sprite;
+    await callback();
+    window.currentRuntimeSprite = null;
+  };
+
+  sprite.element.addEventListener("click", sprite._clickHandler);
 };
 
 window.broadcastListeners = {};
 
-window.broadcast = function (message) {
+window.broadcast = async function (message) {
   const listeners = window.broadcastListeners[message];
 
   if (!listeners) return;
 
-  listeners.forEach((fn) => fn());
+  for (const { sprite, callback } of listeners) {
+    window.currentRuntimeSprite = sprite;
+    await callback();
+  }
+
+  window.currentRuntimeSprite = null;
 };
 
 window.registerBroadcast = function (message, callback) {
@@ -92,7 +123,7 @@ window.registerBroadcast = function (message, callback) {
     window.broadcastListeners[message] = [];
   }
 
-  window.broadcastListeners[message].push(callback);
+  window.broadcastListeners[message].push({ sprite: window.currentRuntimeSprite, callback });
 };
 
 window.initPen = function () {
@@ -112,24 +143,6 @@ window.initPen = function () {
 
   penCtx.lineCap = "round";
   penCtx.lineJoin = "round";
-};
-
-window.drawPenLine = function (startX, startY, endX, endY) {
-  if (!penDownState) return;
-
-  if (!penCtx) return;
-
-  penCtx.beginPath();
-
-  penCtx.moveTo(startX, startY);
-
-  penCtx.lineTo(endX, endY);
-
-  penCtx.strokeStyle = penColor;
-
-  penCtx.lineWidth = penSize;
-
-  penCtx.stroke();
 };
 
 window.drawPenLine = function (startX, startY, endX, endY) {
@@ -178,15 +191,16 @@ window.changePenSizeBy = function (value) {
   if (penSize < 1) {
     penSize = 1;
   }
-}; 
+};
 // =========================
 // MOTION
 // =========================
 
-window.getSpriteCenter = function () {
-  const sprite = document.getElementById("sprite");
+window.getSpriteCenter = function (sprite) {
+  sprite = sprite || getRuntimeSprite();
+  if (!sprite || !sprite.element) return { x: 0, y: 0 };
 
-  const rect = sprite.getBoundingClientRect();
+  const rect = sprite.element.getBoundingClientRect();
   const stageRect = document.getElementById("stage").getBoundingClientRect();
 
   return {
@@ -196,47 +210,55 @@ window.getSpriteCenter = function () {
 };
 
 window.moveSprite = function (steps) {
-  const start = getSpriteCenter();
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  const distance = Number(steps) * spriteSpeed;
+  const start = getSpriteCenter(sprite);
 
-  spriteX += Math.cos((spriteRotation * Math.PI) / 180) * distance;
-  spriteY += Math.sin((spriteRotation * Math.PI) / 180) * distance;
+  const distance = Number(steps) * (sprite.speed || 1);
 
-  updateSprite();
+  sprite.x += Math.cos((sprite.rotation * Math.PI) / 180) * distance;
+  sprite.y += Math.sin((sprite.rotation * Math.PI) / 180) * distance;
 
-  const end = getSpriteCenter();
+  renderSprite(sprite);
+
+  const end = getSpriteCenter(sprite);
 
   drawPenLine(start.x, start.y, end.x, end.y);
-
 };
 
 window.goToPosition = function (x, y) {
-  const start = getSpriteCenter();
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteX = Number(x);
-  spriteY = Number(y);
+  const start = getSpriteCenter(sprite);
 
-  updateSprite();
+  sprite.x = Number(x);
+  sprite.y = Number(y);
 
-  const end = getSpriteCenter();
+  renderSprite(sprite);
+
+  const end = getSpriteCenter(sprite);
 
   drawPenLine(start.x, start.y, end.x, end.y);
-
 };
 
 window.turnSprite = function (angle) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteRotation += Number(angle);
+  sprite.rotation += Number(angle);
 
-  updateSprite();
+  renderSprite(sprite);
 };
 
 window.pointDirection = function (direction) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteRotation = Number(direction);
+  sprite.rotation = Number(direction);
 
-  updateSprite();
+  renderSprite(sprite);
 };
 
 
@@ -245,12 +267,10 @@ window.pointDirection = function (direction) {
 // =========================
 
 window.setSpeed = function (speed) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteSpeed = Number(speed);
-
-  if (spriteSpeed < 1) {
-    spriteSpeed = 1;
-  }
+  sprite.speed = Math.max(1, Number(speed));
 };
 
 // =========================
@@ -258,6 +278,8 @@ window.setSpeed = function (speed) {
 // =========================
 
 window.sayText = function (text) {
+  const sprite = getRuntimeSprite();
+
   let bubble = document.getElementById("speechBubble");
 
   if (!bubble) {
@@ -280,10 +302,12 @@ window.sayText = function (text) {
   }
 
   requestAnimationFrame(() => {
+    if (!sprite) return;
+
     const bubbleHeight = bubble.offsetHeight;
 
-    bubble.style.left = spriteX + 60 + "px";
-    bubble.style.top = spriteY - bubbleHeight - 10 + "px";
+    bubble.style.left = sprite.x + 60 + "px";
+    bubble.style.top = sprite.y - bubbleHeight - 10 + "px";
   });
 };
 
@@ -300,10 +324,12 @@ window.sayForSeconds = async function (text, seconds) {
   }
 };
 
+// Backdrop is a stage-level concept, shared by every sprite — not
+// retargeted per-sprite.
 window.setBackgroundImage = function (image) {
   const stage = document.getElementById("stage");
 
-  stage.style.backgroundImage = `url('/labs/images/backgrounds/${image}.jpg')`;
+  stage.style.backgroundImage = `url('/labs/images/backgrounds/${image}')`;
 
   stage.style.backgroundSize = "cover";
 
@@ -384,29 +410,24 @@ window.addSprite = function (spriteName, x, y) {
   sprite.style.width = "50px";
   sprite.style.height = "50px";
 
-  // stage.appendChild(sprite);
   stage.appendChild(sprite);
-const spriteData = {
-  id: Date.now(),
 
-  element: sprite,
+  const spriteData = {
+    id: Date.now(),
+    element: sprite,
+    name: spriteName,
+    x: Number(x),
+    y: Number(y),
+    width: 120,
+    height: 120,
+    rotation: 0,
+    visible: true,
+    speed: 1,
+    workspaceXml: "",
+  };
 
-  name: spriteName,
+  window.sprites.push(spriteData);
 
-  x: Number(x),
-
-  y: Number(y),
-
-  width: 120,
-
-  height: 120,
-
-  rotation: 0,
-
-  visible: true,
-};
-
-window.sprites.push(spriteData);
   let dragging = false;
 
   sprite.addEventListener("mousedown", () => {
@@ -435,13 +456,19 @@ window.sprites.push(spriteData);
     loadSpriteProperties(spriteData);
   });
 
-  
+
   sprite.addEventListener("click", () => {
     selectSpriteById(spriteData.id);
   });
 };
 
 
+// The one live sprite-selection path (wired to sprite-card clicks in
+// blocklyLab.js's renderSpriteList). Each sprite owns its own Blockly
+// blocks — only one sprite's blocks are ever shown in the shared
+// workspace at a time, so switching sprites means: save whatever's
+// currently in the visible workspace back onto the sprite we're leaving,
+// then load the newly-selected sprite's own saved blocks into it.
 function selectSpriteById(id) {
   document
     .querySelectorAll(".sprite-card")
@@ -450,6 +477,12 @@ function selectSpriteById(id) {
   const sprite = window.sprites.find((s) => s.id === id);
 
   if (!sprite) return;
+
+  if (window.currentSprite && typeof workspace !== "undefined" && workspace) {
+    window.currentSprite.workspaceXml = Blockly.Xml.domToText(
+      Blockly.Xml.workspaceToDom(workspace)
+    );
+  }
 
   window.currentSprite = sprite;
 
@@ -460,6 +493,15 @@ function selectSpriteById(id) {
   }
 
   loadSpriteProperties(sprite);
+
+  if (typeof workspace !== "undefined" && workspace) {
+    workspace.clear();
+
+    if (sprite.workspaceXml) {
+      const xml = Blockly.utils.xml.textToDom(sprite.workspaceXml);
+      Blockly.Xml.domToWorkspace(xml, workspace);
+    }
+  }
 }
 
 function loadSpriteProperties(sprite) {
@@ -480,10 +522,7 @@ function loadSpriteProperties(sprite) {
 
 function updateSelectedSprite() {
   if (!currentSprite) return;
-if (currentSprite?.id === "mainSprite") {
-  spriteX = currentSprite.x;
-  spriteY = currentSprite.y;
-}
+
   currentSprite.x = Number(document.getElementById("spriteX").value);
 
   currentSprite.y = Number(document.getElementById("spriteY").value);
@@ -554,57 +593,63 @@ window.moveSpriteNamed = function (name, x, y) {
 };
 
 window.setSprite = function (spriteName) {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
 
-  const sprite =
-    document.getElementById("sprite");
-
-  if (!sprite) return;
-
-  sprite.src =
-    `/labs/images/sprites/${spriteName}.png`;
+  sprite.name = spriteName;
+  sprite.element.src = `/labs/images/sprites/${spriteName}.png`;
 };
 
 window.changeX = function (value) {
-  const start = getSpriteCenter();
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteX += Number(value);
+  const start = getSpriteCenter(sprite);
 
-  updateSprite();
+  sprite.x += Number(value);
 
-  const end = getSpriteCenter();
+  renderSprite(sprite);
+
+  const end = getSpriteCenter(sprite);
 
   drawPenLine(start.x, start.y, end.x, end.y);
 };
 
 window.changeY = function (value) {
-  const start = getSpriteCenter();
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  spriteY += Number(value);
+  const start = getSpriteCenter(sprite);
 
-  updateSprite();
+  sprite.y += Number(value);
 
-  const end = getSpriteCenter();
+  renderSprite(sprite);
+
+  const end = getSpriteCenter(sprite);
 
   drawPenLine(start.x, start.y, end.x, end.y);
 };
 
 
 window.glideTo = async function (sec, x, y) {
-  const startX = spriteX;
-  const startY = spriteY;
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  const startX = sprite.x;
+  const startY = sprite.y;
 
   const steps = 60 * sec;
 
-  let prev = getSpriteCenter();
+  let prev = getSpriteCenter(sprite);
 
   for (let i = 0; i < steps; i++) {
-    spriteX = startX + ((x - startX) * i) / steps;
+    sprite.x = startX + ((x - startX) * i) / steps;
 
-    spriteY = startY + ((y - startY) * i) / steps;
+    sprite.y = startY + ((y - startY) * i) / steps;
 
-    updateSprite();
+    renderSprite(sprite);
 
-    const current = getSpriteCenter();
+    const current = getSpriteCenter(sprite);
 
     drawPenLine(prev.x, prev.y, current.x, current.y);
 
@@ -612,38 +657,50 @@ window.glideTo = async function (sec, x, y) {
 
     await wait(1 / 60);
   }
+
+  sprite.x = Number(x);
+  sprite.y = Number(y);
+  renderSprite(sprite);
 };
 
 window.hideSprite = function () {
-  spriteVisible = false;
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  updateSprite();
+  sprite.visible = false;
+
+  renderSprite(sprite);
 };
 
 window.showSprite = function () {
-  spriteVisible = true;
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
 
-  updateSprite();
+  sprite.visible = true;
+
+  renderSprite(sprite);
 };
 
 window.setSpriteSize = function (size) {
-  const sprite = document.getElementById("sprite");
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
 
-  sprite.style.width = size + "px";
+  sprite.width = Number(size);
+  sprite.height = Number(size);
 
-  sprite.style.height = size + "px";
+  sprite.element.style.width = sprite.width + "px";
+  sprite.element.style.height = sprite.height + "px";
 };
 
 window.changeSpriteSizeBy = function (value) {
-  const sprite = document.getElementById("sprite");
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
 
-  let width = parseInt(sprite.style.width) || sprite.offsetWidth;
+  sprite.width = (sprite.width || sprite.element.offsetWidth) + Number(value);
+  sprite.height = (sprite.height || sprite.element.offsetHeight) + Number(value);
 
-  let height = parseInt(sprite.style.height) || sprite.offsetHeight;
-
-  sprite.style.width = width + Number(value) + "px";
-
-  sprite.style.height = height + Number(value) + "px";
+  sprite.element.style.width = sprite.width + "px";
+  sprite.element.style.height = sprite.height + "px";
 };
 
 window.stopRequested = false;
@@ -680,40 +737,49 @@ window.checkStop = function () {
   }
 };
 
-window.touchingEdge = function(){
+window.touchingEdge = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return false;
 
- const stage =
- document.getElementById("stage");
+  const stage = document.getElementById("stage");
+  const size = sprite.width || 50;
 
- return (
-   spriteX <= 0 ||
-   spriteY <= 0 ||
-   spriteX >= stage.clientWidth - 50 ||
-   spriteY >= stage.clientHeight - 50
- );
+  return (
+    sprite.x <= 0 ||
+    sprite.y <= 0 ||
+    sprite.x >= stage.clientWidth - size ||
+    sprite.y >= stage.clientHeight - size
+  );
 };
 
 
 window.touchingSprite = function () {
-  const a = document.getElementById("sprite1").getBoundingClientRect();
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return false;
 
-  const b = document.getElementById("sprite2").getBoundingClientRect();
+  const a = sprite.element.getBoundingClientRect();
 
-  return !(
-    a.right < b.left ||
-    a.left > b.right ||
-    a.bottom < b.top ||
-    a.top > b.bottom
-  );
+  return window.sprites.some((other) => {
+    if (other === sprite || !other.element) return false;
+
+    const b = other.element.getBoundingClientRect();
+
+    return !(
+      a.right < b.left ||
+      a.left > b.right ||
+      a.bottom < b.top ||
+      a.top > b.bottom
+    );
+  });
 };
 
 window.touchingSpriteNamed = function (name) {
+  const sprite = getRuntimeSprite();
   const other = getSprite(name);
 
-  if (!other) return false;
+  if (!sprite || !other || !sprite.element || !other.element) return false;
 
-  const a = document.getElementById("sprite").getBoundingClientRect();
-
+  const a = sprite.element.getBoundingClientRect();
   const b = other.element.getBoundingClientRect();
 
   return !(
@@ -737,30 +803,33 @@ document.addEventListener("mousemove", (e) => {
   mouseY = e.clientY - rect.top;
 });
 
-window.touchingMouse =
-function(){
+window.touchingMouse = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return false;
 
- return (
-  mouseX >= spriteX &&
-  mouseX <= spriteX + 100 &&
-  mouseY >= spriteY &&
-  mouseY <= spriteY + 100
- );
-  };
+  const size = sprite.width || 100;
 
-  window.pressedKeys = {};
+  return (
+    mouseX >= sprite.x &&
+    mouseX <= sprite.x + size &&
+    mouseY >= sprite.y &&
+    mouseY <= sprite.y + size
+  );
+};
 
-  document.addEventListener("keydown", (e) => {
-    pressedKeys[e.key] = true;
-  });
+window.pressedKeys = {};
 
-  document.addEventListener("keyup", (e) => {
-    pressedKeys[e.key] = false;
-  });
+document.addEventListener("keydown", (e) => {
+  pressedKeys[e.key] = true;
+});
 
-  window.isKeyPressed = function (key) {
-    return !!pressedKeys[key];
-  };
+document.addEventListener("keyup", (e) => {
+  pressedKeys[e.key] = false;
+});
+
+window.isKeyPressed = function (key) {
+  return !!pressedKeys[key];
+};
 
 window.userAnswer = "";
 
@@ -847,7 +916,8 @@ window.setMonitorVisible = function (show) {
 
   if (show && !window.monitorInterval) {
     window.monitorInterval = setInterval(() => {
-      monitor.innerHTML = `X: ${Math.round(spriteX)}`;
+      const sprite = window.currentSprite;
+      monitor.innerHTML = `X: ${sprite ? Math.round(sprite.x) : 0}`;
     }, 50);
   }
 };
@@ -880,16 +950,17 @@ window.clearConsole = function () {
 // STAGE RESET
 // =========================
 
+// Resets every sprite's rotation/visibility (cheap, safe) and clears the
+// console/backdrop. Position isn't reset — there's no separate "spawn
+// position" tracked apart from current position yet, so resetting it
+// would mean snapping sprites to an arbitrary spot rather than restoring
+// anything real.
 window.resetStage = function () {
-
-  spriteX = 100;
-  spriteY = 100;
-
-  spriteRotation = 0;
-
-  spriteSpeed = 1;
-
-  spriteVisible = true;
+  window.sprites.forEach((sprite) => {
+    sprite.rotation = 0;
+    sprite.visible = true;
+    renderSprite(sprite);
+  });
 
   const stage =
     document.getElementById("stage");
@@ -899,8 +970,6 @@ window.resetStage = function () {
   }
 
   clearConsole();
-
-  updateSprite();
 };
 
 // =========================
@@ -908,7 +977,7 @@ window.resetStage = function () {
 // =========================
 
 window.addEventListener("load", () => {
-  
+
 document
   .getElementById("spriteX")
   .addEventListener("input", updateSelectedSprite);
@@ -932,56 +1001,10 @@ document
 document
   .getElementById("spriteVisible")
   .addEventListener("change", updateSelectedSprite);
-  
+
    initPen();
-  updateSprite();
 });
 
-window.compileEvents = function () {
-
-   clearEvents();
-
-   const generator =
-      javascript.javascriptGenerator;
-
-   const topBlocks =
-      workspace.getTopBlocks(true);
-
-   let eventCode = "";
-
-   for (const block of topBlocks) {
-
-      if (
-         block.type === "when_key_pressed" ||
-         block.type === "when_sprite_clicked" ||
-         block.type === "when_message_received" ||
-         block.type === "when_touching_edge"
-      ) {
-
-         let code =
-            generator.blockToCode(block);
-
-         if (Array.isArray(code)) {
-            code = code[0];
-         }
-
-         eventCode += code + "\n";
-      }
-   }
-
-   console.log(eventCode);
-
-   new Function(eventCode)();
-};
-
-window.clearEvents = function(){
-
-   window.keyEvents = {};
-
-   window.broadcastListeners = {};
-
-   window.spriteClickEvents = [];
-
-   window.edgeEvents = [];
-
-};
+// compileEvents/clearEvents moved to blocklyLab.js, where they now
+// iterate every sprite's own stored blocks (not just the one visible
+// workspace) — see the "EVENTS (per-sprite)" section there.

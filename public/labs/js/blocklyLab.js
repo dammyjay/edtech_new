@@ -56,12 +56,15 @@ window.createSprite = function (spriteName) {
     height: 120,
     rotation: 0,
     visible: true,
+    speed: 1,
+    workspaceXml: "", // a new sprite starts with no scripts of its own
   };
 
   sprites.push(spriteData);
   makeSpriteDraggable(spriteData);
 
   renderSpriteList();
+  selectSpriteById(spriteData.id);
 
   document.getElementById("spriteModal").style.display = "none";
 };
@@ -356,6 +359,8 @@ window.addEventListener("load", async () => {
       height: 120,
       rotation: 0,
       visible: true,
+      speed: 1,
+      workspaceXml: "",
     };
 
     makeSpriteDraggable(spriteData);
@@ -815,11 +820,59 @@ async function initLab(labType) {
 
     const project = data.project.project_data || {};
 
-    if (project.workspace) {
-      const xml = Blockly.utils.xml.textToDom(project.workspace);
+    if (project.sprites && project.sprites.length) {
+      // Real per-sprite save — restore every sprite exactly as saved.
+      // The first one reuses the existing #sprite DOM element already
+      // on the page; any additional ones are created the same way
+      // "Add Sprite" already creates them.
+      const stage = document.getElementById("stage");
+      window.sprites = [];
 
+      project.sprites.forEach((saved, index) => {
+        const el = index === 0 ? document.getElementById("sprite") : document.createElement("img");
+
+        if (index > 0) {
+          el.classList.add("sprite");
+          stage.appendChild(el);
+        }
+
+        el.src = `/labs/images/sprites/${saved.name}.png`;
+        el.style.position = "absolute";
+        el.style.left = saved.x + "px";
+        el.style.top = saved.y + "px";
+        el.style.width = (saved.width || 120) + "px";
+        el.style.height = (saved.height || 120) + "px";
+        el.style.transform = `rotate(${saved.rotation || 0}deg)`;
+        el.style.display = saved.visible === false ? "none" : "block";
+
+        const spriteData = { ...saved, element: el };
+
+        makeSpriteDraggable(spriteData);
+        el.addEventListener("click", () => selectSpriteById(spriteData.id));
+
+        window.sprites.push(spriteData);
+      });
+
+      renderSpriteList();
+
+      if (project.backdrop) {
+        setBackground(project.backdrop);
+      }
+
+      selectSpriteById(window.sprites[0].id);
+    } else if (project.workspace) {
+      // Legacy project, saved before per-sprite scripting existed —
+      // treat the one saved script as the default sprite's own script.
+      const mainSprite = window.sprites.find((s) => s.id === "mainSprite");
+      if (mainSprite) {
+        mainSprite.workspaceXml = project.workspace;
+      }
+
+      const xml = Blockly.utils.xml.textToDom(project.workspace);
       Blockly.Xml.domToWorkspace(xml, workspace);
     }
+
+    compileEvents();
   } catch (err) {
     console.error("initLab error:", err);
   }
@@ -829,10 +882,15 @@ async function saveProject() {
   if (!window.currentProjectId || !workspace) return;
 
   try {
+    // Save whatever's currently in the visible workspace back onto the
+    // sprite it belongs to before persisting — it's only ever synced to
+    // the sprite object on selection-switch or here, not continuously.
+    if (window.currentSprite) {
+      window.currentSprite.workspaceXml = Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace));
+    }
+
     const xml = Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace));
 
-    // const generatedCode =
-    //   Blockly.JavaScript.workspaceToCode(workspace);
     const generatedCode =
       javascript.javascriptGenerator.workspaceToCode(workspace);
 
@@ -840,8 +898,21 @@ async function saveProject() {
       projectId: window.currentProjectId,
 
       projectData: {
-        workspace: xml,
+        workspace: xml, // back-compat field only, sprites[] is authoritative
         generatedCode,
+        backdrop: window.currentBackground || null,
+        sprites: window.sprites.map((sprite) => ({
+          id: sprite.id,
+          name: sprite.name,
+          x: sprite.x,
+          y: sprite.y,
+          width: sprite.width,
+          height: sprite.height,
+          rotation: sprite.rotation,
+          visible: sprite.visible,
+          speed: sprite.speed || 1,
+          workspaceXml: sprite.workspaceXml || "",
+        })),
       },
     };
 
@@ -863,6 +934,12 @@ async function saveProject() {
   }
 }
 
+// Runs every sprite's own "when run clicked" script independently and
+// concurrently — each one gets its own temporary, never-rendered
+// workspace built from its saved blocks, so a sprite that isn't
+// currently open in the editor still runs correctly. The sprite
+// currently open uses the live visible workspace directly, to include
+// unsaved edits.
 async function runCode() {
   const consoleBox = document.getElementById("console");
 
@@ -870,108 +947,136 @@ async function runCode() {
     consoleBox.innerHTML = "";
   }
 
+  if (window.currentSprite) {
+    window.currentSprite.workspaceXml = Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace));
+  }
+
+  isRunning = true;
+  stopRequested = false;
+
+  document.getElementById("runStatus").textContent = "Running...";
+  document.getElementById("stopBtn").style.display = "inline-block";
+
   try {
-    const generator = javascript.javascriptGenerator;
+    const runs = [];
 
-    generator.init(workspace);
+    for (const sprite of window.sprites) {
+      if (!sprite.workspaceXml) continue;
 
-    const topBlocks = workspace.getTopBlocks(true);
+      const tempWorkspace = new Blockly.Workspace();
+      const xml = Blockly.utils.xml.textToDom(sprite.workspaceXml);
+      Blockly.Xml.domToWorkspace(xml, tempWorkspace);
 
-    const runBlock = topBlocks.find(
-      (block) => block.type === "when_run_clicked",
-    );
+      const generator = javascript.javascriptGenerator;
+      generator.init(tempWorkspace);
 
-    if (!runBlock) {
-      showAlert("Add a When Run Clicked block");
-      return;
+      const runBlock = tempWorkspace
+        .getTopBlocks(true)
+        .find((block) => block.type === "when_run_clicked");
+
+      if (runBlock) {
+        let code = generator.blockToCode(runBlock);
+        if (Array.isArray(code)) code = code[0];
+        code = generator.finish(code);
+
+        console.log("Sprite:", sprite.name, code);
+
+        runs.push(runGeneratedCode(sprite, code));
+      }
+
+      tempWorkspace.dispose();
     }
 
-    let code = generator.blockToCode(runBlock);
-
-//     let code = "";
-
-// for (const block of topBlocks) {
-
-//   let blockCode =
-//     generator.blockToCode(block);
-
-//   if (Array.isArray(blockCode)) {
-//     blockCode = blockCode[0];
-//   }
-
-//   code += blockCode + "\n";
-// }
-
-    if (Array.isArray(code)) {
-      code = code[0];
+    if (!runs.length) {
+      showAlert("Add a When Run Clicked block to at least one sprite");
     }
 
-    code = generator.finish(code);
-
-    console.log("Generated Code:");
-    console.log(code);
-
-    // await runGeneratedCode(code);
-    isRunning = true;
-    stopRequested = false;
-
-    document.getElementById("runStatus").textContent = "Running...";
-
-    document.getElementById("stopBtn").style.display = "inline-block";
-
-    try {
-      await runGeneratedCode(code);
-    } finally {
-      isRunning = false;
-
-      document.getElementById("runStatus").textContent = "Ready";
-
-      document.getElementById("stopBtn").style.display = "none";
-    }
-
-    document.getElementById("stopBtn").addEventListener("click", () => {
-      stopRequested = true;
-
-      document.getElementById("runStatus").textContent = "Stopped";
-    });
+    await Promise.all(runs);
   } catch (err) {
     console.error(err);
     logMessage("Error: " + err.message);
+  } finally {
+    isRunning = false;
+    document.getElementById("runStatus").textContent = "Ready";
+    document.getElementById("stopBtn").style.display = "none";
   }
 }
 
-async function runGeneratedCode(code) {
-  const fn = new Function(`
+async function runGeneratedCode(sprite, code) {
+  const fn = new Function(
+    "sprite",
+    `
     return (async () => {
+      window.currentRuntimeSprite = sprite;
       ${code}
     })();
-  `);
+    `,
+  );
 
-  await fn();
+  try {
+    await fn(sprite);
+  } finally {
+    window.currentRuntimeSprite = null;
+  }
 }
 
-function resetStage() {
-  if (typeof spriteX !== "undefined") spriteX = 100;
+// Re-registers every sprite's own event blocks (when_key_pressed,
+// when_sprite_clicked, when_message_received, when_touching_edge) —
+// each sprite's blocks are scanned independently (using its own saved
+// XML, or the live workspace for whichever sprite is currently open),
+// with currentRuntimeSprite set to the owning sprite while its
+// event-setup code runs, so the handlers it registers stay bound to it.
+function compileEvents() {
+  clearEvents();
 
-  if (typeof spriteY !== "undefined") spriteY = 100;
+  const generator = javascript.javascriptGenerator;
 
-  if (typeof spriteRotation !== "undefined") spriteRotation = 0;
+  window.sprites.forEach((sprite) => {
+    const isOpenInEditor = window.currentSprite && window.currentSprite.id === sprite.id;
 
-  if (typeof updateSprite === "function") {
-    updateSprite();
-  }
+    let sourceWorkspace = null;
+    let tempWorkspace = null;
 
-  const stage = document.getElementById("stage");
+    if (isOpenInEditor) {
+      sourceWorkspace = workspace;
+    } else if (sprite.workspaceXml) {
+      tempWorkspace = new Blockly.Workspace();
+      const xml = Blockly.utils.xml.textToDom(sprite.workspaceXml);
+      Blockly.Xml.domToWorkspace(xml, tempWorkspace);
+      sourceWorkspace = tempWorkspace;
+    }
 
-  if (stage) {
-    stage.style.background = "#ffffff";
-  }
+    if (!sourceWorkspace) return;
 
-  const consoleBox = document.getElementById("console");
+    generator.init(sourceWorkspace);
 
-  if (consoleBox) {
-    consoleBox.innerHTML = "";
-  }
+    let eventCode = "";
+    for (const block of sourceWorkspace.getTopBlocks(true)) {
+      if (
+        block.type === "when_key_pressed" ||
+        block.type === "when_sprite_clicked" ||
+        block.type === "when_message_received" ||
+        block.type === "when_touching_edge"
+      ) {
+        let code = generator.blockToCode(block);
+        if (Array.isArray(code)) code = code[0];
+        eventCode += code + "\n";
+      }
+    }
+
+    if (eventCode) {
+      window.currentRuntimeSprite = sprite;
+      new Function(eventCode)();
+      window.currentRuntimeSprite = null;
+    }
+
+    if (tempWorkspace) tempWorkspace.dispose();
+  });
+}
+
+function clearEvents() {
+  window.keyEvents = {};
+  window.broadcastListeners = {};
 }
 
 window.changeBackground = function (color) {
@@ -992,10 +1097,3 @@ window.addEventListener("click", (e) => {
   }
 });
 
-window.selectedSprite = null;
-
-function selectSprite(index) {
-  selectedSprite = window.sprites[index];
-
-  console.log("Selected:", selectedSprite.name);
-}
