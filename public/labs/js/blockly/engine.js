@@ -45,6 +45,8 @@ window.renderSprite = function (sprite) {
   sprite.element.style.top = sprite.y + "px";
   sprite.element.style.transform = `rotate(${sprite.rotation}deg)`;
   sprite.element.style.display = sprite.visible ? "block" : "none";
+  if (sprite.width) sprite.element.style.width = sprite.width + "px";
+  if (sprite.height) sprite.element.style.height = sprite.height + "px";
 };
 
 // Back-compat wrapper for any lingering direct callers.
@@ -418,12 +420,17 @@ window.addSprite = function (spriteName, x, y) {
     name: spriteName,
     x: Number(x),
     y: Number(y),
-    width: 120,
-    height: 120,
+    width: 50,
+    height: 50,
     rotation: 0,
     visible: true,
     speed: 1,
     workspaceXml: "",
+    spawnX: Number(x),
+    spawnY: Number(y),
+    spawnWidth: 50,
+    spawnHeight: 50,
+    spawnRotation: 0,
   };
 
   window.sprites.push(spriteData);
@@ -563,16 +570,6 @@ window.moveSpriteTo = function (spriteId, x, y) {
   sprite.element.style.left = sprite.x + "px";
 
   sprite.element.style.top = sprite.y + "px";
-};
-
-window.moveAddedSprite = function (spriteId, steps) {
-  const sprite = window.sprites[spriteId];
-
-  if (!sprite) return;
-
-  sprite.x += Number(steps);
-
-  sprite.element.style.left = sprite.x + "px";
 };
 
 window.getSprite = function (name) {
@@ -955,18 +952,26 @@ window.clearConsole = function () {
 // position" tracked apart from current position yet, so resetting it
 // would mean snapping sprites to an arbitrary spot rather than restoring
 // anything real.
+// Reset only puts each sprite back to normal — its own starting
+// position/size/rotation/visibility — nothing more. It never removes an
+// added sprite and never touches the backdrop (setting stage.background
+// here used to silently wipe an image backdrop too, since `background`
+// is a shorthand that resets background-image along with it).
 window.resetStage = function () {
   window.sprites.forEach((sprite) => {
-    sprite.rotation = 0;
+    sprite.x = sprite.spawnX ?? sprite.x;
+    sprite.y = sprite.spawnY ?? sprite.y;
+    sprite.width = sprite.spawnWidth ?? sprite.width;
+    sprite.height = sprite.spawnHeight ?? sprite.height;
+    sprite.rotation = sprite.spawnRotation ?? 0;
     sprite.visible = true;
     renderSprite(sprite);
   });
 
-  const stage =
-    document.getElementById("stage");
-
-  if (stage) {
-    stage.style.background = "#ffffff";
+  // Refresh the on-screen X/Y/Width/Height/Rotation/Show inputs to match
+  // immediately, instead of only updating on next sprite selection.
+  if (window.currentSprite) {
+    loadSpriteProperties(window.currentSprite);
   }
 
   clearConsole();

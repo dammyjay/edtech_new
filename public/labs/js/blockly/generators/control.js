@@ -42,7 +42,8 @@
 // };
 
 
-const jsGenerator = javascript.javascriptGenerator;
+// jsGenerator is declared once in generators/motion.js (loaded first) —
+// shared here since classic <script> tags share one global scope.
 
 jsGenerator.forBlock["wait_seconds"] = function (block) {
   const seconds =
@@ -62,9 +63,15 @@ jsGenerator.forBlock["forever"] = function (block) {
       "DO"
     );
 
+  // await wait(0.02) every iteration is required, not optional — without
+  // a yield point, this compiles to a synchronous while(true) that freezes
+  // the browser tab if the student's own blocks don't already include a
+  // wait. Matches the same pattern already used by repeat_until/wait_until.
   return `
 while(true){
 ${statements}
+checkStop();
+await wait(0.02);
 }
 `;
 };

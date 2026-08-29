@@ -1,7 +1,15 @@
 <!-- views/labs/blockly/editor.ejs -->
+<%- include('../../partials/header', { title: 'Blockly Playground' }) %>
 
 <script src="/js/uiAlerts.js"></script>
 <link rel="stylesheet" href="/labs/css/blockly.css" />
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  integrity="sha512-..."
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+/>
 
 <script src="https://unpkg.com/blockly/blockly.min.js"></script>
 <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
@@ -23,41 +31,40 @@
 
 <script src="/labs/js/blockly/engine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-;
 <script src="/labs/js/blocklyLab.js"></script>
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-  integrity="sha512-..."
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-/>
 
 <div class="editor-toolbar">
-  <button id="runBtn"><i class="fas fa-play"></i> Run</button>
+  <a href="/labs" class="editor-back-link" title="Back to Learning Labs">
+    <i class="fas fa-arrow-left"></i> Labs
+  </a>
 
-  <button id="stopBtn" style="display: none">
-    <i class="fas fa-stop"></i> Stop
-  </button>
+  <div class="toolbar-group">
+    <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
+    <button id="stopBtn" class="tb-danger" style="display: none">
+      <i class="fas fa-stop"></i> Stop
+    </button>
+  </div>
 
-  <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
+  <div class="toolbar-group">
+    <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
+    <button id="resetBtn"><i class="fas fa-rotate-right"></i> Reset</button>
+  </div>
 
-  <button id="resetBtn"><i class="fas fa-rotate-right"></i> Reset</button>
+  <div class="toolbar-group">
+    <button id="screenshotBtn"><i class="fas fa-camera"></i> Screenshot</button>
+    <button id="recordBtn"><i class="fas fa-circle"></i> Record</button>
+    <button id="stopRecordBtn" style="display: none">
+      <i class="fas fa-stop"></i> Stop Recording
+    </button>
+    <div id="recordingTimer" class="recording-timer">🔴 REC 00:00</div>
+  </div>
 
-  <button id="screenshotBtn"><i class="fas fa-camera"></i> Screenshot</button>
-
-  <button id="recordBtn"><i class="fas fa-circle"></i> Record</button>
-  <div id="recordingTimer" class="recording-timer">🔴 REC 00:00</div>
-
-  <button id="stopRecordBtn" style="display: none">
-    <i class="fas fa-stop"></i> Stop Recording
-  </button>
-
-  <button id="fullscreenBtn"><i class="fas fa-expand"></i> Full Screen</button>
-
-  <button id="exitFullscreenBtn" style="display: none">
-    <i class="fas fa-compress"></i> Minimize
-  </button>
+  <div class="toolbar-group">
+    <button id="fullscreenBtn"><i class="fas fa-expand"></i> Full Screen</button>
+    <button id="exitFullscreenBtn" style="display: none">
+      <i class="fas fa-compress"></i> Minimize
+    </button>
+  </div>
 
   <div id="runStatus">Ready</div>
 </div>
@@ -180,26 +187,6 @@
       </value>
     </block>
 
-    <block type="move_added_sprite">
-      <value name="ID">
-        <shadow type="math_number">
-          <field name="NUM">0</field>
-        </shadow>
-      </value>
-
-      <value name="X">
-        <shadow type="math_number">
-          <field name="NUM">200</field>
-        </shadow>
-      </value>
-
-      <value name="Y">
-        <shadow type="math_number">
-          <field name="NUM">200</field>
-        </shadow>
-      </value>
-    </block>
-
     <block type="turn_sprite">
       <value name="ANGLE">
         <shadow type="math_number">
@@ -303,20 +290,15 @@
 
     <block type="change_size_by"></block>
 
-    <block type="change_background"></block>
-
     <block type="next_background"></block>
 
     <block type="previous_background"></block>
 
     <block type="random_background"></block>
-
-    <block type="set_background_image"></block>
   </category>
 
   <!-- EVENTS -->
   <category name="Events" colour="#ffd900">
-    <block type="text_print"></block>
     <block type="when_run_clicked"></block>
     <block type="when_key_pressed"></block>
 
@@ -447,8 +429,6 @@
     <block type="text_changeCase"></block>
 
     <block type="text_trim"></block>
-
-    <block type="text_print"></block>
 
     <block type="text_prompt_ext"></block>
   </category>

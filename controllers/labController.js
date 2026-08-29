@@ -81,7 +81,7 @@ exports.getWebLab = async (req, res) => {
 exports.getBlocklyLab = async (req, res) => {
   res.render("labs/blockly/editor", {
     title: "Blockly Playground",
-    layout: "layout",
+    users: req.session.user,
   });
 };
 

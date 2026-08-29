@@ -28,6 +28,23 @@ let cursorY = 0;
 
 let backgroundImage = null;
 
+// The site header's real rendered height isn't knowable from this page's
+// own CSS in advance (it's shared across the whole app) — measure where
+// .blockly-container actually starts and fill exactly the rest of the
+// viewport, instead of guessing a fixed px number to subtract.
+function fitBlocklyContainer() {
+  const container = document.querySelector(".blockly-container");
+  if (!container) return;
+
+  // Works the same whether the site header is showing (normal mode) or
+  // hidden (fullscreen, see body.blockly-fullscreen) — it just measures
+  // whatever is actually above the container right now.
+  const top = container.getBoundingClientRect().top;
+  container.style.height = `calc(100vh - ${top}px)`;
+}
+
+window.addEventListener("resize", fitBlocklyContainer);
+
 window.createSprite = function (spriteName) {
   const stage = document.getElementById("stage");
 
@@ -58,6 +75,13 @@ window.createSprite = function (spriteName) {
     visible: true,
     speed: 1,
     workspaceXml: "", // a new sprite starts with no scripts of its own
+    // Captured once, at creation — Reset restores to these, not to a
+    // single shared default, so each sprite gets its own "normal".
+    spawnX: 100,
+    spawnY: 100,
+    spawnWidth: 120,
+    spawnHeight: 120,
+    spawnRotation: 0,
   };
 
   sprites.push(spriteData);
@@ -309,6 +333,8 @@ window.deleteBackground = function (index) {
 
 window.addEventListener("load", async () => {
   try {
+    fitBlocklyContainer();
+
     // Initialize Blockly
     console.log("toolbox", document.getElementById("toolbox"));
 
@@ -361,6 +387,11 @@ window.addEventListener("load", async () => {
       visible: true,
       speed: 1,
       workspaceXml: "",
+      spawnX: 100,
+      spawnY: 100,
+      spawnWidth: 120,
+      spawnHeight: 120,
+      spawnRotation: 0,
     };
 
     makeSpriteDraggable(spriteData);
@@ -371,6 +402,20 @@ window.addEventListener("load", async () => {
 
     window.sprites.push(spriteData);
     renderSpriteList();
+
+    // A project always has an active sprite from the start — otherwise a
+    // student who builds blocks before ever clicking their own default
+    // sprite would have currentSprite stay null, and Save/Run would have
+    // nothing to attach that work to. This is a plain assignment, not the
+    // full selectSpriteById() (which also calls workspace.clear() +
+    // domToWorkspace()) — calling that here, and then AGAIN moments later
+    // when initLab() below restores a real saved project, cleared and
+    // reloaded the Blockly workspace twice in quick succession, which
+    // left it visually fine but unable to accept clicks/drags afterward.
+    // initLab() still properly selects the first restored sprite itself
+    // (a single, real selectSpriteById call) when there's saved data.
+    window.currentSprite = spriteData;
+    loadSpriteProperties(spriteData);
 
     // Load project
     await initLab("blockly");
@@ -414,31 +459,40 @@ window.addEventListener("load", async () => {
 
     const stagePanel = document.querySelector(".stage-panel");
 
+    // Real Fullscreen API, targeting the WHOLE PAGE (not just the stage
+    // panel) — the toolbar (Run/Stop/Save/etc.) is a sibling of
+    // .blockly-container, so fullscreening only the stage panel hid the
+    // toolbar entirely. Fullscreening the page instead keeps the toolbar
+    // visible at the top, matching Scratch/PictoBlox's own presentation
+    // mode; body.blockly-fullscreen (CSS) hides the site nav + blocks
+    // workspace and lets the stage expand into the freed space.
     fullscreenBtn.addEventListener("click", () => {
-      // stagePanel.classList.add("fullscreen");
-      document.body.classList.add("presentation-mode");
-      stagePanel.classList.add("fullscreen");
-
-      fullscreenBtn.style.display = "none";
-
-      exitFullscreenBtn.style.display = "inline-block";
-
-      setTimeout(() => {
-        Blockly.svgResize(workspace);
-      }, 100);
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.error("Fullscreen request failed:", err);
+          showAlert("Fullscreen isn't available right now.");
+        });
+      } else {
+        showAlert("Fullscreen isn't supported in this browser.");
+      }
     });
 
     exitFullscreenBtn.addEventListener("click", () => {
-      // stagePanel.classList.remove("fullscreen");
-      document.body.classList.remove("presentation-mode");
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+    });
 
-      stagePanel.classList.remove("fullscreen");
+    document.addEventListener("fullscreenchange", () => {
+      const isFullscreen = !!document.fullscreenElement;
 
-      fullscreenBtn.style.display = "inline-block";
-
-      exitFullscreenBtn.style.display = "none";
+      document.body.classList.toggle("blockly-fullscreen", isFullscreen);
+      stagePanel.classList.toggle("fullscreen", isFullscreen);
+      fullscreenBtn.style.display = isFullscreen ? "none" : "inline-block";
+      exitFullscreenBtn.style.display = isFullscreen ? "inline-block" : "none";
 
       setTimeout(() => {
+        fitBlocklyContainer();
         Blockly.svgResize(workspace);
       }, 100);
     });
@@ -560,7 +614,16 @@ function renderRecordingFrame() {
         stageHeight
     );
   }
-  
+
+  // Pen trails (drawn on #penCanvas live) sit between the backdrop and
+  // the sprites on the real stage — match that order here, otherwise
+  // anything drawn with the Pen blocks would be invisible in recordings
+  // despite being visible on screen.
+  const penCanvasEl = document.getElementById("penCanvas");
+  if (penCanvasEl) {
+    recordingCtx.drawImage(penCanvasEl, 0, 0, stageWidth, stageHeight);
+  }
+
   sprites.forEach((sprite) => {
     if (!sprite.visible) return;
 
@@ -583,6 +646,28 @@ function renderRecordingFrame() {
 
     recordingCtx.restore();
   });
+
+  // Speech bubble (say_text/say_for_seconds) — also invisible in the
+  // recording without this, despite showing live on the real stage.
+  const bubble = document.getElementById("speechBubble");
+  if (bubble && bubble.style.display !== "none") {
+    const stageEl = document.getElementById("stage");
+    const stageRect = stageEl.getBoundingClientRect();
+    const bubbleRect = bubble.getBoundingClientRect();
+
+    recordingCtx.save();
+    recordingCtx.fillStyle = "#fff";
+    recordingCtx.strokeStyle = "#A17807";
+    recordingCtx.lineWidth = 2;
+    const bx = bubbleRect.left - stageRect.left;
+    const by = bubbleRect.top - stageRect.top;
+    recordingCtx.fillRect(bx, by, bubbleRect.width, bubbleRect.height);
+    recordingCtx.strokeRect(bx, by, bubbleRect.width, bubbleRect.height);
+    recordingCtx.fillStyle = "#222";
+    recordingCtx.font = "13px sans-serif";
+    recordingCtx.fillText(bubble.innerText, bx + 8, by + 18, bubbleRect.width - 16);
+    recordingCtx.restore();
+  }
 
   // Draw cursor
 
@@ -705,17 +790,24 @@ async function recordStage(useMic) {
 
     recordedChunks = [];
 
-    mediaRecorder =
-        new MediaRecorder(
-            recordingStream,
-            {
-                mimeType:
-                    "video/webm;codecs=vp9",
+    // Not every browser supports VP9 — check first and fall back to
+    // whatever webm codec IS supported instead of throwing uncaught.
+    const preferredType = "video/webm;codecs=vp9";
+    const recorderOptions = {
+        mimeType: MediaRecorder.isTypeSupported(preferredType) ? preferredType : "video/webm",
+        videoBitsPerSecond: 12000000,
+    };
 
-                videoBitsPerSecond:
-                    12000000
-            }
-        );
+    try {
+        mediaRecorder = new MediaRecorder(recordingStream, recorderOptions);
+    } catch (err) {
+        console.error("MediaRecorder init failed:", err);
+        isRecording = false;
+        stopRecordingTimer();
+        document.getElementById("recordCursor").style.display = "none";
+        showAlert("Recording isn't supported in this browser.");
+        return;
+    }
 
     mediaRecorder.ondataavailable =
         event => {
@@ -912,6 +1004,11 @@ async function saveProject() {
           visible: sprite.visible,
           speed: sprite.speed || 1,
           workspaceXml: sprite.workspaceXml || "",
+          spawnX: sprite.spawnX ?? sprite.x,
+          spawnY: sprite.spawnY ?? sprite.y,
+          spawnWidth: sprite.spawnWidth ?? sprite.width,
+          spawnHeight: sprite.spawnHeight ?? sprite.height,
+          spawnRotation: sprite.spawnRotation ?? 0,
         })),
       },
     };

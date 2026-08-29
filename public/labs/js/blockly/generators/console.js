@@ -14,7 +14,8 @@
 //   Blockly.JavaScript["print_message"],
 // );
 
-const jsGenerator = javascript.javascriptGenerator;
+// jsGenerator is declared once in generators/motion.js (loaded first) —
+// shared here since classic <script> tags share one global scope.
 
 jsGenerator.forBlock["print_message"] = function (block, generator) {
   const text =
@@ -22,5 +23,3 @@ jsGenerator.forBlock["print_message"] = function (block, generator) {
 
   return `logMessage(${text});\n`;
 };
-
-console.log("Generator registered:", jsGenerator.forBlock["print_message"]);

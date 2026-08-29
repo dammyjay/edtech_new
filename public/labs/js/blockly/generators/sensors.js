@@ -38,7 +38,8 @@
 //   return [code, Blockly.JavaScript.ORDER_FUNCTION_CALL];
 // };
 
-const jsGenerator = javascript.javascriptGenerator;
+// jsGenerator is declared once in generators/motion.js (loaded first) —
+// shared here since classic <script> tags share one global scope.
 
 jsGenerator.forBlock["random_number"] = function (block) {
   const min =

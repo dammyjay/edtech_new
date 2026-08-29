@@ -181,36 +181,6 @@ addSprite("${sprite}", ${x}, ${y});
 `;
 };
 
-Blockly.Blocks["move_added_sprite"] = {
-  init: function () {
-    this.appendDummyInput().appendField("Move Sprite");
-
-    this.appendValueInput("ID").setCheck("Number").appendField("ID");
-
-    this.appendValueInput("X").setCheck("Number").appendField("X");
-
-    this.appendValueInput("Y").setCheck("Number").appendField("Y");
-
-    this.setPreviousStatement(true);
-    this.setNextStatement(true);
-
-    this.setColour("#4C97FF");
-  },
-};
-
-jsGenerator.forBlock["move_added_sprite"] = function (block) {
-  const id =
-    jsGenerator.valueToCode(block, "ID", javascript.Order.ATOMIC) || "0";
-
-  const x = jsGenerator.valueToCode(block, "X", javascript.Order.ATOMIC) || "0";
-
-  const y = jsGenerator.valueToCode(block, "Y", javascript.Order.ATOMIC) || "0";
-
-  return `
-moveSpriteTo(${id}, ${x}, ${y});
-`;
-};
-
 jsGenerator.forBlock["set_sprite"] = function (block) {
   const sprite = block.getFieldValue("SPRITE");
 

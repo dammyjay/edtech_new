@@ -1,115 +1,115 @@
-
 /* =========================
    MAIN LAYOUT
+   Shares --brand-pri/--radius-lg/etc with the rest of the site now that
+   this page includes partials/header (style.css) — no more duplicate,
+   driftable copies of the same tokens.
 ========================= */
 
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
-
-/* html,
-body{
-    height:100%;
-    overflow:hidden;
-} */
 
 html,
 body {
     height: 100%;
+    background: var(--bg-secondary, #f4f1ea);
 }
 
-@media (max-width:1024px) {
-
-    html,
-    body {
-        overflow: auto;
-    }
-
-    .blockly-container{
-        height:auto;
-        overflow:visible;
-    }
-
-        .stage-panel {
-            flex: 1;
-            /* Stage gets less space */
-            /* width: 35%; */
-            min-width: 300px;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+/* The shared site body { display:flex; align-items:center; padding:0 20px }
+   (style.css) is built for centered, narrow marketing/auth pages — it's
+   what was squeezing this page into a centered column with big gaps on
+   both sides instead of using the full width, now that this page loads
+   the shared stylesheet for the first time. Reset it here, scoped to
+   this page only (blockly.css loads after style.css, so this wins at
+   equal specificity) — nothing outside this page is affected. */
+body {
+    padding: 0;
+    align-items: stretch;
+    gap: 0;
 }
 
-:root {
-    /* Brand Colors */
-    --brand-pri: #A17807;
-    --brand-pri-dark: #4C3802;
-    --neutral1: #000000;
-    --neutral2: #ffffff;
-    --blue: #1406D5;
-    --red: #FF0000;
-    --grey: #E2E1E1;
-    --grey2: #ADABAB;
-
-    /* Text Colors */
-    --text-primary: #222222;
-    --text-secondary: #666666;
-    --text-light: #ffffff;
-
-    /* Background Colors */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-
-    /* Status Colors */
-    --success: #28a745;
-    --warning: #ffc107;
-    --error: #dc3545;
-    --info: #17a2b8;
-
-    /* Border Colors */
-    --border-light: #e0e0e0;
-    --border-dark: #b0b0b0;
-}
-
-.blockly-container{
-    display:flex;
-    height:calc(100vh - 60px);
-    gap:15px;
-    padding:10px;
-    overflow:hidden;
+.blockly-container {
+    display: flex;
+    /* Actual value set by JS (fitBlocklyContainer in blocklyLab.js), which
+       measures the real site header + toolbar height instead of guessing
+       a fixed px number — the site header's real height isn't something
+       this page's own CSS can know in advance. This is just a safe
+       fallback before that JS runs. */
+    height: calc(100vh - 130px);
+    gap: 16px;
+    padding: 12px 16px 16px;
+    overflow: hidden;
     box-sizing: border-box;
 }
 
-/* Presentation Mode */
-.blockly-container.presentation-mode .block-console {
+/* Full-page Fullscreen API mode (button click sets this via JS on
+   fullscreenchange) — site nav hidden for an immersive Scratch/PictoBlox-
+   style presentation, but the toolbar (Run/Stop/etc, a sibling of
+   .blockly-container, not inside the fullscreened stage-panel) stays
+   visible at the top. Blocks workspace hides; the stage expands to fill
+   the width on its own instead of sharing it with the workspace. */
+body.blockly-fullscreen header.header {
     display: none;
 }
 
-.blockly-container.presentation-mode {
-    justify-content: center;
-    align-items: center;
+body.blockly-fullscreen .block-console {
+    display: none;
 }
 
-.blockly-container.presentation-mode .stage-panel {
-    flex: none;
+body.blockly-fullscreen .stage-panel {
+    flex: 1 1 100%;
     max-width: none;
+    min-width: 0;
 }
+
+/* =========================
+   TOOLBAR
+========================= */
 
 .editor-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 15px;
-    background: #fff;
-    border-bottom: 1px solid #ddd;
+    gap: 14px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--brand-pri, #A17807), var(--brand-pri-dark, #4C3802));
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     position: sticky;
     top: 0;
     z-index: 5000;
     height: 60px;
+    overflow-x: auto;
+}
+
+.editor-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.editor-back-link:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    flex-shrink: 0;
 }
 
 .editor-toolbar button {
@@ -117,63 +117,64 @@ body {
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--brand-pri-dark, #4C3802);
+    transition: transform 0.12s ease, background 0.12s ease;
+    white-space: nowrap;
 }
 
-#runBtn {
+.editor-toolbar button:hover {
+    background: #fff;
+    transform: translateY(-1px);
+}
+
+#runBtn.tb-primary {
     background: #28a745;
-    color: white;
+    color: #fff;
 }
 
-#stopBtn {
+#stopBtn.tb-danger,
+#stopRecordBtn {
     background: #dc3545;
-    color: white;
+    color: #fff;
 }
 
-#fullscreenBtn {
-    background: #007bff;
-    color: white;
-}
-
-#exitFullscreenBtn {
-    background: #ff9800;
-    color: white;
+#recordBtn {
+    background: #dc3545;
+    color: #fff;
 }
 
 #runStatus {
     margin-left: auto;
-    font-weight: 600;
-    color: #666;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-/* Blockly */
+/* =========================
+   BLOCKS SIDE
+========================= */
 
-/* .block-console {
-    height: 85%;
-    width: 100%;
-} */
-
-.block-console{
-    flex:3;
-    display:flex;
-    flex-direction:column;
-    min-height:0;
-}
-
-.blockly-wrapper{
-    flex:1;
-    min-height:0;
-}
-
-#console{
-    height:80px;
-    min-height: 80px;
-    flex:none;
+.block-console {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
 }
 
 .blockly-wrapper {
     position: relative;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
 .workspace-logo {
@@ -182,137 +183,123 @@ body {
     right: 20px;
     width: 60px;
     height: auto;
-    opacity: 0.15;
+    opacity: 0.12;
     pointer-events: none;
     z-index: 1000;
 }
-
 
 #blocklyDiv {
     flex: 1;
     width: 100%;
     min-width: 0;
     height: 100%;
-    border-radius: 12px;
+    border-radius: var(--radius-lg, 16px);
     overflow: hidden;
     background: white;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-light, #e0e0e0);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* Blockly creates an internal off-screen <canvas class="blocklyComputeCanvas">
+   purely for measuring text metrics — it's meant to be invisible and
+   inert. This page's own layout was leaving it sized/positioned so it
+   sat on top of the actual workspace, silently swallowing every click
+   meant for a block (confirmed via document.elementFromPoint() landing
+   on it instead of the block underneath). Force it out of the way and
+   out of the pointer-event path regardless of where Blockly appends it. */
+.blocklyComputeCanvas {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    pointer-events: none !important;
+}
+
+#console {
+    height: 80px;
+    min-height: 64px;
+    flex: 0 0 auto;
+    background: #16181d;
+    color: #7dd88a;
+    padding: 10px 14px;
+    border-radius: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: "Consolas", monospace;
+    font-size: 12.5px;
+    margin-top: 10px;
 }
 
 /* =========================
    STAGE SIDE
+   Flexible (not fixed-px) heights so everything fits within one
+   viewport on desktop, however tall the window is, instead of clipping.
 ========================= */
 
-.stage-panel{
-    flex:1;     /* Stage gets less space */
-    /* width: 35%; */
-    min-width:450px;
-    max-width:600px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-}
-
-
-/* Presentation Mode */
-
-.stage-panel.fullscreen {
-
-    position: fixed;
-
-    top: 60px;
-    /* below toolbar */
-    left: 0;
-
-    width: 100vw;
-    height: calc(100vh - 60px);
-
-    background: #111;
-
-    z-index: 9999;
-
+.stage-panel {
+    flex: 2;
+    min-width: 420px;
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
 }
 
-/* Hide sprite controls */
+.stage-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 3 1 0;
+    min-height: 0;
+}
+
+#stage {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 180px;
+    background: white;
+    border: 2px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius-lg, 16px);
+    overflow: hidden;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* Real Fullscreen API target — the browser already makes this element
+   fill the whole screen; just make sure its own children fill it too. */
+.stage-panel.fullscreen {
+    max-width: none;
+    background: #111;
+}
 
 .stage-panel.fullscreen .asset-row {
     display: none;
 }
 
-
-/* Center stage */
-
 .stage-panel.fullscreen .stage-area {
-
-    width: 100%;
     height: 100%;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
-
-/* Bigger stage */
 
 .stage-panel.fullscreen #stage {
-
-    width: 900px;
-    height: 650px;
-
-    max-width: 90vw;
-    max-height: 85vh;
-
-    border-radius: 12px;
-
-    box-shadow: 0 0 30px rgba(0, 0, 0, .5);
-}
-
-/* Stage + Asset Panels */
-.stage-area {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-/* =========================
-   STAGE
-========================= */
-
-#stage {
-    position: relative;
     width: 100%;
-    height: 320px;
-    background: white;
-    border: 2px solid #ddd;
-    border-radius: 12px;
-    overflow: hidden;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: center;
+    height: 100%;
+    border-radius: 0;
+    border: none;
 }
 
 .ask-box {
     position: absolute;
     left: 50%;
     bottom: 15px;
-
     transform: translateX(-50%);
-
     width: 90%;
-
     background: white;
-
-    border: 2px solid #4C97FF;
-
+    border: 2px solid var(--brand-pri, #4C97FF);
     border-radius: 12px;
-
     padding: 12px;
-
     z-index: 9999;
-
     box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
 }
 
@@ -331,93 +318,64 @@ body {
 #askSubmit {
     padding: 8px 15px;
     margin-left: 5px;
-    background: #4C97FF;
+    background: var(--brand-pri, #4C97FF);
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
 }
 
-#mouseXIndicator {
+#mouseXIndicator,
+#mouseYIndicator {
     position: absolute;
+    background: rgba(0, 0, 0, .7);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+#mouseXIndicator {
     top: 5px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, .7);
-    color: white;
-    padding: 3px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-    z-index: 1000;
-    pointer-events: none;
 }
 
 #mouseYIndicator {
-    position: absolute;
     left: 5px;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, .7);
-    color: white;
-    padding: 3px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-    z-index: 1000;
-    pointer-events: none;
 }
 
 #recordCursor {
-
     position: absolute;
-
     width: 20px;
-
     height: 20px;
-
     border-radius: 50%;
-
     background: red;
-
     pointer-events: none;
-
     z-index: 9999;
-
     display: none;
-
 }
 
+/* Hidden by default — setMonitorVisible(true) (only called when a
+   "show variable monitor" block runs) switches this to display:block.
+   Without this default, the monitor was visible on every page load,
+   floating outside #stage next to the site header. */
 .monitor {
-
+    display: none;
     position: absolute;
-
     top: 10px;
     left: 10px;
-
     background: white;
-
     border: 1px solid #999;
-
     border-radius: 8px;
-
     padding: 6px 12px;
-
     font-weight: bold;
-
     z-index: 5000;
 }
-
-
-
-/* .recording-timer {
-    display: none;
-    background: #000;
-    color: #fff;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-weight: bold;
-    font-size: 14px;
-    margin-left: 10px;
-} */
 
 .recording-timer {
     display: none;
@@ -425,13 +383,10 @@ body {
     top: 10px;
     right: 10px;
     z-index: 9999;
-
     background: rgba(0, 0, 0, 0.8);
     color: white;
-
     padding: 8px 12px;
     border-radius: 20px;
-
     font-weight: bold;
 }
 
@@ -439,48 +394,29 @@ body {
     display: inline-block;
 }
 
-/* .asset-row {
-    display: flex;
-    gap: 10px;
-    height: 100%;
-} */
-
 .asset-row {
     display: flex;
     gap: 10px;
-
-    flex: 0 0 250px;
-    /* fixed height */
-    height: 250px;
-
-    min-height: 250px;
-    max-height: 250px;
+    flex: 2 1 0;
+    min-height: 180px;
 }
+
 .speech-bubble {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-
     min-width: 80px;
     max-width: 220px;
-
     background: white;
-    border: 2px solid var(--brand-pri);
+    border: 2px solid var(--brand-pri, #A17807);
     border-radius: 12px;
-
     padding: 8px 20px;
-
     font-size: 14px;
     text-align: left;
-
     box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
-
     z-index: 999;
-
     word-wrap: break-word;
     white-space: pre-wrap;
-
-    /* Scroll only when content becomes too large */
     max-height: 100px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -496,51 +432,17 @@ body {
     z-index: 1;
 }
 
-
-/* Bubble tail */
 .speech-bubble::after {
     content: "";
-
     position: absolute;
-
     top: 100%;
     left: 50%;
-
     transform: translateX(-50%);
-
     border-width: 8px;
     border-style: solid;
-
     border-color: white transparent transparent transparent;
 }
 
-#spriteContainer {
-    position: absolute;
-    left: 100px;
-    top: 100px;
-
-    width: 120px;
-    height: 120px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* #spriteContainer {
-    position: absolute;
-    left: 100px;
-    top: 100px;
-    width: 120px;
-    height: 120px;
-} */
-
-/* #sprite {
-    width: 100%;
-    height: 100%;
-} */
-
-/* Main sprite */
 #sprite {
     position: absolute;
     left: 100px;
@@ -550,47 +452,44 @@ body {
     z-index: 5;
 }
 
-/* #sprite {
-    width: 100%;
-    height: 100%;
-    display: block;
-} */
-
 .sprite-card {
-    width: 70px;
-    height: 80px;
-    border: 2px solid var(--brand-pri);
+    width: 68px;
+    border: 2px solid var(--brand-pri, #A17807);
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    background: white;
-    transition: .2s;
+    background: #fff;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
     text-align: center;
-    background-color: #f8edba;
 }
 
+.sprite-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
 
 .sprite-card img {
     width: 100%;
-    height: 40px;
+    height: 38px;
     object-fit: contain;
+    background: var(--brand-tint, #FBF3DD);
 }
 
-.sprite-action{
+.sprite-action {
     display: flex;
     align-items: center;
     justify-content: center;
 }
+
 .sprite-card span {
     display: block;
     text-align: center;
-    padding: 6px;
+    padding: 5px 2px;
     font-size: 10px;
-    font-weight: bold;
-    color: rgb(0, 0, 0);
+    font-weight: 700;
+    color: var(--text-primary, #222);
 }
 
-/* Added sprites */
 .extra-sprite {
     position: absolute;
     width: 120px;
@@ -598,53 +497,55 @@ body {
     cursor: pointer;
 }
 
-
 .sprite-card.selected {
-    border-color: var(--brand-pri);
-    box-shadow:
-        0 0 0 5px rgba(255, 213, 76, 0.582);
+    border-color: var(--brand-pri, #A17807);
+    box-shadow: 0 0 0 4px rgba(161, 120, 7, 0.25);
 }
+
 /* =========================
    PANELS
 ========================= */
 
-.sprite-panel {
-    flex: 2;
+.sprite-panel,
+.background-panel {
     display: flex;
     flex-direction: column;
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius-lg, 16px);
     overflow: hidden;
     min-height: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.sprite-panel {
+    flex: 2;
 }
 
 .background-panel {
     width: 120px;
-    display: flex;
-    flex-direction: column;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    overflow: hidden;
-    min-height: 0;
+    flex-shrink: 0;
 }
 
-/* Header Buttons */
-#addSpriteBtn, #addBackgroundBtn {
+#addSpriteBtn,
+#addBackgroundBtn {
     width: auto;
-    padding: 8px 14px;
+    padding: 7px 14px;
     border-radius: 20px;
-    margin: 10px;
+    margin: 8px;
     align-self: flex-end;
     cursor: pointer;
-    background-color: var(--brand-pri);
-    color: var(--neutral2);
-}
-#addSpriteBtn:hover{
-    background-color: var(--neutral1);
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    background-color: var(--brand-pri, #A17807);
+    color: #fff;
 }
 
+#addSpriteBtn:hover,
+#addBackgroundBtn:hover {
+    background-color: var(--brand-pri-dark, #4C3802);
+}
 
 /* =========================
    LISTS
@@ -654,46 +555,70 @@ body {
     flex: 1;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    padding: 10px;
+    align-content: flex-start;
+    gap: 8px;
+    padding: 8px;
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
 }
-
 
 #backgroundList {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px;
+    padding: 8px;
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
 }
 
+/* A visible, grabbable scrollbar — the platform default was thin enough
+   to look (and, at very small panel heights, nearly be) non-functional. */
+#spriteList,
+#backgroundList {
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-pri, #A17807) var(--bg-secondary, #f0f0f0);
+}
+
+#spriteList::-webkit-scrollbar,
+#backgroundList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#spriteList::-webkit-scrollbar-track,
+#backgroundList::-webkit-scrollbar-track {
+    background: var(--bg-secondary, #f0f0f0);
+}
+
+#spriteList::-webkit-scrollbar-thumb,
+#backgroundList::-webkit-scrollbar-thumb {
+    background: var(--brand-pri, #A17807);
+    border-radius: 4px;
+}
+
 .sprite-properties {
-    padding: 5px;
-    background: #f8f9fc;
-    border-bottom: 1px solid #ddd;
+    padding: 8px;
+    background: var(--bg-secondary, #f8f9fc);
+    border-bottom: 1px solid var(--border-light, #ddd);
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
 }
 
 .sprite-top-row,
 .sprite-bottom-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .sprite-properties span,
 .sprite-properties .label {
-    font-weight: 600;
-    color: #555;
+    font-weight: 700;
+    color: var(--text-secondary, #555);
     font-size: 10px;
 }
 
@@ -703,15 +628,15 @@ body {
 
 .sprite-properties input[type="number"],
 .sprite-properties input:not([type]) {
-    width: 60px;
+    width: 56px;
 }
 
 .sprite-properties input {
-    height: 20px;
-    border: 1px solid #d8d8d8;
+    height: 22px;
+    border: 1px solid var(--border-light, #d8d8d8);
     border-radius: 10px;
     text-align: center;
-    padding: 0 10px;
+    padding: 0 8px;
     font-size: 10px;
 }
 
@@ -720,19 +645,17 @@ body {
     align-items: center;
     gap: 6px;
     margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary, #555);
 }
 
-.sprite-properties h3 {
-    margin-bottom: 10px;
-}
-
-/* Asset item */
 .asset-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-light, #ddd);
     border-radius: 8px;
 }
 
@@ -755,23 +678,8 @@ body {
 }
 
 /* =========================
-   CONSOLE
+   MODALS
 ========================= */
-#console {
-    height: 80px;
-    min-height: 80px;
-    max-height: 80px;
-
-    flex: 0 0 80px;
-
-    background: #111;
-    color: var(--brand-pri);
-    padding: 10px;
-    border-radius: 12px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    font-family: monospace;
-}
 
 .modal {
     display: none;
@@ -793,20 +701,22 @@ body {
 .modal-content {
     width: 700px;
     max-width: 95%;
+    max-height: 85vh;
+    overflow-y: auto;
     background: white;
-    border-radius: 15px;
-    padding: 20px;
+    border-radius: var(--radius-lg, 15px);
+    padding: 24px;
 }
 
 .modal-content h3 {
     margin-bottom: 15px;
+    color: var(--brand-pri-dark, #4C3802);
 }
 
 .sprite-grid,
 .background-grid {
     display: grid;
-    grid-template-columns:
-        repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 15px;
 }
 
@@ -818,59 +728,68 @@ body {
     border: 2px solid transparent;
     border-radius: 10px;
     cursor: pointer;
+    background: var(--bg-secondary, #f8f9fc);
+    transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .sprite-grid img:hover,
 .background-grid img:hover {
-    border-color: #4C97FF;
+    border-color: var(--brand-pri, #A17807);
+    transform: translateY(-2px);
 }
 
 /* ==========================
-   TABLETS
+   TABLETS — stacked, scrollable, not squeezed into one viewport
 ========================== */
 
 @media (max-width: 1024px) {
 
+    html,
+    body {
+        overflow: auto;
+    }
+
     .blockly-container {
-        display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 8px;
+        gap: 12px;
+        padding: 10px;
         height: auto;
+        overflow: visible;
     }
 
-    #blocklyDiv{
-        width:100%;
-        min-width:0;
-
-        min-height:500px;
-        height:500px;
-
-        display:block;
+    /* Once .blockly-container is height:auto (content-sized) rather than
+       a fixed viewport height, flex-grow-from-zero-basis (flex:1, flex:3 1 0
+       — used on desktop to share a KNOWN height) has nothing to distribute
+       and collapses to 0 instead of sizing to content. Every flex child
+       down this branch needs `flex: none` here so it sizes from its own
+       (explicit, set below) height instead. */
+    .block-console,
+    .blockly-wrapper,
+    .stage-panel,
+    .stage-area {
+        flex: none;
     }
 
-    /* .stage-panel {
-        width: 100%;    
-    } */
+    #blocklyDiv {
+        width: 100%;
+        min-width: 0;
+        min-height: 480px;
+        height: 480px;
+    }
 
     .stage-panel {
-            flex: 1;
-            /* Stage gets less space */
-            /* width: 35%; */
-            min-width: 300px;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-    #stage {
-        height: 350px;
+        min-width: 0;
+        max-width: none;
     }
 
-    #console {
-        height: 80px;
-        flex: none;
+    #stage {
+        min-height: 320px;
+        height: 320px;
+    }
+
+    .asset-row {
+        height: 220px;
+        min-height: 220px;
     }
 }
 
@@ -882,75 +801,51 @@ body {
 
     .editor-toolbar {
         flex-wrap: wrap;
+        height: auto;
+        position: static;
+        padding: 10px;
+        overflow-x: visible;
+        row-gap: 8px;
     }
 
-    .editor-toolbar{
-        position:static;
-        height:auto;
+    .toolbar-group {
+        flex-wrap: wrap;
+        flex-shrink: 1;
     }
 
     .editor-toolbar button {
         flex: 1;
-        min-width: 120px;
+        min-width: 90px;
     }
 
-    .blockly-container{
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-        padding:8px;
-        height:auto;
+    #runStatus {
+        margin-left: 0;
+        width: 100%;
+        text-align: center;
     }
 
-    #blocklyDiv{
-        width:100%;
-        min-width:0;
-        min-height:500px;
-        height:500px;
-        display:block;
+    #blocklyDiv {
+        min-height: 400px;
+        height: 400px;
     }
 
-    .stage-panel{
-        width:100%;
+    #stage {
+        height: 240px;
+        min-height: 240px;
     }
 
-    #stage{
-        height:250px;
+    .asset-row {
+        height: auto;
+        flex-direction: column;
     }
 
-    #console{
-        height:80px;
-        flex:none;
+    .background-panel {
+        width: 100%;
+        height: 160px;
     }
 
-    /* .asset-row{
-        flex-direction:column;
-        height:auto;
-    }
-
-    .background-panel{
-        width:100%;
-        height:180px;
-    }
-
-    .sprite-panel{
-        height:250px;
-    } */
-
-     .asset-row{
-        height:220px;
-        flex-direction:row;
-    }
-
-    .sprite-panel{
-        flex:2;
-        min-width:0;
-    }
-
-    .background-panel{
-        flex:1;
-        width:auto;
-        min-width:120px;
+    .sprite-panel {
+        height: 220px;
     }
 
     #spriteList,
@@ -961,5 +856,4 @@ body {
     .asset-item {
         width: 100%;
     }
-
 }
