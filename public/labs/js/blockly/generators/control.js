@@ -90,9 +90,14 @@ jsGenerator.forBlock["repeat_times"] = function (block) {
       "DO"
     );
 
+  // Same yield-per-iteration requirement as forever/repeat_until — without
+  // it the loop runs fully synchronously in one JS tick and the browser
+  // never repaints between iterations, so only the final state is visible.
   return `
 for(let i = 0; i < ${times}; i++){
 ${statements}
+checkStop();
+await wait(0.02);
 }
 `;
 };

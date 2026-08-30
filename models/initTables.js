@@ -1765,6 +1765,71 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
         CHECK (type IN ('fund','parent_fund','course_enrollment','term_reactivation','parent_term_reactivation','xp_exchange'));
     `);
 
+    // table for lab asset categories (sprites/backgrounds, per lab type)
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS lab_asset_categories (
+        id SERIAL PRIMARY KEY,
+        lab_type TEXT NOT NULL DEFAULT 'blockly',
+        asset_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
+    // table for lab assets (uploaded sprites/backgrounds)
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS lab_assets (
+        id SERIAL PRIMARY KEY,
+        lab_type TEXT NOT NULL DEFAULT 'blockly',
+        asset_type TEXT NOT NULL,
+        category_id INT REFERENCES lab_asset_categories(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        asset_url TEXT NOT NULL,
+        uploaded_by INT REFERENCES users2(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
+    // One-time seed of the sprites/backgrounds that used to be hardcoded in
+    // the Blockly editor template, so switching to the DB-driven picker
+    // doesn't make any of them disappear. Guarded on lab_assets being
+    // empty so this never re-inserts/duplicates on later boots.
+    const labAssetCount = await pool.query("SELECT COUNT(*) FROM lab_assets");
+    if (parseInt(labAssetCount.rows[0].count, 10) === 0) {
+      const spriteCategory = await pool.query(
+        `INSERT INTO lab_asset_categories (lab_type, asset_type, name) VALUES ('blockly','sprite','Classic') RETURNING id`
+      );
+      const backgroundCategory = await pool.query(
+        `INSERT INTO lab_asset_categories (lab_type, asset_type, name) VALUES ('blockly','background','Classic') RETURNING id`
+      );
+      const spriteCategoryId = spriteCategory.rows[0].id;
+      const backgroundCategoryId = backgroundCategory.rows[0].id;
+
+      const defaultSprites = [
+        ["Jay", "/labs/images/sprites/Jay.png"],
+        ["cat", "/labs/images/sprites/cat.png"],
+        ["dog", "/labs/images/sprites/dog.png"],
+      ];
+      const defaultBackgrounds = [
+        ["beach", "/labs/images/backgrounds/beach.webp"],
+        ["beach2", "/labs/images/backgrounds/beach2.webp"],
+        ["underwater", "/labs/images/backgrounds/underwater.webp"],
+      ];
+
+      for (const [name, url] of defaultSprites) {
+        await pool.query(
+          `INSERT INTO lab_assets (lab_type, asset_type, category_id, name, asset_url) VALUES ('blockly','sprite',$1,$2,$3)`,
+          [spriteCategoryId, name, url]
+        );
+      }
+      for (const [name, url] of defaultBackgrounds) {
+        await pool.query(
+          `INSERT INTO lab_assets (lab_type, asset_type, category_id, name, asset_url) VALUES ('blockly','background',$1,$2,$3)`,
+          [backgroundCategoryId, name, url]
+        );
+      }
+    }
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

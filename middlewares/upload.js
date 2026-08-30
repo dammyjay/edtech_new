@@ -30,6 +30,8 @@ const generalStorage = new CloudinaryStorage({
     else if (file.fieldname === "badge_image") folder = "badges";
     else if (file.fieldname === "curriculum") folder = "courses/curriculums";
     else if (file.fieldname === "logo") folder = "ministry-logos";
+    else if (file.fieldname === "sprite_image") folder = "labs/sprites";
+    else if (file.fieldname === "background_image") folder = "labs/backgrounds";
 
     return {
       folder,

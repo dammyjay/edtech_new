@@ -79,9 +79,32 @@ exports.getWebLab = async (req, res) => {
 };
 
 exports.getBlocklyLab = async (req, res) => {
+  const categoriesRes = await pool.query(
+    `SELECT * FROM lab_asset_categories WHERE lab_type = 'blockly' ORDER BY name ASC`
+  );
+  const assetsRes = await pool.query(
+    `SELECT * FROM lab_assets WHERE lab_type = 'blockly' ORDER BY name ASC`
+  );
+
+  const spriteCategories = categoriesRes.rows
+    .filter((c) => c.asset_type === "sprite")
+    .map((c) => ({
+      ...c,
+      assets: assetsRes.rows.filter((a) => a.asset_type === "sprite" && a.category_id === c.id),
+    }));
+
+  const backgroundCategories = categoriesRes.rows
+    .filter((c) => c.asset_type === "background")
+    .map((c) => ({
+      ...c,
+      assets: assetsRes.rows.filter((a) => a.asset_type === "background" && a.category_id === c.id),
+    }));
+
   res.render("labs/blockly/editor", {
     title: "Blockly Playground",
     users: req.session.user,
+    spriteCategories,
+    backgroundCategories,
   });
 };
 

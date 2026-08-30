@@ -1,0 +1,348 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'lab-assets' }) %>
+<link rel="stylesheet" href="/css/admin-lab-assets.css" />
+
+<div class="la-page">
+  <div class="la-header">
+    <h2>🧩 Blockly Lab Assets</h2>
+    <p>Manage the sprites and backgrounds students can pick from in the Blockly Lab. New uploads appear immediately — no code changes needed.</p>
+  </div>
+
+  <div class="la-tabs">
+    <button class="la-tab active" data-tab="sprites" onclick="switchAssetTab('sprites')">
+      🧍 Sprites <span class="la-count"><%= spriteAssets.length %></span>
+    </button>
+    <button class="la-tab" data-tab="backgrounds" onclick="switchAssetTab('backgrounds')">
+      🏞 Backgrounds <span class="la-count"><%= backgroundAssets.length %></span>
+    </button>
+  </div>
+
+  <!-- ============ SPRITES PANEL ============ -->
+  <div class="la-panel active" id="panel-sprites">
+    <aside class="la-sidebar">
+      <button class="la-cat-item active" data-filter="all" onclick="filterCategory('sprites','all', this)">
+        All <span><%= spriteAssets.length %></span>
+      </button>
+      <% spriteCategories.forEach(cat => { %>
+        <div class="la-cat-row">
+          <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('sprites','<%= cat.id %>', this)">
+            <%= cat.name %> <span><%= spriteAssets.filter(a => a.category_id === cat.id).length %></span>
+          </button>
+          <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
+                onsubmit="return handleConfirmSubmit(event, 'Delete this category? Sprites inside it become uncategorized.')">
+            <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
+          </form>
+        </div>
+      <% }) %>
+      <button class="la-add-cat-btn" onclick="openModal('spriteCategoryModal')">+ New Category</button>
+    </aside>
+
+    <main class="la-main">
+      <div class="la-toolbar">
+        <input type="search" class="la-search" placeholder="🔍 Search sprites…" oninput="searchAssets('sprites', this.value)" />
+        <button class="la-upload-btn" onclick="openModal('spriteUploadModal')">📤 Upload Sprite</button>
+      </div>
+
+      <div class="la-grid" id="grid-sprites">
+        <% if (spriteAssets.length === 0) { %>
+          <p class="la-empty">No sprites yet — upload one to get started.</p>
+        <% } %>
+        <% spriteAssets.forEach(a => { %>
+          <div class="la-card" data-cat="<%= a.category_id || '' %>" data-name="<%= a.name.toLowerCase() %>">
+            <div class="la-thumb"><img src="<%= a.asset_url %>" alt="<%= a.name %>" loading="lazy" /></div>
+            <p class="la-card-name" title="<%= a.name %>"><%= a.name %></p>
+            <div class="la-card-actions">
+              <button type="button" class="la-card-btn" title="Edit" onclick="openModal('editSpriteModal-<%= a.id %>')">✏️</button>
+              <form method="POST" action="/admin/lab-assets/delete/<%= a.id %>"
+                    onsubmit="return handleConfirmSubmit(event, 'Delete this sprite?')">
+                <button type="submit" class="la-card-btn la-card-btn-danger" title="Delete">🗑</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </main>
+  </div>
+
+  <% spriteAssets.forEach(a => { %>
+    <div id="editSpriteModal-<%= a.id %>" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('editSpriteModal-<%= a.id %>')">&times;</span>
+        <h3>Edit Sprite</h3>
+        <form action="/admin/lab-assets/edit/sprite/<%= a.id %>" method="POST" enctype="multipart/form-data">
+          <label>Name:</label>
+          <input type="text" name="name" value="<%= a.name %>" required />
+
+          <label>Category:</label>
+          <select name="category_id">
+            <option value="">— None —</option>
+            <% spriteCategories.forEach(cat => { %>
+              <option value="<%= cat.id %>" <%= a.category_id === cat.id ? "selected" : "" %>><%= cat.name %></option>
+            <% }) %>
+          </select>
+
+          <label>Replace Image (optional):</label>
+          <img src="<%= a.asset_url %>" alt="" style="width:60px;height:60px;object-fit:contain;display:block;margin:6px 0;background:var(--brand-tint,#FBF3DD);border-radius:8px;" />
+          <input type="file" name="sprite_image" accept="image/*" />
+
+          <button type="submit">💾 Save Changes</button>
+        </form>
+      </div>
+    </div>
+  <% }) %>
+
+  <!-- ============ BACKGROUNDS PANEL ============ -->
+  <div class="la-panel" id="panel-backgrounds">
+    <aside class="la-sidebar">
+      <button class="la-cat-item active" data-filter="all" onclick="filterCategory('backgrounds','all', this)">
+        All <span><%= backgroundAssets.length %></span>
+      </button>
+      <% backgroundCategories.forEach(cat => { %>
+        <div class="la-cat-row">
+          <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('backgrounds','<%= cat.id %>', this)">
+            <%= cat.name %> <span><%= backgroundAssets.filter(a => a.category_id === cat.id).length %></span>
+          </button>
+          <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
+                onsubmit="return handleConfirmSubmit(event, 'Delete this category? Backgrounds inside it become uncategorized.')">
+            <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
+          </form>
+        </div>
+      <% }) %>
+      <button class="la-add-cat-btn" onclick="openModal('backgroundCategoryModal')">+ New Category</button>
+    </aside>
+
+    <main class="la-main">
+      <div class="la-toolbar">
+        <input type="search" class="la-search" placeholder="🔍 Search backgrounds…" oninput="searchAssets('backgrounds', this.value)" />
+        <button class="la-upload-btn" onclick="openModal('backgroundUploadModal')">📤 Upload Background</button>
+      </div>
+
+      <div class="la-grid" id="grid-backgrounds">
+        <% if (backgroundAssets.length === 0) { %>
+          <p class="la-empty">No backgrounds yet — upload one to get started.</p>
+        <% } %>
+        <% backgroundAssets.forEach(a => { %>
+          <div class="la-card" data-cat="<%= a.category_id || '' %>" data-name="<%= a.name.toLowerCase() %>">
+            <div class="la-thumb"><img src="<%= a.asset_url %>" alt="<%= a.name %>" loading="lazy" /></div>
+            <p class="la-card-name" title="<%= a.name %>"><%= a.name %></p>
+            <div class="la-card-actions">
+              <button type="button" class="la-card-btn" title="Edit" onclick="openModal('editBackgroundModal-<%= a.id %>')">✏️</button>
+              <form method="POST" action="/admin/lab-assets/delete/<%= a.id %>"
+                    onsubmit="return handleConfirmSubmit(event, 'Delete this background?')">
+                <button type="submit" class="la-card-btn la-card-btn-danger" title="Delete">🗑</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </main>
+  </div>
+
+  <% backgroundAssets.forEach(a => { %>
+    <div id="editBackgroundModal-<%= a.id %>" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('editBackgroundModal-<%= a.id %>')">&times;</span>
+        <h3>Edit Background</h3>
+        <form action="/admin/lab-assets/edit/background/<%= a.id %>" method="POST" enctype="multipart/form-data">
+          <label>Name:</label>
+          <input type="text" name="name" value="<%= a.name %>" required />
+
+          <label>Category:</label>
+          <select name="category_id">
+            <option value="">— None —</option>
+            <% backgroundCategories.forEach(cat => { %>
+              <option value="<%= cat.id %>" <%= a.category_id === cat.id ? "selected" : "" %>><%= cat.name %></option>
+            <% }) %>
+          </select>
+
+          <label>Replace Image (optional):</label>
+          <img src="<%= a.asset_url %>" alt="" style="width:100px;height:60px;object-fit:cover;display:block;margin:6px 0;border-radius:8px;" />
+          <input type="file" name="background_image" accept="image/*" />
+
+          <button type="submit">💾 Save Changes</button>
+        </form>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Sprite category modal -->
+<div id="spriteCategoryModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('spriteCategoryModal')">&times;</span>
+    <h3>New Sprite Category</h3>
+    <form action="/admin/lab-assets/category" method="POST">
+      <input type="hidden" name="asset_type" value="sprite" />
+      <label>Category Name:</label>
+      <input type="text" name="name" required />
+      <button type="submit">➕ Add</button>
+    </form>
+  </div>
+</div>
+
+<!-- Sprite upload modal — one or many files at once, each with its own name -->
+<div id="spriteUploadModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('spriteUploadModal')">&times;</span>
+    <h3>Upload Sprites</h3>
+    <form action="/admin/lab-assets/upload/sprite" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="asset_type" value="sprite" />
+
+      <label>Category (applies to all selected):</label>
+      <select name="category_id">
+        <option value="">— None —</option>
+        <% spriteCategories.forEach(cat => { %>
+          <option value="<%= cat.id %>"><%= cat.name %></option>
+        <% }) %>
+      </select>
+
+      <label>Images (select one or more):</label>
+      <input type="file" name="sprite_image" accept="image/*" multiple required
+             onchange="renderBulkNameFields(this, 'spriteBulkNames')" />
+
+      <div id="spriteBulkNames" class="la-bulk-names"></div>
+
+      <button type="submit">📤 Upload</button>
+    </form>
+  </div>
+</div>
+
+<!-- Background category modal -->
+<div id="backgroundCategoryModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('backgroundCategoryModal')">&times;</span>
+    <h3>New Background Category</h3>
+    <form action="/admin/lab-assets/category" method="POST">
+      <input type="hidden" name="asset_type" value="background" />
+      <label>Category Name:</label>
+      <input type="text" name="name" required />
+      <button type="submit">➕ Add</button>
+    </form>
+  </div>
+</div>
+
+<!-- Background upload modal — one or many files at once, each with its own name -->
+<div id="backgroundUploadModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('backgroundUploadModal')">&times;</span>
+    <h3>Upload Backgrounds</h3>
+    <form action="/admin/lab-assets/upload/background" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="asset_type" value="background" />
+
+      <label>Category (applies to all selected):</label>
+      <select name="category_id">
+        <option value="">— None —</option>
+        <% backgroundCategories.forEach(cat => { %>
+          <option value="<%= cat.id %>"><%= cat.name %></option>
+        <% }) %>
+      </select>
+
+      <label>Images (select one or more):</label>
+      <input type="file" name="background_image" accept="image/*" multiple required
+             onchange="renderBulkNameFields(this, 'backgroundBulkNames')" />
+
+      <div id="backgroundBulkNames" class="la-bulk-names"></div>
+
+      <button type="submit">📤 Upload</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openModal(id) {
+    document.getElementById(id).style.display = "block";
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = "none";
+  }
+
+  window.addEventListener("click", function (event) {
+    if (event.target.classList.contains("modal")) {
+      event.target.style.display = "none";
+    }
+  });
+
+  // Bulk upload: once files are selected, show one editable name field per
+  // file (defaulting to the filename minus its extension) so each upload
+  // gets its own name instead of sharing a single "name" field. Submitted
+  // as names[] — same order as the files themselves.
+  function renderBulkNameFields(input, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+
+    Array.from(input.files).forEach((file) => {
+      const defaultName = file.name.replace(/\.[^/.]+$/, "");
+
+      const row = document.createElement("div");
+      row.className = "la-bulk-row";
+
+      const label = document.createElement("span");
+      label.className = "la-bulk-filename";
+      label.title = file.name;
+      label.textContent = file.name;
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.name = "names[]";
+      nameInput.value = defaultName;
+      nameInput.placeholder = "Name";
+      nameInput.required = true;
+
+      row.appendChild(label);
+      row.appendChild(nameInput);
+      container.appendChild(row);
+    });
+  }
+
+  function switchAssetTab(tab) {
+    document.querySelectorAll(".la-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tab);
+    });
+    document.querySelectorAll(".la-panel").forEach((panel) => {
+      panel.classList.toggle("active", panel.id === "panel-" + tab);
+    });
+  }
+
+  const activeFilters = { sprites: "all", backgrounds: "all" };
+  const activeSearch = { sprites: "", backgrounds: "" };
+
+  function applyGridFilter(tab) {
+    const grid = document.getElementById("grid-" + tab);
+    const filter = activeFilters[tab];
+    const search = activeSearch[tab];
+    let visibleCount = 0;
+
+    grid.querySelectorAll(".la-card").forEach((card) => {
+      const matchesCategory = filter === "all" || card.dataset.cat === filter;
+      const matchesSearch = !search || card.dataset.name.includes(search);
+      const show = matchesCategory && matchesSearch;
+      card.style.display = show ? "" : "none";
+      if (show) visibleCount++;
+    });
+
+    let emptyEl = grid.querySelector(".la-empty-filtered");
+    if (visibleCount === 0) {
+      if (!emptyEl) {
+        emptyEl = document.createElement("p");
+        emptyEl.className = "la-empty la-empty-filtered";
+        emptyEl.textContent = "No matches.";
+        grid.appendChild(emptyEl);
+      }
+    } else if (emptyEl) {
+      emptyEl.remove();
+    }
+  }
+
+  function filterCategory(tab, categoryId, btn) {
+    activeFilters[tab] = categoryId;
+    btn.closest(".la-sidebar").querySelectorAll(".la-cat-item").forEach((el) => {
+      el.classList.toggle("active", el === btn);
+    });
+    applyGridFilter(tab);
+  }
+
+  function searchAssets(tab, value) {
+    activeSearch[tab] = value.trim().toLowerCase();
+    applyGridFilter(tab);
+  }
+</script>

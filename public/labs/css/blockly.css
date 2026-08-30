@@ -509,6 +509,17 @@ body.blockly-fullscreen .stage-panel {
     cursor: pointer;
 }
 
+/* Sprites are given an explicit width/height (inline, per-sprite) so
+   their box can be resized independently of the source image — but an
+   <img>'s default object-fit is "fill", which stretches non-uniformly to
+   exactly match that box. object-fit:contain keeps the image's own
+   aspect ratio intact (letterboxed within the box) instead of squashing
+   it, regardless of the uploaded image's original proportions. */
+.sprite,
+.extra-sprite {
+    object-fit: contain;
+}
+
 .sprite-card.selected {
     border-color: var(--brand-pri, #A17807);
     box-shadow: 0 0 0 4px rgba(161, 120, 7, 0.25);
@@ -750,6 +761,90 @@ body.blockly-fullscreen .stage-panel {
     transform: translateY(-2px);
 }
 
+/* Sprite/background picker (spriteModal/backgroundModal) — search +
+   category tabs above a BOUNDED, independently-scrolling grid, so a large
+   asset library never balloons the modal itself or forces one giant page
+   scroll to find something. */
+.modal-content.asset-picker-modal {
+    width: 820px;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.asset-picker-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light, #ddd);
+    font-size: 14px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.asset-picker-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.asset-picker-tab {
+    border: 1px solid var(--border-light, #ddd);
+    background: #fff;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+}
+
+.asset-picker-tab:hover {
+    border-color: var(--brand-pri, #A17807);
+    color: var(--brand-pri, #A17807);
+}
+
+.asset-picker-tab.active {
+    background: var(--brand-pri, #A17807);
+    border-color: var(--brand-pri, #A17807);
+    color: #fff;
+}
+
+.asset-picker-scroll {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 2px;
+}
+
+.asset-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.asset-picker-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary, #444);
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-picker-empty {
+    text-align: center;
+    color: #999;
+    padding: 30px 0;
+}
+
 /* ==========================
    TABLETS — stacked, scrollable, not squeezed into one viewport
 ========================== */
@@ -868,4 +963,38 @@ body.blockly-fullscreen .stage-panel {
     .asset-item {
         width: 100%;
     }
+}
+
+/* Small, brief, auto-dismissing confirmation toast — shown for deliberate
+   actions (Save, Reset, Screenshot). */
+.blockly-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 100000;
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+    max-width: 320px;
+}
+
+.blockly-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.blockly-toast-success {
+    background: linear-gradient(135deg, #34C77B, #1F9D55);
+}
+
+.blockly-toast-error {
+    background: linear-gradient(135deg, #E9615C, #D64545);
 }

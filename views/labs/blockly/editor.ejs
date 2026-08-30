@@ -30,7 +30,6 @@
 <script src="/labs/js/blockly/generators/control.js"></script>
 
 <script src="/labs/js/blockly/engine.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="/labs/js/blocklyLab.js"></script>
 
 <div class="editor-toolbar">
@@ -532,37 +531,57 @@
 
 
 <div id="spriteModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content asset-picker-modal">
     <h3>Choose Sprite</h3>
 
-    <div class="sprite-grid">
-      <img src="/labs/images/sprites/Jay.png" onclick="createSprite('Jay')" />
-      <img src="/labs/images/sprites/cat.png" onclick="createSprite('cat')" />
+    <input type="search" class="asset-picker-search" placeholder="🔍 Search sprites…"
+           oninput="filterAssetPicker('sprite', this.value)" />
 
-      <img src="/labs/images/sprites/dog.png" onclick="createSprite('dog')" />
+    <div class="asset-picker-tabs">
+      <button class="asset-picker-tab active" data-filter="all" onclick="filterAssetPickerCategory('sprite','all', this)">All</button>
+      <% spriteCategories.forEach(cat => { if (cat.assets.length) { %>
+        <button class="asset-picker-tab" data-filter="<%= cat.id %>" onclick="filterAssetPickerCategory('sprite','<%= cat.id %>', this)"><%= cat.name %></button>
+      <% } }) %>
+    </div>
+
+    <div class="asset-picker-scroll">
+      <div class="sprite-grid" id="spriteGrid">
+        <% spriteCategories.forEach(cat => { cat.assets.forEach(a => { %>
+          <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>">
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" onclick="createSprite('<%= a.name %>', '<%= a.asset_url %>')" />
+            <span class="asset-picker-label"><%= a.name %></span>
+          </div>
+        <% }) }) %>
+      </div>
+      <p class="asset-picker-empty" id="spriteGridEmpty" style="display:none">No sprites match your search.</p>
     </div>
   </div>
 </div>
 
 <div id="backgroundModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content asset-picker-modal">
     <h3>Choose Background</h3>
 
-    <div class="background-grid">
-      <img
-        src="/labs/images/backgrounds/underwater.webp"
-        onclick="addBackground('underwater.webp')"
-      />
+    <input type="search" class="asset-picker-search" placeholder="🔍 Search backgrounds…"
+           oninput="filterAssetPicker('background', this.value)" />
 
-      <img
-        src="/labs/images/backgrounds/beach.webp"
-        onclick="addBackground('beach.webp')"
-      />
+    <div class="asset-picker-tabs">
+      <button class="asset-picker-tab active" data-filter="all" onclick="filterAssetPickerCategory('background','all', this)">All</button>
+      <% backgroundCategories.forEach(cat => { if (cat.assets.length) { %>
+        <button class="asset-picker-tab" data-filter="<%= cat.id %>" onclick="filterAssetPickerCategory('background','<%= cat.id %>', this)"><%= cat.name %></button>
+      <% } }) %>
+    </div>
 
-      <img
-        src="/labs/images/backgrounds/beach2.webp"
-        onclick="addBackground('beach2.webp')"
-      />
+    <div class="asset-picker-scroll">
+      <div class="background-grid" id="backgroundGrid">
+        <% backgroundCategories.forEach(cat => { cat.assets.forEach(a => { %>
+          <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>">
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" onclick="addBackground('<%= a.asset_url %>', '<%= a.name %>')" />
+            <span class="asset-picker-label"><%= a.name %></span>
+          </div>
+        <% }) }) %>
+      </div>
+      <p class="asset-picker-empty" id="backgroundGridEmpty" style="display:none">No backgrounds match your search.</p>
     </div>
   </div>
 </div>

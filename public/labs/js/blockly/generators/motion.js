@@ -158,6 +158,10 @@ jsGenerator.forBlock["next_background"] = function () {
   return `nextBackground();\n`;
 };
 
+jsGenerator.forBlock["previous_background"] = function () {
+  return `previousBackground();\n`;
+};
+
 jsGenerator.forBlock["random_background"] = function () {
   return `randomBackground();\n`;
 };
@@ -167,7 +171,6 @@ jsGenerator.forBlock["change_background"] = function (block) {
 
   return `changeBackground("${color}");\n`;
 };
-console.log(javascript.javascriptGenerator.forBlock["change_background"]);
 
 jsGenerator.forBlock["add_sprite"] = function (block) {
   const sprite = block.getFieldValue("SPRITE");

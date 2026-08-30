@@ -14,6 +14,61 @@ window.backgrounds = [];
 window.isRunning = false;
 window.stopRequested = false;
 
+// Small, brief, auto-dismissing confirmation — same lifecycle as the
+// app-wide `.app-toast` pattern used elsewhere (e.g. student dashboard
+// coin/streak confirmations). type: info|success|error.
+function showToast(message, type = "info") {
+  const toast = document.createElement("div");
+  toast.className = "blockly-toast blockly-toast-" + type;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => toast.classList.remove("show"), 2200);
+  setTimeout(() => toast.remove(), 2600);
+}
+
+// Sprite/background picker (spriteModal/backgroundModal) — category tab +
+// live search, both combined (AND'd) client-side over the already-rendered
+// items. Keeps the picker fast and uncluttered even with many assets: the
+// grid itself scrolls in a bounded area (CSS), and this just toggles
+// which already-in-the-DOM items are visible rather than re-rendering.
+const assetPickerFilters = {
+  sprite: { category: "all", search: "" },
+  background: { category: "all", search: "" },
+};
+
+function applyAssetPickerFilter(type) {
+  const grid = document.getElementById(type === "sprite" ? "spriteGrid" : "backgroundGrid");
+  const emptyMsg = document.getElementById(type === "sprite" ? "spriteGridEmpty" : "backgroundGridEmpty");
+  if (!grid) return;
+
+  const { category, search } = assetPickerFilters[type];
+  let visibleCount = 0;
+
+  grid.querySelectorAll(".asset-picker-item").forEach((item) => {
+    const matchesCategory = category === "all" || item.dataset.cat === category;
+    const matchesSearch = !search || item.dataset.name.includes(search);
+    const show = matchesCategory && matchesSearch;
+    item.style.display = show ? "" : "none";
+    if (show) visibleCount++;
+  });
+
+  if (emptyMsg) emptyMsg.style.display = visibleCount === 0 ? "block" : "none";
+}
+
+window.filterAssetPicker = function (type, value) {
+  assetPickerFilters[type].search = value.trim().toLowerCase();
+  applyAssetPickerFilter(type);
+};
+
+window.filterAssetPickerCategory = function (type, categoryId, btn) {
+  assetPickerFilters[type].category = categoryId;
+  btn.parentElement.querySelectorAll(".asset-picker-tab").forEach((el) => {
+    el.classList.toggle("active", el === btn);
+  });
+  applyAssetPickerFilter(type);
+};
+
 let mediaRecorder;
 let recordedChunks = [];
 
@@ -45,12 +100,22 @@ function fitBlocklyContainer() {
 
 window.addEventListener("resize", fitBlocklyContainer);
 
-window.createSprite = function (spriteName) {
+window.createSprite = function (spriteName, imageUrl) {
   const stage = document.getElementById("stage");
 
   const sprite = document.createElement("img");
 
-  sprite.src = `/labs/images/sprites/${spriteName}.png`;
+  // Must be set before .src — admin-uploaded sprites are Cloudinary URLs
+  // (cross-origin), and drawing a cross-origin image onto a canvas
+  // without this taints it, making Screenshot/Record throw a
+  // SecurityError on export instead of working.
+  sprite.crossOrigin = "anonymous";
+
+  // imageUrl comes straight from the DB-driven sprite picker (admin
+  // "Lab Assets" uploads) — a full Cloudinary/local URL, not a name to
+  // reconstruct a path from. Falls back to the legacy local-file pattern
+  // only if a caller ever invokes this the old, name-only way.
+  sprite.src = imageUrl || `/labs/images/sprites/${spriteName}.png`;
 
   sprite.classList.add("sprite");
 
@@ -66,6 +131,7 @@ window.createSprite = function (spriteName) {
   const spriteData = {
     id: Date.now(),
     name: spriteName,
+    image: sprite.src,
     element: sprite,
     x: 100,
     y: 100,
@@ -173,7 +239,7 @@ window.renderSpriteList = function () {
     card.dataset.spriteId = sprite.id;
 
     card.innerHTML = `
-            <img src="/labs/images/sprites/${sprite.name}.png" >
+            <img src="${sprite.image || `/labs/images/sprites/${sprite.name}.png`}" >
             <br>
             <div class="sprite-action">
             <span>${sprite.name}</span>
@@ -215,38 +281,37 @@ window.moveCurrentSprite = function (x, y) {
 };
 
 
-window.addBackground = function (file) {
-  const stage = document.getElementById("stage");
-
-  stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
-
-  backgroundImage = new Image();
-
-  backgroundImage.src = `/labs/images/backgrounds/${file}`;
-
-  stage.style.backgroundSize = "cover";
-  stage.style.backgroundPosition = "center";
-  stage.style.backgroundRepeat = "no-repeat";
-
-  backgrounds.push(file);
-  setBackground(file);
+// imageUrl is the DB-driven background's real URL (Cloudinary or local) —
+// backgrounds are identified by {url, name} objects now, not bare
+// filenames, so admin-uploaded (Cloudinary-hosted) backgrounds work the
+// same way the original 3 built-in ones do.
+window.addBackground = function (imageUrl, name) {
+  backgrounds.push({ url: imageUrl, name: name || imageUrl });
+  setBackground(imageUrl);
 
   renderBackgroundList();
 };
 
-window.setBackground = function (file) {
-  const stage = document.getElementById("stage");
-
-  currentBackground = file;
-
-  stage.style.backgroundImage = `url('/labs/images/backgrounds/${file}')`;
-
-  stage.style.backgroundSize = "cover";
-  stage.style.backgroundPosition = "center";
-  stage.style.backgroundRepeat = "no-repeat";
+window.setBackground = function (imageUrl) {
+  // window.currentBackdropUrl tracks "what's actually on the stage right
+  // now" (a URL) — kept separate from engine.js's window.currentBackground,
+  // which is a numeric cycling INDEX for next/previous/random background
+  // blocks. Reusing one variable for both used to silently break "next
+  // background" the moment a student manually picked one (NaN from
+  // incrementing a string).
+  window.currentBackdropUrl = imageUrl;
+  setBackgroundImage(imageUrl);
 
   backgroundImage = new Image();
-  backgroundImage.src = `/labs/images/backgrounds/${file}`;
+  // Same reasoning as sprite.crossOrigin in createSprite() — Cloudinary
+  // backgrounds are cross-origin and would otherwise taint the canvas
+  // used for Screenshot/Record.
+  backgroundImage.crossOrigin = "anonymous";
+  // Must match setBackgroundImage's resolution exactly (see
+  // resolveBackdropUrl's comment) — using the raw, unresolved imageUrl
+  // here was the cause of legacy bare-filename backgrounds 404ing and
+  // breaking the Screenshot/Record canvas composition.
+  backgroundImage.src = resolveBackdropUrl(imageUrl);
 };
 
 // window.renderBackgroundList = function () {
@@ -284,7 +349,8 @@ window.renderBackgroundList = function () {
 
     item.innerHTML = `
       <img
-        src="/labs/images/backgrounds/${bg}"
+        src="${bg.url}"
+        title="${bg.name}"
         style="
           width:100%;
           height:40px;
@@ -302,7 +368,7 @@ window.renderBackgroundList = function () {
     `;
 
     item.querySelector("img").addEventListener("click", () => {
-      setBackground(bg);
+      setBackground(bg.url);
     });
 
     container.appendChild(item);
@@ -314,9 +380,9 @@ window.deleteBackground = function (index) {
 
   backgrounds.splice(index, 1);
 
-  if (deletedBg === currentBackground) {
+  if (deletedBg && deletedBg.url === window.currentBackdropUrl) {
     if (backgrounds.length > 0) {
-      setBackground(backgrounds[0]);
+      setBackground(backgrounds[0].url);
     } else {
       const stage = document.getElementById("stage");
 
@@ -324,7 +390,7 @@ window.deleteBackground = function (index) {
 
       backgroundImage = null;
 
-      currentBackground = null;
+      window.currentBackdropUrl = null;
     }
   }
 
@@ -359,6 +425,13 @@ window.addEventListener("load", async () => {
       },
     });
 
+    // Makes Blockly's own code-generation machinery prepend a call to
+    // highlightBlock(id) before every statement block's generated code
+    // (nested statement inputs included) — same mechanism code.org-style
+    // interpreters use to highlight the block currently executing, without
+    // having to touch each of the ~40 individual generator functions.
+    javascript.javascriptGenerator.STATEMENT_PREFIX = "await highlightBlock(%1);\n";
+
     window.addEventListener("resize", () => {
       if (workspace) {
         Blockly.svgResize(workspace);
@@ -378,6 +451,7 @@ window.addEventListener("load", async () => {
     const spriteData = {
       id: "mainSprite",
       name: "Jay",
+      image: defaultSprite.src,
       element: defaultSprite,
       x: 100,
       y: 100,
@@ -446,7 +520,7 @@ window.addEventListener("load", async () => {
 
 
     // Buttons
-    document.getElementById("saveBtn").addEventListener("click", saveProject);
+    document.getElementById("saveBtn").addEventListener("click", () => saveProject(true));
 
     document.getElementById("runBtn").addEventListener("click", runCode);
 
@@ -591,24 +665,157 @@ window.addEventListener("load", async () => {
   }
 });
 
-async function takeStageScreenshot() {
+// ---------------------------------------------------------------------
+// Manual stage composition — shared by the Screenshot button and the
+// recording loop. Draws directly from logical sprite/backdrop state
+// (sprite.x/y/width/height, not DOM pixels), so it's immune to the whole
+// class of DOM-capture problems a library like html2canvas has: CSS
+// transforms (fullscreen scaling), object-fit being ignored (the cause of
+// sprites looking "squashed" in the old html2canvas-based screenshot —
+// html2canvas stretches <img> content to its layout box regardless of
+// object-fit:contain), and cropping inside overflow:hidden ancestors.
+// ---------------------------------------------------------------------
+
+// "Cover" fit for the backdrop — crop the source image so it fills the
+// destination box completely without distorting its aspect ratio.
+function getCoverSourceRect(imgW, imgH, boxW, boxH) {
+  const boxRatio = boxW / boxH;
+  const imageRatio = imgW / imgH;
+
+  let sx = 0, sy = 0, sw = imgW, sh = imgH;
+
+  if (imageRatio > boxRatio) {
+    sw = imgH * boxRatio;
+    sx = (imgW - sw) / 2;
+  } else {
+    sh = imgW / boxRatio;
+    sy = (imgH - sh) / 2;
+  }
+
+  return { sx, sy, sw, sh };
+}
+
+function drawBackdropToCanvas(ctx, img, boxW, boxH) {
+  // naturalWidth is 0 on a "broken" image (e.g. a 404) even though
+  // .complete is true — drawImage() throws InvalidStateError on those.
+  // A missing/failed backdrop should just mean "no backdrop drawn", not
+  // an entirely failed screenshot/recording.
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const { sx, sy, sw, sh } = getCoverSourceRect(img.width, img.height, boxW, boxH);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, boxW, boxH);
+}
+
+// "Contain" fit for sprites — scale the image DOWN to fit fully inside
+// its box, preserving aspect ratio (matches the .sprite CSS rule
+// object-fit:contain), instead of stretching it to exactly
+// sprite.width x sprite.height like a raw drawImage(img,x,y,w,h) would.
+function drawSpriteToCanvas(ctx, sprite) {
+  const img = sprite.element;
+  if (!sprite.visible || !img || !img.complete || !img.naturalWidth) return;
+
+  const boxW = sprite.width;
+  const boxH = sprite.height;
+  const boxRatio = boxW / boxH;
+  const imgRatio = img.naturalWidth / img.naturalHeight;
+
+  let drawW = boxW, drawH = boxH;
+  if (imgRatio > boxRatio) {
+    drawH = boxW / imgRatio;
+  } else {
+    drawW = boxH * imgRatio;
+  }
+
+  ctx.save();
+  ctx.translate(sprite.x + boxW / 2, sprite.y + boxH / 2);
+  ctx.rotate(((sprite.rotation || 0) * Math.PI) / 180);
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+}
+
+function drawSpeechBubbleToCanvas(ctx, stageEl) {
+  const bubble = document.getElementById("speechBubble");
+  if (!bubble || bubble.style.display === "none") return;
+
+  const stageRect = stageEl.getBoundingClientRect();
+  const bubbleRect = bubble.getBoundingClientRect();
+
+  ctx.save();
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#A17807";
+  ctx.lineWidth = 2;
+  const bx = bubbleRect.left - stageRect.left;
+  const by = bubbleRect.top - stageRect.top;
+  ctx.fillRect(bx, by, bubbleRect.width, bubbleRect.height);
+  ctx.strokeRect(bx, by, bubbleRect.width, bubbleRect.height);
+  ctx.fillStyle = "#222";
+  ctx.font = "13px sans-serif";
+  ctx.fillText(bubble.innerText, bx + 8, by + 18, bubbleRect.width - 16);
+  ctx.restore();
+}
+
+// One-shot version of renderRecordingFrame's composition, for the
+// Screenshot button — built from stage.offsetWidth/offsetHeight (layout
+// size, unaffected by the fullscreen CSS transform), so it looks
+// identical whether taken in fullscreen or minimized mode.
+function composeStageSnapshot() {
   const stage = document.getElementById("stage");
+  const w = stage.offsetWidth;
+  const h = stage.offsetHeight;
+  const scale = 2; // crisp/retina-quality output, matches recording's own scale
 
+  const canvas = document.createElement("canvas");
+  canvas.width = w * scale;
+  canvas.height = h * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  drawBackdropToCanvas(ctx, backgroundImage, w, h);
+
+  const penCanvasEl = document.getElementById("penCanvas");
+  if (penCanvasEl) ctx.drawImage(penCanvasEl, 0, 0, w, h);
+
+  window.sprites.forEach((sprite) => drawSpriteToCanvas(ctx, sprite));
+
+  drawSpeechBubbleToCanvas(ctx, stage);
+
+  return canvas;
+}
+
+async function takeStageScreenshot() {
   try {
-    const canvas = await html2canvas(stage, {
-      backgroundColor: null,
-      useCORS: true,
-    });
+    const canvas = composeStageSnapshot();
 
-    const link = document.createElement("a");
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showAlert("Screenshot failed — please try again.");
+        return;
+      }
 
-    link.download = `stage-${Date.now()}.png`;
+      // Download — unchanged behavior.
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `stage-${Date.now()}.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
 
-    link.href = canvas.toDataURL("image/png");
-
-    link.click();
+      // Also copy to the clipboard, so it can be pasted straight into a
+      // document — doesn't replace the download, just adds to it.
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          showToast("📋 Screenshot copied to clipboard and downloaded!");
+        } catch (err) {
+          console.error("Clipboard copy failed:", err);
+          showToast("Screenshot downloaded (couldn't copy to clipboard).");
+        }
+      } else {
+        showToast("Screenshot downloaded (clipboard copy isn't supported in this browser).");
+      }
+    }, "image/png");
   } catch (err) {
     console.error("Screenshot failed", err);
+    showAlert("Screenshot failed — please try again.");
   }
 }
 
@@ -617,44 +824,7 @@ function renderRecordingFrame() {
 
   recordingCtx.clearRect(0, 0, recordingCanvas.width, recordingCanvas.height);
 
-  // Draw background
-
-  if (backgroundImage && backgroundImage.complete) {
-
-    const imgW = backgroundImage.width;
-    const imgH = backgroundImage.height;
-
-    const stageRatio = stageWidth / stageHeight;
-    const imageRatio = imgW / imgH;
-
-    let sx = 0;
-    let sy = 0;
-    let sw = imgW;
-    let sh = imgH;
-
-    if (imageRatio > stageRatio) {
-
-        sw = imgH * stageRatio;
-        sx = (imgW - sw) / 2;
-
-    } else {
-
-        sh = imgW / stageRatio;
-        sy = (imgH - sh) / 2;
-    }
-
-    recordingCtx.drawImage(
-        backgroundImage,
-        sx,
-        sy,
-        sw,
-        sh,
-        0,
-        0,
-        stageWidth,
-        stageHeight
-    );
-  }
+  drawBackdropToCanvas(recordingCtx, backgroundImage, stageWidth, stageHeight);
 
   // Pen trails (drawn on #penCanvas live) sit between the backdrop and
   // the sprites on the real stage — match that order here, otherwise
@@ -665,50 +835,11 @@ function renderRecordingFrame() {
     recordingCtx.drawImage(penCanvasEl, 0, 0, stageWidth, stageHeight);
   }
 
-  sprites.forEach((sprite) => {
-    if (!sprite.visible) return;
-
-    recordingCtx.save();
-
-    recordingCtx.translate(
-      sprite.x + sprite.width / 2,
-      sprite.y + sprite.height / 2,
-    );
-
-    recordingCtx.rotate(((sprite.rotation || 0) * Math.PI) / 180);
-
-    recordingCtx.drawImage(
-      sprite.element,
-      -sprite.width / 2,
-      -sprite.height / 2,
-      sprite.width,
-      sprite.height,
-    );
-
-    recordingCtx.restore();
-  });
+  sprites.forEach((sprite) => drawSpriteToCanvas(recordingCtx, sprite));
 
   // Speech bubble (say_text/say_for_seconds) — also invisible in the
   // recording without this, despite showing live on the real stage.
-  const bubble = document.getElementById("speechBubble");
-  if (bubble && bubble.style.display !== "none") {
-    const stageEl = document.getElementById("stage");
-    const stageRect = stageEl.getBoundingClientRect();
-    const bubbleRect = bubble.getBoundingClientRect();
-
-    recordingCtx.save();
-    recordingCtx.fillStyle = "#fff";
-    recordingCtx.strokeStyle = "#A17807";
-    recordingCtx.lineWidth = 2;
-    const bx = bubbleRect.left - stageRect.left;
-    const by = bubbleRect.top - stageRect.top;
-    recordingCtx.fillRect(bx, by, bubbleRect.width, bubbleRect.height);
-    recordingCtx.strokeRect(bx, by, bubbleRect.width, bubbleRect.height);
-    recordingCtx.fillStyle = "#222";
-    recordingCtx.font = "13px sans-serif";
-    recordingCtx.fillText(bubble.innerText, bx + 8, by + 18, bubbleRect.width - 16);
-    recordingCtx.restore();
-  }
+  drawSpeechBubbleToCanvas(recordingCtx, document.getElementById("stage"));
 
   // Draw cursor
 
@@ -969,7 +1100,13 @@ async function initLab(labType) {
           stage.appendChild(el);
         }
 
-        el.src = `/labs/images/sprites/${saved.name}.png`;
+        // Must be set before .src (see createSprite's crossOrigin comment).
+        el.crossOrigin = "anonymous";
+
+        // saved.image is the DB-driven asset URL (Cloudinary or local) —
+        // only missing on projects saved before Lab Assets existed, where
+        // the old name-implies-local-path reconstruction still applies.
+        el.src = saved.image || `/labs/images/sprites/${saved.name}.png`;
         el.style.position = "absolute";
         el.style.left = saved.x + "px";
         el.style.top = saved.y + "px";
@@ -1011,7 +1148,7 @@ async function initLab(labType) {
   }
 }
 
-async function saveProject() {
+async function saveProject(manual = false) {
   if (!window.currentProjectId || !workspace) return;
 
   try {
@@ -1033,10 +1170,11 @@ async function saveProject() {
       projectData: {
         workspace: xml, // back-compat field only, sprites[] is authoritative
         generatedCode,
-        backdrop: window.currentBackground || null,
+        backdrop: window.currentBackdropUrl || null,
         sprites: window.sprites.map((sprite) => ({
           id: sprite.id,
           name: sprite.name,
+          image: sprite.image || null,
           x: sprite.x,
           y: sprite.y,
           width: sprite.width,
@@ -1067,8 +1205,10 @@ async function saveProject() {
     const data = await res.json();
 
     console.log("Saved:", data);
+    if (manual) showToast("💾 Project saved!", "success");
   } catch (err) {
     console.error("Save Error:", err);
+    if (manual) showToast("Couldn't save — try again.", "error");
   }
 }
 
@@ -1137,6 +1277,7 @@ async function runCode() {
     isRunning = false;
     document.getElementById("runStatus").textContent = "Ready";
     document.getElementById("stopBtn").style.display = "none";
+    if (workspace) workspace.highlightBlock(null);
   }
 }
 

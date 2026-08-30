@@ -198,16 +198,24 @@ window.changePenSizeBy = function (value) {
 // MOTION
 // =========================
 
+// Deliberately computed from the sprite's own LOGICAL x/y/width/height —
+// never from getBoundingClientRect(). The pen canvas draws using its own
+// native (unscaled) pixel resolution, fixed at page load; a screen-space
+// measurement reflects whatever CSS transform is currently applied to
+// #stage (e.g. the uniform scale-up used for fullscreen — see
+// applyFullscreenStageScale in blocklyLab.js). Mixing scaled screen
+// coordinates into pen-drawing calls, drawn onto an unscaled canvas that
+// then ALSO gets visually magnified by that same transform, doubled the
+// effective scale — pen shapes came out far too big and could extend
+// past the stage in fullscreen. Logical coordinates are immune to any
+// CSS transform, so this always matches the canvas's own resolution.
 window.getSpriteCenter = function (sprite) {
   sprite = sprite || getRuntimeSprite();
-  if (!sprite || !sprite.element) return { x: 0, y: 0 };
-
-  const rect = sprite.element.getBoundingClientRect();
-  const stageRect = document.getElementById("stage").getBoundingClientRect();
+  if (!sprite) return { x: 0, y: 0 };
 
   return {
-    x: rect.left - stageRect.left + rect.width / 2,
-    y: rect.top - stageRect.top + rect.height / 2,
+    x: sprite.x + (sprite.width || 0) / 2,
+    y: sprite.y + (sprite.height || 0) / 2,
   };
 };
 
@@ -327,17 +335,41 @@ window.sayForSeconds = async function (text, seconds) {
 };
 
 // Backdrop is a stage-level concept, shared by every sprite — not
-// retargeted per-sprite.
+// retargeted per-sprite. `image` is normally a full URL (Cloudinary or
+// local, from the DB-driven Lab Assets picker) — the bare-filename branch
+// only exists for projects saved before Lab Assets existed, whose
+// `backdrop` field is just a filename like "beach.webp".
+// Shared by setBackgroundImage below (CSS) and setBackground in
+// blocklyLab.js (the separate `backgroundImage` Image object used for
+// Screenshot/Record canvas compositing) — both need the SAME resolved
+// URL. Using it in only one place was the actual bug behind "Screenshot
+// failed": a legacy bare filename like "beach.webp" resolved correctly
+// for the CSS display, but the raw, unresolved value was used for the
+// Image object, which then 404'd and left it "broken" — crashing
+// composeStageSnapshot() when it tried to drawImage() it.
+window.resolveBackdropUrl = function (image) {
+  return /^(https?:)?\//.test(image) ? image : `/labs/images/backgrounds/${image}`;
+};
+
 window.setBackgroundImage = function (image) {
   const stage = document.getElementById("stage");
 
-  stage.style.backgroundImage = `url('/labs/images/backgrounds/${image}')`;
+  const resolved = resolveBackdropUrl(image);
+
+  stage.style.backgroundImage = `url('${resolved}')`;
 
   stage.style.backgroundSize = "cover";
 
   stage.style.backgroundPosition = "center";
+
+  stage.style.backgroundRepeat = "no-repeat";
 };
 
+// Numeric cycling index into window.backgrounds (an array of {url,name}
+// objects) — deliberately a SEPARATE variable from
+// window.currentBackdropUrl (blocklyLab.js), which tracks the actual
+// backdrop URL currently on the stage. Reusing one variable for both used
+// to break "next background" the moment a student manually picked one.
 window.currentBackground = 0;
 
 window.nextBackground = function () {
@@ -351,7 +383,7 @@ window.nextBackground = function () {
     currentBackground = 0;
   }
 
-  setBackgroundImage(backgrounds[currentBackground]);
+  setBackground(backgrounds[currentBackground].url);
 };
 
 window.previousBackground = function () {
@@ -363,7 +395,7 @@ window.previousBackground = function () {
     currentBackground = window.backgrounds.length - 1;
   }
 
-  setBackgroundImage(window.backgrounds[currentBackground]);
+  setBackground(window.backgrounds[currentBackground].url);
 };
 
 window.randomBackground = function () {
@@ -373,7 +405,7 @@ window.randomBackground = function () {
 
   const random = Math.floor(Math.random() * backgrounds.length);
 
-  setBackgroundImage(backgrounds[random]);
+  setBackground(backgrounds[random].url);
 };
 
 window.changeBackground = function (color) {
@@ -734,6 +766,24 @@ window.checkStop = function () {
   }
 };
 
+// Injected before every statement block's generated code (see
+// STATEMENT_PREFIX in blocklyLab.js). Only the sprite currently open in
+// the editor has its blocks visibly on screen, so only its own run
+// highlights anything — other sprites' concurrently-running scripts skip
+// straight through instead of pausing for a highlight nobody can see.
+window.highlightBlock = async function (id) {
+  if (
+    typeof workspace !== "undefined" &&
+    workspace &&
+    window.currentSprite &&
+    window.currentRuntimeSprite &&
+    window.currentRuntimeSprite.id === window.currentSprite.id
+  ) {
+    workspace.highlightBlock(id);
+    await wait(0.15);
+  }
+};
+
 window.touchingEdge = function () {
   const sprite = getRuntimeSprite();
   if (!sprite) return false;
@@ -975,6 +1025,7 @@ window.resetStage = function () {
   }
 
   clearConsole();
+  if (typeof showToast === "function") showToast("🔄 Sprites reset!");
 };
 
 // =========================

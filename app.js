@@ -196,6 +196,9 @@ app.use("/admin/newsletters", newsletterRoutes);
 const announcementRoutes = require("./routes/announcementRoutes");
 app.use("/admin/announcements", announcementRoutes);
 
+const labAssetRoutes = require("./routes/labAssetRoutes");
+app.use("/admin/lab-assets", labAssetRoutes);
+
 const publicAnnouncementRoutes = require("./routes/publicAnnouncementRoutes");
 app.use("/announcements", publicAnnouncementRoutes);
 
