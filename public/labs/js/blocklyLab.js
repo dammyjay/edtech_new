@@ -459,6 +459,29 @@ window.addEventListener("load", async () => {
 
     const stagePanel = document.querySelector(".stage-panel");
 
+    // Captured right before entering fullscreen — #stage's own pixel size
+    // in the normal ("minimized") view, so fullscreen can scale that
+    // EXACT box up uniformly instead of stretching it to a new aspect
+    // ratio (which shifted sprite positions and cropped the backdrop
+    // differently than the normal view showed).
+    let preFullscreenStageSize = null;
+
+    function applyFullscreenStageScale() {
+      const stageEl = document.getElementById("stage");
+      const stageArea = document.querySelector(".stage-area");
+      if (!stageEl || !stageArea || !preFullscreenStageSize) return;
+
+      stageEl.style.width = preFullscreenStageSize.width + "px";
+      stageEl.style.height = preFullscreenStageSize.height + "px";
+
+      const available = stageArea.getBoundingClientRect();
+      const scale = Math.min(
+        available.width / preFullscreenStageSize.width,
+        available.height / preFullscreenStageSize.height,
+      );
+      stageEl.style.transform = `scale(${scale})`;
+    }
+
     // Real Fullscreen API, targeting the WHOLE PAGE (not just the stage
     // panel) — the toolbar (Run/Stop/Save/etc.) is a sibling of
     // .blockly-container, so fullscreening only the stage panel hid the
@@ -467,6 +490,10 @@ window.addEventListener("load", async () => {
     // mode; body.blockly-fullscreen (CSS) hides the site nav + blocks
     // workspace and lets the stage expand into the freed space.
     fullscreenBtn.addEventListener("click", () => {
+      const stageEl = document.getElementById("stage");
+      const rect = stageEl.getBoundingClientRect();
+      preFullscreenStageSize = { width: rect.width, height: rect.height };
+
       if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch((err) => {
           console.error("Fullscreen request failed:", err);
@@ -485,16 +512,30 @@ window.addEventListener("load", async () => {
 
     document.addEventListener("fullscreenchange", () => {
       const isFullscreen = !!document.fullscreenElement;
+      const stageEl = document.getElementById("stage");
 
       document.body.classList.toggle("blockly-fullscreen", isFullscreen);
       stagePanel.classList.toggle("fullscreen", isFullscreen);
       fullscreenBtn.style.display = isFullscreen ? "none" : "inline-block";
       exitFullscreenBtn.style.display = isFullscreen ? "inline-block" : "none";
 
+      if (!isFullscreen && stageEl) {
+        // Back to normal — let CSS (width:100%, flex:1) take over again.
+        stageEl.style.width = "";
+        stageEl.style.height = "";
+        stageEl.style.transform = "";
+        preFullscreenStageSize = null;
+      }
+
       setTimeout(() => {
+        if (isFullscreen) applyFullscreenStageScale();
         fitBlocklyContainer();
         Blockly.svgResize(workspace);
       }, 100);
+    });
+
+    window.addEventListener("resize", () => {
+      if (document.fullscreenElement) applyFullscreenStageScale();
     });
 
     document

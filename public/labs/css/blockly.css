@@ -268,7 +268,15 @@ body.blockly-fullscreen .stage-panel {
 }
 
 /* Real Fullscreen API target — the browser already makes this element
-   fill the whole screen; just make sure its own children fill it too. */
+   fill the whole screen; just make sure its own children fill it too.
+   #stage itself keeps the EXACT pixel size it had just before entering
+   fullscreen (set inline by JS — fitFullscreenStage in blocklyLab.js) and
+   is scaled up as one whole box via transform, rather than stretched to
+   a new width/height — sprite positions and the backdrop's cover-crop
+   are relative to #stage's own box, so stretching it to a different
+   aspect ratio was shifting/hiding things that were visible normally.
+   transform:scale keeps everything in exactly the same relative spot,
+   just bigger, like Scratch/PictoBlox's own presentation mode. */
 .stage-panel.fullscreen {
     max-width: none;
     background: #111;
@@ -280,13 +288,17 @@ body.blockly-fullscreen .stage-panel {
 
 .stage-panel.fullscreen .stage-area {
     height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 .stage-panel.fullscreen #stage {
-    width: 100%;
-    height: 100%;
+    flex: none;
     border-radius: 0;
     border: none;
+    transform-origin: center center;
 }
 
 .ask-box {
