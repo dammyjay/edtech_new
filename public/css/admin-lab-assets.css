@@ -1,9 +1,39 @@
 /* Admin Lab Assets — sprite/background library manager */
 
+/* The shared site body{} (style.css) centers content for marketing pages
+   (display:flex;align-items:center;min-height:100vh;padding/gap) — here
+   we want the opposite: a fixed-to-the-viewport page where only specific
+   inner regions (category list, asset grid) scroll, never the page
+   itself. html,body height:100%+overflow:hidden removes page scroll;
+   body stays a flex column (header, then .la-page filling everything
+   below it) but stretched full-width instead of centered, with the
+   marketing-page padding/gap zeroed out. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+
 .la-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.la-header {
+  flex-shrink: 0;
 }
 
 .la-header h2 {
@@ -22,6 +52,7 @@
   gap: 8px;
   border-bottom: 2px solid #e5e0d5;
   margin-bottom: 18px;
+  flex-shrink: 0;
 }
 
 .la-tab {
@@ -67,32 +98,55 @@
 .la-panel {
   display: none;
   gap: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 .la-panel.active {
   display: grid;
   grid-template-columns: 220px 1fr;
-  align-items: start;
+  align-items: stretch;
 }
 
+/* Sidebar is a column itself: a scrollable category list on top, and
+   "+ New Category" pinned below it as its own fixed-height row — so it's
+   always reachable no matter how many categories there are, without
+   needing to scroll the list all the way down. */
 .la-sidebar {
-  position: sticky;
-  top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  min-height: 0;
   background: #fff;
   border: 1px solid #eee;
   border-radius: 12px;
   padding: 10px;
-  max-height: calc(100vh - 40px);
+  overflow: hidden;
+}
+
+.la-cat-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .la-cat-row {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
+}
+
+/* A bare <form> gets a global card-container style elsewhere in the app
+   (style.css: padding:25px 30px; margin-bottom:30px — meant for real
+   page-level forms), which was bleeding into this tiny inline wrapper
+   around just the delete "✕" button, inflating every category row to
+   ~105px (mostly empty padding) and reading as huge gaps between
+   categories. Same fix as .la-card-actions form. */
+.la-cat-row form {
+  display: contents;
 }
 
 .la-cat-item {
@@ -109,6 +163,14 @@
   justify-content: space-between;
   align-items: center;
   gap: 6px;
+}
+
+/* The "All" item sits directly in the scrolling column (not inside a
+   .la-cat-row alongside a delete button) — there flex:1 would stretch it
+   to fill the column's remaining height instead of sizing to its own
+   content like every other row. */
+.la-cat-scroll > .la-cat-item {
+  flex: none;
 }
 
 .la-cat-item:hover {
@@ -143,6 +205,7 @@
 }
 
 .la-add-cat-btn {
+  flex-shrink: 0;
   margin-top: 8px;
   border: 1px dashed #ccc;
   background: none;
@@ -162,15 +225,17 @@
 
 .la-main {
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .la-toolbar {
   display: flex;
   gap: 10px;
   margin-bottom: 16px;
-  position: sticky;
-  top: 12px;
-  z-index: 5;
+  flex-shrink: 0;
   background: var(--bg-secondary, #f4f1ea);
   padding: 8px 0;
 }
@@ -213,9 +278,23 @@
 }
 
 .la-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* Inside a height-constrained flex/scroll container, plain
+     grid-auto-rows:auto was letting every row collapse to a sliver
+     (~13px) instead of sizing to its actual content (~150px) once there
+     were enough sprites to need scrolling — min-content forces each row
+     to size to its tallest item's own natural height regardless of how
+     many rows exist below it. align-items:start stops items from being
+     stretched to fill a row instead of sizing to their own content. */
+  grid-auto-rows: min-content;
+  align-items: start;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 14px;
+  padding: 2px 2px 12px;
 }
 
 .la-card {
@@ -273,12 +352,31 @@
   opacity: 1;
 }
 
+/* A plain <button> gets a global padding:10px 18px + background fallback
+   style elsewhere in the app (style.css). As a flex item, a button's
+   default min-width:auto means that padding sets a content-based MINIMUM
+   size the explicit width below can't shrink under, and the <form>
+   wrapping the delete button added its own box on top of that — together
+   they were forcing both buttons far past 24px and wrapping onto two
+   rows instead of sitting side by side. display:contents removes the
+   form's own box from layout (its button behaves as a direct flex item
+   instead), and padding:0 + min-width/height:0 stop the global button
+   style from setting a bigger floor than the fixed size here.
+*/
+.la-card-actions form {
+  display: contents;
+}
+
 .la-card-btn {
   border: none;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
   width: 24px;
   height: 24px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  flex: none;
   border-radius: 50%;
   cursor: pointer;
   font-size: 12px;
@@ -334,14 +432,32 @@
 
 /* ---------- Responsive ---------- */
 
+/* Small screens: the fixed-to-viewport, internally-scrolling layout
+   above is a desktop-admin convenience — on a small screen there isn't
+   room for a sidebar + grid to each keep their own scroll area
+   sensibly, so fall back to one normal, whole-page-scrolling stacked
+   layout instead. */
 @media (max-width: 720px) {
+  html, body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .la-page {
+    overflow: visible;
+  }
+
   .la-panel.active {
     grid-template-columns: 1fr;
   }
 
-  .la-sidebar {
-    position: static;
-    max-height: none;
+  .la-sidebar,
+  .la-main {
+    overflow: visible;
+  }
+
+  .la-cat-scroll {
+    overflow: visible;
     flex-direction: row;
     flex-wrap: wrap;
   }
@@ -350,7 +466,27 @@
     width: auto;
   }
 
+  .la-grid {
+    overflow: visible;
+  }
+
   .la-add-cat-btn {
     margin-top: 0;
+  }
+
+  /* The search box + "Upload" button don't both fit on one line at
+     narrow widths (the button's text can't shrink below its own
+     min-content width) — wrapping instead of forcing a ~5px horizontal
+     page overflow. */
+  .la-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .la-search {
+    min-width: 0;
+  }
+
+  .la-upload-btn {
+    flex: 1;
   }
 }

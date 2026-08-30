@@ -19,20 +19,22 @@
   <!-- ============ SPRITES PANEL ============ -->
   <div class="la-panel active" id="panel-sprites">
     <aside class="la-sidebar">
-      <button class="la-cat-item active" data-filter="all" onclick="filterCategory('sprites','all', this)">
-        All <span><%= spriteAssets.length %></span>
-      </button>
-      <% spriteCategories.forEach(cat => { %>
-        <div class="la-cat-row">
-          <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('sprites','<%= cat.id %>', this)">
-            <%= cat.name %> <span><%= spriteAssets.filter(a => a.category_id === cat.id).length %></span>
-          </button>
-          <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
-                onsubmit="return handleConfirmSubmit(event, 'Delete this category? Sprites inside it become uncategorized.')">
-            <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
-          </form>
-        </div>
-      <% }) %>
+      <div class="la-cat-scroll">
+        <button class="la-cat-item active" data-filter="all" onclick="filterCategory('sprites','all', this)">
+          All <span><%= spriteAssets.length %></span>
+        </button>
+        <% spriteCategories.forEach(cat => { %>
+          <div class="la-cat-row">
+            <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('sprites','<%= cat.id %>', this)">
+              <%= cat.name %> <span><%= spriteAssets.filter(a => a.category_id === cat.id).length %></span>
+            </button>
+            <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
+                  onsubmit="return handleConfirmSubmit(event, 'Delete this category? Sprites inside it become uncategorized.')">
+              <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
       <button class="la-add-cat-btn" onclick="openModal('spriteCategoryModal')">+ New Category</button>
     </aside>
 
@@ -93,20 +95,22 @@
   <!-- ============ BACKGROUNDS PANEL ============ -->
   <div class="la-panel" id="panel-backgrounds">
     <aside class="la-sidebar">
-      <button class="la-cat-item active" data-filter="all" onclick="filterCategory('backgrounds','all', this)">
-        All <span><%= backgroundAssets.length %></span>
-      </button>
-      <% backgroundCategories.forEach(cat => { %>
-        <div class="la-cat-row">
-          <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('backgrounds','<%= cat.id %>', this)">
-            <%= cat.name %> <span><%= backgroundAssets.filter(a => a.category_id === cat.id).length %></span>
-          </button>
-          <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
-                onsubmit="return handleConfirmSubmit(event, 'Delete this category? Backgrounds inside it become uncategorized.')">
-            <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
-          </form>
-        </div>
-      <% }) %>
+      <div class="la-cat-scroll">
+        <button class="la-cat-item active" data-filter="all" onclick="filterCategory('backgrounds','all', this)">
+          All <span><%= backgroundAssets.length %></span>
+        </button>
+        <% backgroundCategories.forEach(cat => { %>
+          <div class="la-cat-row">
+            <button class="la-cat-item" data-filter="<%= cat.id %>" onclick="filterCategory('backgrounds','<%= cat.id %>', this)">
+              <%= cat.name %> <span><%= backgroundAssets.filter(a => a.category_id === cat.id).length %></span>
+            </button>
+            <form action="/admin/lab-assets/category/delete/<%= cat.id %>" method="POST"
+                  onsubmit="return handleConfirmSubmit(event, 'Delete this category? Backgrounds inside it become uncategorized.')">
+              <button type="submit" class="la-cat-delete" title="Delete category">✕</button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
       <button class="la-add-cat-btn" onclick="openModal('backgroundCategoryModal')">+ New Category</button>
     </aside>
 

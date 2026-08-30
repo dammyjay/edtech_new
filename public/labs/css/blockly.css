@@ -873,7 +873,8 @@ body.blockly-fullscreen .stage-panel {
     .block-console,
     .blockly-wrapper,
     .stage-panel,
-    .stage-area {
+    .stage-area,
+    .asset-row {
         flex: none;
     }
 
@@ -941,18 +942,31 @@ body.blockly-fullscreen .stage-panel {
         min-height: 240px;
     }
 
+    /* The tablet breakpoint above sets .asset-row's min-height:220px for
+       a ROW layout (sprite+background side by side, sharing 220px tall).
+       That min-height was never cleared here, so once this breakpoint
+       switches to a STACKED column (sprite panel above background panel,
+       needing 220+160+gap ≈ 390px together), the row was still being
+       held to a 220px floor — and since .background-panel keeps its
+       desktop flex-shrink:0 (meant to stop it shrinking below 120px
+       WIDTH in the row layout), 100% of that shortfall landed on
+       .sprite-panel, crushing it from 220px down to ~50px and hiding
+       the sprites inside it almost entirely. */
     .asset-row {
         height: auto;
+        min-height: 0;
         flex-direction: column;
     }
 
     .background-panel {
         width: 100%;
         height: 160px;
+        flex-shrink: 0;
     }
 
     .sprite-panel {
         height: 220px;
+        flex-shrink: 0;
     }
 
     #spriteList,
