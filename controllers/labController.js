@@ -2,6 +2,7 @@ const pool = require("../models/db");
 const { notifyUser } = require("../utils/notify");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
+const { awardCoins } = require("../services/coinService");
 
 /**
  * LAB TEMPLATES (your real system now)
@@ -9,7 +10,18 @@ const { getStudentStreak } = require("../services/streakService");
 const LAB_TEMPLATES = {
   web: {
     title: "Web Development Lab",
-    starter: { html: "<h1>Hello World</h1>", css: "", js: "" },
+    // pages: multiple HTML files sharing one project-wide css/js — matches
+    // how a real multi-page site works (one stylesheet linked from every
+    // page). webLab.js falls back to the old flat {html,css,js} shape when
+    // loading a project saved before this existed.
+    starter: {
+      pages: [
+        { name: "index.html", html: "<h1>Hello World</h1>\n<p>Start building your site!</p>" },
+      ],
+      css: "body {\n  font-family: sans-serif;\n}",
+      js: "",
+      activePage: "index.html",
+    },
   },
   blockly: {
     title: "Blockly Lab",
@@ -72,9 +84,22 @@ exports.getLabDashboard = async (req, res) => {
 };
 
 exports.getWebLab = async (req, res) => {
+  const studentId = req.session.user.id;
+
+  const studentRes = await pool.query(
+    "SELECT id, xp, coins FROM users2 WHERE id = $1",
+    [studentId]
+  );
+  const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+  const levelInfo = getLevelForXp(student.xp);
+  const streak = await getStudentStreak(studentId);
+
   res.render("labs/web/editor", {
     title: "Web Playground",
-    layout: "layout",
+    users: req.session.user,
+    student,
+    levelInfo,
+    streak,
   });
 };
 
@@ -183,25 +208,6 @@ exports.initProject = async (req, res) => {
   }
 };
 
-// exports.saveProject = async (req, res) => {
-//   try {
-//     const studentId = req.user.id;
-//     const { projectId, html, css, js } = req.body;
-
-//     await pool.query(
-//       `UPDATE lab_projects
-//        SET project_data = $1,
-//            updated_at = NOW()
-//        WHERE id = $2 AND student_id = $3`,
-//       [{ html, css, js }, projectId, studentId],
-//     );
-
-//     res.json({ success: true });
-//   } catch (err) {
-//     console.log("SAVE ERROR:", err);
-//     res.status(500).json({ success: false });
-//   }
-// };
 exports.saveProject = async (req, res) => {
   try {
     const studentId = req.user.id;
@@ -253,10 +259,27 @@ exports.loadProject = async (req, res) => {
   }
 };
 
+// Reward once per project, on the FIRST submission only — matches the
+// isNewCompletion pattern already used for quiz XP (studentController.js)
+// so resubmitting after edits doesn't grind XP/coins indefinitely.
+const SUBMIT_XP_REWARD = 15;
+const SUBMIT_COIN_REWARD = 10;
+
 exports.submitProject = async (req, res) => {
   try {
     const studentId = req.user.id;
     const { projectId } = req.body;
+
+    const existing = await pool.query(
+      `SELECT status, lab_type FROM lab_projects WHERE id = $1 AND student_id = $2`,
+      [projectId, studentId]
+    );
+    const project = existing.rows[0];
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    const isFirstSubmission = project.status !== "submitted";
 
     await pool.query(
       `UPDATE lab_projects
@@ -266,7 +289,34 @@ exports.submitProject = async (req, res) => {
       [projectId, studentId],
     );
 
-    res.json({ success: true });
+    let levelUp = false;
+
+    if (isFirstSubmission) {
+      const beforeRes = await pool.query("SELECT xp FROM users2 WHERE id = $1", [studentId]);
+      const xpBefore = beforeRes.rows[0]?.xp || 0;
+      const levelBefore = getLevelForXp(xpBefore);
+      const levelAfter = getLevelForXp(xpBefore + SUBMIT_XP_REWARD);
+      levelUp = levelAfter.level > levelBefore.level;
+
+      const reason = `Submitted a ${project.lab_type} lab project`;
+      await pool.query(
+        "UPDATE users2 SET xp = COALESCE(xp,0) + $1, redeemable_xp = COALESCE(redeemable_xp,0) + $1 WHERE id = $2",
+        [SUBMIT_XP_REWARD, studentId]
+      );
+      await pool.query(
+        "INSERT INTO xp_history (user_id, xp, activity) VALUES ($1, $2, $3)",
+        [studentId, SUBMIT_XP_REWARD, reason]
+      );
+      await awardCoins(studentId, SUBMIT_COIN_REWARD, reason);
+    }
+
+    res.json({
+      success: true,
+      isFirstSubmission,
+      xpGained: isFirstSubmission ? SUBMIT_XP_REWARD : 0,
+      coinsGained: isFirstSubmission ? SUBMIT_COIN_REWARD : 0,
+      levelUp,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ success: false });

@@ -1,89 +1,124 @@
-<!-- Web editor for web lab -->
+<%- include('../../partials/header', { title: 'Web Playground' }) %>
 
-<script src="/js/uiAlerts.js"></script>
+<link rel="stylesheet" href="/labs/css/web.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
-<link rel="stylesheet" href="/labs/css/web.css">
-
-<select id="templateSelect">
-
-<option value="">
-Choose Template
-</option>
-
-<option value="basic">
-Basic HTML
-</option>
-
-<option value="portfolio">
-Portfolio Website
-</option>
-
-<option value="landing">
-Landing Page
-</option>
-
-<option value="calculator">
-Calculator
-</option>
-
-</select>
 
 <div class="editor-toolbar">
+  <a href="/labs" class="editor-back-link" title="Back to Learning Labs"><i class="fas fa-arrow-left"></i> Labs</a>
 
-    <button id="runBtn">
-        ▶ Run
-    </button>
+  <div class="toolbar-group">
+    <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
+  </div>
 
-    <button id="saveBtn">
-        💾 Save
-    </button>
+  <div class="toolbar-group">
+    <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
+    <button id="resetBtn" class="tb-danger"><i class="fas fa-undo"></i> Reset</button>
+  </div>
 
-    <button id="resetBtn">
-        🔄 Reset
-    </button>
+  <div class="toolbar-group">
+    <select id="templateSelect">
+      <option value="">📋 Load a template…</option>
+      <option value="basic">Basic HTML</option>
+      <option value="portfolio">Portfolio Website</option>
+      <option value="landing">Landing Page</option>
+      <option value="calculator">Calculator</option>
+    </select>
+  </div>
 
-    <button id="fullscreenBtn">
-        ⛶ Fullscreen
-    </button>
+  <div class="toolbar-group">
+    <button id="fullscreenBtn"><i class="fas fa-expand"></i> Fullscreen</button>
+    <button id="exitFullscreenBtn" style="display:none"><i class="fas fa-compress"></i> Exit</button>
+  </div>
 
+  <span id="saveStatus" class="save-status">Ready</span>
 </div>
 
-<div class="editor-container"> 
-    <div class="editor-grid">
-        <div class="editor-card">
+<div class="weblab-stats">
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon">⭐</span>
+    <div>
+      <strong><%= levelInfo.name %></strong>
+      <small>Level <%= levelInfo.level %></small>
+    </div>
+  </div>
 
-            <div class="editor-header">
-                HTML
-            </div>
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon"><%= streak.currentStreak > 0 ? "🔥" : "💤" %></span>
+    <div>
+      <strong><%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %></strong>
+      <small>Streak</small>
+    </div>
+  </div>
 
-            <div id="htmlEditor"></div>
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon">💰</span>
+    <div>
+      <strong><%= student.coins || 0 %></strong>
+      <small>Coins</small>
+    </div>
+  </div>
 
-        </div>
+  <button id="submitBtn" class="weblab-submit-btn"><i class="fas fa-flag-checkered"></i> Submit Project</button>
+</div>
 
-        <div class="editor-card">
-
-            <div class="editor-header">
-                CSS
-            </div>
-
-            <div id="cssEditor"></div>
-
-        </div>
-
-        <div class="editor-card">
-
-            <div class="editor-header">
-                JS
-            </div>
-
-            <div id="jsEditor"></div>
-
-        </div>
+<div class="weblab-container">
+  <div class="weblab-editors">
+    <div class="editor-visibility-rail">
+      <button type="button" class="ev-toggle active" data-target="html" title="Show/hide the HTML editor">
+        <i class="fas fa-code"></i><span>HTML</span>
+      </button>
+      <button type="button" class="ev-toggle active" data-target="css" title="Show/hide the CSS editor">
+        <i class="fas fa-paint-brush"></i><span>CSS</span>
+      </button>
+      <button type="button" class="ev-toggle active" data-target="js" title="Show/hide the JS editor">
+        <i class="fas fa-bolt"></i><span>JS</span>
+      </button>
     </div>
 
-    <iframe id="preview"></iframe>
+    <div class="editor-stack">
+      <div class="page-tabs" id="pageTabs">
+        <button class="page-tab-add" id="addPageBtn" title="Add a new page">+</button>
+      </div>
+
+      <div class="editor-card" data-editor="html">
+        <div class="editor-header">📄 <span id="activePageLabel">index.html</span></div>
+        <div id="htmlEditor"></div>
+      </div>
+
+      <div class="editor-card" data-editor="css">
+        <div class="editor-header">CSS <small>(shared by every page)</small></div>
+        <div id="cssEditor"></div>
+      </div>
+
+      <div class="editor-card" data-editor="js">
+        <div class="editor-header">JS <small>(shared by every page)</small></div>
+        <div id="jsEditor"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="weblab-preview-panel">
+    <div class="preview-toolbar">
+      <span>Live Preview</span>
+      <div class="preview-viewport-toggle">
+        <button data-width="100%" class="active" title="Desktop"><i class="fas fa-desktop"></i></button>
+        <button data-width="768px" title="Tablet"><i class="fas fa-tablet-alt"></i></button>
+        <button data-width="375px" title="Mobile"><i class="fas fa-mobile-alt"></i></button>
+      </div>
+    </div>
+
+    <div class="preview-frame-wrap">
+      <iframe id="preview" sandbox="allow-scripts allow-modals allow-forms"></iframe>
+    </div>
+
+    <div class="console-panel">
+      <div class="console-header">
+        <span><i class="fas fa-terminal"></i> Console</span>
+        <button id="clearConsoleBtn" title="Clear console">Clear</button>
+      </div>
+      <div id="consoleOutput"></div>
+    </div>
+  </div>
 </div>
-
-
 
 <script src="/labs/js/webLab.js"></script>
