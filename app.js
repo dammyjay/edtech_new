@@ -75,6 +75,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Exposed to EVERY view (not just student pages) so the shared
+// partials/userHeader.ejs — included on ~48 pages — can render an
+// equipped avatar frame around the small header avatar for whichever
+// student/user is logged in, without every one of those 48 controllers
+// needing to look up the frame themselves. req.session.user.equipped_avatar_frame
+// is set at login (controllers/adminController.js) and kept in sync live
+// whenever it changes (studentController.equipAvatarFrame).
+const { getFrameByKey } = require("./utils/avatarFrames");
+app.use((req, res, next) => {
+  res.locals.getFrameByKey = getFrameByKey;
+  next();
+});
+
 app.locals.vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 
 app.use(methodOverride("_method"));

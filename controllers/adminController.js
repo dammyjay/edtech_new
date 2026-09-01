@@ -269,6 +269,7 @@ exports.login = async (req, res) => {
       email: user.email,
       role: user.role,
       profile_picture: user.profile_picture,
+      equipped_avatar_frame: user.equipped_avatar_frame,
     };
 
     if (redirectUrl) return res.redirect(redirectUrl);
@@ -318,6 +319,7 @@ exports.avatarPinLogin = async (req, res) => {
       email: user.email,
       role: user.role,
       profile_picture: user.profile_picture,
+      equipped_avatar_frame: user.equipped_avatar_frame,
     };
 
     return res.json({

@@ -614,7 +614,7 @@ async function getChildSummary(childId) {
 exports.getParentDashboard = async (req, res) => {
   const user = req.session.user;
   if (!user || user.role !== "parent") {
-    return res.redirect("/login");
+    return res.redirect("admin/login");
   }
 
   try {

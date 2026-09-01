@@ -766,8 +766,6 @@ router.get("/courses", async (req, res) => {
   );
   const info = infoResult.rows[0] || {};
 
-  const usersResult = await pool.query ("SELECT * FROM users2");
-    const users = usersResult.rows;
   const careerPathwaysResult = await pool.query(
     "SELECT * FROM career_pathways ORDER BY title"
   );
@@ -816,7 +814,11 @@ router.get("/courses", async (req, res) => {
 
   res.render("userCourses", {
     info,
-    users,
+    // Was accidentally the full users2 table (SELECT * FROM users2), which
+    // shadowed the value partials/userHeader.ejs actually expects (the
+    // logged-in user, matching every other page) — silently broke the
+    // header's own avatar/profile-picture on this page for every user.
+    users: req.session.user,
     isLoggedIn: !!req.session.user,
     profilePic,
     walletBalance,

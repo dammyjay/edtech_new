@@ -1,13 +1,13 @@
  <div id="sidenav" class="sidenav">
-  <h2>📌 Teacher Menu</h2>
+  <h2><i class="fa-solid fa-chalkboard-user"></i> Teacher Menu</h2>
   <ul>
-    <li><a href="javascript:void(0)" data-section="dashboard" onclick="loadSection('dashboard')">Dashboard</a></li>
-    <li><a href="javascript:void(0)" data-section="classes" onclick="loadSection('classes')">Classes</a></li>
-    <li><a href="javascript:void(0)" data-section="students" onclick="loadSection('students')">Students</a></li>
-    <li><a href="javascript:void(0)" data-section="attendance" onclick="loadSection('attendance')">Attendance</a></li>
-    <li><a href="javascript:void(0)" data-section="grading" onclick="loadSection('grading')">Grading</a></li>
-    <li><a href="javascript:void(0)" data-section="reports" onclick="loadSection('reports')">Reports</a></li>
-    <li><a href="/admin/logout">🚪 Logout</a></li>
+    <li><a href="javascript:void(0)" data-section="dashboard" onclick="loadSection('dashboard')"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+    <li><a href="javascript:void(0)" data-section="classes" onclick="loadSection('classes')"><i class="fa-solid fa-school"></i> Classes</a></li>
+    <li><a href="javascript:void(0)" data-section="students" onclick="loadSection('students')"><i class="fa-solid fa-user-graduate"></i> Students</a></li>
+    <li><a href="javascript:void(0)" data-section="attendance" onclick="loadSection('attendance')"><i class="fa-solid fa-user-check"></i> Attendance</a></li>
+    <li><a href="javascript:void(0)" data-section="grading" onclick="loadSection('grading')"><i class="fa-solid fa-square-check"></i> Grading</a></li>
+    <li><a href="javascript:void(0)" data-section="reports" onclick="loadSection('reports')"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
+    <li><a href="/admin/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
   </ul>
 </div>
 
@@ -42,6 +42,9 @@
     margin-bottom: 20px;
     color: var(--sidebar-text);
     font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .sidenav ul {
@@ -56,10 +59,19 @@
   .sidenav ul li a {
     color: var(--sidebar-text-muted);
     text-decoration: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
     transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .sidenav ul li a i {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.85;
   }
 
   .sidenav ul li a:hover {

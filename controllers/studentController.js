@@ -1974,7 +1974,19 @@ exports.equipAvatarFrame = async (req, res) => {
     }
 
     await pool.query("UPDATE users2 SET equipped_avatar_frame = $1 WHERE id = $2", [frameKey || null, studentId]);
-    res.json({ success: true });
+
+    // Keep the session copy in sync too — it's what partials/userHeader.ejs
+    // (shown on every other page, via app.js's global res.locals.getFrameByKey)
+    // reads to decide whether to draw a frame, so without this the header
+    // avatar would only pick up the change on next login.
+    if (req.session.user) {
+      req.session.user.equipped_avatar_frame = frameKey || null;
+    }
+
+    // Returned so the client can apply the frame to on-page avatars
+    // immediately, instead of telling the student to refresh.
+    const frame = frameKey ? getFrameByKey(frameKey) : null;
+    res.json({ success: true, frame });
   } catch (err) {
     console.error("equipAvatarFrame error:", err.message);
     res.status(500).json({ success: false });

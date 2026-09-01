@@ -7,6 +7,88 @@
 
 <div class="dashboard-container">
 
+<style>
+  /* Student sidebar redesign — icon-based nav matching the .sidenav
+     pattern already used by the school-admin/teacher sidebars
+     (views/partials/sidenav.ejs, views/teacher/partials/teacher_sidenav.ejs),
+     layered on top of the existing .sidebar positioning/width rules in
+     public/css/styles2.css (untouched, so nothing else that might share
+     that class breaks). Previously every stat/link was its own <h2> with
+     a hand-repeated inline style and an emoji for an icon — replaced with
+     real classes and Font Awesome glyphs (already loaded via partials/header.ejs). */
+  .sb-block {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .sb-stat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+  .sb-stat-row:last-child { margin-bottom: 0; }
+  .sb-stat-row > i {
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--brand-pri-light, #D9A82C);
+    font-size: 13px;
+  }
+  .sb-stat-text { min-width: 0; flex: 1; }
+  .sb-stat-text strong { display: block; font-size: 13px; color: #e5f0ff; font-weight: 700; line-height: 1.3; }
+  .sb-stat-text small { display: block; font-size: 11px; color: #b9c8dd; }
+  .sb-stat-text small a { color: #9fd3ff; margin-left: 6px; text-decoration: none; }
+  .sb-stat-text small a:hover { text-decoration: underline; }
+
+  .sb-nav ul { list-style: none; padding: 0; margin: 0; }
+  .sb-nav li { margin: 2px 0; }
+  /* .sidebar ul li a (styles2.css) is (0,0,3,1) — more specific than a bare
+     .sb-nav a — so these are scoped as .sidebar .sb-nav ul li a to win the
+     cascade without !important. */
+  .sidebar .sb-nav ul li a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13.5px;
+    color: #e5f0ff;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .sidebar .sb-nav ul li a:hover { background: rgba(255,255,255,0.08); color: var(--brand-pri-light, #D9A82C); }
+  .sb-nav a i { width: 16px; text-align: center; flex-shrink: 0; opacity: 0.85; }
+
+  .sb-collapsibles .dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .sb-collapsibles .dropdown-btn i:first-child { width: 16px; text-align: center; }
+  .sb-collapsibles .dropdown-btn .sb-caret {
+    margin-left: auto;
+    font-size: 11px;
+    transition: transform 0.2s ease;
+  }
+  .sb-collapsibles .dropdown-btn.active .sb-caret { transform: rotate(180deg); }
+
+  .sb-logout a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13.5px;
+    color: #e5f0ff;
+  }
+  .sb-logout a:hover { background: rgba(255,255,255,0.08); color: #ff8a80; }
+</style>
+
 <aside class="sidebar">
   <div class="logo-title">
     <% if (info?.logo_url) { %>
@@ -26,108 +108,131 @@
     <h2 style="font-size: 14px;"><%= student.fullname %></h2>
   </div>
 
-  <div class="dash-sect" style="border: #555; border-width: 1px; border-style: solid;">
-    <h2 style="font-size: 14px; color: #e5f0ff; margin-bottom:2px;">⭐ Xp: <%= student.xp %> points</h2>
-    <p style="font-size:12px; color:var(--brand-pri-light,#D9A82C); margin:0 0 4px; font-weight:700;">
-      <%= levelInfo.name %> · Level <%= levelInfo.level %>
-    </p>
+  <div class="sb-block">
+    <div class="sb-stat-row">
+      <i class="fa-solid fa-star"></i>
+      <div class="sb-stat-text">
+        <strong><%= student.xp %> XP</strong>
+        <small><%= levelInfo.name %> · Level <%= levelInfo.level %></small>
+      </div>
+    </div>
     <% if (levelInfo.xpForNextLevel) { %>
-      <div class="progress-bar" style="margin:0 0 10px; background:rgba(255,255,255,0.15);">
+      <div class="progress-bar" style="margin:2px 0 10px 28px; background:rgba(255,255,255,0.15);">
         <div class="filled" style="width: <%= levelInfo.progressPercent %>%;"></div>
       </div>
     <% } %>
-    <h2 style="font-size: 14px; color: #e5f0ff;">
-      <%= streak.currentStreak > 0 ? "🔥" : "💤" %> Streak: <%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %>
-      <% if (streak.currentStreak > 0) { %>
-        <a href="#" onclick="freezeStreak(); return false;" style="font-size:11px; color:#9fd3ff; margin-left:6px;" title="Spend 10 coins to protect today's streak">🧊 Freeze</a>
-      <% } %>
-    </h2>
-    <h2 style="font-size: 14px; color: #e5f0ff;">💰 Coins: <span id="coinsBalance"><%= student.coins || 0 %></span></h2>
-    <h2 style="font-size: 14px; color: #e5f0ff;">
-      🎟️ Redeemable Points: <span id="redeemableXpBalance"><%= student.redeemable_xp || 0 %></span>
-      <a href="#" onclick="openExchangeModal(); return false;" style="font-size:11px; color:#9fd3ff; margin-left:6px;">💱 Exchange</a>
-    </h2>
-    <h2 style="font-size: 14px; color: #e5f0ff;">Wallet: ₦<span id="walletBalanceDisplay"><%= walletBalance.toLocaleString() %></span></h2>
-    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard">🏠 Dashboard</a></h2>
-    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/labs">🧪 Learning Labs</a></h2>
-    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=profile">👤 My Profile</a></h2>
-    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=progress">📊 My Progress</a></h2>
-    <% if (role === 'student' && classroom) { %>
-      <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=leaderboard">🏆 Leaderboard</a></h2>
-      <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=peer-review">🔍 Peer Review</a></h2>
-    <% } %>
-    <h2 ><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/student/dashboard?section=skill-tree">🗺️ Skill Tree</a></h2>
+    <div class="sb-stat-row">
+      <i class="fa-solid <%= streak.currentStreak > 0 ? 'fa-fire' : 'fa-moon' %>"></i>
+      <div class="sb-stat-text">
+        <strong><%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %></strong>
+        <small>Streak<% if (streak.currentStreak > 0) { %><a href="#" onclick="freezeStreak(); return false;" title="Spend 10 coins to protect today's streak">Freeze</a><% } %></small>
+      </div>
+    </div>
+    <div class="sb-stat-row">
+      <i class="fa-solid fa-coins"></i>
+      <div class="sb-stat-text">
+        <strong id="coinsBalance"><%= student.coins || 0 %></strong>
+        <small>Coins</small>
+      </div>
+    </div>
+    <div class="sb-stat-row">
+      <i class="fa-solid fa-ticket"></i>
+      <div class="sb-stat-text">
+        <strong id="redeemableXpBalance"><%= student.redeemable_xp || 0 %></strong>
+        <small>Redeemable<a href="#" onclick="openExchangeModal(); return false;">Exchange</a></small>
+      </div>
+    </div>
+    <div class="sb-stat-row">
+      <i class="fa-solid fa-wallet"></i>
+      <div class="sb-stat-text">
+        <strong>₦<span id="walletBalanceDisplay"><%= walletBalance.toLocaleString() %></span></strong>
+        <small>Wallet</small>
+      </div>
+    </div>
   </div>
 
-
-    <div class="dash-sect" style="border: #555; border-width: 1px; border-style: solid;">
-      <!-- Collapsible: School Info -->
-      <% if (student.role === 'student' && school) { %>
-          <button class="dropdown-btn">🏫 School Info ▾</button>
-          <div class="dropdown-container">
-            <% if (school.logo_url) { %>
-              <img src="<%= school.logo_url %>" alt="School Logo" style="height:50px; margin-bottom:10px;">
-            <% } %>
-            <p><strong>School:</strong> <%= school.name %></p>
-            <p><strong>Classroom:</strong> <%= classroom?.name || 'Not assigned yet' %></p>
-            <p><strong>Teacher:</strong> <%= teacher?.fullname || 'Unassigned' %></p>
-            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <a href="/student/dashboard?section=classroom" class="btn-view">👥 Classmates</a>
-              <a href="/student/dashboard?section=teacher" class="btn-edit">👨‍🏫 Your Teacher</a>
-              <a href="/student/dashboard?section=instructors" class="btn-edit">🧑🏽‍🔧 Instructors</a>
-            </div>
-          </div>
+  <nav class="sb-nav sb-block">
+    <ul>
+      <li><a href="/student/dashboard"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+      <li><a href="/labs"><i class="fa-solid fa-flask"></i> Learning Labs</a></li>
+      <li><a href="/student/dashboard?section=profile"><i class="fa-solid fa-user"></i> My Profile</a></li>
+      <li><a href="/student/dashboard?section=progress"><i class="fa-solid fa-chart-line"></i> My Progress</a></li>
+      <% if (role === 'student' && classroom) { %>
+        <li><a href="/student/dashboard?section=leaderboard"><i class="fa-solid fa-trophy"></i> Leaderboard</a></li>
+        <li><a href="/student/dashboard?section=peer-review"><i class="fa-solid fa-magnifying-glass"></i> Peer Review</a></li>
       <% } %>
+      <li><a href="/student/dashboard?section=skill-tree"><i class="fa-solid fa-map"></i> Skill Tree</a></li>
+    </ul>
+  </nav>
 
-      <!-- Collapsible: Parents -->
-
-        <button class="dropdown-btn">👨‍👩‍👧 Parents ▾</button>
+  <div class="sb-collapsibles sb-block">
+    <!-- Collapsible: School Info -->
+    <% if (student.role === 'student' && school) { %>
+        <button class="dropdown-btn"><i class="fa-solid fa-school"></i> School Info <i class="fa-solid fa-chevron-down sb-caret"></i></button>
         <div class="dropdown-container">
-          <% if (parents && parents.length > 0) { %>
-            <ul>
-              <% parents.forEach(parent => { %>
-                <li><strong><%= parent.fullname %></strong> (<%= parent.email %>)</li>
-              <% }) %>
-            </ul>
-          <% } else { %>
-            <p>No parent linked yet.</p>
+          <% if (school.logo_url) { %>
+            <img src="<%= school.logo_url %>" alt="School Logo" style="height:50px; margin-bottom:10px;">
           <% } %>
-
-          <% if (parentRequests && parentRequests.length > 0) { %>
-            <h4>📩 Requests</h4>
-            <ul>
-              <% parentRequests.forEach(req => { %>
-                <li>
-                  <strong><%= req.parent_name %></strong> (<%= req.parent_email %>)
-                  <form action="/student/parent-request/respond" method="POST" style="display:inline-flex; gap:6px;">
-                    <input type="hidden" name="requestId" value="<%= req.id %>">
-                    <button type="submit" name="action" value="approve">✅</button>
-                    <button type="submit" name="action" value="reject">❌</button>
-                  </form>
-                </li>
-              <% }) %>
-            </ul>
-          <% } %>
+          <p><strong>School:</strong> <%= school.name %></p>
+          <p><strong>Classroom:</strong> <%= classroom?.name || 'Not assigned yet' %></p>
+          <p><strong>Teacher:</strong> <%= teacher?.fullname || 'Unassigned' %></p>
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="/student/dashboard?section=classroom" class="btn-view"><i class="fa-solid fa-user-group"></i> Classmates</a>
+            <a href="/student/dashboard?section=teacher" class="btn-edit"><i class="fa-solid fa-chalkboard-user"></i> Your Teacher</a>
+            <a href="/student/dashboard?section=instructors" class="btn-edit"><i class="fa-solid fa-screwdriver-wrench"></i> Instructors</a>
+          </div>
         </div>
-   
+    <% } %>
 
-      <!-- Collapsible: Pathways -->
-  
-      <button class="dropdown-btn">📂 My Pathways ▾</button>
-      <!-- <h2><a class="dropdown-btn" href="">📂 My Pathways ▾</a></h2> -->
-      <ul class="dropdown-container">
-        <% Object.keys(pathwayCourses).forEach(pathway => { %>
-          <li>
-            <a href="/student/dashboard?pathway=<%= encodeURIComponent(pathway) %>">
-              <%= pathway %>
-            </a>
-          </li>
-        <% }) %>
-      </ul>
-    </div>
+    <!-- Collapsible: Parents -->
 
-  <h2><a style="text-decoration: none; font-size: 14px; color: #e5f0ff;" href="/admin/logout">🚪 Logout</a></h2>
+      <button class="dropdown-btn"><i class="fa-solid fa-people-roof"></i> Parents <i class="fa-solid fa-chevron-down sb-caret"></i></button>
+      <div class="dropdown-container">
+        <% if (parents && parents.length > 0) { %>
+          <ul>
+            <% parents.forEach(parent => { %>
+              <li><strong><%= parent.fullname %></strong> (<%= parent.email %>)</li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p>No parent linked yet.</p>
+        <% } %>
 
+        <% if (parentRequests && parentRequests.length > 0) { %>
+          <h4><i class="fa-solid fa-envelope"></i> Requests</h4>
+          <ul>
+            <% parentRequests.forEach(req => { %>
+              <li>
+                <strong><%= req.parent_name %></strong> (<%= req.parent_email %>)
+                <form action="/student/parent-request/respond" method="POST" style="display:inline-flex; gap:6px;">
+                  <input type="hidden" name="requestId" value="<%= req.id %>">
+                  <button type="submit" name="action" value="approve"><i class="fa-solid fa-check"></i></button>
+                  <button type="submit" name="action" value="reject"><i class="fa-solid fa-xmark"></i></button>
+                </form>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+
+
+    <!-- Collapsible: Pathways -->
+
+    <button class="dropdown-btn"><i class="fa-solid fa-folder-open"></i> My Pathways <i class="fa-solid fa-chevron-down sb-caret"></i></button>
+    <ul class="dropdown-container">
+      <% Object.keys(pathwayCourses).forEach(pathway => { %>
+        <li>
+          <a href="/student/dashboard?pathway=<%= encodeURIComponent(pathway) %>">
+            <%= pathway %>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+
+  <div class="sb-logout">
+    <a href="/admin/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </div>
 
 </aside>
 
@@ -236,7 +341,7 @@
      the sidebar's "💱 Exchange" link is visible everywhere. -->
 <div id="exchangeModal" class="modal" style="display:none;">
   <div class="modal-content">
-    <span class="close-modal" onclick="closeExchangeModal()">&times;</span>
+    <span class="close" onclick="closeExchangeModal()">&times;</span>
     <h2>💱 Exchange Points</h2>
     <p style="font-size:13px; color:#666;">
       You have <strong id="exchangeAvailablePoints"><%= student.redeemable_xp || 0 %></strong> redeemable points.
@@ -306,7 +411,7 @@
       <h2>👤 My Profile</h2>
 
       <div class="profile-card">
-        <img src="<%= profilePic || '/images/profile male.png' %>" class="profile-pic-large" />
+        <img src="<%= profilePic || '/images/profile male.png' %>" class="profile-pic-large" style="<%= equippedFrameStyle %>" />
         <p><strong>Full Name:</strong> <%= student.fullname %></p>
         <p><strong>Gender:</strong> <%= student.gender %></p>
         <p><strong>Date of Birth:</strong> <%= student.dob ? student.dob.toISOString().split('T')[0] : 'N/A' %></p>
@@ -472,7 +577,7 @@
     <div id="editModal-profile" class="modal" style="display:none;">
       <div class="modal-content">
 
-        <span class="close-modal" onclick="closeEditModal('profile')">&times;</span>
+        <span class="close" onclick="closeEditModal('profile')">&times;</span>
 
         <h2>Edit Profile</h2>
 
@@ -2601,6 +2706,18 @@ async function unlockAvatarFrame(frameKey) {
   }
 }
 
+// Applied to every avatar <img> currently on the page (sidebar,
+// My Profile, and the shared header avatar if this page happens to
+// render one) — `frame` is null to clear back to no frame.
+function applyFrameToPageAvatars(frame) {
+  const style = frame ? frame.style + " border-radius:50%;" : "";
+  document
+    .querySelectorAll(".profile-pic, .profile-pic-large, .user-header-avatar")
+    .forEach((img) => {
+      img.style.cssText = img.style.cssText.replace(/border[^;]*;?|box-shadow[^;]*;?/gi, "") + style;
+    });
+}
+
 async function equipAvatarFrame(frameKey) {
   try {
     const res = await fetch("/student/avatar-frames/equip", {
@@ -2610,7 +2727,8 @@ async function equipAvatarFrame(frameKey) {
     });
     const data = await res.json();
     if (data.success) {
-      showToast("🖼️ Frame equipped! Refresh to see it on your avatar.");
+      applyFrameToPageAvatars(data.frame || null);
+      showToast(data.frame ? "🖼️ Frame equipped!" : "Frame removed.");
       loadAvatarFrames();
     } else {
       showToast(data.message || "Couldn't equip frame.");
@@ -2624,6 +2742,119 @@ window.closeEditModal = function (id) {
   const modal = document.getElementById("editModal-" + id);
   if (modal) modal.style.display = "none";
 };
+
+// The functions below (toast/coins/streak-freeze/XP-exchange) used to live
+// nested inside loadLessonPart's fetch callback, specifically inside its
+// `if (part === "content")` branch — which only ever runs AFTER a student
+// opens a lesson and views its Content tab. Every sidebar/header control
+// that calls them (💱 Exchange, streak-freeze, and — indirectly, via
+// showToast/updateCoinsDisplay — the avatar frame unlock/equip buttons)
+// is visible and clickable from the moment the dashboard loads, long
+// before that ever happens, so those all threw "X is not defined" the
+// first time anyone used them on a fresh page load. Avatar frame
+// unlock/equip in particular looked "silently broken": the fetch + DB
+// update succeeded every time, but the showToast(...) call right after it
+// threw and got swallowed by the surrounding try/catch, so the purchase
+// went through with zero visible feedback and the frame grid never
+// refreshed. Moved here so they're real globals from page load.
+function showToast(message) {
+  let toast = document.createElement("div");
+  toast.className = "app-toast";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = "0"; }, 2000);
+  setTimeout(() => { toast.remove(); }, 2500);
+}
+
+function updateCoinsDisplay(newBalance) {
+  const el = document.getElementById("coinsBalance");
+  if (el && typeof newBalance === "number") el.textContent = newBalance;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const streakBonusCoins = <%- JSON.stringify(streakBonusCoins || 0) %>;
+  if (streakBonusCoins > 0) {
+    showToast(`💰 +${streakBonusCoins} coins — daily streak bonus!`);
+  }
+});
+
+async function freezeStreak() {
+  try {
+    const res = await fetch("/student/streak/freeze", { method: "POST", headers: { "Content-Type": "application/json" } });
+    const data = await res.json();
+    if (data.success) {
+      updateCoinsDisplay(data.coins);
+      showToast("🧊 " + data.message);
+    } else {
+      showToast(data.message || "Couldn't freeze streak.");
+    }
+  } catch (err) {
+    console.error("Failed to freeze streak:", err);
+  }
+}
+
+const NAIRA_PER_POINT = 5;
+
+function openExchangeModal() {
+  document.getElementById("exchangeAmount").value = "";
+  document.getElementById("exchangePreview").textContent = "";
+  document.getElementById("exchangeModal").style.display = "block";
+}
+
+function closeExchangeModal() {
+  document.getElementById("exchangeModal").style.display = "none";
+}
+
+function updateExchangePreview() {
+  const amount = parseInt(document.getElementById("exchangeAmount").value, 10) || 0;
+  const target = document.querySelector('input[name="exchangeTarget"]:checked').value;
+  const preview = document.getElementById("exchangePreview");
+  if (amount <= 0) { preview.textContent = ""; return; }
+  preview.textContent = target === "wallet"
+    ? `= ₦${(amount * NAIRA_PER_POINT).toLocaleString()}`
+    : `= ${amount} coins`;
+}
+
+async function submitExchange() {
+  const amount = parseInt(document.getElementById("exchangeAmount").value, 10);
+  const target = document.querySelector('input[name="exchangeTarget"]:checked').value;
+  if (!amount || amount <= 0) {
+    showToast("Enter how many points to exchange.");
+    return;
+  }
+  const previewText = target === "wallet" ? `₦${amount * NAIRA_PER_POINT}` : `${amount} coins`;
+  if (!confirm(`Exchange ${amount} points for ${previewText}?`)) return;
+
+  try {
+    const res = await fetch("/student/xp/exchange", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, target }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't complete exchange.");
+      return;
+    }
+    document.getElementById("redeemableXpBalance").textContent = data.redeemableXp;
+    if (target === "coins") {
+      updateCoinsDisplay(data.coins);
+      showToast(`✅ Exchanged for ${amount} coins!`);
+    } else {
+      // walletBalance is already returned by the server — no need to send
+      // the student off to refresh the page to see their new balance.
+      const walletEl = document.getElementById("walletBalanceDisplay");
+      if (walletEl && typeof data.walletBalance !== "undefined") {
+        walletEl.textContent = Number(data.walletBalance).toLocaleString();
+      }
+      showToast(`✅ Exchanged for ₦${(amount * NAIRA_PER_POINT).toLocaleString()}!`);
+    }
+    closeExchangeModal();
+  } catch (err) {
+    console.error("Failed to exchange points:", err);
+    showToast("Something went wrong — please try again.");
+  }
+}
 </script>
 
 <!-- Lesson and quiz script -->
@@ -3016,99 +3247,15 @@ window.closeEditModal = function (id) {
     }
   }
 
-  // 🔸 Toast notification for feedback
-  function showToast(message) {
-    let toast = document.createElement("div");
-    toast.className = "app-toast";
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = "0"; }, 2000);
-    setTimeout(() => { toast.remove(); }, 2500);
-  }
-
-  function updateCoinsDisplay(newBalance) {
-    const el = document.getElementById("coinsBalance");
-    if (el && typeof newBalance === "number") el.textContent = newBalance;
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const streakBonusCoins = <%- JSON.stringify(streakBonusCoins || 0) %>;
-    if (streakBonusCoins > 0) {
-      showToast(`💰 +${streakBonusCoins} coins — daily streak bonus!`);
-    }
-  });
-
-  async function freezeStreak() {
-    try {
-      const res = await fetch("/student/streak/freeze", { method: "POST", headers: { "Content-Type": "application/json" } });
-      const data = await res.json();
-      if (data.success) {
-        updateCoinsDisplay(data.coins);
-        showToast("🧊 " + data.message);
-      } else {
-        showToast(data.message || "Couldn't freeze streak.");
-      }
-    } catch (err) {
-      console.error("Failed to freeze streak:", err);
-    }
-  }
-
-  const NAIRA_PER_POINT = 5;
-
-  function openExchangeModal() {
-    document.getElementById("exchangeAmount").value = "";
-    document.getElementById("exchangePreview").textContent = "";
-    document.getElementById("exchangeModal").style.display = "block";
-  }
-
-  function closeExchangeModal() {
-    document.getElementById("exchangeModal").style.display = "none";
-  }
-
-  function updateExchangePreview() {
-    const amount = parseInt(document.getElementById("exchangeAmount").value, 10) || 0;
-    const target = document.querySelector('input[name="exchangeTarget"]:checked').value;
-    const preview = document.getElementById("exchangePreview");
-    if (amount <= 0) { preview.textContent = ""; return; }
-    preview.textContent = target === "wallet"
-      ? `= ₦${(amount * NAIRA_PER_POINT).toLocaleString()}`
-      : `= ${amount} coins`;
-  }
-
-  async function submitExchange() {
-    const amount = parseInt(document.getElementById("exchangeAmount").value, 10);
-    const target = document.querySelector('input[name="exchangeTarget"]:checked').value;
-    if (!amount || amount <= 0) {
-      showToast("Enter how many points to exchange.");
-      return;
-    }
-    const previewText = target === "wallet" ? `₦${amount * NAIRA_PER_POINT}` : `${amount} coins`;
-    if (!confirm(`Exchange ${amount} points for ${previewText}?`)) return;
-
-    try {
-      const res = await fetch("/student/xp/exchange", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, target }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        showToast(data.message || "Couldn't complete exchange.");
-        return;
-      }
-      document.getElementById("redeemableXpBalance").textContent = data.redeemableXp;
-      if (target === "coins") {
-        updateCoinsDisplay(data.coins);
-        showToast(`✅ Exchanged for ${amount} coins!`);
-      } else {
-        showToast(`✅ Exchanged for ₦${(amount * NAIRA_PER_POINT).toLocaleString()} — refresh to see your updated wallet.`);
-      }
-      closeExchangeModal();
-    } catch (err) {
-      console.error("Failed to exchange points:", err);
-      showToast("Something went wrong — please try again.");
-    }
-  }
+  // showToast/updateCoinsDisplay/freezeStreak/NAIRA_PER_POINT/
+  // openExchangeModal/closeExchangeModal/updateExchangePreview/
+  // submitExchange/the daily-streak-bonus DOMContentLoaded listener used
+  // to be defined here. Moved to the avatar-frame script block above
+  // (view source, search "used to live nested inside loadLessonPart") —
+  // this whole branch only runs after a student opens a lesson's Content
+  // tab, so anything sidebar/header controls needed immediately on page
+  // load (the Exchange link, streak-freeze, avatar frame unlock/equip
+  // via showToast) was undefined until then.
 
   // 🔸 Keyboard shortcuts while in fullscreen
   document.addEventListener("keydown", (e) => {

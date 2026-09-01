@@ -24,7 +24,15 @@
         <div class="user-actions">
           <% if (isLoggedIn) { %>
               <% if (users?.profile_picture) { %>
-                <img src="<%= users.profile_picture %>" alt="Profile" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+                <%
+                  // Lets the equipped avatar frame follow the student to
+                  // every page (getFrameByKey comes from app.js's global
+                  // res.locals, so no controller-side plumbing is needed
+                  // here beyond users.equipped_avatar_frame already being
+                  // on the session — see controllers/adminController.js login).
+                  const _headerFrame = users?.equipped_avatar_frame ? getFrameByKey(users.equipped_avatar_frame) : null;
+                %>
+                <img src="<%= users.profile_picture %>" alt="Profile" class="user-header-avatar" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;<%= _headerFrame ? _headerFrame.style : '' %>">
               <% } %>
               <a href="/feedback">Give Feedback</a>
               <div class="dropdown">

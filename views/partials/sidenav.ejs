@@ -1,10 +1,10 @@
 <div id="sidenav" class="sidenav">
-  <h2>📌 Admin Menu</h2>
+  <h2><i class="fa-solid fa-graduation-cap"></i> Admin Menu</h2>
   <ul>
-    <li><a href="#" onclick="loadSection('overview')">🏠 Overview</a></li>
-    <li><a href="#" onclick="loadSection('teachers')">👨‍🏫 Teachers</a></li>
-    <li><a href="#" onclick="loadSection('students')">🎓 Students</a></li>
-    <li><a href="#" onclick="loadSection('classrooms')">🏫 Classrooms</a></li>
+    <li><a href="#" onclick="loadSection('overview')"><i class="fa-solid fa-house"></i> Overview</a></li>
+    <li><a href="#" onclick="loadSection('teachers')"><i class="fa-solid fa-chalkboard-user"></i> Teachers</a></li>
+    <li><a href="#" onclick="loadSection('students')"><i class="fa-solid fa-user-graduate"></i> Students</a></li>
+    <li><a href="#" onclick="loadSection('classrooms')"><i class="fa-solid fa-school"></i> Classrooms</a></li>
     <li><a href="#" onclick="loadSection('terms')">
       <i class="fa-solid fa-calendar"></i> Terms
     </a></li>
@@ -13,13 +13,13 @@
       <i class="fa-solid fa-user-check"></i> Attendance
     </a></li>
 
-    <li><a href="#" onclick="loadSection('approvals')">⏳ Approvals</a></li>
+    <li><a href="#" onclick="loadSection('approvals')"><i class="fa-solid fa-hourglass-half"></i> Approvals</a></li>
     <li><a href="#" onclick="loadSection('quotes')">
       <i class="fa-solid fa-file-invoice-dollar"></i> Quotes
     </a></li>
-    <li><a href="#" onclick="loadSection('payments')">💳 Payments</a></li>
-    <li><a href="#" onclick="loadSection('classroom-courses')">📚 Classroom Courses</a></li>
-    <li><a href="/admin/logout">🚪 Logout</a></li>
+    <li><a href="#" onclick="loadSection('payments')"><i class="fa-solid fa-credit-card"></i> Payments</a></li>
+    <li><a href="#" onclick="loadSection('classroom-courses')"><i class="fa-solid fa-book"></i> Classroom Courses</a></li>
+    <li><a href="/admin/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
   </ul>
 </div>
 
@@ -44,6 +44,9 @@
     margin-bottom: 20px;
     color: var(--sidebar-text);
     font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .sidenav ul {
@@ -58,10 +61,19 @@
   .sidenav ul li a {
     color: var(--sidebar-text-muted);
     text-decoration: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
     transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .sidenav ul li a i {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.85;
   }
 
   .sidenav ul li a:hover {
