@@ -130,9 +130,43 @@ body.blockly-fullscreen .stage-panel {
     transform: translateY(-1px);
 }
 
-#runBtn.tb-primary {
+#runBtn.tb-primary,
+#submitBtn.tb-primary {
     background: #28a745;
     color: #fff;
+}
+
+/* ---------- Lesson-attached lab banner ---------- */
+/* Shown only when this editor was opened from a lesson's "Lab Task" tab
+   (?labId=), via controllers/labController.js's lessonLab render local. */
+
+.blockly-lesson-banner {
+    padding: 10px 16px;
+    background: #fff8e1;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+}
+
+.blockly-lesson-banner strong {
+    display: block;
+    color: #4a3b00;
+}
+
+.blockly-lesson-banner p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #6b5900;
+}
+
+.blockly-lesson-banner details {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #4a3b00;
+}
+
+.blockly-lesson-banner summary {
+    cursor: pointer;
+    font-weight: 600;
 }
 
 #stopBtn.tb-danger,

@@ -1,6 +1,15 @@
 <!-- views/labs/blockly/editor.ejs -->
 <%- include('../../partials/header', { title: 'Blockly Playground' }) %>
 
+<% if (lessonLab) { %>
+  <script>
+    // Read by blocklyLab.js's submit handler to build the "Back to Lesson" /
+    // "Proceed to Next Lesson" deep links (/student/dashboard?section=
+    // module&moduleId=&openLesson=) instead of the bare dashboard.
+    window.LESSON_MODULE_ID = <%- JSON.stringify(lessonLab.module_id || null) %>;
+  </script>
+<% } %>
+
 <script src="/js/uiAlerts.js"></script>
 <link rel="stylesheet" href="/labs/css/blockly.css" />
 <link
@@ -33,15 +42,25 @@
 <script src="/labs/js/blocklyLab.js"></script>
 
 <div class="editor-toolbar">
-  <a href="/labs" class="editor-back-link" title="Back to Learning Labs">
-    <i class="fas fa-arrow-left"></i> Labs
-  </a>
+  <% if (lessonLab) { %>
+    <a href="/student/dashboard?section=module&moduleId=<%= lessonLab.module_id %>&openLesson=<%= lessonLab.lesson_id %>" class="editor-back-link" title="Back to your lesson">
+      <i class="fas fa-arrow-left"></i> Back to Lesson
+    </a>
+  <% } else { %>
+    <a href="/labs" class="editor-back-link" title="Back to Learning Labs">
+      <i class="fas fa-arrow-left"></i> Labs
+    </a>
+  <% } %>
 
   <div class="toolbar-group">
     <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
     <button id="stopBtn" class="tb-danger" style="display: none">
       <i class="fas fa-stop"></i> Stop
     </button>
+  </div>
+
+  <div class="toolbar-group">
+    <button id="submitBtn" class="tb-primary"><i class="fas fa-flag-checkered"></i> Submit</button>
   </div>
 
   <div class="toolbar-group">
@@ -67,6 +86,19 @@
 
   <div id="runStatus">Ready</div>
 </div>
+
+<% if (lessonLab) { %>
+  <div class="blockly-lesson-banner">
+    <strong>🧩 <%= lessonLab.title %></strong>
+    <% if (lessonLab.description) { %><p><%= lessonLab.description %></p><% } %>
+    <% if (lessonLab.instructions) { %>
+      <details>
+        <summary>Instructions</summary>
+        <div style="white-space:pre-wrap;"><%= lessonLab.instructions %></div>
+      </details>
+    <% } %>
+  </div>
+<% } %>
 
 <div class="blockly-container">
   <div class="block-console">

@@ -778,7 +778,7 @@
 
 .sidebar {
     width: 200px;
-    background-color: var(--grey2);
+    background-color: #7f7441;
     color: #fff;
     padding: 20px;
     position: fixed;

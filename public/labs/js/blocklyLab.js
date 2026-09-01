@@ -1,5 +1,15 @@
 // public/labs/js/blocklyLab.js
 
+// Set when this editor was opened from a lesson's "Lab Task" tab
+// (views/student/dashboard.ejs's loadLabTaskInline) via ?labId= — scopes
+// the project to that specific task instead of the student's freeform
+// playground project, and changes what Submit does on success.
+const LESSON_LAB_ID = new URLSearchParams(window.location.search).get("labId");
+// The lesson this task belongs to — used to build the result popup's
+// "Back to Lesson" deep link (window.LESSON_MODULE_ID, the other half of
+// that link, comes from views/labs/blockly/editor.ejs's inline script).
+const LESSON_ID_FOR_LAB = new URLSearchParams(window.location.search).get("lessonId");
+
 let workspace;
 let saveTimeout;
 let stageWidth;
@@ -526,7 +536,98 @@ window.addEventListener("load", async () => {
 
     document.getElementById("resetBtn").addEventListener("click", resetStage);
 
-    
+    const MAX_LAB_SUBMISSIONS = 3; // must match controllers/labController.js
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      if (!window.currentProjectId) return;
+
+      if (LESSON_LAB_ID && (window.labSubmissionCount || 0) >= MAX_LAB_SUBMISSIONS) {
+        showAlert(`You've used all ${MAX_LAB_SUBMISSIONS} submissions for this task.`);
+        return;
+      }
+
+      const confirmMessage = LESSON_LAB_ID && window.labSubmissionCount > 0
+        ? `You've already submitted this task and it was graded. Submit again for updated feedback? (attempt ${window.labSubmissionCount + 1} of ${MAX_LAB_SUBMISSIONS})`
+        : LESSON_LAB_ID
+          ? "Submit this lab task? This will complete it and get you AI feedback."
+          : "Submit this project? Your teacher/classmates may review it.";
+      const confirmed = await showConfirm(confirmMessage, { confirmText: "Submit" });
+      if (!confirmed) return;
+
+      await saveProject(false);
+
+      try {
+        const res = await fetch("/labs/project/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: window.currentProjectId }),
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          showToast(data.message || "Couldn't submit — try again.", "error");
+          return;
+        }
+
+        if (typeof data.submissionCount === "number") {
+          window.labSubmissionCount = data.submissionCount;
+        }
+
+        if (LESSON_LAB_ID) {
+          // Lesson-attached task — submitting completes the LAB and pays
+          // its own XP; the lesson only fully "completes" (unlocks the
+          // next one) once every part it has is done — see
+          // services/lessonCompletionService.js:maybeUnlockNextLesson. A
+          // lesson with a quiz still pending won't unlock yet even on a
+          // successful first lab submission.
+          if (data.isFirstSubmission) {
+            if (data.lessonComplete) {
+              showToast(`🎉 Lesson complete! +${data.xpGained} XP, +${data.coinsGained} coins`);
+            } else {
+              showToast(`✅ Lab task submitted! +${data.xpGained} XP, +${data.coinsGained} coins`);
+            }
+            if (data.levelUp) {
+              setTimeout(() => showToast("🎊 Level up!"), 1300);
+            }
+          } else {
+            showToast("Task re-submitted!");
+          }
+          // AI-graded feedback (controllers/labController.js's
+          // gradeLessonLabSubmission) — a result popup with real next
+          // steps instead of a plain OK-only alert: always offers "Back
+          // to Lesson", plus "Proceed to Next Lesson" when this
+          // submission was the one that actually unlocked it.
+          if (data.labFeedback) {
+            const scoreLine = data.labFeedback.score !== null ? `Score: ${data.labFeedback.score}/100\n\n` : "";
+            setTimeout(async () => {
+              const buttons = [{ label: "⬅ Back to Lesson", value: "lesson", className: "ui-alert-btn-secondary" }];
+              if (data.lessonComplete && data.nextLessonId) {
+                buttons.push({ label: "➡️ Proceed to Next Lesson", value: "next", className: "ui-alert-btn-primary" });
+              }
+              const dialogType = data.labFeedback.score !== null && data.labFeedback.score >= 50 ? "success" : "info";
+              const choice = await showActionDialog(`${scoreLine}${data.labFeedback.feedback}`, dialogType, buttons);
+              if (choice === "lesson" && LESSON_ID_FOR_LAB) {
+                window.location.href = `/student/dashboard?section=module&moduleId=${window.LESSON_MODULE_ID}&openLesson=${LESSON_ID_FOR_LAB}`;
+              } else if (choice === "next" && data.nextLessonId) {
+                window.location.href = `/student/dashboard?section=module&moduleId=${data.nextLessonModuleId}&openLesson=${data.nextLessonId}`;
+              }
+            }, 600);
+          }
+        } else if (data.isFirstSubmission) {
+          showToast(`🎉 Project submitted! +${data.xpGained} XP, +${data.coinsGained} coins`);
+          if (data.levelUp) {
+            setTimeout(() => showToast("🎊 Level up!"), 1300);
+          }
+        } else {
+          showToast("Project re-submitted!");
+        }
+      } catch (err) {
+        console.error("SUBMIT ERROR:", err);
+        showToast("Couldn't submit — try again.", "error");
+      }
+    });
+
+
     const fullscreenBtn = document.getElementById("fullscreenBtn");
 
     const exitFullscreenBtn = document.getElementById("exitFullscreenBtn");
@@ -1070,6 +1171,7 @@ async function initLab(labType) {
       },
       body: JSON.stringify({
         labType,
+        labId: LESSON_LAB_ID || undefined,
       }),
     });
 
@@ -1081,6 +1183,10 @@ async function initLab(labType) {
     }
 
     window.currentProjectId = data.project.id;
+    // Only meaningful for a lesson-attached task (LESSON_LAB_ID set) — how
+    // many times it's already been AI-graded, for the resubmit confirm
+    // message and the MAX_LAB_SUBMISSIONS cap below.
+    window.labSubmissionCount = data.submissionCount || 0;
 
     const project = data.project.project_data || {};
 

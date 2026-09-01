@@ -139,6 +139,9 @@ router.get(
 // Get quiz questions for a lesson
 router.get('/lessons/:id/quiz', studentController.getLessonQuiz);
 
+// Get the lab task attached to a lesson (Blockly/Web)
+router.get('/lessons/:lessonId/lab', studentController.getLessonLab);
+
 router.post(
   "/lessons/:id/quiz/submit",
   express.json(),activityLoggerMiddleware(

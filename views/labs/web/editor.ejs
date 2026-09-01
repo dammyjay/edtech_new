@@ -3,8 +3,21 @@
 <link rel="stylesheet" href="/labs/css/web.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
 
+<% if (lessonLab) { %>
+  <script>
+    // Read by webLab.js's submit handler to build the "Back to Lesson" /
+    // "Proceed to Next Lesson" deep links (/student/dashboard?section=
+    // module&moduleId=&openLesson=) instead of the bare dashboard.
+    window.LESSON_MODULE_ID = <%- JSON.stringify(lessonLab.module_id || null) %>;
+  </script>
+<% } %>
+
 <div class="editor-toolbar">
-  <a href="/labs" class="editor-back-link" title="Back to Learning Labs"><i class="fas fa-arrow-left"></i> Labs</a>
+  <% if (lessonLab) { %>
+    <a href="/student/dashboard?section=module&moduleId=<%= lessonLab.module_id %>&openLesson=<%= lessonLab.lesson_id %>" class="editor-back-link" title="Back to your lesson"><i class="fas fa-arrow-left"></i> Back to Lesson</a>
+  <% } else { %>
+    <a href="/labs" class="editor-back-link" title="Back to Learning Labs"><i class="fas fa-arrow-left"></i> Labs</a>
+  <% } %>
 
   <div class="toolbar-group">
     <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
@@ -32,6 +45,19 @@
 
   <span id="saveStatus" class="save-status">Ready</span>
 </div>
+
+<% if (lessonLab) { %>
+  <div class="weblab-lesson-banner">
+    <strong>🧩 <%= lessonLab.title %></strong>
+    <% if (lessonLab.description) { %><p><%= lessonLab.description %></p><% } %>
+    <% if (lessonLab.instructions) { %>
+      <details>
+        <summary>Instructions</summary>
+        <div style="white-space:pre-wrap;"><%= lessonLab.instructions %></div>
+      </details>
+    <% } %>
+  </div>
+<% } %>
 
 <div class="weblab-stats">
   <div class="weblab-stat">

@@ -1166,6 +1166,9 @@
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'content')">📝 Lesson Note</button></li>
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'presentation')">📊 Slide Deck</button></li>
                   <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'quiz')">📝 Quiz</button></li>
+                  <% if (lesson.has_lab) { %>
+                    <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'lab')">🧩 Lab Task</button></li>
+                  <% } %>
                 </ul>
 
               </li>
@@ -3009,6 +3012,32 @@ async function submitExchange() {
     menu.style.display = (menu.style.display === "none" || !menu.style.display) ? "block" : "none";
   };
 
+  // Deep link from the lab-submission result popup / editor toolbar
+  // (public/labs/js/{web,blockly}Lab.js, views/labs/{web,blockly}/editor.ejs)
+  // — /student/dashboard?section=module&moduleId=X&openLesson=Y opens
+  // straight to a specific lesson's content instead of leaving the
+  // student to find it in the module tree themselves. moduleId is what
+  // makes the SERVER render that module's lesson list in the first place
+  // (controllers/studentController.js, req.query.moduleId); this just
+  // expands + loads the right lesson once that list is in the DOM.
+  document.addEventListener("DOMContentLoaded", () => {
+    const openLessonId = new URLSearchParams(window.location.search).get("openLesson");
+    if (!openLessonId) return;
+
+    const toggleBtn = document.getElementById("lesson-toggle-" + openLessonId);
+    if (!toggleBtn) return; // lesson isn't in this module's rendered tree
+
+    const moduleList = toggleBtn.closest('[id^="module-"]');
+    if (moduleList) moduleList.style.display = "block";
+
+    toggleLessonMenu(openLessonId);
+    loadLessonPart(Number(openLessonId), "content");
+
+    setTimeout(() => {
+      toggleBtn.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+  });
+
   window.loadLessonPart = loadLessonPart;
 
   function loadLessonPart(lessonId, part) {
@@ -3398,6 +3427,13 @@ async function submitExchange() {
         // 🧩 QUIZ SECTION
         if (part === "quiz") {
           loadQuizInline(lessonId);
+          document.getElementById("ai-tutor").style.display = "none";
+          hideLoading();
+          return;
+        }
+
+        if (part === "lab") {
+          loadLabTaskInline(lessonId);
           document.getElementById("ai-tutor").style.display = "none";
           hideLoading();
           return;
@@ -4212,6 +4248,74 @@ let reviewIndex = 0;
     }
   }
 
+  // Renders the "Lab Task" tab — mirrors loadQuizInline's fetch/render
+  // shape, but there's no in-page interaction here: the actual building
+  // happens in the Blockly/Web lab editor (labs/{blockly,web}/editor.ejs),
+  // opened via the button below with ?labId= so the editor scopes the
+  // student's project to this lesson's task instead of their freeform one.
+  function loadLabTaskInline(lessonId) {
+    showLoading();
+    fetch(`/student/lessons/${lessonId}/lab`)
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById("lessonMainArea");
+        hideLoading();
+
+        if (!data.success) {
+          container.innerHTML = `
+            <h2>🧩 Lab Task</h2>
+            <p style="color:#888;">No lab task for this lesson yet.</p>
+          `;
+          return;
+        }
+
+        const lab = data.lab;
+        const editorPath = lab.lab_type === "blockly" ? "/labs/blockly" : "/labs/web";
+        const openUrl = `${editorPath}?labId=${lab.id}&lessonId=${lessonId}`;
+
+        const statusBadge = data.status === "submitted"
+          ? `<span class="quiz-btn-primary" style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:12px;">✅ Submitted</span>`
+          : data.status === "in_progress"
+            ? `<span style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:12px; background:#fff3cd; color:#856404;">🛠️ In progress</span>`
+            : `<span style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:12px; background:#e2e3e5; color:#41464b;">Not started</span>`;
+
+        // MAX_LAB_SUBMISSIONS in controllers/labController.js — kept in
+        // sync here since it's just a display count, not enforcement
+        // (the server is the real gate).
+        const MAX_LAB_SUBMISSIONS = 3;
+        const attemptsNote = data.submissionCount > 0
+          ? `<span style="margin-left:8px; font-size:12px; color:#888;">Attempt ${data.submissionCount} of ${MAX_LAB_SUBMISSIONS}${data.submissionCount >= MAX_LAB_SUBMISSIONS ? " — no submissions left" : ""}</span>`
+          : "";
+
+        // AI-graded feedback from the last submission — controllers/labController.js's
+        // gradeLessonLabSubmission, surfaced here via getLessonLab so it's
+        // still visible on a later visit, not just right after submitting.
+        const gradeHTML = data.grade
+          ? `
+            <div style="margin:14px 0;">
+              <p><strong>Score:</strong> ${data.grade.score !== null ? `${data.grade.score}/100` : "Pending"}</p>
+              <div class="ai-feedback-box"><strong>Feedback:</strong> ${escapeHtml(data.grade.feedback || "")}</div>
+            </div>
+          `
+          : "";
+
+        container.innerHTML = `
+          <h2>🧩 ${escapeHtml(lab.title)}</h2>
+          ${statusBadge}${attemptsNote}
+          ${lab.description ? `<p>${escapeHtml(lab.description)}</p>` : ""}
+          ${lab.instructions ? `<div style="white-space:pre-wrap; background:#f8f9fa; border-radius:10px; padding:14px; margin:14px 0;">${escapeHtml(lab.instructions)}</div>` : ""}
+          <p style="font-size:13px; color:#888;">Worth ${lab.points ?? 10} XP on first submission.</p>
+          ${gradeHTML}
+          <button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${openUrl}'">Open Lab →</button>
+        `;
+      })
+      .catch(err => {
+        console.error("❌ loadLabTaskInline error:", err);
+        document.getElementById("lessonMainArea").innerHTML = "<p>Error loading lab task.</p>";
+        hideLoading();
+      });
+  }
+
   function loadQuizInline(lessonId) {
     showLoading();
     fetch(`/student/lessons/${lessonId}/quiz`)
@@ -4437,17 +4541,30 @@ function renderQuizSummary() {
     </div>
   ` : "";
 
+  // A lab task attached to this lesson is a required step, not an
+  // alternative to the quiz — the next lesson stays locked until it's
+  // submitted too (controllers/studentController.js:submitLessonQuiz,
+  // services/lessonCompletionService.js:maybeUnlockNextLesson).
+  const pendingLabBanner = nextInfo.pendingLab ? `
+    <div style="background:#fff3cd; color:#856404; border-radius:var(--radius-lg, 16px); padding:14px 20px; margin-bottom:18px; text-align:center;">
+      🧩 One more step — finish the lab task to unlock the next lesson.
+    </div>
+  ` : "";
+
   const nextActionButton = nextInfo.nextModuleUnlocked
     ? `<button class="quiz-btn quiz-btn-primary" onclick="goToNextModule(${nextInfo.nextModuleId})">🎉 Next Module</button>`
-    : nextInfo.nextLessonId
-      ? `<button class="quiz-btn quiz-btn-primary" onclick="loadLessonPart(${nextInfo.nextLessonId}, 'content')">➡️ Next Lesson</button>`
-      : "";
+    : nextInfo.pendingLab
+      ? `<button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${nextInfo.pendingLab.lab_type === 'blockly' ? '/labs/blockly' : '/labs/web'}?labId=${nextInfo.pendingLab.id}&lessonId=${window.currentLessonId}'">🧩 Proceed to Lab Task</button>`
+      : nextInfo.nextLessonId
+        ? `<button class="quiz-btn quiz-btn-primary" onclick="loadLessonPart(${nextInfo.nextLessonId}, 'content')">➡️ Next Lesson</button>`
+        : "";
 
   lessonMain.innerHTML = `
 
   <div class="quiz-summary-container">
 
     ${moduleUnlockedBanner}
+    ${pendingLabBanner}
 
     <h2>📊 Quiz Summary</h2>
 
@@ -4675,6 +4792,7 @@ function submitQuizAnswers(lessonId){
           nextLessonId: result.nextLessonId || null,
           nextModuleUnlocked: !!result.nextModuleUnlocked,
           nextModuleId: result.nextModuleId || null,
+          pendingLab: result.pendingLab || null,
         };
         if (result.nextLessonId) {
           unlockSidebarLesson(result.nextLessonId);
@@ -5065,6 +5183,7 @@ function submitQuizInline(e, lessonId) {
           nextLessonId: result.nextLessonId || null,
           nextModuleUnlocked: !!result.nextModuleUnlocked,
           nextModuleId: result.nextModuleId || null,
+          pendingLab: result.pendingLab || null,
         };
         if (result.nextLessonId) {
           unlockSidebarLesson(result.nextLessonId);

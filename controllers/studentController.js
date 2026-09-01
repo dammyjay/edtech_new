@@ -11,6 +11,7 @@ const { checkAndCompleteModule } = require("../services/moduleCompletionService"
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
+const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
   isLockedByEndedTerm,
@@ -895,7 +896,8 @@ exports.getDashboard = async (req, res) => {
                       SELECT 1 FROM unlocked_lessons ul
                       WHERE ul.student_id = $2 AND ul.lesson_id = l.id
                     ) AS unlocked,
-                    EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz
+                    EXISTS(SELECT 1 FROM quizzes q WHERE q.lesson_id = l.id) AS has_quiz,
+                    EXISTS(SELECT 1 FROM lesson_labs ll WHERE ll.lesson_id = l.id) AS has_lab
             FROM lessons l
             WHERE module_id = $1
             ORDER BY l.order_number ASC`,
@@ -2711,6 +2713,66 @@ exports.getModuleDetails = async (req, res) => {
   }
 };
 
+// GET /student/lessons/:lessonId/lab — mirrors getLessonQuiz below, but for
+// a lesson-attached lab task (Blockly/Web). Same empty-state shape
+// ({success:false, message}) when the lesson has no lab attached.
+exports.getLessonLab = async (req, res) => {
+  const lessonId = req.params.lessonId;
+  const studentId = req.session?.student?.id || req.user?.id;
+
+  try {
+    const labRes = await pool.query(
+      `SELECT * FROM lesson_labs WHERE lesson_id = $1 ORDER BY id DESC LIMIT 1`,
+      [lessonId]
+    );
+    const lab = labRes.rows[0];
+    if (!lab) {
+      return res.json({ success: false, message: "No lab task for this lesson" });
+    }
+
+    let status = "not_started";
+    let grade = null;
+    let submissionCount = 0;
+    if (studentId) {
+      const projectRes = await pool.query(
+        `SELECT id, status FROM lab_projects WHERE lab_id = $1 AND student_id = $2`,
+        [lab.id, studentId]
+      );
+      const project = projectRes.rows[0];
+      if (project) {
+        status = project.status === "submitted" ? "submitted" : "in_progress";
+
+        // How many times this has been AI-graded (controllers/labController.js's
+        // MAX_LAB_SUBMISSIONS cap) — shown next to the status badge.
+        const subCountRes = await pool.query(
+          "SELECT COUNT(*) FROM lab_submissions WHERE project_id = $1",
+          [project.id]
+        );
+        submissionCount = parseInt(subCountRes.rows[0].count, 10);
+
+        if (status === "submitted") {
+          // Most recent AI grading pass (controllers/labController.js's
+          // gradeLessonLabSubmission inserts a new row per submission, so
+          // resubmitting keeps history — this is just the latest one).
+          const submissionRes = await pool.query(
+            `SELECT score, feedback FROM lab_submissions
+             WHERE project_id = $1 ORDER BY submitted_at DESC LIMIT 1`,
+            [project.id]
+          );
+          if (submissionRes.rows[0]) {
+            grade = submissionRes.rows[0];
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, lab, status, grade, submissionCount });
+  } catch (err) {
+    console.error("getLessonLab error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 exports.getLessonQuiz = async (req, res) => {
   const lessonId = req.params.id;
   // const lessonId = req.params.lessonId;
@@ -3011,6 +3073,17 @@ ${JSON.stringify(reviewData, null, 2)}
           : "❌ Incorrect. Review the lesson content.";
     });
     
+    // Quiz XP is only ever awarded once per (quiz, student) — checked
+    // BEFORE inserting the new quiz_submissions row below, since that
+    // insert always succeeds (retakes are allowed) unlike the old
+    // user_lesson_progress gate this replaces. Same pattern already used
+    // for the lab's own isFirstSubmission (controllers/labController.js).
+    const priorQuizAttemptsRes = await pool.query(
+      "SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2",
+      [quizId, studentId]
+    );
+    const isFirstQuizAttempt = parseInt(priorQuizAttemptsRes.rows[0].count, 10) === 0;
+
     const submissionRes = await pool.query(
     `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
     VALUES ($1,$2,$3,$4,$5)
@@ -3018,181 +3091,32 @@ ${JSON.stringify(reviewData, null, 2)}
     [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
   );
 
-    // Taken BEFORE the insert below — this is the REAL lesson-completion
-    // path (unlike the dead controllers/studentController.js completeLesson,
-    // never called from the frontend), so this is where "first ever
-    // completion" for the referral bonus (services/referralService.js)
-    // actually needs to be detected.
-    const priorCompletionsRes = await pool.query(
-      "SELECT COUNT(*) FROM user_lesson_progress WHERE user_id = $1",
-      [studentId]
-    );
-    const isFirstEverCompletion = parseInt(priorCompletionsRes.rows[0].count, 10) === 0;
-
-    // ✅ Mark lesson as completed when quiz is submitted — RETURNING id
-    // lets us tell a genuinely new completion apart from a resubmission
-    // of an already-completed lesson. This now matters beyond just the
-    // completion record itself: XP must only ever be awarded once per
-    // lesson, not once per submission, now that it's cashable for real
-    // coins/Naira (services/xpExchangeService.js) — resubmitting the same
-    // quiz used to just inflate a cosmetic number, not real value.
-    const progressInsert = await pool.query(
-      `INSERT INTO user_lesson_progress (user_id, lesson_id, completed_at)
-   VALUES ($1, $2, NOW())
-   ON CONFLICT (user_id, lesson_id) DO NOTHING
-   RETURNING id`,
-      [studentId, lessonId],
-    );
-    const isNewCompletion = progressInsert.rows.length > 0;
-
-    if (isFirstEverCompletion) {
-      maybeAwardReferralBonus(studentId).catch((err) =>
-        console.error("Referral bonus check failed:", err.message)
-      );
+    let xpGained = 0;
+    let levelUp = false;
+    if (isFirstQuizAttempt) {
+      const awarded = await awardXp(studentId, 10, `Completed quiz for lesson ${lessonId}`);
+      xpGained = awarded.xpGained;
+      levelUp = awarded.levelUp;
     }
 
-    // Best-effort, non-blocking: record which term this activity
-    // happened in, for the classroom-course-term link table.
-    recordActivityForLesson(studentId, lessonId);
-
-    const xpGained = isNewCompletion ? 10 : 0;
-
-    const xpBeforeRes = await pool.query(
-      "SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1",
-      [studentId],
-    );
-    const xpBefore = xpBeforeRes.rows[0].xp;
-    const levelBefore = getLevelForXp(xpBefore);
-    const levelAfter = getLevelForXp(xpBefore + xpGained);
-    const levelUp = levelAfter.level > levelBefore.level;
-
-    if (isNewCompletion) {
-      // redeemable_xp tracks alongside xp (never separately, never
-      // instead of it) — xp/Level only ever go up either way; only
-      // redeemable_xp is ever drawn down, by the exchange endpoint.
-      await pool.query(
-        "UPDATE users2 SET xp = COALESCE(xp, 0) + $1, redeemable_xp = COALESCE(redeemable_xp, 0) + $1 WHERE id = $2",
-        [xpGained, studentId],
-      );
-
-      await pool.query(
-        `INSERT INTO xp_history (user_id, xp, activity)
-   VALUES ($1, $2, $3)`,
-        [studentId, xpGained, `Completed quiz for lesson ${lessonId}`],
-      );
-    }
-
-    // ✅ Unlock next lesson OR assignment (pass/fail doesn’t matter anymore)
-    // Tracked outside the if/else below so the success response can tell
-    // the client exactly where "Next Lesson"/"next module unlocked"
-    // should point, instead of the client having to guess.
-    let nextLessonId = null;
-    let nextModuleUnlocked = false;
-    let nextModuleId = null;
-
-    const nextLessonRes = await pool.query(
-      `SELECT id FROM lessons
-       WHERE module_id = (SELECT module_id FROM lessons WHERE id=$1)
-         AND id > $1
-       ORDER BY id ASC
-       LIMIT 1`,
-      [lessonId],
-    );
-
-    // 🔥 Get current lesson info (module + order)
-    if (nextLessonRes.rows.length > 0) {
-      // unlock the next lesson
-      nextLessonId = nextLessonRes.rows[0].id;
-      await pool.query(
-        `INSERT INTO unlocked_lessons (student_id, lesson_id)
-         VALUES ($1, $2)
-         ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-        [studentId, nextLessonId],
-      );
-
-    } else {
-  // Last lesson quiz completed
-
-  const moduleIdRes = await pool.query(
-    `SELECT module_id FROM lessons WHERE id=$1`,
-    [lessonId]
-  );
-
-  const moduleId = moduleIdRes.rows[0].module_id;
-
-  // ✅ Unlock assignment
-  await pool.query(
-    `INSERT INTO unlocked_assignments (student_id, assignment_id)
-     SELECT $1, id
-     FROM module_assignments
-     WHERE module_id=$2
-     ON CONFLICT (student_id, assignment_id) DO NOTHING`,
-    [studentId, moduleId]
-  );
-
-  // ✅ Unlock next module immediately
-  const nextModuleRes = await pool.query(
-    `SELECT id
-     FROM modules
-     WHERE course_id = (
-       SELECT course_id
-       FROM modules
-       WHERE id = $1
-     )
-     AND id > $1
-     ORDER BY id ASC
-     LIMIT 1`,
-    [moduleId]
-  );
-
-  if (nextModuleRes.rows.length > 0) {
-    nextModuleId = nextModuleRes.rows[0].id;
-    nextModuleUnlocked = true;
-
-    // unlock module
-    await pool.query(
-      `INSERT INTO unlocked_modules (student_id, module_id)
-       VALUES ($1, $2)
-       ON CONFLICT (student_id, module_id) DO NOTHING`,
-      [studentId, nextModuleId]
-    );
-
-    // unlock first lesson in next module
-    const firstLessonRes = await pool.query(
-      `SELECT id
-       FROM lessons
-       WHERE module_id = $1
-       ORDER BY id ASC
-       LIMIT 1`,
-      [nextModuleId]
-    );
-
-    if (firstLessonRes.rows.length > 0) {
-      nextLessonId = firstLessonRes.rows[0].id;
-      await pool.query(
-        `INSERT INTO unlocked_lessons (student_id, lesson_id)
-         VALUES ($1, $2)
-         ON CONFLICT (student_id, lesson_id) DO NOTHING`,
-        [studentId, nextLessonId]
-      );
-    }
-  }
-}
-
+    // Unlocking the next lesson now waits for every part THIS lesson
+    // actually has, not just the quiz — a lesson with a lab task attached
+    // only unlocks once that's submitted too (services/lessonCompletionService.js).
+    // Idempotent either way, so it's safe to always call this here even
+    // when nothing new happened this time.
     const {
-      checkAndCompleteModule,
-    } = require("../services/moduleCompletionService");
+      pendingLab,
+      nextLessonId,
+      nextModuleUnlocked,
+      nextModuleId,
+      badgeAwarded,
+      badgeName,
+      badgeImage,
+    } = await maybeUnlockNextLesson(studentId, lessonId);
+    const moduleResult = { badgeAwarded, badgeName, badgeImage };
 
-    // 🔥 Get module ID
-    const moduleRes = await pool.query(
-      `SELECT module_id FROM lessons WHERE id=$1`,
-      [lessonId],
-    );
-
-    const moduleId = moduleRes.rows[0].module_id;
-
-    // 🔥 Check module completion
-    const moduleResult = await checkAndCompleteModule(studentId, moduleId);
+    const xpAfterRes = await pool.query("SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1", [studentId]);
+    const levelAfter = getLevelForXp(xpAfterRes.rows[0].xp);
 
     // ✅ Get linked parent (if any)
     const parentRes = await pool.query(
@@ -3323,6 +3247,11 @@ ${JSON.stringify(reviewData, null, 2)}
       nextLessonId,
       nextModuleUnlocked,
       nextModuleId,
+      // Set only when this lesson has a lab task the student hasn't
+      // submitted yet — the client shows a "Go to Lab Task" button
+      // instead of "Next Lesson" (views/student/dashboard.ejs's
+      // renderQuizSummary), since nextLessonId is null in that case.
+      pendingLab,
     });
   } catch (err) {
     console.error("Quiz submit error:", err.message);

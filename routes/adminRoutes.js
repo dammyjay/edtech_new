@@ -12,6 +12,7 @@ const adminController = require("../controllers/adminController");
 const companyController = require("../controllers/companyController");
 const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
+const lessonLabController = require("../controllers/lessonLabController");
 const userController = require("../controllers/userController")
 const newsletterController = require("../controllers/newsletterController");
 const reportController = require("../controllers/reportController");
@@ -372,6 +373,11 @@ router.get("/lessons/:id/json", learningController.getLessonJSON);
 
 // Get or create quiz for lesson
 router.get("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
+
+// Get / save / delete the lab task attached to a lesson (Blockly/Web)
+router.get("/lesson/:lessonId/lab", lessonLabController.getOrCreateLessonLab);
+router.post("/lesson/:lessonId/lab", upload.none(), lessonLabController.saveLessonLab);
+router.post("/lesson/:lessonId/lab/delete", lessonLabController.deleteLessonLab);
 
 router.post(
   "/lessons/:lessonId/quiz/ai-generate",

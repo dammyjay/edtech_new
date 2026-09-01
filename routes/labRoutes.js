@@ -20,6 +20,10 @@ router.get("/ai", labController.getAiLab);
 
 router.post("/project/init", labController.initProject);
 
+// Must come before /project/:labType — otherwise "lesson" would be
+// captured as :labType and this route would never be reached.
+router.get("/project/lesson/:labId", labController.loadLessonLabProject);
+
 router.get("/project/:labType", labController.loadProject);
 
 router.post("/project/save", labController.saveProject);

@@ -135,6 +135,22 @@
     });
   };
 
+  // Same styled dialog as showAlert/showConfirm, but with a caller-defined
+  // set of buttons instead of the fixed OK / Cancel+Confirm pairs — for
+  // results that offer real next steps rather than just dismissing.
+  // buttons: [{ label, value, className }], className one of
+  // ui-alert-btn-primary/-secondary/-danger. Resolves to whichever
+  // button's `value` was clicked; Escape resolves to undefined unless
+  // escapeValue is passed.
+  window.showActionDialog = function (message, type, buttons, escapeValue) {
+    type = type || "info";
+    return openModal(message, type, {
+      list: buttons,
+      escapeValue: escapeValue,
+      enterValue: buttons.length ? buttons[buttons.length - 1].value : undefined,
+    });
+  };
+
   // For onsubmit="return handleConfirmSubmit(event, 'Delete this?')" —
   // native confirm() blocked synchronously so the form's onsubmit could just
   // return true/false; this intercepts the submit, shows the async modal,

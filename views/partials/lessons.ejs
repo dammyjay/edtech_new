@@ -36,7 +36,8 @@
           <button class="btn-delete" type="submit" onclick="showConfirm('Delete lesson?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">Delete</button>
         </form>
         <button class="btn-view" type="button" onclick="openQuizModal(<%= lesson.id %>)">Manage Quiz</button>
-       
+        <button class="btn-view" type="button" onclick="openLabModal(<%= lesson.id %>)">Manage Lab</button>
+
       </div>
     </div>
     
@@ -201,7 +202,45 @@
   </div>
 </form>
 
-  
+
+  </div>
+</div>
+
+<!-- LAB MODAL -->
+<div id="labModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h2>Manage Lab Task</h2>
+    <p style="font-size:13px; color:#666;">Attach a Blockly or Web lab task to this lesson. Students see it as a "Lab Task" tab on the lesson page, and finishing it (Submit inside the lab editor) completes the lesson — same as passing the quiz.</p>
+
+    <hr>
+
+    <form id="labForm">
+      <input type="hidden" id="lab_lesson_id">
+
+      <label>Lab Type</label>
+      <select name="lab_type" id="lab_type" required>
+        <option value="web">Web Development Lab</option>
+        <option value="blockly">Blockly Lab</option>
+      </select>
+
+      <label>Title</label>
+      <input type="text" name="title" id="lab_title" required placeholder="e.g. Build a simple sprite animation">
+
+      <label>Short Description</label>
+      <input type="text" name="description" id="lab_description" placeholder="Shown above the instructions on the lesson page">
+
+      <label>Instructions</label>
+      <textarea name="instructions" id="lab_instructions" rows="6" placeholder="What should the student build? Be specific — this is all the student sees."></textarea>
+
+      <label>Points (XP awarded on first submission)</label>
+      <input type="number" name="points" id="lab_points" min="0" value="10">
+
+      <div class="modal-actions">
+        <button type="submit">Save Lab</button>
+        <button type="button" onclick="deleteLessonLab()">Remove Lab</button>
+        <button type="button" onclick="closeLabModal()">Close</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -677,5 +716,75 @@ document.addEventListener('submit', function (e) {
     return false;
   }
 });
+</script>
+
+<!-- LAB MODAL logic — mirrors openQuizModal/closeQuizModal's fetch-populate-save shape -->
+<script>
+let currentLabLessonId = null;
+
+function openLabModal(lessonId) {
+  currentLabLessonId = lessonId;
+  document.getElementById('lab_lesson_id').value = lessonId;
+
+  fetch(`/admin/lesson/${lessonId}/lab`)
+    .then(res => res.json())
+    .then(data => {
+      const lab = data.success ? data.lab : null;
+      document.getElementById('lab_type').value = lab?.lab_type || 'web';
+      document.getElementById('lab_title').value = lab?.title || '';
+      document.getElementById('lab_description').value = lab?.description || '';
+      document.getElementById('lab_instructions').value = lab?.instructions || '';
+      document.getElementById('lab_points').value = lab?.points ?? 10;
+      document.getElementById('labModal').style.display = 'block';
+    })
+    .catch(err => console.error('openLabModal error:', err));
+}
+
+function closeLabModal() {
+  document.getElementById('labModal').style.display = 'none';
+}
+
+document.getElementById('labForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  if (!currentLabLessonId) return;
+
+  const formData = new FormData(e.target);
+
+  fetch(`/admin/lesson/${currentLabLessonId}/lab`, {
+    method: 'POST',
+    body: formData,
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('Lab task saved.');
+        closeLabModal();
+      } else {
+        showAlert(data.message || 'Failed to save lab task.');
+      }
+    })
+    .catch(err => {
+      console.error('saveLessonLab error:', err);
+      showAlert('Failed to save lab task.');
+    });
+});
+
+function deleteLessonLab() {
+  if (!currentLabLessonId) return;
+  showConfirm('Remove the lab task from this lesson?').then(function (ok) {
+    if (!ok) return;
+    fetch(`/admin/lesson/${currentLabLessonId}/lab/delete`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showAlert('Lab task removed.');
+          closeLabModal();
+        } else {
+          showAlert(data.message || 'Failed to remove lab task.');
+        }
+      })
+      .catch(err => console.error('deleteLessonLab error:', err));
+  });
+}
 </script>
 
