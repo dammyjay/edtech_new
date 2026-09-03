@@ -44,6 +44,32 @@
 <%= info?.marquee_message || '' %></textarea
       ><br /><br />
 
+      <hr />
+      <h3>🎓 Certificate Template</h3>
+      <p style="font-size:13px; color:#666;">Controls what students see on the certificate awarded when they complete a course. Leave any field as-is to keep what's already set.</p>
+
+      <label>Certificate Background:</label><br />
+      <input type="file" name="certificateBackground" accept="image/*" /><br /><br />
+      <img
+        src="<%= info?.certificate_background_url || 'https://acad.jkthub.com/images/Certificate.png' %>"
+        alt="Certificate background"
+        style="max-width: 300px"
+      /><br /><br />
+
+      <label>Signature Image:</label><br />
+      <input type="file" name="certificateSignature" accept="image/*" /><br /><br />
+      <img
+        src="<%= info?.certificate_signature_url || 'https://acad.jkthub.com/images/Signature.jpg' %>"
+        alt="Signature"
+        style="max-width: 150px"
+      /><br /><br />
+
+      <label>Signee Name:</label><br />
+      <input type="text" name="certificate_signee_name" value="<%= info?.certificate_signee_name || 'Jimoh Damilola' %>" /><br /><br />
+
+      <label>Certificate Title:</label><br />
+      <input type="text" name="certificate_title" value="<%= info?.certificate_title || 'CERTIFICATE OF COMPLETION' %>" /><br /><br />
+
       <button type="submit">Save</button>
     </form>
 

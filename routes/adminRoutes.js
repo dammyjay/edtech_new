@@ -179,6 +179,8 @@ router.post(
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "heroImage", maxCount: 1 },
+    { name: "certificateBackground", maxCount: 1 },
+    { name: "certificateSignature", maxCount: 1 },
   ]),
   companyController.saveInfo
 );

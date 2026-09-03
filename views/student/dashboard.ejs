@@ -586,14 +586,24 @@
           <input type="hidden" name="student_id" value="<%= student.id %>" />
 
           <label>Full Name:</label>
-          <input type="text" name="fullname" value="<%= student.fullname %>" disabled>
+          <!-- readonly, not disabled — a disabled input's value is never
+               submitted, which used to send fullname as undefined and
+               crash this save (users2.fullname is NOT NULL). -->
+          <input type="text" name="fullname" value="<%= student.fullname %>" readonly>
 
           <label>Gender:</label>
+          <%
+            // Older records stored gender in inconsistent casing
+            // ("male"/"Male"/"MALE") — compare case-insensitively so an
+            // existing value always pre-selects the matching option
+            // instead of silently falling back to blank.
+            const _genderLc = (student.gender || '').trim().toLowerCase();
+          %>
           <select name="gender" required>
             <option value="">Select Gender</option>
-            <option value="Male" <%= student.gender === 'Male' ? 'selected' : '' %>>Male</option>
-            <option value="Female" <%= student.gender === 'Female' ? 'selected' : '' %>>Female</option>
-            <option value="Other" <%= student.gender === 'Other' ? 'selected' : '' %>>Other</option>
+            <option value="Male" <%= _genderLc === 'male' ? 'selected' : '' %>>Male</option>
+            <option value="Female" <%= _genderLc === 'female' ? 'selected' : '' %>>Female</option>
+            <option value="Other" <%= _genderLc === 'other' ? 'selected' : '' %>>Other</option>
           </select>
 
           <label>Date of Birth:</label>

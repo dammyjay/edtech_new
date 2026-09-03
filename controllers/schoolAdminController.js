@@ -12,6 +12,7 @@ const { listReportsForSchool, getReportById } = require("../services/classTermRe
 const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = require("../services/classroomTermAnalyticsService");
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
+const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
 
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
@@ -1866,191 +1867,24 @@ exports.getPaymentHistory = async (req, res) => {
 // =============================
 // DOWNLOAD QUOTE PDF
 // =============================
+// Same branded invoice/receipt design admin uses for this exact quote
+// (services/quoteDocumentService.js) — scoped to the caller's own
+// school via schoolId, so a school-admin can never pull another
+// school's quote by guessing an id (404 instead).
 exports.downloadQuotePDF = async (req, res) => {
   const { id } = req.params;
+  const schoolId = req.session.user.school_id;
 
   try {
-    const schoolId = req.session.user.school_id;
-
-    const result = await pool.query(
-      `
-      SELECT 
-        q.id,
-        q.price_per_student,
-        q.total_students,
-        q.total_amount,
-        q.total_paid,
-        q.balance,
-        q.status,
-
-        s.name AS school_name,
-        s.address,
-
-        t.name AS term_name
-
-      FROM quotes q
-
-      JOIN schools s
-        ON q.school_id = s.id
-
-      JOIN academic_terms t
-        ON q.term_id = t.id
-
-      WHERE q.id = $1
-      AND q.school_id = $2
-      `,
-      [id, schoolId],
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).send("Quote not found");
-    }
-
-    const q = result.rows[0];
-
-    const numberToWords = require("number-to-words");
-
-    const total = Number(q.total_amount || 0);
-    const totalPaid = Number(q.total_paid || 0);
-    const balance = Number(q.balance || 0);
-
-    const words = numberToWords.toWords(total).toUpperCase();
-
-    const today = new Date().toDateString();
-
-    const html = `
-    <html>
-    <head>
-    <style>
-      body{
-        font-family: Arial;
-        padding:40px;
-      }
-
-      .header{
-        text-align:center;
-        margin-bottom:30px;
-      }
-
-      .title{
-        font-size:28px;
-        font-weight:bold;
-      }
-
-      table{
-        width:100%;
-        border-collapse:collapse;
-        margin-top:20px;
-      }
-
-      th{
-        background:#000;
-        color:#fff;
-        padding:10px;
-      }
-
-      td{
-        border:1px solid #ccc;
-        padding:10px;
-        text-align:center;
-      }
-
-      .total-row{
-        background:#f2f2f2;
-        font-weight:bold;
-      }
-
-      .summary{
-        margin-top:30px;
-        font-size:14px;
-      }
-
-    </style>
-    </head>
-
-    <body>
-
-      <div class="header">
-        <div class="title">SCHOOL INVOICE</div>
-
-        <p>
-          <b>${q.school_name}</b><br/>
-          ${q.address || ""}
-        </p>
-
-        <p>
-          <b>Term:</b> ${q.term_name}
-        </p>
-
-        <p>
-          Date: ${today}
-        </p>
-      </div>
-
-      <table>
-        <tr>
-          <th>Students</th>
-          <th>Price Per Student</th>
-          <th>Total Amount</th>
-        </tr>
-
-        <tr>
-          <td>${q.total_students}</td>
-          <td>₦${Number(q.price_per_student).toLocaleString()}</td>
-          <td>₦${total.toLocaleString()}</td>
-        </tr>
-
-        <tr class="total-row">
-          <td colspan="2">TOTAL</td>
-          <td>₦${total.toLocaleString()}</td>
-        </tr>
-      </table>
-
-      <div class="summary">
-        <p><b>Total Paid:</b> ₦${totalPaid.toLocaleString()}</p>
-
-        <p><b>Balance:</b> ₦${balance.toLocaleString()}</p>
-
-        <p><b>Status:</b> ${q.status}</p>
-
-        <p>
-          <b>Amount in Words:</b>
-          ${words} NAIRA ONLY
-        </p>
-      </div>
-
-    </body>
-    </html>
-    `;
-
-    // const browser = await puppeteer.launch({
-    //   headless: true,
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
-
-    // const page = await browser.newPage();
-
-    // await page.setContent(html, {
-    //   waitUntil: "networkidle0",
-    // });
-
-    // const pdf = await page.pdf({
-    //   format: "A4",
-    //   printBackground: true,
-    // });
-
-    // await browser.close();
-
-    const pdf = await generatePdf(html);
+    const doc = await getQuoteDocumentPdf({ quoteId: id, schoolId });
+    if (!doc) return res.status(404).send("Quote not found");
 
     res.setHeader("Content-Type", "application/pdf");
-
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=${q.school_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+      `attachment; filename=${doc.filename}`,
     );
-
-    res.send(pdf);
+    res.send(doc.pdf);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error generating PDF");

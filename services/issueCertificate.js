@@ -12,9 +12,21 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
   if (existing.rows.length) return;
 
   // 2️⃣ Generate PDF
+  // Admin-configurable pieces (views/admin/company.ejs's "Certificate
+  // Template" section) — generateCertificate falls back to its own
+  // built-in defaults when any of these are unset.
+  const infoRes = await pool.query(
+    "SELECT certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title FROM company_info ORDER BY id DESC LIMIT 1"
+  );
+  const info = infoRes.rows[0] || {};
+
   const { outputPath, certCode } = await generateCertificate({
     studentName,
     courseTitle,
+    backgroundUrl: info.certificate_background_url,
+    signatureUrl: info.certificate_signature_url,
+    signeeName: info.certificate_signee_name,
+    title: info.certificate_title,
   });
 
   const upload = await cloudinary.uploader.upload(outputPath, {

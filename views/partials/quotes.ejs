@@ -33,7 +33,9 @@
             <td><%= q.status %></td>
             <td>
                 <div class="article-buttons">
-                <a href="/school-admin/quotes/<%= q.id %>/download" class="btn-sec" style="display:inline-block;">📄 Download</a>
+                <a href="/school-admin/quotes/<%= q.id %>/download" class="no-bg" title="Download invoice/receipt">
+                  <i class="fa-solid fa-file-pdf" style="color: red;"></i>
+                </a>
                 <!-- <form action="/school-admin/quotes/delete/<%= q.id %>" method="POST" style="display:inline;">
                 <button class="btn-delete" type="submit">🗑️ Delete</button>
                 </form> -->

@@ -43,9 +43,19 @@ async function createTables() {
             hero_image_url TEXT ,
             company_name TEXT NOT NULL,
             marquee_message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );`
     );
+
+    // Admin-configurable certificate template (utils/generateCertificate.js,
+    // views/partials/certificate.html) — NULL means "use the built-in
+    // default", so schools that never touch this keep working unchanged.
+    await pool.query(`
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS certificate_background_url TEXT;
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS certificate_signature_url TEXT;
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS certificate_signee_name TEXT;
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS certificate_title TEXT;
+    `);
 
     // table for pending users
     await pool.query(
