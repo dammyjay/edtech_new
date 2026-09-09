@@ -75,9 +75,17 @@ function loadLessonPart(lessonId, part) {
         const plan = data.lesson_plan?.trim();
 
         mainArea.innerHTML = `
-          <h3>${data.title} – Lesson Plan</h3>
-          <div class="lesson-plan-content">
-            ${plan ? plan : "<p>No lesson plan provided.</p>"}
+          <div class="lesson-doc">
+            <div class="lesson-doc-header">
+              <span class="lesson-doc-badge">📘</span>
+              <div>
+                <div class="lesson-doc-eyebrow">Teacher Lesson Plan</div>
+                <div class="lesson-doc-title">${data.title}</div>
+              </div>
+            </div>
+            <div class="lesson-plan-content">
+              ${plan ? plan : "<p>No lesson plan provided.</p>"}
+            </div>
           </div>
         `;
       } else if (data.type === "content") {
@@ -172,36 +180,46 @@ function buildSlidesView(rawContent, lessonTitle) {
 
   // ✅ Build HTML structure
   const noteViewHTML = `
-    <div class="lesson-view-controls">
-      <div class="text-controls">
-        <label>Text size:</label>
-        <button id="fontInc">A+</button>
-        <button id="fontDec">A−</button>
-
-        <label>Font:</label>
-        <select id="fontSelect">
-          <option value="system-ui">Default</option>
-          <option value="serif">Serif</option>
-          <option value="sans-serif">Sans-serif</option>
-          <option value="OpenDyslexic, Arial">Dyslexic</option>
-        </select>
-
-        <label>Line spacing:</label>
-        <select id="lineSpacing">
-          <option value="1.4">Normal</option>
-          <option value="1.8">Comfort</option>
-          <option value="2.2">Wide</option>
-        </select>
+    <div class="lesson-doc">
+      <div class="lesson-doc-header">
+        <span class="lesson-doc-badge">📝</span>
+        <div>
+          <div class="lesson-doc-eyebrow">Lesson Note</div>
+          <div class="lesson-doc-title">${lessonTitle}</div>
+        </div>
       </div>
 
-      <div class="lesson-view-mode">
-        <button id="noteBtn" class="active">📝 Note View</button>
-        <button id="slideBtn">📑 Slides View</button>
+      <div class="lesson-view-controls">
+        <div class="text-controls">
+          <label>Text size:</label>
+          <button id="fontInc">A+</button>
+          <button id="fontDec">A−</button>
+
+          <label>Font:</label>
+          <select id="fontSelect">
+            <option value="system-ui">Default</option>
+            <option value="serif">Serif</option>
+            <option value="sans-serif">Sans-serif</option>
+            <option value="OpenDyslexic, Arial">Dyslexic</option>
+          </select>
+
+          <label>Line spacing:</label>
+          <select id="lineSpacing">
+            <option value="1.4">Normal</option>
+            <option value="1.8">Comfort</option>
+            <option value="2.2">Wide</option>
+          </select>
+        </div>
+
+        <div class="lesson-view-mode">
+          <button id="noteBtn" class="active">📝 Note View</button>
+          <button id="slideBtn">📑 Slides View</button>
+        </div>
       </div>
+
+      <div id="noteView" class="lesson-note">${rawContent}</div>
+      <div id="slideView" class="lesson-slides" style="display:none;"></div>
     </div>
-
-    <div id="noteView" class="lesson-note">${rawContent}</div>
-    <div id="slideView" class="lesson-slides" style="display:none;"></div>
   `;
 
   const mainArea = document.getElementById("lessonMainArea");
