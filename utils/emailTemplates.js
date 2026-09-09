@@ -92,7 +92,9 @@ function buildChildStatBlock(child) {
     stats.lessonsCompleted === 0 &&
     stats.quizzes.count === 0 &&
     stats.assignments.count === 0 &&
-    stats.newBadges.length === 0
+    stats.newBadges.length === 0 &&
+    stats.labProjects.length === 0 &&
+    stats.newCosmetics.length === 0
   ) {
     return `
       <div style="background:#fafafa; border-radius:8px; padding:15px 18px; margin:14px 0;">
@@ -126,6 +128,28 @@ function buildChildStatBlock(child) {
     `
     : "";
 
+  const labIcon = (labType) => (labType === "blockly" ? "🧩" : labType === "web" ? "🌐" : "🛠️");
+
+  const labProjectsHTML = stats.labProjects.length
+    ? `
+      <p style="margin:10px 0 4px; color:#444; font-size:14px;"><strong>Coding lab projects:</strong></p>
+      <ul style="margin:0 0 4px; padding-left:20px; color:#444; font-size:13px;">
+        ${stats.labProjects
+          .map((p) => `<li>${labIcon(p.lab_type)} ${p.project_name || "Untitled project"}</li>`)
+          .join("")}
+      </ul>
+    `
+    : "";
+
+  const cosmeticsHTML = stats.newCosmetics.length
+    ? `
+      <p style="margin:10px 0 4px; color:#444; font-size:14px;"><strong>New shop unlocks:</strong></p>
+      <ul style="margin:0 0 4px; padding-left:20px; color:#444; font-size:13px;">
+        ${stats.newCosmetics.map((c) => `<li>🎨 ${c.type}: ${c.name}</li>`).join("")}
+      </ul>
+    `
+    : "";
+
   return `
     <div style="background:#f1f5ff; border-radius:8px; padding:15px 18px; margin:14px 0;">
       <h3 style="margin:0 0 10px; color:#333;">${child.fullname}</h3>
@@ -154,6 +178,8 @@ function buildChildStatBlock(child) {
         }
       </table>
       ${badgesHTML}
+      ${labProjectsHTML}
+      ${cosmeticsHTML}
     </div>
   `;
 }
