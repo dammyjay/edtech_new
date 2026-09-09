@@ -5,6 +5,7 @@ const { getStudentStreak } = require("../services/streakService");
 const { awardCoins } = require("../services/coinService");
 const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
 const { generateMasterySignal } = require("../services/masteryPathService");
+const { compileSketch } = require("../services/arduinoCompileService");
 const { askTutor } = require("../utils/ai");
 
 /**
@@ -167,6 +168,36 @@ exports.getArduinoLab = async (req, res) => {
     title: "Arduino Playground",
     layout: "layout",
   });
+};
+
+// Compiles a student's sketch server-side (services/arduinoCompileService.js
+// shells out to the real arduino-cli — avr8js, loaded client-side, only
+// EXECUTES the resulting .hex, it can't compile C++ itself) and hands
+// back the hex for public/labs/js/arduinoLab.js to run. A generous but
+// real per-minute cap — compiling is the one part of this lab that
+// actually costs server CPU/time per request, unlike the Web/Blockly
+// labs' pure data endpoints.
+const recentCompiles = new Map(); // studentId -> [timestamps]
+const COMPILE_RATE_LIMIT = 10; // per rolling minute
+exports.compileArduinoSketch = async (req, res) => {
+  try {
+    const studentId = req.user?.id || req.session?.user?.id;
+    if (!studentId) return res.status(401).json({ success: false, error: "Not logged in." });
+
+    const now = Date.now();
+    const recent = (recentCompiles.get(studentId) || []).filter((t) => now - t < 60000);
+    if (recent.length >= COMPILE_RATE_LIMIT) {
+      return res.status(429).json({ success: false, error: "Too many compiles — wait a moment and try again." });
+    }
+    recent.push(now);
+    recentCompiles.set(studentId, recent);
+
+    const result = await compileSketch(req.body.code);
+    res.json(result);
+  } catch (err) {
+    console.error("compileArduinoSketch error:", err.message);
+    res.status(500).json({ success: false, error: "Something went wrong compiling your sketch." });
+  }
 };
 
 exports.getAppInventorLab = async (req, res) => {

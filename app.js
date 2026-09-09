@@ -5,6 +5,7 @@ const pgSession = require("connect-pg-simple")(session);
 const bodyParser = require("body-parser");
 const path = require("path");
 const createTables = require("./models/initTables");
+const { ensureAvrCoreInstalled } = require("./services/arduinoCompileService");
 require("./cron/assignmentReminderJobs");
 require("./cron/newsletterCron");
 require("./cron/analyticsReportCron");
@@ -222,6 +223,16 @@ app.use("/announcements", publicAnnouncementRoutes);
 
 // Run table creation at startup
 createTables();
+
+// Arduino Lab's compile toolchain (services/arduinoCompileService.js) —
+// fetches the AVR core (~60MB) once per container lifetime, not blocking
+// server startup. If arduino-cli itself isn't installed on this host
+// (e.g. a local dev machine that hasn't set it up), this just logs and
+// leaves the Arduino Lab's compile endpoint erroring per-request rather
+// than taking the whole app down — every other lab is unaffected either way.
+ensureAvrCoreInstalled().catch((err) => {
+  console.error("Arduino AVR core not ready:", err.message);
+});
 
 // Start server
 const PORT = process.env.PORT || 3000;

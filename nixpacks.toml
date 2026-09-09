@@ -1,0 +1,17 @@
+# nixpacks.toml — Railway build customization.
+#
+# This repo had no custom Nixpacks config before this; without it, Railway
+# auto-detects a plain Node app and there's no way to get arduino-cli (a
+# Go binary, not an npm package) into the built image. Adding it here is
+# what makes services/arduinoCompileService.js's server-side compilation
+# (for the Arduino Lab) actually possible on the current host, instead of
+# needing a different deploy target entirely.
+#
+# arduino-cli itself fetches its own AVR toolchain (avr-gcc, avrdude,
+# board headers) via `arduino-cli core install arduino:avr` — that step
+# runs once at app startup (app.js's ensureAvrCoreInstalled(), not here),
+# since it needs network access and only has to happen once per running
+# container, not at build time. This file only needs to get the
+# arduino-cli binary itself onto the image.
+[phases.setup]
+nixPkgs = ["...", "arduino-cli"]

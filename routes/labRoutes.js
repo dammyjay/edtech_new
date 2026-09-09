@@ -13,6 +13,7 @@ router.get("/web", labController.getWebLab);
 router.get("/blockly", labController.getBlocklyLab);
 
 router.get("/arduino", labController.getArduinoLab);
+router.post("/arduino/compile", labController.compileArduinoSketch);
 
 router.get("/appinventor", labController.getAppInventorLab);
 
