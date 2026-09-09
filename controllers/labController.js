@@ -968,10 +968,16 @@ exports.remixProject = async (req, res) => {
     );
 
     if (existing.rows.length) {
+      // is_published/published_at reset here too — the row being
+      // overwritten may have been a published gallery entry, and the
+      // freshly swapped-in remixed content hasn't been through
+      // publishProject's own checks (banned-word rename, etc.), so it
+      // must not keep showing as published under the new owner's name.
       await pool.query(
         `UPDATE lab_projects
          SET project_data = $1, project_name = $2, status = 'draft',
-             remixed_from_id = $3, updated_at = NOW()
+             remixed_from_id = $3, updated_at = NOW(),
+             is_published = false, published_at = NULL
          WHERE id = $4`,
         [source.project_data, remixName, source.id, existing.rows[0].id]
       );
