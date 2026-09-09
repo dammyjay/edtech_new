@@ -324,16 +324,22 @@ async function saveProject(manual) {
   };
 
   try {
-    const res = await fetch("/labs/project/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
+    // OfflineSync (public/labs/js/offlineSync.js) queues this in
+    // localStorage and replays it once connectivity is back, instead of
+    // just failing, if the fetch can't reach the server at all — falls
+    // back to a plain fetch if that script somehow didn't load.
+    const data = window.OfflineSync
+      ? await window.OfflineSync.saveOrQueue("/labs/project/save", payload, `web:${window.currentProjectId}`)
+      : await (await fetch("/labs/project/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })).json();
 
-    document.getElementById("saveStatus").textContent = data.success ? "Saved" : "Save failed";
+    document.getElementById("saveStatus").textContent = data.queued ? "Saved offline — will sync" : (data.success ? "Saved" : "Save failed");
     if (manual) {
-      if (data.success) showToast("💾 Project saved!", "success");
+      if (data.queued) showToast("📡 Offline — saved locally, will sync when back online", "info");
+      else if (data.success) showToast("💾 Project saved!", "success");
       else showToast("Couldn't save — try again.", "error");
     }
   } catch (err) {

@@ -1,0 +1,17 @@
+{
+  "name": "JK Technology Learning Labs",
+  "short_name": "JKT Labs",
+  "description": "Offline-capable coding labs — Web Lab and Blockly Lab.",
+  "start_url": "/labs",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#A17807",
+  "icons": [
+    {
+      "src": "/images/JKT logo bg.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}
