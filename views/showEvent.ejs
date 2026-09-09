@@ -31,7 +31,7 @@
         <p><strong>Time:</strong> <%= event.time %></p>
         <p><strong>Location:</strong> <%= event.location %></p>
         <p><strong>Description:</strong></p>
-        <div><%- event.description %></div>
+        <div class="rich-content"><%- event.description %></div>
 
         <% if (event.is_paid) { %>
           <p><strong>Price:</strong> ₦<%= event.amount %></p>

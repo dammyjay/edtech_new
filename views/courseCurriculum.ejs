@@ -104,7 +104,7 @@
 
     <div class="course-info">
       <p><strong>Level:</strong> <%= course.level %></p>
-      <p><%- course.description %></p>
+      <div class="rich-content"><%- course.description %></div>
     </div>
 <% if (course.curriculum_url) { %>
   <% 

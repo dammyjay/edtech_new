@@ -75,7 +75,7 @@
           <div id="answer-<%= index %>" class="faq-answer hidden">
             <% if (faq.answer) { %>
             <!-- <p><strong>A:</strong> <%- faq.answer %></p> -->
-            <p><%- faq.answer %></p>
+            <div class="rich-content"><%- faq.answer %></div>
             <% } else { %>
             <p><em>Answer coming soon...</em></p>
             <% } %>

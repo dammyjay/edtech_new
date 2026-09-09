@@ -66,7 +66,8 @@
               <!-- Event Details -->
               <div class="event_details">
                 <h2><%= event.title %></h2>
-                <p style="word-break: break-word; white-space: normal;"><strong>Description:</strong> <%- event.description %></p>
+                <p style="word-break: break-word; white-space: normal;"><strong>Description:</strong></p>
+                <div class="rich-content" style="word-break: break-word;"><%- event.description %></div>
 
                 <p><strong>Date:</strong> <%= event.event_date.toDateString() %></p>
                 <p><strong>Time:</strong> <%= event.time %></p>
@@ -467,7 +468,7 @@
             <div id="answer-<%= index %>" class="faq-answer hidden"> 
               <% if (faq.answer) { %> 
                 <!-- <p><strong>A:</strong> <%- faq.answer %></p>  -->
-                <p><strong>A:</strong> <%- faq.answer %></p> 
+                <div class="rich-content"><%- faq.answer %></div>
                 <% } else { %> 
                   <p><em>Answer coming soon...</em></p> 
                   <% } %> 

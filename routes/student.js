@@ -158,6 +158,17 @@ router.get("/avatar-frames", studentController.getAvatarFrames);
 router.post("/avatar-frames/unlock", express.json(), studentController.unlockAvatarFrame);
 router.post("/avatar-frames/equip", express.json(), studentController.equipAvatarFrame);
 router.post("/xp/exchange", express.json(), studentController.exchangeXp);
+router.post("/wallet/buy-coins", express.json(), studentController.buyCoinsFromWallet);
+
+router.get("/shop", studentController.getShop);
+router.post("/shop/unlock", express.json(), studentController.unlockShopItem);
+router.post("/shop/equip", express.json(), studentController.equipShopItem);
+router.post("/shop/xp-boost", express.json(), studentController.buyXpBoost);
+router.post("/quizzes/:lessonId/hint", express.json(), studentController.useQuizHint);
+router.post("/quizzes/:lessonId/fifty-fifty", express.json(), studentController.useFiftyFifty);
+
+router.get("/arcade", studentController.getArcade);
+router.post("/arcade/:gameId/play", express.json(), studentController.playArcadeGame);
 
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);

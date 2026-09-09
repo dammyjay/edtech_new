@@ -1,6 +1,12 @@
 <%- include('../partials/adminHeader', { title: 'Schools' }) %>
 
-<h2>All Registered Schools</h2>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+  <h2 style="margin:0;">All Registered Schools</h2>
+  <div style="display:flex; gap:10px;">
+    <a class="btn-edit" href="/admin/schools/export/excel">⬇️ Excel</a>
+    <a class="btn-edit" href="/admin/schools/export/pdf">⬇️ PDF</a>
+  </div>
+</div>
 <div class="table-responsive">
   <table class="user-table sortable-table" style="width:100%; margin-top:20px;">
     <thead>
@@ -8,9 +14,12 @@
         <th>School Name</th>
         <th>Email</th>
         <th>Phone</th>
-        <th>No. of Students</th>
+        <th>Address</th>
+        <th>Last Term</th>
+        <th>Students (Last Term)</th>
         <th>No. of Teachers</th>
         <th>No of Classrooms</th>
+        <th>Total Paid (Last Term)</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -20,18 +29,29 @@
           <td><%= school.name %></td>
           <td><%= school.email %></td>
           <td><%= school.phone %></td>
+          <td><%= school.address || '—' %></td>
+          <td>
+            <% if (school.last_term_name) { %>
+              <%= school.last_term_name %>
+            <% } else { %>
+              <span style="color:#888;">No term yet</span>
+            <% } %>
+          </td>
           <td><%= school.student_count %></td>
           <td><%= school.teacher_count %></td>
           <td><%= school.classroom_count %></td>
+          <td>
+            <% if (school.last_term_id) { %>
+              ₦<%= Number(school.last_payment_amount).toLocaleString() %>
+            <% } else { %>
+              <span style="color:#888;">—</span>
+            <% } %>
+          </td>
           <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
             <a href="/admin/schools/<%= school.id %>">
               <i class="fa-regular fa-eye" style="color: #0000ff;"></i>
             </a>
-            <!-- <button class="btn-edit" 
-                    onclick="openEditSchoolModal('<%= school.id %>', '<%= school.name %>', '<%= school.email || '' %>', '<%= school.phone || '' %>', '<%= school.logo_url || '' %>')">
-              ✏️ Edit
-            </button> -->
-            <a href="#" class="no-bg" onclick="openEditSchoolModal('<%= school.id %>', '<%= school.name %>', '<%= school.email || '' %>', '<%= school.phone || '' %>', '<%= school.logo_url || '' %>'); return false;">
+            <a href="#" class="no-bg" onclick="openEditSchoolModal('<%= school.id %>', '<%= school.name %>', '<%= school.email || '' %>', '<%= school.phone || '' %>', '<%= (school.address || '').replace(/'/g, "\\'") %>', '<%= school.logo_url || '' %>'); return false;">
               <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
             </a>
           </td>
@@ -80,14 +100,14 @@
 
 <script>
 // 🟦 Open modal & populate fields
-function openEditSchoolModal(id, name, email, phone, logo) {
+function openEditSchoolModal(id, name, email, phone, address, logo) {
   document.getElementById("editSchoolModal").style.display = "flex";
   document.getElementById("schoolId").value = id;
   document.getElementById("schoolName").value = name;
   document.getElementById("schoolEmail").value = email;
   document.getElementById("schoolPhone").value = phone;
-  ocument.getElementById("schoolAddress").value = address;
-  document.getElementById("logoPreview").src = logo_url || '/images/profile.jpg';
+  document.getElementById("schoolAddress").value = address;
+  document.getElementById("logoPreview").src = logo || '/images/profile.jpg';
 }
 
 function closeEditSchoolModal() {

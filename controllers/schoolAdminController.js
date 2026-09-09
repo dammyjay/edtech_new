@@ -62,11 +62,11 @@ const schoolDbId = schoolRes.rows[0].id;
 
   // Classrooms
   const classrooms = await pool.query(
-    `SELECT c.id, c.name,
+    `SELECT c.id, c.name, c.arcade_enabled,
        COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
        COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-       (SELECT COUNT(*) 
-          FROM user_school us2 
+       (SELECT COUNT(*)
+          FROM user_school us2
          WHERE us2.classroom_id = c.id
            AND us2.role_in_school = 'student'
            AND us2.approved = true) AS student_count
@@ -74,7 +74,7 @@ FROM classrooms c
 LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
 LEFT JOIN users2 u ON u.id = ct.teacher_id
 WHERE c.school_id = $1
-GROUP BY c.id, c.name;`,
+GROUP BY c.id, c.name, c.arcade_enabled;`,
     [schoolDbId]
   );
 
@@ -295,11 +295,11 @@ exports.loadSection = async (req, res) => {
 
   if (section === "classrooms") {
     const classrooms = await pool.query(
-      `SELECT c.id, c.name,
+      `SELECT c.id, c.name, c.arcade_enabled,
          COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
          COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-         (SELECT COUNT(*) 
-            FROM user_school us2 
+         (SELECT COUNT(*)
+            FROM user_school us2
            WHERE us2.classroom_id = c.id
              AND us2.role_in_school = 'student'
              AND us2.approved = true) AS student_count
@@ -307,7 +307,7 @@ exports.loadSection = async (req, res) => {
        LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
        LEFT JOIN users2 u ON u.id = ct.teacher_id
        WHERE c.school_id = $1
-       GROUP BY c.id, c.name;`,
+       GROUP BY c.id, c.name, c.arcade_enabled;`,
       [schoolId]
     );
 
@@ -486,11 +486,11 @@ exports.loadSection = async (req, res) => {
     );
 
     const classrooms = await pool.query(
-      `SELECT c.id, c.name,
+      `SELECT c.id, c.name, c.arcade_enabled,
          COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
          COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-         (SELECT COUNT(*) 
-            FROM user_school us2 
+         (SELECT COUNT(*)
+            FROM user_school us2
            WHERE us2.classroom_id = c.id
              AND us2.role_in_school = 'student'
              AND us2.approved = true) AS student_count
@@ -498,7 +498,7 @@ exports.loadSection = async (req, res) => {
        LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
        LEFT JOIN users2 u ON u.id = ct.teacher_id
        WHERE c.school_id = $1
-       GROUP BY c.id, c.name;`,
+       GROUP BY c.id, c.name, c.arcade_enabled;`,
       [schoolId]
     );
 
@@ -1261,12 +1261,14 @@ exports.editClassroomForm = async (req, res) => {
 // Update classroom
 exports.updateClassroom = async (req, res) => {
   const { id } = req.params; // classroomId
-  const { name, teacher_id } = req.body;
+  const { name, teacher_id, arcade_enabled } = req.body;
 
   try {
-    // Step 1: update classroom name
-    await pool.query("UPDATE classrooms SET name = $1 WHERE id = $2", [
+    // Step 1: update classroom name + Arcade toggle. Checkboxes only
+    // appear in req.body when checked, so an absent field means "off".
+    await pool.query("UPDATE classrooms SET name = $1, arcade_enabled = $2 WHERE id = $3", [
       name,
+      arcade_enabled === "on" || arcade_enabled === "true" || arcade_enabled === true,
       id,
     ]);
     await logActivityForUser(req, "Classroom renamed", `Classroom: ${name}`);

@@ -1,0 +1,99 @@
+<%- include('../partials/header', { title: 'Arcade' }) %>
+
+<style>
+  .arcade-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+  .arcade-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .arcade-coins { font-weight:bold; font-size:16px; }
+  .arcade-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px; }
+  .arcade-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+  .arcade-card .icon { font-size:36px; }
+  .arcade-card h3 { margin:8px 0 4px; }
+  .arcade-card p { font-size:13px; color:#666; margin:0 0 12px; min-height:32px; }
+  .arcade-disabled-banner { background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:12px 16px; border-radius:8px; margin-bottom:16px; }
+  #arcadeStage { margin-top:24px; }
+  #arcadeStage .stage-back { margin-bottom:10px; background:none; border:none; color:#4f46e5; cursor:pointer; font-weight:bold; }
+  .app-toast { position:fixed; bottom:20px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; z-index:9999; opacity:0; transition:opacity .3s; }
+  .app-toast.show { opacity:1; }
+</style>
+
+<div class="arcade-wrap">
+  <div class="arcade-header">
+    <h2 style="margin:0;">🎮 Arcade</h2>
+    <div class="arcade-coins">🪙 <span id="arcadeCoins"><%= coins %></span> coins</div>
+  </div>
+
+  <% if (!arcadeEnabled) { %>
+    <div class="arcade-disabled-banner">
+      Your school has turned off the Arcade for <%= classroomName || 'your classroom' %> right now. Check back later!
+    </div>
+  <% } else { %>
+    <div class="arcade-grid" id="arcadeGrid">
+      <% games.forEach(g => { %>
+        <div class="arcade-card">
+          <div class="icon"><%= g.icon %></div>
+          <h3><%= g.name %></h3>
+          <p><%= g.description %></p>
+          <button class="btn" onclick="playGame('<%= g.id %>', <%= g.playCost %>)">🪙 <%= g.playCost %> — Play</button>
+        </div>
+      <% }) %>
+    </div>
+
+    <div id="arcadeStage" style="display:none;">
+      <button class="stage-back" onclick="closeGame()">&larr; Back to games</button>
+      <div id="arcadeGameContainer"></div>
+    </div>
+  <% } %>
+</div>
+
+<script src="/games/snake.js"></script>
+<script src="/games/2048.js"></script>
+<script src="/games/memory-match.js"></script>
+<script>
+  function showToast(message) {
+    const el = document.createElement('div');
+    el.className = 'app-toast';
+    el.textContent = message;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2200);
+  }
+
+  let currentGameId = null;
+
+  async function playGame(gameId, cost) {
+    try {
+      const res = await fetch(`/student/arcade/${gameId}/play`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || 'Could not start game.');
+        return;
+      }
+      document.getElementById('arcadeCoins').textContent = data.coins;
+      showToast(`-${cost} 🪙 — enjoy!`);
+
+      document.getElementById('arcadeGrid').style.display = 'none';
+      const stage = document.getElementById('arcadeStage');
+      stage.style.display = 'block';
+      currentGameId = gameId;
+      const container = document.getElementById('arcadeGameContainer');
+      const game = window.ArcadeGames && window.ArcadeGames[gameId];
+      if (game && game.start) {
+        game.start(container);
+      } else {
+        container.innerHTML = '<p>This game could not be loaded.</p>';
+      }
+    } catch (err) {
+      showToast('Something went wrong starting the game.');
+    }
+  }
+
+  function closeGame() {
+    const container = document.getElementById('arcadeGameContainer');
+    const game = currentGameId && window.ArcadeGames && window.ArcadeGames[currentGameId];
+    if (game && game.stop) game.stop(container);
+    container.innerHTML = '';
+    currentGameId = null;
+    document.getElementById('arcadeStage').style.display = 'none';
+    document.getElementById('arcadeGrid').style.display = 'grid';
+  }
+</script>

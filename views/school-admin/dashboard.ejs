@@ -65,6 +65,11 @@
       </select>
       <small>Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple</small>
 
+      <label style="display:flex; align-items:center; gap:6px; margin-top:12px;">
+        <input type="checkbox" name="arcade_enabled" id="edit_arcade_enabled">
+        🎮 Enable Arcade for this classroom
+      </label>
+
       <button type="submit" class="btn-edit">Update</button>
     </form>
   </div>
@@ -83,7 +88,7 @@
     document.getElementById(id).style.display = "none";
   }
 
-  function openEditModal(classroomId, classroomName, teacherIds) {
+  function openEditModal(classroomId, classroomName, teacherIds, arcadeEnabled) {
     document.getElementById("edit_classroom_id").value = classroomId;
     document.getElementById("edit_name").value = classroomName;
 
@@ -91,6 +96,10 @@
     Array.from(select.options).forEach(opt => {
       opt.selected = teacherIds.includes(parseInt(opt.value));
     });
+
+    // Defaults to true (matches classrooms.arcade_enabled's DB default)
+    // when the caller doesn't pass a value at all.
+    document.getElementById("edit_arcade_enabled").checked = arcadeEnabled !== false;
 
     document.getElementById("editClassroomForm").action = "/school-admin/classrooms/" + classroomId + "/edit";
     openModal("editClassroomModal");

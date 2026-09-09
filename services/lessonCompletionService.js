@@ -28,11 +28,17 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { maybeAwardReferralBonus } = require("./referralService");
 const { recordActivityForLesson } = require("./courseTermLinkService");
 const { checkAndCompleteModule } = require("./moduleCompletionService");
+const { XP_BOOST } = require("../utils/shopCatalog");
 
 /**
  * Awards XP for finishing one part of a lesson (quiz or lab). Callers are
  * responsible for only calling this on that part's genuine first
  * completion — resubmitting a quiz or a lab doesn't grind XP.
+ *
+ * If the student has a coin-purchased XP boost active
+ * (users2.xp_boost_uses_remaining, bought via studentController.buyXpBoost),
+ * one use is atomically consumed and this award is multiplied — additive to
+ * every existing caller, since with no boost purchased this is a no-op.
  *
  * @param {number} studentId
  * @param {number} xpAmount
@@ -43,25 +49,34 @@ async function awardXp(studentId, xpAmount, activityLabel) {
     return { xpGained: 0, levelUp: false, levelAfter: null };
   }
 
+  const boostRes = await pool.query(
+    `UPDATE users2 SET xp_boost_uses_remaining = xp_boost_uses_remaining - 1
+     WHERE id = $1 AND COALESCE(xp_boost_uses_remaining, 0) > 0
+     RETURNING xp_boost_uses_remaining`,
+    [studentId]
+  );
+  const boosted = boostRes.rows.length > 0;
+  const finalXp = boosted ? xpAmount * XP_BOOST.multiplier : xpAmount;
+
   const xpBeforeRes = await pool.query(
     "SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1",
     [studentId]
   );
   const xpBefore = xpBeforeRes.rows[0].xp;
   const levelBefore = getLevelForXp(xpBefore);
-  const levelAfter = getLevelForXp(xpBefore + xpAmount);
+  const levelAfter = getLevelForXp(xpBefore + finalXp);
   const levelUp = levelAfter.level > levelBefore.level;
 
   await pool.query(
     "UPDATE users2 SET xp = COALESCE(xp, 0) + $1, redeemable_xp = COALESCE(redeemable_xp, 0) + $1 WHERE id = $2",
-    [xpAmount, studentId]
+    [finalXp, studentId]
   );
   await pool.query(
     `INSERT INTO xp_history (user_id, xp, activity) VALUES ($1, $2, $3)`,
-    [studentId, xpAmount, activityLabel]
+    [studentId, finalXp, boosted ? `${activityLabel} (2x boost)` : activityLabel]
   );
 
-  return { xpGained: xpAmount, levelUp, levelAfter };
+  return { xpGained: finalXp, levelUp, levelAfter, boosted };
 }
 
 /**

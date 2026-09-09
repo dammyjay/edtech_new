@@ -45,7 +45,7 @@
      <div style="margin-top: 30px;">
         
         <h3>About this Course</h3>
-        <p><%- course.description %></p>
+        <div class="rich-content"><%- course.description %></div>
         
         <div class="">
             <h4>🎯 Level: </h4>
@@ -124,7 +124,7 @@
             <li>
                 <strong>Module <%= idx + 1 %>: <%= module.title %></strong>
                 <% if (module.description) { %>
-                    <p><%- module.description %></p>
+                    <div class="rich-content"><%- module.description %></div>
                 <% } %>
             </li>
         <% }); %>
@@ -137,7 +137,7 @@
       <h4><%= module.title %></h4>
       <!-- <p>Module ID: <%= module.id %></p> -->
        <% if (module.description) { %>
-                    <p><%- module.description %></p>
+                    <div class="rich-content"><%- module.description %></div>
                 <% } %>
       <!-- <p>Created At: <%= module.created_at.toDateString() %></p> -->
      

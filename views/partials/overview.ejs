@@ -491,7 +491,7 @@ async function approveUser(userId) {
 
 
                 <button class="btn-edit"
-                            onclick="openEditModal(<%= c.id %>, '<%= c.name %>', <%- JSON.stringify(c.teacher_ids || []) %>)">
+                            onclick="openEditModal(<%= c.id %>, '<%= c.name %>', <%- JSON.stringify(c.teacher_ids || []) %>, <%= c.arcade_enabled !== false %>)">
                         ✏ Edit
                     </button>
 
