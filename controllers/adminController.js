@@ -15,6 +15,8 @@ const PDFDocument = require("pdfkit");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const { getAllSchoolsWithPaymentSummary } = require("../services/schoolsAdminListService");
+const { escapeHtml, formatNaira } = require("../services/platformReportSections/sectionHelpers");
 const { renderCourseReportHtml, renderModuleReportHtml } = require("../utils/reportTemplate");
 const { logActivityForUser } = require("../utils/activityLogger");
 const path = require("path");
@@ -5393,35 +5395,127 @@ exports.getSchools = async (req, res) => {
   }
 
   try {
-    const result = await pool.query(`
-      SELECT 
-        s.id,
-        s.name,
-        s.email,
-        s.phone,
-        s.address,
-        s.logo_url,
-        s.created_at,
-        COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN u.id END) AS student_count,
-        COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' THEN u.id END) AS teacher_count,
-        COUNT(DISTINCT c.id) AS classroom_count
-      FROM schools s
-      LEFT JOIN user_school us ON s.id = us.school_id
-      LEFT JOIN users2 u ON us.user_id = u.id   -- ✅ ensure actual users exist
-      LEFT JOIN classrooms c ON c.school_id = s.id
-      GROUP BY s.id
-      ORDER BY s.created_at DESC
-    `);
+    const schools = await getAllSchoolsWithPaymentSummary();
 
     res.render("admin/schools", {
       info: req.companyInfo || {},
-      schools: result.rows,
+      schools,
       currentPage: "schools",
       role: "admin", // ✅ important
     });
   } catch (err) {
     console.error("Error fetching schools:", err);
     res.status(500).send("Error loading schools");
+  }
+};
+
+// GET /admin/schools/export/excel — same ExcelJS streaming pattern as
+// exportStudentsExcel below, one row per school instead of per student.
+exports.exportSchoolsExcel = async (req, res) => {
+  try {
+    const schools = await getAllSchoolsWithPaymentSummary();
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Schools");
+
+    sheet.columns = [
+      { header: "Name", key: "name", width: 28 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Phone", key: "phone", width: 18 },
+      { header: "Address", key: "address", width: 32 },
+      { header: "Last Term", key: "last_term_name", width: 22 },
+      { header: "Students (Last Term)", key: "student_count", width: 16 },
+      { header: "Teachers", key: "teacher_count", width: 12 },
+      { header: "Classrooms", key: "classroom_count", width: 12 },
+      { header: "Total Paid (Last Term)", key: "last_payment_amount", width: 20 },
+    ];
+
+    schools.forEach((s) => {
+      sheet.addRow({
+        ...s,
+        last_term_name: s.last_term_name || "No term yet",
+        last_payment_amount: Number(s.last_payment_amount || 0),
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename=schools.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("exportSchoolsExcel error:", err);
+    res.status(500).send("Excel export failed");
+  }
+};
+
+// GET /admin/schools/export/pdf — same generatePdf(html) pattern as
+// generateSchoolReceipt below, built from a standalone HTML string rather
+// than the full periodic platform-report pipeline (no period/AI context
+// needed for a plain on-demand list).
+exports.exportSchoolsPdf = async (req, res) => {
+  try {
+    const schools = await getAllSchoolsWithPaymentSummary();
+
+    const rows = schools
+      .map(
+        (s) => `
+        <tr>
+          <td>${escapeHtml(s.name)}</td>
+          <td>${escapeHtml(s.email || "")}</td>
+          <td>${escapeHtml(s.phone || "")}</td>
+          <td>${escapeHtml(s.address || "")}</td>
+          <td>${escapeHtml(s.last_term_name || "No term yet")}</td>
+          <td>${s.student_count}</td>
+          <td>${s.teacher_count}</td>
+          <td>${s.classroom_count}</td>
+          <td>${formatNaira(s.last_payment_amount)}</td>
+        </tr>`,
+      )
+      .join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          @page { size: A4 landscape; margin: 16px; }
+          body { font-family: Arial, sans-serif; color: #222; }
+          h1 { font-size: 18px; margin-bottom: 4px; }
+          p.generated { font-size: 11px; color: #666; margin-top: 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+          th { background: #f4f4f4; }
+        </style>
+      </head>
+      <body>
+        <h1>All Registered Schools</h1>
+        <p class="generated">Generated ${new Date().toLocaleString()}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Last Term</th>
+              <th>Students (Last Term)</th><th>Teachers</th><th>Classrooms</th>
+              <th>Total Paid (Last Term)</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const pdf = await generatePdf(html);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="schools.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error("exportSchoolsPdf error:", err);
+    res.status(500).send("PDF export failed");
   }
 };
 
@@ -11276,5 +11370,108 @@ exports.getParentChildrenJSON = async (req, res) => {
     res.status(500).json({
       error: "Failed to load children",
     });
+  }
+};
+/**
+ * PROJECT GALLERY MODERATION — admin-facing view of the platform-wide
+ * project gallery (controllers/labController.js's gallery* exports build
+ * the student-facing half). This is deliberately its own filtered view
+ * rather than routing admins through the generic table browser
+ * (controllers/adminDbController.js) for lab_projects: that browser shows
+ * every row — drafts, lesson lab tasks, unpublished freeform projects —
+ * mixed together with raw JSONB, which isn't a usable way to answer "what
+ * do students currently have visible in the public gallery, and what's
+ * been flagged". Report review itself still goes through that generic
+ * browser (project_flags is whitelisted there) rather than a second
+ * purpose-built UI.
+ */
+
+exports.getProjectGalleryModerationPage = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+
+  try {
+    const infoResult = await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1");
+
+    res.render("admin/projectGalleryModeration", {
+      info: infoResult.rows[0],
+      user: req.session.user,
+      role: "admin",
+    });
+  } catch (err) {
+    console.error("getProjectGalleryModerationPage error:", err);
+    res.status(500).send("Error loading page");
+  }
+};
+
+exports.getAdminGalleryProjects = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+
+  try {
+    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const flaggedOnly = req.query.flagged === "true";
+    const search = (req.query.search || "").trim();
+
+    const params = [];
+    const conditions = ["lp.is_published = true"];
+
+    if (labType) {
+      params.push(labType);
+      conditions.push(`lp.lab_type = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(lp.project_name ILIKE $${params.length} OR u.fullname ILIKE $${params.length})`);
+    }
+    if (flaggedOnly) {
+      conditions.push(`fl.flag_count > 0`);
+    }
+
+    const result = await pool.query(
+      `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
+              u.id AS student_id, u.fullname AS student_name,
+              COALESCE(lk.like_count, 0) AS like_count,
+              COALESCE(rv.avg_rating, 0) AS avg_rating,
+              COALESCE(rv.review_count, 0) AS review_count,
+              COALESCE(fl.flag_count, 0) AS flag_count
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS flag_count FROM project_flags GROUP BY project_id) fl ON fl.project_id = lp.id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY flag_count DESC, lp.published_at DESC
+       LIMIT 200`,
+      params
+    );
+
+    res.json({ success: true, projects: result.rows });
+  } catch (err) {
+    console.error("getAdminGalleryProjects error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.adminUnpublishProject = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE lab_projects SET is_published = false WHERE id = $1 AND is_published = true RETURNING id`,
+      [id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: "Published project not found" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("adminUnpublishProject error:", err);
+    res.status(500).json({ success: false });
   }
 };

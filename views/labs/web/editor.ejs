@@ -85,6 +85,9 @@
   </div>
 
   <button id="submitBtn" class="weblab-submit-btn"><i class="fas fa-flag-checkered"></i> Submit Project</button>
+  <% if (!lessonLab) { %>
+    <button id="publishBtn" class="weblab-submit-btn" style="display:none; background:var(--brand-pri, #A17807);"><i class="fas fa-image"></i> Publish to Gallery</button>
+  <% } %>
 </div>
 
 <div class="weblab-container">
@@ -148,3 +151,29 @@
 </div>
 
 <script src="/labs/js/webLab.js"></script>
+
+<script>
+  // AI tutor context provider (public/labs/js/labAiTutor.js) — hands over
+  // the student's current HTML/CSS/JS + latest console output each time
+  // they ask a question, read fresh from the Monaco editors so it's never
+  // stale even mid-edit.
+  window.LAB_AI_TUTOR_TITLE = "🤖 Web Lab Tutor";
+  window.getLabAIContext = function () {
+    try {
+      const html = window.htmlEditor ? window.htmlEditor.getValue() : "";
+      const css = window.cssEditor ? window.cssEditor.getValue() : "";
+      const js = window.jsEditor ? window.jsEditor.getValue() : "";
+      let code = `--- HTML (${window.activePageName || "index.html"}) ---\n${html}\n\n--- CSS (shared) ---\n${css}\n\n--- JS (shared) ---\n${js}`;
+
+      const consoleText = (document.getElementById("consoleOutput")?.innerText || "").trim();
+      if (consoleText) code += `\n\n--- Console output ---\n${consoleText}`;
+
+      return { labType: "web", code };
+    } catch (e) {
+      console.error("getLabAIContext error:", e);
+      return null;
+    }
+  };
+</script>
+<script src="/js/markdownLite.js"></script>
+<script src="/labs/js/labAiTutor.js"></script>

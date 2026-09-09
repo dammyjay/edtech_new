@@ -1,0 +1,187 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'project-gallery' }) %>
+
+<div class="pgm-page">
+  <h2>🖼️ Project Gallery Moderation</h2>
+  <p class="pgm-sub">Every project currently published to the platform-wide gallery. Lesson lab tasks never appear here — only students' own freeform Web Lab / Blockly Lab projects can be published.</p>
+
+  <div class="pgm-toolbar">
+    <input type="text" id="pgmSearch" placeholder="Search by project or student name…" />
+    <select id="pgmLabType">
+      <option value="">All lab types</option>
+      <option value="web">🌐 Web Lab</option>
+      <option value="blockly">🧩 Blockly Lab</option>
+    </select>
+    <label class="pgm-flag-toggle">
+      <input type="checkbox" id="pgmFlaggedOnly" /> Flagged only 🚩
+    </label>
+    <button type="button" id="pgmRefresh">Refresh</button>
+  </div>
+
+  <div class="pgm-table-wrap">
+    <table class="pgm-table">
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Student</th>
+          <th>Type</th>
+          <th>Published</th>
+          <th>❤️ Likes</th>
+          <th>★ Rating</th>
+          <th>🚩 Flags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="pgmTableBody">
+        <tr><td colspan="8" class="pgm-empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .pgm-page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+  .pgm-sub { color: #666; font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
+
+  .pgm-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .pgm-toolbar input[type="text"] {
+    flex: 1;
+    min-width: 220px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  .pgm-toolbar select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  .pgm-flag-toggle { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .pgm-toolbar button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .pgm-table-wrap {
+    overflow-x: auto;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #eee;
+  }
+  .pgm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pgm-table th, .pgm-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+  }
+  .pgm-table th { background: #fafafa; font-weight: 700; color: #444; }
+  .pgm-table tr.flagged td { background: #fff5f5; }
+  .pgm-empty { text-align: center; color: #999; padding: 30px !important; }
+
+  .pgm-unpublish-btn {
+    border: none;
+    background: #f1f1f1;
+    color: #b02a37;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pgm-unpublish-btn:hover { background: #ffe1e1; }
+</style>
+
+<script>
+(function () {
+  const tbody = document.getElementById("pgmTableBody");
+  const search = document.getElementById("pgmSearch");
+  const labType = document.getElementById("pgmLabType");
+  const flaggedOnly = document.getElementById("pgmFlaggedOnly");
+  const refreshBtn = document.getElementById("pgmRefresh");
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  async function load() {
+    tbody.innerHTML = `<tr><td colspan="8" class="pgm-empty">Loading…</td></tr>`;
+
+    const params = new URLSearchParams();
+    if (search.value.trim()) params.set("search", search.value.trim());
+    if (labType.value) params.set("labType", labType.value);
+    if (flaggedOnly.checked) params.set("flagged", "true");
+
+    try {
+      const res = await fetch(`/admin/project-gallery/projects?${params.toString()}`);
+      const data = await res.json();
+
+      if (!data.success || !data.projects.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="pgm-empty">No published projects match this filter.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.projects.map((p) => {
+        const rating = Number(p.avg_rating) || 0;
+        const published = p.published_at ? new Date(p.published_at).toLocaleDateString() : "-";
+        return `
+          <tr class="${p.flag_count > 0 ? "flagged" : ""}" data-id="${p.id}">
+            <td>${escapeHtml(p.project_name || "Untitled project")}</td>
+            <td>${escapeHtml(p.student_name)}</td>
+            <td>${p.lab_type === "blockly" ? "🧩 Blockly" : "🌐 Web"}</td>
+            <td>${published}</td>
+            <td>${p.like_count}</td>
+            <td>${rating ? `${rating.toFixed(1)} (${p.review_count})` : "—"}</td>
+            <td>${p.flag_count > 0 ? `🚩 ${p.flag_count}` : "—"}</td>
+            <td><button type="button" class="pgm-unpublish-btn" data-id="${p.id}">Unpublish</button></td>
+          </tr>
+        `;
+      }).join("");
+    } catch (err) {
+      console.error("Moderation load error:", err);
+      tbody.innerHTML = `<tr><td colspan="8" class="pgm-empty">Couldn't load projects.</td></tr>`;
+    }
+  }
+
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".pgm-unpublish-btn");
+    if (!btn) return;
+    const confirmed = window.showConfirm
+      ? await window.showConfirm("Remove this project from the public gallery?", { confirmText: "Unpublish" })
+      : confirm("Remove this project from the public gallery?");
+    if (!confirmed) return;
+
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/admin/project-gallery/${btn.dataset.id}/unpublish`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        load();
+      } else {
+        btn.disabled = false;
+      }
+    } catch (err) {
+      console.error("Unpublish error:", err);
+      btn.disabled = false;
+    }
+  });
+
+  search.addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
+  labType.addEventListener("change", load);
+  flaggedOnly.addEventListener("change", load);
+  refreshBtn.addEventListener("click", load);
+
+  load();
+})();
+</script>

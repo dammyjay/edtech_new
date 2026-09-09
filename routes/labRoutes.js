@@ -18,6 +18,8 @@ router.get("/appinventor", labController.getAppInventorLab);
 
 router.get("/ai", labController.getAiLab);
 
+router.get("/gallery", labController.getGalleryPage);
+
 router.post("/project/init", labController.initProject);
 
 // Must come before /project/:labType — otherwise "lesson" would be
@@ -33,5 +35,13 @@ router.post("/project/submit", labController.submitProject);
 router.get("/peer-review/reviewable", labController.getReviewableProjects);
 router.post("/peer-review/submit", express.json(), labController.submitReview);
 router.get("/peer-review/mine", labController.getMyProjectReviews);
+
+router.get("/gallery/projects", labController.getGalleryProjects);
+router.get("/gallery/projects/:id", labController.getGalleryProjectDetail);
+router.post("/gallery/publish", labController.publishProject);
+router.post("/gallery/unpublish", labController.unpublishProject);
+router.post("/gallery/like", labController.toggleLike);
+router.post("/gallery/remix", labController.remixProject);
+router.post("/gallery/report", labController.reportProject);
 
 module.exports = router;

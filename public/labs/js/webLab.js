@@ -81,6 +81,28 @@ function showToast(message, type = "info") {
   setTimeout(() => toast.remove(), 2600);
 }
 
+// Reflects window.currentProjectStatus/currentProjectPublished (kept in
+// sync by initLab and the submit/publish handlers below) onto the Publish
+// button — only rendered at all for freeform projects (views/labs/web/
+// editor.ejs omits it entirely when lessonLab is set, so a lesson task
+// submission never gets a "publish to the public gallery" affordance).
+function updatePublishButtonState() {
+  const btn = document.getElementById("publishBtn");
+  if (!btn) return;
+
+  if (window.currentProjectPublished) {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-image"></i> View in Gallery';
+  } else if (window.currentProjectStatus === "submitted") {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-image"></i> Publish to Gallery';
+  } else {
+    btn.style.display = "none";
+  }
+}
+
 // project_data can be the CURRENT {pages,css,js,activePage} shape, or the
 // legacy flat {html,css,js} shape saved before multi-page support existed
 // (real projects with that old shape already exist in the DB) — normalize
@@ -348,6 +370,9 @@ async function initLab(labType) {
     // many times it's already been AI-graded, for the resubmit confirm
     // message and the MAX_LAB_SUBMISSIONS cap below.
     window.labSubmissionCount = data.submissionCount || 0;
+    window.currentProjectStatus = data.project.status;
+    window.currentProjectPublished = data.project.is_published;
+    updatePublishButtonState();
 
     const normalized = normalizeProjectData(data.project.project_data);
     window.pages = normalized.pages;
@@ -601,11 +626,52 @@ require(["vs/editor/editor.main"], function () {
       } else {
         showToast("Project re-submitted!", "success");
       }
+
+      window.currentProjectStatus = "submitted";
+      updatePublishButtonState();
     } catch (err) {
       console.error("SUBMIT ERROR:", err);
       showToast("Couldn't submit — try again.", "error");
     }
   });
+
+  const publishBtn = document.getElementById("publishBtn");
+  if (publishBtn) {
+    publishBtn.addEventListener("click", async () => {
+      if (window.currentProjectPublished) {
+        window.location.href = "/labs/gallery";
+        return;
+      }
+
+      const confirmed = await showConfirm(
+        "Publish this project to the public Project Gallery? Any student on the platform will be able to view, like, and remix it.",
+        { confirmText: "Publish" }
+      );
+      if (!confirmed) return;
+
+      publishBtn.disabled = true;
+      try {
+        const res = await fetch("/labs/gallery/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: window.currentProjectId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.currentProjectPublished = true;
+          updatePublishButtonState();
+          showToast("🖼️ Published to the gallery!", "success");
+        } else {
+          showToast(data.message || "Couldn't publish — try again.", "error");
+        }
+      } catch (err) {
+        console.error("PUBLISH ERROR:", err);
+        showToast("Couldn't publish — try again.", "error");
+      } finally {
+        publishBtn.disabled = false;
+      }
+    });
+  }
 
   document.querySelectorAll(".preview-viewport-toggle button").forEach((btn) => {
     btn.addEventListener("click", () => {

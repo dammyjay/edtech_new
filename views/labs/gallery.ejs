@@ -1,0 +1,271 @@
+<%- include('../partials/header', { title: 'Project Gallery' }) %>
+
+<div class="labs-page gallery-page">
+
+  <div class="labs-hero">
+    <div class="labs-hero-text">
+      <a href="/labs" class="gallery-back-link">← Back to Labs</a>
+      <h1>🖼️ Project Gallery</h1>
+      <p>See what other students built. Like your favorites, and remix one to make it your own.</p>
+    </div>
+
+    <div class="labs-stats">
+      <div class="labs-stat">
+        <span class="labs-stat-icon">⭐</span>
+        <div>
+          <strong><%= levelInfo.name %></strong>
+          <small>Level <%= levelInfo.level %></small>
+        </div>
+      </div>
+      <div class="labs-stat">
+        <span class="labs-stat-icon"><%= streak.currentStreak > 0 ? "🔥" : "💤" %></span>
+        <div>
+          <strong><%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %></strong>
+          <small>Streak</small>
+        </div>
+      </div>
+      <div class="labs-stat">
+        <span class="labs-stat-icon">💰</span>
+        <div>
+          <strong><%= student.coins || 0 %></strong>
+          <small>Coins</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gallery-toolbar">
+    <div class="gallery-filter-group" id="galleryTypeFilter">
+      <button type="button" class="gallery-filter-btn active" data-type="">All</button>
+      <button type="button" class="gallery-filter-btn" data-type="web">🌐 Web Lab</button>
+      <button type="button" class="gallery-filter-btn" data-type="blockly">🧩 Blockly Lab</button>
+    </div>
+    <div class="gallery-filter-group" id="gallerySortFilter">
+      <button type="button" class="gallery-filter-btn active" data-sort="new">🆕 Newest</button>
+      <button type="button" class="gallery-filter-btn" data-sort="popular">🔥 Popular</button>
+    </div>
+  </div>
+
+  <div id="galleryGrid" class="gallery-grid"></div>
+  <p id="galleryLoading" class="gallery-empty">Loading projects…</p>
+  <p id="galleryEmpty" class="gallery-empty" style="display:none;">
+    No published projects yet — finish a project in the Web Lab or Blockly Lab, then publish it here to be the first! 🚀
+  </p>
+  <button type="button" id="galleryLoadMore" class="gallery-load-more" style="display:none;">Load more</button>
+
+</div>
+
+<!-- Detail modal -->
+<div id="galleryModal" class="gallery-modal" style="display:none;">
+  <div class="gallery-modal-backdrop"></div>
+  <div class="gallery-modal-card">
+    <button type="button" id="galleryModalClose" class="gallery-modal-close" title="Close">✕</button>
+    <div id="galleryModalBody"></div>
+  </div>
+</div>
+
+<style>
+  .gallery-back-link {
+    display: inline-block;
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .gallery-back-link:hover { text-decoration: underline; }
+
+  .gallery-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .gallery-filter-group {
+    display: flex;
+    gap: 6px;
+    background: #f1f1f1;
+    border-radius: 999px;
+    padding: 4px;
+  }
+  .gallery-filter-btn {
+    border: none;
+    background: transparent;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    cursor: pointer;
+  }
+  .gallery-filter-btn.active {
+    background: var(--brand-pri, #A17807);
+    color: #fff;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+  }
+
+  .gallery-card {
+    background: #fff;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius-lg, 16px);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .gallery-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+  }
+  .gallery-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .gallery-card-icon { font-size: 26px; }
+  .gallery-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary, #222);
+    margin: 0;
+    line-height: 1.3;
+  }
+  .gallery-card-author {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    margin: 0;
+  }
+  .gallery-card-badges {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    margin-top: auto;
+  }
+  .gallery-remix-tag {
+    font-size: 11px;
+    background: var(--brand-tint, #FBF3DD);
+    color: var(--brand-pri-dark, #4C3802);
+    padding: 2px 8px;
+    border-radius: 999px;
+    align-self: flex-start;
+  }
+
+  .gallery-empty {
+    text-align: center;
+    color: var(--text-secondary, #666);
+    padding: 40px 10px;
+    font-size: 14px;
+  }
+
+  .gallery-load-more {
+    display: block;
+    margin: 24px auto 0;
+    padding: 10px 22px;
+    border: 1px solid var(--border-light, #e0e0e0);
+    background: #fff;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Modal */
+  .gallery-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .gallery-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20,15,5,0.55);
+  }
+  .gallery-modal-card {
+    position: relative;
+    background: #fff;
+    border-radius: var(--radius-lg, 16px);
+    max-width: 760px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 26px;
+  }
+  .gallery-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    border: none;
+    background: #f1f1f1;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .gallery-preview-frame {
+    width: 100%;
+    height: 360px;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius, 10px);
+    margin: 14px 0;
+  }
+  .gallery-preview-code {
+    background: #272822;
+    color: #f8f8f2;
+    padding: 14px;
+    border-radius: var(--radius, 10px);
+    overflow-x: auto;
+    font-size: 13px;
+    max-height: 360px;
+    margin: 14px 0;
+  }
+
+  .gallery-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .gallery-action-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .gallery-action-btn.like { background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); }
+  .gallery-action-btn.like.liked { background: #ffe1e6; color: #d6336c; }
+  .gallery-action-btn.remix { background: var(--brand-pri, #A17807); color: #fff; }
+  .gallery-action-btn.report, .gallery-action-btn.unpublish { background: #f1f1f1; color: #666; }
+
+  .gallery-reviews {
+    margin-top: 18px;
+    border-top: 1px solid var(--border-light, #e0e0e0);
+    padding-top: 14px;
+  }
+  .gallery-review {
+    padding: 8px 0;
+    border-bottom: 1px solid #f2f2f2;
+    font-size: 13px;
+  }
+  .gallery-review:last-child { border-bottom: none; }
+
+  @media (max-width: 640px) {
+    .gallery-toolbar { flex-direction: column; }
+  }
+</style>
+
+<script src="/labs/js/labGallery.js"></script>

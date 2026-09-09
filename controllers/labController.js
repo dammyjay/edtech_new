@@ -691,3 +691,327 @@ exports.getMyProjectReviews = async (req, res) => {
     res.status(500).json({ success: false });
   }
 };
+
+/**
+ * PROJECT GALLERY — platform-wide publish/browse/like/remix, layered on
+ * top of the same lab_projects rows the submit/peer-review flow above
+ * already uses. Publishing is a separate, explicit opt-in (is_published)
+ * from `status` — a lesson task submission or classroom peer-review
+ * submission never becomes public by itself.
+ */
+
+exports.getGalleryPage = async (req, res) => {
+  try {
+    const studentId = req.session.user.id;
+
+    const studentRes = await pool.query("SELECT id, xp, coins FROM users2 WHERE id = $1", [studentId]);
+    const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+    const levelInfo = getLevelForXp(student.xp);
+    const streak = await getStudentStreak(studentId);
+
+    res.render("labs/gallery", {
+      title: "Project Gallery",
+      users: req.session.user,
+      student,
+      levelInfo,
+      streak,
+    });
+  } catch (err) {
+    console.error("getGalleryPage error:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
+// A project can only be published once submitted (status is set by
+// submitProject above) — reuses that as the "this is finished, not a
+// half-built draft" checkpoint instead of inventing a second one.
+exports.publishProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId } = req.body;
+
+    const projectRes = await pool.query(
+      `SELECT id, student_id, project_name, status, lab_id FROM lab_projects WHERE id = $1 AND student_id = $2`,
+      [projectId, studentId]
+    );
+    const project = projectRes.rows[0];
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+    // Freeform projects only — a lesson lab task (lab_id set) belongs to a
+    // specific assignment, may reference instructions/rubric context that
+    // isn't meant to be public, and the UI never shows a Publish button
+    // for it (views/labs/{web,blockly}/editor.ejs omit it entirely when
+    // lessonLab is set) — this is the server-side half of that same rule,
+    // since the client-side omission alone isn't enforcement.
+    if (project.lab_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Lesson lab tasks can't be published — only your own freeform projects can go in the gallery.",
+      });
+    }
+    if (project.status !== "submitted") {
+      return res.status(400).json({
+        success: false,
+        message: "Submit your project first — then you can publish it to the gallery.",
+      });
+    }
+
+    const nameCheck = (project.project_name || "").toLowerCase();
+    for (const word of REVIEW_BANNED_WORDS) {
+      if (nameCheck.includes(word)) {
+        return res.json({ success: false, message: "Please rename your project before publishing — keep it friendly!" });
+      }
+    }
+
+    await pool.query(`UPDATE lab_projects SET is_published = true, published_at = NOW() WHERE id = $1`, [projectId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("publishProject error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// Owner-only self-takedown — admins have their own lever via the generic
+// table browser (utils/allowedTables.js already whitelists lab_projects).
+exports.unpublishProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId } = req.body;
+
+    await pool.query(`UPDATE lab_projects SET is_published = false WHERE id = $1 AND student_id = $2`, [projectId, studentId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("unpublishProject error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /labs/gallery/projects — platform-wide browse. Simple LIMIT/OFFSET
+// paging is fine at this scale, same call cron/parentWeeklyDigest.js makes
+// about its own "good enough for now" scaling assumption.
+exports.getGalleryProjects = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const sort = req.query.sort === "popular" ? "popular" : "new";
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = 24;
+    const offset = (page - 1) * pageSize;
+
+    const params = [studentId];
+    let labTypeFilter = "";
+    if (labType) {
+      params.push(labType);
+      labTypeFilter = `AND lp.lab_type = $${params.length}`;
+    }
+
+    const orderBy = sort === "popular" ? "like_count DESC, lp.published_at DESC" : "lp.published_at DESC";
+
+    params.push(pageSize, offset);
+    const result = await pool.query(
+      `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at, lp.remixed_from_id,
+              u.id AS student_id, u.fullname AS student_name,
+              COALESCE(lk.like_count, 0) AS like_count,
+              COALESCE(rv.avg_rating, 0) AS avg_rating,
+              COALESCE(rv.review_count, 0) AS review_count,
+              COALESCE(rx.remix_count, 0) AS remix_count,
+              EXISTS(SELECT 1 FROM project_likes WHERE project_id = lp.id AND user_id = $1) AS liked_by_me
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
+       LEFT JOIN (SELECT remixed_from_id, COUNT(*) AS remix_count FROM lab_projects WHERE remixed_from_id IS NOT NULL GROUP BY remixed_from_id) rx ON rx.remixed_from_id = lp.id
+       WHERE lp.is_published = true ${labTypeFilter}
+       ORDER BY ${orderBy}
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({ success: true, projects: result.rows, page });
+  } catch (err) {
+    console.error("getGalleryProjects error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /labs/gallery/projects/:id — full detail incl. project_data, for the
+// gallery's preview/remix view. Visible if published, or to the owner
+// regardless — lets a student preview their own not-yet-published work
+// through the same viewer before deciding to publish it.
+exports.getGalleryProjectDetail = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT lp.*, u.fullname AS student_name,
+              src.project_name AS remixed_from_name, src.student_id AS remixed_from_student_id,
+              src_user.fullname AS remixed_from_student_name
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       LEFT JOIN lab_projects src ON src.id = lp.remixed_from_id
+       LEFT JOIN users2 src_user ON src_user.id = src.student_id
+       WHERE lp.id = $1 AND (lp.is_published = true OR lp.student_id = $2)`,
+      [id, studentId]
+    );
+    const project = result.rows[0];
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    const [likeRes, reviewsRes, remixRes] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) AS count, EXISTS(SELECT 1 FROM project_likes WHERE project_id = $1 AND user_id = $2) AS liked_by_me
+         FROM project_likes WHERE project_id = $1`,
+        [id, studentId]
+      ),
+      pool.query(
+        `SELECT pr.rating, pr.comment, pr.created_at, u.fullname AS reviewer_name
+         FROM project_reviews pr JOIN users2 u ON u.id = pr.reviewer_id
+         WHERE pr.project_id = $1 ORDER BY pr.created_at DESC LIMIT 20`,
+        [id]
+      ),
+      pool.query(`SELECT COUNT(*) AS count FROM lab_projects WHERE remixed_from_id = $1`, [id]),
+    ]);
+
+    res.json({
+      success: true,
+      project,
+      isOwner: project.student_id === studentId,
+      likeCount: parseInt(likeRes.rows[0].count, 10),
+      likedByMe: likeRes.rows[0].liked_by_me,
+      reviews: reviewsRes.rows,
+      remixCount: parseInt(remixRes.rows[0].count, 10),
+    });
+  } catch (err) {
+    console.error("getGalleryProjectDetail error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/gallery/like — toggle. Only published, never-your-own
+// projects can be liked (same "no self-boosting" rule as submitReview's
+// review restriction above).
+exports.toggleLike = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId } = req.body;
+
+    const projectRes = await pool.query(`SELECT id, student_id FROM lab_projects WHERE id = $1 AND is_published = true`, [projectId]);
+    const project = projectRes.rows[0];
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+    if (project.student_id === studentId) {
+      return res.status(400).json({ success: false, message: "You can't like your own project" });
+    }
+
+    const existing = await pool.query(`SELECT 1 FROM project_likes WHERE project_id = $1 AND user_id = $2`, [projectId, studentId]);
+
+    let liked;
+    if (existing.rows.length) {
+      await pool.query(`DELETE FROM project_likes WHERE project_id = $1 AND user_id = $2`, [projectId, studentId]);
+      liked = false;
+    } else {
+      await pool.query(`INSERT INTO project_likes (project_id, user_id) VALUES ($1, $2)`, [projectId, studentId]);
+      liked = true;
+      notifyUser(project.student_id, {
+        type: "project_like",
+        title: "Someone liked your project!",
+        message: "Your gallery project got a new like.",
+        url: "/labs/gallery",
+      }).catch((err) => console.error("Like notification failed:", err.message));
+    }
+
+    const countRes = await pool.query(`SELECT COUNT(*) AS count FROM project_likes WHERE project_id = $1`, [projectId]);
+
+    res.json({ success: true, liked, likeCount: parseInt(countRes.rows[0].count, 10) });
+  } catch (err) {
+    console.error("toggleLike error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/gallery/remix — clones a published project's code into the
+// caller's OWN single freeform slot for that lab type. The labs system
+// has no multi-project model (loadProject/initProject above always fetch
+// or create exactly one row per (student, lab_type, lab_id IS NULL)), so
+// this deliberately, destructively overwrites whatever the student
+// already had there — the client is expected to confirm with the student
+// before calling this endpoint.
+exports.remixProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId } = req.body;
+
+    const sourceRes = await pool.query(
+      `SELECT id, student_id, lab_type, project_name, project_data
+       FROM lab_projects WHERE id = $1 AND is_published = true`,
+      [projectId]
+    );
+    const source = sourceRes.rows[0];
+    if (!source) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+    if (source.student_id === studentId) {
+      return res.status(400).json({ success: false, message: "That's already your own project." });
+    }
+
+    const remixName = `${source.project_name || "Untitled"} (Remix)`;
+
+    const existing = await pool.query(
+      `SELECT id FROM lab_projects WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL`,
+      [source.lab_type, studentId]
+    );
+
+    if (existing.rows.length) {
+      await pool.query(
+        `UPDATE lab_projects
+         SET project_data = $1, project_name = $2, status = 'draft',
+             remixed_from_id = $3, updated_at = NOW()
+         WHERE id = $4`,
+        [source.project_data, remixName, source.id, existing.rows[0].id]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO lab_projects (lab_type, student_id, project_name, project_data, status, remixed_from_id)
+         VALUES ($1, $2, $3, $4, 'draft', $5)`,
+        [source.lab_type, studentId, remixName, source.project_data, source.id]
+      );
+    }
+
+    res.json({ success: true, labType: source.lab_type });
+  } catch (err) {
+    console.error("remixProject error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/gallery/report — lightweight flag, surfaced to admins via the
+// existing generic table browser rather than a dedicated moderation UI —
+// see models/initTables.js's project_flags comment.
+exports.reportProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId, reason } = req.body;
+
+    const projectRes = await pool.query(`SELECT id FROM lab_projects WHERE id = $1 AND is_published = true`, [projectId]);
+    if (!projectRes.rows[0]) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    await pool.query(`INSERT INTO project_flags (project_id, reporter_id, reason) VALUES ($1, $2, $3)`, [
+      projectId,
+      studentId,
+      (reason || "").slice(0, 500) || null,
+    ]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("reportProject error:", err);
+    res.status(500).json({ success: false });
+  }
+};

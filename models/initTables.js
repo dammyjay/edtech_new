@@ -734,6 +734,8 @@ async function createTables() {
         ADD COLUMN IF NOT EXISTS chat_locked BOOLEAN DEFAULT false;
         ALTER TABLE classrooms
         ADD COLUMN IF NOT EXISTS login_mode TEXT DEFAULT 'standard';
+        ALTER TABLE classrooms
+        ADD COLUMN IF NOT EXISTS arcade_enabled BOOLEAN DEFAULT true;
       `);
 
       // junction table for quotes
@@ -1041,7 +1043,7 @@ async function createTables() {
     `);
 
     await pool.query(`
-      ALTER TABLE lab_projects 
+      ALTER TABLE lab_projects
       ADD COLUMN IF NOT EXISTS lab_type VARCHAR(50);
       ALTER TABLE lab_projects
       DROP CONSTRAINT IF EXISTS lab_projects_student_id_fkey;
@@ -1052,8 +1054,47 @@ async function createTables() {
       ON DELETE CASCADE;
     `);
 
-    
-    
+    // Project gallery (controllers/labController.js's gallery* exports) —
+    // a project publishes itself into a platform-wide, public gallery
+    // distinct from `status`, which stays scoped to the existing
+    // submit/peer-review/AI-grading flow.
+    // Publishing is a separate, explicit opt-in so nothing already
+    // submitted for a lesson task or classroom peer review becomes public
+    // by surprise. remixed_from_id records what a remix was cloned from,
+    // for attribution — set null when a project isn't a remix of anything.
+    await pool.query(`
+      ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false;
+      ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS published_at TIMESTAMP;
+      ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS remixed_from_id INTEGER REFERENCES lab_projects(id) ON DELETE SET NULL;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS project_likes (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER REFERENCES lab_projects(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(project_id, user_id)
+      );
+    `);
+
+    // Self-service report button on a gallery project — surfaced to admins
+    // via the existing generic table browser (utils/allowedTables.js),
+    // same as how lab_projects itself is already moderated there. No
+    // dedicated review UI in v1; an admin can see/delete flagged rows and
+    // unpublish the project (also via that same generic browser) through
+    // that existing tool instead of a new purpose-built one.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS project_flags (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER REFERENCES lab_projects(id) ON DELETE CASCADE,
+        reporter_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS lab_submissions (
           id SERIAL PRIMARY KEY,
@@ -1708,6 +1749,36 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );
     `);
 
+    // Generalized ownership table for every NEW coin-shop item type (profile
+    // banners, title tags, ...) so each addition to utils/shopCatalog.js
+    // doesn't need its own dedicated table the way avatar frames did.
+    // item_type keys into shopCatalog's CATALOGS map; item_key into the
+    // matching catalog array. Equip state itself still lives on users2
+    // (equipped_profile_banner / equipped_title_tag) so a single indexed
+    // lookup at render time works exactly like equipped_avatar_frame does.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_unlocks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        item_type TEXT NOT NULL,
+        item_key TEXT NOT NULL,
+        unlocked_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, item_type, item_key)
+      );
+    `);
+
+    // equipped_profile_banner / equipped_title_tag: same "key into a
+    // hardcoded catalog" pattern as equipped_avatar_frame above.
+    // xp_boost_uses_remaining: a purchased XP multiplier is consumed by
+    // awardXp (services/lessonCompletionService.js) one lesson/quiz/lab
+    // completion at a time — no unlock/equip needed since it's a
+    // consumable, not a cosmetic.
+    await pool.query(`
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS equipped_profile_banner TEXT;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS equipped_title_tag TEXT;
+      ALTER TABLE users2 ADD COLUMN IF NOT EXISTS xp_boost_uses_remaining INTEGER DEFAULT 0;
+    `);
+
     // XP exchange: redeemable_xp is a spendable balance kept separate from
     // xp itself, which drives Level (utils/xpLevels.js) and must never go
     // down. redeemable_xp increases in lockstep with xp whenever it's
@@ -1768,11 +1839,14 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       FOR EACH ROW EXECUTE FUNCTION award_welcome_coins();
     `);
 
-    // wallet_transactions.type needs a new value for XP->wallet cash-outs.
+    // wallet_transactions.type needs a new value for XP->wallet cash-outs,
+    // and again here for wallet->coins purchases (services/coinService.js's
+    // buyCoinsWithWallet) — same DROP+re-ADD pattern each time a new
+    // transaction type is introduced, safe to rerun every boot.
     await pool.query(`
       ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;
       ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-        CHECK (type IN ('fund','parent_fund','course_enrollment','term_reactivation','parent_term_reactivation','xp_exchange'));
+        CHECK (type IN ('fund','parent_fund','course_enrollment','term_reactivation','parent_term_reactivation','xp_exchange','coin_purchase'));
     `);
 
     // table for lab asset categories (sprites/backgrounds, per lab type)

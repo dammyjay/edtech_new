@@ -157,6 +157,14 @@ router.get("/feedback/detail/:id", adminController.getFeedbackDetail);
 router.post("/feedback/publish/:id", adminController.togglePublish);
 router.delete("/feedback/delete/:id", adminController.deleteFeedback);
 
+// Project gallery moderation (controllers/adminController.js) — filtered
+// view of published lab_projects, separate from the generic table
+// browser (report review still goes through that, see the comment on
+// getProjectGalleryModerationPage).
+router.get("/project-gallery", adminController.getProjectGalleryModerationPage);
+router.get("/project-gallery/projects", adminController.getAdminGalleryProjects);
+router.post("/project-gallery/:id/unpublish", adminController.adminUnpublishProject);
+
 
 
 router.get("/logout", adminController.logout);
@@ -525,6 +533,11 @@ router.get(
 
 // routes/admin.js
 router.get("/schools", adminController.getSchools);
+// Two path segments ("/export/excel", not "/export-excel") deliberately —
+// keeps these from ever being swallowed by the "/schools/:id" single-segment
+// param route below regardless of registration order.
+router.get("/schools/export/excel", adminController.exportSchoolsExcel);
+router.get("/schools/export/pdf", adminController.exportSchoolsPdf);
 router.post(
   "/schools/update",
   upload.single("logo"),
