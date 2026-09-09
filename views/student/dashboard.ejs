@@ -99,13 +99,20 @@
 
   <hr>
 
-  <div class="sidebar-header">
+  <div class="sidebar-header" id="sidebarHeaderBanner" style="<%= equippedBannerStyle %>border-radius:8px;">
     <% if (profilePic) { %>
       <img src="<%= profilePic %>" alt="Profile Picture" class="profile-pic" style="<%= equippedFrameStyle %>" />
     <% } else { %>
       <img src="/images/profile male.png" alt="Default Profile Picture" class="profile-pic" style="<%= equippedFrameStyle %>" />
     <% } %>
-    <h2 style="font-size: 14px;"><%= student.fullname %></h2>
+    <h2 style="font-size: 14px;">
+      <%= student.fullname %>
+      <% if (equippedTitleTag) { %>
+        <span id="equippedTitleTagLabel" style="display:block; font-size:10px; font-weight:600; color:#a78bfa;"><%= equippedTitleTag.name %></span>
+      <% } else { %>
+        <span id="equippedTitleTagLabel" style="display:none; font-size:10px; font-weight:600; color:#a78bfa;"></span>
+      <% } %>
+    </h2>
   </div>
 
   <div class="sb-block">
@@ -155,6 +162,8 @@
     <ul>
       <li><a href="/student/dashboard"><i class="fa-solid fa-house"></i> Dashboard</a></li>
       <li><a href="/labs"><i class="fa-solid fa-flask"></i> Learning Labs</a></li>
+      <li><a href="/student/dashboard?section=shop"><i class="fa-solid fa-store"></i> Shop</a></li>
+      <li><a href="/student/arcade"><i class="fa-solid fa-gamepad"></i> Arcade</a></li>
       <li><a href="/student/dashboard?section=profile"><i class="fa-solid fa-user"></i> My Profile</a></li>
       <li><a href="/student/dashboard?section=progress"><i class="fa-solid fa-chart-line"></i> My Progress</a></li>
       <% if (role === 'student' && classroom) { %>
@@ -360,6 +369,18 @@
     <p id="exchangePreview" style="font-size:13px; font-weight:600; color:#1c4e8a;"></p>
 
     <button type="button" onclick="submitExchange()" style="margin-top:10px;">Exchange</button>
+
+    <hr style="margin:18px 0;">
+
+    <h2 style="font-size:16px;">🪙 Buy Coins with Wallet</h2>
+    <p style="font-size:13px; color:#666;">
+      Wallet balance: ₦<strong id="exchangeWalletBalance"><%= walletBalance.toLocaleString() %></strong>.
+      ₦5 = 1 coin.
+    </p>
+    <label>Coins to buy:</label>
+    <input type="number" id="buyCoinsAmount" min="1" step="1" oninput="updateBuyCoinsPreview()" />
+    <p id="buyCoinsPreview" style="font-size:13px; font-weight:600; color:#1c4e8a;"></p>
+    <button type="button" onclick="submitBuyCoins()" style="margin-top:10px;">Buy Coins</button>
   </div>
 </div>
 
@@ -935,6 +956,17 @@
         </div>
       </div>
 
+      <!-- BOSS BATTLE MODAL — opt-in reskin over an already-graded quiz's
+           reviewData (see openQuizResultModal / renderQuizSummary), purely
+           a client-side replay animation. No server data or grading logic
+           involved beyond the review array it's handed. -->
+      <div id="bossBattleModal" class="modal">
+        <div class="modal-content" style="max-width:480px; text-align:center;">
+          <span class="close" onclick="closeBossBattle()">&times;</span>
+          <div id="bossBattleBody"></div>
+        </div>
+      </div>
+
       <% if (typeof pastCourses !== 'undefined' && pastCourses.length > 0) { %>
         <hr style="margin:30px 0;">
         <h3>📚 Previous Courses <small style="font-weight:normal; color:#666;">(from an earlier term — view only)</small></h3>
@@ -1466,6 +1498,31 @@
       <% } %>
     </div>
 
+  <% } else if (section === 'shop') { %>
+    <div style="padding:20px; max-width:900px; margin:0 auto;">
+      <h2>🛍️ Shop</h2>
+      <p style="color:#666; font-size:14px;">Spend coins on cosmetics and boosts. Current balance: 🪙 <strong id="shopCoinsBalance"><%= student.coins || 0 %></strong></p>
+
+      <h3 style="margin-top:24px;">🎏 Profile Banners</h3>
+      <p style="font-size:12px; color:#888; margin:0 0 8px;">Shown behind your name on your dashboard.</p>
+      <div id="bannerShopGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+        <p style="color:#888; font-size:13px;">Loading...</p>
+      </div>
+
+      <h3>🏷️ Title Tags</h3>
+      <p style="font-size:12px; color:#888; margin:0 0 8px;">A short flair shown next to your name.</p>
+      <div id="titleShopGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+        <p style="color:#888; font-size:13px;">Loading...</p>
+      </div>
+
+      <h3>⚡ XP Boost</h3>
+      <p style="font-size:12px; color:#888; margin:0 0 8px;">Doubles the XP from your next few completed quizzes/labs.</p>
+      <div id="xpBoostCard" style="margin-bottom:20px;">Loading...</div>
+
+      <h3>💡 Hint Tokens</h3>
+      <p style="font-size:12px; color:#888; margin:0;">Stuck on a quiz question? Look for the 💡 Hint button while taking any quiz — each hint costs coins, generated on the spot.</p>
+    </div>
+
   <% } else if (!selectedPathway || !pathwayCourses[selectedPathway]) { %>
     <!-- DASHBOARD VIEW -->
      <section>
@@ -1886,6 +1943,7 @@
   }
 </style>
 
+<script src="/js/markdownLite.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const sendBtn = document.getElementById("ai-send");
@@ -1912,9 +1970,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // ✅ Send message to backend
   async function sendQuestion(q) {
     if (!q.trim()) return;
-    // pushMsg(`<p>${q}</p>`, "user");
-    // input.value = "";
-    const htmlQuestion = marked.parseInline(q);
+    // Inline formatting only (no <p>/list/heading wrapping) — this is the
+    // student's own short typed question, not a full reply.
+    const htmlQuestion = MarkdownLite.renderInline(MarkdownLite.escapeHtml(q));
     pushMsg(htmlQuestion, "user"); // ✅ allows styled question display
     input.value = "";
 
@@ -1926,7 +1984,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
       if (data.ok) {
-        const html = marked.parse(data.answer); // ✅ Convert Markdown → HTML
+        const html = MarkdownLite.render(data.answer); // ✅ Convert Markdown → HTML
         pushMsg(html, "bot");
         if (data.coinsSpent) {
           updateCoinsDisplay(data.coins);
@@ -2309,6 +2367,7 @@ if(classroomId){
       } catch (e) {
         review = [];
       }
+      window.lastOpenedQuizReview = review;
 
       const scoreClass = sub.score >= 80 ? "score-great" : (sub.score >= 60 ? "score-good" : "score-try-again");
       const scoreEmoji = sub.score >= 80 ? "🌟" : (sub.score >= 60 ? "👍" : "💪");
@@ -2323,6 +2382,7 @@ if(classroomId){
             <h3 style="margin:0 0 4px;">${escapeHtml(sub.lesson_title)}</h3>
             <p style="margin:0; color:var(--text-secondary,#666); font-size:13px;">${escapeHtml(sub.module_title)} · ${escapeHtml(sub.course_title)}</p>
             <p class="quiz-result-banner">${scoreEmoji} ${bannerText}</p>
+            <button type="button" class="btn" style="margin-top:6px;" onclick="startBossBattle(window.lastOpenedQuizReview)">⚔️ Boss Battle Replay</button>
           </div>
           <a class="report-download-btn" href="/student/quizzes/${submissionId}/report/download" title="Download as PDF">⬇️ PDF</a>
         </div>
@@ -2355,15 +2415,82 @@ if(classroomId){
     document.getElementById("quizResultModal").style.display = "none";
   }
 
+  // Replays an already-graded quiz's per-question reviewData as a boss
+  // fight: each correct answer lands a hit on the boss, each wrong answer
+  // lets the boss hit back. Purely visual — reuses data the server already
+  // computed (submitLessonQuiz's reviewData), no new grading involved.
+  function startBossBattle(review) {
+    review = Array.isArray(review) ? review : [];
+    const modal = document.getElementById("bossBattleModal");
+    const body = document.getElementById("bossBattleBody");
+    if (!review.length) {
+      showToast("No question breakdown available for Boss Battle.");
+      return;
+    }
+
+    let bossHp = 100;
+    let playerHp = 100;
+    const step = Math.ceil(100 / review.length);
+    let i = 0;
+
+    function render(message) {
+      body.innerHTML = `
+        <h2 style="margin:6px 0;">⚔️ Boss Battle</h2>
+        <div style="font-size:56px; margin:8px 0;">${bossHp <= 0 ? "💀" : "👾"}</div>
+        <div style="margin:0 auto 6px; max-width:320px;">
+          <p style="margin:0 0 2px; font-size:12px; font-weight:600;">Boss HP</p>
+          <div style="background:#3f3f46; border-radius:8px; height:14px; overflow:hidden;">
+            <div style="height:100%; background:#dc2626; width:${Math.max(bossHp, 0)}%; transition:width .4s;"></div>
+          </div>
+        </div>
+        <div style="margin:0 auto 14px; max-width:320px;">
+          <p style="margin:0 0 2px; font-size:12px; font-weight:600;">Your HP</p>
+          <div style="background:#3f3f46; border-radius:8px; height:14px; overflow:hidden;">
+            <div style="height:100%; background:#16a34a; width:${Math.max(playerHp, 0)}%; transition:width .4s;"></div>
+          </div>
+        </div>
+        <p style="min-height:20px; font-weight:600;">${message || ""}</p>
+        ${i < review.length
+          ? `<button class="btn" onclick="bossBattleStrike()">${i === 0 ? "Start" : "Next"} ⚔️</button>`
+          : `<button class="btn" onclick="closeBossBattle()">Close</button>`}
+      `;
+    }
+
+    window.bossBattleStrike = function () {
+      if (i >= review.length) return;
+      const q = review[i];
+      if (q.isCorrect) {
+        bossHp -= step;
+        render(`✅ Hit! "${(q.question || "").slice(0, 60)}"`);
+      } else {
+        playerHp -= step;
+        render(`❌ The boss hits back! "${(q.question || "").slice(0, 60)}"`);
+      }
+      i++;
+      if (i >= review.length) {
+        setTimeout(() => render(bossHp <= 0 ? "🎉 Boss defeated!" : "The boss survives — review and try again!"), 400);
+      }
+    };
+
+    render("Tap Start to begin!");
+    modal.style.display = "block";
+  }
+
+  function closeBossBattle() {
+    document.getElementById("bossBattleModal").style.display = "none";
+  }
+
   window.onclick = function(event) {
     const modal = document.getElementById("badgeModal");
     const certModal = document.getElementById("certificateModal");
     const projectModal = document.getElementById("projectModal");
     const quizResultModal = document.getElementById("quizResultModal");
+    const bossBattleModal = document.getElementById("bossBattleModal");
     if (event.target === modal) modal.style.display = "none";
     if (event.target === certModal) certModal.style.display = "none";
     if (event.target === projectModal) projectModal.style.display = "none"
     if (event.target === quizResultModal) quizResultModal.style.display = "none";
+    if (event.target === bossBattleModal) bossBattleModal.style.display = "none";
   };
 </script>
 
@@ -2756,6 +2883,125 @@ window.closeEditModal = function (id) {
   if (modal) modal.style.display = "none";
 };
 
+// --- Shop (?section=shop): profile banners, title tags, XP boost ---------
+// Same fetch/render contract as loadAvatarFrames above, generalized across
+// item types via /student/shop instead of one endpoint per type.
+let shopData = null;
+
+async function loadShop() {
+  const bannerGrid = document.getElementById("bannerShopGrid");
+  const titleGrid = document.getElementById("titleShopGrid");
+  const boostCard = document.getElementById("xpBoostCard");
+  if (!bannerGrid && !titleGrid && !boostCard) return;
+  try {
+    const res = await fetch("/student/shop");
+    const data = await res.json();
+    if (!data.success) return;
+    shopData = data;
+
+    if (bannerGrid) renderShopGrid(bannerGrid, "profile_banner", data.catalogs.profile_banner, data.equipped.profile_banner, (f) => `<div style="width:60px; height:36px; border-radius:6px; margin:0 auto 6px; ${f.style}"></div>`);
+    if (titleGrid) renderShopGrid(titleGrid, "title_tag", data.catalogs.title_tag, data.equipped.title_tag, (f) => `<div style="font-size:11px; font-weight:600; margin-bottom:6px;">"${f.name}"</div>`);
+
+    if (boostCard) {
+      const b = data.xpBoost;
+      boostCard.innerHTML = b.active
+        ? `<p style="color:#16a34a; font-weight:600;">⚡ Active — ${b.usesRemaining} boosted completion${b.usesRemaining === 1 ? "" : "s"} left (${b.multiplier}x XP)</p>`
+        : `<button type="button" class="btn" onclick="buyXpBoost()">🪙 ${b.cost} — Buy (${b.multiplier}x XP for next ${b.uses})</button>`;
+    }
+  } catch (err) {
+    console.error("Failed to load shop:", err);
+  }
+}
+
+function renderShopGrid(grid, itemType, items, equippedKey, swatchFn) {
+  grid.innerHTML = items.map((item) => {
+    const isEquipped = equippedKey === item.key;
+    let action;
+    if (isEquipped) {
+      action = `<button type="button" disabled style="font-size:11px; padding:3px 8px;">Equipped</button>`;
+    } else if (item.owned) {
+      action = `<button type="button" onclick="equipShopItem('${itemType}', '${item.key}')" style="font-size:11px; padding:3px 8px;">Equip</button>`;
+    } else {
+      action = `<button type="button" onclick="unlockShopItem('${itemType}', '${item.key}')" style="font-size:11px; padding:3px 8px;">🪙 ${item.price}</button>`;
+    }
+    return `<div style="text-align:center; width:90px;">${swatchFn(item)}${action}</div>`;
+  }).join("");
+}
+
+async function unlockShopItem(itemType, itemKey) {
+  try {
+    const res = await fetch("/student/shop/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemType, itemKey }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof data.coins === "number") updateCoinsDisplay(data.coins);
+      showToast("🛍️ Unlocked!");
+      loadShop();
+    } else {
+      showToast(data.message || "Couldn't unlock item.");
+    }
+  } catch (err) {
+    console.error("Failed to unlock shop item:", err);
+  }
+}
+
+async function equipShopItem(itemType, itemKey) {
+  try {
+    const res = await fetch("/student/shop/equip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemType, itemKey }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (itemType === "profile_banner") applyBannerToPage(data.item);
+      if (itemType === "title_tag") applyTitleTagToPage(data.item);
+      showToast(data.item ? "Equipped!" : "Removed.");
+      loadShop();
+    } else {
+      showToast(data.message || "Couldn't equip item.");
+    }
+  } catch (err) {
+    console.error("Failed to equip shop item:", err);
+  }
+}
+
+async function buyXpBoost() {
+  try {
+    const res = await fetch("/student/shop/xp-boost", { method: "POST", headers: { "Content-Type": "application/json" } });
+    const data = await res.json();
+    if (data.success) {
+      updateCoinsDisplay(data.coins);
+      showToast(`⚡ XP boost active for your next ${data.usesRemaining} completions!`);
+      loadShop();
+    } else {
+      showToast(data.message || "Couldn't buy XP boost.");
+    }
+  } catch (err) {
+    console.error("Failed to buy XP boost:", err);
+  }
+}
+
+function applyBannerToPage(banner) {
+  const el = document.getElementById("sidebarHeaderBanner");
+  if (!el) return;
+  el.style.cssText = "border-radius:8px;" + (banner ? banner.style : "");
+}
+
+function applyTitleTagToPage(item) {
+  const el = document.getElementById("equippedTitleTagLabel");
+  if (!el) return;
+  if (item) {
+    el.textContent = item.name;
+    el.style.display = "block";
+  } else {
+    el.style.display = "none";
+  }
+}
+
 // The functions below (toast/coins/streak-freeze/XP-exchange) used to live
 // nested inside loadLessonPart's fetch callback, specifically inside its
 // `if (part === "content")` branch — which only ever runs AFTER a student
@@ -2780,8 +3026,11 @@ function showToast(message) {
 }
 
 function updateCoinsDisplay(newBalance) {
-  const el = document.getElementById("coinsBalance");
-  if (el && typeof newBalance === "number") el.textContent = newBalance;
+  if (typeof newBalance !== "number") return;
+  ["coinsBalance", "shopCoinsBalance"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = newBalance;
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -2789,6 +3038,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (streakBonusCoins > 0) {
     showToast(`💰 +${streakBonusCoins} coins — daily streak bonus!`);
   }
+  loadShop();
 });
 
 async function freezeStreak() {
@@ -2807,11 +3057,56 @@ async function freezeStreak() {
 }
 
 const NAIRA_PER_POINT = 5;
+const NAIRA_PER_COIN = 5;
 
 function openExchangeModal() {
   document.getElementById("exchangeAmount").value = "";
   document.getElementById("exchangePreview").textContent = "";
+  document.getElementById("buyCoinsAmount").value = "";
+  document.getElementById("buyCoinsPreview").textContent = "";
   document.getElementById("exchangeModal").style.display = "block";
+}
+
+function updateBuyCoinsPreview() {
+  const coins = parseInt(document.getElementById("buyCoinsAmount").value, 10) || 0;
+  const preview = document.getElementById("buyCoinsPreview");
+  preview.textContent = coins > 0 ? `= ₦${(coins * NAIRA_PER_COIN).toLocaleString()}` : "";
+}
+
+async function submitBuyCoins() {
+  const coins = parseInt(document.getElementById("buyCoinsAmount").value, 10);
+  if (!coins || coins <= 0) {
+    showToast("Enter how many coins to buy.");
+    return;
+  }
+  if (!confirm(`Spend ₦${(coins * NAIRA_PER_COIN).toLocaleString()} from your wallet for ${coins} coins?`)) return;
+
+  try {
+    const res = await fetch("/student/wallet/buy-coins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coins }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't buy coins.");
+      return;
+    }
+    updateCoinsDisplay(data.coins);
+    const walletEl = document.getElementById("walletBalanceDisplay");
+    if (walletEl && typeof data.walletBalance !== "undefined") {
+      walletEl.textContent = Number(data.walletBalance).toLocaleString();
+    }
+    const exchangeWalletEl = document.getElementById("exchangeWalletBalance");
+    if (exchangeWalletEl && typeof data.walletBalance !== "undefined") {
+      exchangeWalletEl.textContent = Number(data.walletBalance).toLocaleString();
+    }
+    showToast(`🪙 +${coins} coins!`);
+    document.getElementById("buyCoinsAmount").value = "";
+    document.getElementById("buyCoinsPreview").textContent = "";
+  } catch (err) {
+    console.error("Failed to buy coins:", err);
+  }
 }
 
 function closeExchangeModal() {
@@ -2868,112 +3163,6 @@ async function submitExchange() {
     showToast("Something went wrong — please try again.");
   }
 }
-</script>
-
-<!-- Lesson and quiz script -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const sendBtn = document.getElementById("ai-send");
-    const input = document.getElementById("ai-question");
-    const messages = document.getElementById("ai-messages");
-
-    // Only present when section === 'module' (viewing a lesson).
-    if (!sendBtn || !input || !messages) return;
-
-    // helper: render message (✅ allow HTML so answers can be styled)
-    function pushMsg(text, who = "user") {
-      const msg = document.createElement("div");
-      msg.className = "msg " + who;
-      msg.innerHTML = text; // ✅ allow headings, lists, code
-      messages.appendChild(msg);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    // handle sending
-    async function sendQuestion(q) {
-      if (!q.trim()) return;
-
-      pushMsg(`<p>${q}</p>`, "user"); // show immediately
-      input.value = "";
-
-      try {
-        const res = await fetch("/student/ai/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: q,
-            lessonId: window.currentLessonId || null
-          })
-        });
-        const data = await res.json();
-        if (data.ok) {
-          const html = marked.parse(data.answer); // ✅ Convert Markdown → HTML
-          pushMsg(html, "bot");
-          if (data.coinsSpent) {
-            updateCoinsDisplay(data.coins);
-            showToast(`💰 -${data.coinsSpent} coins — extra question`);
-          }
-        } else if (data.needsCoins) {
-          pushMsg(`<em>🪙 ${data.message}</em>`, "bot");
-        } else {
-          pushMsg("<em>⚠️ Tutor is unavailable.</em>", "bot");
-        }
-      } catch (err) {
-        console.error("AI send error:", err);
-        pushMsg("<em>❌ Error contacting tutor.</em>", "bot");
-      }
-    }
-
-    // click send
-    sendBtn.addEventListener("click", () => sendQuestion(input.value));
-
-    // press Enter
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendQuestion(input.value);
-      }
-    });
-
-    // ✅ Suggested questions buttons
-    const suggRow = document.createElement("div");
-    suggRow.className = "ai-suggestions";
-    document.querySelector("#ai-tutor .ai-input-row").before(suggRow);
-
-    window.showLessonSuggestions = function (suggestions = []) {
-      suggRow.innerHTML = ""; // clear old
-      suggestions.forEach((s) => {
-        const btn = document.createElement("button");
-        btn.className = "sugg-btn";
-        btn.innerText = s;
-        btn.onclick = () => sendQuestion(s);
-        suggRow.appendChild(btn);
-      });
-    };
-
-    // ✅ Collapse/expand chatbox
-    const aiTutor = document.getElementById("ai-tutor");
-    const aiMessages = document.getElementById("ai-messages");
-    const toggleBtn = document.getElementById("ai-toggle");
-
-    toggleBtn.addEventListener("click", () => {
-      if (aiTutor.classList.contains("collapsed")) {
-        aiTutor.classList.remove("collapsed");
-        aiMessages.style.display = "block";
-        document.querySelector("#ai-tutor .ai-input-row").style.display = "flex";
-        suggRow.style.display = "flex";
-        toggleBtn.textContent = "–";
-      } else {
-        aiTutor.classList.add("collapsed");
-        aiMessages.style.display = "none";
-        document.querySelector("#ai-tutor .ai-input-row").style.display = "none";
-        suggRow.style.display = "none";
-        toggleBtn.textContent = "+";
-      }
-    });
-  });
 </script>
 
 <!-- script for loading lesson content and assignment loading and submission review -->
@@ -3165,36 +3354,46 @@ async function submitExchange() {
     });
 
     const noteView = `
-    <div class="lesson-view-controls">
-      <div class="text-controls">
-        <label>Text size:</label>
-        <button id="fontInc">A+</button>
-        <button id="fontDec">A−</button>
-
-        <label>Font:</label>
-        <select id="fontSelect">
-          <option value="system-ui">Default</option>
-          <option value="serif">Serif</option>
-          <option value="sans-serif">Sans-serif</option>
-          <option value="OpenDyslexic, Arial">Dyslexic</option>
-        </select>
-
-        <label>Line spacing:</label>
-        <select id="lineSpacing">
-          <option value="1.4">Normal</option>
-          <option value="1.8">Comfort</option>
-          <option value="2.2">Wide</option>
-        </select>
+    <div class="lesson-doc">
+      <div class="lesson-doc-header">
+        <span class="lesson-doc-badge">📝</span>
+        <div>
+          <div class="lesson-doc-eyebrow">Lesson Note</div>
+          <div class="lesson-doc-title">${lesson.title}</div>
+        </div>
       </div>
 
-      <div class="lesson-view-mode">
-        <button id="noteBtn" class="active">📝 Note View</button>
-        <button id="slideBtn">📑 Slides View</button>
+      <div class="lesson-view-controls">
+        <div class="text-controls">
+          <label>Text size:</label>
+          <button id="fontInc">A+</button>
+          <button id="fontDec">A−</button>
+
+          <label>Font:</label>
+          <select id="fontSelect">
+            <option value="system-ui">Default</option>
+            <option value="serif">Serif</option>
+            <option value="sans-serif">Sans-serif</option>
+            <option value="OpenDyslexic, Arial">Dyslexic</option>
+          </select>
+
+          <label>Line spacing:</label>
+          <select id="lineSpacing">
+            <option value="1.4">Normal</option>
+            <option value="1.8">Comfort</option>
+            <option value="2.2">Wide</option>
+          </select>
+        </div>
+
+        <div class="lesson-view-mode">
+          <button id="noteBtn" class="active">📝 Note View</button>
+          <button id="slideBtn">📑 Slides View</button>
+        </div>
       </div>
+
+      <div id="noteView" class="lesson-note">${rawContent}</div>
+      <div id="slideView" class="lesson-slides" style="display:none;"></div>
     </div>
-
-    <div id="noteView" class="lesson-note">${rawContent}</div>
-    <div id="slideView" class="lesson-slides" style="display:none;"></div>
   `;
 
 
@@ -4215,6 +4414,10 @@ function downloadCertificate() {
 let quizAnswers = {};
 let currentQuestionIndex = 0;
 let currentQuizLessonId = null;
+// questionId -> [option, option] once a student has paid for a 50/50 on
+// that question — kept for the rest of this quiz attempt so navigating
+// Previous/Next doesn't lose the narrowed choices or require paying again.
+let quizFiftyFiftyOptions = {};
 
 let reviewQuestions = [];
 let reviewIndex = 0;
@@ -4238,6 +4441,58 @@ let reviewIndex = 0;
   submitQuizAnswers(
     currentQuizLessonId
   );
+}
+
+// Spends a hint token (coins) for the CURRENT quiz question, via
+// controllers/studentController.js's useQuizHint — the AI-generated hint
+// text comes back without ever exposing correct_option.
+async function requestQuizHint(questionId) {
+  const hintEl = document.getElementById("quizHintText");
+  if (hintEl) hintEl.textContent = "Thinking of a hint... 💭";
+  try {
+    const res = await fetch(`/student/quizzes/${currentQuizLessonId}/hint`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      if (hintEl) hintEl.textContent = "";
+      showToast(data.message || "Couldn't get a hint right now.");
+      return;
+    }
+    updateCoinsDisplay(data.coins);
+    if (hintEl) hintEl.textContent = `💡 ${data.hint}`;
+  } catch (err) {
+    console.error("Failed to get quiz hint:", err);
+    if (hintEl) hintEl.textContent = "";
+  }
+}
+
+// Spends coins for a 50/50 lifeline on the CURRENT quiz question, via
+// controllers/studentController.js's useFiftyFifty — narrows this
+// question's options down to the correct one plus one random wrong one.
+// The result is cached in quizFiftyFiftyOptions so Previous/Next keeps
+// showing the narrowed pair instead of paying again or reverting to all
+// the original options.
+async function requestFiftyFifty(questionId) {
+  try {
+    const res = await fetch(`/student/quizzes/${currentQuizLessonId}/fifty-fifty`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't use 50/50 right now.");
+      return;
+    }
+    updateCoinsDisplay(data.coins);
+    quizFiftyFiftyOptions[questionId] = data.options;
+    renderQuestion();
+  } catch (err) {
+    console.error("Failed to use 50/50:", err);
+  }
 }
 
   // Shared rendering for a locked-quiz response (term ended, or a
@@ -4379,6 +4634,7 @@ let reviewIndex = 0;
         quizQuestions = Array.isArray(data.questions)
           ? data.questions
           : [];
+        quizFiftyFiftyOptions = {};
 
         if (quizQuestions.length === 0) {
           container.innerHTML =
@@ -4456,9 +4712,13 @@ let reviewIndex = 0;
       🔊 Read Question
     </button>
 
+    <button type="button" onclick="requestQuizHint(${q.id})">💡 Hint</button>
+    <button type="button" onclick="requestFiftyFifty(${q.id})" ${quizFiftyFiftyOptions[q.id] ? "disabled" : ""}>🎯 50/50</button>
+    <p id="quizHintText" style="font-size:13px; color:#7c3aed; font-style:italic; margin:6px 0 0;"></p>
+
     <div class="quiz-options">
 
-      ${q.options.map(option => `
+      ${(quizFiftyFiftyOptions[q.id] || q.options).map(option => `
 
         <div
           class="quiz-option ${
@@ -4577,6 +4837,7 @@ function renderQuizSummary() {
     ${pendingLabBanner}
 
     <h2>📊 Quiz Summary</h2>
+    <button type="button" class="btn" onclick="startBossBattle(reviewQuestions)">⚔️ Boss Battle Replay</button>
 
     <div class="quiz-summary-stats">
 
@@ -4753,6 +5014,11 @@ function submitQuizAnswers(lessonId){
       }
 
       showQuizCelebration(result.score, result.xpEarned);
+
+      if (result.bossBattleCoins) {
+        updateCoinsDisplay((parseInt((document.getElementById("coinsBalance") || {}).textContent, 10) || 0) + result.bossBattleCoins);
+        showToast(`🪙 +${result.bossBattleCoins} — Boss defeated!`);
+      }
 
       if (result.levelUp) {
         setTimeout(() => {
@@ -5156,6 +5422,11 @@ function submitQuizInline(e, lessonId) {
       }
 
       showQuizCelebration(result.score, result.xpEarned);
+
+      if (result.bossBattleCoins) {
+        updateCoinsDisplay((parseInt((document.getElementById("coinsBalance") || {}).textContent, 10) || 0) + result.bossBattleCoins);
+        showToast(`🪙 +${result.bossBattleCoins} — Boss defeated!`);
+      }
 
       if (result.levelUp) {
         setTimeout(() => {

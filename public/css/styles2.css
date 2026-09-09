@@ -2565,6 +2565,9 @@ canvas {
     padding: 10px 12px;
     border-radius: 10px;
     max-width: 85%;
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
 }
 
 .ai-msg.user {
@@ -2599,16 +2602,97 @@ canvas {
     cursor: pointer;
 }
 
-/* 🔹 Markdown formatting for bot replies */
-.ai-msg.bot h3,
-.ai-msg.bot h4 {
-    margin: 4px 0;
-    color: #0078d7;
+/* 🔹 Markdown formatting for bot replies (marked.parse() output) — the
+   tutor's system prompt (utils/ai.js) explicitly asks for headings, lists
+   and runnable code snippets, so every element marked can produce needs a
+   rule here, not just the couple that showed up in early testing. */
+.ai-msg.bot p {
+    margin: 0 0 8px;
 }
+.ai-msg.bot p:last-child {
+    margin-bottom: 0;
+}
+
+.ai-msg.bot h1,
+.ai-msg.bot h2,
+.ai-msg.bot h3,
+.ai-msg.bot h4,
+.ai-msg.bot h5,
+.ai-msg.bot h6 {
+    margin: 10px 0 4px;
+    color: #0078d7;
+    line-height: 1.3;
+}
+.ai-msg.bot h1:first-child,
+.ai-msg.bot h2:first-child,
+.ai-msg.bot h3:first-child,
+.ai-msg.bot h4:first-child {
+    margin-top: 0;
+}
+/* Bubbles are ~85% of a 320-420px box — full document heading sizes (h1
+   28px+) would dwarf the text around them, so every level is capped down
+   to a small, consistent scale instead of the browser defaults. */
+.ai-msg.bot h1 { font-size: 16px; }
+.ai-msg.bot h2 { font-size: 15px; }
+.ai-msg.bot h3,
+.ai-msg.bot h4,
+.ai-msg.bot h5,
+.ai-msg.bot h6 { font-size: 14px; }
 
 .ai-msg.bot ul,
 .ai-msg.bot ol {
-    margin: 4px 0 4px 18px;
+    margin: 4px 0 8px 18px;
+    padding: 0;
+}
+.ai-msg.bot li {
+    margin-bottom: 3px;
+}
+.ai-msg.bot li:last-child {
+    margin-bottom: 0;
+}
+
+.ai-msg.bot strong {
+    color: #14141a;
+}
+
+.ai-msg.bot blockquote {
+    margin: 6px 0;
+    padding: 4px 10px;
+    border-left: 3px solid #0078d7;
+    background: rgba(0, 120, 215, 0.06);
+    color: #444;
+}
+
+.ai-msg.bot a {
+    color: #0078d7;
+    word-break: break-all;
+}
+
+.ai-msg.bot hr {
+    border: 0;
+    border-top: 1px solid #ddd;
+    margin: 8px 0;
+}
+
+/* Tables can be wider than a ~320px bubble — scroll horizontally instead
+   of overflowing/breaking the chat layout. */
+.ai-msg.bot table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 6px 0 8px;
+    font-size: 13px;
+}
+.ai-msg.bot th,
+.ai-msg.bot td {
+    border: 1px solid #ddd;
+    padding: 4px 8px;
+    text-align: left;
+}
+.ai-msg.bot th {
+    background: #eef4fb;
 }
 
 .ai-msg.bot code {
@@ -2616,14 +2700,124 @@ canvas {
     padding: 2px 4px;
     border-radius: 4px;
     font-family: monospace;
+    font-size: 0.9em;
+    word-break: break-word;
 }
 
 .ai-msg.bot pre {
     background: #272822;
     color: #f8f8f2;
-    padding: 8px;
+    padding: 10px 12px;
     border-radius: 6px;
     overflow-x: auto;
+    max-width: 100%;
+    margin: 6px 0 8px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+/* Undo the plain-inline-code styling above for code sitting inside a
+   <pre> — without this, marked's <pre><code> nesting painted a light
+   gray box *inside* the dark code block for every snippet. */
+.ai-msg.bot pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* 🔹 Header controls + floating launcher — shared by every page that
+   mounts an .ai-tutor widget. views/student/dashboard.ejs's own <style>
+   block redefines a few of these (identical values) since it renders
+   later in the document and wins the cascade there; pages that don't
+   redefine them (the coding labs' AI tutor — public/labs/js/labAiTutor.js)
+   rely on these as their only definition. */
+.ai-tutor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.ai-circle-btn {
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.ai-tutor.collapsed {
+    display: none;
+}
+
+.ai-tutor.fullscreen {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    z-index: 10000;
+}
+.ai-tutor.fullscreen .ai-messages {
+    height: calc(100vh - 110px);
+}
+
+@keyframes aiFloatBreathing {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+}
+@keyframes aiFloatPulse {
+    0% { background: #2563eb; }
+    50% { background: #1e4ed8; }
+    100% { background: #2563eb; }
+}
+
+.ai-float {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    z-index: 9998;
+    animation: aiFloatBreathing 2s ease-in-out infinite, aiFloatPulse 3s ease-in-out infinite;
+    transition: transform 0.3s ease, background 0.3s ease;
+}
+.ai-float:hover {
+    transform: scale(1.05);
+    background: #1e4ed8;
+}
+
+/* The coding-labs tutor (public/labs/js/labAiTutor.js) leans much more
+   heavily on code blocks than the lesson tutor it shares CSS with — a
+   bit more width/height so a snippet isn't squeezed into a 320px box. */
+#labAiTutor.ai-tutor {
+    width: 420px;
+}
+#labAiTutor .ai-messages {
+    height: 340px;
+    max-height: 60vh;
+}
+@media (max-width: 600px) {
+    #labAiTutor.ai-tutor {
+        width: 92vw;
+    }
 }
 
 /* ✅ Suggestions */
@@ -3191,6 +3385,387 @@ canvas {
     margin-top: 10px;
 }
 
+/* 🔹 BRANDED RICH-TEXT TYPOGRAPHY ------------------------------------
+   Shared styling for every place CKEditor-authored HTML gets rendered
+   back out: lesson content/plan, course/module/pathway/event/project
+   descriptions, the About page. One ruleset via this combined selector
+   list so a heading/list/table/quote looks the same everywhere instead
+   of just inheriting bare browser defaults. Any new content wrapper
+   that doesn't already have one of these classes should use
+   .rich-content. NOT included below: img rules for .lesson-note/
+   .slide-body — those already have their own (display:block,
+   object-fit, max-height tuned for the lesson viewer) a few lines up,
+   deliberately left untouched here. */
+.rich-content,
+.lesson-note,
+.slide-body,
+.lesson-plan-content,
+.article-body,
+.curriculum-content,
+.project-desc,
+.about-content {
+    line-height: 1.7;
+    color: var(--text-primary, #222222);
+}
+
+.rich-content h1, .lesson-note h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1,
+.rich-content h2, .lesson-note h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2,
+.rich-content h3, .lesson-note h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3,
+.rich-content h4, .lesson-note h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
+.rich-content h5, .lesson-note h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
+.rich-content h6, .lesson-note h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 {
+    font-family: 'Inter', sans-serif;
+    color: var(--brand-pri-dark, #4C3802);
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 1.4em 0 0.5em;
+}
+
+.rich-content h1, .lesson-note h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1 { font-size: 28px; }
+.rich-content h2, .lesson-note h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2 {
+    font-size: 24px;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--brand-tint, #FBF3DD);
+}
+.rich-content h3, .lesson-note h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3 { font-size: 20px; }
+.rich-content h4, .lesson-note h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
+.rich-content h5, .lesson-note h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
+.rich-content h6, .lesson-note h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 { font-size: 17px; }
+
+.rich-content p, .lesson-note p, .slide-body p, .lesson-plan-content p, .article-body p, .curriculum-content p, .project-desc p, .about-content p {
+    font-size: 16px;
+    margin: 0 0 1em;
+}
+
+.rich-content strong, .lesson-note strong, .slide-body strong, .lesson-plan-content strong, .article-body strong, .curriculum-content strong, .project-desc strong, .about-content strong {
+    color: var(--brand-pri-dark, #4C3802);
+}
+
+.rich-content ul, .lesson-note ul, .slide-body ul, .lesson-plan-content ul, .article-body ul, .curriculum-content ul, .project-desc ul, .about-content ul,
+.rich-content ol, .lesson-note ol, .slide-body ol, .lesson-plan-content ol, .article-body ol, .curriculum-content ol, .project-desc ol, .about-content ol {
+    margin: 0 0 1em;
+    padding-left: 1.4em;
+}
+.rich-content li, .lesson-note li, .slide-body li, .lesson-plan-content li, .article-body li, .curriculum-content li, .project-desc li, .about-content li {
+    margin-bottom: 0.4em;
+}
+.rich-content ul li::marker, .lesson-note ul li::marker, .slide-body ul li::marker, .lesson-plan-content ul li::marker, .article-body ul li::marker, .curriculum-content ul li::marker, .project-desc ul li::marker, .about-content ul li::marker {
+    color: var(--brand-pri, #A17807);
+}
+
+.rich-content blockquote, .lesson-note blockquote, .slide-body blockquote, .lesson-plan-content blockquote, .article-body blockquote, .curriculum-content blockquote, .project-desc blockquote, .about-content blockquote {
+    margin: 1.2em 0;
+    padding: 12px 18px;
+    border-left: 4px solid var(--brand-pri, #A17807);
+    background: var(--brand-tint, #FBF3DD);
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-secondary, #666666);
+    font-style: italic;
+}
+
+.rich-content table, .lesson-note table, .slide-body table, .lesson-plan-content table, .article-body table, .curriculum-content table, .project-desc table, .about-content table {
+    width: 100%;
+    margin: 1.2em 0;
+    border-collapse: collapse;
+    /* CKEditor tables can be wider than the content box — display:block
+       lets a table scroll horizontally instead of overflowing/breaking
+       the page layout on narrow (mobile) viewports. */
+    display: block;
+    overflow-x: auto;
+}
+.rich-content thead th, .lesson-note thead th, .slide-body thead th, .lesson-plan-content thead th, .article-body thead th, .curriculum-content thead th, .project-desc thead th, .about-content thead th {
+    background: var(--brand-pri, #A17807);
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+}
+.rich-content td, .lesson-note td, .slide-body td, .lesson-plan-content td, .article-body td, .curriculum-content td, .project-desc td, .about-content td,
+.rich-content th, .lesson-note th, .slide-body th, .lesson-plan-content th, .article-body th, .curriculum-content th, .project-desc th, .about-content th {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light, #e0e0e0);
+}
+.rich-content tbody tr:nth-child(even), .lesson-note tbody tr:nth-child(even), .slide-body tbody tr:nth-child(even), .lesson-plan-content tbody tr:nth-child(even), .article-body tbody tr:nth-child(even), .curriculum-content tbody tr:nth-child(even), .project-desc tbody tr:nth-child(even), .about-content tbody tr:nth-child(even) {
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.rich-content a, .lesson-note a, .slide-body a, .lesson-plan-content a, .article-body a, .curriculum-content a, .project-desc a, .about-content a {
+    color: var(--brand-pri, #A17807);
+    font-weight: 600;
+    text-decoration: none;
+}
+.rich-content a:hover, .lesson-note a:hover, .slide-body a:hover, .lesson-plan-content a:hover, .article-body a:hover, .curriculum-content a:hover, .project-desc a:hover, .about-content a:hover {
+    text-decoration: underline;
+}
+
+/* Images for every wrapper EXCEPT .lesson-note/.slide-body, which
+   already have their own (untouched) img rules above. */
+.rich-content img, .lesson-plan-content img, .article-body img, .curriculum-content img, .project-desc img, .about-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1em 0;
+    border-radius: var(--radius-sm, 8px);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+}
+
+.rich-content code, .lesson-note code, .slide-body code, .lesson-plan-content code, .article-body code, .curriculum-content code, .project-desc code, .about-content code {
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--brand-pri-dark, #4C3802);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+.rich-content pre, .lesson-note pre, .slide-body pre, .lesson-plan-content pre, .article-body pre, .curriculum-content pre, .project-desc pre, .about-content pre {
+    padding: 14px;
+    border-radius: var(--radius-sm, 8px);
+    background: var(--bg-secondary, #f8f9fa);
+    overflow-x: auto;
+}
+.rich-content pre code, .lesson-note pre code, .slide-body pre code, .lesson-plan-content pre code, .article-body pre code, .curriculum-content pre code, .project-desc pre code, .about-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.rich-content hr, .lesson-note hr, .slide-body hr, .lesson-plan-content hr, .article-body hr, .curriculum-content hr, .project-desc hr, .about-content hr {
+    border: 0;
+    border-top: 1px solid var(--border-light, #e0e0e0);
+    margin: 2em 0;
+}
+
+.rich-content > *:first-child, .lesson-note > *:first-child, .slide-body > *:first-child, .lesson-plan-content > *:first-child, .article-body > *:first-child, .curriculum-content > *:first-child, .project-desc > *:first-child, .about-content > *:first-child {
+    margin-top: 0;
+}
+.rich-content > *:last-child, .lesson-note > *:last-child, .slide-body > *:last-child, .lesson-plan-content > *:last-child, .article-body > *:last-child, .curriculum-content > *:last-child, .project-desc > *:last-child, .about-content > *:last-child {
+    margin-bottom: 0;
+}
+
+/* 🔹 LESSON DOCUMENT THEME — branded, "gamified" wrapper for the
+   Lesson Plan (teacher) and Lesson Note (student) viewers, built to
+   dress up whatever the instructor pasted into CKEditor without
+   requiring any structured fields. Deliberately layered AFTER the
+   shared .rich-content ruleset above and scoped to .lesson-doc
+   .lesson-note/.lesson-plan-content only — course/module/about/etc.
+   pages that also use .rich-content are untouched. */
+.lesson-doc {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-light, #e7ddc0);
+    box-shadow: 0 10px 30px rgba(20, 20, 26, 0.08);
+    margin-bottom: 22px;
+}
+
+.lesson-doc-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 22px;
+    background: linear-gradient(135deg, #16161d 0%, #2b2b35 100%);
+    border-bottom: 4px solid var(--brand-pri, #A17807);
+}
+
+.lesson-doc-badge {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    background: var(--brand-pri, #A17807);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+.lesson-doc-eyebrow {
+    color: var(--brand-tint, #FBF3DD);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+.lesson-doc-title {
+    color: #fff;
+    font-size: 19px;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+/* Strip the standalone card chrome from .lesson-note/.lesson-plan-content
+   when they're sitting inside a .lesson-doc header card, so there's no
+   double border/shadow. */
+.lesson-doc .lesson-note,
+.lesson-doc .lesson-plan-content {
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 26px 26px 30px;
+}
+
+.lesson-doc .lesson-view-controls {
+    padding: 16px 22px 0;
+    margin-bottom: 0;
+}
+
+.lesson-doc .lesson-slides {
+    margin: 0 22px 22px;
+    width: auto;
+}
+
+/* Section headings become numbered dark bars with a gold badge —
+   the "1 / 2 / 3" step-card look from the branded template. */
+.lesson-doc .lesson-note,
+.lesson-doc .lesson-plan-content {
+    counter-reset: lessonSection;
+}
+.lesson-doc .lesson-note h2,
+.lesson-doc .lesson-plan-content h2 {
+    counter-increment: lessonSection;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #16161d;
+    border: 0;
+    border-radius: 10px;
+    color: #fff;
+    padding: 12px 18px;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+}
+.lesson-doc .lesson-note h2::before,
+.lesson-doc .lesson-plan-content h2::before {
+    content: counter(lessonSection);
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--brand-pri, #A17807);
+    color: #16161d;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lesson-doc .lesson-note h3,
+.lesson-doc .lesson-plan-content h3 {
+    display: inline-block;
+    color: var(--brand-pri-dark, #4C3802);
+    border-bottom: 2px solid var(--brand-pri, #A17807);
+    padding-bottom: 5px;
+}
+
+/* Tables get the invoice/receipt-style dark header + tinted stripes. */
+.lesson-doc .lesson-note table,
+.lesson-doc .lesson-plan-content table {
+    border: 1px solid var(--border-light, #e7ddc0);
+    border-radius: 10px;
+}
+.lesson-doc .lesson-note thead th,
+.lesson-doc .lesson-plan-content thead th {
+    background: #16161d;
+    color: var(--brand-tint, #FBF3DD);
+}
+.lesson-doc .lesson-note tbody tr:nth-child(even),
+.lesson-doc .lesson-plan-content tbody tr:nth-child(even) {
+    background: var(--brand-tint, #FBF3DD);
+}
+.lesson-doc .lesson-note td, .lesson-doc .lesson-note th,
+.lesson-doc .lesson-plan-content td, .lesson-doc .lesson-plan-content th {
+    border-color: var(--border-light, #e7ddc0);
+}
+
+/* Callouts (blockquotes) become a tip card with an icon. */
+.lesson-doc .lesson-note blockquote,
+.lesson-doc .lesson-plan-content blockquote {
+    position: relative;
+    background: var(--brand-tint, #FBF3DD);
+    border-left: 4px solid var(--brand-pri, #A17807);
+    border-radius: 10px;
+    padding: 12px 18px 12px 46px;
+    font-style: normal;
+}
+.lesson-doc .lesson-note blockquote::before,
+.lesson-doc .lesson-plan-content blockquote::before {
+    content: "💡";
+    position: absolute;
+    left: 14px;
+    top: 11px;
+    font-size: 17px;
+}
+
+/* Numbered steps get gold circle badges instead of default numerals —
+   the "step-by-step explanation" look. */
+.lesson-doc .lesson-note ol,
+.lesson-doc .lesson-plan-content ol {
+    list-style: none;
+    padding-left: 0;
+    counter-reset: lessonStep;
+}
+.lesson-doc .lesson-note ol li,
+.lesson-doc .lesson-plan-content ol li {
+    counter-increment: lessonStep;
+    position: relative;
+    padding-left: 36px;
+}
+.lesson-doc .lesson-note ol li::before,
+.lesson-doc .lesson-plan-content ol li::before {
+    content: counter(lessonStep);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--brand-pri, #A17807);
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Bulleted lists get a gold dot instead of the browser default. */
+.lesson-doc .lesson-note ul,
+.lesson-doc .lesson-plan-content ul {
+    list-style: none;
+    padding-left: 0;
+}
+.lesson-doc .lesson-note ul li,
+.lesson-doc .lesson-plan-content ul li {
+    position: relative;
+    padding-left: 22px;
+}
+.lesson-doc .lesson-note ul li::before,
+.lesson-doc .lesson-plan-content ul li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-pri, #A17807);
+}
+
+@media (max-width: 600px) {
+    .lesson-doc-header {
+        padding: 14px 16px;
+    }
+    .lesson-doc-title {
+        font-size: 16px;
+    }
+    .lesson-doc .lesson-note,
+    .lesson-doc .lesson-plan-content {
+        padding: 18px 16px 22px;
+    }
+}
 
 /* 🔹 SLIDE NAVIGATION */
 .slide-controls {

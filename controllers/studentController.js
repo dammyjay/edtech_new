@@ -27,9 +27,18 @@ const { getStudentStreak } = require("../services/streakService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 const { getStudentProgressDetail } = require("../services/studentProgressDetailService");
 const { getStudentSkillTreeData } = require("../services/skillTreeService");
-const { awardCoins, spendCoins } = require("../services/coinService");
+const { awardCoins, spendCoins, buyCoinsWithWallet, NAIRA_PER_COIN } = require("../services/coinService");
 const { exchangeXp: exchangeXpService } = require("../services/xpExchangeService");
 const { AVATAR_FRAMES, getFrameByKey } = require("../utils/avatarFrames");
+const {
+  getEquippableCatalog,
+  getEquippableByKey,
+  EQUIPPABLE_CATALOGS,
+  HINT_TOKEN_COST,
+  FIFTY_FIFTY_COST,
+  XP_BOOST,
+} = require("../utils/shopCatalog");
+const { ARCADE_GAMES, getArcadeGameById } = require("../utils/arcadeGames");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderModuleReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 
@@ -74,6 +83,16 @@ exports.getDashboard = async (req, res) => {
     // fetched above and passed straight into the render below.
     const equippedFrame = student.equipped_avatar_frame ? getFrameByKey(student.equipped_avatar_frame) : null;
     const equippedFrameStyle = equippedFrame ? equippedFrame.style + " border-radius:50%;" : "";
+
+    // Same "key into a hardcoded catalog" lookup as the avatar frame above,
+    // for the two newer cosmetic slots (utils/shopCatalog.js).
+    const equippedBanner = student.equipped_profile_banner
+      ? getEquippableByKey("profile_banner", student.equipped_profile_banner)
+      : null;
+    const equippedBannerStyle = equippedBanner ? equippedBanner.style : "";
+    const equippedTitleTag = student.equipped_title_tag
+      ? getEquippableByKey("title_tag", student.equipped_title_tag)
+      : null;
 
     let streakBonusCoins = 0;
     if (streak.currentStreak > 0) {
@@ -1145,6 +1164,8 @@ exports.getDashboard = async (req, res) => {
       streakBonusCoins,
       equippedFrameStyle,
       avatarFrames: AVATAR_FRAMES,
+      equippedBannerStyle,
+      equippedTitleTag,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
@@ -1995,6 +2016,346 @@ exports.equipAvatarFrame = async (req, res) => {
   }
 };
 
+// GET /student/shop — catalog + owned/equipped state for every equippable
+// item type (utils/shopCatalog.js's EQUIPPABLE_CATALOGS), plus pricing for
+// the functional consumables (hint tokens, XP boost) and current coins.
+// Mirrors getAvatarFrames above, generalized across item types instead of
+// one endpoint per type.
+exports.getShop = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const [ownedRes, studentRes] = await Promise.all([
+      pool.query("SELECT item_type, item_key FROM user_unlocks WHERE user_id = $1", [studentId]),
+      pool.query(
+        "SELECT coins, equipped_profile_banner, equipped_title_tag, xp_boost_uses_remaining FROM users2 WHERE id = $1",
+        [studentId]
+      ),
+    ]);
+    const student = studentRes.rows[0] || {};
+    const ownedByType = {};
+    ownedRes.rows.forEach((r) => {
+      if (!ownedByType[r.item_type]) ownedByType[r.item_type] = new Set();
+      ownedByType[r.item_type].add(r.item_key);
+    });
+
+    const equippedByType = {
+      profile_banner: student.equipped_profile_banner || null,
+      title_tag: student.equipped_title_tag || null,
+    };
+
+    const catalogs = {};
+    Object.keys(EQUIPPABLE_CATALOGS).forEach((itemType) => {
+      const owned = ownedByType[itemType] || new Set();
+      catalogs[itemType] = EQUIPPABLE_CATALOGS[itemType].items.map((i) => ({
+        ...i,
+        owned: owned.has(i.key),
+      }));
+    });
+
+    res.json({
+      success: true,
+      coins: student.coins || 0,
+      catalogs,
+      equipped: equippedByType,
+      hintTokenCost: HINT_TOKEN_COST,
+      xpBoost: { ...XP_BOOST, active: (student.xp_boost_uses_remaining || 0) > 0, usesRemaining: student.xp_boost_uses_remaining || 0 },
+    });
+  } catch (err) {
+    console.error("getShop error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/shop/unlock {itemType, itemKey} — spend coins, then record
+// ownership in user_unlocks. Generic across every EQUIPPABLE_CATALOGS entry,
+// same spendCoins-then-insert shape as unlockAvatarFrame above.
+exports.unlockShopItem = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { itemType, itemKey } = req.body;
+    const item = getEquippableByKey(itemType, itemKey);
+    if (!item) {
+      return res.status(400).json({ success: false, message: "Unknown item" });
+    }
+
+    const existing = await pool.query(
+      "SELECT 1 FROM user_unlocks WHERE user_id = $1 AND item_type = $2 AND item_key = $3",
+      [studentId, itemType, itemKey]
+    );
+    if (existing.rows.length) {
+      return res.json({ success: true, message: "Already unlocked", alreadyOwned: true });
+    }
+
+    const newBalance = await spendCoins(studentId, item.price, `${itemType}: ${item.name}`);
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    await pool.query(
+      "INSERT INTO user_unlocks (user_id, item_type, item_key) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+      [studentId, itemType, itemKey]
+    );
+
+    res.json({ success: true, coins: newBalance });
+  } catch (err) {
+    console.error("unlockShopItem error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/shop/equip {itemType, itemKey} — itemKey omitted/null
+// unequips. Generic across every EQUIPPABLE_CATALOGS entry, same
+// ownership-check-then-persist shape as equipAvatarFrame above.
+exports.equipShopItem = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { itemType, itemKey } = req.body;
+    const catalog = getEquippableCatalog(itemType);
+    if (!catalog) {
+      return res.status(400).json({ success: false, message: "Unknown item type" });
+    }
+
+    if (itemKey) {
+      const owned = await pool.query(
+        "SELECT 1 FROM user_unlocks WHERE user_id = $1 AND item_type = $2 AND item_key = $3",
+        [studentId, itemType, itemKey]
+      );
+      if (!owned.rows.length) {
+        return res.status(403).json({ success: false, message: "You haven't unlocked this yet." });
+      }
+    }
+
+    // catalog.column is one of a fixed, hardcoded set of column names
+    // (utils/shopCatalog.js's EQUIPPABLE_CATALOGS) — never user input —
+    // so interpolating it into the UPDATE is safe.
+    await pool.query(`UPDATE users2 SET ${catalog.column} = $1 WHERE id = $2`, [itemKey || null, studentId]);
+
+    if (req.session.user) {
+      req.session.user[catalog.column] = itemKey || null;
+    }
+
+    const item = itemKey ? getEquippableByKey(itemType, itemKey) : null;
+    res.json({ success: true, item });
+  } catch (err) {
+    console.error("equipShopItem error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/shop/xp-boost — spend coins for a temporary XP multiplier,
+// consumed by services/lessonCompletionService.js's awardXp.
+exports.buyXpBoost = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const newBalance = await spendCoins(studentId, XP_BOOST.cost, "XP boost");
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+    await pool.query(
+      "UPDATE users2 SET xp_boost_uses_remaining = COALESCE(xp_boost_uses_remaining, 0) + $1 WHERE id = $2",
+      [XP_BOOST.uses, studentId]
+    );
+    res.json({ success: true, coins: newBalance, usesRemaining: XP_BOOST.uses });
+  } catch (err) {
+    console.error("buyXpBoost error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/quizzes/:lessonId/hint {questionId} — spend coins for an
+// AI-generated hint on one quiz question, reusing the same askTutor helper
+// submitLessonQuiz already calls for post-submit feedback. Deliberately
+// asks for a hint, not the answer, and never touches correct_option.
+exports.useQuizHint = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { lessonId } = req.params;
+    const { questionId } = req.body;
+
+    const qRes = await pool.query(
+      `SELECT qq.id, qq.question, qq.options
+       FROM quiz_questions qq
+       JOIN quizzes q ON qq.quiz_id = q.id
+       WHERE q.lesson_id = $1 AND qq.id = $2`,
+      [lessonId, questionId]
+    );
+    const question = qRes.rows[0];
+    if (!question) {
+      return res.status(404).json({ success: false, message: "Question not found" });
+    }
+
+    const newBalance = await spendCoins(studentId, HINT_TOKEN_COST, "Quiz hint");
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    const hintPrompt = `You are a supportive coding tutor. A student is stuck on this quiz question:
+"${question.question}"
+Options: ${JSON.stringify(question.options)}
+
+Give ONE short hint (max 25 words) that nudges them toward the right answer WITHOUT stating which option is correct or restating an option verbatim. Return plain text only, no JSON.`;
+
+    let hint = "Think about what each option actually does, then eliminate the ones that don't fit.";
+    try {
+      const raw = await askTutor({ question: hintPrompt });
+      if (raw && raw.trim()) hint = raw.trim();
+    } catch (err) {
+      console.error("useQuizHint AI error:", err.message);
+    }
+
+    res.json({ success: true, hint, coins: newBalance });
+  } catch (err) {
+    console.error("useQuizHint error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/quizzes/:lessonId/fifty-fifty {questionId} — a second, paid
+// lifeline alongside useQuizHint above: narrows the question down to the
+// correct option plus one random wrong one. correct_option is looked up
+// and used server-side only to pick the pair — the response never labels
+// which of the 2 returned options is correct, same "never leak the answer
+// key" posture as getLessonQuiz.
+exports.useFiftyFifty = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { lessonId } = req.params;
+    const { questionId } = req.body;
+
+    const qRes = await pool.query(
+      `SELECT qq.id, qq.options, qq.correct_option
+       FROM quiz_questions qq
+       JOIN quizzes q ON qq.quiz_id = q.id
+       WHERE q.lesson_id = $1 AND qq.id = $2`,
+      [lessonId, questionId]
+    );
+    const question = qRes.rows[0];
+    if (!question) {
+      return res.status(404).json({ success: false, message: "Question not found" });
+    }
+
+    const correct = question.correct_option;
+    const wrongOptions = (question.options || []).filter(
+      (o) => o.toString().trim().toLowerCase() !== correct.toString().trim().toLowerCase()
+    );
+    if (!wrongOptions.length) {
+      return res.json({ success: false, message: "No other options to eliminate." });
+    }
+
+    const newBalance = await spendCoins(studentId, FIFTY_FIFTY_COST, "Quiz 50/50");
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    const randomWrong = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+    const options = [correct, randomWrong].sort(() => Math.random() - 0.5);
+
+    res.json({ success: true, options, coins: newBalance });
+  } catch (err) {
+    console.error("useFiftyFifty error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /student/arcade — the game picker. Coins are a pure sink here (pay
+// per play, see playArcadeGame below), gated per-classroom by
+// classrooms.arcade_enabled, which school admins toggle from their
+// dashboard (controllers/schoolAdminController.js's updateClassroom).
+// Same classroom lookup as getClassroom above; a student with no
+// classroom (not yet approved into a school) just sees the games with no
+// school-level restriction, matching how other classroom-gated features
+// degrade in this codebase.
+exports.getArcade = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.redirect("/login");
+  }
+  try {
+    const [classroomRes, studentRes] = await Promise.all([
+      pool.query(
+        `SELECT c.id, c.name, c.arcade_enabled
+         FROM classrooms c
+         JOIN user_school us ON c.id = us.classroom_id
+         WHERE us.user_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+         LIMIT 1`,
+        [studentId]
+      ),
+      pool.query("SELECT coins FROM users2 WHERE id = $1", [studentId]),
+    ]);
+    const classroom = classroomRes.rows[0];
+    const arcadeEnabled = classroom ? classroom.arcade_enabled !== false : true;
+
+    res.render("student/arcade", {
+      title: "Arcade",
+      games: ARCADE_GAMES,
+      coins: studentRes.rows[0]?.coins || 0,
+      arcadeEnabled,
+      classroomName: classroom?.name || null,
+    });
+  } catch (err) {
+    console.error("getArcade error:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+// POST /student/arcade/:gameId/play — spend coins to start a play. The
+// games themselves run entirely client-side (public/games/*.js); this
+// endpoint only gates entry and returns the new coin balance for the
+// existing live-update-without-refresh pattern (updateCoinsDisplay).
+exports.playArcadeGame = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { gameId } = req.params;
+    const game = getArcadeGameById(gameId);
+    if (!game) {
+      return res.status(400).json({ success: false, message: "Unknown game" });
+    }
+
+    const classroomRes = await pool.query(
+      `SELECT c.arcade_enabled
+       FROM classrooms c
+       JOIN user_school us ON c.id = us.classroom_id
+       WHERE us.user_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+       LIMIT 1`,
+      [studentId]
+    );
+    if (classroomRes.rows[0]?.arcade_enabled === false) {
+      return res.status(403).json({ success: false, message: "Your school has turned off the Arcade." });
+    }
+
+    const newBalance = await spendCoins(studentId, game.playCost, `Arcade: ${game.name}`);
+    if (newBalance === null) {
+      return res.json({ success: false, message: "Not enough coins." });
+    }
+
+    res.json({ success: true, coins: newBalance });
+  } catch (err) {
+    console.error("playArcadeGame error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
 exports.exchangeXp = async (req, res) => {
   const studentId = req.session?.student?.id || req.user?.id;
   if (!studentId) {
@@ -2016,6 +2377,33 @@ exports.exchangeXp = async (req, res) => {
     res.json({ success: true, ...result });
   } catch (err) {
     console.error("exchangeXp error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /student/wallet/buy-coins {coins} — converts real wallet money into
+// coins at coinService.NAIRA_PER_COIN per coin, the reverse direction of
+// exchangeXp's redeemable_xp -> wallet path above. See
+// services/coinService.js's buyCoinsWithWallet for the atomic debit.
+exports.buyCoinsFromWallet = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const coinsAmount = parseInt(req.body.coins, 10);
+    if (!coinsAmount || coinsAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid amount" });
+    }
+
+    const result = await buyCoinsWithWallet(studentId, coinsAmount);
+    if (result === null) {
+      return res.json({ success: false, message: "Not enough wallet balance." });
+    }
+
+    res.json({ success: true, coins: result.coins, walletBalance: result.walletBalance });
+  } catch (err) {
+    console.error("buyCoinsFromWallet error:", err.message);
     res.status(500).json({ success: false });
   }
 };
@@ -3093,10 +3481,20 @@ ${JSON.stringify(reviewData, null, 2)}
 
     let xpGained = 0;
     let levelUp = false;
+    let bossBattleCoins = 0;
     if (isFirstQuizAttempt) {
       const awarded = await awardXp(studentId, 10, `Completed quiz for lesson ${lessonId}`);
       xpGained = awarded.xpGained;
       levelUp = awarded.levelUp;
+
+      // Small coin bonus on a passing FIRST attempt only — feeds the
+      // front-end's opt-in "⚔️ Boss Battle" results reskin (dashboard.ejs's
+      // openQuizResultModal), gated the same way XP is so retaking a quiz
+      // can't be used to farm coins.
+      if (percent >= 50) {
+        bossBattleCoins = 5;
+        await awardCoins(studentId, bossBattleCoins, "Boss defeated (quiz passed)");
+      }
     }
 
     // Unlocking the next lesson now waits for every part THIS lesson
@@ -3244,6 +3642,7 @@ ${JSON.stringify(reviewData, null, 2)}
       levelUp,
       newLevel: levelAfter.level,
       newLevelName: levelAfter.name,
+      bossBattleCoins,
       nextLessonId,
       nextModuleUnlocked,
       nextModuleId,
@@ -3334,7 +3733,7 @@ const EXTRA_AI_QUESTION_COST = 3;
 exports.askAITutor = async (req, res) => {
   try {
     const userId = req.user?.id || req.session.user?.id;
-    const { question, lessonId } = req.body;
+    const { question, lessonId, labContext } = req.body;
 
     // ai_tutor_logs previously existed but nothing ever wrote to it — now
     // doubles as both the usage log and the free-daily-cap counter, since
@@ -3396,6 +3795,17 @@ exports.askAITutor = async (req, res) => {
           reflection.what_clicked ? `what clicked for them was "${reflection.what_clicked}". ` : ""
         }${reflection.still_fuzzy ? `What's still fuzzy for them: "${reflection.still_fuzzy}".` : ""}`;
       }
+    } else if (labContext && typeof labContext === "object" && labContext.code) {
+      // 🧩 Coding-lab question (Web Lab / Blockly Lab AI tutor widget) —
+      // no lessonId here, the student is asking about their in-progress
+      // project instead of a lesson. Same free-question cap/coin cost
+      // above, just a different context string handed to askTutor.
+      const labTypeLabel =
+        labContext.labType === "blockly"
+          ? "Blockly (block-based, Scratch-style) visual programming lab"
+          : "Web Development lab (HTML/CSS/JS)";
+      const code = String(labContext.code).slice(0, 4000);
+      lessonContext = `The student is working in the ${labTypeLabel}, not a lesson. Here is their current project code/blocks:\n\n${code}`;
     }
 
     const userName = req.session?.user?.fullname || "Student";
