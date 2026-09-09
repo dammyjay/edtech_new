@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= project.project_name || 'Untitled project' %> by <%= project.displayName %> — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = (project.project_name || 'Untitled project') + ' by ' + project.displayName;
+       const ogDescription = 'A coding project built on ' + (info?.company_name || 'JKT Hub').trim() + '.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/showcase/' + project.id;
+       const ogType = 'website'; %>
+    <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <style>
+      .scp-wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+      .scp-back { display: inline-block; margin-bottom: 14px; font-size: 13px; color: var(--text-secondary, #666); text-decoration: none; }
+      .scp-back:hover { text-decoration: underline; }
+
+      .scp-card { background: #fff; border-radius: var(--radius-lg, 16px); border: 1px solid var(--border-light, #e0e0e0); padding: 22px; margin-top: 20px; }
+      .scp-top { display: flex; align-items: center; gap: 12px; }
+      .scp-icon { font-size: 30px; }
+      .scp-title { font-size: 20px; font-weight: 800; margin: 0; }
+      .scp-author { font-size: 13px; color: var(--text-secondary, #666); margin: 2px 0 0; }
+
+      .scp-badges { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-secondary, #666); margin: 14px 0; }
+      .scp-like-btn {
+        border: 1px solid var(--border-light, #e0e0e0);
+        background: var(--brand-tint, #FBF3DD);
+        color: var(--brand-pri-dark, #4C3802);
+        border-radius: 999px;
+        padding: 7px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .scp-frame { width: 100%; height: 400px; border: 1px solid var(--border-light, #e0e0e0); border-radius: var(--radius, 10px); margin: 14px 0; }
+      .scp-code { background: #272822; color: #f8f8f2; padding: 16px; border-radius: var(--radius, 10px); overflow-x: auto; font-size: 13px; max-height: 400px; margin: 14px 0; }
+      .scp-note { font-size: 12px; color: var(--text-secondary, #666); }
+
+      .scp-remix-btn {
+        display: block;
+        width: 100%;
+        margin-top: 16px;
+        border: none;
+        border-radius: var(--radius, 10px);
+        padding: 14px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        cursor: pointer;
+      }
+      .scp-remix-btn:hover { opacity: 0.92; }
+
+      .scp-cta { text-align: center; margin-top: 28px; font-size: 14px; color: var(--text-secondary, #666); }
+      .scp-cta a { color: var(--brand-pri, #A17807); font-weight: 700; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <%- include('../partials/userHeader', { title: project.project_name || 'Project', activePage: 'showcase' }) %>
+
+    <div class="scp-wrap">
+      <a class="scp-back" href="/showcase">← Back to Showcase</a>
+
+      <div class="scp-card">
+        <div class="scp-top">
+          <span class="scp-icon"><%= project.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+          <div>
+            <p class="scp-title"><%= project.project_name || 'Untitled project' %></p>
+            <p class="scp-author">by <%= project.displayName %></p>
+          </div>
+        </div>
+
+        <div class="scp-badges">
+          <button type="button" id="scpLikeBtn" class="scp-like-btn">🤍 Like (<%= likeCount %>)</button>
+          <span><%= avgRating ? `★ ${avgRating.toFixed(1)} (${reviewCount})` : '☆ No ratings yet' %></span>
+        </div>
+
+        <% if (project.lab_type === 'web') { %>
+          <iframe class="scp-frame" id="scpFrame" sandbox="allow-scripts"></iframe>
+        <% } else if (project.lab_type === 'blockly') { %>
+          <pre class="scp-code"><%= (project.project_data && project.project_data.generatedCode) || '(No blocks were placed.)' %></pre>
+          <p class="scp-note">Blockly projects show their generated code — log in and remix it to see the actual blocks.</p>
+        <% } %>
+
+        <button type="button" id="scpRemixBtn" class="scp-remix-btn">
+          🍴 Remix this project — <%= isLoggedIn ? 'Try it now' : 'Sign up free' %>
+        </button>
+      </div>
+
+      <p class="scp-cta">Just here to look around? <a href="/admin/login">Log in or sign up</a> to start coding.</p>
+    </div>
+
+    <%- include('../partials/userFooter') %>
+
+    <script>
+      // Auth state + the two conversion actions on this page (like/remix).
+      // Logged out: both send the visitor to signup with ?redirect back to
+      // THIS exact project (see views/signup.ejs, which threads it through
+      // the OTP step and on to /admin/login), plus ?action= so the action
+      // they clicked for actually happens the moment they land back here —
+      // the whole point is not losing the thing that made them sign up in
+      // the first place. Logged in: calls the same authenticated endpoints
+      // the in-app gallery uses (routes/labRoutes.js's /gallery/*).
+      (function () {
+        var isLoggedIn = <%- JSON.stringify(!!isLoggedIn) %>;
+        var projectId = <%- JSON.stringify(project.id) %>;
+        var labType = <%- JSON.stringify(project.lab_type) %>;
+        var likeBtn = document.getElementById("scpLikeBtn");
+        var remixBtn = document.getElementById("scpRemixBtn");
+
+        function signupUrl(action) {
+          var target = window.location.pathname + "?action=" + action;
+          return "/signup?role=user&redirect=" + encodeURIComponent(target);
+        }
+
+        async function doLike() {
+          likeBtn.disabled = true;
+          try {
+            const res = await fetch("/labs/gallery/like", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: projectId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              likeBtn.textContent = (data.liked ? "❤️ Liked" : "🤍 Like") + " (" + data.likeCount + ")";
+            }
+          } catch (e) {
+            console.error("Like failed:", e);
+          } finally {
+            likeBtn.disabled = false;
+          }
+        }
+
+        async function doRemix() {
+          if (!confirm("Remix this into your own Web Lab / Blockly Lab project? This replaces your current project there.")) return;
+          remixBtn.disabled = true;
+          try {
+            const res = await fetch("/labs/gallery/remix", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: projectId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              window.location.href = "/labs/" + data.labType;
+            } else {
+              alert(data.message || "Couldn't remix this project.");
+              remixBtn.disabled = false;
+            }
+          } catch (e) {
+            console.error("Remix failed:", e);
+            remixBtn.disabled = false;
+          }
+        }
+
+        likeBtn.addEventListener("click", function () {
+          if (isLoggedIn) doLike();
+          else window.location.href = signupUrl("like");
+        });
+
+        remixBtn.addEventListener("click", function () {
+          if (isLoggedIn) doRemix();
+          else window.location.href = signupUrl("remix");
+        });
+
+        // Just landed here fresh out of signup/login with an action queued
+        // up — finish what they came for, then clean the URL so a refresh
+        // doesn't repeat it.
+        if (isLoggedIn) {
+          var action = new URLSearchParams(window.location.search).get("action");
+          if (action === "like" || action === "remix") {
+            history.replaceState(null, "", window.location.pathname);
+            if (action === "like") doLike();
+            else doRemix();
+          }
+        }
+      })();
+    </script>
+
+    <% if (project.lab_type === 'web') { %>
+    <script>
+      // srcdoc is set as a DOM property, not an HTML attribute string — the
+      // student's HTML/CSS/JS is full of double quotes that would otherwise
+      // break out of a quoted srcdoc="..." attribute (same fix as the
+      // logged-in gallery's public/labs/js/labGallery.js).
+      (function () {
+        // JSON.stringify doesn't escape a script-closing tag — if the
+        // student's own HTML/CSS/JS happened to contain that literal
+        // sequence, embedding it unescaped here would end this script
+        // block early (the HTML parser looks for that sequence regardless
+        // of JS syntax, so it would trigger even written out in a comment
+        // like this one deliberately avoids doing). Escaping every angle
+        // bracket to its unicode form keeps the JS string literal
+        // semantically identical while making that impossible.
+        var data = <%- JSON.stringify(project.project_data || {}).replace(/</g, "\\u003c") %>;
+        var html = "", css = "", js = "";
+        if (data && Array.isArray(data.pages) && data.pages.length) {
+          var active = data.pages.find(function (p) { return p.name === data.activePage; }) || data.pages[0];
+          html = active.html || "";
+          css = data.css || "";
+          js = data.js || "";
+        } else {
+          html = (data && data.html) || "";
+          css = (data && data.css) || "";
+          js = (data && data.js) || "";
+        }
+        var frame = document.getElementById("scpFrame");
+        if (frame) {
+          frame.srcdoc = "<!DOCTYPE html><html><head><style>" + css + "</style></head><body>" + html + "<script>" + js + "<\/script></body></html>";
+        }
+      })();
+    </script>
+    <% } %>
+  </body>
+</html>

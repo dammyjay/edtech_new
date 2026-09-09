@@ -18,7 +18,7 @@ const getAnnouncements = require("../utils/getAnnouncements");
 const { getCompanyInfo } = require("../utils/companyInfo");
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
-const { getPublicStudentBySlug } = require("../services/publicAchievementService");
+const { getPublicStudentBySlug, toDisplayName } = require("../services/publicAchievementService");
 
 // No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
 // an HMAC of the user id (same secret the session already uses), so no new
@@ -142,6 +142,113 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
     });
   } catch (err) {
     console.error("Public certificate share page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+// Public, no-login project showcase — a project only appears here if
+// BOTH the student published it to the in-app gallery (lab_projects.
+// is_published, controllers/labController.js) AND their parent/admin has
+// separately opted them into public sharing (users2.public_profile_enabled,
+// the same flag userController.js's setChildPublicProfile already gates
+// the achievement pages with). Publishing to the closed, logged-in-only
+// gallery does NOT by itself make a project visible to the open internet
+// — that's a deliberately bigger exposure and needs the same explicit
+// consent the achievement pages already require. Uses the same
+// toDisplayName() "First L." redaction as those pages, never the full
+// name, for the same reason.
+router.get("/showcase", async (req, res) => {
+  try {
+    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const params = [];
+    let labTypeFilter = "";
+    if (labType) {
+      params.push(labType);
+      labTypeFilter = `AND lp.lab_type = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
+              u.fullname,
+              COALESCE(lk.like_count, 0) AS like_count,
+              COALESCE(rv.avg_rating, 0) AS avg_rating
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
+       LEFT JOIN (SELECT project_id, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
+       WHERE lp.is_published = true AND u.public_profile_enabled = true ${labTypeFilter}
+       ORDER BY lp.published_at DESC
+       LIMIT 60`,
+      params
+    );
+
+    const info = await getCompanyInfo();
+    let walletBalance = 0;
+    if (req.session.user) {
+      const walletResult = await pool.query("SELECT wallet_balance2 FROM users2 WHERE email = $1", [req.session.user.email]);
+      walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+    }
+
+    res.render("public/showcase", {
+      info,
+      isLoggedIn: !!req.session.user,
+      users: req.session.user,
+      walletBalance,
+      activePage: "showcase",
+      labType: labType || "",
+      // Logged-in visitors get the same free-teaser cutoff as everyone
+      // else here (this is a marketing/conversion device, not real access
+      // control — the underlying data was never gated) rather than special-
+      // casing it away; there's no real reason a logged-in visitor
+      // browsing the PUBLIC page needs to see past the teaser here when
+      // the full, unlocked in-app gallery (/labs/gallery) is one click away.
+      FREE_COUNT: 9,
+      projects: result.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) })),
+    });
+  } catch (err) {
+    console.error("Public showcase error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+router.get("/showcase/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at, lp.project_data,
+              u.fullname
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       WHERE lp.id = $1 AND lp.is_published = true AND u.public_profile_enabled = true`,
+      [req.params.id]
+    );
+    const project = result.rows[0];
+    if (!project) return res.status(404).send("This project isn't available.");
+
+    const [likeRes, reviewRes, info] = await Promise.all([
+      pool.query(`SELECT COUNT(*) AS count FROM project_likes WHERE project_id = $1`, [project.id]),
+      pool.query(`SELECT COUNT(*) AS count, AVG(rating) AS avg_rating FROM project_reviews WHERE project_id = $1`, [project.id]),
+      getCompanyInfo(),
+    ]);
+
+    let walletBalance = 0;
+    if (req.session.user) {
+      const walletResult = await pool.query("SELECT wallet_balance2 FROM users2 WHERE email = $1", [req.session.user.email]);
+      walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+    }
+
+    res.render("public/showcaseProject", {
+      info,
+      isLoggedIn: !!req.session.user,
+      users: req.session.user,
+      walletBalance,
+      activePage: "showcase",
+      project: { ...project, displayName: toDisplayName(project.fullname) },
+      likeCount: parseInt(likeRes.rows[0].count, 10) || 0,
+      reviewCount: parseInt(reviewRes.rows[0].count, 10) || 0,
+      avgRating: Number(reviewRes.rows[0].avg_rating) || 0,
+    });
+  } catch (err) {
+    console.error("Public showcase project error:", err.message);
     res.status(500).send("Something went wrong loading this page.");
   }
 });

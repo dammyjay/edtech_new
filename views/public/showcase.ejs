@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Student Project Showcase — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'Student Project Showcase — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Coding projects our students chose to share publicly — built in the Web Lab and Blockly Lab.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/showcase';
+       const ogType = 'website'; %>
+    <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <style>
+      .sc-wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+
+      .sc-hero {
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        color: #fff;
+        border-radius: var(--radius-lg, 16px);
+        padding: 30px 26px;
+        text-align: center;
+        box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+        margin: 24px 0;
+      }
+      .sc-hero h1 { margin: 0 0 8px; font-size: 26px; }
+      .sc-hero p { margin: 0; opacity: 0.92; font-size: 14px; }
+
+      .sc-filter { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; }
+      .sc-filter a {
+        text-decoration: none;
+        padding: 7px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--text-secondary, #666);
+        border: 1px solid var(--border-light, #e0e0e0);
+      }
+      .sc-filter a.active { background: var(--brand-pri, #A17807); color: #fff; border-color: transparent; }
+
+      .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+      .sc-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+        border-radius: var(--radius-lg, 16px);
+        border: 1px solid var(--border-light, #e0e0e0);
+        padding: 18px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .sc-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+      .sc-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .sc-card-icon { font-size: 24px; }
+      .sc-card-title { font-size: 15px; font-weight: 700; margin: 0; }
+      .sc-card-author { font-size: 12px; color: var(--text-secondary, #666); margin: 2px 0 0; }
+      .sc-card-badges { display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary, #666); margin-top: 10px; }
+
+      .sc-card--locked {
+        position: relative;
+        overflow: hidden;
+        cursor: default;
+        user-select: none;
+      }
+      .sc-card--locked .sc-card-top,
+      .sc-card--locked .sc-card-badges {
+        filter: blur(4px);
+        opacity: 0.7;
+      }
+      .sc-lock-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        background: rgba(255,255,255,0.35);
+      }
+
+      .sc-card--unlock {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 4px;
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        color: #fff;
+        border: none;
+      }
+      .sc-unlock-count { font-size: 28px; font-weight: 800; }
+      .sc-unlock-text { margin: 0 0 6px; font-size: 13px; opacity: 0.9; }
+      .sc-unlock-btn {
+        background: rgba(255,255,255,0.2);
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .sc-empty { text-align: center; color: var(--text-secondary, #666); padding: 50px 10px; }
+      .sc-cta { text-align: center; margin-top: 36px; font-size: 14px; color: var(--text-secondary, #666); }
+      .sc-cta a { color: var(--brand-pri, #A17807); font-weight: 700; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <%- include('../partials/userHeader', { title: 'Student Project Showcase', activePage: 'showcase' }) %>
+
+    <div class="sc-wrap">
+      <div class="sc-hero">
+        <h1>🖼️ Student Project Showcase</h1>
+        <p>Coding projects our students chose to share publicly — built in the Web Lab and Blockly Lab.</p>
+      </div>
+
+      <div class="sc-filter">
+        <a href="/showcase" class="<%= labType === '' ? 'active' : '' %>">All</a>
+        <a href="/showcase?labType=web" class="<%= labType === 'web' ? 'active' : '' %>">🌐 Web Lab</a>
+        <a href="/showcase?labType=blockly" class="<%= labType === 'blockly' ? 'active' : '' %>">🧩 Blockly Lab</a>
+      </div>
+
+      <% if (!projects.length) { %>
+        <p class="sc-empty">No projects are publicly shared yet — check back soon!</p>
+      <% } else { %>
+        <% const freeProjects = projects.slice(0, FREE_COUNT); const lockedProjects = projects.slice(FREE_COUNT); %>
+        <div class="sc-grid">
+          <% freeProjects.forEach(p => { %>
+            <a class="sc-card" href="/showcase/<%= p.id %>">
+              <div class="sc-card-top">
+                <span class="sc-card-icon"><%= p.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+                <div>
+                  <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
+                  <p class="sc-card-author">by <%= p.displayName %></p>
+                </div>
+              </div>
+              <div class="sc-card-badges">
+                <span>❤️ <%= p.like_count %></span>
+                <% const rating = Number(p.avg_rating) || 0; %>
+                <span><%= rating ? `★ ${rating.toFixed(1)}` : '☆ No ratings yet' %></span>
+              </div>
+            </a>
+          <% }) %>
+
+          <% if (lockedProjects.length) { %>
+            <% lockedProjects.slice(0, 3).forEach(p => { %>
+              <div class="sc-card sc-card--locked" aria-hidden="true">
+                <div class="sc-card-top">
+                  <span class="sc-card-icon"><%= p.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+                  <div>
+                    <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
+                    <p class="sc-card-author">by <%= p.displayName %></p>
+                  </div>
+                </div>
+                <div class="sc-card-badges">
+                  <span>❤️ <%= p.like_count %></span>
+                </div>
+                <div class="sc-lock-overlay">🔒</div>
+              </div>
+            <% }) %>
+
+            <a class="sc-card sc-card--unlock" href="/signup?role=user&redirect=<%= encodeURIComponent('/showcase') %>">
+              <div class="sc-unlock-count">+<%= lockedProjects.length %></div>
+              <p class="sc-unlock-text">more project<%= lockedProjects.length === 1 ? '' : 's' %> to see</p>
+              <span class="sc-unlock-btn">Sign up free →</span>
+            </a>
+          <% } %>
+        </div>
+      <% } %>
+
+      <p class="sc-cta">Want to build something like this? <a href="/admin/login">Log in or sign up</a> to start coding.</p>
+    </div>
+
+    <%- include('../partials/userFooter') %>
+  </body>
+</html>

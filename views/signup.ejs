@@ -281,6 +281,15 @@ window.addEventListener("DOMContentLoaded", async () => {
           body: formData, // ✅ Send raw FormData
         });
 
+        // A page like /showcase/89 can link here with ?redirect=/showcase/89
+        // (see views/public/showcaseProject.ejs's Remix/Like CTAs) so a
+        // visitor who signs up mid-browse lands back on the exact thing
+        // that made them sign up, not just the bare dashboard. Carried in
+        // localStorage (not a variable) so it survives the OTP step even
+        // if the page gets reloaded in between.
+        const redirectParam = new URLSearchParams(window.location.search).get("redirect");
+        if (redirectParam) localStorage.setItem("pendingRedirect", redirectParam);
+
         if (res.ok) {
           const data = await res.json();
           if (data.needsOtp) {
@@ -289,7 +298,9 @@ window.addEventListener("DOMContentLoaded", async () => {
             document.getElementById("signup-form").style.display = "none";
           } else {
             await showAlert(data.message);
-            window.location.href = "/admin/login"; // or redirect somewhere else
+            const pendingRedirect = localStorage.getItem("pendingRedirect");
+            localStorage.removeItem("pendingRedirect");
+            window.location.href = pendingRedirect ? `/admin/login?redirect=${encodeURIComponent(pendingRedirect)}` : "/admin/login";
           }
         } else {
           showAlert("Signup failed: " + (await res.text()));
@@ -354,7 +365,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         if (data.success) {
           localStorage.removeItem("pendingEmail");
-          window.location.href = "/admin/login";
+          const pendingRedirect = localStorage.getItem("pendingRedirect");
+          localStorage.removeItem("pendingRedirect");
+          window.location.href = pendingRedirect ? `/admin/login?redirect=${encodeURIComponent(pendingRedirect)}` : "/admin/login";
         } else {
           spinner.style.display = "none";
           verifyBtn.disabled = false;
