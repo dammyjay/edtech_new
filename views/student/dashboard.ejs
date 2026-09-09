@@ -708,6 +708,14 @@
         <% } %>
       </div>
 
+      <!-- ADAPTIVE MASTERY SIGNALS (services/masteryPathService.js) —
+           populated by loadMasterySignals() below; hidden entirely when
+           there's nothing to show. -->
+      <div id="masterySignalsSection" style="display:none; margin: 20px 0;">
+        <h3 style="margin-bottom: 10px;">🎯 Recommended for you</h3>
+        <div id="masterySignalsList" class="mastery-signals-list"></div>
+      </div>
+
           <!-- BADGE MODAL -->
         <div id="badgeModal" class="modal">
           <div class="modal-content">
@@ -2340,6 +2348,66 @@ if(classroomId){
   function closeProjectModal() {
     document.getElementById("projectModal").style.display = "none";
   }
+
+  // Adaptive mastery signals (services/masteryPathService.js) —
+  // "Recommended for you" widget, only present when section === 'progress'
+  // (see the #masterySignalsSection div above), so every call here is a
+  // no-op elsewhere.
+  async function loadMasterySignals() {
+    const section = document.getElementById("masterySignalsSection");
+    const list = document.getElementById("masterySignalsList");
+    if (!section || !list) return;
+
+    try {
+      const res = await fetch("/student/mastery/signals");
+      const data = await res.json();
+      if (!data.success || !data.signals.length) return;
+
+      section.style.display = "block";
+      list.innerHTML = data.signals.map((s) => {
+        const isBonus = s.signal_type === "bonus";
+        return `
+          <div class="mastery-signal-card ${isBonus ? "bonus" : ""}" data-id="${s.id}">
+            <span class="mastery-signal-icon">${isBonus ? "🌟" : "📘"}</span>
+            <div class="mastery-signal-body">
+              <p class="mastery-signal-title">${isBonus ? "Mastered" : "Worth a review"}: ${escapeHtml(s.lesson_title)}</p>
+              <p class="mastery-signal-message">${escapeHtml(s.message)}</p>
+              <div class="mastery-signal-actions">
+                <button type="button" class="mastery-review-btn" onclick="goToMasteryLesson(${s.module_id}, ${s.lesson_id})">
+                  ${isBonus ? "Take the challenge" : "Review lesson"}
+                </button>
+                <button type="button" class="mastery-dismiss-btn" onclick="dismissMasterySignal(${s.id})">Got it</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    } catch (err) {
+      console.error("loadMasterySignals error:", err);
+    }
+  }
+
+  function goToMasteryLesson(moduleId, lessonId) {
+    window.location.href = `/student/dashboard?section=module&moduleId=${moduleId}&openLesson=${lessonId}`;
+  }
+
+  async function dismissMasterySignal(signalId) {
+    const card = document.querySelector(`.mastery-signal-card[data-id="${signalId}"]`);
+    if (card) card.style.opacity = "0.5";
+    try {
+      await fetch(`/student/mastery/${signalId}/dismiss`, { method: "POST" });
+      if (card) card.remove();
+      const list = document.getElementById("masterySignalsList");
+      if (list && !list.children.length) {
+        document.getElementById("masterySignalsSection").style.display = "none";
+      }
+    } catch (err) {
+      console.error("dismissMasterySignal error:", err);
+      if (card) card.style.opacity = "1";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadMasterySignals);
 
   function escapeHtml(str) {
     const div = document.createElement("div");
@@ -5039,6 +5107,19 @@ function submitQuizAnswers(lessonId){
           result.certificateUrl
         );
       }, 1500);
+    }
+
+    // 🎯 Adaptive mastery signal (services/masteryPathService.js) — a real
+    // (un-timed, click-to-dismiss) modal rather than the ~2s showToast,
+    // since this carries a full AI-written sentence or two, not a short
+    // confirmation. It also persists in the dashboard's "Recommended for
+    // you" widget (loadMasterySignals()) either way, so missing this
+    // isn't the only chance to see it.
+    if (result.masterySignal) {
+      const isBonus = result.masterySignal.signalType === "bonus";
+      setTimeout(() => {
+        showAlert(`${isBonus ? "🌟" : "📘"} ${result.masterySignal.message}`, isBonus ? "success" : "info");
+      }, 2100);
     }
 
     // 💭 Reflection prompt — last in the chain, entirely optional (Skip

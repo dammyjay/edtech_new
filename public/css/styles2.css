@@ -3767,6 +3767,68 @@ canvas {
     }
 }
 
+/* 🔹 ADAPTIVE MASTERY SIGNALS (services/masteryPathService.js) —
+   "Recommended for you" widget on the student dashboard's progress view. */
+.mastery-signals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mastery-signal-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #fff;
+    border-radius: var(--radius, 10px);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-left: 4px solid var(--brand-pri, #A17807);
+    padding: 14px 16px;
+}
+.mastery-signal-card.bonus {
+    border-left-color: #34C77B;
+}
+
+.mastery-signal-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.mastery-signal-body {
+    flex: 1;
+}
+.mastery-signal-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin: 0 0 4px;
+}
+.mastery-signal-message {
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    margin: 0 0 8px;
+    line-height: 1.5;
+}
+.mastery-signal-actions {
+    display: flex;
+    gap: 8px;
+}
+.mastery-signal-actions button {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.mastery-signal-actions .mastery-review-btn {
+    background: var(--brand-pri, #A17807);
+    color: #fff;
+}
+.mastery-signal-actions .mastery-dismiss-btn {
+    background: #f1f1f1;
+    color: #666;
+}
+
 /* 🔹 SLIDE NAVIGATION */
 .slide-controls {
     margin-top: 20px;

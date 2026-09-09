@@ -4,6 +4,7 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
 const { awardCoins } = require("../services/coinService");
 const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
+const { generateMasterySignal } = require("../services/masteryPathService");
 const { askTutor } = require("../utils/ai");
 
 /**
@@ -551,8 +552,8 @@ Return ONLY valid JSON, matching this shape (the values below are just to show t
   // across resubmissions, same as quiz_submissions allowing multiple
   // attempts. graded_by stays NULL: AI-graded, not yet human-reviewed —
   // same tri-state already used by assignment_submissions.graded_by.
-  await pool.query(
-    `INSERT INTO lab_submissions (project_id, submitted_by, score, feedback) VALUES ($1, $2, $3, $4)`,
+  const submissionInsertRes = await pool.query(
+    `INSERT INTO lab_submissions (project_id, submitted_by, score, feedback) VALUES ($1, $2, $3, $4) RETURNING id`,
     [projectId, studentId, score, feedback]
   );
 
@@ -562,7 +563,25 @@ Return ONLY valid JSON, matching this shape (the values below are just to show t
     message: `${lessonLab.title} — ${score !== null ? `score: ${score}/100` : "graded"}`,
   }).catch((err) => console.error("Lab grade notification failed:", err.message));
 
-  return { score, feedback };
+  // Adaptive mastery signal (services/masteryPathService.js) — same
+  // remedial/bonus mechanism as the quiz path; only fires below/above its
+  // thresholds, so this is null on most submissions.
+  let masterySignal = null;
+  try {
+    masterySignal = await generateMasterySignal({
+      studentId,
+      lessonId: lessonLab.lesson_id,
+      source: "lab",
+      sourceId: submissionInsertRes.rows[0].id,
+      score,
+      lessonTitle: lessonLab.title,
+      lessonContext: lessonLab.instructions || lessonLab.description || "",
+    });
+  } catch (err) {
+    console.error("generateMasterySignal (lab) error:", err.message);
+  }
+
+  return { score, feedback, masterySignal };
 }
 
 /**

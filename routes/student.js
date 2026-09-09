@@ -186,6 +186,9 @@ router.get('/lessons/:id', studentController.getLesson);
 
 router.post("/ai/ask", ensureAuthenticated, studentController.askAITutor);
 
+router.get("/mastery/signals", ensureAuthenticated, studentController.getMasterySignals);
+router.post("/mastery/:id/dismiss", ensureAuthenticated, studentController.dismissMasterySignalRoute);
+
 router.get(
   "/assignments/:id",
   ensureAuthenticated, // 🔑 protect

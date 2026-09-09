@@ -1094,6 +1094,29 @@ async function createTables() {
       );
     `);
 
+    // Adaptive mastery signals (services/masteryPathService.js) — an
+    // additive personalization layer on top of the existing, deliberately
+    // unchanged linear unlock system (services/lessonCompletionService.js).
+    // Fired after a quiz/lab is graded: a low score gets an AI-personalized
+    // remedial tip, a very high score gets an optional stretch challenge.
+    // source/source_id point at whichever quiz_submissions/lab_submissions
+    // row triggered it, for traceability — not FK'd to either, since a row
+    // there could later be deleted without needing to cascade this away.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mastery_signals (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        lesson_id INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+        source TEXT NOT NULL,
+        source_id INTEGER,
+        signal_type TEXT NOT NULL,
+        score INTEGER,
+        message TEXT,
+        dismissed BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS lab_submissions (

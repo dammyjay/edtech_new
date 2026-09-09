@@ -621,13 +621,20 @@ window.addEventListener("load", async () => {
           // submission was the one that actually unlocked it.
           if (data.labFeedback) {
             const scoreLine = data.labFeedback.score !== null ? `Score: ${data.labFeedback.score}/100\n\n` : "";
+            // Adaptive mastery signal (services/masteryPathService.js) —
+            // folded into the same dialog rather than a second popup;
+            // also persists in the dashboard's "Recommended for you"
+            // widget either way.
+            const masteryLine = data.labFeedback.masterySignal
+              ? `\n\n${data.labFeedback.masterySignal.signalType === "bonus" ? "🌟" : "📘"} ${data.labFeedback.masterySignal.message}`
+              : "";
             setTimeout(async () => {
               const buttons = [{ label: "⬅ Back to Lesson", value: "lesson", className: "ui-alert-btn-secondary" }];
               if (data.lessonComplete && data.nextLessonId) {
                 buttons.push({ label: "➡️ Proceed to Next Lesson", value: "next", className: "ui-alert-btn-primary" });
               }
               const dialogType = data.labFeedback.score !== null && data.labFeedback.score >= 50 ? "success" : "info";
-              const choice = await showActionDialog(`${scoreLine}${data.labFeedback.feedback}`, dialogType, buttons);
+              const choice = await showActionDialog(`${scoreLine}${data.labFeedback.feedback}${masteryLine}`, dialogType, buttons);
               if (choice === "lesson" && LESSON_ID_FOR_LAB) {
                 window.location.href = `/student/dashboard?section=module&moduleId=${window.LESSON_MODULE_ID}&openLesson=${LESSON_ID_FOR_LAB}`;
               } else if (choice === "next" && data.nextLessonId) {

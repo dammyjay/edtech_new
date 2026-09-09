@@ -12,6 +12,7 @@ const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
+const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
   isLockedByEndedTerm,
@@ -3622,11 +3623,36 @@ ${JSON.stringify(reviewData, null, 2)}
       console.error("Error sending parent email:", err.message);
     }
 
+    // Adaptive mastery signal (services/masteryPathService.js) — only
+    // fires below/above the remedial/bonus thresholds, so `masterySignal`
+    // is null on most submissions; failure here shouldn't fail the quiz
+    // result itself.
+    let masterySignal = null;
+    try {
+      const wrongAnswersSummary = reviewData
+        .filter((r) => !r.isCorrect)
+        .map((r) => `- "${r.question}" — answered "${r.yourAnswer || "(no answer)"}", correct answer was "${r.correctAnswer}"`)
+        .join("\n");
+      masterySignal = await generateMasterySignal({
+        studentId,
+        lessonId,
+        source: "quiz",
+        sourceId: submissionRes.rows[0].id,
+        score: percent,
+        lessonTitle: lesson.title,
+        lessonContext: lesson.content,
+        wrongAnswersSummary,
+      });
+    } catch (err) {
+      console.error("generateMasterySignal (quiz) error:", err.message);
+    }
+
     res.json({
       success: true,
       score: percent,
       passed: percent >= 50,
       reviewData,
+      masterySignal,
       feedback:
         percent >= 80
           ? "🌟 Excellent work! You clearly understood this lesson."
@@ -3827,6 +3853,35 @@ exports.askAITutor = async (req, res) => {
   } catch (e) {
     console.error("AI tutor error:", e.message);
     res.status(500).json({ ok: false, error: "Tutor is unavailable." });
+  }
+};
+
+// Adaptive mastery signals (services/masteryPathService.js) — powers the
+// dashboard's "Recommended for you" widget.
+exports.getMasterySignals = async (req, res) => {
+  try {
+    const studentId = req.session?.user?.id || req.user?.id;
+    if (!studentId) return res.status(401).json({ success: false });
+
+    const signals = await getOpenMasterySignals(studentId);
+    res.json({ success: true, signals });
+  } catch (err) {
+    console.error("getMasterySignals error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.dismissMasterySignalRoute = async (req, res) => {
+  try {
+    const studentId = req.session?.user?.id || req.user?.id;
+    if (!studentId) return res.status(401).json({ success: false });
+
+    const ok = await dismissMasterySignal(studentId, req.params.id);
+    if (!ok) return res.status(404).json({ success: false, message: "Signal not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("dismissMasterySignalRoute error:", err.message);
+    res.status(500).json({ success: false });
   }
 };
 
