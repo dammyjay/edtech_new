@@ -13,14 +13,23 @@
 //      data (their real XP/coins/streak, lesson banner, etc.) — the
 //      cache is purely a "something to show" fallback for offline.
 //   2. Same-origin static lab assets (JS/CSS under /labs, /js, /css,
-//      /images) + the CDN hosts the lab editors load Monaco/Blockly/Font
-//      Awesome from: cache first, filling the cache from the network the
-//      first time each one is actually requested. These are static by
-//      nature (versioned CDN URLs, or same-origin files this app ships),
-//      so serving a cached copy even while online is safe and fast — and
-//      it's what makes the CDN-hosted editor engines themselves work
-//      offline, without needing a hand-maintained list of every file
-//      Monaco's own loader pulls in at runtime.
+//      /images): network first, falling back to cache only when the
+//      network fails — same reasoning as tier 1. These are OUR OWN code,
+//      actively changing; cache-first here meant a browser that had ever
+//      cached, say, arduinoLab.js would keep serving that exact stale
+//      copy forever afterward (every deploy included), no matter how
+//      many times the file changed on the server, until something forced
+//      a hard refresh. Was cache-first originally; switched after that
+//      bit the Arduino Lab specifically (in active development, so its
+//      JS/CSS were changing across near-daily deploys).
+//   2b. The CDN hosts the lab editors load Monaco/Blockly/Font Awesome/
+//      wokwi-elements/avr8js from: still cache first, filling the cache
+//      from the network the first time each one is actually requested.
+//      Those really are static by nature (pinned, versioned CDN URLs —
+//      a new version means a new URL, never the same URL changing
+//      underneath us) — that's what makes the CDN-hosted editor engines
+//      work offline, without needing a hand-maintained list of every
+//      file Monaco's own loader pulls in at runtime.
 //   3. Everything else (every API call — /labs/project/save,
 //      /labs/gallery/*, auth, etc.) is deliberately NOT intercepted at
 //      all. A service worker pretending an API POST "succeeded" from
@@ -29,7 +38,7 @@
 //      application level instead, where it can be honest about what
 //      happened.
 
-const CACHE_NAME = "jkt-labs-v1";
+const CACHE_NAME = "jkt-labs-v2"; // v1 -> v2: same-origin static assets moved off cache-first (see tier 2 above)
 
 // Deliberately does NOT include /labs, /labs/web, /labs/blockly — those
 // are gated by ensureAuthenticated (routes/labRoutes.js), and the service
@@ -142,7 +151,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (STATIC_ASSET_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(networkFirst(request));
     return;
   }
 });
