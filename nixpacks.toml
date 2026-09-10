@@ -27,9 +27,20 @@
 # static release binary directly (arduino's own install.sh) — the exact
 # same binary already verified working locally. It's a plain Go binary
 # with no FHS/namespace requirement to launch itself.
+#
+# Second bug, found only by actually checking the running container
+# (Railway's Console tab: `ls -la /usr/local/bin`, `which arduino-cli`,
+# `echo $PATH`) — the binary WAS there, correctly installed, but this
+# Nixpacks image's PATH is Nix-profile-centric
+# (/root/.nix-profile/bin:...:/bin:/sbin:/usr/bin:/usr/sbin) and never
+# includes /usr/local/bin at all, unlike a typical Debian/Ubuntu image.
+# So `spawn arduino-cli ENOENT` even though the file existed right there.
+# Installing to /usr/bin instead — which the same `echo $PATH` check
+# confirmed IS on this image's PATH — fixes it without needing an
+# ARDUINO_CLI_PATH override in Railway's own config.
 [phases.setup]
 nixPkgs = ["...", "curl"]
 cmds = [
-  "mkdir -p /usr/local/bin",
-  "curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh"
+  "mkdir -p /usr/bin",
+  "curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/bin sh"
 ]
