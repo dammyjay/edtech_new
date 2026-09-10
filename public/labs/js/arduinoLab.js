@@ -399,6 +399,20 @@ const PIN_TO_PORT = {
   A3: { port: "C", bit: 3 }, A4: { port: "C", bit: 4 }, A5: { port: "C", bit: 5 },
 };
 
+// The Uno's analog pins double as ADC channels 0-5, in the same order —
+// avr8js's AVRADC (below) is fed a live voltage per channel index, not
+// per pin name.
+const ANALOG_CHANNEL = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
+
+// Arduino's Servo library doesn't use the hardware PWM registers at all —
+// it bit-bangs a precise HIGH pulse every ~20ms whose *width* (in
+// microseconds) encodes the angle, using these exact constants
+// (Servo.h's MIN_PULSE_WIDTH/MAX_PULSE_WIDTH). So a servo's angle can be
+// read the same way an LED's on/off state is: watching the same GPIO pin,
+// just timing it instead of just reading it.
+const SERVO_MIN_PULSE_US = 544;
+const SERVO_MAX_PULSE_US = 2400;
+
 function findArduinoComponent() {
   for (const comp of placedComponents.values()) {
     if (comp.tag === "wokwi-arduino-uno") return comp;
@@ -425,10 +439,14 @@ function findArduinoConnections(componentId, arduinoId) {
 // Wires up every non-Arduino placed component against the just-started
 // simulation and returns a cleanup function. Re-run fresh on every Run
 // click (see runSketch) — components/wires can change between runs.
-function bindComponentsToSimulation(ports, PinState) {
+//
+// `cpu` is only needed for the servo's pulse-width timing; `adc` is only
+// needed for the two analog parts (null-checked so a sketch that never
+// places one doesn't need either).
+function bindComponentsToSimulation(cpu, ports, PinState, adc) {
   const uno = findArduinoComponent();
-  const boundVisuals = []; // {el, prop} — reset to an "off" state on stop
-  const buttonListeners = []; // {el, onPress, onRelease} — removed on stop
+  const boundVisuals = []; // {el, prop, resetValue} — restored on stop
+  const eventListeners = []; // {el, type, handler} — removed on stop
 
   if (!uno) return () => {}; // nothing to bind without a board on the canvas
 
@@ -448,7 +466,48 @@ function bindComponentsToSimulation(ports, PinState) {
         };
         port.addListener(listener);
         comp.el[prop] = port.pinState(loc.bit) === PinState.High; // set the initial state — addListener only fires on change
-        boundVisuals.push({ el: comp.el, prop });
+        boundVisuals.push({ el: comp.el, prop, resetValue: false });
+      }
+    } else if (comp.tag === "wokwi-rgb-led") {
+      // Each color channel is its own pin/leg — treated as plain digital
+      // on/off for now (a real digitalWrite(HIGH/LOW) per color, the
+      // common intro-level way this part gets used); true analogWrite()
+      // PWM brightness per channel is a natural fast-follow.
+      const PIN_TO_PROP = { R: "ledRed", G: "ledGreen", B: "ledBlue" };
+      for (const { ownPin, arduinoPin } of connections) {
+        const prop = PIN_TO_PROP[ownPin];
+        if (!prop) continue; // COM is the shared reference leg, not driven
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        const listener = () => {
+          comp.el[prop] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+        };
+        port.addListener(listener);
+        comp.el[prop] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+        boundVisuals.push({ el: comp.el, prop, resetValue: 0 });
+      }
+    } else if (comp.tag === "wokwi-servo") {
+      for (const { arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        let risingAtCycle = null;
+        const listener = () => {
+          const isHigh = port.pinState(loc.bit) === PinState.High;
+          if (isHigh) {
+            risingAtCycle = cpu.cycles;
+            return;
+          }
+          if (risingAtCycle === null) return;
+          const pulseUs = ((cpu.cycles - risingAtCycle) / CPU_HZ) * 1_000_000;
+          risingAtCycle = null;
+          const span = SERVO_MAX_PULSE_US - SERVO_MIN_PULSE_US;
+          const angle = ((pulseUs - SERVO_MIN_PULSE_US) / span) * 180;
+          comp.el.angle = Math.max(0, Math.min(180, angle));
+        };
+        port.addListener(listener);
+        boundVisuals.push({ el: comp.el, prop: "angle", resetValue: 0 });
       }
     } else if (comp.tag === "wokwi-pushbutton") {
       for (const { arduinoPin } of connections) {
@@ -462,17 +521,51 @@ function bindComponentsToSimulation(ports, PinState) {
         const onRelease = () => port.setPin(loc.bit, true);
         comp.el.addEventListener("button-press", onPress);
         comp.el.addEventListener("button-release", onRelease);
-        buttonListeners.push({ el: comp.el, onPress, onRelease });
+        eventListeners.push({ el: comp.el, type: "button-press", handler: onPress });
+        eventListeners.push({ el: comp.el, type: "button-release", handler: onRelease });
+      }
+    } else if (comp.tag === "wokwi-slide-switch") {
+      for (const { arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        const applyState = () => port.setPin(loc.bit, !!comp.el.value);
+        applyState();
+        comp.el.addEventListener("input", applyState);
+        eventListeners.push({ el: comp.el, type: "input", handler: applyState });
+      }
+    } else if (comp.tag === "wokwi-potentiometer") {
+      if (!adc) continue;
+      for (const { ownPin, arduinoPin } of connections) {
+        if (ownPin !== "SIG") continue; // GND/VCC legs carry no signal of their own
+        const channel = ANALOG_CHANNEL[arduinoPin];
+        if (channel === undefined) continue; // wired to a non-analog pin — nothing we can feed
+        const applyValue = () => {
+          const range = comp.el.max - comp.el.min || 1;
+          adc.channelValues[channel] = ((comp.el.value - comp.el.min) / range) * 5;
+        };
+        applyValue();
+        comp.el.addEventListener("input", applyValue);
+        eventListeners.push({ el: comp.el, type: "input", handler: applyValue });
+      }
+    } else if (comp.tag === "wokwi-photoresistor-sensor") {
+      if (!adc) continue;
+      for (const { ownPin, arduinoPin } of connections) {
+        if (ownPin !== "AO") continue;
+        const channel = ANALOG_CHANNEL[arduinoPin];
+        if (channel === undefined) continue;
+        // This part has no built-in interactive "light level" control
+        // (unlike the potentiometer's draggable knob) — a fixed mid-range
+        // reading is still a real ADC round-trip end to end, just not
+        // adjustable by the student yet.
+        adc.channelValues[channel] = 2.5;
       }
     }
   }
 
   return function unbind() {
-    for (const { el, prop } of boundVisuals) el[prop] = false;
-    for (const { el, onPress, onRelease } of buttonListeners) {
-      el.removeEventListener("button-press", onPress);
-      el.removeEventListener("button-release", onRelease);
-    }
+    for (const { el, prop, resetValue } of boundVisuals) el[prop] = resetValue;
+    for (const { el, type, handler } of eventListeners) el.removeEventListener(type, handler);
   };
 }
 
@@ -663,8 +756,8 @@ async function runSketch() {
   }
 
   const {
-    CPU, AVRIOPort, AVRTimer, AVRUSART, portBConfig, portCConfig, portDConfig,
-    timer0Config, usart0Config, avrInstruction, PinState,
+    CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, portBConfig, portCConfig, portDConfig,
+    timer0Config, timer1Config, usart0Config, adcConfig, avrInstruction, PinState,
   } = avr8js;
 
   const progMem = parseIntelHex(compileResult.hex);
@@ -677,12 +770,23 @@ async function runSketch() {
     D: new AVRIOPort(cpu, portDConfig),
   };
   new AVRTimer(cpu, timer0Config); // required for delay()/millis() to ever advance
+  // Arduino's Servo library doesn't touch Timer0 at all — it drives its
+  // pulses off Timer1's own compare-match interrupt, entirely in the
+  // background regardless of what loop() is doing. Without a Timer1
+  // instance those registers are just inert memory: no interrupt ever
+  // fires, no pulse ever appears on the pin, and the servo binding above
+  // (which times whatever pulse IS there) sees nothing to measure.
+  new AVRTimer(cpu, timer1Config);
+  // Feeds analogRead() a real voltage per channel — see the potentiometer/
+  // photoresistor branches in bindComponentsToSimulation below, which set
+  // adc.channelValues[n] instead of toggling a pin like everything else.
+  const adc = new AVRADC(cpu, adcConfig);
 
   clearSerialOutput();
   const usart = new AVRUSART(cpu, usart0Config, CPU_HZ);
   usart.onLineTransmit = (line) => appendSerialLine(line.replace(/\r$/, "")); // Serial.println sends "\r\n"
 
-  const unbindComponents = bindComponentsToSimulation(ports, PinState);
+  const unbindComponents = bindComponentsToSimulation(cpu, ports, PinState, adc);
 
   simState = { cpu, startWallMs: performance.now(), timeoutId: null, unbindComponents };
   setButtonsRunning(true, false);

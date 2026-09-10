@@ -69,6 +69,15 @@ let coreInstallPromise = null;
 // startup call; the compile endpoint below also awaits this promise
 // itself before compiling, so an early request during a cold start
 // waits for it instead of failing.
+// Libraries a sketch can #include that aren't part of the AVR core itself
+// (Servo.h etc. live in Arduino's separate Library Manager index, not the
+// board core — `core install arduino:avr` alone doesn't fetch them, found
+// out the hard way when the Servo component's own sketch failed to
+// compile with "Servo.h: No such file or directory"). Kept short and
+// added to as new component types actually need one — not a blanket
+// "install everything" list.
+const BUILTIN_LIBRARIES = ["Servo"];
+
 async function ensureAvrCoreInstalled() {
   if (!coreInstallPromise) {
     coreInstallPromise = (async () => {
@@ -82,6 +91,20 @@ async function ensureAvrCoreInstalled() {
         throw new Error("Arduino AVR core install failed");
       }
       console.log("arduino-cli: arduino:avr core ready.");
+
+      const libUpdateResult = await runArduinoCli(["lib", "update-index"], { timeout: 60000 });
+      if (libUpdateResult.err) {
+        console.error("arduino-cli lib update-index failed:", libUpdateResult.stderr || libUpdateResult.err.message);
+      }
+      for (const lib of BUILTIN_LIBRARIES) {
+        const libInstallResult = await runArduinoCli(["lib", "install", lib], { timeout: 120000 });
+        if (libInstallResult.err) {
+          // Non-fatal — a missing extra library shouldn't take down the
+          // whole compiler; sketches that don't #include it are unaffected.
+          console.error(`arduino-cli lib install ${lib} failed:`, libInstallResult.stderr || libInstallResult.err.message);
+        }
+      }
+      console.log("arduino-cli: builtin libraries ready.");
     })();
   }
   return coreInstallPromise;

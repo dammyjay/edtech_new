@@ -38,19 +38,21 @@
     <div class="components-panel">
       <h3>Components</h3>
 
+      <div class="component-category">Boards</div>
       <div class="component" draggable="true" data-type="wokwi-arduino-uno">
         <div class="component-preview preview-board"><wokwi-arduino-uno></wokwi-arduino-uno></div>
         Arduino Uno
       </div>
 
+      <div class="component-category">Output</div>
       <div class="component" draggable="true" data-type="wokwi-led">
         <div class="component-preview preview-led"><wokwi-led color="red"></wokwi-led></div>
         LED
       </div>
 
-      <div class="component" draggable="true" data-type="wokwi-pushbutton">
-        <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
-        Push Button
+      <div class="component" draggable="true" data-type="wokwi-rgb-led">
+        <div class="component-preview preview-rgb-led"><wokwi-rgb-led></wokwi-rgb-led></div>
+        RGB LED
       </div>
 
       <div class="component" draggable="true" data-type="wokwi-buzzer">
@@ -58,7 +60,34 @@
         Buzzer
       </div>
 
-      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it.</p>
+      <div class="component" draggable="true" data-type="wokwi-servo">
+        <div class="component-preview preview-servo"><wokwi-servo></wokwi-servo></div>
+        Servo Motor
+      </div>
+
+      <div class="component-category">Input</div>
+      <div class="component" draggable="true" data-type="wokwi-pushbutton">
+        <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
+        Push Button
+      </div>
+
+      <div class="component" draggable="true" data-type="wokwi-slide-switch">
+        <div class="component-preview preview-slide-switch"><wokwi-slide-switch></wokwi-slide-switch></div>
+        Slide Switch
+      </div>
+
+      <div class="component" draggable="true" data-type="wokwi-potentiometer">
+        <div class="component-preview preview-potentiometer"><wokwi-potentiometer></wokwi-potentiometer></div>
+        Potentiometer
+      </div>
+
+      <div class="component-category">Sensors</div>
+      <div class="component" draggable="true" data-type="wokwi-photoresistor-sensor">
+        <div class="component-preview preview-photoresistor"><wokwi-photoresistor-sensor></wokwi-photoresistor-sensor></div>
+        Light Sensor
+      </div>
+
+      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it. The potentiometer's knob and the slide switch respond to real clicks/drags once placed.</p>
     </div>
 
     <div class="canvas-wrap">

@@ -173,6 +173,19 @@ html, body {
     margin: 0 0 14px;
 }
 
+.component-category {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #A17807;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 16px 0 8px;
+}
+
+.component-category:first-of-type {
+    margin-top: 0;
+}
+
 .component {
     display: flex;
     align-items: center;
@@ -211,6 +224,11 @@ html, body {
 .preview-led > * { transform: scale(0.8); }
 .preview-button > * { transform: scale(0.8); }
 .preview-buzzer > * { transform: scale(0.48); }
+.preview-rgb-led > * { transform: scale(0.75); }
+.preview-servo > * { transform: scale(0.35); }
+.preview-slide-switch > * { transform: scale(1); }
+.preview-potentiometer > * { transform: scale(0.4); }
+.preview-photoresistor > * { transform: scale(0.22); }
 
 .components-hint {
     font-size: 11.5px;
