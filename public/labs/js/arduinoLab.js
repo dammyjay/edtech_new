@@ -200,6 +200,24 @@ async function placeComponent(tag, x, y) {
 // part's own *pre-scale* native units, so they need scaling by the
 // current zoom to land at the right on-screen offset within that
 // (now bigger-or-smaller) rendered box.
+// A flipped and/or 180°-turned part's pins mirror within its own
+// (unchanged) bounding box — flip mirrors x, turn mirrors both x and y.
+// Both are deliberately restricted to operations that leave the box's
+// reported width/height untouched (unlike an arbitrary 90°/270° turn,
+// which would swap them and break this math — why "turn" here is a
+// clean 180°, not free rotation), so this stays exact against
+// getBoundingClientRect()'s already zoom-scaled width/height.
+function orientedPinOffset(comp, pin, boxWidth, boxHeight) {
+  let x = pin.x * viewZoom;
+  let y = pin.y * viewZoom;
+  if (comp.flipped) x = boxWidth - x;
+  if (comp.rotated180) {
+    x = boxWidth - x;
+    y = boxHeight - y;
+  }
+  return { x, y };
+}
+
 function getPinCanvasPos(componentId, pinName) {
   const comp = placedComponents.get(componentId);
   if (!comp || !comp.el.pinInfo) return null;
@@ -208,9 +226,10 @@ function getPinCanvasPos(componentId, pinName) {
 
   const elRect = comp.el.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
+  const offset = orientedPinOffset(comp, pin, elRect.width, elRect.height);
   return {
-    x: elRect.left - canvasRect.left + pin.x * viewZoom,
-    y: elRect.top - canvasRect.top + pin.y * viewZoom,
+    x: elRect.left - canvasRect.left + offset.x,
+    y: elRect.top - canvasRect.top + offset.y,
   };
 }
 
@@ -227,8 +246,9 @@ function renderPins(componentId) {
   const isHole = comp.tag === "custom-breadboard";
 
   for (const pin of comp.el.pinInfo) {
-    const x = elRect.left - canvasRect.left + pin.x * viewZoom;
-    const y = elRect.top - canvasRect.top + pin.y * viewZoom;
+    const offset = orientedPinOffset(comp, pin, elRect.width, elRect.height);
+    const x = elRect.left - canvasRect.left + offset.x;
+    const y = elRect.top - canvasRect.top + offset.y;
 
     const key = componentId + "::" + pin.name;
     let circle = pinCircles.get(key);
@@ -251,6 +271,8 @@ function renderPins(componentId) {
 // Moving a placed component
 // ---------------------------------------------------------------------
 
+const DRAG_THRESHOLD_PX = 4; // below this, a mousedown+mouseup is a click (select), not a drag (move)
+
 function attachComponentDrag(el, id) {
   el.addEventListener("mousedown", (e) => {
     // Pin circles live in the separate SVG overlay, not inside `el` — a
@@ -263,8 +285,11 @@ function attachComponentDrag(el, id) {
     const startClientY = e.clientY;
     const startLeft = parseFloat(el.style.left) || 0;
     const startTop = parseFloat(el.style.top) || 0;
+    let dragged = false;
 
     function onMove(ev) {
+      if (!dragged && Math.hypot(ev.clientX - startClientX, ev.clientY - startClientY) < DRAG_THRESHOLD_PX) return;
+      dragged = true;
       // Mouse movement is in real screen pixels; el.style.left/top are in
       // #canvasViewport's local (pre-zoom) units, so the delta needs
       // dividing by the current zoom to move the part exactly as far as
@@ -275,17 +300,150 @@ function attachComponentDrag(el, id) {
       el.style.top = Math.max(0, startTop + dy) + "px";
       renderPins(id);
       redrawWires();
+      renderSelectionToolbar();
     }
     function onUp() {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
-      trySnapToBreadboard(id);
-      redrawWires();
+      if (dragged) {
+        trySnapToBreadboard(id);
+        redrawWires();
+        renderSelectionToolbar();
+      } else {
+        selectComponent(id);
+      }
     }
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   });
 }
+
+// ---------------------------------------------------------------------
+// Selection & editing — flip, turn, duplicate, delete
+// ---------------------------------------------------------------------
+
+let selectedComponentId = null;
+
+function selectComponent(id) {
+  selectedComponentId = id;
+  document.querySelectorAll(".placed-component.selected").forEach((el) => el.classList.remove("selected"));
+  const comp = placedComponents.get(id);
+  if (comp) comp.el.classList.add("selected");
+  renderSelectionToolbar();
+}
+
+function deselectComponent() {
+  selectedComponentId = null;
+  document.querySelectorAll(".placed-component.selected").forEach((el) => el.classList.remove("selected"));
+  renderSelectionToolbar();
+}
+
+// Positions the floating flip/turn/duplicate/delete toolbar centered
+// above whichever component is currently selected (or hides it).
+function renderSelectionToolbar() {
+  const toolbar = document.getElementById("componentToolbar");
+  if (!toolbar) return;
+  const comp = selectedComponentId ? placedComponents.get(selectedComponentId) : null;
+  if (!comp) {
+    toolbar.hidden = true;
+    return;
+  }
+  const elRect = comp.el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  toolbar.style.left = elRect.left - canvasRect.left + elRect.width / 2 + "px";
+  toolbar.style.top = elRect.top - canvasRect.top + "px";
+  toolbar.hidden = false;
+}
+
+// Applies a component's current flip/turn state as a CSS transform.
+// Deliberately just these two (see orientedPinOffset's comment for why
+// "turn" is a clean 180° rather than free rotation) — both are
+// involutions around the element's own center, so neither changes its
+// reported bounding box, which is what keeps the pin math exact.
+function applyComponentOrientation(comp) {
+  const parts = [];
+  if (comp.flipped) parts.push("scaleX(-1)");
+  if (comp.rotated180) parts.push("rotate(180deg)");
+  comp.el.style.transform = parts.join(" ");
+}
+
+function flipComponent(id) {
+  const comp = placedComponents.get(id);
+  if (!comp) return;
+  comp.flipped = !comp.flipped;
+  applyComponentOrientation(comp);
+  renderPins(id);
+  redrawWires();
+}
+
+function turnComponent(id) {
+  const comp = placedComponents.get(id);
+  if (!comp) return;
+  comp.rotated180 = !comp.rotated180;
+  applyComponentOrientation(comp);
+  renderPins(id);
+  redrawWires();
+}
+
+async function duplicateComponent(id) {
+  const source = placedComponents.get(id);
+  if (!source) return;
+  const x = (parseFloat(source.el.style.left) || 0) + 24;
+  const y = (parseFloat(source.el.style.top) || 0) + 24;
+  const clone = await placeComponent(source.tag, x, y);
+  clone.flipped = !!source.flipped;
+  clone.rotated180 = !!source.rotated180;
+  if (clone.flipped || clone.rotated180) {
+    applyComponentOrientation(clone);
+    renderPins(clone.id);
+  }
+  // A duplicate is a fresh part, not a clone of what it was wired to —
+  // matches how every other design tool's "duplicate" behaves.
+  trySnapToBreadboard(clone.id);
+  redrawWires();
+  selectComponent(clone.id);
+}
+
+function deleteComponent(id) {
+  const comp = placedComponents.get(id);
+  if (!comp) return;
+
+  for (let i = wires.length - 1; i >= 0; i--) {
+    if (wires[i].from.componentId === id || wires[i].to.componentId === id) wires.splice(i, 1);
+  }
+  // A placement can reference this id either as the plugged-in part or —
+  // if this component IS the breadboard — as the hole side of the entry.
+  for (const [key, holeKey] of [...breadboardPlacements.entries()]) {
+    if (key.startsWith(id + "::") || holeKey.startsWith(id + "::")) breadboardPlacements.delete(key);
+  }
+  if (comp.el.pinInfo) {
+    for (const pin of comp.el.pinInfo) {
+      const key = id + "::" + pin.name;
+      pinCircles.get(key)?.remove();
+      pinCircles.delete(key);
+    }
+  }
+  comp.el.remove();
+  placedComponents.delete(id);
+  if (selectedComponentId === id) deselectComponent();
+  redrawWires();
+  if (canvasHint && placedComponents.size === 0) canvasHint.style.display = "";
+}
+
+document.getElementById("componentToolbar")?.addEventListener("mousedown", (e) => {
+  // Stop this reaching the canvas's own pan-drag listener — clicking a
+  // toolbar button is not a click on empty canvas background.
+  e.stopPropagation();
+});
+document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn || !selectedComponentId) return;
+  const id = selectedComponentId;
+  if (btn.dataset.action === "flip") flipComponent(id);
+  else if (btn.dataset.action === "turn") turnComponent(id);
+  else if (btn.dataset.action === "duplicate") duplicateComponent(id);
+  else if (btn.dataset.action === "delete") deleteComponent(id);
+});
 
 // ---------------------------------------------------------------------
 // Breadboard snapping
@@ -505,6 +663,7 @@ function applyViewTransform() {
   // (a handful of parts in a teaching circuit, not hundreds).
   for (const id of placedComponents.keys()) renderPins(id);
   redrawWires();
+  renderSelectionToolbar();
 }
 
 function setZoom(next) {
@@ -543,7 +702,7 @@ let panState = null; // { startClientX, startClientY, startPanX, startPanY }
 
 canvas.addEventListener("mousedown", (e) => {
   if (e.target !== canvas && e.target !== canvasViewport) return; // clicked a component/pin, not empty space
-  panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY };
+  panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY, moved: false };
   canvas.classList.add("panning");
   document.addEventListener("mousemove", onCanvasPanMove);
   document.addEventListener("mouseup", onCanvasPanUp);
@@ -551,12 +710,19 @@ canvas.addEventListener("mousedown", (e) => {
 
 function onCanvasPanMove(e) {
   if (!panState) return;
+  if (!panState.moved && Math.hypot(e.clientX - panState.startClientX, e.clientY - panState.startClientY) >= DRAG_THRESHOLD_PX) {
+    panState.moved = true;
+  }
   viewPanX = panState.startPanX + (e.clientX - panState.startClientX);
   viewPanY = panState.startPanY + (e.clientY - panState.startClientY);
   applyViewTransform();
 }
 
 function onCanvasPanUp() {
+  // A mousedown+mouseup on empty canvas with no real movement in between
+  // is a plain click — deselect, same as clicking empty space in any
+  // other design tool, rather than leaving the toolbar stuck open.
+  if (panState && !panState.moved) deselectComponent();
   panState = null;
   canvas.classList.remove("panning");
   document.removeEventListener("mousemove", onCanvasPanMove);
@@ -841,6 +1007,103 @@ function appendSerialLine(text) {
   while (output.children.length > MAX_SERIAL_LINES) output.removeChild(output.firstChild);
   output.scrollTop = output.scrollHeight;
 }
+
+// ---------------------------------------------------------------------
+// Toast — brief feedback for actions with no other visible result
+// (copy/download), so "did that actually do anything?" has an answer.
+// ---------------------------------------------------------------------
+
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById("labToast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("visible"), 2200);
+}
+
+// ---------------------------------------------------------------------
+// Circuit copy / download / code export
+// ---------------------------------------------------------------------
+
+// The whole canvas as plain data: every placed part (its type, position,
+// and flip/turn state — but not its live simulation state, which only
+// exists while Running), every wire, and every breadboard placement.
+// Doesn't include the code (Export .ino covers that separately) since a
+// circuit and a sketch are useful to share independently of each other.
+function serializeCircuit() {
+  return {
+    components: [...placedComponents.values()].map((c) => ({
+      id: c.id,
+      tag: c.tag,
+      x: parseFloat(c.el.style.left) || 0,
+      y: parseFloat(c.el.style.top) || 0,
+      flipped: !!c.flipped,
+      rotated180: !!c.rotated180,
+    })),
+    wires: wires.map((w) => ({ from: w.from, to: w.to })),
+    breadboardPlacements: [...breadboardPlacements.entries()],
+  };
+}
+
+function downloadTextFile(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function copyCircuit() {
+  const json = JSON.stringify(serializeCircuit(), null, 2);
+  showToast((await copyTextToClipboard(json)) ? "Circuit copied to clipboard" : "Couldn't copy — clipboard access was blocked");
+}
+
+// Some browsers (older ones, locked-down/managed ones, and some automated
+// contexts) block the async Clipboard API outright even with permission
+// nominally granted — the classic execCommand fallback still works there,
+// since it rides the same real user-gesture click this is always called
+// from.
+async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      textarea.remove();
+      return ok;
+    } catch (fallbackErr) {
+      return false;
+    }
+  }
+}
+
+function downloadCircuit() {
+  downloadTextFile("circuit.json", JSON.stringify(serializeCircuit(), null, 2), "application/json");
+  showToast("Circuit downloaded");
+}
+
+function exportIno() {
+  if (!codeEditor) return;
+  downloadTextFile("sketch.ino", codeEditor.getValue(), "text/plain");
+  showToast("sketch.ino downloaded");
+}
+
+document.getElementById("copyCircuitBtn")?.addEventListener("click", copyCircuit);
+document.getElementById("downloadCircuitBtn")?.addEventListener("click", downloadCircuit);
+document.getElementById("exportInoBtn")?.addEventListener("click", exportIno);
 
 // ---------------------------------------------------------------------
 // Monaco editor

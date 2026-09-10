@@ -8,6 +8,29 @@ html, body {
     overflow: hidden;
 }
 
+.lab-toast {
+    position: fixed;
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    z-index: 100;
+    background: #222;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.lab-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 .arduino-lab {
     height: 100vh;
     display: flex;
@@ -111,6 +134,32 @@ html, body {
     background: transparent;
     color: #fff;
     border: 1.5px solid rgba(255,255,255,0.85);
+}
+
+.lab-topbar-extra {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 12px;
+    margin-left: 4px;
+    border-left: 1px solid rgba(255,255,255,0.3);
+}
+
+.lab-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+
+.lab-icon-btn:hover {
+    background: rgba(255,255,255,0.18);
 }
 
 .lab-topbar-right {
@@ -307,6 +356,47 @@ html, body {
 
 .placed-component:active {
     cursor: grabbing;
+}
+
+.placed-component.selected {
+    outline: 2px solid #1a9c4b;
+    outline-offset: 3px;
+}
+
+.component-toolbar {
+    position: absolute;
+    transform: translate(-50%, calc(-100% - 10px));
+    z-index: 4;
+    display: flex;
+    gap: 3px;
+    background: #fff;
+    border: 1px solid #e6e2d8;
+    border-radius: 9px;
+    padding: 4px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.component-toolbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+}
+
+.component-toolbar button:hover {
+    background: #f2efe6;
+    color: #A17807;
+}
+
+.component-toolbar button.ct-danger:hover {
+    background: #fdecea;
+    color: #d32f2f;
 }
 
 .wire-overlay {

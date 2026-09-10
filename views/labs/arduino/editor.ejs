@@ -1,5 +1,7 @@
 <link rel="stylesheet" href="/labs/css/arduino.css">
 
+<div id="labToast" class="lab-toast"></div>
+
 <div class="arduino-lab">
 
   <div class="lab-topbar">
@@ -25,6 +27,18 @@
       <button id="saveBtn" class="lab-btn lab-btn--save">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4"/><path d="M8 20v-5h8v5"/></svg>
         Save
+      </button>
+    </div>
+
+    <div class="lab-topbar-extra">
+      <button id="copyCircuitBtn" class="lab-icon-btn" title="Copy circuit to clipboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+      </button>
+      <button id="downloadCircuitBtn" class="lab-icon-btn" title="Download circuit as a file">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      </button>
+      <button id="exportInoBtn" class="lab-icon-btn" title="Export code as sketch.ino">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
       </button>
     </div>
 
@@ -106,7 +120,7 @@
         Light Sensor
       </div>
 
-      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it. Drop a breadboard first, then place a part with a leg near a hole to plug it into that row — everything in the same row is electrically connected, just like a real breadboard.</p>
+      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it. Drop a breadboard first, then place a part with a leg near a hole to plug it into that row — everything in the same row is electrically connected, just like a real breadboard. Click a placed part to flip, turn, duplicate, or delete it.</p>
     </div>
 
     <div class="canvas-wrap">
@@ -117,6 +131,21 @@
         <div id="canvasViewport" class="canvas-viewport"></div>
 
         <svg id="wireOverlay" class="wire-overlay"></svg>
+
+        <div id="componentToolbar" class="component-toolbar" hidden>
+          <button type="button" data-action="flip" title="Flip horizontally">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 8l3 4-3 4"/><path d="M7 8l-3 4 3 4"/></svg>
+          </button>
+          <button type="button" data-action="turn" title="Turn 180°">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          </button>
+          <button type="button" data-action="duplicate" title="Duplicate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+          </button>
+          <button type="button" data-action="delete" class="ct-danger" title="Delete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
+          </button>
+        </div>
 
         <div class="view-controls">
           <div class="view-controls-pad">
