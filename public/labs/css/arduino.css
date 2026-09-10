@@ -1,24 +1,192 @@
-.arduino-container {
+/* Fixed-viewport app shell — no page scroll on desktop. The lab has no
+   site header of its own (routes/labRoutes.js -> controllers/labController
+   .getArduinoLab renders through the bare layout.ejs), so it can safely
+   claim the whole viewport. */
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+.arduino-lab {
+    height: 100vh;
     display: flex;
-    height: 60vh;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f8f9fa;
+}
+
+/* ---------------------------------------------------------------- */
+/* Top bar                                                           */
+/* ---------------------------------------------------------------- */
+
+.lab-topbar {
+    flex: 0 0 auto;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 18px;
+    background: linear-gradient(90deg, #A17807, #c99a1f);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+.lab-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+}
+
+.lab-back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(255,255,255,0.12);
+    flex: 0 0 auto;
+}
+
+.lab-back-link:hover {
+    background: rgba(255,255,255,0.22);
+}
+
+.lab-title {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.lab-title-main {
+    color: #fff;
+    font-size: 15.5px;
+    font-weight: 700;
+}
+
+.lab-title-sub {
+    color: rgba(255,255,255,0.85);
+    font-size: 11px;
+}
+
+.lab-topbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lab-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.lab-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.lab-btn--run {
+    background: #1a9c4b;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.lab-btn--stop {
+    background: rgba(255,255,255,0.9);
+    color: #8a8a8a;
+}
+
+.lab-btn--save {
+    background: transparent;
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.85);
+}
+
+.lab-topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.arduino-status {
+    font-size: 12.5px;
+    color: #fff;
+    background: rgba(0,0,0,0.18);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.arduino-status--busy {
+    background: rgba(0,0,0,0.28);
+}
+
+.arduino-status--running {
+    background: #ffffff;
+    color: #1a9c4b;
+    font-weight: 700;
+}
+
+.arduino-status--error {
+    background: #fdecea;
+    color: #d32f2f;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- */
+/* Body: sidebar + canvas + right panel                              */
+/* ---------------------------------------------------------------- */
+
+.lab-body {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .components-panel {
     width: 220px;
+    flex: 0 0 auto;
     background: #fff;
-    border-right: 1px solid #ddd;
-    padding: 10px;
+    border-right: 1px solid #e6e2d8;
+    padding: 16px 14px;
+    overflow-y: auto;
+}
+
+.components-panel h3 {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 0 0 14px;
 }
 
 .component {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #f5f5f5;
+    background: #fdfbf6;
+    border: 1px solid #ecdfb8;
     padding: 8px 12px;
     margin-bottom: 10px;
     cursor: grab;
-    border-radius: 8px;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    font-size: 13px;
+    font-weight: 600;
+    color: #222;
 }
 
 .component-preview {
@@ -51,45 +219,44 @@
     margin-top: 14px;
 }
 
+/* ---------------------------------------------------------------- */
+/* Canvas — the widest panel, pannable + zoomable                    */
+/* ---------------------------------------------------------------- */
+
+.canvas-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+}
+
 .circuit-canvas {
     flex: 1;
-    background: #fafafa;
     position: relative;
     overflow: hidden;
+    background-color: #e9ebee;
+    background-image: radial-gradient(#d7dade 1px, transparent 1px);
+    background-size: 18px 18px;
+    cursor: grab;
 }
 
-.circuit-item {
+.circuit-canvas.panning {
+    cursor: grabbing;
+}
+
+#circuitCanvasHint {
     position: absolute;
-    cursor: move;
-    padding: 10px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    top: 16px;
+    left: 20px;
+    margin: 0;
+    color: #b7bac0;
+    font-size: 15px;
+    pointer-events: none;
 }
 
-.code-section {
-    height: 250px;
-}
-
-.code-editor {
-    width: 100%;
-    height: 100%;
-}
-
-.controls {
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.controls button {
-    cursor: pointer;
-}
-
-.controls button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
+.canvas-viewport {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
 }
 
 .placed-component {
@@ -113,7 +280,8 @@
     height: 100%;
     z-index: 2;
     /* empty space passes clicks through to the canvas underneath (for
-       drag/drop from the palette); pins and wires opt back in below. */
+       drag/drop from the palette, and click-drag panning); pins and
+       wires opt back in below. */
     pointer-events: none;
 }
 
@@ -152,28 +320,100 @@
     pointer-events: none;
 }
 
-.arduino-status {
-    margin-left: auto;
-    font-size: 13px;
-    color: #666;
-    font-family: monospace;
+/* Floating pan/zoom controls, bottom-right of the canvas */
+.view-controls {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid #e6e2d8;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
-.arduino-status--busy {
+.view-controls-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 26px);
+    grid-template-rows: repeat(3, 26px);
+    grid-template-areas:
+        ".    up    ."
+        "left reset right"
+        ".    down  .";
+    gap: 2px;
+}
+
+.vc-up { grid-area: up; }
+.vc-left { grid-area: left; }
+.vc-reset { grid-area: reset; }
+.vc-right { grid-area: right; }
+.vc-down { grid-area: down; }
+
+.vc-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid #e0dbcb;
+    background: #fff;
+    color: #555;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.vc-btn:hover {
+    background: #f2efe6;
     color: #A17807;
+    border-color: #A17807;
 }
 
-.arduino-status--running {
-    color: #1a9c4b;
-    font-weight: 600;
+.view-controls-zoom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.arduino-status--error {
-    color: #d32f2f;
+.vc-zoom-level {
+    font-size: 10.5px;
+    font-family: Consolas, "Courier New", monospace;
+    color: #888;
+    width: 34px;
+    text-align: center;
+}
+
+/* ---------------------------------------------------------------- */
+/* Right panel — code editor + Serial Monitor                        */
+/* ---------------------------------------------------------------- */
+
+.right-panel {
+    width: 440px;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #e6e2d8;
+    min-height: 0;
+}
+
+.code-section {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.code-editor {
+    width: 100%;
+    height: 100%;
 }
 
 .serial-monitor {
-    height: 140px;
+    height: 160px;
+    flex: 0 0 auto;
     background: #0c0c0c;
     display: flex;
     flex-direction: column;
@@ -224,4 +464,35 @@
 .serial-output .serial-placeholder {
     color: #555;
     font-style: italic;
+}
+
+/* ---------------------------------------------------------------- */
+/* Smaller screens — the "at a glance" fixed layout is a desktop ask;
+   below that, fall back to a normal scrolling stack. */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+    html, body {
+        overflow: auto;
+    }
+    .arduino-lab {
+        height: auto;
+        overflow: visible;
+    }
+    .lab-body {
+        flex-direction: column;
+        overflow: visible;
+    }
+    .components-panel {
+        width: 100%;
+    }
+    .circuit-canvas {
+        height: 50vh;
+    }
+    .right-panel {
+        width: 100%;
+    }
+    .code-section {
+        height: 320px;
+    }
 }

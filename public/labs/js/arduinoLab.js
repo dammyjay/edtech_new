@@ -20,6 +20,13 @@ const canvas = document.getElementById("circuitCanvas");
 // Circuit builder — component placement
 // ---------------------------------------------------------------------
 
+// Placed components live inside #canvasViewport (which the pan/zoom
+// transform below is applied to), not directly in #circuitCanvas — the
+// wire overlay stays a separate, untransformed sibling covering the same
+// area (see "Pan & zoom" further down for why: it lets every pin/wire
+// position keep using plain screen-space getBoundingClientRect() math,
+// completely unaffected by whatever the current pan/zoom is).
+const canvasViewport = document.getElementById("canvasViewport");
 const wireOverlay = document.getElementById("wireOverlay");
 const canvasHint = document.getElementById("circuitCanvasHint");
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -46,7 +53,11 @@ canvas.addEventListener("drop", async (e) => {
   if (!tag || !customElements.get(tag)) return; // unknown tag, or the @wokwi/elements CDN script hasn't loaded
 
   const canvasRect = canvas.getBoundingClientRect();
-  await placeComponent(tag, e.clientX - canvasRect.left, e.clientY - canvasRect.top);
+  // Convert the drop's screen position into #canvasViewport's own local
+  // (pre-transform) coordinate space — undo the pan, then undo the zoom.
+  const localX = (e.clientX - canvasRect.left - viewPanX) / viewZoom;
+  const localY = (e.clientY - canvasRect.top - viewPanY) / viewZoom;
+  await placeComponent(tag, localX, localY);
 });
 
 async function placeComponent(tag, x, y) {
@@ -58,7 +69,7 @@ async function placeComponent(tag, x, y) {
 
   const id = "comp-" + ++componentCounter;
   el.dataset.componentId = id;
-  canvas.appendChild(el);
+  canvasViewport.appendChild(el);
 
   // Lit components render asynchronously — pinInfo itself doesn't need
   // this (it's a plain getter off property defaults), but
@@ -82,9 +93,12 @@ async function placeComponent(tag, x, y) {
 // x/y in the same CSS-pixel space the part actually renders at (verified
 // against the library's own source: e.g. the Uno's SVG is authored in mm,
 // pinInfo x/y match its *browser-rendered* px size at that native scale,
-// not the SVG's internal viewBox). So as long as a placed part is never
-// CSS-scaled, its own getBoundingClientRect() top-left plus pin.x/pin.y is
-// exactly the pin's on-screen position — no per-component math needed.
+// not the SVG's internal viewBox). getBoundingClientRect() already
+// reflects the current pan/zoom (the browser computes it post-transform),
+// so elRect.left/top need no adjustment — but pin.x/pin.y are in the
+// part's own *pre-scale* native units, so they need scaling by the
+// current zoom to land at the right on-screen offset within that
+// (now bigger-or-smaller) rendered box.
 function getPinCanvasPos(componentId, pinName) {
   const comp = placedComponents.get(componentId);
   if (!comp || !comp.el.pinInfo) return null;
@@ -94,8 +108,8 @@ function getPinCanvasPos(componentId, pinName) {
   const elRect = comp.el.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
   return {
-    x: elRect.left - canvasRect.left + pin.x,
-    y: elRect.top - canvasRect.top + pin.y,
+    x: elRect.left - canvasRect.left + pin.x * viewZoom,
+    y: elRect.top - canvasRect.top + pin.y * viewZoom,
   };
 }
 
@@ -132,17 +146,24 @@ function attachComponentDrag(el, id) {
   el.addEventListener("mousedown", (e) => {
     // Pin circles live in the separate SVG overlay, not inside `el` — a
     // mousedown reaching here is always on the component's own body.
+    // Stopped from bubbling so the canvas's own pan-drag (below) doesn't
+    // also kick in for what's really a component drag.
     e.preventDefault();
-    const canvasRect = canvas.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const grabOffsetX = e.clientX - elRect.left;
-    const grabOffsetY = e.clientY - elRect.top;
+    e.stopPropagation();
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const startLeft = parseFloat(el.style.left) || 0;
+    const startTop = parseFloat(el.style.top) || 0;
 
     function onMove(ev) {
-      const x = Math.max(0, ev.clientX - canvasRect.left - grabOffsetX);
-      const y = Math.max(0, ev.clientY - canvasRect.top - grabOffsetY);
-      el.style.left = x + "px";
-      el.style.top = y + "px";
+      // Mouse movement is in real screen pixels; el.style.left/top are in
+      // #canvasViewport's local (pre-zoom) units, so the delta needs
+      // dividing by the current zoom to move the part exactly as far as
+      // the cursor, regardless of how zoomed in/out the view is.
+      const dx = (ev.clientX - startClientX) / viewZoom;
+      const dy = (ev.clientY - startClientY) / viewZoom;
+      el.style.left = Math.max(0, startLeft + dx) + "px";
+      el.style.top = Math.max(0, startTop + dy) + "px";
       renderPins(id);
       redrawWires();
     }
@@ -163,6 +184,7 @@ let pendingWire = null; // { fromComponentId, fromPin, from: {x,y}, rubberPath }
 
 function onPinMouseDown(e) {
   e.preventDefault();
+  e.stopPropagation(); // don't also trigger the canvas's own pan-drag below
   const fromComponentId = e.target.dataset.componentId;
   const fromPin = e.target.dataset.pinName;
   const from = getPinCanvasPos(fromComponentId, fromPin);
@@ -260,6 +282,95 @@ async function seedDefaultCircuit() {
   const led = await placeComponent("wokwi-led", 460, 40);
   tryAddWire(led.id, "A", uno.id, "13");
   tryAddWire(led.id, "C", uno.id, "GND.1");
+}
+
+// ---------------------------------------------------------------------
+// Pan & zoom
+// ---------------------------------------------------------------------
+//
+// #canvasViewport (the div every placed component lives in) gets
+// `transform: translate(viewPanX, viewPanY) scale(viewZoom)`. Everything
+// that reads a pin's on-screen position (getPinCanvasPos, used by both
+// pin circles and wire paths) already goes through the real DOM —
+// getBoundingClientRect() — rather than tracking layout positions by
+// hand, so panning is free: the browser folds the translate into the
+// rect it reports automatically. Zoom needs one explicit adjustment
+// (pin.x/pin.y scaled by viewZoom in getPinCanvasPos — see there), since
+// pinInfo coordinates are in the part's pre-scale native units.
+
+let viewZoom = 1;
+let viewPanX = 0;
+let viewPanY = 0;
+const ZOOM_STEP = 1.2;
+const ZOOM_MIN = 0.3;
+const ZOOM_MAX = 2.5;
+const PAN_STEP = 80;
+
+function applyViewTransform() {
+  canvasViewport.style.transform = `translate(${viewPanX}px, ${viewPanY}px) scale(${viewZoom})`;
+  const zoomLevelEl = document.getElementById("zoomLevel");
+  if (zoomLevelEl) zoomLevelEl.textContent = Math.round(viewZoom * 100) + "%";
+  // Every pin/wire on screen depends on the transform that was just
+  // changed — cheap enough to just refresh all of them at this scale
+  // (a handful of parts in a teaching circuit, not hundreds).
+  for (const id of placedComponents.keys()) renderPins(id);
+  redrawWires();
+}
+
+function setZoom(next) {
+  viewZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+  applyViewTransform();
+}
+
+function resetView() {
+  viewZoom = 1;
+  viewPanX = 0;
+  viewPanY = 0;
+  applyViewTransform();
+}
+
+document.getElementById("zoomInBtn")?.addEventListener("click", () => setZoom(viewZoom * ZOOM_STEP));
+document.getElementById("zoomOutBtn")?.addEventListener("click", () => setZoom(viewZoom / ZOOM_STEP));
+document.getElementById("viewResetBtn")?.addEventListener("click", resetView);
+// Same convention as click-drag panning below (content follows the
+// gesture) so the pad and dragging never feel like they disagree —
+// pressing "right" moves the circuit right, exactly like dragging right.
+document.querySelectorAll("[data-pan]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.pan === "up") viewPanY -= PAN_STEP;
+    if (btn.dataset.pan === "down") viewPanY += PAN_STEP;
+    if (btn.dataset.pan === "left") viewPanX -= PAN_STEP;
+    if (btn.dataset.pan === "right") viewPanX += PAN_STEP;
+    applyViewTransform();
+  });
+});
+
+// Click-and-drag panning on empty canvas background — the standard
+// gesture for a pannable canvas, alongside the explicit pad above.
+// Component drags and pin drags both stopPropagation() specifically so
+// starting one of those never also starts a pan underneath it.
+let panState = null; // { startClientX, startClientY, startPanX, startPanY }
+
+canvas.addEventListener("mousedown", (e) => {
+  if (e.target !== canvas && e.target !== canvasViewport) return; // clicked a component/pin, not empty space
+  panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY };
+  canvas.classList.add("panning");
+  document.addEventListener("mousemove", onCanvasPanMove);
+  document.addEventListener("mouseup", onCanvasPanUp);
+});
+
+function onCanvasPanMove(e) {
+  if (!panState) return;
+  viewPanX = panState.startPanX + (e.clientX - panState.startClientX);
+  viewPanY = panState.startPanY + (e.clientY - panState.startClientY);
+  applyViewTransform();
+}
+
+function onCanvasPanUp() {
+  panState = null;
+  canvas.classList.remove("panning");
+  document.removeEventListener("mousemove", onCanvasPanMove);
+  document.removeEventListener("mouseup", onCanvasPanUp);
 }
 
 // `const`/`let` at a classic script's top level don't become window

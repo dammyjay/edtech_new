@@ -1,74 +1,125 @@
 <link rel="stylesheet" href="/labs/css/arduino.css">
 
-<div class="arduino-container">
+<div class="arduino-lab">
 
-  <div class="components-panel">
-    <h3>Components</h3>
-
-    <div class="component" draggable="true" data-type="wokwi-arduino-uno">
-      <div class="component-preview preview-board"><wokwi-arduino-uno></wokwi-arduino-uno></div>
-      Arduino Uno
+  <div class="lab-topbar">
+    <div class="lab-topbar-left">
+      <a href="/labs" class="lab-back-link" title="Back to Learning Labs">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <div class="lab-title">
+        <span class="lab-title-main">Arduino Lab</span>
+        <span class="lab-title-sub">Circuit Simulator</span>
+      </div>
     </div>
 
-    <div class="component" draggable="true" data-type="wokwi-led">
-      <div class="component-preview preview-led"><wokwi-led color="red"></wokwi-led></div>
-      LED
+    <div class="lab-topbar-controls">
+      <button id="runBtn" class="lab-btn lab-btn--run">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4 L20 12 L6 20 Z"/></svg>
+        Run Simulation
+      </button>
+      <button id="stopBtn" class="lab-btn lab-btn--stop" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>
+        Stop
+      </button>
+      <button id="saveBtn" class="lab-btn lab-btn--save">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4"/><path d="M8 20v-5h8v5"/></svg>
+        Save
+      </button>
     </div>
 
-    <div class="component" draggable="true" data-type="wokwi-pushbutton">
-      <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
-      Push Button
+    <div class="lab-topbar-right">
+      <span id="arduinoStatus" class="arduino-status">Idle</span>
     </div>
-
-    <div class="component" draggable="true" data-type="wokwi-buzzer">
-      <div class="component-preview preview-buzzer"><wokwi-buzzer></wokwi-buzzer></div>
-      Buzzer
-    </div>
-
-    <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it.</p>
-
   </div>
 
-  <div id="circuitCanvas" class="circuit-canvas">
+  <div class="lab-body">
 
-    <h2 id="circuitCanvasHint">Drop Components Here</h2>
+    <div class="components-panel">
+      <h3>Components</h3>
 
-    <svg id="wireOverlay" class="wire-overlay"></svg>
+      <div class="component" draggable="true" data-type="wokwi-arduino-uno">
+        <div class="component-preview preview-board"><wokwi-arduino-uno></wokwi-arduino-uno></div>
+        Arduino Uno
+      </div>
+
+      <div class="component" draggable="true" data-type="wokwi-led">
+        <div class="component-preview preview-led"><wokwi-led color="red"></wokwi-led></div>
+        LED
+      </div>
+
+      <div class="component" draggable="true" data-type="wokwi-pushbutton">
+        <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
+        Push Button
+      </div>
+
+      <div class="component" draggable="true" data-type="wokwi-buzzer">
+        <div class="component-preview preview-buzzer"><wokwi-buzzer></wokwi-buzzer></div>
+        Buzzer
+      </div>
+
+      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it.</p>
+    </div>
+
+    <div class="canvas-wrap">
+      <div id="circuitCanvas" class="circuit-canvas">
+
+        <h2 id="circuitCanvasHint">Drop Components Here</h2>
+
+        <div id="canvasViewport" class="canvas-viewport"></div>
+
+        <svg id="wireOverlay" class="wire-overlay"></svg>
+
+        <div class="view-controls">
+          <div class="view-controls-pad">
+            <button type="button" class="vc-btn vc-up" data-pan="up" title="Pan up">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+            <button type="button" class="vc-btn vc-left" data-pan="left" title="Pan left">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <button type="button" class="vc-btn vc-reset" id="viewResetBtn" title="Reset view">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+            <button type="button" class="vc-btn vc-right" data-pan="right" title="Pan right">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+            <button type="button" class="vc-btn vc-down" data-pan="down" title="Pan down">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </button>
+          </div>
+          <div class="view-controls-zoom">
+            <button type="button" class="vc-btn" id="zoomOutBtn" title="Zoom out">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>
+            </button>
+            <span id="zoomLevel" class="vc-zoom-level">100%</span>
+            <button type="button" class="vc-btn" id="zoomInBtn" title="Zoom in">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="right-panel">
+
+      <div class="code-section">
+        <div id="arduinoCodeEditor" class="code-editor"></div>
+      </div>
+
+      <div class="serial-monitor">
+        <div class="serial-monitor-header">
+          <span class="serial-dot"></span>
+          <span>Serial Monitor</span>
+          <span class="serial-baud">9600 baud</span>
+        </div>
+        <div id="serialOutput" class="serial-output"></div>
+      </div>
+
+    </div>
 
   </div>
-
-</div>
-
-<div class="code-section">
-
-  <div id="arduinoCodeEditor" class="code-editor"></div>
-
-</div>
-
-<div class="serial-monitor">
-  <div class="serial-monitor-header">
-    <span class="serial-dot"></span>
-    <span>Serial Monitor</span>
-    <span class="serial-baud">9600 baud</span>
-  </div>
-  <div id="serialOutput" class="serial-output"></div>
-</div>
-
-<div class="controls">
-
-<button id="runBtn">
-Run Simulation
-</button>
-
-<button id="stopBtn" disabled>
-Stop
-</button>
-
-<button id="saveBtn">
-Save
-</button>
-
-<span id="arduinoStatus" class="arduino-status">Idle</span>
 
 </div>
 
