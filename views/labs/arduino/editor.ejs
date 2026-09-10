@@ -5,37 +5,47 @@
   <div class="components-panel">
     <h3>Components</h3>
 
-    <div class="component" draggable="true" data-type="arduino">
+    <div class="component" draggable="true" data-type="wokwi-arduino-uno">
+      <div class="component-preview preview-board"><wokwi-arduino-uno></wokwi-arduino-uno></div>
       Arduino Uno
     </div>
 
-    <div class="component" draggable="true" data-type="led">
+    <div class="component" draggable="true" data-type="wokwi-led">
+      <div class="component-preview preview-led"><wokwi-led color="red"></wokwi-led></div>
       LED
     </div>
 
-    <div class="component" draggable="true" data-type="button">
+    <div class="component" draggable="true" data-type="wokwi-pushbutton">
+      <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
       Push Button
     </div>
 
-    <div class="component" draggable="true" data-type="buzzer">
+    <div class="component" draggable="true" data-type="wokwi-buzzer">
+      <div class="component-preview preview-buzzer"><wokwi-buzzer></wokwi-buzzer></div>
       Buzzer
     </div>
+
+    <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it.</p>
 
   </div>
 
   <div id="circuitCanvas" class="circuit-canvas">
 
-    <h2>Drop Components Here</h2>
+    <h2 id="circuitCanvasHint">Drop Components Here</h2>
 
     <!--
       Phase 2 proof-of-concept: one fixed LED, really wired to pin 13.
-      Real click-and-drag wiring for dropped components (above) is Phase 3 —
-      this rig proves the execution half (compile -> avr8js) works first.
+      Left in place — Phase 3 (below) adds the real drag-and-drop + wiring
+      system alongside it; Phase 4 is what connects avr8js's live GPIO
+      state to whatever a student actually wires, at which point this
+      fixed rig gets folded into that.
     -->
     <div class="pin13-rig">
       <div id="pin13Led" class="led"></div>
       <span class="pin13-rig-label">Pin 13</span>
     </div>
+
+    <svg id="wireOverlay" class="wire-overlay"></svg>
 
   </div>
 
@@ -66,4 +76,6 @@ Save
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+<!-- Real component graphics + pin geometry (pinInfo) for the circuit builder — the same web components Wokwi's own simulator renders. -->
+<script src="https://cdn.jsdelivr.net/npm/@wokwi/elements@1.9.2/dist/wokwi-elements.bundle.js"></script>
 <script src="/labs/js/arduinoLab.js"></script>

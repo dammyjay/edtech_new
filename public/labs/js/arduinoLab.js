@@ -1,27 +1,36 @@
-// Arduino Lab — Phase 2 (run-time proof of concept).
+// Arduino Lab.
 //
 // Phase 1 (services/arduinoCompileService.js) proved a real sketch compiles
-// server-side to a real .hex. This phase proves the other half: that .hex
-// can be *executed*, for real, in the browser — via avr8js (the same AVR
-// CPU core Wokwi itself runs on), driving one hardcoded LED on pin 13.
+// server-side to a real .hex. Phase 2 proved that .hex can be *executed*,
+// for real, in the browser (avr8js) — driving one hardcoded LED on pin 13,
+// still wired up below. Phase 3 (this file's circuit-builder section)
+// replaces the old do-nothing drag/drop with real component graphics
+// (@wokwi/elements — the same parts Wokwi's own simulator renders) and
+// real click-and-drag wiring between actual pins.
 //
-// Deliberately NOT in scope yet (see the approved plan, Phases 3-5):
-// click-and-drag wiring, @wokwi/elements graphics, Serial Monitor, saving
-// to lab_projects. The existing drag/drop below (placeholder boxes on
-// #circuitCanvas) is Phase 3's stub, left as-is — it doesn't interfere
-// with this phase's fixed LED demo.
-//
-// avr8js API used here (CPU, AVRIOPort, AVRTimer, avrInstruction,
-// portBConfig, timer0Config, PinState) was verified end-to-end against a
-// real compiled blink sketch in a local Node script before writing this —
-// specifically that Timer0 has to be attached for delay()/millis() to
-// advance at all (Arduino's delay() spins on millis(), which only moves
-// via Timer0's overflow interrupt firing); without it every sketch just
-// hangs forever inside its first delay() call.
+// Deliberately NOT in scope yet (Phase 4): none of these dropped/wired
+// components are actually driven by avr8js's live GPIO state — that's
+// what turns "a wire exists" into "the LED you wired really lights up".
+// This phase is the visual/data-model half: place parts, wire pins,
+// move things around, delete a bad wire.
 
 const canvas = document.getElementById("circuitCanvas");
 
-document.querySelectorAll(".component").forEach((comp) => {
+// ---------------------------------------------------------------------
+// Circuit builder — component placement
+// ---------------------------------------------------------------------
+
+const wireOverlay = document.getElementById("wireOverlay");
+const canvasHint = document.getElementById("circuitCanvasHint");
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+let componentCounter = 0;
+let wireCounter = 0;
+const placedComponents = new Map(); // id -> { id, tag, el }
+const pinCircles = new Map(); // "componentId::pinName" -> <circle>
+const wires = []; // { id, from: {componentId, pin}, to: {componentId, pin} }
+
+document.querySelectorAll(".component[draggable]").forEach((comp) => {
   comp.addEventListener("dragstart", (e) => {
     e.dataTransfer.setData("type", comp.dataset.type);
   });
@@ -31,22 +40,222 @@ canvas.addEventListener("dragover", (e) => {
   e.preventDefault();
 });
 
-canvas.addEventListener("drop", (e) => {
+canvas.addEventListener("drop", async (e) => {
   e.preventDefault();
+  const tag = e.dataTransfer.getData("type");
+  if (!tag || !customElements.get(tag)) return; // unknown tag, or the @wokwi/elements CDN script hasn't loaded
 
-  const type = e.dataTransfer.getData("type");
-
-  const item = document.createElement("div");
-
-  item.className = "circuit-item";
-
-  item.innerText = type.toUpperCase();
-
-  item.style.left = e.offsetX + "px";
-  item.style.top = e.offsetY + "px";
-
-  canvas.appendChild(item);
+  const canvasRect = canvas.getBoundingClientRect();
+  await placeComponent(tag, e.clientX - canvasRect.left, e.clientY - canvasRect.top);
 });
+
+async function placeComponent(tag, x, y) {
+  const el = document.createElement(tag);
+  el.classList.add("placed-component");
+  el.style.position = "absolute";
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+
+  const id = "comp-" + ++componentCounter;
+  el.dataset.componentId = id;
+  canvas.appendChild(el);
+
+  // Lit components render asynchronously — pinInfo itself doesn't need
+  // this (it's a plain getter off property defaults), but
+  // getBoundingClientRect() below does: before first render a freshly
+  // created custom element can report a zero-size box.
+  if (el.updateComplete) await el.updateComplete;
+
+  placedComponents.set(id, { id, tag, el });
+  attachComponentDrag(el, id);
+  renderPins(id);
+  if (canvasHint) canvasHint.style.display = "none";
+}
+
+// ---------------------------------------------------------------------
+// Pin geometry
+// ---------------------------------------------------------------------
+
+// Every @wokwi/elements part exposes `.pinInfo` — [{name, x, y, ...}] — with
+// x/y in the same CSS-pixel space the part actually renders at (verified
+// against the library's own source: e.g. the Uno's SVG is authored in mm,
+// pinInfo x/y match its *browser-rendered* px size at that native scale,
+// not the SVG's internal viewBox). So as long as a placed part is never
+// CSS-scaled, its own getBoundingClientRect() top-left plus pin.x/pin.y is
+// exactly the pin's on-screen position — no per-component math needed.
+function getPinCanvasPos(componentId, pinName) {
+  const comp = placedComponents.get(componentId);
+  if (!comp || !comp.el.pinInfo) return null;
+  const pin = comp.el.pinInfo.find((p) => p.name === pinName);
+  if (!pin) return null;
+
+  const elRect = comp.el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  return {
+    x: elRect.left - canvasRect.left + pin.x,
+    y: elRect.top - canvasRect.top + pin.y,
+  };
+}
+
+function renderPins(componentId) {
+  const comp = placedComponents.get(componentId);
+  if (!comp || !comp.el.pinInfo) return;
+
+  for (const pin of comp.el.pinInfo) {
+    const pos = getPinCanvasPos(componentId, pin.name);
+    if (!pos) continue;
+
+    const key = componentId + "::" + pin.name;
+    let circle = pinCircles.get(key);
+    if (!circle) {
+      circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("r", "5");
+      circle.setAttribute("class", "wire-pin");
+      circle.dataset.componentId = componentId;
+      circle.dataset.pinName = pin.name;
+      circle.addEventListener("mousedown", onPinMouseDown);
+      wireOverlay.appendChild(circle);
+      pinCircles.set(key, circle);
+    }
+    circle.setAttribute("cx", pos.x);
+    circle.setAttribute("cy", pos.y);
+  }
+}
+
+// ---------------------------------------------------------------------
+// Moving a placed component
+// ---------------------------------------------------------------------
+
+function attachComponentDrag(el, id) {
+  el.addEventListener("mousedown", (e) => {
+    // Pin circles live in the separate SVG overlay, not inside `el` — a
+    // mousedown reaching here is always on the component's own body.
+    e.preventDefault();
+    const canvasRect = canvas.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const grabOffsetX = e.clientX - elRect.left;
+    const grabOffsetY = e.clientY - elRect.top;
+
+    function onMove(ev) {
+      const x = Math.max(0, ev.clientX - canvasRect.left - grabOffsetX);
+      const y = Math.max(0, ev.clientY - canvasRect.top - grabOffsetY);
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      renderPins(id);
+      redrawWires();
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------
+
+let pendingWire = null; // { fromComponentId, fromPin, from: {x,y}, rubberPath }
+
+function onPinMouseDown(e) {
+  e.preventDefault();
+  const fromComponentId = e.target.dataset.componentId;
+  const fromPin = e.target.dataset.pinName;
+  const from = getPinCanvasPos(fromComponentId, fromPin);
+  if (!from) return;
+
+  const rubberPath = document.createElementNS(SVG_NS, "path");
+  rubberPath.setAttribute("class", "wire-rubberband");
+  wireOverlay.appendChild(rubberPath);
+
+  pendingWire = { fromComponentId, fromPin, from, rubberPath };
+  document.addEventListener("mousemove", onWireDragMove);
+  document.addEventListener("mouseup", onWireDragEnd);
+}
+
+function onWireDragMove(e) {
+  if (!pendingWire) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const to = { x: e.clientX - canvasRect.left, y: e.clientY - canvasRect.top };
+  pendingWire.rubberPath.setAttribute("d", wirePath(pendingWire.from, to));
+}
+
+function onWireDragEnd(e) {
+  document.removeEventListener("mousemove", onWireDragMove);
+  document.removeEventListener("mouseup", onWireDragEnd);
+  if (!pendingWire) return;
+
+  pendingWire.rubberPath.remove();
+  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  if (dropTarget && dropTarget.classList.contains("wire-pin")) {
+    tryAddWire(
+      pendingWire.fromComponentId,
+      pendingWire.fromPin,
+      dropTarget.dataset.componentId,
+      dropTarget.dataset.pinName
+    );
+  }
+  pendingWire = null;
+}
+
+function tryAddWire(fromComponentId, fromPin, toComponentId, toPin) {
+  if (fromComponentId === toComponentId && fromPin === toPin) return; // a pin can't wire to itself
+
+  const isDuplicate = wires.some(
+    (w) =>
+      (w.from.componentId === fromComponentId && w.from.pin === fromPin &&
+        w.to.componentId === toComponentId && w.to.pin === toPin) ||
+      (w.from.componentId === toComponentId && w.from.pin === toPin &&
+        w.to.componentId === fromComponentId && w.to.pin === fromPin)
+  );
+  if (isDuplicate) return;
+
+  wires.push({
+    id: "wire-" + ++wireCounter,
+    from: { componentId: fromComponentId, pin: fromPin },
+    to: { componentId: toComponentId, pin: toPin },
+  });
+  redrawWires();
+}
+
+function removeWire(wireId) {
+  const idx = wires.findIndex((w) => w.id === wireId);
+  if (idx !== -1) wires.splice(idx, 1);
+  redrawWires();
+}
+
+function redrawWires() {
+  wireOverlay.querySelectorAll(".wire-path").forEach((p) => p.remove());
+  for (const wire of wires) {
+    const from = getPinCanvasPos(wire.from.componentId, wire.from.pin);
+    const to = getPinCanvasPos(wire.to.componentId, wire.to.pin);
+    if (!from || !to) continue; // the component it referenced is gone
+
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", wirePath(from, to));
+    path.setAttribute("class", "wire-path");
+    path.addEventListener("click", () => removeWire(wire.id));
+    // Insert before any existing child so wires always render under pins.
+    wireOverlay.insertBefore(path, wireOverlay.firstChild);
+  }
+}
+
+// A gentle S-curve between two pins, like a real jumper wire looping
+// between two header pins rather than a straight ruled line.
+function wirePath(from, to) {
+  const bulge = Math.max(Math.abs(to.y - from.y) * 0.5, 30);
+  return `M ${from.x} ${from.y} C ${from.x} ${from.y + bulge}, ${to.x} ${to.y - bulge}, ${to.x} ${to.y}`;
+}
+
+// `const`/`let` at a classic script's top level don't become window
+// properties (only `function` declarations do), so this is the one place
+// the circuit's live state is deliberately exposed — Phase 4 (binding
+// avr8js's GPIO state to whatever's actually wired) and Phase 5 (saving
+// project_data: {code, components, wires}) both need to reach in from
+// outside this file, not just this file's own click handlers.
+window.arduinoLab = { placedComponents, wires, placeComponent, getPinCanvasPos };
 
 // ---------------------------------------------------------------------
 // Monaco editor
