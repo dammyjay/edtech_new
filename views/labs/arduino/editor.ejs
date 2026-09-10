@@ -1,6 +1,7 @@
 <link rel="stylesheet" href="/labs/css/arduino.css">
 
 <div id="labToast" class="lab-toast"></div>
+<div id="pinTooltip" class="pin-tooltip" hidden></div>
 
 <div class="arduino-lab">
 
@@ -120,7 +121,7 @@
         Light Sensor
       </div>
 
-      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to remove it. Drop a breadboard first, then place a part with a leg near a hole to plug it into that row — everything in the same row is electrically connected, just like a real breadboard. Click a placed part to flip, turn, duplicate, or delete it.</p>
+      <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to select it (recolor or delete). Drop a breadboard first, then drag a part near a hole — nearby holes light up as you drag, and its legs snap into that row, which is electrically connected end to end just like a real breadboard. Click a part to flip, turn, duplicate, or delete it (shift-click to select several at once); an LED's toolbar also lets you change its colour. Hover a pin or hole to see its name. Ctrl/Cmd+scroll to zoom, scroll to pan.</p>
     </div>
 
     <div class="canvas-wrap">
@@ -133,18 +134,45 @@
         <svg id="wireOverlay" class="wire-overlay"></svg>
 
         <div id="componentToolbar" class="component-toolbar" hidden>
-          <button type="button" data-action="flip" title="Flip horizontally">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 8l3 4-3 4"/><path d="M7 8l-3 4 3 4"/></svg>
-          </button>
-          <button type="button" data-action="turn" title="Turn 180°">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-          </button>
-          <button type="button" data-action="duplicate" title="Duplicate">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-          </button>
-          <button type="button" data-action="delete" class="ct-danger" title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
-          </button>
+          <div id="componentColorRow" class="ct-color-row" hidden>
+            <button type="button" data-led-color="red" class="ct-swatch" style="background:#e5352b" title="Red"></button>
+            <button type="button" data-led-color="green" class="ct-swatch" style="background:#2ecc71" title="Green"></button>
+            <button type="button" data-led-color="blue" class="ct-swatch" style="background:#3498db" title="Blue"></button>
+            <button type="button" data-led-color="yellow" class="ct-swatch" style="background:#f1c40f" title="Yellow"></button>
+            <button type="button" data-led-color="orange" class="ct-swatch" style="background:#e67e22" title="Orange"></button>
+            <button type="button" data-led-color="white" class="ct-swatch" style="background:#f5f5f5" title="White"></button>
+            <button type="button" data-led-color="purple" class="ct-swatch" style="background:#9b59b6" title="Purple"></button>
+          </div>
+          <div class="ct-actions">
+            <button type="button" data-action="flip" title="Flip horizontally">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 8l3 4-3 4"/><path d="M7 8l-3 4 3 4"/></svg>
+            </button>
+            <button type="button" data-action="turn" title="Turn 180°">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+            <button type="button" data-action="duplicate" title="Duplicate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+            </button>
+            <button type="button" data-action="delete" class="ct-danger" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="wireToolbar" class="component-toolbar wire-toolbar" hidden>
+          <div class="ct-color-row">
+            <button type="button" data-wire-color="#e5352b" class="ct-swatch" style="background:#e5352b" title="Red"></button>
+            <button type="button" data-wire-color="#2ecc71" class="ct-swatch" style="background:#2ecc71" title="Green"></button>
+            <button type="button" data-wire-color="#3498db" class="ct-swatch" style="background:#3498db" title="Blue"></button>
+            <button type="button" data-wire-color="#f1c40f" class="ct-swatch" style="background:#f1c40f" title="Yellow"></button>
+            <button type="button" data-wire-color="#111827" class="ct-swatch" style="background:#111827" title="Black"></button>
+            <button type="button" data-wire-color="#f5f5f5" class="ct-swatch ct-swatch--light" style="background:#f5f5f5" title="White"></button>
+          </div>
+          <div class="ct-actions">
+            <button type="button" data-action="delete-wire" class="ct-danger" title="Delete wire">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
+            </button>
+          </div>
         </div>
 
         <div class="view-controls">
@@ -172,6 +200,20 @@
             <span id="zoomLevel" class="vc-zoom-level">100%</span>
             <button type="button" class="vc-btn" id="zoomInBtn" title="Zoom in">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+          <div class="view-controls-wire-mode">
+            <button type="button" class="vc-btn vc-btn--active" data-wire-mode="curved" title="Wire mode: curved">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18C4 10 20 14 20 6"/></svg>
+            </button>
+            <button type="button" class="vc-btn" data-wire-mode="straight" title="Wire mode: straight line">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20 20 4"/></svg>
+            </button>
+            <button type="button" class="vc-btn" data-wire-mode="orthogonal" title="Wire mode: right-angle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h8V4h8"/></svg>
+            </button>
+            <button type="button" class="vc-btn vc-btn--active" id="snapToggleBtn" title="Snap to breadboard: on (click to turn off)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M6 15v6"/><path d="M18 15v6"/></svg>
             </button>
           </div>
         </div>

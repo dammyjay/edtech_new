@@ -259,12 +259,37 @@ function renderPins(componentId) {
       circle.dataset.componentId = componentId;
       circle.dataset.pinName = pin.name;
       circle.addEventListener("mousedown", onPinMouseDown);
+      circle.addEventListener("mouseenter", onPinHoverEnter);
+      circle.addEventListener("mousemove", onPinHoverMove);
+      circle.addEventListener("mouseleave", onPinHoverLeave);
       wireOverlay.appendChild(circle);
       pinCircles.set(key, circle);
     }
     circle.setAttribute("cx", x);
     circle.setAttribute("cy", y);
   }
+}
+
+// A small label following the cursor while hovering any pin or breadboard
+// hole — the actual pin name (fixed viewport positioning, so it doesn't
+// need any canvas-space math at all).
+function onPinHoverEnter(e) {
+  const tip = document.getElementById("pinTooltip");
+  if (!tip) return;
+  tip.textContent = e.target.dataset.pinName;
+  tip.style.left = e.clientX + 14 + "px";
+  tip.style.top = e.clientY + 14 + "px";
+  tip.hidden = false;
+}
+function onPinHoverMove(e) {
+  const tip = document.getElementById("pinTooltip");
+  if (!tip || tip.hidden) return;
+  tip.style.left = e.clientX + 14 + "px";
+  tip.style.top = e.clientY + 14 + "px";
+}
+function onPinHoverLeave() {
+  const tip = document.getElementById("pinTooltip");
+  if (tip) tip.hidden = true;
 }
 
 // ---------------------------------------------------------------------
@@ -301,16 +326,19 @@ function attachComponentDrag(el, id) {
       renderPins(id);
       redrawWires();
       renderSelectionToolbar();
+      renderWireToolbar();
+      highlightNearbyHoles(id);
     }
-    function onUp() {
+    function onUp(upEvent) {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      clearHoleHighlights();
       if (dragged) {
         trySnapToBreadboard(id);
         redrawWires();
         renderSelectionToolbar();
       } else {
-        selectComponent(id);
+        selectComponent(id, upEvent.shiftKey);
       }
     }
     document.addEventListener("mousemove", onMove);
@@ -319,40 +347,94 @@ function attachComponentDrag(el, id) {
 }
 
 // ---------------------------------------------------------------------
-// Selection & editing — flip, turn, duplicate, delete
+// Selection & editing — flip, turn, duplicate, delete, LED color
 // ---------------------------------------------------------------------
 
-let selectedComponentId = null;
+// Shift-click adds/removes a part from the selection (see attachComponent
+// Drag's onUp); a plain click replaces it. Selecting a component always
+// clears any selected wire and vice versa — the two toolbars are mutually
+// exclusive, never shown together.
+let selectedComponentIds = new Set();
 
-function selectComponent(id) {
-  selectedComponentId = id;
-  document.querySelectorAll(".placed-component.selected").forEach((el) => el.classList.remove("selected"));
-  const comp = placedComponents.get(id);
-  if (comp) comp.el.classList.add("selected");
+function selectComponent(id, additive) {
+  selectedWireId = null;
+  if (!additive) selectedComponentIds.clear();
+  if (additive && selectedComponentIds.has(id)) {
+    selectedComponentIds.delete(id); // shift-clicking an already-selected part deselects just that one
+  } else {
+    selectedComponentIds.add(id);
+  }
+  applySelectionVisuals();
   renderSelectionToolbar();
+  renderWireToolbar();
 }
 
-function deselectComponent() {
-  selectedComponentId = null;
-  document.querySelectorAll(".placed-component.selected").forEach((el) => el.classList.remove("selected"));
+function deselectAll() {
+  selectedComponentIds.clear();
+  selectedWireId = null;
+  applySelectionVisuals();
   renderSelectionToolbar();
+  renderWireToolbar();
 }
 
-// Positions the floating flip/turn/duplicate/delete toolbar centered
-// above whichever component is currently selected (or hides it).
+function applySelectionVisuals() {
+  document.querySelectorAll(".placed-component.selected").forEach((el) => el.classList.remove("selected"));
+  for (const id of selectedComponentIds) {
+    const comp = placedComponents.get(id);
+    if (comp) comp.el.classList.add("selected");
+  }
+}
+
+// Positions the floating toolbar centered above the union of every
+// selected part's bounding box, and shows the LED color row only when
+// exactly one LED (the one part type with a plain, static `color`
+// property) is selected on its own.
 function renderSelectionToolbar() {
   const toolbar = document.getElementById("componentToolbar");
   if (!toolbar) return;
-  const comp = selectedComponentId ? placedComponents.get(selectedComponentId) : null;
-  if (!comp) {
+  if (selectedComponentIds.size === 0) {
     toolbar.hidden = true;
     return;
   }
-  const elRect = comp.el.getBoundingClientRect();
+
   const canvasRect = canvas.getBoundingClientRect();
-  toolbar.style.left = elRect.left - canvasRect.left + elRect.width / 2 + "px";
-  toolbar.style.top = elRect.top - canvasRect.top + "px";
+  let minLeft = Infinity;
+  let minTop = Infinity;
+  let maxRight = -Infinity;
+  let maxBottom = -Infinity;
+  for (const id of selectedComponentIds) {
+    const comp = placedComponents.get(id);
+    if (!comp) continue;
+    const r = comp.el.getBoundingClientRect();
+    minLeft = Math.min(minLeft, r.left - canvasRect.left);
+    minTop = Math.min(minTop, r.top - canvasRect.top);
+    maxRight = Math.max(maxRight, r.right - canvasRect.left);
+    maxBottom = Math.max(maxBottom, r.bottom - canvasRect.top);
+  }
+  if (!isFinite(minLeft)) {
+    toolbar.hidden = true;
+    return;
+  }
+  toolbar.style.left = (minLeft + maxRight) / 2 + "px";
   toolbar.hidden = false;
+
+  const colorRow = document.getElementById("componentColorRow");
+  if (colorRow) {
+    const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+    const soleComp = soleId ? placedComponents.get(soleId) : null;
+    colorRow.hidden = !(soleComp && soleComp.tag === "wokwi-led");
+  }
+
+  // A part near the top of the canvas (the default seeded LED included)
+  // can leave too little room above it for the toolbar — worse now that
+  // the LED color row can make it two rows tall. Rather than let it
+  // render clipped underneath the fixed topbar (invisible AND
+  // unclickable, since the topbar sits at a higher z-index), flip it to
+  // sit below the selection instead whenever there isn't room above.
+  const toolbarHeight = toolbar.offsetHeight;
+  const fitsAbove = minTop - toolbarHeight - 10 >= 0;
+  toolbar.classList.toggle("component-toolbar--below", !fitsAbove);
+  toolbar.style.top = (fitsAbove ? minTop : maxBottom) + "px";
 }
 
 // Applies a component's current flip/turn state as a CSS transform.
@@ -397,6 +479,7 @@ async function duplicateComponent(id) {
     applyComponentOrientation(clone);
     renderPins(clone.id);
   }
+  if (source.tag === "wokwi-led") clone.el.color = source.el.color; // a re-colored LED duplicates the same color, not the default red
   // A duplicate is a fresh part, not a clone of what it was wired to —
   // matches how every other design tool's "duplicate" behaves.
   trySnapToBreadboard(clone.id);
@@ -409,7 +492,10 @@ function deleteComponent(id) {
   if (!comp) return;
 
   for (let i = wires.length - 1; i >= 0; i--) {
-    if (wires[i].from.componentId === id || wires[i].to.componentId === id) wires.splice(i, 1);
+    if (wires[i].from.componentId === id || wires[i].to.componentId === id) {
+      if (wires[i].id === selectedWireId) selectedWireId = null;
+      wires.splice(i, 1);
+    }
   }
   // A placement can reference this id either as the plugged-in part or —
   // if this component IS the breadboard — as the hole side of the entry.
@@ -425,8 +511,10 @@ function deleteComponent(id) {
   }
   comp.el.remove();
   placedComponents.delete(id);
-  if (selectedComponentId === id) deselectComponent();
+  selectedComponentIds.delete(id);
+  applySelectionVisuals();
   redrawWires();
+  renderWireToolbar();
   if (canvasHint && placedComponents.size === 0) canvasHint.style.display = "";
 }
 
@@ -436,13 +524,24 @@ document.getElementById("componentToolbar")?.addEventListener("mousedown", (e) =
   e.stopPropagation();
 });
 document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
+  const colorBtn = e.target.closest("button[data-led-color]");
+  if (colorBtn) {
+    // Only ever shown/actionable when exactly one LED is selected — see
+    // renderSelectionToolbar's colorRow.hidden logic.
+    const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+    const soleComp = soleId ? placedComponents.get(soleId) : null;
+    if (soleComp && soleComp.tag === "wokwi-led") soleComp.el.color = colorBtn.dataset.ledColor;
+    return;
+  }
+
   const btn = e.target.closest("button[data-action]");
-  if (!btn || !selectedComponentId) return;
-  const id = selectedComponentId;
-  if (btn.dataset.action === "flip") flipComponent(id);
-  else if (btn.dataset.action === "turn") turnComponent(id);
-  else if (btn.dataset.action === "duplicate") duplicateComponent(id);
-  else if (btn.dataset.action === "delete") deleteComponent(id);
+  if (!btn || selectedComponentIds.size === 0) return;
+  const ids = [...selectedComponentIds]; // snapshot — the set mutates as each action runs
+  if (btn.dataset.action === "flip") ids.forEach(flipComponent);
+  else if (btn.dataset.action === "turn") ids.forEach(turnComponent);
+  else if (btn.dataset.action === "duplicate") ids.forEach(duplicateComponent);
+  else if (btn.dataset.action === "delete") ids.forEach(deleteComponent);
+  renderSelectionToolbar();
 });
 
 // ---------------------------------------------------------------------
@@ -456,6 +555,11 @@ const BREADBOARD_SNAP_PX = 14;
 // board's own spacing exactly, each leg just finds its own closest hole.
 const breadboardPlacements = new Map();
 
+// A single global toggle — with it off, dragging a part near the board
+// never auto-plugs it in, for whenever precise free placement matters
+// more than the convenience.
+let snappingEnabled = true;
+
 function findBreadboardComponent() {
   for (const comp of placedComponents.values()) {
     if (comp.tag === "custom-breadboard") return comp;
@@ -463,26 +567,52 @@ function findBreadboardComponent() {
   return null;
 }
 
+// Every hole's on-screen position for a given breadboard, computed once
+// per call (one getBoundingClientRect(), like renderPins) rather than
+// once per hole — shared by trySnapToBreadboard and the live highlight
+// preview below. Goes through orientedPinOffset like every other part's
+// pins do, so this stays correct even though nothing in the UI actually
+// offers flipping/turning the board itself today.
+function breadboardHolePositions(board) {
+  const boardRect = board.el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  return board.el.pinInfo.map((hole) => {
+    const offset = orientedPinOffset(board, hole, boardRect.width, boardRect.height);
+    return {
+      hole,
+      x: boardRect.left - canvasRect.left + offset.x,
+      y: boardRect.top - canvasRect.top + offset.y,
+    };
+  });
+}
+
 // Re-checks every pin of `componentId` against the nearest hole on
 // whatever breadboard is on the canvas, snapping (or un-snapping) each
 // one independently. Called once at the end of a drag/placement, not on
 // every mousemove — 420 holes x several pins, every frame, would be
-// wasteful for something that only matters once you let go.
+// wasteful for something that only matters once you let go (the live
+// preview below is the cheaper, read-only version of this same search).
 function trySnapToBreadboard(componentId) {
   const board = findBreadboardComponent();
   if (!board || componentId === board.id) return;
   const comp = placedComponents.get(componentId);
   if (!comp || !comp.el.pinInfo) return;
 
-  const boardRect = board.el.getBoundingClientRect();
-  const canvasRect = canvas.getBoundingClientRect();
-  const boardHoles = board.el.pinInfo.map((hole) => ({
-    hole,
-    x: boardRect.left - canvasRect.left + hole.x * viewZoom,
-    y: boardRect.top - canvasRect.top + hole.y * viewZoom,
-  }));
+  // Snapping OFF still runs this (rather than a blanket early-return): it
+  // gates forming NEW connections, but a part that gets dragged away from
+  // the board while it's off must still drop its now-stale placement —
+  // otherwise it stays "phantom" snapped to a hole it's no longer
+  // anywhere near (a stray stub line to nowhere, and a fake electrical
+  // connection the connectivity graph would still union).
+  const boardHoles = snappingEnabled ? breadboardHolePositions(board) : null;
 
   for (const pin of comp.el.pinInfo) {
+    const key = componentId + "::" + pin.name;
+    if (!snappingEnabled) {
+      breadboardPlacements.delete(key);
+      continue;
+    }
+
     const pinPos = getPinCanvasPos(componentId, pin.name);
     if (!pinPos) continue;
 
@@ -496,7 +626,6 @@ function trySnapToBreadboard(componentId) {
       }
     }
 
-    const key = componentId + "::" + pin.name;
     if (nearest && nearestDist <= BREADBOARD_SNAP_PX) {
       breadboardPlacements.set(key, board.id + "::" + nearest.name);
     } else {
@@ -504,6 +633,48 @@ function trySnapToBreadboard(componentId) {
     }
   }
 }
+
+// The live, drag-time version of the same search — highlights whichever
+// holes a part's legs would snap into if released right now, without
+// actually committing anything (trySnapToBreadboard, called separately
+// on drag end, does the real snap).
+function highlightNearbyHoles(componentId) {
+  clearHoleHighlights();
+  if (!snappingEnabled) return;
+  const board = findBreadboardComponent();
+  if (!board || componentId === board.id) return;
+  const comp = placedComponents.get(componentId);
+  if (!comp || !comp.el.pinInfo) return;
+
+  const boardHoles = breadboardHolePositions(board);
+
+  for (const pin of comp.el.pinInfo) {
+    const pinPos = getPinCanvasPos(componentId, pin.name);
+    if (!pinPos) continue;
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const h of boardHoles) {
+      const dist = Math.hypot(pinPos.x - h.x, pinPos.y - h.y);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = h.hole;
+      }
+    }
+    if (nearest && nearestDist <= BREADBOARD_SNAP_PX) {
+      pinCircles.get(board.id + "::" + nearest.name)?.classList.add("wire-pin--highlight");
+    }
+  }
+}
+
+function clearHoleHighlights() {
+  document.querySelectorAll(".wire-pin--highlight").forEach((el) => el.classList.remove("wire-pin--highlight"));
+}
+
+document.getElementById("snapToggleBtn")?.addEventListener("click", (e) => {
+  snappingEnabled = !snappingEnabled;
+  e.currentTarget.classList.toggle("vc-btn--active", snappingEnabled);
+  e.currentTarget.title = snappingEnabled ? "Snap to breadboard: on (click to turn off)" : "Snap to breadboard: off (click to turn on)";
+});
 
 // ---------------------------------------------------------------------
 // Wiring
@@ -569,6 +740,7 @@ function tryAddWire(fromComponentId, fromPin, toComponentId, toPin) {
     id: "wire-" + ++wireCounter,
     from: { componentId: fromComponentId, pin: fromPin },
     to: { componentId: toComponentId, pin: toPin },
+    color: DEFAULT_WIRE_COLOR,
   });
   redrawWires();
 }
@@ -579,6 +751,88 @@ function removeWire(wireId) {
   redrawWires();
 }
 
+// ---------------------------------------------------------------------
+// Wire selection & appearance — color, routing mode
+// ---------------------------------------------------------------------
+
+const DEFAULT_WIRE_COLOR = "#e5352b";
+let selectedWireId = null;
+// "curved" (the original S-curve, still the default), "straight" (a
+// direct line), or "orthogonal" (right-angle, like a schematic) — one
+// setting for every wire on the canvas, not per-wire; switching it just
+// re-renders all of them.
+let wireRoutingMode = "curved";
+
+function selectWire(id) {
+  selectedWireId = id;
+  selectedComponentIds.clear();
+  applySelectionVisuals();
+  renderSelectionToolbar();
+  redrawWires(); // to apply the "selected" outline class
+  renderWireToolbar();
+}
+
+function deselectWire() {
+  selectedWireId = null;
+  redrawWires();
+  renderWireToolbar();
+}
+
+function renderWireToolbar() {
+  const toolbar = document.getElementById("wireToolbar");
+  if (!toolbar) return;
+  const wire = selectedWireId ? wires.find((w) => w.id === selectedWireId) : null;
+  if (!wire) {
+    toolbar.hidden = true;
+    return;
+  }
+  const from = getPinCanvasPos(wire.from.componentId, wire.from.pin);
+  const to = getPinCanvasPos(wire.to.componentId, wire.to.pin);
+  if (!from || !to) {
+    toolbar.hidden = true;
+    return;
+  }
+  toolbar.style.left = (from.x + to.x) / 2 + "px";
+  const midY = (from.y + to.y) / 2;
+  toolbar.hidden = false;
+  // Same top-of-canvas flip as renderSelectionToolbar — a wire whose
+  // midpoint sits close to the canvas top would otherwise render its
+  // toolbar underneath (and unclickable behind) the fixed topbar.
+  const toolbarHeight = toolbar.offsetHeight;
+  const fitsAbove = midY - toolbarHeight - 10 >= 0;
+  toolbar.classList.toggle("component-toolbar--below", !fitsAbove);
+  toolbar.style.top = midY + "px";
+}
+
+document.getElementById("wireToolbar")?.addEventListener("mousedown", (e) => e.stopPropagation());
+document.getElementById("wireToolbar")?.addEventListener("click", (e) => {
+  if (!selectedWireId) return;
+  const wire = wires.find((w) => w.id === selectedWireId);
+  if (!wire) return;
+
+  const colorBtn = e.target.closest("button[data-wire-color]");
+  if (colorBtn) {
+    wire.color = colorBtn.dataset.wireColor;
+    redrawWires();
+    return;
+  }
+  if (e.target.closest('[data-action="delete-wire"]')) {
+    removeWire(selectedWireId);
+    deselectWire();
+  }
+});
+
+function setWireRoutingMode(mode) {
+  wireRoutingMode = mode;
+  document.querySelectorAll("[data-wire-mode]").forEach((btn) => {
+    btn.classList.toggle("vc-btn--active", btn.dataset.wireMode === mode);
+  });
+  redrawWires();
+}
+document.querySelectorAll("[data-wire-mode]").forEach((btn) => {
+  btn.addEventListener("click", () => setWireRoutingMode(btn.dataset.wireMode));
+});
+
 function redrawWires() {
   wireOverlay.querySelectorAll(".wire-path, .snap-stub").forEach((p) => p.remove());
   for (const wire of wires) {
@@ -588,8 +842,12 @@ function redrawWires() {
 
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", wirePath(from, to));
-    path.setAttribute("class", "wire-path");
-    path.addEventListener("click", () => removeWire(wire.id));
+    path.setAttribute("class", "wire-path" + (wire.id === selectedWireId ? " wire-path--selected" : ""));
+    path.setAttribute("stroke", wire.color || DEFAULT_WIRE_COLOR);
+    path.addEventListener("click", (e) => {
+      e.stopPropagation();
+      selectWire(wire.id);
+    });
     // Insert before any existing child so wires always render under pins.
     wireOverlay.insertBefore(path, wireOverlay.firstChild);
   }
@@ -614,9 +872,19 @@ function redrawWires() {
   }
 }
 
-// A gentle S-curve between two pins, like a real jumper wire looping
-// between two header pins rather than a straight ruled line.
+// The wire's visual routing — curved (a gentle S-curve, like a real
+// jumper wire looping between two header pins), straight (a direct
+// line), or orthogonal (right-angle, schematic-style) — set globally via
+// wireRoutingMode. Also used for the rubber-band preview while dragging
+// a new wire, so the preview matches what will actually be drawn.
 function wirePath(from, to) {
+  if (wireRoutingMode === "straight") {
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  }
+  if (wireRoutingMode === "orthogonal") {
+    const midX = (from.x + to.x) / 2;
+    return `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
+  }
   const bulge = Math.max(Math.abs(to.y - from.y) * 0.5, 30);
   return `M ${from.x} ${from.y} C ${from.x} ${from.y + bulge}, ${to.x} ${to.y - bulge}, ${to.x} ${to.y}`;
 }
@@ -664,6 +932,7 @@ function applyViewTransform() {
   for (const id of placedComponents.keys()) renderPins(id);
   redrawWires();
   renderSelectionToolbar();
+  renderWireToolbar();
 }
 
 function setZoom(next) {
@@ -721,20 +990,50 @@ function onCanvasPanMove(e) {
 function onCanvasPanUp() {
   // A mousedown+mouseup on empty canvas with no real movement in between
   // is a plain click — deselect, same as clicking empty space in any
-  // other design tool, rather than leaving the toolbar stuck open.
-  if (panState && !panState.moved) deselectComponent();
+  // other design tool, rather than leaving a toolbar stuck open.
+  if (panState && !panState.moved) deselectAll();
   panState = null;
   canvas.classList.remove("panning");
   document.removeEventListener("mousemove", onCanvasPanMove);
   document.removeEventListener("mouseup", onCanvasPanUp);
 }
 
+// Mouse-wheel gestures: plain scroll pans (this is exactly what a
+// trackpad's two-finger scroll already sends as wheel deltaX/deltaY, so
+// this alone covers trackpad panning too), Ctrl/Cmd+scroll zooms — the
+// same split Figma/Google Maps/most modern canvas tools use, and it means
+// a plain mouse wheel doesn't fight a laptop's own pinch-to-zoom-the-page
+// gesture (which arrives as a Ctrl+wheel event).
+canvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      setZoom(viewZoom * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
+    } else {
+      viewPanX -= e.deltaX;
+      viewPanY -= e.deltaY;
+      applyViewTransform();
+    }
+  },
+  { passive: false }
+);
+
 // `const`/`let` at a classic script's top level don't become window
 // properties (only `function` declarations do), so this is the one place
 // the circuit's live state is deliberately exposed — Phase 5 (saving
 // project_data: {code, components, wires}) needs to reach in from outside
 // this file too, not just this file's own click handlers.
-window.arduinoLab = { placedComponents, wires, placeComponent, getPinCanvasPos, breadboardPlacements };
+window.arduinoLab = {
+  placedComponents, wires, placeComponent, getPinCanvasPos, breadboardPlacements,
+  // `let`-declared state can't be exported as a live property (reassigning
+  // the variable wouldn't update an already-copied value on this object),
+  // so these are read on demand instead.
+  getSelectedComponentIds: () => selectedComponentIds,
+  getSelectedWireId: () => selectedWireId,
+  getWireRoutingMode: () => wireRoutingMode,
+  getSnappingEnabled: () => snappingEnabled,
+};
 
 // ---------------------------------------------------------------------
 // Peripheral wiring — binding avr8js's live GPIO state to whatever's

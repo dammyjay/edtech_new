@@ -31,6 +31,19 @@ html, body {
     transform: translateX(-50%) translateY(0);
 }
 
+.pin-tooltip {
+    position: fixed;
+    z-index: 200;
+    background: #222;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
 .arduino-lab {
     height: 100vh;
     display: flex;
@@ -368,7 +381,8 @@ html, body {
     transform: translate(-50%, calc(-100% - 10px));
     z-index: 4;
     display: flex;
-    gap: 3px;
+    flex-direction: column;
+    gap: 4px;
     background: #fff;
     border: 1px solid #e6e2d8;
     border-radius: 9px;
@@ -376,7 +390,48 @@ html, body {
     box-shadow: 0 3px 10px rgba(0,0,0,0.15);
 }
 
-.component-toolbar button {
+/* Flipped by JS (renderSelectionToolbar/renderWireToolbar) when there's
+   not enough room above the anchor point — e.g. a part or wire near the
+   top of the canvas, where the default position would render underneath
+   the fixed topbar (unreachable, since the topbar sits at a higher
+   z-index). Same box, just growing downward from the anchor instead of
+   upward. */
+.component-toolbar--below {
+    transform: translate(-50%, 10px);
+    /* Closest row to the part reads naturally first when growing downward. */
+    flex-direction: column-reverse;
+}
+
+.ct-actions,
+.ct-color-row {
+    display: flex;
+    gap: 3px;
+}
+
+.ct-color-row {
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee6d4;
+}
+
+.ct-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,0,0,0.15);
+    cursor: pointer;
+    padding: 0;
+}
+
+.ct-swatch:hover {
+    outline: 2px solid #A17807;
+    outline-offset: 1px;
+}
+
+.ct-swatch--light {
+    border-color: #ccc;
+}
+
+.component-toolbar button:not(.ct-swatch) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -389,7 +444,7 @@ html, body {
     cursor: pointer;
 }
 
-.component-toolbar button:hover {
+.component-toolbar button:not(.ct-swatch):hover {
     background: #f2efe6;
     color: #A17807;
 }
@@ -397,6 +452,11 @@ html, body {
 .component-toolbar button.ct-danger:hover {
     background: #fdecea;
     color: #d32f2f;
+}
+
+.wire-toolbar .ct-color-row {
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .wire-overlay {
@@ -437,6 +497,17 @@ html, body {
     r: 4.5;
 }
 
+/* Live preview while dragging a part near the breadboard — shows exactly
+   which hole(s) it would snap into if dropped right now. Distinct from
+   both the muted default hole and the (also distinct) plain hover state,
+   since a hover here means "this WILL be used", not just "cursor is over
+   it". */
+.wire-pin--highlight {
+    fill: #1a9c4b !important;
+    r: 5.5 !important;
+    filter: drop-shadow(0 0 3px rgba(26,156,75,0.8));
+}
+
 /* The short line from a plugged-in leg to the hole it snapped into — a
    thinner, quieter line than a real drawn wire, and not clickable/
    removable the way a wire is: un-plug it by dragging the part away,
@@ -450,8 +521,10 @@ html, body {
 }
 
 .wire-path {
+    /* stroke color is set per-instance as an inline SVG attribute
+       (wire.color, defaulting to the same red this used to hardcode) —
+       no CSS-level stroke here, so it can never fight the attribute. */
     fill: none;
-    stroke: #e5352b;
     stroke-width: 3;
     stroke-linecap: round;
     cursor: pointer;
@@ -459,8 +532,12 @@ html, body {
 }
 
 .wire-path:hover {
-    stroke: #d32f2f;
     stroke-width: 4;
+}
+
+.wire-path--selected {
+    stroke-width: 4.5;
+    filter: drop-shadow(0 0 3px rgba(0,0,0,0.35));
 }
 
 .wire-rubberband {
@@ -525,10 +602,29 @@ html, body {
     border-color: #A17807;
 }
 
+.vc-btn--active {
+    background: #A17807;
+    color: #fff;
+    border-color: #A17807;
+}
+
+.vc-btn--active:hover {
+    background: #8a6706;
+    color: #fff;
+}
+
 .view-controls-zoom {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.view-controls-wire-mode {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-top: 8px;
+    border-top: 1px solid #e6e2d8;
 }
 
 .vc-zoom-level {
