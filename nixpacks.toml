@@ -1,11 +1,7 @@
 # nixpacks.toml — Railway build customization.
 #
-# This repo had no custom Nixpacks config before this; without it, Railway
-# auto-detects a plain Node app and there's no way to get arduino-cli (a
-# Go binary, not an npm package) into the built image. Adding it here is
-# what makes services/arduinoCompileService.js's server-side compilation
-# (for the Arduino Lab) actually possible on the current host, instead of
-# needing a different deploy target entirely.
+# This repo had no custom Nixpacks config before Arduino Lab needed
+# arduino-cli (a Go binary, not an npm package) on the built image.
 #
 # arduino-cli itself fetches its own AVR toolchain (avr-gcc, avrdude,
 # board headers) via `arduino-cli core install arduino:avr` — that step
@@ -13,5 +9,27 @@
 # since it needs network access and only has to happen once per running
 # container, not at build time. This file only needs to get the
 # arduino-cli binary itself onto the image.
+#
+# Originally this pulled arduino-cli straight from nixpkgs
+# (nixPkgs = ["arduino-cli"]). That built fine but broke at *runtime* —
+# every arduino-cli invocation failed with
+# "bwrap: Creating new namespace failed: Operation not permitted",
+# on the very first command (core update-index), before anything
+# toolchain-related had even run. Root cause: nixpkgs' arduino-cli
+# derivation is wrapped via buildFHSEnv (so it can later run the
+# non-Nix, dynamically-linked avr-gcc/avrdude binaries it downloads,
+# which expect a standard /lib64-style filesystem Nix doesn't have) —
+# and that FHS wrapper needs to create a Linux user namespace just to
+# launch itself. Railway's containers don't allow unprivileged user
+# namespace creation, so launching arduino-cli at all failed immediately.
+#
+# Fix: skip nixpkgs' wrapped build entirely and install the official
+# static release binary directly (arduino's own install.sh) — the exact
+# same binary already verified working locally. It's a plain Go binary
+# with no FHS/namespace requirement to launch itself.
 [phases.setup]
-nixPkgs = ["...", "arduino-cli"]
+nixPkgs = ["...", "curl"]
+cmds = [
+  "mkdir -p /usr/local/bin",
+  "curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh"
+]
