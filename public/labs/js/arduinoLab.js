@@ -43,6 +43,27 @@ document.querySelectorAll(".component[draggable]").forEach((comp) => {
   });
 });
 
+// Filters the palette by label text as the student types — hides both
+// non-matching cards and any category heading left with nothing visible
+// under it (relies on each heading's matching cards being its immediate
+// following siblings, which is how the palette markup is laid out).
+document.getElementById("componentSearch")?.addEventListener("input", (e) => {
+  const query = e.target.value.trim().toLowerCase();
+  document.querySelectorAll(".component").forEach((card) => {
+    const matches = !query || card.textContent.trim().toLowerCase().includes(query);
+    card.hidden = !matches;
+  });
+  document.querySelectorAll(".component-category").forEach((heading) => {
+    let sibling = heading.nextElementSibling;
+    let anyVisible = false;
+    while (sibling && sibling.classList.contains("component")) {
+      if (!sibling.hidden) anyVisible = true;
+      sibling = sibling.nextElementSibling;
+    }
+    heading.hidden = !anyVisible;
+  });
+});
+
 canvas.addEventListener("dragover", (e) => {
   e.preventDefault();
 });
@@ -50,7 +71,11 @@ canvas.addEventListener("dragover", (e) => {
 canvas.addEventListener("drop", async (e) => {
   e.preventDefault();
   const tag = e.dataTransfer.getData("type");
-  if (!tag || !customElements.get(tag)) return; // unknown tag, or the @wokwi/elements CDN script hasn't loaded
+  // The breadboard is the one draggable type that isn't a real @wokwi/
+  // elements custom element (see "Breadboard" below), so it's exempt
+  // from the "is the CDN bundle actually loaded" check every other tag
+  // needs.
+  if (!tag || (tag !== "custom-breadboard" && !customElements.get(tag))) return;
 
   const canvasRect = canvas.getBoundingClientRect();
   // Convert the drop's screen position into #canvasViewport's own local
@@ -60,8 +85,82 @@ canvas.addEventListener("drop", async (e) => {
   await placeComponent(tag, localX, localY);
 });
 
+// ---------------------------------------------------------------------
+// Breadboard
+// ---------------------------------------------------------------------
+//
+// @wokwi/elements has no breadboard at all — every other part in this
+// lab is one of theirs, this is the one thing drawn and modeled from
+// scratch. It's built as "just another placed component": a plain <div>
+// holding a hand-built SVG, given a `.pinInfo` array exactly like a real
+// wokwi element's, so the entire existing pin/wire/render machinery above
+// needs zero special-casing to treat its 420 holes as clickable pins.
+// The one thing that IS genuinely new: a hole's `node` — several holes
+// share one electrical node (a whole power rail; 5 holes in one column),
+// which is what makes this a real breadboard instead of 420 unrelated
+// pins. See "Connectivity" further down for how that's resolved.
+const BB_COLS = 30;
+const BB_COL_SPACING = 20;
+const BB_LEFT_MARGIN = 30;
+const BB_WIDTH = BB_LEFT_MARGIN * 2 + (BB_COLS - 1) * BB_COL_SPACING;
+const BB_HEIGHT = 300;
+const BB_ROW_Y = {
+  railTopPlus: 20, railTopMinus: 36,
+  a: 64, b: 80, c: 96, d: 112, e: 128,
+  f: 158, g: 174, h: 190, i: 206, j: 222,
+  railBottomPlus: 252, railBottomMinus: 268,
+};
+
+function buildBreadboardPinInfo() {
+  const pins = [];
+  for (let n = 0; n < BB_COLS; n++) {
+    const x = BB_LEFT_MARGIN + n * BB_COL_SPACING;
+    pins.push({ name: `railTP-${n}`, x, y: BB_ROW_Y.railTopPlus, node: "rail-top-plus" });
+    pins.push({ name: `railTM-${n}`, x, y: BB_ROW_Y.railTopMinus, node: "rail-top-minus" });
+    for (const row of ["a", "b", "c", "d", "e"]) {
+      pins.push({ name: `${row}${n}`, x, y: BB_ROW_Y[row], node: `col-${n}-top` });
+    }
+    for (const row of ["f", "g", "h", "i", "j"]) {
+      pins.push({ name: `${row}${n}`, x, y: BB_ROW_Y[row], node: `col-${n}-bottom` });
+    }
+    pins.push({ name: `railBP-${n}`, x, y: BB_ROW_Y.railBottomPlus, node: "rail-bottom-plus" });
+    pins.push({ name: `railBM-${n}`, x, y: BB_ROW_Y.railBottomMinus, node: "rail-bottom-minus" });
+  }
+  return pins;
+}
+
+function buildBreadboardSvg(pins) {
+  const holes = pins.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="1.6" fill="#8a8370"/>`).join("");
+  const railX1 = BB_LEFT_MARGIN - 15;
+  const railX2 = BB_WIDTH - BB_LEFT_MARGIN + 15;
+  return `<svg width="${BB_WIDTH}" height="${BB_HEIGHT}" viewBox="0 0 ${BB_WIDTH} ${BB_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="${BB_WIDTH}" height="${BB_HEIGHT}" rx="8" fill="#f0ead8" stroke="#c9c0a0" stroke-width="1.5"/>
+    <line x1="${railX1}" y1="${BB_ROW_Y.railTopPlus}" x2="${railX2}" y2="${BB_ROW_Y.railTopPlus}" stroke="#d9534f" stroke-width="2"/>
+    <line x1="${railX1}" y1="${BB_ROW_Y.railTopMinus}" x2="${railX2}" y2="${BB_ROW_Y.railTopMinus}" stroke="#337ab7" stroke-width="2"/>
+    <line x1="${railX1}" y1="${BB_ROW_Y.railBottomPlus}" x2="${railX2}" y2="${BB_ROW_Y.railBottomPlus}" stroke="#d9534f" stroke-width="2"/>
+    <line x1="${railX1}" y1="${BB_ROW_Y.railBottomMinus}" x2="${railX2}" y2="${BB_ROW_Y.railBottomMinus}" stroke="#337ab7" stroke-width="2"/>
+    <line x1="0" y1="${BB_HEIGHT / 2}" x2="${BB_WIDTH}" y2="${BB_HEIGHT / 2}" stroke="#c9c0a0" stroke-width="1" stroke-dasharray="4,3"/>
+    ${holes}
+  </svg>`;
+}
+
+// A plain div standing in for a Lit custom element — gets the same
+// `.pinInfo` and `.updateComplete` shape placeComponent() already expects
+// from every real @wokwi/elements part, so it slots into that function
+// (and everything downstream of it) without a special code path.
+function createBreadboardElement() {
+  const el = document.createElement("div");
+  el.innerHTML = buildBreadboardSvg(buildBreadboardPinInfo());
+  el.style.width = BB_WIDTH + "px";
+  el.style.height = BB_HEIGHT + "px";
+  el.style.lineHeight = "0"; // an inline-block wrapping an <svg> otherwise leaves a few px of text-baseline gap
+  el.pinInfo = buildBreadboardPinInfo();
+  el.updateComplete = Promise.resolve();
+  return el;
+}
+
 async function placeComponent(tag, x, y) {
-  const el = document.createElement(tag);
+  const el = tag === "custom-breadboard" ? createBreadboardElement() : document.createElement(tag);
   el.classList.add("placed-component");
   el.style.position = "absolute";
   el.style.left = x + "px";
@@ -81,6 +180,8 @@ async function placeComponent(tag, x, y) {
   placedComponents.set(id, comp);
   attachComponentDrag(el, id);
   renderPins(id);
+  trySnapToBreadboard(id);
+  redrawWires();
   if (canvasHint) canvasHint.style.display = "none";
   return comp;
 }
@@ -113,28 +214,36 @@ function getPinCanvasPos(componentId, pinName) {
   };
 }
 
+// Same position math as getPinCanvasPos, but reads getBoundingClientRect()
+// ONCE per component instead of once per pin — the breadboard alone has
+// 420 of them, and this runs on every pan/zoom tick and every drag move,
+// so 420 redundant layout reads per frame was worth avoiding.
 function renderPins(componentId) {
   const comp = placedComponents.get(componentId);
   if (!comp || !comp.el.pinInfo) return;
 
+  const elRect = comp.el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const isHole = comp.tag === "custom-breadboard";
+
   for (const pin of comp.el.pinInfo) {
-    const pos = getPinCanvasPos(componentId, pin.name);
-    if (!pos) continue;
+    const x = elRect.left - canvasRect.left + pin.x * viewZoom;
+    const y = elRect.top - canvasRect.top + pin.y * viewZoom;
 
     const key = componentId + "::" + pin.name;
     let circle = pinCircles.get(key);
     if (!circle) {
       circle = document.createElementNS(SVG_NS, "circle");
-      circle.setAttribute("r", "5");
-      circle.setAttribute("class", "wire-pin");
+      circle.setAttribute("r", isHole ? "3" : "5");
+      circle.setAttribute("class", isHole ? "wire-pin wire-pin--hole" : "wire-pin");
       circle.dataset.componentId = componentId;
       circle.dataset.pinName = pin.name;
       circle.addEventListener("mousedown", onPinMouseDown);
       wireOverlay.appendChild(circle);
       pinCircles.set(key, circle);
     }
-    circle.setAttribute("cx", pos.x);
-    circle.setAttribute("cy", pos.y);
+    circle.setAttribute("cx", x);
+    circle.setAttribute("cy", y);
   }
 }
 
@@ -170,10 +279,72 @@ function attachComponentDrag(el, id) {
     function onUp() {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      trySnapToBreadboard(id);
+      redrawWires();
     }
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   });
+}
+
+// ---------------------------------------------------------------------
+// Breadboard snapping
+// ---------------------------------------------------------------------
+
+const BREADBOARD_SNAP_PX = 14;
+// "componentId::pin" -> "breadboardId::holeName" — a pin that's currently
+// close enough to a hole to count as plugged into it. Independent per
+// pin (not per component): a part's legs don't need to match the
+// board's own spacing exactly, each leg just finds its own closest hole.
+const breadboardPlacements = new Map();
+
+function findBreadboardComponent() {
+  for (const comp of placedComponents.values()) {
+    if (comp.tag === "custom-breadboard") return comp;
+  }
+  return null;
+}
+
+// Re-checks every pin of `componentId` against the nearest hole on
+// whatever breadboard is on the canvas, snapping (or un-snapping) each
+// one independently. Called once at the end of a drag/placement, not on
+// every mousemove — 420 holes x several pins, every frame, would be
+// wasteful for something that only matters once you let go.
+function trySnapToBreadboard(componentId) {
+  const board = findBreadboardComponent();
+  if (!board || componentId === board.id) return;
+  const comp = placedComponents.get(componentId);
+  if (!comp || !comp.el.pinInfo) return;
+
+  const boardRect = board.el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const boardHoles = board.el.pinInfo.map((hole) => ({
+    hole,
+    x: boardRect.left - canvasRect.left + hole.x * viewZoom,
+    y: boardRect.top - canvasRect.top + hole.y * viewZoom,
+  }));
+
+  for (const pin of comp.el.pinInfo) {
+    const pinPos = getPinCanvasPos(componentId, pin.name);
+    if (!pinPos) continue;
+
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const h of boardHoles) {
+      const dist = Math.hypot(pinPos.x - h.x, pinPos.y - h.y);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = h.hole;
+      }
+    }
+
+    const key = componentId + "::" + pin.name;
+    if (nearest && nearestDist <= BREADBOARD_SNAP_PX) {
+      breadboardPlacements.set(key, board.id + "::" + nearest.name);
+    } else {
+      breadboardPlacements.delete(key);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -251,7 +422,7 @@ function removeWire(wireId) {
 }
 
 function redrawWires() {
-  wireOverlay.querySelectorAll(".wire-path").forEach((p) => p.remove());
+  wireOverlay.querySelectorAll(".wire-path, .snap-stub").forEach((p) => p.remove());
   for (const wire of wires) {
     const from = getPinCanvasPos(wire.from.componentId, wire.from.pin);
     const to = getPinCanvasPos(wire.to.componentId, wire.to.pin);
@@ -263,6 +434,25 @@ function redrawWires() {
     path.addEventListener("click", () => removeWire(wire.id));
     // Insert before any existing child so wires always render under pins.
     wireOverlay.insertBefore(path, wireOverlay.firstChild);
+  }
+
+  // A short line from each breadboard-snapped pin to the hole it landed
+  // in — the visual proof that plugging a leg in near a hole actually
+  // did something, since (unlike a drawn wire) nothing else marks it.
+  for (const [pointKey, holeKey] of breadboardPlacements.entries()) {
+    const sep = pointKey.indexOf("::");
+    const from = getPinCanvasPos(pointKey.slice(0, sep), pointKey.slice(sep + 2));
+    const holeSep = holeKey.indexOf("::");
+    const to = getPinCanvasPos(holeKey.slice(0, holeSep), holeKey.slice(holeSep + 2));
+    if (!from || !to) continue;
+
+    const stub = document.createElementNS(SVG_NS, "line");
+    stub.setAttribute("x1", from.x);
+    stub.setAttribute("y1", from.y);
+    stub.setAttribute("x2", to.x);
+    stub.setAttribute("y2", to.y);
+    stub.setAttribute("class", "snap-stub");
+    wireOverlay.insertBefore(stub, wireOverlay.firstChild);
   }
 }
 
@@ -378,7 +568,7 @@ function onCanvasPanUp() {
 // the circuit's live state is deliberately exposed — Phase 5 (saving
 // project_data: {code, components, wires}) needs to reach in from outside
 // this file too, not just this file's own click handlers.
-window.arduinoLab = { placedComponents, wires, placeComponent, getPinCanvasPos };
+window.arduinoLab = { placedComponents, wires, placeComponent, getPinCanvasPos, breadboardPlacements };
 
 // ---------------------------------------------------------------------
 // Peripheral wiring — binding avr8js's live GPIO state to whatever's
@@ -420,17 +610,71 @@ function findArduinoComponent() {
   return null;
 }
 
-// Every wire touching `componentId` where the *other* end is the Arduino
-// — {ownPin, arduinoPin} for each. A part only ever has one hop to the
-// board in this tool (no breadboard/intermediate nodes), so this is a
-// plain scan, not a graph walk.
-function findArduinoConnections(componentId, arduinoId) {
-  const hits = [];
+// Resolves ALL electrical connectivity for one run: explicit wires, plus
+// breadboard rows — holes sharing a node are the same electrical point
+// even with no wire drawn between them, which is the entire reason a
+// breadboard is useful — plus whatever's been snapped into the board by
+// drag-and-drop. A union-find over every "componentId::pin" and
+// "breadboardId::holeName" seen: three passes of union() (wires; holes
+// sharing a node; snapped placements), then a shared find() answers
+// "are these two points connected" for the rest of this run. Rebuilt
+// fresh right before each Run — wires/placements can change between
+// runs — and built ONCE per run, not once per component checked.
+function buildConnectivity() {
+  const parent = new Map();
+  function find(x) {
+    if (!parent.has(x)) parent.set(x, x);
+    let root = x;
+    while (parent.get(root) !== root) root = parent.get(root);
+    let cur = x;
+    while (parent.get(cur) !== root) {
+      const next = parent.get(cur);
+      parent.set(cur, root);
+      cur = next;
+    }
+    return root;
+  }
+  function union(a, b) {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  }
+
   for (const wire of wires) {
-    if (wire.from.componentId === componentId && wire.to.componentId === arduinoId) {
-      hits.push({ ownPin: wire.from.pin, arduinoPin: wire.to.pin });
-    } else if (wire.to.componentId === componentId && wire.from.componentId === arduinoId) {
-      hits.push({ ownPin: wire.to.pin, arduinoPin: wire.from.pin });
+    union(wire.from.componentId + "::" + wire.from.pin, wire.to.componentId + "::" + wire.to.pin);
+  }
+  for (const comp of placedComponents.values()) {
+    if (comp.tag !== "custom-breadboard" || !comp.el.pinInfo) continue;
+    const firstHoleForNode = new Map();
+    for (const hole of comp.el.pinInfo) {
+      const holeKey = comp.id + "::" + hole.name;
+      if (firstHoleForNode.has(hole.node)) {
+        union(holeKey, firstHoleForNode.get(hole.node));
+      } else {
+        firstHoleForNode.set(hole.node, holeKey);
+      }
+    }
+  }
+  for (const [pointKey, holeKey] of breadboardPlacements.entries()) {
+    union(pointKey, holeKey);
+  }
+
+  return { find };
+}
+
+// Every pin of `comp` electrically connected (directly, or via wires and/
+// or a breadboard's shared rows) to a pin of `uno` — {ownPin, arduinoPin}
+// for each. O(component pins x Uno pins) `find()` calls, both small, so
+// this is cheap even called once per placed component.
+function findArduinoConnections(comp, uno, find) {
+  if (!comp.el.pinInfo || !uno.el.pinInfo) return [];
+  const hits = [];
+  for (const ownPin of comp.el.pinInfo) {
+    const ownRoot = find(comp.id + "::" + ownPin.name);
+    for (const unoPin of uno.el.pinInfo) {
+      if (find(uno.id + "::" + unoPin.name) === ownRoot) {
+        hits.push({ ownPin: ownPin.name, arduinoPin: unoPin.name });
+      }
     }
   }
   return hits;
@@ -449,10 +693,11 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
   const eventListeners = []; // {el, type, handler} — removed on stop
 
   if (!uno) return () => {}; // nothing to bind without a board on the canvas
+  const { find } = buildConnectivity();
 
   for (const comp of placedComponents.values()) {
-    if (comp.id === uno.id) continue;
-    const connections = findArduinoConnections(comp.id, uno.id);
+    if (comp.id === uno.id || comp.tag === "custom-breadboard") continue;
+    const connections = findArduinoConnections(comp, uno, find);
     if (!connections.length) continue;
 
     if (comp.tag === "wokwi-led" || comp.tag === "wokwi-buzzer") {

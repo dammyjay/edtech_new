@@ -173,6 +173,24 @@ html, body {
     margin: 0 0 14px;
 }
 
+.component-search {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    margin-bottom: 14px;
+    border: 1px solid #ddd7c8;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: #333;
+}
+
+.component-search:focus {
+    outline: none;
+    border-color: #A17807;
+}
+
 .component-category {
     font-size: 10.5px;
     font-weight: 700;
@@ -314,6 +332,31 @@ html, body {
 .wire-pin:hover {
     fill: #1a9c4b;
     r: 7;
+}
+
+/* A breadboard hole is still a real, clickable pin (wires can go straight
+   to one) but 420 of them at full pin size would look like a wall of gold
+   dots — muted and smaller until hovered. */
+.wire-pin--hole {
+    fill: #9a9382;
+    stroke: none;
+}
+
+.wire-pin--hole:hover {
+    fill: #A17807;
+    r: 4.5;
+}
+
+/* The short line from a plugged-in leg to the hole it snapped into — a
+   thinner, quieter line than a real drawn wire, and not clickable/
+   removable the way a wire is: un-plug it by dragging the part away,
+   the same gesture that plugged it in. */
+.snap-stub {
+    stroke: #A17807;
+    stroke-width: 1.5;
+    stroke-dasharray: 2, 2;
+    opacity: 0.7;
+    pointer-events: none;
 }
 
 .wire-path {
