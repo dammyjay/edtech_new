@@ -27,23 +27,23 @@
 
     <h2>Drop Components Here</h2>
 
+    <!--
+      Phase 2 proof-of-concept: one fixed LED, really wired to pin 13.
+      Real click-and-drag wiring for dropped components (above) is Phase 3 —
+      this rig proves the execution half (compile -> avr8js) works first.
+    -->
+    <div class="pin13-rig">
+      <div id="pin13Led" class="led"></div>
+      <span class="pin13-rig-label">Pin 13</span>
+    </div>
+
   </div>
 
 </div>
 
 <div class="code-section">
 
-<textarea id="arduinoCode">
-
-void setup(){
-
-}
-
-void loop(){
-
-}
-
-</textarea>
+  <div id="arduinoCodeEditor" class="code-editor"></div>
 
 </div>
 
@@ -53,7 +53,7 @@ void loop(){
 Run Simulation
 </button>
 
-<button id="stopBtn">
+<button id="stopBtn" disabled>
 Stop
 </button>
 
@@ -61,6 +61,9 @@ Stop
 Save
 </button>
 
+<span id="arduinoStatus" class="arduino-status">Idle</span>
+
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
 <script src="/labs/js/arduinoLab.js"></script>
