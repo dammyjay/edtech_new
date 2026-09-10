@@ -33,18 +33,6 @@
 
     <h2 id="circuitCanvasHint">Drop Components Here</h2>
 
-    <!--
-      Phase 2 proof-of-concept: one fixed LED, really wired to pin 13.
-      Left in place — Phase 3 (below) adds the real drag-and-drop + wiring
-      system alongside it; Phase 4 is what connects avr8js's live GPIO
-      state to whatever a student actually wires, at which point this
-      fixed rig gets folded into that.
-    -->
-    <div class="pin13-rig">
-      <div id="pin13Led" class="led"></div>
-      <span class="pin13-rig-label">Pin 13</span>
-    </div>
-
     <svg id="wireOverlay" class="wire-overlay"></svg>
 
   </div>
@@ -55,6 +43,15 @@
 
   <div id="arduinoCodeEditor" class="code-editor"></div>
 
+</div>
+
+<div class="serial-monitor">
+  <div class="serial-monitor-header">
+    <span class="serial-dot"></span>
+    <span>Serial Monitor</span>
+    <span class="serial-baud">9600 baud</span>
+  </div>
+  <div id="serialOutput" class="serial-output"></div>
 </div>
 
 <div class="controls">

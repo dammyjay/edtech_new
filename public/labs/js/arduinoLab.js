@@ -2,17 +2,17 @@
 //
 // Phase 1 (services/arduinoCompileService.js) proved a real sketch compiles
 // server-side to a real .hex. Phase 2 proved that .hex can be *executed*,
-// for real, in the browser (avr8js) — driving one hardcoded LED on pin 13,
-// still wired up below. Phase 3 (this file's circuit-builder section)
-// replaces the old do-nothing drag/drop with real component graphics
-// (@wokwi/elements — the same parts Wokwi's own simulator renders) and
-// real click-and-drag wiring between actual pins.
-//
-// Deliberately NOT in scope yet (Phase 4): none of these dropped/wired
-// components are actually driven by avr8js's live GPIO state — that's
-// what turns "a wire exists" into "the LED you wired really lights up".
-// This phase is the visual/data-model half: place parts, wire pins,
-// move things around, delete a bad wire.
+// for real, in the browser (avr8js). Phase 3 (the circuit-builder section
+// below) replaced the old do-nothing drag/drop with real component graphics
+// (@wokwi/elements) and real click-and-drag wiring between actual pins —
+// but purely as a visual/data model; nothing read the wires yet. Phase 4
+// (the "Peripheral wiring" section, further down) is what closes that gap:
+// it walks whatever a student actually wired, maps each connection to a
+// real AVR port+bit, and drives the running sketch's live GPIO state
+// straight into the component's own visual property (an LED's `value`, a
+// buzzer's `hasSignal`) — and the other direction too, for a pushbutton's
+// clicks driving an input pin. A Serial Monitor panel shows Serial.print
+// output the same way, via avr8js's USART peripheral.
 
 const canvas = document.getElementById("circuitCanvas");
 
@@ -66,10 +66,12 @@ async function placeComponent(tag, x, y) {
   // created custom element can report a zero-size box.
   if (el.updateComplete) await el.updateComplete;
 
-  placedComponents.set(id, { id, tag, el });
+  const comp = { id, tag, el };
+  placedComponents.set(id, comp);
   attachComponentDrag(el, id);
   renderPins(id);
   if (canvasHint) canvasHint.style.display = "none";
+  return comp;
 }
 
 // ---------------------------------------------------------------------
@@ -249,13 +251,147 @@ function wirePath(from, to) {
   return `M ${from.x} ${from.y} C ${from.x} ${from.y + bulge}, ${to.x} ${to.y - bulge}, ${to.x} ${to.y}`;
 }
 
+// A default starter circuit — an LED wired to pin 13/GND — so the lab
+// isn't a blank canvas on first visit, and the starter sketch actually
+// has something wired to run against. Called once, after both Monaco and
+// the @wokwi/elements bundle are ready.
+async function seedDefaultCircuit() {
+  const uno = await placeComponent("wokwi-arduino-uno", 40, 40);
+  const led = await placeComponent("wokwi-led", 460, 40);
+  tryAddWire(led.id, "A", uno.id, "13");
+  tryAddWire(led.id, "C", uno.id, "GND.1");
+}
+
 // `const`/`let` at a classic script's top level don't become window
 // properties (only `function` declarations do), so this is the one place
-// the circuit's live state is deliberately exposed — Phase 4 (binding
-// avr8js's GPIO state to whatever's actually wired) and Phase 5 (saving
-// project_data: {code, components, wires}) both need to reach in from
-// outside this file, not just this file's own click handlers.
+// the circuit's live state is deliberately exposed — Phase 5 (saving
+// project_data: {code, components, wires}) needs to reach in from outside
+// this file too, not just this file's own click handlers.
 window.arduinoLab = { placedComponents, wires, placeComponent, getPinCanvasPos };
+
+// ---------------------------------------------------------------------
+// Peripheral wiring — binding avr8js's live GPIO state to whatever's
+// actually wired on the canvas
+// ---------------------------------------------------------------------
+
+// The Uno's fixed silkscreen-pin -> physical AVR port/bit mapping — the
+// one piece of hardware knowledge avr8js and @wokwi/elements don't give
+// you for free (avr8js only knows ports B/C/D; @wokwi/elements' pinInfo
+// only knows silkscreen names like "13" or "A0"). Standard, unchanging
+// ATmega328P-on-an-Uno wiring, not something to compute.
+const PIN_TO_PORT = {
+  0: { port: "D", bit: 0 }, 1: { port: "D", bit: 1 }, 2: { port: "D", bit: 2 }, 3: { port: "D", bit: 3 },
+  4: { port: "D", bit: 4 }, 5: { port: "D", bit: 5 }, 6: { port: "D", bit: 6 }, 7: { port: "D", bit: 7 },
+  8: { port: "B", bit: 0 }, 9: { port: "B", bit: 1 }, 10: { port: "B", bit: 2 }, 11: { port: "B", bit: 3 },
+  12: { port: "B", bit: 4 }, 13: { port: "B", bit: 5 },
+  A0: { port: "C", bit: 0 }, A1: { port: "C", bit: 1 }, A2: { port: "C", bit: 2 },
+  A3: { port: "C", bit: 3 }, A4: { port: "C", bit: 4 }, A5: { port: "C", bit: 5 },
+};
+
+function findArduinoComponent() {
+  for (const comp of placedComponents.values()) {
+    if (comp.tag === "wokwi-arduino-uno") return comp;
+  }
+  return null;
+}
+
+// Every wire touching `componentId` where the *other* end is the Arduino
+// — {ownPin, arduinoPin} for each. A part only ever has one hop to the
+// board in this tool (no breadboard/intermediate nodes), so this is a
+// plain scan, not a graph walk.
+function findArduinoConnections(componentId, arduinoId) {
+  const hits = [];
+  for (const wire of wires) {
+    if (wire.from.componentId === componentId && wire.to.componentId === arduinoId) {
+      hits.push({ ownPin: wire.from.pin, arduinoPin: wire.to.pin });
+    } else if (wire.to.componentId === componentId && wire.from.componentId === arduinoId) {
+      hits.push({ ownPin: wire.to.pin, arduinoPin: wire.from.pin });
+    }
+  }
+  return hits;
+}
+
+// Wires up every non-Arduino placed component against the just-started
+// simulation and returns a cleanup function. Re-run fresh on every Run
+// click (see runSketch) — components/wires can change between runs.
+function bindComponentsToSimulation(ports, PinState) {
+  const uno = findArduinoComponent();
+  const boundVisuals = []; // {el, prop} — reset to an "off" state on stop
+  const buttonListeners = []; // {el, onPress, onRelease} — removed on stop
+
+  if (!uno) return () => {}; // nothing to bind without a board on the canvas
+
+  for (const comp of placedComponents.values()) {
+    if (comp.id === uno.id) continue;
+    const connections = findArduinoConnections(comp.id, uno.id);
+    if (!connections.length) continue;
+
+    if (comp.tag === "wokwi-led" || comp.tag === "wokwi-buzzer") {
+      const prop = comp.tag === "wokwi-led" ? "value" : "hasSignal";
+      for (const { arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue; // e.g. wired to GND — nothing to listen to
+        const port = ports[loc.port];
+        const listener = () => {
+          comp.el[prop] = port.pinState(loc.bit) === PinState.High;
+        };
+        port.addListener(listener);
+        comp.el[prop] = port.pinState(loc.bit) === PinState.High; // set the initial state — addListener only fires on change
+        boundVisuals.push({ el: comp.el, prop });
+      }
+    } else if (comp.tag === "wokwi-pushbutton") {
+      for (const { arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue; // the leg wired to GND, not the signal leg
+        const port = ports[loc.port];
+        // Idle HIGH, matching the standard pinMode(pin, INPUT_PULLUP) this
+        // wiring implies — pressed pulls it LOW, exactly like a real button.
+        port.setPin(loc.bit, true);
+        const onPress = () => port.setPin(loc.bit, false);
+        const onRelease = () => port.setPin(loc.bit, true);
+        comp.el.addEventListener("button-press", onPress);
+        comp.el.addEventListener("button-release", onRelease);
+        buttonListeners.push({ el: comp.el, onPress, onRelease });
+      }
+    }
+  }
+
+  return function unbind() {
+    for (const { el, prop } of boundVisuals) el[prop] = false;
+    for (const { el, onPress, onRelease } of buttonListeners) {
+      el.removeEventListener("button-press", onPress);
+      el.removeEventListener("button-release", onRelease);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------
+// Serial Monitor
+// ---------------------------------------------------------------------
+
+const MAX_SERIAL_LINES = 500; // a runaway loop shouldn't grow this panel forever
+
+function clearSerialOutput() {
+  const output = document.getElementById("serialOutput");
+  if (output) output.innerHTML = '<span class="serial-placeholder">Waiting for Serial output…</span>';
+  const dot = document.querySelector(".serial-dot");
+  if (dot) dot.classList.remove("connected");
+}
+
+function appendSerialLine(text) {
+  const output = document.getElementById("serialOutput");
+  if (!output) return;
+  const placeholder = output.querySelector(".serial-placeholder");
+  if (placeholder) placeholder.remove();
+  const dot = document.querySelector(".serial-dot");
+  if (dot) dot.classList.add("connected");
+
+  const line = document.createElement("div");
+  line.textContent = text;
+  output.appendChild(line);
+  while (output.children.length > MAX_SERIAL_LINES) output.removeChild(output.firstChild);
+  output.scrollTop = output.scrollHeight;
+}
 
 // ---------------------------------------------------------------------
 // Monaco editor
@@ -267,17 +403,21 @@ require.config({
   },
 });
 
-const STARTER_SKETCH = `// Pin 13 has a real LED wired to it in this playground.
-// Run it and watch the LED on the canvas actually blink.
+const STARTER_SKETCH = `// An LED is already wired to pin 13 (and GND) on the canvas.
+// Run it and watch the LED actually blink — drag more parts on and wire
+// them to other pins to see the same thing happen for those too.
 
 void setup() {
   pinMode(13, OUTPUT);
+  Serial.begin(9600);
 }
 
 void loop() {
   digitalWrite(13, HIGH);
+  Serial.println("LED ON");
   delay(500);
   digitalWrite(13, LOW);
+  Serial.println("LED OFF");
   delay(500);
 }
 `;
@@ -300,6 +440,8 @@ require(["vs/editor/editor.main"], function () {
 
   document.getElementById("runBtn").addEventListener("click", runSketch);
   document.getElementById("stopBtn").addEventListener("click", stopSimulation);
+  clearSerialOutput();
+  seedDefaultCircuit();
 });
 
 // ---------------------------------------------------------------------
@@ -369,7 +511,7 @@ function loadAvr8js() {
   return avr8jsLoaderPromise;
 }
 
-let simState = null; // { cpu, portB, rafId, startWallMs }
+let simState = null; // { cpu, startWallMs, timeoutId, unbindComponents }
 
 async function runSketch() {
   if (!codeEditor) return;
@@ -409,21 +551,29 @@ async function runSketch() {
     return;
   }
 
-  const { CPU, AVRIOPort, AVRTimer, portBConfig, timer0Config, avrInstruction, PinState } = avr8js;
+  const {
+    CPU, AVRIOPort, AVRTimer, AVRUSART, portBConfig, portCConfig, portDConfig,
+    timer0Config, usart0Config, avrInstruction, PinState,
+  } = avr8js;
 
   const progMem = parseIntelHex(compileResult.hex);
   const cpu = new CPU(progMem);
-  const portB = new AVRIOPort(cpu, portBConfig);
+  // All three GPIO ports — a wired component could land on any of them
+  // (digital pins 0-7 = PORTD, 8-13 = PORTB, A0-A5 = PORTC).
+  const ports = {
+    B: new AVRIOPort(cpu, portBConfig),
+    C: new AVRIOPort(cpu, portCConfig),
+    D: new AVRIOPort(cpu, portDConfig),
+  };
   new AVRTimer(cpu, timer0Config); // required for delay()/millis() to ever advance
 
-  const led = document.getElementById("pin13Led");
+  clearSerialOutput();
+  const usart = new AVRUSART(cpu, usart0Config, CPU_HZ);
+  usart.onLineTransmit = (line) => appendSerialLine(line.replace(/\r$/, "")); // Serial.println sends "\r\n"
 
-  portB.addListener(() => {
-    const state = portB.pinState(5); // digital pin 13 == PORTB bit 5 (PB5)
-    if (led) led.classList.toggle("on", state === PinState.High);
-  });
+  const unbindComponents = bindComponentsToSimulation(ports, PinState);
 
-  simState = { cpu, startWallMs: performance.now(), timeoutId: null };
+  simState = { cpu, startWallMs: performance.now(), timeoutId: null, unbindComponents };
   setButtonsRunning(true, false);
   setStatus("Running", "running");
 
@@ -433,8 +583,9 @@ async function runSketch() {
   // which starves this loop of ticks while wall-clock time (and the
   // sketch's own delay()/millis() math) keeps moving, so the simulation
   // falls further behind every frame and never catches up. setTimeout
-  // keeps ticking regardless, and the LED already updates synchronously
-  // inside the portB listener above, so painting isn't tied to this timer.
+  // keeps ticking regardless, and every wired component already updates
+  // synchronously inside its own GPIO listener (bindComponentsToSimulation
+  // above), so painting isn't tied to this timer either.
   function frame() {
     if (!simState) return;
     const frameStart = performance.now();
@@ -463,13 +614,11 @@ async function runSketch() {
 }
 
 function stopSimulation() {
-  if (simState && simState.timeoutId) {
-    clearTimeout(simState.timeoutId);
+  if (simState) {
+    if (simState.timeoutId) clearTimeout(simState.timeoutId);
+    if (simState.unbindComponents) simState.unbindComponents();
   }
   simState = null;
-
-  const led = document.getElementById("pin13Led");
-  if (led) led.classList.remove("on");
 
   setButtonsRunning(false, false);
   setStatus("Stopped", "idle");
