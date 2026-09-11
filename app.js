@@ -213,6 +213,9 @@ app.use("/admin/announcements", announcementRoutes);
 const labAssetRoutes = require("./routes/labAssetRoutes");
 app.use("/admin/lab-assets", labAssetRoutes);
 
+const adminArduinoComponentRoutes = require("./routes/adminArduinoComponentRoutes");
+app.use("/admin/arduino-components", adminArduinoComponentRoutes);
+
 const publicAnnouncementRoutes = require("./routes/publicAnnouncementRoutes");
 app.use("/announcements", publicAnnouncementRoutes);
 

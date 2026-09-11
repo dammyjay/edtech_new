@@ -164,9 +164,28 @@ exports.getBlocklyLab = async (req, res) => {
 };
 
 exports.getArduinoLab = async (req, res) => {
+  // Component palette is admin-curated data now (lab_assets/
+  // lab_asset_categories, lab_type='arduino' — same generic tables the
+  // Blockly sprite/background picker already uses), not a hardcoded list
+  // in the template — see controllers/adminArduinoComponentController.js.
+  const categoriesRes = await pool.query(
+    `SELECT * FROM lab_asset_categories WHERE lab_type = 'arduino' AND asset_type = 'component' ORDER BY id ASC`
+  );
+  const componentsRes = await pool.query(
+    `SELECT * FROM lab_assets
+     WHERE lab_type = 'arduino' AND asset_type = 'component' AND enabled = true
+     ORDER BY sort_order ASC, name ASC`
+  );
+  const componentCategories = categoriesRes.rows
+    .map((cat) => ({ ...cat, components: componentsRes.rows.filter((c) => c.category_id === cat.id) }))
+    .filter((cat) => cat.components.length > 0);
+  const uncategorizedComponents = componentsRes.rows.filter((c) => !c.category_id);
+
   res.render("labs/arduino/editor", {
     title: "Arduino Playground",
     layout: "layout",
+    componentCategories,
+    uncategorizedComponents,
   });
 };
 

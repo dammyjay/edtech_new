@@ -29,6 +29,17 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4"/><path d="M8 20v-5h8v5"/></svg>
         Save
       </button>
+      <select id="exampleSelect" class="lab-example-select" title="Load an example sketch">
+        <option value="">📋 Load an example…</option>
+        <option value="blink">Blink an LED</option>
+        <option value="buttonLed">Push Button controls an LED</option>
+        <option value="servoSweep">Servo Sweep</option>
+        <option value="rgbCycle">RGB LED Color Cycle</option>
+        <option value="buzzerBeep">Buzzer Beep Pattern</option>
+        <option value="switchLed">Slide Switch controls an LED</option>
+        <option value="potRead">Potentiometer Reading (Serial)</option>
+        <option value="lightRead">Light Sensor Reading (Serial)</option>
+      </select>
       <div class="lab-topbar-divider"></div>
       <button id="undoBtn" class="lab-icon-btn" title="Undo (design)" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10h-2"/><path d="M8 5 3 10l5 5"/></svg>
@@ -77,81 +88,61 @@
 
       <input type="text" id="componentSearch" class="component-search" placeholder="Search components…" autocomplete="off">
 
-      <div class="component-category">Boards</div>
-      <div class="component" data-type="wokwi-arduino-uno">
-        <div class="component-preview preview-board"><wokwi-arduino-uno></wokwi-arduino-uno></div>
-        Arduino Uno
-      </div>
+      <%
+        // Admin-curated (controllers/adminArduinoComponentController.js,
+        // /admin/arduino-components) — see componentCategories/
+        // uncategorizedComponents built in labController.js#getArduinoLab.
+        // Every card renders the same generic way regardless of what
+        // admin adds later: the tag's own custom element self-renders
+        // (<tag></tag>), sized to fit the preview box by JS at runtime
+        // (arduinoLab.js's autoScalePreviews) instead of a hand-authored
+        // CSS scale rule per tag — the exact kind of rule a DHT22-style
+        // gap came from before this became data-driven. The breadboard
+        // is the one non-@wokwi/elements tag (see "Breadboard" in
+        // arduinoLab.js) and keeps its hand-drawn SVG preview here.
+      %>
+      <% componentCategories.forEach(cat => { %>
+        <div class="component-category"><%= cat.name %></div>
+        <% cat.components.forEach(c => { %>
+          <div class="component" data-type="<%= c.asset_url %>">
+            <div class="component-preview">
+              <% if (c.asset_url === 'custom-breadboard') { %>
+                <svg viewBox="0 0 60 30" width="52" height="26">
+                  <rect x="1" y="1" width="58" height="28" rx="3" fill="#f0ead8" stroke="#c9c0a0"/>
+                  <line x1="4" y1="6" x2="56" y2="6" stroke="#d9534f" stroke-width="1.2"/>
+                  <line x1="4" y1="10" x2="56" y2="10" stroke="#337ab7" stroke-width="1.2"/>
+                  <line x1="4" y1="20" x2="56" y2="20" stroke="#d9534f" stroke-width="1.2"/>
+                  <line x1="4" y1="24" x2="56" y2="24" stroke="#337ab7" stroke-width="1.2"/>
+                  <circle cx="10" cy="14" r="0.8" fill="#999"/><circle cx="16" cy="14" r="0.8" fill="#999"/><circle cx="22" cy="14" r="0.8" fill="#999"/>
+                  <circle cx="28" cy="14" r="0.8" fill="#999"/><circle cx="34" cy="14" r="0.8" fill="#999"/><circle cx="40" cy="14" r="0.8" fill="#999"/>
+                  <circle cx="46" cy="14" r="0.8" fill="#999"/><circle cx="52" cy="14" r="0.8" fill="#999"/>
+                </svg>
+              <% } else { %>
+                <%- `<${c.asset_url}></${c.asset_url}>` %>
+              <% } %>
+            </div>
+            <%= c.name %>
+          </div>
+        <% }) %>
+      <% }) %>
 
-      <div class="component" data-type="wokwi-arduino-nano">
-        <div class="component-preview preview-board"><wokwi-arduino-nano></wokwi-arduino-nano></div>
-        Arduino Nano
-      </div>
-
-      <div class="component-category">Prototyping</div>
-      <div class="component" data-type="custom-breadboard">
-        <div class="component-preview preview-breadboard">
-          <svg viewBox="0 0 60 30" width="52" height="26">
-            <rect x="1" y="1" width="58" height="28" rx="3" fill="#f0ead8" stroke="#c9c0a0"/>
-            <line x1="4" y1="6" x2="56" y2="6" stroke="#d9534f" stroke-width="1.2"/>
-            <line x1="4" y1="10" x2="56" y2="10" stroke="#337ab7" stroke-width="1.2"/>
-            <line x1="4" y1="20" x2="56" y2="20" stroke="#d9534f" stroke-width="1.2"/>
-            <line x1="4" y1="24" x2="56" y2="24" stroke="#337ab7" stroke-width="1.2"/>
-            <circle cx="10" cy="14" r="0.8" fill="#999"/><circle cx="16" cy="14" r="0.8" fill="#999"/><circle cx="22" cy="14" r="0.8" fill="#999"/>
-            <circle cx="28" cy="14" r="0.8" fill="#999"/><circle cx="34" cy="14" r="0.8" fill="#999"/><circle cx="40" cy="14" r="0.8" fill="#999"/>
-            <circle cx="46" cy="14" r="0.8" fill="#999"/><circle cx="52" cy="14" r="0.8" fill="#999"/>
-          </svg>
-        </div>
-        Breadboard
-      </div>
-
-      <div class="component-category">Output</div>
-      <div class="component" data-type="wokwi-led">
-        <div class="component-preview preview-led"><wokwi-led color="red"></wokwi-led></div>
-        LED
-      </div>
-
-      <div class="component" data-type="wokwi-rgb-led">
-        <div class="component-preview preview-rgb-led"><wokwi-rgb-led></wokwi-rgb-led></div>
-        RGB LED
-      </div>
-
-      <div class="component" data-type="wokwi-buzzer">
-        <div class="component-preview preview-buzzer"><wokwi-buzzer></wokwi-buzzer></div>
-        Buzzer
-      </div>
-
-      <div class="component" data-type="wokwi-servo">
-        <div class="component-preview preview-servo"><wokwi-servo></wokwi-servo></div>
-        Servo Motor
-      </div>
-
-      <div class="component-category">Input</div>
-      <div class="component" data-type="wokwi-pushbutton">
-        <div class="component-preview preview-button"><wokwi-pushbutton></wokwi-pushbutton></div>
-        Push Button
-      </div>
-
-      <div class="component" data-type="wokwi-slide-switch">
-        <div class="component-preview preview-slide-switch"><wokwi-slide-switch></wokwi-slide-switch></div>
-        Slide Switch
-      </div>
-
-      <div class="component" data-type="wokwi-potentiometer">
-        <div class="component-preview preview-potentiometer"><wokwi-potentiometer></wokwi-potentiometer></div>
-        Potentiometer
-      </div>
-
-      <div class="component-category">Sensors</div>
-      <div class="component" data-type="wokwi-photoresistor-sensor">
-        <div class="component-preview preview-photoresistor"><wokwi-photoresistor-sensor></wokwi-photoresistor-sensor></div>
-        Light Sensor
-      </div>
-
-      <div class="component" data-type="wokwi-dht22">
-        <div class="component-preview preview-dht22"><wokwi-dht22></wokwi-dht22></div>
-        DHT22
-      </div>
+      <% if (uncategorizedComponents.length) { %>
+        <div class="component-category">Other</div>
+        <% uncategorizedComponents.forEach(c => { %>
+          <div class="component" data-type="<%= c.asset_url %>">
+            <div class="component-preview">
+              <% if (c.asset_url === 'custom-breadboard') { %>
+                <svg viewBox="0 0 60 30" width="52" height="26">
+                  <rect x="1" y="1" width="58" height="28" rx="3" fill="#f0ead8" stroke="#c9c0a0"/>
+                </svg>
+              <% } else { %>
+                <%- `<${c.asset_url}></${c.asset_url}>` %>
+              <% } %>
+            </div>
+            <%= c.name %>
+          </div>
+        <% }) %>
+      <% } %>
 
       <p class="components-hint">Drag a part onto the canvas, then drag from one pin to another to wire it up. Click a wire to select it (recolor or delete); double-click along a selected wire to add a bend point you can drag to route it around other parts, and double-click a bend point to remove it. Drop a breadboard first, then drag a part near a hole — nearby holes light up as you drag, and its legs snap into that row, which is electrically connected end to end just like a real breadboard. Click a part to flip, turn, duplicate, or delete it (shift-click to select several at once); an LED's toolbar also lets you change its colour. Hover a pin or hole to see its name. Ctrl/Cmd+scroll to zoom, scroll to pan.</p>
     </div>

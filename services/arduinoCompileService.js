@@ -73,10 +73,25 @@ let coreInstallPromise = null;
 // (Servo.h etc. live in Arduino's separate Library Manager index, not the
 // board core — `core install arduino:avr` alone doesn't fetch them, found
 // out the hard way when the Servo component's own sketch failed to
-// compile with "Servo.h: No such file or directory"). Kept short and
-// added to as new component types actually need one — not a blanket
-// "install everything" list.
-const BUILTIN_LIBRARIES = ["Servo"];
+// compile with "Servo.h: No such file or directory"). A curated,
+// pre-installed set — not "install anything a student's #include names"
+// (that would mean running arduino-cli lib install on arbitrary,
+// untrusted student input every compile) — chosen to cover the parts
+// already in the palette (Servo, DHT sensor library + its Adafruit
+// Unified Sensor dependency for the DHT22) plus a few very common
+// intro-electronics libraries worth having ready before the matching
+// palette component exists (I2C LCDs, NeoPixel strips, matrix keypads —
+// exact names verified against the real Library Manager index, not
+// guessed). Add to this list — never let a sketch's own #include trigger
+// an install — as new component types need one.
+const BUILTIN_LIBRARIES = [
+  "Servo",
+  "DHT sensor library",
+  "Adafruit Unified Sensor",
+  "LiquidCrystal I2C",
+  "Adafruit NeoPixel",
+  "Keypad",
+];
 
 async function ensureAvrCoreInstalled() {
   if (!coreInstallPromise) {

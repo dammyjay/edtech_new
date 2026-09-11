@@ -1,0 +1,232 @@
+/* Arduino Lab component catalog admin page — reuses .la-page/.la-header/
+   .la-empty from admin-lab-assets.css for a consistent shell, everything
+   below is specific to this page's list+sidebar layout. */
+
+.ac-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 24px;
+    align-items: start;
+}
+
+.ac-main h3,
+.ac-panel h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--brand-pri, #A17807);
+}
+
+.ac-category-group {
+    margin-bottom: 22px;
+}
+
+.ac-category-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee6d4;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+}
+
+.ac-category-heading h4 {
+    margin: 0;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+}
+
+.ac-cat-delete {
+    background: none;
+    border: none;
+    color: #b33;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+
+.ac-cat-delete:hover {
+    text-decoration: underline;
+}
+
+.ac-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid #ecdfb8;
+    border-radius: 8px;
+    background: #fdfbf6;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.ac-row--disabled {
+    opacity: 0.55;
+    background: #f4f4f2;
+}
+
+/* .ac-toggle-form / .ac-edit-form / .ac-delete-form all need to reset
+   every property the site-wide base stylesheet's bare `form { width:
+   100%; padding: 25px 30px; margin-bottom: 30px; background: #fff;
+   border-radius: 10px; }` rule sets (style.css) — that's a plain
+   element selector, so on any PROPERTY these classes don't otherwise
+   touch, it's the only declaration in the cascade and wins regardless
+   of specificity or load order. Without resetting it explicitly, each
+   <form> in a .ac-row renders as its own full-width, padded, bordered
+   block — which is exactly what happened before this comment existed. */
+.ac-toggle-form,
+.ac-edit-form,
+.ac-delete-form {
+    width: auto;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border-radius: 0;
+    flex: 0 0 auto;
+}
+
+.ac-toggle {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #999;
+    border-radius: 14px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ac-toggle--on {
+    background: #1a9c4b;
+    border-color: #1a9c4b;
+    color: #fff;
+}
+
+.ac-edit-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+}
+
+/* input.ac-input / select.ac-input, not just .ac-input — the site-wide
+   base stylesheet's `input[type="text"], select { width: 100%; ... }`
+   (style.css) has the same specificity as an element+class selector, so
+   a bare class alone loses that fight (an attribute selector counts the
+   same as a class) regardless of this file loading after it. Explicit
+   compact widths below, not just "override to auto", since this row
+   needs several fields sitting inline, not each filling its own line. */
+input.ac-input,
+select.ac-input {
+    width: auto;
+    margin-bottom: 0;
+    padding: 5px 8px;
+    border: 1px solid #ddd7c8;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-family: inherit;
+}
+
+input.ac-input-name {
+    flex: 1 1 140px;
+    min-width: 100px;
+    width: 140px;
+    font-weight: 600;
+}
+
+input.ac-input-sort {
+    width: 56px;
+}
+
+.ac-tag {
+    font-size: 11px;
+    color: #999;
+    background: #f0ead8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.ac-save-btn,
+.ac-add-btn {
+    background: var(--brand-pri, #A17807);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ac-save-btn:hover,
+.ac-add-btn:hover {
+    opacity: 0.9;
+}
+
+.ac-delete-btn {
+    background: none;
+    border: none;
+    color: #b33;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+}
+
+.ac-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.ac-panel {
+    background: #fff;
+    border: 1px solid #ecdfb8;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.ac-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ac-add-form label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    margin-top: 4px;
+}
+
+.ac-add-form select,
+.ac-add-form input {
+    padding: 7px 9px;
+    border: 1px solid #ddd7c8;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.ac-add-form button {
+    margin-top: 10px;
+}
+
+.ac-note {
+    background: #fdecea;
+    color: #a33;
+    font-size: 11.5px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin: 2px 0;
+}
+
+@media (max-width: 900px) {
+    .ac-layout {
+        grid-template-columns: 1fr;
+    }
+}

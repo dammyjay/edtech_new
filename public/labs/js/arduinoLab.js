@@ -169,6 +169,33 @@ document.getElementById("componentSearch")?.addEventListener("input", (e) => {
   });
 });
 
+// The palette is admin-curated data now (any @wokwi/elements tag can be
+// added from /admin/arduino-components), not a fixed hand-authored list
+// — a per-tag CSS scale rule (the old approach) would mean every newly
+// added part needs a matching code change just to render at a sane size
+// in its 56x44 preview box, which is exactly how the DHT22 preview
+// shipped badly oversized before this existed. Measures each card's
+// real part at its native (unscaled) size and sets its own inline scale
+// instead — works for any tag automatically, present or future.
+async function autoScalePreviews() {
+  const PADDING = 6;
+  for (const preview of document.querySelectorAll(".component-preview")) {
+    const el = preview.firstElementChild;
+    if (!el) continue;
+    if (el.updateComplete) await el.updateComplete; // Lit components render asynchronously — measuring too early can catch a zero-size box
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) continue;
+    const availableW = preview.clientWidth - PADDING;
+    const availableH = preview.clientHeight - PADDING;
+    // Capped at 1 — shrink an oversized part down to fit, but never
+    // magnify one that's already smaller than the box (matches every
+    // hand-picked scale factor this replaces, none of which exceeded 1).
+    const scale = Math.min(availableW / rect.width, availableH / rect.height, 1);
+    el.style.transform = `scale(${scale})`;
+  }
+}
+autoScalePreviews();
+
 // ---------------------------------------------------------------------
 // Breadboard
 // ---------------------------------------------------------------------
@@ -2412,6 +2439,205 @@ require.config({
   },
 });
 
+// Starter sketches for the "Load Example" dropdown — each one only uses
+// behavior this simulator actually implements (see bindComponentsToSimulation):
+// LED/buzzer/RGB-LED channels are plain digital on/off (no analogWrite()
+// brightness/PWM yet, so no example here claims dimming works), pushbutton/
+// slide-switch/potentiometer readings are real, and the photoresistor
+// currently always reads a fixed simulated light level (no draggable "light
+// level" control the way the potentiometer has one) — noted honestly in
+// its own example rather than implying it's adjustable. DHT22 has no
+// simulation logic bound at all yet (visual/wireable only), so it
+// deliberately has no example here.
+const ARDUINO_EXAMPLES = {
+  blink: {
+    label: "Blink an LED",
+    code: `// Wire an LED's anode (long leg) to pin 13 and its cathode to GND.
+
+void setup() {
+  pinMode(13, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  Serial.println("LED ON");
+  delay(500);
+  digitalWrite(13, LOW);
+  Serial.println("LED OFF");
+  delay(500);
+}
+`,
+  },
+  buttonLed: {
+    label: "Push Button controls an LED",
+    code: `// Wire a push button between pin 2 and GND, and an LED (with its
+// cathode to GND) to pin 13.
+// INPUT_PULLUP means the pin reads HIGH when the button is NOT pressed,
+// and LOW the moment it is — pressing it completes the circuit to GND.
+
+const int buttonPin = 2;
+const int ledPin = 13;
+
+void setup() {
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(ledPin, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  bool pressed = digitalRead(buttonPin) == LOW;
+  digitalWrite(ledPin, pressed ? HIGH : LOW);
+  if (pressed) Serial.println("Button pressed — LED on");
+  delay(50);
+}
+`,
+  },
+  servoSweep: {
+    label: "Servo Sweep",
+    code: `// Wire a servo's signal wire to pin 9 (and power/ground to 5V/GND).
+
+#include <Servo.h>
+
+Servo myServo;
+
+void setup() {
+  myServo.attach(9);
+}
+
+void loop() {
+  for (int angle = 0; angle <= 180; angle += 5) {
+    myServo.write(angle);
+    delay(30);
+  }
+  for (int angle = 180; angle >= 0; angle -= 5) {
+    myServo.write(angle);
+    delay(30);
+  }
+}
+`,
+  },
+  rgbCycle: {
+    label: "RGB LED Color Cycle",
+    code: `// Wire an RGB LED's R/G/B legs to pins 9, 10, 11 (and COM to GND for a
+// common-cathode module). Each channel is a plain on/off here, so this
+// cycles through the 8 colors that combination can make — not a smooth
+// fade (that needs analogWrite() PWM brightness, not simulated yet).
+
+const int redPin = 9;
+const int greenPin = 10;
+const int bluePin = 11;
+
+void setColor(bool r, bool g, bool b) {
+  digitalWrite(redPin, r);
+  digitalWrite(greenPin, g);
+  digitalWrite(bluePin, b);
+}
+
+void setup() {
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+}
+
+void loop() {
+  setColor(true, false, false);  // red
+  delay(400);
+  setColor(false, true, false);  // green
+  delay(400);
+  setColor(false, false, true);  // blue
+  delay(400);
+  setColor(true, true, false);   // yellow
+  delay(400);
+  setColor(false, true, true);   // cyan
+  delay(400);
+  setColor(true, false, true);   // magenta
+  delay(400);
+  setColor(true, true, true);    // white
+  delay(400);
+}
+`,
+  },
+  buzzerBeep: {
+    label: "Buzzer Beep Pattern",
+    code: `// Wire a buzzer's signal leg to pin 8 (and its other leg to GND).
+
+const int buzzerPin = 8;
+
+void setup() {
+  pinMode(buzzerPin, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(buzzerPin, HIGH);
+  delay(150);
+  digitalWrite(buzzerPin, LOW);
+  delay(150);
+  digitalWrite(buzzerPin, HIGH);
+  delay(150);
+  digitalWrite(buzzerPin, LOW);
+  delay(700);
+}
+`,
+  },
+  switchLed: {
+    label: "Slide Switch controls an LED",
+    code: `// Wire a slide switch's signal leg to pin 7, and an LED (cathode to
+// GND) to pin 13.
+
+const int switchPin = 7;
+const int ledPin = 13;
+
+void setup() {
+  pinMode(switchPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(ledPin, digitalRead(switchPin));
+  delay(50);
+}
+`,
+  },
+  potRead: {
+    label: "Potentiometer Reading (Serial)",
+    code: `// Wire a potentiometer's signal (wiper) leg to A0, and its outer legs
+// to 5V and GND. Drag its knob while the sketch is running to see the
+// reading actually change.
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int reading = analogRead(A0); // 0-1023
+  Serial.print("Potentiometer: ");
+  Serial.println(reading);
+  delay(200);
+}
+`,
+  },
+  lightRead: {
+    label: "Light Sensor Reading (Serial)",
+    code: `// Wire a photoresistor's AO leg to A0 (and its other legs to 5V/GND).
+// This simulated sensor currently always reports a fixed mid-range
+// light level (no draggable "brightness" control yet) — the reading
+// itself is real, just not adjustable in the simulator today.
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int reading = analogRead(A0); // 0-1023
+  Serial.print("Light level: ");
+  Serial.println(reading);
+  delay(200);
+}
+`,
+  },
+};
+
 const STARTER_SKETCH = `// An LED is already wired to pin 13 (and GND) on the canvas.
 // Run it and watch the LED actually blink — drag more parts on and wire
 // them to other pins to see the same thing happen for those too.
@@ -2450,6 +2676,19 @@ require(["vs/editor/editor.main"], function () {
   document.getElementById("runBtn").addEventListener("click", runSketch);
   document.getElementById("stopBtn").addEventListener("click", stopSimulation);
   document.getElementById("saveBtn")?.addEventListener("click", () => saveProject(true));
+  document.getElementById("exampleSelect")?.addEventListener("change", (e) => {
+    const key = e.target.value;
+    e.target.value = ""; // reset to the placeholder — this is a one-shot action, not a persistent selection
+    const example = ARDUINO_EXAMPLES[key];
+    if (!example) return;
+    // setValue() replaces the whole model (not an edit operation), which
+    // also clears Monaco's own undo history — same reason Web Lab's
+    // template picker confirms before doing this.
+    if (!confirm(`Load "${example.label}"? This replaces your current code (can't be undone).`)) return;
+    codeEditor.setValue(example.code);
+    showToast(`Loaded "${example.label}"`);
+    scheduleAutoSave();
+  });
   clearSerialOutput();
   initArduinoProject();
 

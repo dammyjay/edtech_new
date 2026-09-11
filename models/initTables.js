@@ -1937,6 +1937,68 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       }
     }
 
+    // Arduino Lab's component palette reuses these SAME lab_assets/
+    // lab_asset_categories tables (lab_type='arduino', asset_type=
+    // 'component') instead of new ones — the schema was already generic
+    // across lab types. asset_url holds the component's tag name (e.g.
+    // 'wokwi-led') rather than an image URL here; there's nothing to
+    // upload, just a tag to place on the canvas. Two columns these rows
+    // need that sprites/backgrounds never did: `enabled` (admin can hide
+    // a component from students without deleting its catalog entry) and
+    // `sort_order` (palette cards render in a controlled order, not
+    // creation order). Added via ALTER instead of the CREATE TABLE
+    // above so this stays safe to rerun on every boot without dropping
+    // the table sprites/backgrounds already depend on.
+    await pool.query(
+      `ALTER TABLE lab_assets ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;`
+    );
+    await pool.query(
+      `ALTER TABLE lab_assets ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;`
+    );
+
+    // One-time seed of the components that used to be hardcoded in the
+    // Arduino editor template, so switching to the DB-driven, admin-
+    // curated palette doesn't make any of them disappear. Guarded on no
+    // arduino components existing yet, same pattern as the sprite/
+    // background seed above.
+    const arduinoComponentCount = await pool.query(
+      `SELECT COUNT(*) FROM lab_assets WHERE lab_type = 'arduino' AND asset_type = 'component'`
+    );
+    if (parseInt(arduinoComponentCount.rows[0].count, 10) === 0) {
+      const arduinoCategoryNames = ["Boards", "Prototyping", "Output", "Input", "Sensors"];
+      const arduinoCategoryIds = {};
+      for (const name of arduinoCategoryNames) {
+        const res = await pool.query(
+          `INSERT INTO lab_asset_categories (lab_type, asset_type, name) VALUES ('arduino','component',$1) RETURNING id`,
+          [name]
+        );
+        arduinoCategoryIds[name] = res.rows[0].id;
+      }
+
+      // tag, label, category, sort_order — exactly the 12 parts that were
+      // hardcoded in views/labs/arduino/editor.ejs before this migration.
+      const defaultArduinoComponents = [
+        ["wokwi-arduino-uno", "Arduino Uno", "Boards", 0],
+        ["wokwi-arduino-nano", "Arduino Nano", "Boards", 1],
+        ["custom-breadboard", "Breadboard", "Prototyping", 0],
+        ["wokwi-led", "LED", "Output", 0],
+        ["wokwi-rgb-led", "RGB LED", "Output", 1],
+        ["wokwi-buzzer", "Buzzer", "Output", 2],
+        ["wokwi-servo", "Servo Motor", "Output", 3],
+        ["wokwi-pushbutton", "Push Button", "Input", 0],
+        ["wokwi-slide-switch", "Slide Switch", "Input", 1],
+        ["wokwi-potentiometer", "Potentiometer", "Input", 2],
+        ["wokwi-photoresistor-sensor", "Light Sensor", "Sensors", 0],
+        ["wokwi-dht22", "DHT22", "Sensors", 1],
+      ];
+      for (const [tag, label, category, sortOrder] of defaultArduinoComponents) {
+        await pool.query(
+          `INSERT INTO lab_assets (lab_type, asset_type, category_id, name, asset_url, sort_order) VALUES ('arduino','component',$1,$2,$3,$4)`,
+          [arduinoCategoryIds[category], label, tag, sortOrder]
+        );
+      }
+    }
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

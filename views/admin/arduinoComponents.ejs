@@ -1,0 +1,140 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'arduino-components' }) %>
+<link rel="stylesheet" href="/css/admin-lab-assets.css" />
+<link rel="stylesheet" href="/css/admin-arduino-components.css" />
+
+<div class="la-page">
+  <div class="la-header">
+    <h2>🔌 Arduino Lab Components</h2>
+    <p>
+      Curate which parts show up in the Arduino Lab's component palette — enable/disable, relabel, recategorize, and
+      reorder. "Add Component" only offers parts this app already has real electrical simulation behavior for
+      (or, for DHT22, honestly says it doesn't yet) — not an arbitrary tag, so nothing gets added here that would
+      just sit there doing nothing when a student runs their code.
+    </p>
+  </div>
+
+  <div class="ac-layout">
+    <section class="ac-main">
+      <h3>Catalog</h3>
+      <% if (components.length === 0) { %>
+        <p class="la-empty">No components yet.</p>
+      <% } %>
+
+      <% categories.forEach(cat => { %>
+        <% const inCat = components.filter(c => c.category_id === cat.id); %>
+        <% if (!inCat.length) return; %>
+        <div class="ac-category-group">
+          <div class="ac-category-heading">
+            <h4><%= cat.name %></h4>
+            <form action="/admin/arduino-components/category/delete/<%= cat.id %>" method="POST" class="ac-delete-form"
+                  onsubmit="return confirm('Delete this category? Its components become uncategorized, not deleted.')">
+              <button type="submit" class="ac-cat-delete" title="Delete category">✕ category</button>
+            </form>
+          </div>
+
+          <% inCat.forEach(c => { %>
+            <div class="ac-row <%= c.enabled ? '' : 'ac-row--disabled' %>">
+              <form action="/admin/arduino-components/toggle/<%= c.id %>" method="POST" class="ac-toggle-form">
+                <button type="submit" class="ac-toggle <%= c.enabled ? 'ac-toggle--on' : '' %>"
+                        title="<%= c.enabled ? 'Enabled — click to hide from the palette' : 'Disabled — click to show in the palette' %>">
+                  <%= c.enabled ? '● On' : '○ Off' %>
+                </button>
+              </form>
+
+              <form action="/admin/arduino-components/edit/<%= c.id %>" method="POST" class="ac-edit-form">
+                <input type="text" name="name" value="<%= c.name %>" class="ac-input ac-input-name" required />
+                <code class="ac-tag"><%= c.asset_url %></code>
+                <select name="category_id" class="ac-input">
+                  <option value="">— Uncategorized —</option>
+                  <% categories.forEach(opt => { %>
+                    <option value="<%= opt.id %>" <%= c.category_id === opt.id ? 'selected' : '' %>><%= opt.name %></option>
+                  <% }) %>
+                </select>
+                <input type="number" name="sort_order" value="<%= c.sort_order %>" class="ac-input ac-input-sort" title="Order within its category (lower first)" />
+                <button type="submit" class="ac-save-btn">💾 Save</button>
+              </form>
+
+              <form action="/admin/arduino-components/delete/<%= c.id %>" method="POST" class="ac-delete-form"
+                    onsubmit="return confirm('Remove &quot;<%= c.name %>&quot; from the palette entirely? Circuits that already used it keep working — this only stops NEW placements.')">
+                <button type="submit" class="ac-delete-btn" title="Delete">🗑</button>
+              </form>
+            </div>
+          <% }) %>
+        </div>
+      <% }) %>
+
+      <% const uncategorized = components.filter(c => !c.category_id); %>
+      <% if (uncategorized.length) { %>
+        <div class="ac-category-group">
+          <div class="ac-category-heading"><h4>Uncategorized</h4></div>
+          <% uncategorized.forEach(c => { %>
+            <div class="ac-row <%= c.enabled ? '' : 'ac-row--disabled' %>">
+              <form action="/admin/arduino-components/toggle/<%= c.id %>" method="POST" class="ac-toggle-form">
+                <button type="submit" class="ac-toggle <%= c.enabled ? 'ac-toggle--on' : '' %>">
+                  <%= c.enabled ? '● On' : '○ Off' %>
+                </button>
+              </form>
+              <form action="/admin/arduino-components/edit/<%= c.id %>" method="POST" class="ac-edit-form">
+                <input type="text" name="name" value="<%= c.name %>" class="ac-input ac-input-name" required />
+                <code class="ac-tag"><%= c.asset_url %></code>
+                <select name="category_id" class="ac-input">
+                  <option value="">— Uncategorized —</option>
+                  <% categories.forEach(opt => { %>
+                    <option value="<%= opt.id %>"><%= opt.name %></option>
+                  <% }) %>
+                </select>
+                <input type="number" name="sort_order" value="<%= c.sort_order %>" class="ac-input ac-input-sort" />
+                <button type="submit" class="ac-save-btn">💾 Save</button>
+              </form>
+              <form action="/admin/arduino-components/delete/<%= c.id %>" method="POST" class="ac-delete-form" onsubmit="return confirm('Remove this component?')">
+                <button type="submit" class="ac-delete-btn">🗑</button>
+              </form>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <aside class="ac-sidebar">
+      <div class="ac-panel">
+        <h3>Add Component</h3>
+        <% if (addableComponents.length === 0) { %>
+          <p class="la-empty">Every known-supported component is already in the catalog.</p>
+        <% } else { %>
+          <form action="/admin/arduino-components/add" method="POST" class="ac-add-form">
+            <label for="ac-add-tag">Part</label>
+            <select name="tag" id="ac-add-tag" required onchange="document.getElementById('ac-add-label').value = this.options[this.selectedIndex].dataset.label">
+              <% addableComponents.forEach(c => { %>
+                <option value="<%= c.tag %>" data-label="<%= c.label %>"><%= c.label %><%= c.note ? ' ⚠' : '' %></option>
+              <% }) %>
+            </select>
+            <% addableComponents.filter(c => c.note).forEach(c => { %>
+              <p class="ac-note">⚠ <strong><%= c.label %></strong>: <%= c.note %></p>
+            <% }) %>
+
+            <label for="ac-add-label">Label shown to students</label>
+            <input type="text" id="ac-add-label" name="label" value="<%= addableComponents[0].label %>" required />
+
+            <label for="ac-add-category">Category</label>
+            <select name="category_id" id="ac-add-category">
+              <option value="">— Uncategorized —</option>
+              <% categories.forEach(cat => { %>
+                <option value="<%= cat.id %>"><%= cat.name %></option>
+              <% }) %>
+            </select>
+
+            <button type="submit" class="ac-add-btn">+ Add to Palette</button>
+          </form>
+        <% } %>
+      </div>
+
+      <div class="ac-panel">
+        <h3>New Category</h3>
+        <form action="/admin/arduino-components/category" method="POST" class="ac-add-form">
+          <input type="text" name="name" placeholder="e.g. Displays" required />
+          <button type="submit" class="ac-add-btn">+ Add Category</button>
+        </form>
+      </div>
+    </aside>
+  </div>
+</div>
