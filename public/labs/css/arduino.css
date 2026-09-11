@@ -357,6 +357,24 @@ html, body {
     font-size: 13px;
     font-weight: 600;
     color: #222;
+    /* Without this, starting a touch-drag on a card also scrolls the
+       sidebar underneath it (the browser's default response to a finger
+       moving over a scrollable container) instead of just dragging the
+       card — the custom pointer-based drag (arduinoLab.js) needs sole
+       control of the gesture here. */
+    touch-action: none;
+}
+
+/* The floating copy of a palette card that follows the pointer/finger
+   while dragging it toward the canvas — touch has no native drag-ghost
+   image the way desktop drag-and-drop provides for free, so this stands
+   in for it (and looks the same on mouse, for one consistent feel). */
+.palette-drag-ghost {
+    position: fixed;
+    z-index: 1000;
+    opacity: 0.85;
+    pointer-events: none;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
 }
 
 .component-preview {
@@ -412,6 +430,11 @@ html, body {
     background-image: radial-gradient(#d7dade 1px, transparent 1px);
     background-size: 18px 18px;
     cursor: grab;
+    /* Panning, moving parts, and drawing wires are all custom pointer-
+       driven gestures on this element — without this, a touch drag
+       ALSO scrolls/zooms the page underneath it by default, fighting
+       the app's own handling the whole time. */
+    touch-action: none;
 }
 
 .circuit-canvas.panning {
@@ -436,6 +459,7 @@ html, body {
 
 .placed-component {
     z-index: 1;
+    touch-action: none; /* dragging a part shouldn't also pan the page underneath it */
 }
 
 .placed-component:hover {
@@ -554,6 +578,7 @@ html, body {
     stroke-width: 1.5;
     cursor: crosshair;
     pointer-events: all;
+    touch-action: none; /* dragging from a pin draws a wire — shouldn't also scroll/pan */
 }
 
 .wire-pin:hover {
@@ -608,6 +633,7 @@ html, body {
     stroke-width: 2;
     cursor: grab;
     pointer-events: all;
+    touch-action: none; /* dragging a node reroutes the wire — shouldn't also scroll/pan */
 }
 
 .wire-node:hover {
@@ -816,7 +842,18 @@ html, body {
    below that, fall back to a normal scrolling stack. */
 /* ---------------------------------------------------------------- */
 
-@media (max-width: 900px) {
+/* Widened from 900px: a tablet in LANDSCAPE (iPad is 1024px, most
+   Android tablets are similar or wider) still fell just above the old
+   threshold, keeping the cramped fixed-width 3-column desktop layout —
+   at that width the sidebar (220px) + code panel (440px) leave too
+   little room for the canvas, clipping the seeded circuit's own
+   components off past its right edge (invisible AND unclickable,
+   found via testing: a tap that should have landed on the LED hit the
+   code editor sitting right where the LED should have been instead).
+   The stacked layout below also gives every touch target (pins, wire
+   handles, the toolbar) more room, which matters more on touch than on
+   a mouse-driven desktop regardless of the clipping bug. */
+@media (max-width: 1100px) {
     html, body {
         overflow: auto;
     }
@@ -828,14 +865,27 @@ html, body {
         flex-direction: column;
         overflow: visible;
     }
+    /* The canvas is the whole point of this lab — reordered to appear
+       right under the topbar instead of after the full component
+       palette (which, stacked full-width, runs to several screens of
+       scrolling on its own). This is a purely VISUAL reorder (flexbox
+       `order`, not a DOM move) — keyboard/tab order still follows
+       source order (palette, then canvas, then code), which is a known
+       trade-off of this technique; acceptable here since this layout
+       is aimed at touch/visual use, not keyboard navigation. */
+    .canvas-wrap {
+        order: 1;
+    }
     .components-panel {
+        order: 2;
+        width: 100%;
+    }
+    .right-panel {
+        order: 3;
         width: 100%;
     }
     .circuit-canvas {
-        height: 50vh;
-    }
-    .right-panel {
-        width: 100%;
+        height: 60vh;
     }
     .code-section {
         height: 320px;

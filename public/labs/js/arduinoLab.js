@@ -37,11 +37,116 @@ const placedComponents = new Map(); // id -> { id, tag, el }
 const pinCircles = new Map(); // "componentId::pinName" -> <circle>
 const wires = []; // { id, from: {componentId, pin}, to: {componentId, pin} }
 
-document.querySelectorAll(".component[draggable]").forEach((comp) => {
-  comp.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("type", comp.dataset.type);
+// Dragging a part from the palette onto the canvas — deliberately built
+// on Pointer Events (fires uniformly for mouse, touch, and pen) instead
+// of the native HTML5 Drag and Drop API (dragstart/dragover/drop): that
+// API has no touch support at all on iOS Safari and is inconsistent
+// elsewhere on mobile, which is exactly why the whole lab was unusable
+// by touch — this one implementation covers both input types instead of
+// needing two separate code paths.
+let paletteDragState = null; // { tag, ghost }
+
+document.querySelectorAll(".component[data-type]").forEach((card) => {
+  card.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // left mouse button only; every touch/pen contact reports button 0
+    const tag = card.dataset.type;
+    if (!tag) return;
+    e.preventDefault();
+
+    // A floating copy of the card follows the pointer so there's a clear
+    // "carrying this part" visual on touch, where there's no native
+    // drag ghost image the way desktop drag-and-drop provides for free.
+    const ghost = card.cloneNode(true);
+    ghost.classList.add("palette-drag-ghost");
+    ghost.style.width = card.offsetWidth + "px";
+    document.body.appendChild(ghost);
+    positionGhost(ghost, e.clientX, e.clientY);
+
+    paletteDragState = { tag, ghost };
+    lastPaletteDragY = e.clientY;
+    paletteAutoScrollInterval = setInterval(runPaletteAutoScrollTick, 16);
+    document.addEventListener("pointermove", onPaletteDragMove);
+    document.addEventListener("pointerup", onPaletteDragEnd);
   });
 });
+
+function positionGhost(ghost, clientX, clientY) {
+  ghost.style.left = clientX - ghost.offsetWidth / 2 + "px";
+  ghost.style.top = clientY - ghost.offsetHeight / 2 + "px";
+}
+
+// How close to the top/bottom viewport edge a drag needs to get before
+// the page auto-scrolls — without this, on a short/mobile viewport
+// where the palette and the canvas aren't both visible at once (very
+// possible once scrolled: found via testing that they genuinely can't
+// fit together on a real tablet-height screen), a card and its drop
+// target could never both be reachable within one continuous touch
+// gesture — there's no other way to scroll mid-drag.
+const AUTOSCROLL_EDGE_PX = 70;
+const AUTOSCROLL_SPEED = 14;
+let paletteAutoScrollInterval = null;
+let lastPaletteDragY = null;
+
+function onPaletteDragMove(e) {
+  if (!paletteDragState) return;
+  positionGhost(paletteDragState.ghost, e.clientX, e.clientY);
+  lastPaletteDragY = e.clientY;
+}
+
+// Runs on a fixed interval (not per pointermove) so holding the finger
+// steady near an edge keeps scrolling — a real finger held still, or a
+// simulated one at the exact same coordinate, generates no further
+// pointermove events at all, so tying this to pointermove alone would
+// only scroll while the finger is ALSO actively wiggling.
+function runPaletteAutoScrollTick() {
+  if (lastPaletteDragY === null) return;
+  // document.body specifically — not window.scrollBy/scrollingElement,
+  // which both resolve to documentElement (<html>) here. This page's
+  // base stylesheet sets `overflow: auto` on BOTH html and body, and in
+  // the stacked mobile layout BODY ends up as the element that actually
+  // scrolls (confirmed via testing: html's own scrollHeight matched the
+  // viewport exactly — nothing to scroll there — while body's didn't,
+  // and setting body.scrollTop directly moved the page; scrollingElement
+  // is supposed to name whichever one is real, but resolves to html
+  // unconditionally in standards mode regardless of which one actually
+  // has the overflow, so it isn't reliable for this specific page).
+  const scroller = document.body;
+  if (lastPaletteDragY < AUTOSCROLL_EDGE_PX) {
+    scroller.scrollTop -= AUTOSCROLL_SPEED;
+  } else if (lastPaletteDragY > window.innerHeight - AUTOSCROLL_EDGE_PX) {
+    scroller.scrollTop += AUTOSCROLL_SPEED;
+  }
+}
+
+async function onPaletteDragEnd(e) {
+  document.removeEventListener("pointermove", onPaletteDragMove);
+  document.removeEventListener("pointerup", onPaletteDragEnd);
+  clearInterval(paletteAutoScrollInterval);
+  paletteAutoScrollInterval = null;
+  lastPaletteDragY = null;
+  if (!paletteDragState) return;
+  const { tag, ghost } = paletteDragState;
+  paletteDragState = null;
+  ghost.remove();
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const droppedOnCanvas =
+    e.clientX >= canvasRect.left && e.clientX <= canvasRect.right && e.clientY >= canvasRect.top && e.clientY <= canvasRect.bottom;
+  if (!droppedOnCanvas) return; // released over the palette/topbar/etc — cancel, same as a native drag released outside a drop target
+  // The breadboard is the one draggable type that isn't a real @wokwi/
+  // elements custom element (see "Breadboard" below), so it's exempt
+  // from the "is the CDN bundle actually loaded" check every other tag
+  // needs.
+  if (tag !== "custom-breadboard" && !customElements.get(tag)) return;
+
+  // Convert the drop's screen position into #canvasViewport's own local
+  // (pre-transform) coordinate space — undo the pan, then undo the zoom.
+  const localX = (e.clientX - canvasRect.left - viewPanX) / viewZoom;
+  const localY = (e.clientY - canvasRect.top - viewPanY) / viewZoom;
+  recordHistory(); // before the change — undo goes back to "not placed yet"
+  await placeComponent(tag, localX, localY);
+  scheduleAutoSave();
+}
 
 // Filters the palette by label text as the student types — hides both
 // non-matching cards and any category heading left with nothing visible
@@ -62,29 +167,6 @@ document.getElementById("componentSearch")?.addEventListener("input", (e) => {
     }
     heading.hidden = !anyVisible;
   });
-});
-
-canvas.addEventListener("dragover", (e) => {
-  e.preventDefault();
-});
-
-canvas.addEventListener("drop", async (e) => {
-  e.preventDefault();
-  const tag = e.dataTransfer.getData("type");
-  // The breadboard is the one draggable type that isn't a real @wokwi/
-  // elements custom element (see "Breadboard" below), so it's exempt
-  // from the "is the CDN bundle actually loaded" check every other tag
-  // needs.
-  if (!tag || (tag !== "custom-breadboard" && !customElements.get(tag))) return;
-
-  const canvasRect = canvas.getBoundingClientRect();
-  // Convert the drop's screen position into #canvasViewport's own local
-  // (pre-transform) coordinate space — undo the pan, then undo the zoom.
-  const localX = (e.clientX - canvasRect.left - viewPanX) / viewZoom;
-  const localY = (e.clientY - canvasRect.top - viewPanY) / viewZoom;
-  recordHistory(); // before the change — undo goes back to "not placed yet"
-  await placeComponent(tag, localX, localY);
-  scheduleAutoSave();
 });
 
 // ---------------------------------------------------------------------
@@ -272,7 +354,7 @@ function renderPins(componentId) {
       circle.setAttribute("class", isHole ? "wire-pin wire-pin--hole" : "wire-pin");
       circle.dataset.componentId = componentId;
       circle.dataset.pinName = pin.name;
-      circle.addEventListener("mousedown", onPinMouseDown);
+      circle.addEventListener("pointerdown", onPinPointerDown);
       circle.addEventListener("mouseenter", onPinHoverEnter);
       circle.addEventListener("mousemove", onPinHoverMove);
       circle.addEventListener("mouseleave", onPinHoverLeave);
@@ -286,7 +368,10 @@ function renderPins(componentId) {
 
 // A small label following the cursor while hovering any pin or breadboard
 // hole — the actual pin name (fixed viewport positioning, so it doesn't
-// need any canvas-space math at all).
+// need any canvas-space math at all). Also triggered from a touch tap
+// (onPinPointerDown), which has no real "hover" to key off — see the
+// auto-hide timer this variable tracks there.
+let pinTooltipTouchTimer;
 function onPinHoverEnter(e) {
   const tip = document.getElementById("pinTooltip");
   if (!tip) return;
@@ -313,9 +398,9 @@ function onPinHoverLeave() {
 const DRAG_THRESHOLD_PX = 4; // below this, a mousedown+mouseup is a click (select), not a drag (move)
 
 function attachComponentDrag(el, id) {
-  el.addEventListener("mousedown", (e) => {
+  el.addEventListener("pointerdown", (e) => {
     // Pin circles live in the separate SVG overlay, not inside `el` — a
-    // mousedown reaching here is always on the component's own body.
+    // pointerdown reaching here is always on the component's own body.
     // Stopped from bubbling so the canvas's own pan-drag (below) doesn't
     // also kick in for what's really a component drag.
     e.preventDefault();
@@ -330,10 +415,10 @@ function attachComponentDrag(el, id) {
       if (!dragged && Math.hypot(ev.clientX - startClientX, ev.clientY - startClientY) < DRAG_THRESHOLD_PX) return;
       if (!dragged) recordHistory(); // once per drag gesture, before the first real move — undo reverts the whole drag, not one pixel at a time
       dragged = true;
-      // Mouse movement is in real screen pixels; el.style.left/top are in
-      // #canvasViewport's local (pre-zoom) units, so the delta needs
+      // Pointer movement is in real screen pixels; el.style.left/top are
+      // in #canvasViewport's local (pre-zoom) units, so the delta needs
       // dividing by the current zoom to move the part exactly as far as
-      // the cursor, regardless of how zoomed in/out the view is.
+      // the cursor/finger, regardless of how zoomed in/out the view is.
       const dx = (ev.clientX - startClientX) / viewZoom;
       const dy = (ev.clientY - startClientY) / viewZoom;
       el.style.left = Math.max(0, startLeft + dx) + "px";
@@ -345,8 +430,8 @@ function attachComponentDrag(el, id) {
       highlightNearbyHoles(id);
     }
     function onUp(upEvent) {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
       clearHoleHighlights();
       if (dragged) {
         trySnapToBreadboard(id);
@@ -357,8 +442,8 @@ function attachComponentDrag(el, id) {
         selectComponent(id, upEvent.shiftKey);
       }
     }
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
   });
 }
 
@@ -535,9 +620,9 @@ function deleteComponent(id) {
   if (canvasHint && placedComponents.size === 0) canvasHint.style.display = "";
 }
 
-document.getElementById("componentToolbar")?.addEventListener("mousedown", (e) => {
-  // Stop this reaching the canvas's own pan-drag listener — clicking a
-  // toolbar button is not a click on empty canvas background.
+document.getElementById("componentToolbar")?.addEventListener("pointerdown", (e) => {
+  // Stop this reaching the canvas's own pan-drag listener — clicking/
+  // tapping a toolbar button is not a click on empty canvas background.
   e.stopPropagation();
 });
 document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
@@ -705,9 +790,18 @@ document.getElementById("snapToggleBtn")?.addEventListener("click", (e) => {
 
 let pendingWire = null; // { fromComponentId, fromPin, from: {x,y}, rubberPath }
 
-function onPinMouseDown(e) {
+function onPinPointerDown(e) {
   e.preventDefault();
   e.stopPropagation(); // don't also trigger the canvas's own pan-drag below
+  // Touch has no hover state to show the pin-name tooltip the way mouse
+  // hover does below — a tap briefly peeks it instead, auto-hiding so it
+  // doesn't just sit there through the drag that (usually) follows.
+  if (e.pointerType === "touch") {
+    onPinHoverEnter(e);
+    clearTimeout(pinTooltipTouchTimer);
+    pinTooltipTouchTimer = setTimeout(onPinHoverLeave, 1500);
+  }
+
   const fromComponentId = e.target.dataset.componentId;
   const fromPin = e.target.dataset.pinName;
   const from = getPinCanvasPos(fromComponentId, fromPin);
@@ -718,8 +812,8 @@ function onPinMouseDown(e) {
   wireOverlay.appendChild(rubberPath);
 
   pendingWire = { fromComponentId, fromPin, from, rubberPath };
-  document.addEventListener("mousemove", onWireDragMove);
-  document.addEventListener("mouseup", onWireDragEnd);
+  document.addEventListener("pointermove", onWireDragMove);
+  document.addEventListener("pointerup", onWireDragEnd);
 }
 
 function onWireDragMove(e) {
@@ -730,8 +824,8 @@ function onWireDragMove(e) {
 }
 
 function onWireDragEnd(e) {
-  document.removeEventListener("mousemove", onWireDragMove);
-  document.removeEventListener("mouseup", onWireDragEnd);
+  document.removeEventListener("pointermove", onWireDragMove);
+  document.removeEventListener("pointerup", onWireDragEnd);
   if (!pendingWire) return;
 
   pendingWire.rubberPath.remove();
@@ -835,7 +929,7 @@ function renderWireToolbar() {
   toolbar.style.top = midY + "px";
 }
 
-document.getElementById("wireToolbar")?.addEventListener("mousedown", (e) => e.stopPropagation());
+document.getElementById("wireToolbar")?.addEventListener("pointerdown", (e) => e.stopPropagation());
 document.getElementById("wireToolbar")?.addEventListener("click", (e) => {
   if (!selectedWireId) return;
   const wire = wires.find((w) => w.id === selectedWireId);
@@ -883,14 +977,14 @@ function redrawWires() {
       e.stopPropagation();
       selectWire(wire.id);
     });
-    // Double-click anywhere along the wire adds a bend point there,
-    // letting the routing be dragged around an obstacle instead of being
-    // stuck with whichever global curved/straight/orthogonal mode is
-    // active — see "Wire waypoints" below.
-    path.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      addWireWaypoint(wire, e);
-    });
+    // Double-click/double-tap anywhere along the wire adds a bend point
+    // there, letting the routing be dragged around an obstacle instead
+    // of being stuck with whichever global curved/straight/orthogonal
+    // mode is active — see "Wire waypoints" below. Uses the ONE shared
+    // detector instance (defined once, not per redraw) so its "saw one
+    // tap" memory survives the redraw the first tap's own click-to-
+    // select triggers, right before the second tap arrives.
+    path.addEventListener("pointerup", (e) => detectWirePathDoubleTap(e, wire));
     // Insert before any existing child so wires always render under pins.
     wireOverlay.insertBefore(path, wireOverlay.firstChild);
 
@@ -960,6 +1054,51 @@ function wirePath(from, to, waypoints) {
 // handler (screen -> local) and getPinCanvasPos (local -> screen, via
 // each pin's own already-transformed elRect).
 // ---------------------------------------------------------------------
+
+// dblclick's synthetic double-click from a touch tap is unreliable —
+// some browsers never fire it from touch at all. This hand-rolls double-
+// tap/double-click detection directly off pointerup timing and position
+// instead, working identically for mouse and touch: returns a pointerup
+// listener that calls `handler(event)` only on the SECOND tap of a pair
+// landing close together in time and space.
+function createDoubleTapDetector(handler) {
+  let lastTime = 0;
+  let lastX = 0;
+  let lastY = 0;
+  // Extra args (e.g. which wire was tapped) are threaded through to the
+  // handler so the CALLER doesn't need its own closure per element —
+  // matters here specifically because redrawWires() fully recreates
+  // every wire-path element (and thus any listener closure attached to
+  // it) on every redraw, including the one triggered by the first tap's
+  // own click-to-select — a per-element detector instance would lose
+  // its "saw one tap" memory before the second tap ever arrived. Using
+  // ONE shared, module-scope detector instance (below) for all wires
+  // keeps that memory alive across the redraw in between.
+  return (e, ...args) => {
+    const now = Date.now();
+    const isDouble = now - lastTime < 400 && Math.hypot(e.clientX - lastX, e.clientY - lastY) < 20;
+    lastTime = isDouble ? 0 : now; // reset so a triple-tap doesn't chain into a second "double"
+    lastX = e.clientX;
+    lastY = e.clientY;
+    if (isDouble) handler(e, ...args);
+  };
+}
+
+// One shared instance (not created fresh per wire/per redraw) — see the
+// comment above for why that matters here specifically.
+const detectWirePathDoubleTap = createDoubleTapDetector((e, wire) => {
+  e.stopPropagation();
+  addWireWaypoint(wire, e);
+});
+
+// A stationary tap on a wire-node handle currently doesn't itself
+// trigger a redraw (unlike tapping a wire, which also selects it), so
+// this one wouldn't strictly need to be shared/module-scope to survive
+// to a second tap — kept that way anyway for consistency with the one
+// above, and so it stays correct if that ever changes.
+const detectWireNodeDoubleTap = createDoubleTapDetector((e, wire, index) => {
+  removeWireWaypoint(wire, index);
+});
 
 function canvasLocalToScreen(localX, localY) {
   return { x: viewPanX + localX * viewZoom, y: viewPanY + localY * viewZoom };
@@ -1032,12 +1171,11 @@ function createWireNodeHandle(wire, index) {
   handle.setAttribute("r", 5);
   handle.setAttribute("class", "wire-node");
 
-  handle.addEventListener("dblclick", (e) => {
-    e.stopPropagation();
-    removeWireWaypoint(wire, index);
-  });
-
-  handle.addEventListener("mousedown", (e) => {
+  // Drag-to-move and double-tap-to-remove share one pointerdown/up flow
+  // (rather than a separate dblclick listener, which doesn't reliably
+  // fire from a touch tap) — a plain tap (no drag) checks the shared
+  // double-tap detector; an actual drag moves the point instead.
+  handle.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     e.stopPropagation();
     let dragged = false;
@@ -1053,13 +1191,14 @@ function createWireNodeHandle(wire, index) {
       redrawWires();
       renderWireToolbar();
     };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
+    const onUp = (upEvent) => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
       if (dragged) scheduleAutoSave();
+      else detectWireNodeDoubleTap(upEvent, wire, index);
     };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
   });
 
   return handle;
@@ -1145,12 +1284,12 @@ document.querySelectorAll("[data-pan]").forEach((btn) => {
 // starting one of those never also starts a pan underneath it.
 let panState = null; // { startClientX, startClientY, startPanX, startPanY }
 
-canvas.addEventListener("mousedown", (e) => {
-  if (e.target !== canvas && e.target !== canvasViewport) return; // clicked a component/pin, not empty space
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.target !== canvas && e.target !== canvasViewport) return; // touched a component/pin, not empty space
   panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY, moved: false };
   canvas.classList.add("panning");
-  document.addEventListener("mousemove", onCanvasPanMove);
-  document.addEventListener("mouseup", onCanvasPanUp);
+  document.addEventListener("pointermove", onCanvasPanMove);
+  document.addEventListener("pointerup", onCanvasPanUp);
 });
 
 function onCanvasPanMove(e) {
@@ -1164,24 +1303,25 @@ function onCanvasPanMove(e) {
 }
 
 function onCanvasPanUp() {
-  // A mousedown+mouseup on empty canvas with no real movement in between
-  // is a plain click — deselect, same as clicking empty space in any
-  // other design tool, rather than leaving a toolbar stuck open.
+  // A pointerdown+pointerup on empty canvas with no real movement in
+  // between is a plain click/tap — deselect, same as clicking empty
+  // space in any other design tool, rather than leaving a toolbar stuck
+  // open.
   if (panState && !panState.moved) deselectAll();
   panState = null;
   canvas.classList.remove("panning");
-  document.removeEventListener("mousemove", onCanvasPanMove);
-  document.removeEventListener("mouseup", onCanvasPanUp);
+  document.removeEventListener("pointermove", onCanvasPanMove);
+  document.removeEventListener("pointerup", onCanvasPanUp);
 }
 
-// The above only covers a click landing on EMPTY CANVAS background —
+// The above only covers a click/tap landing on EMPTY CANVAS background —
 // clicking anywhere else on the page (the component palette, the code
 // editor, the topbar, the serial monitor) never reached it at all, so
 // the selection toolbar stayed stuck open no matter where else you
 // clicked. This is the actual "click outside closes it" behavior,
 // covering the rest of the page in one place rather than wiring a
 // deselect call into every other clickable panel individually.
-document.addEventListener("mousedown", (e) => {
+document.addEventListener("pointerdown", (e) => {
   if (canvas.contains(e.target)) return; // canvas has its own handling above (including toolbars, which live inside it)
   if (selectedComponentIds.size === 0 && !selectedWireId) return;
   deselectAll();
