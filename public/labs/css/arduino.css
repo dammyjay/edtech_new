@@ -597,6 +597,27 @@ html, body {
     pointer-events: none;
 }
 
+/* A draggable bend-point handle on the selected wire — deliberately
+   distinct from .wire-pin (an electrical connection point): square-ish
+   via a small radius rect look isn't worth the complexity, so a
+   slightly larger, white-cored dot reads as "a control point to drag",
+   not "a pin to wire from". */
+.wire-node {
+    fill: #fff;
+    stroke: #1a9c4b;
+    stroke-width: 2;
+    cursor: grab;
+    pointer-events: all;
+}
+
+.wire-node:hover {
+    fill: #1a9c4b;
+}
+
+.wire-node:active {
+    cursor: grabbing;
+}
+
 .wire-path {
     /* stroke color is set per-instance as an inline SVG attribute
        (wire.color, defaulting to the same red this used to hardcode) —

@@ -770,6 +770,7 @@ function tryAddWire(fromComponentId, fromPin, toComponentId, toPin) {
     from: { componentId: fromComponentId, pin: fromPin },
     to: { componentId: toComponentId, pin: toPin },
     color: DEFAULT_WIRE_COLOR,
+    waypoints: [], // user-added bend points for manual routing — see "Wire waypoints" below
   });
   redrawWires();
   scheduleAutoSave();
@@ -868,22 +869,38 @@ document.querySelectorAll("[data-wire-mode]").forEach((btn) => {
 });
 
 function redrawWires() {
-  wireOverlay.querySelectorAll(".wire-path, .snap-stub").forEach((p) => p.remove());
+  wireOverlay.querySelectorAll(".wire-path, .snap-stub, .wire-node").forEach((p) => p.remove());
   for (const wire of wires) {
     const from = getPinCanvasPos(wire.from.componentId, wire.from.pin);
     const to = getPinCanvasPos(wire.to.componentId, wire.to.pin);
     if (!from || !to) continue; // the component it referenced is gone
 
     const path = document.createElementNS(SVG_NS, "path");
-    path.setAttribute("d", wirePath(from, to));
+    path.setAttribute("d", wirePath(from, to, wire.waypoints));
     path.setAttribute("class", "wire-path" + (wire.id === selectedWireId ? " wire-path--selected" : ""));
     path.setAttribute("stroke", wire.color || DEFAULT_WIRE_COLOR);
     path.addEventListener("click", (e) => {
       e.stopPropagation();
       selectWire(wire.id);
     });
+    // Double-click anywhere along the wire adds a bend point there,
+    // letting the routing be dragged around an obstacle instead of being
+    // stuck with whichever global curved/straight/orthogonal mode is
+    // active — see "Wire waypoints" below.
+    path.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      addWireWaypoint(wire, e);
+    });
     // Insert before any existing child so wires always render under pins.
     wireOverlay.insertBefore(path, wireOverlay.firstChild);
+
+    // Bend-point handles — only for the selected wire, so an unselected
+    // circuit's overlay doesn't get cluttered with every wire's nodes.
+    if (wire.id === selectedWireId && wire.waypoints) {
+      for (let i = 0; i < wire.waypoints.length; i++) {
+        wireOverlay.appendChild(createWireNodeHandle(wire, i));
+      }
+    }
   }
 
   // A short line from each breadboard-snapped pin to the hole it landed
@@ -909,9 +926,17 @@ function redrawWires() {
 // The wire's visual routing — curved (a gentle S-curve, like a real
 // jumper wire looping between two header pins), straight (a direct
 // line), or orthogonal (right-angle, schematic-style) — set globally via
-// wireRoutingMode. Also used for the rubber-band preview while dragging
-// a new wire, so the preview matches what will actually be drawn.
-function wirePath(from, to) {
+// wireRoutingMode, UNLESS the wire has user-added waypoints, in which
+// case it's routed as straight segments through every point in order
+// (from -> each waypoint -> to) instead — manual routing means exact
+// control, not "curved except where you added a bend". Also used for
+// the rubber-band preview while dragging a new wire (no waypoints yet),
+// so the preview matches what will actually be drawn.
+function wirePath(from, to, waypoints) {
+  if (waypoints && waypoints.length) {
+    const points = [from, ...waypoints.map((wp) => canvasLocalToScreen(wp.x, wp.y)), to];
+    return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  }
   if (wireRoutingMode === "straight") {
     return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
   }
@@ -921,6 +946,123 @@ function wirePath(from, to) {
   }
   const bulge = Math.max(Math.abs(to.y - from.y) * 0.5, 30);
   return `M ${from.x} ${from.y} C ${from.x} ${from.y + bulge}, ${to.x} ${to.y - bulge}, ${to.x} ${to.y}`;
+}
+
+// ---------------------------------------------------------------------
+// Wire waypoints — user-added bend points for manual routing, dragged
+// around a component instead of being stuck with the global curved/
+// straight/orthogonal routing mode. Stored in the SAME "canvasViewport-
+// local, pre pan/zoom" units placed components use (comp.el.style.left/
+// top) — NOT the screen-pixel units wire paths themselves are drawn in —
+// so a waypoint stays visually put on the circuit as you pan and zoom,
+// exactly like every placed part already does. The two helpers below
+// convert between the two spaces; the formulas mirror the canvas drop
+// handler (screen -> local) and getPinCanvasPos (local -> screen, via
+// each pin's own already-transformed elRect).
+// ---------------------------------------------------------------------
+
+function canvasLocalToScreen(localX, localY) {
+  return { x: viewPanX + localX * viewZoom, y: viewPanY + localY * viewZoom };
+}
+
+function screenToCanvasLocal(screenX, screenY) {
+  return { x: (screenX - viewPanX) / viewZoom, y: (screenY - viewPanY) / viewZoom };
+}
+
+// Inserts a new bend point at the double-clicked position, in the
+// correct order along the wire — found by checking which consecutive
+// pair of existing points (from/waypoints/to) the click landed closest
+// to, so adding a node partway along a long wire doesn't scramble the
+// routing order.
+function addWireWaypoint(wire, mouseEvent) {
+  const from = getPinCanvasPos(wire.from.componentId, wire.from.pin);
+  const to = getPinCanvasPos(wire.to.componentId, wire.to.pin);
+  if (!from || !to) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const clickScreen = { x: mouseEvent.clientX - canvasRect.left, y: mouseEvent.clientY - canvasRect.top };
+
+  const existingScreen = (wire.waypoints || []).map((wp) => canvasLocalToScreen(wp.x, wp.y));
+  const orderedPoints = [from, ...existingScreen, to];
+
+  // Distance from a point to a line SEGMENT (not the infinite line) —
+  // picks the nearest segment the click could plausibly belong to.
+  function distToSegment(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+    const projX = a.x + t * dx, projY = a.y + t * dy;
+    return Math.hypot(p.x - projX, p.y - projY);
+  }
+
+  let bestSegment = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < orderedPoints.length - 1; i++) {
+    const d = distToSegment(clickScreen, orderedPoints[i], orderedPoints[i + 1]);
+    if (d < bestDist) {
+      bestDist = d;
+      bestSegment = i;
+    }
+  }
+
+  recordHistory();
+  if (!wire.waypoints) wire.waypoints = [];
+  wire.waypoints.splice(bestSegment, 0, screenToCanvasLocal(clickScreen.x, clickScreen.y));
+  redrawWires();
+  scheduleAutoSave();
+}
+
+function removeWireWaypoint(wire, index) {
+  recordHistory();
+  wire.waypoints.splice(index, 1);
+  redrawWires();
+  scheduleAutoSave();
+}
+
+// A small draggable handle circle at one waypoint — single-drag to
+// reroute, double-click to remove. Not reusing the pin-circle machinery
+// (renderPins/pinCircles) since these aren't electrical connection
+// points, just routing control points.
+function createWireNodeHandle(wire, index) {
+  const wp = wire.waypoints[index];
+  const screen = canvasLocalToScreen(wp.x, wp.y);
+  const handle = document.createElementNS(SVG_NS, "circle");
+  handle.setAttribute("cx", screen.x);
+  handle.setAttribute("cy", screen.y);
+  handle.setAttribute("r", 5);
+  handle.setAttribute("class", "wire-node");
+
+  handle.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    removeWireWaypoint(wire, index);
+  });
+
+  handle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let dragged = false;
+    const onMove = (moveEvent) => {
+      // recordHistory() lazily on the first real move only — same
+      // convention as attachComponentDrag: one undo step per whole drag
+      // gesture, capturing the state as it was BEFORE this move started.
+      if (!dragged) recordHistory();
+      dragged = true;
+      const canvasRect = canvas.getBoundingClientRect();
+      const local = screenToCanvasLocal(moveEvent.clientX - canvasRect.left, moveEvent.clientY - canvasRect.top);
+      wire.waypoints[index] = local;
+      redrawWires();
+      renderWireToolbar();
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (dragged) scheduleAutoSave();
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  return handle;
 }
 
 // A default starter circuit — an LED wired to pin 13/GND — so the lab
@@ -1393,7 +1535,21 @@ function serializeCircuit() {
       // per-tag branch, and restoreCircuit already guards on tag anyway.
       color: c.el.color,
     })),
-    wires: wires.map((w) => ({ id: w.id, from: w.from, to: w.to, color: w.color })),
+    // waypoints is cloned (not just referenced) since, unlike from/to
+    // (set once at wire creation and never mutated in place), a wire's
+    // waypoints array IS mutated in place while dragging a node —
+    // sharing the reference would let a later drag silently rewrite an
+    // undo-stack snapshot that's supposed to be frozen, breaking undo
+    // for exactly the state this feature adds (found via testing: undo
+    // after a waypoint drag was reverting to the SAME post-drag
+    // position instead of the pre-drag one).
+    wires: wires.map((w) => ({
+      id: w.id,
+      from: w.from,
+      to: w.to,
+      color: w.color,
+      waypoints: (w.waypoints || []).map((wp) => ({ x: wp.x, y: wp.y })),
+    })),
     breadboardPlacements: [...breadboardPlacements.entries()],
   };
 }
@@ -1441,6 +1597,12 @@ async function restoreCircuit(snapshot) {
           from: w.from,
           to: w.to,
           color: w.color || DEFAULT_WIRE_COLOR,
+          // Cloned, not referenced — the live wire otherwise ends up
+          // sharing its waypoints array with whatever snapshot this
+          // restore came from (a saved project's data, or an undo/redo
+          // stack entry that's supposed to stay frozen), so a later
+          // drag on it would silently mutate that snapshot too.
+          waypoints: (w.waypoints || []).map((wp) => ({ x: wp.x, y: wp.y })),
         });
         const num = parseInt(String(w.id || "").replace(/\D/g, ""), 10);
         if (!isNaN(num)) wireCounter = Math.max(wireCounter, num);
