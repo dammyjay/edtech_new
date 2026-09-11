@@ -29,6 +29,13 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4"/><path d="M8 20v-5h8v5"/></svg>
         Save
       </button>
+      <div class="lab-topbar-divider"></div>
+      <button id="undoBtn" class="lab-icon-btn" title="Undo (design)" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10h-2"/><path d="M8 5 3 10l5 5"/></svg>
+      </button>
+      <button id="redoBtn" class="lab-icon-btn" title="Redo (design)" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h2"/><path d="M16 5l5 5-5 5"/></svg>
+      </button>
     </div>
 
     <div class="lab-topbar-extra">
@@ -41,9 +48,24 @@
       <button id="exportInoBtn" class="lab-icon-btn" title="Export code as sketch.ino">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
       </button>
+      <button id="copyImageBtn" class="lab-icon-btn" title="Copy circuit image to clipboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="M3 14l4-4 3 3 4-5 3 3"/><path d="M20 9v9a2 2 0 0 1-2 2H9"/></svg>
+      </button>
+      <div class="img-export-wrap">
+        <button id="exportImageBtn" class="lab-icon-btn" title="Download circuit as an image">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-9 9"/><path d="M8 22h8"/></svg>
+        </button>
+        <div id="imageExportMenu" class="img-export-menu" hidden>
+          <button type="button" data-img-format="png">PNG</button>
+          <button type="button" data-img-format="jpg">JPG</button>
+          <button type="button" data-img-format="svg">SVG</button>
+          <button type="button" data-img-format="pdf">PDF</button>
+        </div>
+      </div>
     </div>
 
     <div class="lab-topbar-right">
+      <span id="saveStatus" class="save-status">Ready</span>
       <span id="arduinoStatus" class="arduino-status">Idle</span>
     </div>
   </div>
@@ -242,7 +264,13 @@
 
 </div>
 
+<!-- Image export (PNG/JPG/PDF) raster path — repaints the flattened circuit with canvas primitives instead of the classic SVG-foreignObject+Image trick, which permanently taints the canvas in Chrome the instant a foreignObject is drawn into it. Both of these are plain UMD builds that fall back to an anonymous AMD module (never touching `window`) once an AMD `define()` exists — MUST load before Monaco's loader.min.js below defines one, or window.html2canvas/window.jspdf silently end up undefined. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- PDF export only (window.jspdf.jsPDF) — arduinoLab.js checks for it before use, so this is safe even if it fails to load. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
 <!-- Real component graphics + pin geometry (pinInfo) for the circuit builder — the same web components Wokwi's own simulator renders. -->
 <script src="https://cdn.jsdelivr.net/npm/@wokwi/elements@1.9.2/dist/wokwi-elements.bundle.js"></script>
+<!-- Same autosave-while-offline queue Web Lab and Blockly Lab already use. -->
+<script src="/labs/js/offlineSync.js"></script>
 <script src="/labs/js/arduinoLab.js"></script>

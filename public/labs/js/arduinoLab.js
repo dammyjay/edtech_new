@@ -82,7 +82,9 @@ canvas.addEventListener("drop", async (e) => {
   // (pre-transform) coordinate space — undo the pan, then undo the zoom.
   const localX = (e.clientX - canvasRect.left - viewPanX) / viewZoom;
   const localY = (e.clientY - canvasRect.top - viewPanY) / viewZoom;
+  recordHistory(); // before the change — undo goes back to "not placed yet"
   await placeComponent(tag, localX, localY);
+  scheduleAutoSave();
 });
 
 // ---------------------------------------------------------------------
@@ -159,14 +161,26 @@ function createBreadboardElement() {
   return el;
 }
 
-async function placeComponent(tag, x, y) {
+// `explicitId` is only passed when rebuilding a circuit from a saved
+// snapshot (restoreCircuit, below — used by both project load and
+// undo/redo) — keeping the same ids across a rebuild is what lets the
+// snapshot's wires (which reference componentId) still resolve
+// correctly, instead of needing an old-id -> new-id remap step.
+async function placeComponent(tag, x, y, explicitId) {
   const el = tag === "custom-breadboard" ? createBreadboardElement() : document.createElement(tag);
   el.classList.add("placed-component");
   el.style.position = "absolute";
   el.style.left = x + "px";
   el.style.top = y + "px";
 
-  const id = "comp-" + ++componentCounter;
+  let id;
+  if (explicitId) {
+    id = explicitId;
+    const num = parseInt(String(explicitId).replace(/\D/g, ""), 10);
+    if (!isNaN(num)) componentCounter = Math.max(componentCounter, num);
+  } else {
+    id = "comp-" + ++componentCounter;
+  }
   el.dataset.componentId = id;
   canvasViewport.appendChild(el);
 
@@ -314,6 +328,7 @@ function attachComponentDrag(el, id) {
 
     function onMove(ev) {
       if (!dragged && Math.hypot(ev.clientX - startClientX, ev.clientY - startClientY) < DRAG_THRESHOLD_PX) return;
+      if (!dragged) recordHistory(); // once per drag gesture, before the first real move — undo reverts the whole drag, not one pixel at a time
       dragged = true;
       // Mouse movement is in real screen pixels; el.style.left/top are in
       // #canvasViewport's local (pre-zoom) units, so the delta needs
@@ -337,6 +352,7 @@ function attachComponentDrag(el, id) {
         trySnapToBreadboard(id);
         redrawWires();
         renderSelectionToolbar();
+        scheduleAutoSave();
       } else {
         selectComponent(id, upEvent.shiftKey);
       }
@@ -530,18 +546,24 @@ document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
     // renderSelectionToolbar's colorRow.hidden logic.
     const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
     const soleComp = soleId ? placedComponents.get(soleId) : null;
-    if (soleComp && soleComp.tag === "wokwi-led") soleComp.el.color = colorBtn.dataset.ledColor;
+    if (soleComp && soleComp.tag === "wokwi-led") {
+      recordHistory();
+      soleComp.el.color = colorBtn.dataset.ledColor;
+      scheduleAutoSave();
+    }
     return;
   }
 
   const btn = e.target.closest("button[data-action]");
   if (!btn || selectedComponentIds.size === 0) return;
+  recordHistory(); // one undo step for the whole batch, not one per part
   const ids = [...selectedComponentIds]; // snapshot — the set mutates as each action runs
   if (btn.dataset.action === "flip") ids.forEach(flipComponent);
   else if (btn.dataset.action === "turn") ids.forEach(turnComponent);
   else if (btn.dataset.action === "duplicate") ids.forEach(duplicateComponent);
   else if (btn.dataset.action === "delete") ids.forEach(deleteComponent);
   renderSelectionToolbar();
+  scheduleAutoSave();
 });
 
 // ---------------------------------------------------------------------
@@ -736,6 +758,12 @@ function tryAddWire(fromComponentId, fromPin, toComponentId, toPin) {
   );
   if (isDuplicate) return;
 
+  // Only ever a real user gesture (onWireDragEnd) at this point —
+  // seedDefaultCircuit's own tryAddWire calls happen inside
+  // restoreCircuit's suppressHistory window, so recordHistory()
+  // correctly no-ops for those instead of polluting the undo stack with
+  // the starter circuit's own wiring.
+  recordHistory();
   wires.push({
     id: "wire-" + ++wireCounter,
     from: { componentId: fromComponentId, pin: fromPin },
@@ -743,6 +771,7 @@ function tryAddWire(fromComponentId, fromPin, toComponentId, toPin) {
     color: DEFAULT_WIRE_COLOR,
   });
   redrawWires();
+  scheduleAutoSave();
 }
 
 function removeWire(wireId) {
@@ -812,13 +841,17 @@ document.getElementById("wireToolbar")?.addEventListener("click", (e) => {
 
   const colorBtn = e.target.closest("button[data-wire-color]");
   if (colorBtn) {
+    recordHistory();
     wire.color = colorBtn.dataset.wireColor;
     redrawWires();
+    scheduleAutoSave();
     return;
   }
   if (e.target.closest('[data-action="delete-wire"]')) {
+    recordHistory();
     removeWire(selectedWireId);
     deselectWire();
+    scheduleAutoSave();
   }
 });
 
@@ -1033,6 +1066,7 @@ window.arduinoLab = {
   getSelectedWireId: () => selectedWireId,
   getWireRoutingMode: () => wireRoutingMode,
   getSnappingEnabled: () => snappingEnabled,
+  getCurrentProjectId: () => currentProjectId,
 };
 
 // ---------------------------------------------------------------------
@@ -1340,11 +1374,264 @@ function serializeCircuit() {
       y: parseFloat(c.el.style.top) || 0,
       flipped: !!c.flipped,
       rotated180: !!c.rotated180,
+      // Only ever meaningful for an LED, but harmless (just unused) to
+      // write for anything else — keeps this one line instead of a
+      // per-tag branch, and restoreCircuit already guards on tag anyway.
+      color: c.el.color,
     })),
-    wires: wires.map((w) => ({ from: w.from, to: w.to })),
+    wires: wires.map((w) => ({ id: w.id, from: w.from, to: w.to, color: w.color })),
     breadboardPlacements: [...breadboardPlacements.entries()],
   };
 }
+
+// Rebuilds the whole canvas from a serializeCircuit()-shaped snapshot —
+// the one shared path behind project load, Save's autosave round-trip,
+// and undo/redo (all three just need "make the canvas match this exact
+// state"). Passing `id` through to placeComponent keeps every wire's
+// componentId references valid across the rebuild instead of needing an
+// old-id -> new-id remap.
+async function restoreCircuit(snapshot) {
+  suppressHistory = true;
+  try {
+    for (const comp of placedComponents.values()) comp.el.remove();
+    placedComponents.clear();
+    pinCircles.forEach((c) => c.remove());
+    pinCircles.clear();
+    wires.length = 0;
+    breadboardPlacements.clear();
+    selectedComponentIds.clear();
+    selectedWireId = null;
+
+    if (!snapshot || !snapshot.components || snapshot.components.length === 0) {
+      // Nothing saved yet (a brand-new project, or an explicit "clear
+      // everything" via undo past the start) — fall back to the same
+      // starter circuit a first-ever visit gets.
+      await seedDefaultCircuit();
+    } else {
+      for (const c of snapshot.components) {
+        const comp = await placeComponent(c.tag, c.x, c.y, c.id);
+        comp.flipped = !!c.flipped;
+        comp.rotated180 = !!c.rotated180;
+        if (comp.flipped || comp.rotated180) {
+          applyComponentOrientation(comp);
+          renderPins(comp.id);
+        }
+        if (c.tag === "wokwi-led" && c.color) comp.el.color = c.color;
+      }
+      for (const [key, holeKey] of snapshot.breadboardPlacements || []) {
+        breadboardPlacements.set(key, holeKey);
+      }
+      for (const w of snapshot.wires || []) {
+        wires.push({
+          id: w.id || "wire-" + ++wireCounter,
+          from: w.from,
+          to: w.to,
+          color: w.color || DEFAULT_WIRE_COLOR,
+        });
+        const num = parseInt(String(w.id || "").replace(/\D/g, ""), 10);
+        if (!isNaN(num)) wireCounter = Math.max(wireCounter, num);
+      }
+    }
+
+    redrawWires();
+    applySelectionVisuals();
+    renderSelectionToolbar();
+    renderWireToolbar();
+    if (canvasHint) canvasHint.style.display = placedComponents.size ? "none" : "";
+  } finally {
+    suppressHistory = false;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Project persistence — autosave + reload. Reuses the exact same
+// lab-type-agnostic endpoints (/labs/project/init, /labs/project/save)
+// Web Lab and Blockly Lab already save through — no backend change
+// needed. project_data holds { code, circuit: serializeCircuit() } so
+// reopening the lab (or a crash/network drop mid-edit) restores both the
+// sketch and the exact canvas, not just one or the other.
+// ---------------------------------------------------------------------
+
+let currentProjectId = null;
+let autoSaveEnabled = false; // stays false until the very first load finishes — never autosave over a project we haven't actually loaded yet
+let saveTimer = null;
+let hasUnsavedChanges = false;
+
+function setSaveStatus(text) {
+  const el = document.getElementById("saveStatus");
+  if (el) el.textContent = text;
+}
+
+// Debounced, like every other lab's autosave — a burst of edits (typing,
+// several quick clicks) coalesces into one save a couple seconds after
+// things go quiet, instead of a request per keystroke.
+function scheduleAutoSave() {
+  if (!autoSaveEnabled) return;
+  hasUnsavedChanges = true;
+  setSaveStatus("Saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveProject(false), 2000);
+}
+
+async function saveProject(manual) {
+  if (!currentProjectId) return;
+  const payload = {
+    projectId: currentProjectId,
+    projectData: {
+      code: codeEditor ? codeEditor.getValue() : STARTER_SKETCH,
+      circuit: serializeCircuit(),
+    },
+  };
+
+  try {
+    // OfflineSync (public/labs/js/offlineSync.js, the same script Web Lab
+    // and Blockly Lab already load) queues this in localStorage and
+    // replays it once connectivity is back, instead of just failing, if
+    // the fetch can't reach the server at all — falls back to a plain
+    // fetch if that script somehow didn't load.
+    const data = window.OfflineSync
+      ? await window.OfflineSync.saveOrQueue("/labs/project/save", payload, `arduino:${currentProjectId}`)
+      : await (
+          await fetch("/labs/project/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        ).json();
+
+    hasUnsavedChanges = !!data.queued; // still "unsaved" from the server's point of view until it actually syncs
+    setSaveStatus(data.queued ? "Saved offline — will sync" : data.success ? "Saved" : "Save failed");
+    if (manual) {
+      if (data.queued) showToast("📡 Offline — saved locally, will sync when back online");
+      else if (data.success) showToast("💾 Project saved!");
+      else showToast("Couldn't save — try again.");
+    }
+  } catch (err) {
+    console.error("ARDUINO SAVE ERROR:", err);
+    setSaveStatus("Save failed");
+    if (manual) showToast("Couldn't save — try again.");
+  }
+}
+
+// Loads (or creates, on a first-ever visit) this student's freeform
+// Arduino project and rebuilds both the code editor and the canvas from
+// it — the reload half of "don't lose progress": whatever was last
+// autosaved (at most ~2s of edits behind) is exactly what comes back.
+async function initArduinoProject() {
+  try {
+    const res = await fetch("/labs/project/init", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ labType: "arduino" }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "init failed");
+
+    currentProjectId = data.project.id;
+    const saved = data.project.project_data || {};
+    if (codeEditor) codeEditor.setValue(saved.code || STARTER_SKETCH);
+    await restoreCircuit(saved.circuit || null);
+    setSaveStatus(saved.circuit ? "Loaded" : "Ready");
+  } catch (err) {
+    console.error("ARDUINO PROJECT INIT ERROR:", err);
+    showToast("Couldn't load your saved project — starting fresh.");
+    if (codeEditor) codeEditor.setValue(STARTER_SKETCH);
+    await restoreCircuit(null);
+    setSaveStatus("Ready");
+  } finally {
+    // Only ever flips on once, after the load above (success or fallback)
+    // has actually finished settling the editor/canvas — otherwise
+    // restoreCircuit's own DOM churn while loading could itself trigger
+    // a premature autosave that overwrites what we just loaded with a
+    // half-built canvas.
+    autoSaveEnabled = true;
+  }
+}
+
+// A student closing the tab mid-edit, before the ~2s autosave debounce
+// has actually fired, is exactly the "network/device stops abruptly"
+// case this is for — a native confirm dialog is the one thing that can
+// still catch that window (nothing here can force a synchronous save on
+// unload).
+window.addEventListener("beforeunload", (e) => {
+  if (!hasUnsavedChanges) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+// ---------------------------------------------------------------------
+// Undo / redo — the circuit (canvas) side. The code editor has its own,
+// separate undo/redo (Monaco's built-in Ctrl+Z/Ctrl+Y edit stack) — the
+// two are deliberately independent, the same way most design tools keep
+// "undo a shape edit" and "undo a text edit" as different stacks, so one
+// never accidentally reverts the other.
+//
+// Snapshot-based rather than diff-based: serializeCircuit()/
+// restoreCircuit() already exist for Save, and a full snapshot per step
+// is cheap enough at this scale (a handful of parts in a teaching
+// circuit, not hundreds — the same reasoning already used elsewhere in
+// this file for redrawing every pin on every pan/zoom tick).
+// ---------------------------------------------------------------------
+
+const MAX_HISTORY = 50;
+let undoStack = [];
+let redoStack = [];
+// Set around restoreCircuit's own body so loading a project, undoing,
+// or redoing never records a *new* history entry for the rebuild it
+// just performed — only real user edits should push onto the stack.
+let suppressHistory = false;
+
+function recordHistory() {
+  if (suppressHistory) return;
+  undoStack.push(serializeCircuit());
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack = []; // any new edit invalidates whatever redo history existed
+  updateUndoRedoButtons();
+}
+
+async function undoCircuit() {
+  if (!undoStack.length) return;
+  const prev = undoStack.pop();
+  redoStack.push(serializeCircuit());
+  await restoreCircuit(prev);
+  updateUndoRedoButtons();
+  scheduleAutoSave();
+}
+
+async function redoCircuit() {
+  if (!redoStack.length) return;
+  const next = redoStack.pop();
+  undoStack.push(serializeCircuit());
+  await restoreCircuit(next);
+  updateUndoRedoButtons();
+  scheduleAutoSave();
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById("undoBtn");
+  const redoBtn = document.getElementById("redoBtn");
+  if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+}
+
+document.getElementById("undoBtn")?.addEventListener("click", undoCircuit);
+document.getElementById("redoBtn")?.addEventListener("click", redoCircuit);
+
+// Ctrl/Cmd+Z and Ctrl/Cmd+Y (or Shift+Z) drive the CIRCUIT's undo/redo —
+// but only when focus isn't inside the code editor, so Monaco's own
+// undo/redo keeps working exactly as a student would expect while
+// they're actually typing code, instead of this document-level listener
+// stealing the keystroke.
+document.addEventListener("keydown", (e) => {
+  const key = e.key.toLowerCase();
+  if (key !== "z" && key !== "y") return;
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const codeEditorEl = document.getElementById("arduinoCodeEditor");
+  if (codeEditorEl && document.activeElement && codeEditorEl.contains(document.activeElement)) return;
+  e.preventDefault();
+  if (key === "y" || (key === "z" && e.shiftKey)) redoCircuit();
+  else undoCircuit();
+});
 
 function downloadTextFile(filename, text, mimeType) {
   const blob = new Blob([text], { type: mimeType });
@@ -1405,6 +1692,401 @@ document.getElementById("downloadCircuitBtn")?.addEventListener("click", downloa
 document.getElementById("exportInoBtn")?.addEventListener("click", exportIno);
 
 // ---------------------------------------------------------------------
+// Image export (SVG/PNG/JPG/PDF) + copy-image-to-clipboard
+// ---------------------------------------------------------------------
+//
+// Every placed part is a Shadow-DOM Lit web component (@wokwi/elements),
+// and the standard "screenshot a DOM node" library this pulls in
+// (html2canvas) is known to render an open shadow root as a blank box —
+// it walks the light DOM only. Fixed here by recursively flattening
+// every shadow root into ordinary light-DOM children first (inlining any
+// adoptedStyleSheets — Lit's default, constructed-stylesheet style
+// injection — as an explicit <style> tag, since those aren't part of the
+// DOM tree at all and a plain clone would silently drop them), then
+// handing html2canvas a shadow-free clone it can walk normally.
+//
+// This deliberately does NOT use the other classic technique — serialize
+// the flattened tree into an SVG <foreignObject>, then Image+drawImage it
+// onto a canvas — for the RASTER path: that traps the canvas as
+// permanently "tainted" (toBlob/toDataURL/getImageData all throw
+// SecurityError) in Chrome the instant a foreignObject-bearing SVG is
+// drawn into it, even from a same-origin blob: URL with zero external
+// references — a deliberate, undocumented-until-you-hit-it browser
+// security policy specific to foreignObject, discovered empirically
+// while building this (the very failure mode flagged as a risk to verify
+// before committing to an approach). html2canvas never uses that trick —
+// it manually repaints each element with canvas primitives — so its
+// output stays exportable. The foreignObject+serializer approach is
+// still used, but only for the SVG-file download below, where the
+// output is plain text and a canvas is never involved.
+
+// Recursively clones `node`, replacing any shadow root along the way
+// with its real rendered content as plain children — the "flatten" both
+// the html2canvas raster path and the SVG-file text path rely on.
+//
+// A custom element's clone can't just be `node.cloneNode(false)`, tag and
+// all: once reattached to the document, a fresh <wokwi-led> (etc.) clone
+// re-runs its OWN constructor/connectedCallback and builds a brand-new,
+// empty shadow root of its own (Lit's normal element lifecycle) — which
+// silently shadows whatever light-DOM children get appended here,
+// rendering as nothing (discovered empirically: every flattened part
+// measured 0x0 until this was in place). Swapping the outer tag for a
+// plain, non-custom <div> avoids re-triggering that lifecycle entirely,
+// carrying over the original's attributes so its inline position/size
+// styles (set by placeComponent/renderPins) still apply.
+let flattenHostCounter = 0;
+function flattenShadowDom(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) return node.cloneNode(false);
+
+  const root = node.shadowRoot;
+  const isCustomElement = node.tagName.includes("-");
+  const clone = isCustomElement ? document.createElement("div") : node.cloneNode(false);
+  if (isCustomElement) {
+    for (const attr of node.attributes) clone.setAttribute(attr.name, attr.value);
+  }
+
+  if (root) {
+    // The extracted CSS's `:host { ... }` rules used to size/display the
+    // real custom element itself — meaningless text once flattened into
+    // a plain div with no shadow root of its own, so a naive copy would
+    // silently drop that sizing. Give the wrapper a unique class and
+    // rewrite `:host` to target it directly instead.
+    const hostClass = "flattened-host-" + ++flattenHostCounter;
+    clone.classList.add(hostClass);
+    for (const sheet of root.adoptedStyleSheets || []) {
+      const styleEl = document.createElement("style");
+      try {
+        styleEl.textContent = [...sheet.cssRules]
+          .map((r) => r.cssText)
+          .join("\n")
+          .replace(/:host\b/g, "." + hostClass);
+      } catch (err) {
+        // A cross-origin constructed sheet would throw reading cssRules —
+        // never the case for anything this app creates, but harmless to
+        // just skip rather than fail the whole export over it.
+      }
+      clone.appendChild(styleEl);
+    }
+    for (const child of root.childNodes) clone.appendChild(flattenShadowDom(child));
+  } else {
+    for (const child of node.childNodes) clone.appendChild(flattenShadowDom(child));
+  }
+  return clone;
+}
+
+// Shared crop/layout step for both export paths: temporarily resets
+// pan/zoom to identity (so every position below is plain, unscaled
+// screen pixels), measures the circuit's own bounding box (not the whole
+// pannable canvas), and returns everything needed to place both the
+// flattened components and the cloned wires into that cropped frame.
+// Restores whatever pan/zoom the student had before returning.
+async function measureCircuitForExport() {
+  if (!placedComponents.size) return null;
+
+  const savedZoom = viewZoom, savedPanX = viewPanX, savedPanY = viewPanY;
+  viewZoom = 1;
+  viewPanX = 0;
+  viewPanY = 0;
+  applyViewTransform();
+  // Two rAFs: one for the transform reset to actually paint, one more so
+  // every getBoundingClientRect() below reflects that painted layout —
+  // a single rAF was observed to sometimes still read stale rects.
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    const PAD = 24;
+    const canvasRect = canvas.getBoundingClientRect();
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const comp of placedComponents.values()) {
+      const r = comp.el.getBoundingClientRect();
+      minX = Math.min(minX, r.left - canvasRect.left);
+      minY = Math.min(minY, r.top - canvasRect.top);
+      maxX = Math.max(maxX, r.right - canvasRect.left);
+      maxY = Math.max(maxY, r.bottom - canvasRect.top);
+    }
+    minX -= PAD; minY -= PAD; maxX += PAD; maxY += PAD;
+    const width = Math.max(1, Math.ceil(maxX - minX));
+    const height = Math.max(1, Math.ceil(maxY - minY));
+
+    const components = [...placedComponents.values()].map((comp) => {
+      const r = comp.el.getBoundingClientRect();
+      return { comp, left: r.left - canvasRect.left - minX, top: r.top - canvasRect.top - minY };
+    });
+
+    return { width, height, minX, minY, components };
+  } finally {
+    viewZoom = savedZoom;
+    viewPanX = savedPanX;
+    viewPanY = savedPanY;
+    applyViewTransform();
+  }
+}
+
+// Builds one self-contained SVG string of the current circuit — wires
+// (drawn the same way they are live, minus the UI-only pin dots and
+// rubber-band preview) under the flattened, shadow-DOM-inlined parts.
+// Pure text output, downloaded as-is — never drawn into a canvas, so the
+// foreignObject-taint issue above doesn't apply to this path at all.
+async function captureCircuitSvg() {
+  const layout = await measureCircuitForExport();
+  if (!layout) return null;
+  const { width, height, minX, minY, components } = layout;
+
+  // Wires render above components live (.wire-overlay's z-index) — same
+  // stacking here. Pin dots, hole highlights, and the rubber-band
+  // preview are UI-only, not part of "a picture of my circuit".
+  const wireLayer = document.createElementNS(SVG_NS, "g");
+  wireLayer.setAttribute("transform", `translate(${-minX}, ${-minY})`);
+  wireOverlay.querySelectorAll(".wire-path, .snap-stub").forEach((el) => {
+    wireLayer.appendChild(el.cloneNode(true));
+  });
+
+  const compWrapper = document.createElement("div");
+  compWrapper.style.position = "relative";
+  compWrapper.style.width = width + "px";
+  compWrapper.style.height = height + "px";
+  for (const { comp, left, top } of components) {
+    const flat = flattenShadowDom(comp.el);
+    flat.style.position = "absolute";
+    flat.style.left = left + "px";
+    flat.style.top = top + "px";
+    flat.style.margin = "0";
+    compWrapper.appendChild(flat);
+  }
+
+  // XMLSerializer already writes compWrapper's own xmlns="...xhtml" (it's
+  // a real HTML-namespaced element, serialized standalone) — an explicit
+  // one here would double up into an invalid "attribute xmlns redefined"
+  // document (hit this empirically before removing it).
+  const serializer = new XMLSerializer();
+  const svgMarkup =
+    `<svg xmlns="${SVG_NS}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<rect width="100%" height="100%" fill="#e9ebee"/>` +
+    `<foreignObject x="0" y="0" width="${width}" height="${height}">` +
+    serializer.serializeToString(compWrapper) +
+    `</foreignObject>` +
+    serializer.serializeToString(wireLayer) +
+    `</svg>`;
+
+  return { svgMarkup, width, height };
+}
+
+// The raster path: same flattened-components + cloned-wires layout as
+// above, but assembled as REAL (temporarily off-screen) DOM instead of a
+// serialized string, and painted with html2canvas — which repaints each
+// element with canvas primitives rather than embedding markup in an SVG
+// image, so the output canvas is never tainted and toBlob/toDataURL work
+// normally afterward.
+async function captureCircuitCanvas() {
+  const layout = await measureCircuitForExport();
+  if (!layout) return null;
+  if (!window.html2canvas) throw new Error("html2canvas failed to load");
+  const { width, height, minX, minY, components } = layout;
+
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-99999px"; // off-screen, but still really laid out — html2canvas needs real layout, not display:none
+  container.style.top = "0";
+  container.style.width = width + "px";
+  container.style.height = height + "px";
+  container.style.background = "#e9ebee";
+  container.style.overflow = "hidden";
+
+  for (const { comp, left, top } of components) {
+    const flat = flattenShadowDom(comp.el);
+    flat.style.position = "absolute";
+    flat.style.left = left + "px";
+    flat.style.top = top + "px";
+    flat.style.margin = "0";
+    container.appendChild(flat);
+  }
+
+  // Wires as a plain nested <svg> sibling, same stacking as live
+  // (.wire-overlay paints above the components).
+  const wireSvg = document.createElementNS(SVG_NS, "svg");
+  wireSvg.setAttribute("width", String(width));
+  wireSvg.setAttribute("height", String(height));
+  wireSvg.style.position = "absolute";
+  wireSvg.style.left = "0";
+  wireSvg.style.top = "0";
+  wireSvg.style.pointerEvents = "none";
+  // Cloned wire-path/snap-stub `d` coordinates are in the ORIGINAL
+  // (uncropped) canvas-local space — same offset the components above
+  // already got via `left`/`top`, applied here as a transform instead
+  // since these are raw <path> elements, not positioned boxes.
+  const wireGroup = document.createElementNS(SVG_NS, "g");
+  wireGroup.setAttribute("transform", `translate(${-minX}, ${-minY})`);
+  wireOverlay.querySelectorAll(".wire-path, .snap-stub").forEach((el) => {
+    wireGroup.appendChild(el.cloneNode(true));
+  });
+  wireSvg.appendChild(wireGroup);
+  container.appendChild(wireSvg);
+
+  document.body.appendChild(container);
+  try {
+    return await window.html2canvas(container, {
+      backgroundColor: "#e9ebee",
+      scale: 2,
+      width,
+      height,
+      windowWidth: width,
+      windowHeight: height,
+      // html2canvas clones the whole document by default (for accurate
+      // computed styles) — the Monaco editor's own DOM is enormous and
+      // irrelevant to this capture, and skipping it cuts the "document
+      // clone" step from ~20s to a couple seconds in testing.
+      ignoreElements: (el) => el.id === "arduinoCodeEditor",
+    });
+  } finally {
+    container.remove();
+  }
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// No execCommand equivalent exists for images — unlike copyTextToClipboard
+// above, this is Async Clipboard API only, and simply fails (caught,
+// reported via the caller's toast) wherever that's unavailable/blocked.
+async function copyImageBlobToClipboard(blob) {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Downloads the circuit as the chosen format AND copies a PNG snapshot
+// to the clipboard in the same action (the user asked for both: a
+// format picker for the download, and every export also landing on the
+// clipboard so it can be pasted straight into a doc/chat without a
+// separate step). SVG is the one format that never touches a canvas
+// (captureCircuitSvg is plain text) — everything else goes through
+// captureCircuitCanvas (html2canvas).
+async function exportCircuitImage(format) {
+  if (!placedComponents.size) {
+    showToast("Nothing to export yet — place a component first");
+    return;
+  }
+  showToast("Preparing image…");
+
+  if (format === "svg") {
+    let capture;
+    try {
+      capture = await captureCircuitSvg();
+    } catch (err) {
+      console.error("IMAGE EXPORT ERROR:", err);
+      showToast("Couldn't generate the image.");
+      return;
+    }
+    if (!capture) return;
+    downloadBlob("circuit.svg", new Blob([capture.svgMarkup], { type: "image/svg+xml" }));
+    // Still copy a PNG raster to clipboard per "every export also copies"
+    // — best-effort, a failure here doesn't undo the download.
+    let copied = false;
+    try {
+      const canvasEl = await captureCircuitCanvas();
+      const pngBlob = canvasEl ? await new Promise((resolve) => canvasEl.toBlob(resolve, "image/png")) : null;
+      copied = pngBlob ? await copyImageBlobToClipboard(pngBlob) : false;
+    } catch (err) {
+      console.error("IMAGE EXPORT (clipboard copy) ERROR:", err);
+    }
+    showToast("circuit.svg downloaded" + (copied ? " + copied to clipboard" : ""));
+    return;
+  }
+
+  let canvasEl;
+  try {
+    canvasEl = await captureCircuitCanvas();
+  } catch (err) {
+    console.error("IMAGE EXPORT ERROR:", err);
+    showToast("Couldn't generate the image.");
+    return;
+  }
+  if (!canvasEl) return;
+  const pngBlob = await new Promise((resolve) => canvasEl.toBlob(resolve, "image/png"));
+
+  if (format === "jpg") {
+    const jpgBlob = await new Promise((resolve) => canvasEl.toBlob(resolve, "image/jpeg", 0.95));
+    if (jpgBlob) downloadBlob("circuit.jpg", jpgBlob);
+  } else if (format === "pdf") {
+    if (window.jspdf && pngBlob) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({
+        orientation: canvasEl.width >= canvasEl.height ? "landscape" : "portrait",
+        unit: "px",
+        format: [canvasEl.width, canvasEl.height],
+      });
+      doc.addImage(canvasEl.toDataURL("image/png"), "PNG", 0, 0, canvasEl.width, canvasEl.height);
+      doc.save("circuit.pdf");
+    } else {
+      showToast("PDF export isn't available right now.");
+      return;
+    }
+  } else {
+    // png — the default when no format matched
+    if (pngBlob) downloadBlob("circuit.png", pngBlob);
+  }
+
+  // Clipboard image copy is always the PNG raster (SVG/PDF aren't valid
+  // clipboard image types in any browser's Async Clipboard API), best-
+  // effort — a failure here doesn't undo the download that already
+  // happened, just skips the "+ copied" half of the toast.
+  const copied = pngBlob ? await copyImageBlobToClipboard(pngBlob) : false;
+  showToast(`circuit.${format} downloaded` + (copied ? " + copied to clipboard" : ""));
+}
+
+// Standalone "copy image" — same raster path, but only ever copies,
+// never downloads (the separate ask from the format-picker export
+// above: a quick way to paste the circuit into a doc/chat without a
+// file ending up in Downloads at all).
+async function copyCircuitImage() {
+  if (!placedComponents.size) {
+    showToast("Nothing to copy yet — place a component first");
+    return;
+  }
+  let canvasEl;
+  try {
+    canvasEl = await captureCircuitCanvas();
+  } catch (err) {
+    console.error("IMAGE COPY ERROR:", err);
+    showToast("Couldn't generate the image.");
+    return;
+  }
+  if (!canvasEl) return;
+  const blob = await new Promise((resolve) => canvasEl.toBlob(resolve, "image/png"));
+  const ok = blob ? await copyImageBlobToClipboard(blob) : false;
+  showToast(ok ? "Circuit image copied to clipboard" : "Couldn't copy — clipboard access was blocked");
+}
+
+document.getElementById("copyImageBtn")?.addEventListener("click", copyCircuitImage);
+document.querySelectorAll("[data-img-format]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.getElementById("imageExportMenu")?.setAttribute("hidden", "");
+    exportCircuitImage(btn.dataset.imgFormat);
+  });
+});
+document.getElementById("exportImageBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("imageExportMenu")?.toggleAttribute("hidden");
+});
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("imageExportMenu");
+  if (menu && !menu.hidden && !menu.contains(e.target) && e.target.id !== "exportImageBtn") {
+    menu.setAttribute("hidden", "");
+  }
+});
+
+// ---------------------------------------------------------------------
 // Monaco editor
 // ---------------------------------------------------------------------
 
@@ -1451,8 +2133,16 @@ require(["vs/editor/editor.main"], function () {
 
   document.getElementById("runBtn").addEventListener("click", runSketch);
   document.getElementById("stopBtn").addEventListener("click", stopSimulation);
+  document.getElementById("saveBtn")?.addEventListener("click", () => saveProject(true));
   clearSerialOutput();
-  seedDefaultCircuit();
+  initArduinoProject();
+
+  // Any keystroke autosaves too, same as Web Lab's code editors — not
+  // just circuit edits. codeEditor.setValue() calls (initial load, undo/
+  // redo doesn't touch code, so the only other one is initArduinoProject
+  // itself) also fire this event, but autoSaveEnabled is still false at
+  // that point, so scheduleAutoSave() correctly no-ops for it.
+  codeEditor.onDidChangeModelContent(() => scheduleAutoSave());
 });
 
 // ---------------------------------------------------------------------

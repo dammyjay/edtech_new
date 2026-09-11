@@ -175,10 +175,87 @@ html, body {
     background: rgba(255,255,255,0.18);
 }
 
+.lab-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.lab-icon-btn:disabled:hover {
+    background: transparent;
+}
+
+.lab-topbar-divider {
+    width: 1px;
+    align-self: stretch;
+    background: rgba(255,255,255,0.3);
+    margin: 4px 2px;
+}
+
+/* Wraps the "Download image" icon button + its format-choice popover so
+   the popover can position itself relative to just this button, not the
+   whole (much wider) topbar-extra group. */
+.img-export-wrap {
+    position: relative;
+}
+
+.img-export-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #fff;
+    border: 1px solid #e6e2d8;
+    border-radius: 9px;
+    padding: 5px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    min-width: 88px;
+}
+
+/* An author stylesheet's `display` always wins over the browser's own
+   default `[hidden] { display: none }` rule (author styles take cascade
+   priority over UA styles, specificity tie or not) — so the `display:
+   flex` above needs its own explicit override here, or the `hidden`
+   attribute toggled in JS does nothing and the popover (and everything
+   under it) stays visible AND clickable at all times. Found this the
+   hard way: it was invisibly eating clicks meant for whatever sat
+   underneath its (very real, un-hidden) layout box. */
+.img-export-menu[hidden] {
+    display: none;
+}
+
+.img-export-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #333;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.img-export-menu button:hover {
+    background: #f2efe6;
+    color: #A17807;
+}
+
 .lab-topbar-right {
     margin-left: auto;
     display: flex;
     align-items: center;
+    gap: 10px;
+}
+
+.save-status {
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.8);
+    font-style: italic;
 }
 
 .arduino-status {
