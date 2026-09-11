@@ -552,6 +552,10 @@ body.blockly-fullscreen .stage-panel {
 .sprite,
 .extra-sprite {
     object-fit: contain;
+    /* Dragging a sprite is a custom pointer-driven gesture (blocklyLab.js)
+       — without this, a touch drag also scrolls/pans the stage underneath
+       it by default, fighting the app's own handling the whole time. */
+    touch-action: none;
 }
 
 .sprite-card.selected {

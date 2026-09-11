@@ -606,7 +606,7 @@
       <div class="sprite-grid" id="spriteGrid">
         <% spriteCategories.forEach(cat => { cat.assets.forEach(a => { %>
           <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>">
-            <img src="<%= a.asset_url %>" title="<%= a.name %>" onclick="createSprite('<%= a.name %>', '<%= a.asset_url %>')" />
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="createSprite('<%= a.name %>', '<%= a.asset_url %>')" />
             <span class="asset-picker-label"><%= a.name %></span>
           </div>
         <% }) }) %>
@@ -634,7 +634,7 @@
       <div class="background-grid" id="backgroundGrid">
         <% backgroundCategories.forEach(cat => { cat.assets.forEach(a => { %>
           <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>">
-            <img src="<%= a.asset_url %>" title="<%= a.name %>" onclick="addBackground('<%= a.asset_url %>', '<%= a.name %>')" />
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="addBackground('<%= a.asset_url %>', '<%= a.name %>')" />
             <span class="asset-picker-label"><%= a.name %></span>
           </div>
         <% }) }) %>

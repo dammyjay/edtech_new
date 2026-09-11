@@ -198,7 +198,12 @@ function makeSpriteDraggable(spriteData) {
   let offsetX = 0;
   let offsetY = 0;
 
-  spriteData.element.addEventListener("mousedown", (e) => {
+  // Pointer Events (not mousedown/mousemove/mouseup) — fires uniformly
+  // for mouse, touch, and pen, so this one listener set covers dragging
+  // a sprite by touch too, which plain mouse events never did.
+  spriteData.element.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // left mouse button only; every touch/pen contact reports button 0
+    e.preventDefault();
     selectSpriteById(spriteData.id);
 
     dragging = true;
@@ -207,29 +212,11 @@ function makeSpriteDraggable(spriteData) {
     offsetY = e.offsetY;
   });
 
-  document.addEventListener("mouseup", () => {
+  document.addEventListener("pointerup", () => {
     dragging = false;
   });
 
-  // document.addEventListener("mousemove", (e) => {
-  //   if (!dragging) return;
-
-  //   const rect = stage.getBoundingClientRect();
-
-  //   spriteData.x = e.clientX - rect.left - offsetX;
-
-  //   spriteData.y = e.clientY - rect.top - offsetY;
-
-  //   spriteData.element.style.left = spriteData.x + "px";
-
-  //   spriteData.element.style.top = spriteData.y + "px";
-
-  //   if (currentSprite && currentSprite.id === spriteData.id) {
-  //     loadSpriteProperties(spriteData);
-  //   }
-  // });
-
-  document.addEventListener("mousemove", (e) => {
+  document.addEventListener("pointermove", (e) => {
 
     const rect = stage.getBoundingClientRect();
 
@@ -429,7 +416,31 @@ window.deleteBackground = function (index) {
   renderBackgroundList();
 };
 
-window.addEventListener("load", async () => {
+// DOMContentLoaded, not window's own "load" event — this <script> tag
+// sits well ABOVE #blocklyDiv/#toolbox in the HTML (found via testing:
+// they don't exist yet the instant this file starts running, so this
+// really does need to wait for something), but nothing below actually
+// needs any of the sprite/background picker's own (100+) <img> tags to
+// finish DOWNLOADING, just the DOM to finish parsing. Gating this whole
+// init on window.load (as it originally did) waits for ALL of those
+// images too — on a slow connection, or if even a single one stalls,
+// Blockly.inject/makeSpriteDraggable/etc. below would never run at all
+// (found via testing: the workspace and sprite drag-handling both
+// silently never appeared, with document.readyState stuck at
+// "interactive" and dozens of still-pending Cloudinary image requests —
+// very likely why dragging felt broken specifically on a touch/mobile
+// connection, not really a touch-input problem on its own).
+// readyState can already be past "loading" if this ever runs after the
+// event has fired (e.g. a future reorder of these scripts) — the direct
+// call covers that instead of hanging forever waiting for an event that
+// already happened.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initBlocklyLab);
+} else {
+  initBlocklyLab();
+}
+
+async function initBlocklyLab() {
   try {
     fitBlocklyContainer();
 
@@ -833,7 +844,7 @@ window.addEventListener("load", async () => {
   } catch (err) {
     console.error("Blockly Init Error:", err);
   }
-});
+}
 
 // ---------------------------------------------------------------------
 // Manual stage composition — shared by the Screenshot button and the
