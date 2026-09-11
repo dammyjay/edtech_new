@@ -391,6 +391,7 @@ function deselectAll() {
   applySelectionVisuals();
   renderSelectionToolbar();
   renderWireToolbar();
+  redrawWires(); // a selected wire's thicker "selected" stroke otherwise lingers until the next unrelated redraw
 }
 
 function applySelectionVisuals() {
@@ -1030,6 +1031,19 @@ function onCanvasPanUp() {
   document.removeEventListener("mousemove", onCanvasPanMove);
   document.removeEventListener("mouseup", onCanvasPanUp);
 }
+
+// The above only covers a click landing on EMPTY CANVAS background —
+// clicking anywhere else on the page (the component palette, the code
+// editor, the topbar, the serial monitor) never reached it at all, so
+// the selection toolbar stayed stuck open no matter where else you
+// clicked. This is the actual "click outside closes it" behavior,
+// covering the rest of the page in one place rather than wiring a
+// deselect call into every other clickable panel individually.
+document.addEventListener("mousedown", (e) => {
+  if (canvas.contains(e.target)) return; // canvas has its own handling above (including toolbars, which live inside it)
+  if (selectedComponentIds.size === 0 && !selectedWireId) return;
+  deselectAll();
+});
 
 // Mouse-wheel gestures: plain scroll pans (this is exactly what a
 // trackpad's two-finger scroll already sends as wheel deltaX/deltaY, so
