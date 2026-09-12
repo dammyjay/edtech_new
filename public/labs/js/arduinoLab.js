@@ -1564,9 +1564,12 @@ function findArduinoConnections(comp, uno, find) {
 // click (see runSketch) — components/wires can change between runs.
 //
 // `cpu` is only needed for the servo's pulse-width timing; `adc` is only
-// needed for the two analog parts (null-checked so a sketch that never
-// places one doesn't need either).
-function bindComponentsToSimulation(cpu, ports, PinState, adc) {
+// needed for the analog parts; `i2cDevices` is the shared registry any
+// I2C part (SSD1306/DS1307/MPU6050) pushes its own {address, onConnect,
+// onWrite, onRead} device object into — see the AVRTWI eventHandler set
+// up in runSketch, which dispatches real Wire.h traffic to whichever
+// entry here matches the address the sketch actually addressed.
+function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
   const uno = findArduinoComponent();
   const boundVisuals = []; // {el, prop, resetValue} — restored on stop
   const eventListeners = []; // {el, type, handler} — removed on stop
@@ -2058,6 +2061,207 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
       applyState();
       comp.el.addEventListener("sensor-value-change", applyState);
       eventListeners.push({ el: comp.el, type: "sensor-value-change", handler: applyState });
+    } else if (comp.tag === "wokwi-ds1307" && i2cDevices) {
+      // Wire.h talks to the ATmega328P's hardware TWI peripheral over its
+      // FIXED SDA/SCL pins (A4/A5 on an Uno/Nano) — not bit-banged GPIO —
+      // confirmed against avr8js's own twi.js source. So this only checks
+      // that SDA/SCL are wired there (the same "did the student wire this
+      // correctly" gate every other binding has) and registers a real
+      // I2C device with the shared bus dispatcher set up in runSketch,
+      // instead of touching `ports` directly.
+      const wired =
+        connections.some((c) => c.ownPin === "SDA" && c.arduinoPin === "A4") &&
+        connections.some((c) => c.ownPin === "SCL" && c.arduinoPin === "A5");
+      if (wired) {
+        // A live simulated clock: RTClib's rtc.adjust(DateTime(...)) —
+        // which writes all 7 time/date registers in one burst — re-anchors
+        // this; rtc.now() reads it back, ticking forward in real
+        // wall-clock time exactly like a battery-backed RTC chip would.
+        let epochMs = Date.now();
+        let anchorWallMs = performance.now();
+        const currentDate = () => new Date(epochMs + (performance.now() - anchorWallMs));
+        const toBCD = (n) => ((Math.floor(n / 10) << 4) | (n % 10)) & 0xff;
+        const fromBCD = (b) => (b >> 4) * 10 + (b & 0x0f);
+        let regPointer = 0;
+        let firstWriteByte = true; // the first byte of a WRITE transaction is always the register pointer
+        i2cDevices.push({
+          address: 0x68,
+          onConnect() {
+            firstWriteByte = true;
+          },
+          onWrite(byte) {
+            if (firstWriteByte) {
+              regPointer = byte % 8;
+              firstWriteByte = false;
+              return true;
+            }
+            if (regPointer <= 6) {
+              const d = currentDate();
+              const parts = {
+                seconds: d.getSeconds(), minutes: d.getMinutes(), hours: d.getHours(),
+                day: d.getDay() + 1, date: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() % 100,
+              };
+              const field = ["seconds", "minutes", "hours", "day", "date", "month", "year"][regPointer];
+              const mask = regPointer === 0 ? 0x7f : regPointer === 2 ? 0x3f : 0xff; // CH/12-24hr bits ignored
+              parts[field] = fromBCD(byte & mask);
+              epochMs = new Date(2000 + parts.year, parts.month - 1, parts.date, parts.hours, parts.minutes, parts.seconds).getTime();
+              anchorWallMs = performance.now();
+            }
+            regPointer = (regPointer + 1) % 8;
+            return true;
+          },
+          onRead() {
+            const d = currentDate();
+            const values = [
+              toBCD(d.getSeconds()), toBCD(d.getMinutes()), toBCD(d.getHours()),
+              toBCD(d.getDay() + 1), toBCD(d.getDate()), toBCD(d.getMonth() + 1), toBCD(d.getFullYear() % 100),
+            ];
+            const value = regPointer < 7 ? values[regPointer] : 0;
+            regPointer = (regPointer + 1) % 8;
+            return value;
+          },
+        });
+      }
+    } else if (comp.tag === "wokwi-mpu6050" && i2cDevices) {
+      const wired =
+        connections.some((c) => c.ownPin === "SDA" && c.arduinoPin === "A4") &&
+        connections.some((c) => c.ownPin === "SCL" && c.arduinoPin === "A5");
+      if (wired) {
+        // No interactive "orientation"/"motion" control exists on this
+        // part in @wokwi/elements at all (confirmed against
+        // MPU6050Element's source — only a decorative `led1` property,
+        // no accel/gyro state whatsoever). Fixed reading: level and
+        // still — accel Z = +1g (16384 raw at the default +/-2g range),
+        // everything else zero — same honest simplification as the
+        // photoresistor/NTC above, just via real I2C register reads.
+        const REGISTERS = {
+          0x75: 0x68, // WHO_AM_I — libraries sanity-check this on begin()
+          0x3b: 0x00, 0x3c: 0x00, // ACCEL_XOUT_H/L
+          0x3d: 0x00, 0x3e: 0x00, // ACCEL_YOUT_H/L
+          0x3f: 0x40, 0x40: 0x00, // ACCEL_ZOUT_H/L = 0x4000 = +1g
+          0x41: 0x14, 0x42: 0x00, // TEMP_OUT_H/L — a plausible room-temperature raw value
+          0x43: 0x00, 0x44: 0x00, 0x45: 0x00, 0x46: 0x00, 0x47: 0x00, 0x48: 0x00, // GYRO X/Y/Z
+        };
+        let regPointer = 0;
+        i2cDevices.push({
+          address: 0x68,
+          onConnect() {},
+          onWrite(byte) {
+            // The only writes real libraries do are the register pointer
+            // and PWR_MGMT_1's wake-up value — neither needs to change
+            // any state here, just a real ACK back.
+            regPointer = byte;
+            return true;
+          },
+          onRead() {
+            const value = REGISTERS[regPointer] ?? 0;
+            regPointer = (regPointer + 1) & 0xff;
+            return value;
+          },
+        });
+      }
+    } else if (comp.tag === "wokwi-ssd1306" && i2cDevices) {
+      // Real SSD1306 command/GDDRAM protocol over I2C — confirmed against
+      // @wokwi/elements' SSD1306Element source that it exposes a genuine
+      // 128x64 `imageData` (a real reactive Lit property backing an
+      // on-canvas <canvas>), not just a decorative shape — so this
+      // renders ACTUAL pixels a sketch draws, not a placeholder. Pin
+      // names on this part are "DATA"/"CLK", not "SDA"/"SCL" (confirmed
+      // against its own pinInfo) — still the same fixed hardware I2C
+      // pins underneath (A4/A5).
+      const wired =
+        connections.some((c) => c.ownPin === "DATA" && c.arduinoPin === "A4") &&
+        connections.some((c) => c.ownPin === "CLK" && c.arduinoPin === "A5");
+      if (wired) {
+        const WIDTH = 128, HEIGHT = 64;
+        const gddram = new Uint8Array((WIDTH * HEIGHT) / 8); // 8 pages x 128 columns, each byte = 8 vertical pixels (LSB = top)
+        const pixels = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
+        // 1-byte command parameter counts this app actually needs to
+        // track — everything else not listed is treated as a 0-parameter
+        // command (safe default: the vast majority of SSD1306 commands
+        // are single-byte with no parameters).
+        const CMD_PARAM_COUNT = { 0x81: 1, 0x20: 1, 0x21: 2, 0x22: 2, 0xd3: 1, 0xd5: 1, 0xd9: 1, 0xda: 1, 0xdb: 1, 0x8d: 1 };
+        let mode = null; // "command" | "data", set by the first byte of each write transaction
+        let pendingCmd = null;
+        let pendingParams = [];
+        let col = 0, page = 0, colStart = 0, colEnd = WIDTH - 1, pageStart = 0, pageEnd = (HEIGHT / 8) - 1;
+        const paintColumn = (pageIdx, colIdx, byteVal) => {
+          for (let bit = 0; bit < 8; bit++) {
+            const y = pageIdx * 8 + bit;
+            if (y >= HEIGHT) continue;
+            const v = (byteVal >> bit) & 1 ? 255 : 0;
+            const idx = (y * WIDTH + colIdx) * 4;
+            pixels[idx] = v;
+            pixels[idx + 1] = v;
+            pixels[idx + 2] = v;
+            pixels[idx + 3] = 255;
+          }
+        };
+        const flush = () => {
+          comp.el.imageData = new ImageData(pixels.slice(), WIDTH, HEIGHT);
+        };
+        const applyCommand = (cmd, params) => {
+          if (cmd === 0x21) {
+            colStart = params[0];
+            colEnd = params[1];
+            col = colStart;
+          } else if (cmd === 0x22) {
+            pageStart = params[0];
+            pageEnd = params[1];
+            page = pageStart;
+          }
+          // Contrast/clock-div/precharge/etc. are consumed but don't need
+          // to change anything for a functional (not photometric) sim.
+        };
+        i2cDevices.push({
+          address: 0x3c, // the standard fixed SSD1306 I2C address
+          onConnect() {
+            mode = null;
+            pendingCmd = null;
+          },
+          onWrite(byte) {
+            if (mode === null) {
+              mode = byte === 0x40 ? "data" : "command";
+              return true;
+            }
+            if (mode === "data") {
+              const addr = page * WIDTH + col;
+              gddram[addr] = byte;
+              paintColumn(page, col, byte);
+              col++;
+              if (col > colEnd) {
+                col = colStart;
+                page = page >= pageEnd ? pageStart : page + 1;
+              }
+              flush();
+              return true;
+            }
+            if (pendingCmd !== null) {
+              pendingParams.push(byte);
+              if (pendingParams.length >= CMD_PARAM_COUNT[pendingCmd]) {
+                applyCommand(pendingCmd, pendingParams);
+                pendingCmd = null;
+              }
+              return true;
+            }
+            if (byte >= 0xb0 && byte <= 0xb7) {
+              page = byte - 0xb0; // page-addressing-mode page select
+            } else if (byte <= 0x0f) {
+              col = (col & 0xf0) | byte; // page-addressing-mode column low nibble
+            } else if (byte >= 0x10 && byte <= 0x1f) {
+              col = (col & 0x0f) | ((byte & 0x0f) << 4); // column high nibble
+            } else if (CMD_PARAM_COUNT[byte]) {
+              pendingCmd = byte;
+              pendingParams = [];
+            } // else: a recognized-as-unknown 0-parameter command — ignore
+            return true;
+          },
+          onRead() {
+            return 0; // this app's SSD1306 support is write-only (status/read-back isn't modeled)
+          },
+        });
+        boundVisuals.push({ el: comp.el, prop: "imageData", resetValue: new ImageData(WIDTH, HEIGHT) });
+      }
     }
   }
 
@@ -3265,8 +3469,8 @@ async function runSketch() {
   }
 
   const {
-    CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, portBConfig, portCConfig, portDConfig,
-    timer0Config, timer1Config, usart0Config, adcConfig, avrInstruction, PinState,
+    CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, AVRTWI, portBConfig, portCConfig, portDConfig,
+    timer0Config, timer1Config, usart0Config, adcConfig, twiConfig, avrInstruction, PinState,
   } = avr8js;
 
   const progMem = parseIntelHex(compileResult.hex);
@@ -3295,7 +3499,40 @@ async function runSketch() {
   const usart = new AVRUSART(cpu, usart0Config, CPU_HZ);
   usart.onLineTransmit = (line) => appendSerialLine(line.replace(/\r$/, "")); // Serial.println sends "\r\n"
 
-  const unbindComponents = bindComponentsToSimulation(cpu, ports, PinState, adc);
+  // Wire.h talks to the ATmega328P's dedicated hardware TWI (I2C)
+  // peripheral, not bit-banged GPIO on A4/A5 — confirmed against avr8js's
+  // own source (peripherals/twi.js): it exposes a clean byte-oriented
+  // eventHandler (start/stop/connectToSlave/writeByte/readByte), so
+  // simulating an I2C device means implementing that handler once, not
+  // decoding SDA/SCL edges bit by bit. i2cDevices is populated by
+  // bindComponentsToSimulation below (SSD1306/DS1307/MPU6050 register
+  // themselves here); the dispatcher just routes by 7-bit address, the
+  // same way a real shared I2C bus does.
+  const twi = new AVRTWI(cpu, twiConfig, CPU_HZ);
+  const i2cDevices = [];
+  let activeI2CDevice = null;
+  twi.eventHandler = {
+    start() {
+      twi.completeStart();
+    },
+    stop() {
+      twi.completeStop();
+    },
+    connectToSlave(address, isRead) {
+      activeI2CDevice = i2cDevices.find((d) => d.address === address) || null;
+      activeI2CDevice?.onConnect?.(isRead);
+      twi.completeConnect(!!activeI2CDevice);
+    },
+    writeByte(value) {
+      const ack = activeI2CDevice ? activeI2CDevice.onWrite(value) !== false : false;
+      twi.completeWrite(ack);
+    },
+    readByte() {
+      twi.completeRead(activeI2CDevice ? activeI2CDevice.onRead() : 0xff);
+    },
+  };
+
+  const unbindComponents = bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices);
 
   simState = { cpu, startWallMs: performance.now(), timeoutId: null, unbindComponents };
   setButtonsRunning(true, false);
