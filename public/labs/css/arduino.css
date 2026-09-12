@@ -576,6 +576,42 @@ html, body {
     padding-bottom: 0;
 }
 
+/* The one control this app adds itself for parts @wokwi/elements gives no
+   interactive affordance at all (PIR/flame/gas/sound/heart-rate sensors,
+   tilt switch) — see NO_UI_SENSOR_TAGS in arduinoLab.js. Text button, not
+   a swatch, since it's a state label + toggle, not a color choice. */
+.ct-sensor-row {
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee6d4;
+}
+
+.ct-sensor-row button {
+    width: auto !important;
+    height: auto !important;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid #ddd7c8 !important;
+    border-radius: 6px !important;
+    background: #fdfbf6 !important;
+    color: #666 !important;
+}
+
+.ct-sensor-row.sensor-row--triggered button {
+    background: #eafaf0 !important;
+    border-color: #1a9c4b !important;
+    color: #1a9c4b !important;
+}
+
+/* wokwi-ks2e-m-dc5 (relay module) has no visual difference when energized
+   at all — see the wokwi-ks2e-m-dc5 branch in bindComponentsToSimulation
+   for why this app adds its own indicator instead. */
+.relay-energized-1,
+.relay-energized-2 {
+    filter: drop-shadow(0 0 6px #2ecc71) drop-shadow(0 0 2px #1a9c4b);
+}
+
 .wire-overlay {
     position: absolute;
     inset: 0;

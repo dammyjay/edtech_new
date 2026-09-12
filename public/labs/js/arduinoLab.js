@@ -547,11 +547,24 @@ function renderSelectionToolbar() {
   toolbar.style.left = (minLeft + maxRight) / 2 + "px";
   toolbar.hidden = false;
 
+  const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+  const soleComp = soleId ? placedComponents.get(soleId) : null;
+
   const colorRow = document.getElementById("componentColorRow");
   if (colorRow) {
-    const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
-    const soleComp = soleId ? placedComponents.get(soleId) : null;
     colorRow.hidden = !(soleComp && soleComp.tag === "wokwi-led");
+  }
+
+  const sensorRow = document.getElementById("componentSensorRow");
+  if (sensorRow) {
+    const isNoUiSensor = !!(soleComp && NO_UI_SENSOR_TAGS.includes(soleComp.tag));
+    sensorRow.hidden = !isNoUiSensor;
+    if (isNoUiSensor) {
+      const triggered = !!soleComp.sensorTriggered;
+      sensorRow.classList.toggle("sensor-row--triggered", triggered);
+      const btn = sensorRow.querySelector("button");
+      if (btn) btn.textContent = triggered ? "⚡ Triggered — click to reset" : "◯ Idle — click to trigger";
+    }
   }
 
   // A part near the top of the canvas (the default seeded LED included)
@@ -609,6 +622,7 @@ async function duplicateComponent(id) {
     renderPins(clone.id);
   }
   if (source.tag === "wokwi-led") clone.el.color = source.el.color; // a re-colored LED duplicates the same color, not the default red
+  if (NO_UI_SENSOR_TAGS.includes(source.tag)) clone.sensorTriggered = source.sensorTriggered;
   // A duplicate is a fresh part, not a clone of what it was wired to —
   // matches how every other design tool's "duplicate" behaves.
   trySnapToBreadboard(clone.id);
@@ -653,6 +667,22 @@ document.getElementById("componentToolbar")?.addEventListener("pointerdown", (e)
   e.stopPropagation();
 });
 document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
+  const sensorBtn = e.target.closest("button[data-sensor-toggle]");
+  if (sensorBtn) {
+    const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+    const soleComp = soleId ? placedComponents.get(soleId) : null;
+    if (soleComp && NO_UI_SENSOR_TAGS.includes(soleComp.tag)) {
+      recordHistory();
+      soleComp.sensorTriggered = !soleComp.sensorTriggered;
+      // Same event-driven shape every other input device binding already
+      // uses (slide-switch's "input", pushbutton's "button-press") — lets
+      // bindComponentsToSimulation react live without polling.
+      soleComp.el.dispatchEvent(new CustomEvent("sensor-value-change"));
+      renderSelectionToolbar();
+      scheduleAutoSave();
+    }
+    return;
+  }
   const colorBtn = e.target.closest("button[data-led-color]");
   if (colorBtn) {
     // Only ever shown/actionable when exactly one LED is selected — see
@@ -1425,6 +1455,26 @@ const ANALOG_CHANNEL = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
 const SERVO_MIN_PULSE_US = 544;
 const SERVO_MAX_PULSE_US = 2400;
 
+// These seven parts expose ZERO interactive control in @wokwi/elements at
+// all — confirmed against each one's actual source (PIRMotionSensorElement,
+// FlameSensorElement, GasSensorElement, SmallSoundSensorElement,
+// BigSoundSensorElement, HeartBeatSensorElement, TiltSwitchElement): pure
+// static SVG, no reactive properties, no click handlers, nothing. The
+// selection toolbar's "Idle / Triggered" toggle (componentSensorRow in
+// editor.ejs, wired up in renderSelectionToolbar/the toolbar click handler
+// below) is a control this app adds itself for exactly these tags, so a
+// student can still test their code against both states even though the
+// underlying part gives them no way to change its reading.
+const NO_UI_SENSOR_TAGS = [
+  "wokwi-pir-motion-sensor",
+  "wokwi-flame-sensor",
+  "wokwi-gas-sensor",
+  "wokwi-small-sound-sensor",
+  "wokwi-big-sound-sensor",
+  "wokwi-heart-beat-sensor",
+  "wokwi-tilt-switch",
+];
+
 // Both boards are the same ATmega328P chip with identical Arduino
 // silkscreen pin names ("0"-"13", "A0"-"A5") — confirmed directly against
 // @wokwi/elements' ArduinoNanoElement pinInfo, not assumed — so every
@@ -1897,6 +1947,117 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
         eventListeners.push({ el: comp.el, type: "button-press", handler: recompute });
         eventListeners.push({ el: comp.el, type: "button-release", handler: recompute });
       }
+    } else if (comp.tag === "wokwi-stepper-motor" || comp.tag === "wokwi-biaxial-stepper") {
+      // Real 4-wire bipolar full-step decoding: watches all four coil
+      // pins (A-/A+/B+/B-) and matches their live combination against the
+      // standard drive sequence Arduino's own built-in Stepper.h library
+      // uses internally (Stepper::stepMotor's case 0-3) — moving between
+      // two ADJACENT table entries, in either direction, is one real
+      // physical step. wokwi-biaxial-stepper is two steppers fused into
+      // one part but @wokwi/elements only exposes ONE set of coil pins on
+      // it, so driving its single `angle` the same way is the most
+      // correct behavior available.
+      const STEPPER_SEQUENCE = [
+        { Ap: true, Am: false, Bp: true, Bm: false },
+        { Ap: false, Am: true, Bp: true, Bm: false },
+        { Ap: false, Am: true, Bp: false, Bm: true },
+        { Ap: true, Am: false, Bp: false, Bm: true },
+      ];
+      const DEGREES_PER_STEP = 1.8; // standard 200-steps/rev full-step motor
+      const locByPin = {};
+      for (const { ownPin, arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (loc && ports[loc.port] && ["A-", "A+", "B+", "B-"].includes(ownPin)) locByPin[ownPin] = loc;
+      }
+      if (locByPin["A-"] && locByPin["A+"] && locByPin["B+"] && locByPin["B-"]) {
+        let lastIndex = null;
+        const readState = () => ({
+          Ap: ports[locByPin["A+"].port].pinState(locByPin["A+"].bit) === PinState.High,
+          Am: ports[locByPin["A-"].port].pinState(locByPin["A-"].bit) === PinState.High,
+          Bp: ports[locByPin["B+"].port].pinState(locByPin["B+"].bit) === PinState.High,
+          Bm: ports[locByPin["B-"].port].pinState(locByPin["B-"].bit) === PinState.High,
+        });
+        const sameState = (a, b) => a.Ap === b.Ap && a.Am === b.Am && a.Bp === b.Bp && a.Bm === b.Bm;
+        const listener = () => {
+          const state = readState();
+          const index = STEPPER_SEQUENCE.findIndex((s) => sameState(s, state));
+          if (index === -1) return; // not a recognized drive combo — ignore
+          if (lastIndex === null) {
+            lastIndex = index;
+            return;
+          }
+          if (index === lastIndex) return;
+          const diff = (index - lastIndex + 4) % 4;
+          if (diff === 1) comp.el.angle = (comp.el.angle + DEGREES_PER_STEP) % 360;
+          else if (diff === 3) comp.el.angle = (comp.el.angle - DEGREES_PER_STEP + 360) % 360;
+          // diff === 2 means two steps happened between checks —
+          // direction is ambiguous, so just re-sync position without
+          // guessing which way it went.
+          lastIndex = index;
+        };
+        for (const loc of Object.values(locByPin)) ports[loc.port].addListener(listener);
+        boundVisuals.push({ el: comp.el, prop: "angle", resetValue: 0 });
+      }
+    } else if (comp.tag === "wokwi-ks2e-m-dc5") {
+      // No reactive "energized" property or visual difference exists on
+      // this part in @wokwi/elements at all (confirmed against
+      // KS2EMDC5Element's source — pure static SVG). Coil detection below
+      // is real: COIL1/COIL2 driven HIGH energizes that relay (the
+      // standard "digitalWrite(coilPin, HIGH) energizes the coil"
+      // teaching pattern), surfaced via a CSS class this app adds itself
+      // (.relay-energized-1/-2 in arduino.css) since the part can't show
+      // it any other way.
+      //
+      // Known gap, not silently skipped: this app's wiring connectivity
+      // (buildConnectivity, above) is computed ONCE at Run start. A real
+      // energized relay changes which of NO/NC its common pin P is
+      // actually connected to — a live topology change mid-run, which
+      // isn't modeled here. A student gets correct, real coil on/off
+      // feedback; a downstream part wired through P won't dynamically
+      // re-route between NO and NC while a sketch is running.
+      for (const relayNum of [1, 2]) {
+        const conn = connections.find((c) => c.ownPin === `COIL${relayNum}`);
+        if (!conn) continue;
+        const loc = PIN_TO_PORT[conn.arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        const cssClass = `relay-energized-${relayNum}`;
+        const originalClassName = comp.el.className;
+        const listener = () => {
+          comp.el.classList.toggle(cssClass, port.pinState(loc.bit) === PinState.High);
+        };
+        port.addListener(listener);
+        listener();
+        boundVisuals.push({ el: comp.el, prop: "className", resetValue: originalClassName });
+      }
+    } else if (NO_UI_SENSOR_TAGS.includes(comp.tag)) {
+      // See NO_UI_SENSOR_TAGS's own comment: none of these parts expose
+      // ANY interactive control in @wokwi/elements itself, so the
+      // Idle/Triggered toggle in the selection toolbar (componentSensorRow)
+      // is a control this app adds itself, dispatching "sensor-value-change"
+      // on toggle so this binding reacts live — same event-driven shape as
+      // every other input device above.
+      const applyState = () => {
+        const triggered = !!comp.sensorTriggered;
+        for (const { ownPin, arduinoPin } of connections) {
+          const loc = PIN_TO_PORT[arduinoPin];
+          if (!loc || !ports[loc.port]) continue;
+          const port = ports[loc.port];
+          if (ownPin === "OUT" || ownPin === "DOUT") {
+            // PIR/tilt (OUT) are wired active-HIGH; the multi-pin
+            // modules' digital threshold pin (DOUT) is active-LOW — both
+            // match their real hardware's most common convention.
+            const activeHigh = ownPin === "OUT";
+            port.setPin(loc.bit, activeHigh ? triggered : !triggered);
+          } else if (ownPin === "AOUT" && adc) {
+            const channel = ANALOG_CHANNEL[arduinoPin];
+            if (channel !== undefined) adc.channelValues[channel] = triggered ? 4 : 0.5;
+          }
+        }
+      };
+      applyState();
+      comp.el.addEventListener("sensor-value-change", applyState);
+      eventListeners.push({ el: comp.el, type: "sensor-value-change", handler: applyState });
     }
   }
 
@@ -1971,6 +2132,8 @@ function serializeCircuit() {
       // write for anything else — keeps this one line instead of a
       // per-tag branch, and restoreCircuit already guards on tag anyway.
       color: c.el.color,
+      // Only meaningful for NO_UI_SENSOR_TAGS parts, same reasoning.
+      sensorTriggered: !!c.sensorTriggered,
     })),
     // waypoints is cloned (not just referenced) since, unlike from/to
     // (set once at wire creation and never mutated in place), a wire's
@@ -2024,6 +2187,7 @@ async function restoreCircuit(snapshot) {
           renderPins(comp.id);
         }
         if (c.tag === "wokwi-led" && c.color) comp.el.color = c.color;
+        if (NO_UI_SENSOR_TAGS.includes(c.tag)) comp.sensorTriggered = !!c.sensorTriggered;
       }
       for (const [key, holeKey] of snapshot.breadboardPlacements || []) {
         breadboardPlacements.set(key, holeKey);
