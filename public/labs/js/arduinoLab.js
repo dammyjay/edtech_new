@@ -1425,9 +1425,16 @@ const ANALOG_CHANNEL = { A0: 0, A1: 1, A2: 2, A3: 3, A4: 4, A5: 5 };
 const SERVO_MIN_PULSE_US = 544;
 const SERVO_MAX_PULSE_US = 2400;
 
+// Both boards are the same ATmega328P chip with identical Arduino
+// silkscreen pin names ("0"-"13", "A0"-"A5") — confirmed directly against
+// @wokwi/elements' ArduinoNanoElement pinInfo, not assumed — so every
+// binding below already works for a Nano-only circuit for free once it's
+// recognized here as "the board" at all.
+const BOARD_TAGS = ["wokwi-arduino-uno", "wokwi-arduino-nano"];
+
 function findArduinoComponent() {
   for (const comp of placedComponents.values()) {
-    if (comp.tag === "wokwi-arduino-uno") return comp;
+    if (BOARD_TAGS.includes(comp.tag)) return comp;
   }
   return null;
 }
@@ -1576,7 +1583,11 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
         port.addListener(listener);
         boundVisuals.push({ el: comp.el, prop: "angle", resetValue: 0 });
       }
-    } else if (comp.tag === "wokwi-pushbutton") {
+    } else if (comp.tag === "wokwi-pushbutton" || comp.tag === "wokwi-pushbutton-6mm") {
+      // The 6mm tactile button dispatches the exact same button-press/
+      // button-release events as the full-size pushbutton (confirmed
+      // against @wokwi/elements' Pushbutton6mmElement source) — same
+      // binding, just a second tag recognized by it.
       for (const { arduinoPin } of connections) {
         const loc = PIN_TO_PORT[arduinoPin];
         if (!loc || !ports[loc.port]) continue; // the leg wired to GND, not the signal leg
@@ -1601,7 +1612,11 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
         comp.el.addEventListener("input", applyState);
         eventListeners.push({ el: comp.el, type: "input", handler: applyState });
       }
-    } else if (comp.tag === "wokwi-potentiometer") {
+    } else if (comp.tag === "wokwi-potentiometer" || comp.tag === "wokwi-slide-potentiometer") {
+      // The slide variant exposes the identical SIG/min/max/value contract
+      // and fires the same "input" event (confirmed against
+      // @wokwi/elements' SlidePotentiometerElement source) — a drop-in
+      // second tag for the exact same binding.
       if (!adc) continue;
       for (const { ownPin, arduinoPin } of connections) {
         if (ownPin !== "SIG") continue; // GND/VCC legs carry no signal of their own
@@ -1615,17 +1630,131 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
         comp.el.addEventListener("input", applyValue);
         eventListeners.push({ el: comp.el, type: "input", handler: applyValue });
       }
-    } else if (comp.tag === "wokwi-photoresistor-sensor") {
+    } else if (comp.tag === "wokwi-photoresistor-sensor" || comp.tag === "wokwi-ntc-temperature-sensor") {
+      // Neither part has an interactive "light level"/"temperature"
+      // control on the element itself (unlike the potentiometer's
+      // draggable knob) — a fixed mid-range reading is still a real ADC
+      // round-trip end to end, just not adjustable by the student yet.
       if (!adc) continue;
+      const pinName = comp.tag === "wokwi-photoresistor-sensor" ? "AO" : "OUT";
       for (const { ownPin, arduinoPin } of connections) {
-        if (ownPin !== "AO") continue;
+        if (ownPin !== pinName) continue;
         const channel = ANALOG_CHANNEL[arduinoPin];
         if (channel === undefined) continue;
-        // This part has no built-in interactive "light level" control
-        // (unlike the potentiometer's draggable knob) — a fixed mid-range
-        // reading is still a real ADC round-trip end to end, just not
-        // adjustable by the student yet.
         adc.channelValues[channel] = 2.5;
+      }
+    } else if (comp.tag === "wokwi-analog-joystick") {
+      // VERT/HORZ are analog axes (xValue/yValue, -1..1, "input" event);
+      // SEL is a plain digital pushbutton — identical button-press/
+      // button-release contract to the standalone pushbutton above.
+      // Confirmed against @wokwi/elements' AnalogJoystickElement source.
+      if (adc) {
+        for (const { ownPin, arduinoPin } of connections) {
+          const axisProp = ownPin === "VERT" ? "yValue" : ownPin === "HORZ" ? "xValue" : null;
+          if (!axisProp) continue;
+          const channel = ANALOG_CHANNEL[arduinoPin];
+          if (channel === undefined) continue;
+          const applyValue = () => {
+            adc.channelValues[channel] = ((comp.el[axisProp] + 1) / 2) * 5;
+          };
+          applyValue();
+          comp.el.addEventListener("input", applyValue);
+          eventListeners.push({ el: comp.el, type: "input", handler: applyValue });
+        }
+      }
+      for (const { ownPin, arduinoPin } of connections) {
+        if (ownPin !== "SEL") continue;
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        port.setPin(loc.bit, true);
+        const onPress = () => port.setPin(loc.bit, false);
+        const onRelease = () => port.setPin(loc.bit, true);
+        comp.el.addEventListener("button-press", onPress);
+        comp.el.addEventListener("button-release", onRelease);
+        eventListeners.push({ el: comp.el, type: "button-press", handler: onPress });
+        eventListeners.push({ el: comp.el, type: "button-release", handler: onRelease });
+      }
+    } else if (comp.tag === "wokwi-dip-switch-8") {
+      // Eight independent switches, pin-named "1a".."8a" paired with
+      // "1b".."8b" (confirmed against @wokwi/elements' DipSwitch8Element
+      // source). Same simplified model as the single slide switch above —
+      // each switch directly drives its own "Na" leg's digital level, not
+      // full continuity through to whatever "Nb" is wired to (this app
+      // doesn't model wire continuity *through* a component anywhere
+      // else either). Re-applied to all bound legs on any single toggle,
+      // since one "switch-change" event doesn't say which pin listeners
+      // to skip.
+      const bound = [];
+      for (const { ownPin, arduinoPin } of connections) {
+        const match = /^(\d)a$/.exec(ownPin);
+        if (!match) continue; // the "Nb" legs carry no signal of their own
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        bound.push({ index: Number(match[1]) - 1, port: ports[loc.port], bit: loc.bit });
+      }
+      if (bound.length) {
+        const applyAll = () => {
+          for (const { index, port, bit } of bound) port.setPin(bit, !!comp.el.values[index]);
+        };
+        applyAll();
+        comp.el.addEventListener("switch-change", applyAll);
+        eventListeners.push({ el: comp.el, type: "switch-change", handler: applyAll });
+      }
+    } else if (comp.tag === "wokwi-led-bar-graph") {
+      // Ten independent LEDs, each with its own anode pin A1-A10 (paired
+      // cathode legs C1-C10 carry no signal of their own) — same
+      // pin-per-property idea as the RGB LED above, just ten of them.
+      // `values` is a Lit array property: mutating an index in place
+      // doesn't trigger a re-render, only reassigning the array does, so
+      // every listener below writes a fresh array back.
+      const values = comp.el.values.slice();
+      let touched = false;
+      for (const { ownPin, arduinoPin } of connections) {
+        const match = /^A(\d+)$/.exec(ownPin);
+        if (!match) continue;
+        const index = Number(match[1]) - 1;
+        if (index < 0 || index >= values.length) continue;
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        touched = true;
+        const listener = () => {
+          values[index] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+          comp.el.values = values.slice();
+        };
+        port.addListener(listener);
+        values[index] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+      }
+      if (touched) {
+        comp.el.values = values.slice();
+        boundVisuals.push({ el: comp.el, prop: "values", resetValue: values.map(() => 0) });
+      }
+    } else if (comp.tag === "wokwi-7segment") {
+      // Segment pins A-G plus the decimal point, in the same order as the
+      // `values` array (confirmed against @wokwi/elements'
+      // SevenSegmentElement source — the default single-digit pinout;
+      // the multi-digit variants' per-digit multiplexing isn't modeled).
+      const SEGMENT_INDEX = { A: 0, B: 1, C: 2, D: 3, E: 4, F: 5, G: 6, DP: 7 };
+      const values = comp.el.values.slice();
+      let touched = false;
+      for (const { ownPin, arduinoPin } of connections) {
+        const index = SEGMENT_INDEX[ownPin];
+        if (index === undefined) continue; // the COM legs carry no signal of their own
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        touched = true;
+        const listener = () => {
+          values[index] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+          comp.el.values = values.slice();
+        };
+        port.addListener(listener);
+        values[index] = port.pinState(loc.bit) === PinState.High ? 1 : 0;
+      }
+      if (touched) {
+        comp.el.values = values.slice();
+        boundVisuals.push({ el: comp.el, prop: "values", resetValue: values.map(() => 0) });
       }
     }
   }

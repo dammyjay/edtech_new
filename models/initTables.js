@@ -1999,6 +1999,25 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       }
     }
 
+    // The catalog's addable set grew (admin component catalog expansion)
+    // to include actuators and I2C/SPI/RF modules — two categories that
+    // didn't exist yet on installs whose one-time seed above already ran
+    // and therefore skipped. Guarded on name existing rather than on the
+    // component-count-is-zero check above, so this safely backfills the
+    // two new categories on every boot without touching the original 12
+    // components or anything admin has since edited.
+    for (const name of ["Actuators", "Modules"]) {
+      await pool.query(
+        `INSERT INTO lab_asset_categories (lab_type, asset_type, name)
+         SELECT 'arduino', 'component', $1
+         WHERE NOT EXISTS (
+           SELECT 1 FROM lab_asset_categories
+           WHERE lab_type = 'arduino' AND asset_type = 'component' AND name = $1
+         )`,
+        [name]
+      );
+    }
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

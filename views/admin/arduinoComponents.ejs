@@ -101,16 +101,33 @@
         <% if (addableComponents.length === 0) { %>
           <p class="la-empty">Every known-supported component is already in the catalog.</p>
         <% } else { %>
-          <form action="/admin/arduino-components/add" method="POST" class="ac-add-form">
+          <form action="/admin/arduino-components/add" method="POST" class="ac-add-form"
+                onsubmit="return !document.getElementById('ac-add-tag').selectedOptions[0].dataset.simulated || document.getElementById('ac-add-tag').selectedOptions[0].dataset.simulated === 'true' || confirm('This part isn\'t simulated yet — it will render and can be wired up, but won\'t react to a running sketch. Add it anyway?')">
             <label for="ac-add-tag">Part</label>
-            <select name="tag" id="ac-add-tag" required onchange="document.getElementById('ac-add-label').value = this.options[this.selectedIndex].dataset.label">
-              <% addableComponents.forEach(c => { %>
-                <option value="<%= c.tag %>" data-label="<%= c.label %>"><%= c.label %><%= c.note ? ' ⚠' : '' %></option>
+            <select name="tag" id="ac-add-tag" required onchange="
+              const opt = this.options[this.selectedIndex];
+              document.getElementById('ac-add-label').value = opt.dataset.label;
+              const catSelect = document.getElementById('ac-add-category');
+              const match = [...catSelect.options].find(o => o.text === opt.dataset.category);
+              catSelect.value = match ? match.value : '';
+            ">
+              <% const byCategory = {}; %>
+              <% addableComponents.forEach(c => { (byCategory[c.category] = byCategory[c.category] || []).push(c); }) %>
+              <% Object.keys(byCategory).forEach(catName => { %>
+                <optgroup label="<%= catName %>">
+                  <% byCategory[catName].forEach(c => { %>
+                    <option value="<%= c.tag %>" data-label="<%= c.label %>" data-category="<%= c.category %>" data-simulated="<%= c.simulated %>">
+                      <%= c.label %><%= c.note ? ' ⚠' : '' %>
+                    </option>
+                  <% }) %>
+                </optgroup>
               <% }) %>
             </select>
-            <% addableComponents.filter(c => c.note).forEach(c => { %>
-              <p class="ac-note">⚠ <strong><%= c.label %></strong>: <%= c.note %></p>
-            <% }) %>
+            <div id="ac-add-note">
+              <% if (addableComponents[0].note) { %>
+                <p class="ac-note">⚠ <%= addableComponents[0].note %></p>
+              <% } %>
+            </div>
 
             <label for="ac-add-label">Label shown to students</label>
             <input type="text" id="ac-add-label" name="label" value="<%= addableComponents[0].label %>" required />
@@ -119,12 +136,30 @@
             <select name="category_id" id="ac-add-category">
               <option value="">— Uncategorized —</option>
               <% categories.forEach(cat => { %>
-                <option value="<%= cat.id %>"><%= cat.name %></option>
+                <option value="<%= cat.id %>" <%= cat.name === addableComponents[0].category ? 'selected' : '' %>><%= cat.name %></option>
               <% }) %>
             </select>
 
             <button type="submit" class="ac-add-btn">+ Add to Palette</button>
           </form>
+
+          <script>
+            // Notes are per-tag, so the select's onchange above can't just
+            // toggle a fixed block — the note text itself must be looked
+            // up per option (all NOTES are provided server-side already;
+            // this just re-renders the one for whichever option is now
+            // selected, using a data attribute to avoid re-fetching).
+            (function () {
+              const select = document.getElementById("ac-add-tag");
+              const notes = <%- JSON.stringify(Object.fromEntries(addableComponents.map(c => [c.tag, c.note || ""]))) %>;
+              select?.addEventListener("change", () => {
+                const note = notes[select.value];
+                document.getElementById("ac-add-note").innerHTML = note
+                  ? `<p class="ac-note">⚠ ${note.replace(/</g, "&lt;")}</p>`
+                  : "";
+              });
+            })();
+          </script>
         <% } %>
       </div>
 

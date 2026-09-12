@@ -11,23 +11,256 @@ const pool = require("../models/db");
 // and left honestly noted here — with wokwi-dht22 below, which has a real
 // pin layout and renders correctly, but whose actual sensor protocol
 // isn't simulated yet).
+// Every tag below is a real @wokwi/elements custom element, confirmed by
+// pulling and inspecting the actual bundle (not guessed from the docs) —
+// same rigor as the DHT22 investigation this comment used to describe
+// alone. `simulated: false` entries carry a `note` (surfaced in the admin
+// UI and the add-picker) rather than being left out: they render and wire
+// up correctly on the canvas, they just don't yet drive or react to the
+// running sketch. Deliberately excluded entirely: wokwi-esp32-devkit-v1,
+// wokwi-nano-rp2040-connect (both run a completely different CPU
+// architecture — avr8js only emulates AVR, so neither could ever execute
+// a compiled sketch, not just "isn't wired up yet"), wokwi-arduino-mega
+// and wokwi-franzininho (other boards needing their own compile target
+// and pin-map verification — real, separate work, not a catalog entry).
 const KNOWN_GOOD_COMPONENTS = [
-  { tag: "wokwi-arduino-uno", label: "Arduino Uno", category: "Boards" },
-  { tag: "wokwi-arduino-nano", label: "Arduino Nano", category: "Boards" },
-  { tag: "custom-breadboard", label: "Breadboard", category: "Prototyping" },
-  { tag: "wokwi-led", label: "LED", category: "Output" },
-  { tag: "wokwi-rgb-led", label: "RGB LED", category: "Output" },
-  { tag: "wokwi-buzzer", label: "Buzzer", category: "Output" },
-  { tag: "wokwi-servo", label: "Servo Motor", category: "Output" },
-  { tag: "wokwi-pushbutton", label: "Push Button", category: "Input" },
-  { tag: "wokwi-slide-switch", label: "Slide Switch", category: "Input" },
-  { tag: "wokwi-potentiometer", label: "Potentiometer", category: "Input" },
-  { tag: "wokwi-photoresistor-sensor", label: "Light Sensor", category: "Sensors" },
+  // --- Boards -----------------------------------------------------------
+  { tag: "wokwi-arduino-uno", label: "Arduino Uno", category: "Boards", simulated: true },
+  { tag: "wokwi-arduino-nano", label: "Arduino Nano", category: "Boards", simulated: true },
+
+  // --- Prototyping --------------------------------------------------------
+  { tag: "custom-breadboard", label: "Breadboard", category: "Prototyping", simulated: true },
+  {
+    tag: "wokwi-resistor",
+    label: "Resistor",
+    category: "Prototyping",
+    simulated: true,
+    // Genuinely passive — this simulator doesn't model current/voltage
+    // limiting anywhere else either, so a resistor correctly does nothing
+    // active, the same as the breadboard above.
+  },
+
+  // --- Output -------------------------------------------------------------
+  { tag: "wokwi-led", label: "LED", category: "Output", simulated: true },
+  { tag: "wokwi-rgb-led", label: "RGB LED", category: "Output", simulated: true },
+  { tag: "wokwi-buzzer", label: "Buzzer", category: "Output", simulated: true },
+  { tag: "wokwi-servo", label: "Servo Motor", category: "Output", simulated: true },
+  { tag: "wokwi-led-bar-graph", label: "LED Bar Graph", category: "Output", simulated: true },
+  { tag: "wokwi-7segment", label: "7-Segment Display", category: "Output", simulated: true },
+  {
+    tag: "wokwi-neopixel",
+    label: "NeoPixel LED",
+    category: "Output",
+    simulated: false,
+    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-neopixel-matrix",
+    label: "NeoPixel Matrix",
+    category: "Output",
+    simulated: false,
+    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-led-ring",
+    label: "NeoPixel Ring",
+    category: "Output",
+    simulated: false,
+    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
+  },
+
+  // --- Input ----------------------------------------------------------------
+  { tag: "wokwi-pushbutton", label: "Push Button", category: "Input", simulated: true },
+  { tag: "wokwi-pushbutton-6mm", label: "Push Button (6mm)", category: "Input", simulated: true },
+  { tag: "wokwi-slide-switch", label: "Slide Switch", category: "Input", simulated: true },
+  { tag: "wokwi-potentiometer", label: "Potentiometer", category: "Input", simulated: true },
+  { tag: "wokwi-slide-potentiometer", label: "Slide Potentiometer", category: "Input", simulated: true },
+  { tag: "wokwi-dip-switch-8", label: "DIP Switch (8-way)", category: "Input", simulated: true },
+  { tag: "wokwi-analog-joystick", label: "Analog Joystick", category: "Input", simulated: true },
+  {
+    tag: "wokwi-tilt-switch",
+    label: "Tilt Switch",
+    category: "Input",
+    simulated: false,
+    note: "Visual/wireable only — there's no way to tilt it in the simulator yet, so it never triggers.",
+  },
+  {
+    tag: "wokwi-ky-040",
+    label: "Rotary Encoder",
+    category: "Input",
+    simulated: false,
+    note: "Visual/wireable only — quadrature rotation isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-membrane-keypad",
+    label: "Membrane Keypad",
+    category: "Input",
+    simulated: false,
+    note: "Visual/wireable only — row/column matrix scanning isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-rotary-dialer",
+    label: "Rotary Dialer",
+    category: "Input",
+    simulated: false,
+    note: "Visual/wireable only — its pulse-dial protocol isn't simulated yet.",
+  },
+
+  // --- Sensors --------------------------------------------------------------
+  { tag: "wokwi-photoresistor-sensor", label: "Light Sensor", category: "Sensors", simulated: true },
+  { tag: "wokwi-ntc-temperature-sensor", label: "Temperature Sensor (NTC)", category: "Sensors", simulated: true },
   {
     tag: "wokwi-dht22",
     label: "DHT22",
     category: "Sensors",
+    simulated: false,
     note: "Visual/wireable only — live temperature/humidity readings aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-pir-motion-sensor",
+    label: "PIR Motion Sensor",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — motion detection isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-flame-sensor",
+    label: "Flame Sensor",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — flame detection isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-gas-sensor",
+    label: "Gas Sensor",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — gas readings aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-small-sound-sensor",
+    label: "Sound Sensor (Small)",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — sound level readings aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-big-sound-sensor",
+    label: "Sound Sensor (Large)",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — sound level readings aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-heart-beat-sensor",
+    label: "Heart Rate Sensor",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — pulse readings aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-hc-sr04",
+    label: "Ultrasonic Distance Sensor",
+    category: "Sensors",
+    simulated: false,
+    note: "Visual/wireable only — the trigger/echo distance-timing protocol isn't simulated yet.",
+  },
+
+  // --- Actuators --------------------------------------------------------------
+  {
+    tag: "wokwi-ks2e-m-dc5",
+    label: "Relay Module",
+    category: "Actuators",
+    simulated: false,
+    note: "Visual/wireable only — coil-driven contact switching isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-stepper-motor",
+    label: "Stepper Motor",
+    category: "Actuators",
+    simulated: false,
+    note: "Visual/wireable only — step/direction pulses aren't simulated yet.",
+  },
+  {
+    tag: "wokwi-biaxial-stepper",
+    label: "Biaxial Stepper Motor",
+    category: "Actuators",
+    simulated: false,
+    note: "Visual/wireable only — step/direction pulses aren't simulated yet.",
+  },
+
+  // --- Modules (mostly I2C/SPI displays, storage, and RF — each needs its
+  //     own bespoke bus/protocol simulator, comparable in scope to the
+  //     existing Servo pulse-timing code) --------------------------------
+  {
+    tag: "wokwi-lcd1602",
+    label: "LCD Display (16x2)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the HD44780 display protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-lcd2004",
+    label: "LCD Display (20x4)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the HD44780 display protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-ssd1306",
+    label: "OLED Display (SSD1306)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the I2C OLED display protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-hx711",
+    label: "Load Cell Amplifier (HX711)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — its bit-banged ADC protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-ds1307",
+    label: "Real-Time Clock (DS1307)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the I2C real-time-clock protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-mpu6050",
+    label: "Accelerometer/Gyroscope (MPU6050)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the I2C motion-sensor protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-ir-receiver",
+    label: "IR Receiver",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the infrared signal protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-ir-remote",
+    label: "IR Remote Control",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — the infrared signal protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-microsd-card",
+    label: "MicroSD Card Module",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — its SPI storage protocol isn't simulated yet.",
+  },
+  {
+    tag: "wokwi-ili9341",
+    label: "TFT Display (ILI9341)",
+    category: "Modules",
+    simulated: false,
+    note: "Visual/wireable only — its SPI display protocol isn't simulated yet.",
   },
 ];
 
