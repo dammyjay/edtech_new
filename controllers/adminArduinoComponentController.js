@@ -84,20 +84,8 @@ const KNOWN_GOOD_COMPONENTS = [
     simulated: false,
     note: "Visual/wireable only — there's no way to tilt it in the simulator yet, so it never triggers.",
   },
-  {
-    tag: "wokwi-ky-040",
-    label: "Rotary Encoder",
-    category: "Input",
-    simulated: false,
-    note: "Visual/wireable only — quadrature rotation isn't simulated yet.",
-  },
-  {
-    tag: "wokwi-membrane-keypad",
-    label: "Membrane Keypad",
-    category: "Input",
-    simulated: false,
-    note: "Visual/wireable only — row/column matrix scanning isn't simulated yet.",
-  },
+  { tag: "wokwi-ky-040", label: "Rotary Encoder", category: "Input", simulated: true },
+  { tag: "wokwi-membrane-keypad", label: "Membrane Keypad", category: "Input", simulated: true },
   {
     tag: "wokwi-rotary-dialer",
     label: "Rotary Dialer",
@@ -158,13 +146,7 @@ const KNOWN_GOOD_COMPONENTS = [
     simulated: false,
     note: "Visual/wireable only — pulse readings aren't simulated yet.",
   },
-  {
-    tag: "wokwi-hc-sr04",
-    label: "Ultrasonic Distance Sensor",
-    category: "Sensors",
-    simulated: false,
-    note: "Visual/wireable only — the trigger/echo distance-timing protocol isn't simulated yet.",
-  },
+  { tag: "wokwi-hc-sr04", label: "Ultrasonic Distance Sensor", category: "Sensors", simulated: true },
 
   // --- Actuators --------------------------------------------------------------
   {

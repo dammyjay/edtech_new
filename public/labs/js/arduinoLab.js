@@ -1756,6 +1756,147 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc) {
         comp.el.values = values.slice();
         boundVisuals.push({ el: comp.el, prop: "values", resetValue: values.map(() => 0) });
       }
+    } else if (comp.tag === "wokwi-hc-sr04") {
+      // Real single-wire-per-pin ultrasonic protocol: the sketch pulses
+      // TRIG high for >=10us, and the sensor replies with an ECHO pulse
+      // whose WIDTH (not level) encodes distance — duration_us ≈
+      // distance_cm * 58 (round trip at the speed of sound), the exact
+      // formula every real HC-SR04 tutorial's code already assumes. No
+      // interactive "distance" control exists on this part at all
+      // (confirmed against @wokwi/elements' HCSR04Element source — pure
+      // SVG, zero reactive properties), so — same honest simplification
+      // as the photoresistor/NTC above — a fixed simulated distance still
+      // produces a real, correctly-timed echo a sketch can measure.
+      const SIMULATED_DISTANCE_CM = 50;
+      const ECHO_START_DELAY_US = 150; // a real sensor takes a short beat before the echo starts
+      const ECHO_DURATION_US = SIMULATED_DISTANCE_CM * 58;
+      let trigLoc = null, echoLoc = null;
+      for (const { ownPin, arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        if (ownPin === "TRIG") trigLoc = loc;
+        else if (ownPin === "ECHO") echoLoc = loc;
+      }
+      if (trigLoc && echoLoc) {
+        const trigPort = ports[trigLoc.port];
+        const echoPort = ports[echoLoc.port];
+        let risingAtCycle = null;
+        const listener = () => {
+          const isHigh = trigPort.pinState(trigLoc.bit) === PinState.High;
+          if (isHigh) {
+            risingAtCycle = cpu.cycles;
+            return;
+          }
+          if (risingAtCycle === null) return;
+          const pulseUs = ((cpu.cycles - risingAtCycle) / CPU_HZ) * 1_000_000;
+          risingAtCycle = null;
+          if (pulseUs < 10) return; // too short to be a real trigger
+          scheduleAt(cpu, ECHO_START_DELAY_US, () => {
+            echoPort.setPin(echoLoc.bit, true);
+            scheduleAt(cpu, ECHO_DURATION_US, () => echoPort.setPin(echoLoc.bit, false));
+          });
+        };
+        trigPort.addListener(listener);
+        echoPort.setPin(echoLoc.bit, false); // idle low
+      }
+    } else if (comp.tag === "wokwi-ky-040") {
+      // Real quadrature output: rotating one detent walks CLK/DT through
+      // the actual 4-phase Gray-code sequence a real encoder produces.
+      // Confirmed against @wokwi/elements' KY040Element source that its
+      // arrow clicks dispatch a single discrete "rotate-cw"/"rotate-ccw"
+      // event per detent (not continuous motion), so stepping through the
+      // sequence once per event is the correct model, not a shortcut. SW
+      // is a plain digital pushbutton — identical button-press/
+      // button-release contract to the standalone pushbutton above.
+      const PHASE_US = 500; // per-quarter-step timing, fast but readable by any polling loop
+      let clkLoc = null, dtLoc = null;
+      for (const { ownPin, arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        if (ownPin === "CLK") clkLoc = loc;
+        else if (ownPin === "DT") dtLoc = loc;
+      }
+      if (clkLoc && dtLoc) {
+        const clkPort = ports[clkLoc.port];
+        const dtPort = ports[dtLoc.port];
+        clkPort.setPin(clkLoc.bit, true); // idle HIGH
+        dtPort.setPin(dtLoc.bit, true);
+        const runSequence = (phases) => {
+          phases.forEach(([clk, dt], i) => {
+            scheduleAt(cpu, PHASE_US * (i + 1), () => {
+              clkPort.setPin(clkLoc.bit, clk);
+              dtPort.setPin(dtLoc.bit, dt);
+            });
+          });
+        };
+        const onCw = () => runSequence([[false, true], [false, false], [true, false], [true, true]]);
+        const onCcw = () => runSequence([[true, false], [false, false], [false, true], [true, true]]);
+        comp.el.addEventListener("rotate-cw", onCw);
+        comp.el.addEventListener("rotate-ccw", onCcw);
+        eventListeners.push({ el: comp.el, type: "rotate-cw", handler: onCw });
+        eventListeners.push({ el: comp.el, type: "rotate-ccw", handler: onCcw });
+      }
+      for (const { ownPin, arduinoPin } of connections) {
+        if (ownPin !== "SW") continue;
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const port = ports[loc.port];
+        port.setPin(loc.bit, true);
+        const onPress = () => port.setPin(loc.bit, false);
+        const onRelease = () => port.setPin(loc.bit, true);
+        comp.el.addEventListener("button-press", onPress);
+        comp.el.addEventListener("button-release", onRelease);
+        eventListeners.push({ el: comp.el, type: "button-press", handler: onPress });
+        eventListeners.push({ el: comp.el, type: "button-release", handler: onRelease });
+      }
+    } else if (comp.tag === "wokwi-membrane-keypad") {
+      // Real matrix-scan protocol: the Keypad library (curated in
+      // BUILTIN_LIBRARIES, arduinoCompileService.js) drives one ROW pin
+      // LOW at a time while reading COLUMN pins (pulled HIGH via
+      // INPUT_PULLUP) — a pressed key at that row/column briefly bridges
+      // them, pulling its column LOW. Recomputed on every row-pin change
+      // AND on every press/release, since either can flip what a column
+      // should currently read. Adapts to either the 3- or 4-column pinout
+      // automatically, since rowLocs/colLocs only ever contain whatever's
+      // actually wired.
+      const rowLocs = {};
+      const colLocs = {};
+      for (const { ownPin, arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (!loc || !ports[loc.port]) continue;
+        const rowMatch = /^R(\d+)$/.exec(ownPin);
+        const colMatch = /^C(\d+)$/.exec(ownPin);
+        if (rowMatch) rowLocs[Number(rowMatch[1]) - 1] = loc;
+        else if (colMatch) colLocs[Number(colMatch[1]) - 1] = loc;
+      }
+      if (Object.keys(rowLocs).length && Object.keys(colLocs).length) {
+        const recompute = () => {
+          for (const [colIndexStr, colLoc] of Object.entries(colLocs)) {
+            const colIndex = Number(colIndexStr);
+            const colPort = ports[colLoc.port];
+            let shouldBeLow = false;
+            for (const key of comp.el.pressedKeys) {
+              const { row, column } = comp.el.keyIndex(key);
+              if (column !== colIndex) continue;
+              const rowLoc = rowLocs[row];
+              if (!rowLoc) continue;
+              if (ports[rowLoc.port].pinState(rowLoc.bit) === PinState.Low) {
+                shouldBeLow = true;
+                break;
+              }
+            }
+            // Idle HIGH (pulled up), LOW only when a pressed key bridges
+            // a row the sketch is actively scanning low right now.
+            colPort.setPin(colLoc.bit, !shouldBeLow);
+          }
+        };
+        recompute();
+        for (const rowLoc of Object.values(rowLocs)) ports[rowLoc.port].addListener(recompute);
+        comp.el.addEventListener("button-press", recompute);
+        comp.el.addEventListener("button-release", recompute);
+        eventListeners.push({ el: comp.el, type: "button-press", handler: recompute });
+        eventListeners.push({ el: comp.el, type: "button-release", handler: recompute });
+      }
     }
   }
 
@@ -2888,6 +3029,28 @@ function parseIntelHex(hexString) {
 const CPU_HZ = 16_000_000; // Uno's clock speed — the sketch's delay()/millis() math assumes this.
 const MAX_FRAME_WALL_MS = 12; // guard rail so one batch can never jank the page
 
+// A handful of protocols below (ultrasonic echo timing, rotary-encoder
+// detent pulses, ...) need to flip a pin at a specific point in SIMULATED
+// time after some trigger — not wall-clock time, since avr8js can run
+// faster or slower than real-time depending on the host. This is a tiny
+// cycle-scheduled event queue, checked once per emulated instruction
+// inside frame()'s loop below (cheap: an empty-array check in the common
+// case), giving effectively cycle-accurate (62.5ns) scheduling — far more
+// precise than the microsecond-scale timing every protocol here needs.
+let scheduledEvents = []; // { atCycle, fn }
+function scheduleAt(cpu, delayUs, fn) {
+  scheduledEvents.push({ atCycle: cpu.cycles + (delayUs * CPU_HZ) / 1_000_000, fn });
+}
+function runDueScheduledEvents(cpu) {
+  if (!scheduledEvents.length) return;
+  for (let i = scheduledEvents.length - 1; i >= 0; i--) {
+    if (cpu.cycles >= scheduledEvents[i].atCycle) {
+      const { fn } = scheduledEvents.splice(i, 1)[0];
+      fn();
+    }
+  }
+}
+
 let avr8jsLoaderPromise = null;
 function loadAvr8js() {
   if (!avr8jsLoaderPromise) {
@@ -2901,6 +3064,7 @@ let simState = null; // { cpu, startWallMs, timeoutId, unbindComponents }
 async function runSketch() {
   if (!codeEditor) return;
   stopSimulation(); // a stray previous run should never keep ticking underneath a new one
+  scheduledEvents = []; // a stale delayed flip from the last run must never fire under this one
 
   setButtonsRunning(false, true);
   setStatus("Compiling...", "busy");
@@ -2997,6 +3161,7 @@ async function runSketch() {
     while (cpu.cycles < targetCycles) {
       avrInstruction(cpu);
       cpu.tick();
+      runDueScheduledEvents(cpu);
       if (++sinceCheck >= 4096) {
         sinceCheck = 0;
         if (performance.now() - frameStart > MAX_FRAME_WALL_MS) break;
@@ -3015,6 +3180,7 @@ function stopSimulation() {
     if (simState.unbindComponents) simState.unbindComponents();
   }
   simState = null;
+  scheduledEvents = [];
 
   setButtonsRunning(false, false);
   setStatus("Stopped", "idle");
