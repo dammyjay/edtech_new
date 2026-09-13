@@ -2348,6 +2348,76 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
       bindWS2812Strip(cpu, ports, PinState, connections, (index, r, g, b) => {
         if (index < (comp.el.pixels || 16)) comp.el.setPixel(index, { r, g, b });
       });
+    } else if (comp.tag === "wokwi-dht22") {
+      // Real single-wire protocol, the same "classify a pulse WIDTH"
+      // approach already proven for HC-SR04's echo and WS2812's bit-bang
+      // above — just single-wire and bidirectional instead of one-shot or
+      // continuous: the host pulls the line low for >=1ms to request a
+      // reading, then releases it; the sensor replies with an 80us-low/
+      // 80us-high "I'm here" ack, then 40 bits (5 bytes: humidity hi/lo,
+      // temp hi/lo, checksum), each bit a ~50us low pulse followed by a
+      // short (~27us, bit 0) or long (~70us, bit 1) high pulse. No
+      // interactive "temperature/humidity" control exists on this part in
+      // @wokwi/elements at all (confirmed against DHT22Element's source —
+      // pure static SVG), so — same honest simplification as the
+      // photoresistor/NTC sensor above — a fixed reading (23.5C, 55.2%
+      // humidity) is used, just delivered via a real, correctly-timed
+      // protocol a library's read() actually has to decode correctly.
+      const conn = connections.find((c) => c.ownPin === "SDA");
+      if (conn) {
+        const loc = PIN_TO_PORT[conn.arduinoPin];
+        if (loc && ports[loc.port]) {
+          const port = ports[loc.port];
+          const HUMIDITY_TENTHS = 552; // 55.2%
+          const TEMP_TENTHS = 235; // 23.5C (bit 15 of the temp high byte would flag negative — unused here)
+          const bytes = [
+            (HUMIDITY_TENTHS >> 8) & 0xff, HUMIDITY_TENTHS & 0xff,
+            (TEMP_TENTHS >> 8) & 0xff, TEMP_TENTHS & 0xff,
+          ];
+          bytes.push(bytes.reduce((sum, b) => sum + b, 0) & 0xff);
+
+          let fallingAtCycle = null;
+          let responding = false; // true while WE'RE driving the line — ignore our own transitions below
+
+          const startResponse = () => {
+            responding = true;
+            let cursor = 30; // a real sensor takes a short beat after the host releases before pulling low
+            const schedule = (fn) => scheduleAt(cpu, cursor, fn);
+            schedule(() => port.setPin(loc.bit, false));
+            cursor += 80;
+            schedule(() => port.setPin(loc.bit, true)); // 80us ack-low, 80us ack-high
+            cursor += 80;
+            for (const byte of bytes) {
+              for (let bit = 7; bit >= 0; bit--) {
+                const isOne = (byte >> bit) & 1;
+                schedule(() => port.setPin(loc.bit, false));
+                cursor += 50;
+                schedule(() => port.setPin(loc.bit, true));
+                cursor += isOne ? 70 : 27;
+              }
+            }
+            schedule(() => port.setPin(loc.bit, false)); // final low
+            cursor += 50;
+            schedule(() => {
+              port.setPin(loc.bit, true); // release back to idle high
+              responding = false;
+            });
+          };
+
+          port.setPin(loc.bit, true); // idle high (pulled up)
+          port.addListener(() => {
+            if (responding) return;
+            const isHigh = port.pinState(loc.bit) === PinState.High;
+            if (!isHigh) {
+              fallingAtCycle = cpu.cycles;
+            } else if (fallingAtCycle !== null) {
+              const lowUs = ((cpu.cycles - fallingAtCycle) / CPU_HZ) * 1_000_000;
+              fallingAtCycle = null;
+              if (lowUs >= 800) startResponse(); // a real start request (typically 1-18ms), not noise
+            }
+          });
+        }
+      }
     }
   }
 

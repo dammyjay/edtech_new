@@ -1,13 +1,50 @@
-/* Arduino Lab component catalog admin page — reuses .la-page/.la-header/
-   .la-empty from admin-lab-assets.css for a consistent shell, everything
-   below is specific to this page's list+sidebar layout. */
+/* =========================================================
+   Arduino Lab Component Catalog
+   Responsive admin layout
+   ========================================================= */
 
 .ac-layout {
     display: grid;
-    grid-template-columns: 1fr 300px;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
     gap: 24px;
     align-items: start;
+    min-width: 0;
+    width: 100%;
 }
+
+
+/* =========================================================
+   MAIN CATALOG
+   ========================================================= */
+
+.ac-main {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+
+    /*
+     * Desktop catalog gets its own scroll area.
+     * Prevents a large component list from pushing
+     * the whole admin interface endlessly downward.
+     */
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    max-height: calc(100vh - 180px);
+
+    padding: 0 6px 16px 0;
+
+    /*
+     * Makes scrolling feel better on supported browsers.
+     */
+    scrollbar-width: thin;
+}
+
+
+/* =========================================================
+   HEADINGS
+   ========================================================= */
 
 .ac-main h3,
 .ac-panel h3 {
@@ -18,15 +55,20 @@
 
 .ac-category-group {
     margin-bottom: 22px;
+    min-width: 0;
 }
 
 .ac-category-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
+
     border-bottom: 1px solid #eee6d4;
     padding-bottom: 4px;
     margin-bottom: 8px;
+
+    min-width: 0;
 }
 
 .ac-category-heading h4 {
@@ -35,30 +77,58 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #888;
+
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
+
+/* =========================================================
+   CATEGORY DELETE
+   ========================================================= */
+
 .ac-cat-delete {
+    flex: 0 0 auto;
+
     background: none;
     border: none;
     color: #b33;
+
     font-size: 11px;
     cursor: pointer;
+
     padding: 2px 6px;
+
+    white-space: nowrap;
 }
 
 .ac-cat-delete:hover {
     text-decoration: underline;
 }
 
+
+/* =========================================================
+   COMPONENT ROW
+   ========================================================= */
+
 .ac-row {
     display: flex;
     align-items: center;
     gap: 10px;
+
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+
     padding: 8px 10px;
+
     border: 1px solid #ecdfb8;
     border-radius: 8px;
+
     background: #fdfbf6;
+
     margin-bottom: 6px;
+
     flex-wrap: wrap;
 }
 
@@ -67,35 +137,52 @@
     background: #f4f4f2;
 }
 
-/* .ac-toggle-form / .ac-edit-form / .ac-delete-form all need to reset
-   every property the site-wide base stylesheet's bare `form { width:
-   100%; padding: 25px 30px; margin-bottom: 30px; background: #fff;
-   border-radius: 10px; }` rule sets (style.css) — that's a plain
-   element selector, so on any PROPERTY these classes don't otherwise
-   touch, it's the only declaration in the cascade and wins regardless
-   of specificity or load order. Without resetting it explicitly, each
-   <form> in a .ac-row renders as its own full-width, padded, bordered
-   block — which is exactly what happened before this comment existed. */
+
+/* =========================================================
+   FORMS INSIDE COMPONENT ROWS
+   ========================================================= */
+
 .ac-toggle-form,
 .ac-edit-form,
 .ac-delete-form {
     width: auto;
     padding: 0;
     margin: 0;
+
     background: transparent;
     border-radius: 0;
+
+    box-sizing: border-box;
+}
+
+.ac-toggle-form {
     flex: 0 0 auto;
 }
+
+.ac-delete-form {
+    flex: 0 0 auto;
+}
+
+
+/* =========================================================
+   TOGGLE
+   ========================================================= */
 
 .ac-toggle {
     border: 1px solid #ccc;
     background: #fff;
     color: #999;
+
     border-radius: 14px;
+
     padding: 4px 10px;
+
     font-size: 11.5px;
     font-weight: 700;
+
     cursor: pointer;
+
+    white-space: nowrap;
 }
 
 .ac-toggle--on {
@@ -104,63 +191,121 @@
     color: #fff;
 }
 
+
+/* =========================================================
+   EDIT FORM
+   ========================================================= */
+
 .ac-edit-form {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1 1 auto;
+
+    /*
+     * Allows the edit form to consume remaining space.
+     */
+    flex: 1 1 300px;
+
+    min-width: 0;
+
     flex-wrap: wrap;
 }
 
-/* input.ac-input / select.ac-input, not just .ac-input — the site-wide
-   base stylesheet's `input[type="text"], select { width: 100%; ... }`
-   (style.css) has the same specificity as an element+class selector, so
-   a bare class alone loses that fight (an attribute selector counts the
-   same as a class) regardless of this file loading after it. Explicit
-   compact widths below, not just "override to auto", since this row
-   needs several fields sitting inline, not each filling its own line. */
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
 input.ac-input,
 select.ac-input {
     width: auto;
+
     margin-bottom: 0;
+
     padding: 5px 8px;
+
     border: 1px solid #ddd7c8;
     border-radius: 6px;
+
     font-size: 12.5px;
     font-family: inherit;
+
+    box-sizing: border-box;
+
+    max-width: 100%;
 }
+
+
+/* Component name */
 
 input.ac-input-name {
     flex: 1 1 140px;
+
     min-width: 100px;
     width: 140px;
+
     font-weight: 600;
 }
 
+
+/* Sort order */
+
 input.ac-input-sort {
     width: 56px;
+    min-width: 56px;
 }
+
+
+/* =========================================================
+   ASSET TAG
+   ========================================================= */
 
 .ac-tag {
     font-size: 11px;
     color: #999;
+
     background: #f0ead8;
+
     padding: 2px 6px;
+
     border-radius: 4px;
+
+    /*
+     * Don't allow a long asset URL to destroy
+     * the component row on smaller screens.
+     */
+    max-width: 180px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+
+    display: inline-block;
 }
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
 
 .ac-save-btn,
 .ac-add-btn {
     background: var(--brand-pri, #A17807);
     color: #fff;
+
     border: none;
     border-radius: 6px;
+
     padding: 6px 12px;
+
     font-size: 12px;
     font-weight: 600;
+
     cursor: pointer;
+
     white-space: nowrap;
+
+    flex: 0 0 auto;
 }
 
 .ac-save-btn:hover,
@@ -171,62 +316,371 @@ input.ac-input-sort {
 .ac-delete-btn {
     background: none;
     border: none;
+
     color: #b33;
+
     cursor: pointer;
+
     font-size: 14px;
     padding: 4px;
 }
 
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
 .ac-sidebar {
+    min-width: 0;
+
     display: flex;
     flex-direction: column;
+
     gap: 18px;
+
+    /*
+     * Important:
+     * allow the sidebar itself to scroll on desktop
+     * if Add Component + New Category become too tall.
+     */
+    max-height: calc(100vh - 180px);
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-width: thin;
+
+    /*
+     * Keeps the sidebar visible while scrolling
+     * the page/container.
+     */
+    position: sticky;
+    top: 20px;
 }
+
+
+/* =========================================================
+   SIDEBAR PANELS
+   ========================================================= */
 
 .ac-panel {
     background: #fff;
+
     border: 1px solid #ecdfb8;
     border-radius: 10px;
+
     padding: 16px;
+
+    box-sizing: border-box;
+
+    width: 100%;
+    min-width: 0;
+
+    /*
+     * Prevent content from forcing the panel wider.
+     */
+    overflow: visible;
 }
+
+
+/* =========================================================
+   ADD FORM
+   ========================================================= */
 
 .ac-add-form {
     display: flex;
     flex-direction: column;
+
     gap: 6px;
+
+    width: 100%;
+    min-width: 0;
+
+    box-sizing: border-box;
 }
 
 .ac-add-form label {
     font-size: 11px;
     font-weight: 600;
     color: #666;
+
     margin-top: 4px;
 }
 
 .ac-add-form select,
 .ac-add-form input {
+    width: 100%;
+    max-width: 100%;
+
+    box-sizing: border-box;
+
     padding: 7px 9px;
+
     border: 1px solid #ddd7c8;
     border-radius: 6px;
+
     font-size: 13px;
     font-family: inherit;
 }
 
 .ac-add-form button {
     margin-top: 10px;
+    width: 100%;
 }
+
+
+/* =========================================================
+   NOTE
+   ========================================================= */
 
 .ac-note {
     background: #fdecea;
     color: #a33;
+
     font-size: 11.5px;
+
     padding: 6px 8px;
+
     border-radius: 6px;
+
     margin: 2px 0;
+
+    overflow-wrap: anywhere;
 }
 
+
+/* =========================================================
+   LARGE TABLETS
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+    .ac-layout {
+        grid-template-columns: minmax(0, 1fr) 270px;
+        gap: 18px;
+    }
+
+    .ac-sidebar {
+        max-height: calc(100vh - 160px);
+    }
+
+    .ac-panel {
+        padding: 14px;
+    }
+}
+
+
+/* =========================================================
+   TABLETS
+   ========================================================= */
+
 @media (max-width: 900px) {
+
     .ac-layout {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    /*
+     * At this size we don't want nested scroll areas.
+     * Let the entire page scroll naturally.
+     */
+    .ac-main {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .ac-sidebar {
+        position: static;
+
+        max-height: none;
+
+        overflow: visible;
+
+        width: 100%;
+    }
+
+    .ac-panel {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   SMALL TABLETS / LARGE PHONES
+   ========================================================= */
+
+@media (max-width: 650px) {
+
+    .ac-layout {
+        gap: 16px;
+    }
+
+    .ac-row {
+        align-items: stretch;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .ac-toggle-form {
+        width: auto;
+    }
+
+    .ac-edit-form {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    input.ac-input-name {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    select.ac-input {
+        flex: 1 1 150px;
+        min-width: 120px;
+    }
+
+    input.ac-input-sort {
+        width: 65px;
+        min-width: 65px;
+    }
+
+    .ac-tag {
+        max-width: 100%;
+        flex: 1 1 150px;
+    }
+
+    .ac-save-btn {
+        margin-left: auto;
+    }
+
+    .ac-category-heading {
+        align-items: flex-start;
+    }
+
+    .ac-category-heading h4 {
+        font-size: 12px;
+    }
+
+    .ac-cat-delete {
+        font-size: 10px;
+    }
+}
+
+
+/* =========================================================
+   PHONES
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+    .ac-layout {
+        gap: 14px;
+    }
+
+    .ac-main h3,
+    .ac-panel h3 {
+        font-size: 14px;
+    }
+
+    .ac-category-group {
+        margin-bottom: 18px;
+    }
+
+    .ac-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ac-toggle-form,
+    .ac-edit-form,
+    .ac-delete-form {
+        width: 100%;
+    }
+
+    .ac-toggle {
+        width: 100%;
+    }
+
+    .ac-edit-form {
+        display: grid;
+
+        grid-template-columns: minmax(0, 1fr) auto;
+
+        gap: 7px;
+
+        width: 100%;
+    }
+
+    input.ac-input-name {
+        grid-column: 1 / -1;
+
+        width: 100%;
+        min-width: 0;
+    }
+
+    .ac-edit-form select.ac-input {
+        width: 100%;
+        min-width: 0;
+    }
+
+    input.ac-input-sort {
+        width: 65px;
+        min-width: 65px;
+    }
+
+    .ac-tag {
+        grid-column: 1 / -1;
+
+        width: 100%;
+        max-width: none;
+
+        box-sizing: border-box;
+    }
+
+    .ac-save-btn {
+        width: 100%;
+        margin: 0;
+    }
+
+    .ac-delete-form {
+        text-align: right;
+    }
+
+    .ac-delete-btn {
+        padding: 6px 8px;
+    }
+
+    .ac-panel {
+        padding: 13px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 360px) {
+
+    .ac-panel {
+        padding: 11px;
+    }
+
+    .ac-category-heading {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ac-cat-delete {
+        align-self: flex-end;
+    }
+
+    .ac-note {
+        font-size: 11px;
     }
 }
