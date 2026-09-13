@@ -1559,6 +1559,68 @@ function findArduinoConnections(comp, uno, find) {
   return hits;
 }
 
+// Real WS2812 ("NeoPixel") one-wire bit-bang protocol decoder, shared by
+// all three addressable-LED parts below. Each bit is a HIGH pulse whose
+// WIDTH encodes 0 or 1 (~400ns for a 0, ~800ns for a 1, real WS2812
+// datasheet timing — Adafruit_NeoPixel, curated in BUILTIN_LIBRARIES,
+// bit-bangs exactly this via cycle-counted timing, which avr8js's
+// instruction-level emulation reproduces accurately enough to classify
+// reliably), 24 bits per pixel in GRB order (not RGB!), back-to-back with
+// no gap between pixels — then a LOW gap long enough to not be a real bit
+// (>10us, real hardware needs >50us but this is intentionally generous)
+// signals "end of frame, latch it," matching how every NeoPixel library
+// actually structures a show() call's output. `applyPixel(index, r, g, b)`
+// is the one part-specific piece (a single pixel just sets r/g/b; the
+// matrix/ring call their own setPixel(row,col,...)/setPixel(index,...)).
+function bindWS2812Strip(cpu, ports, PinState, connections, applyPixel) {
+  const dinConn = connections.find((c) => c.ownPin === "DIN");
+  if (!dinConn) return;
+  const loc = PIN_TO_PORT[dinConn.arduinoPin];
+  if (!loc || !ports[loc.port]) return;
+  const port = ports[loc.port];
+
+  const BIT_THRESHOLD_CYCLES = (600 / 1_000_000_000) * CPU_HZ; // 600ns — midpoint between a 0-bit's ~400ns and a 1-bit's ~800ns HIGH time
+  const IDLE_FLUSH_US = 20; // no further edge within this long after a bit = end of frame, apply it
+
+  let risingAtCycle = null;
+  let bitBuffer = [];
+  // A sketch that calls show() once and then idles forever (setup()-only,
+  // empty loop()) never produces a NEXT rising edge to detect the reset
+  // gap against — there IS no "next frame." So the flush can't be
+  // edge-triggered at all; it has to be a real idle-timeout, scheduled
+  // fresh after every bit and invalidated (via this generation counter,
+  // since scheduleAt has no cancel API) the moment another bit arrives
+  // before it fires.
+  let generation = 0;
+
+  const flush = () => {
+    for (let i = 0; i + 24 <= bitBuffer.length; i += 24) {
+      let g = 0, r = 0, b = 0;
+      for (let bit = 0; bit < 8; bit++) g = (g << 1) | bitBuffer[i + bit];
+      for (let bit = 0; bit < 8; bit++) r = (r << 1) | bitBuffer[i + 8 + bit];
+      for (let bit = 0; bit < 8; bit++) b = (b << 1) | bitBuffer[i + 16 + bit];
+      applyPixel(i / 24, r, g, b);
+    }
+    bitBuffer = [];
+  };
+
+  port.addListener(() => {
+    const isHigh = port.pinState(loc.bit) === PinState.High;
+    if (isHigh) {
+      risingAtCycle = cpu.cycles;
+    } else {
+      if (risingAtCycle !== null) {
+        bitBuffer.push(cpu.cycles - risingAtCycle > BIT_THRESHOLD_CYCLES ? 1 : 0);
+        risingAtCycle = null;
+        const myGeneration = ++generation;
+        scheduleAt(cpu, IDLE_FLUSH_US, () => {
+          if (myGeneration === generation) flush();
+        });
+      }
+    }
+  });
+}
+
 // Wires up every non-Arduino placed component against the just-started
 // simulation and returns a cleanup function. Re-run fresh on every Run
 // click (see runSketch) — components/wires can change between runs.
@@ -2262,6 +2324,30 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
         });
         boundVisuals.push({ el: comp.el, prop: "imageData", resetValue: new ImageData(WIDTH, HEIGHT) });
       }
+    } else if (comp.tag === "wokwi-neopixel") {
+      // Single WS2812 — real one-wire protocol (bindWS2812Strip above);
+      // r/g/b are genuine reactive properties confirmed against
+      // NeoPixelElement's source.
+      bindWS2812Strip(cpu, ports, PinState, connections, (index, r, g, b) => {
+        if (index !== 0) return; // a lone pixel only ever has index 0
+        comp.el.r = r;
+        comp.el.g = g;
+        comp.el.b = b;
+      });
+      // Deliberately no boundVisuals reset-on-stop here: a real WS2812
+      // strip holds its last-shown color after the microcontroller stops
+      // driving it (it has no "off" state of its own) — leaving whatever
+      // was last displayed showing is the physically correct behavior,
+      // not a corner cut.
+    } else if (comp.tag === "wokwi-neopixel-matrix") {
+      const cols = comp.el.cols || 8;
+      bindWS2812Strip(cpu, ports, PinState, connections, (index, r, g, b) => {
+        comp.el.setPixel(Math.floor(index / cols), index % cols, { r, g, b });
+      });
+    } else if (comp.tag === "wokwi-led-ring") {
+      bindWS2812Strip(cpu, ports, PinState, connections, (index, r, g, b) => {
+        if (index < (comp.el.pixels || 16)) comp.el.setPixel(index, { r, g, b });
+      });
     }
   }
 

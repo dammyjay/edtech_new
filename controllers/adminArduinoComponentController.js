@@ -47,27 +47,9 @@ const KNOWN_GOOD_COMPONENTS = [
   { tag: "wokwi-servo", label: "Servo Motor", category: "Output", simulated: true },
   { tag: "wokwi-led-bar-graph", label: "LED Bar Graph", category: "Output", simulated: true },
   { tag: "wokwi-7segment", label: "7-Segment Display", category: "Output", simulated: true },
-  {
-    tag: "wokwi-neopixel",
-    label: "NeoPixel LED",
-    category: "Output",
-    simulated: false,
-    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
-  },
-  {
-    tag: "wokwi-neopixel-matrix",
-    label: "NeoPixel Matrix",
-    category: "Output",
-    simulated: false,
-    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
-  },
-  {
-    tag: "wokwi-led-ring",
-    label: "NeoPixel Ring",
-    category: "Output",
-    simulated: false,
-    note: "Visual/wireable only — the WS2812 addressable-LED protocol isn't simulated yet.",
-  },
+  { tag: "wokwi-neopixel", label: "NeoPixel LED", category: "Output", simulated: true },
+  { tag: "wokwi-neopixel-matrix", label: "NeoPixel Matrix", category: "Output", simulated: true },
+  { tag: "wokwi-led-ring", label: "NeoPixel Ring", category: "Output", simulated: true },
 
   // --- Input ----------------------------------------------------------------
   { tag: "wokwi-pushbutton", label: "Push Button", category: "Input", simulated: true },
