@@ -604,6 +604,38 @@ html, body {
     color: #1a9c4b !important;
 }
 
+/* Same idea as .ct-sensor-row above, but for parts with a fixed READING
+   rather than a fixed STATE — ultrasonic distance, light level, NTC
+   temperature — see SLIDER_SENSOR_TAGS in arduinoLab.js. A continuous
+   value calls for a range input, not a toggle button. */
+.ct-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee6d4;
+}
+
+.ct-slider-row label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    white-space: nowrap;
+}
+
+.ct-slider-row input[type="range"] {
+    width: 90px;
+    accent-color: #A17807;
+}
+
+.ct-slider-row span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #A17807;
+    white-space: nowrap;
+    min-width: 34px;
+}
+
 /* wokwi-ks2e-m-dc5 (relay module) has no visual difference when energized
    at all — see the wokwi-ks2e-m-dc5 branch in bindComponentsToSimulation
    for why this app adds its own indicator instead. */

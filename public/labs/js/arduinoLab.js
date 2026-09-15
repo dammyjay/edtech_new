@@ -567,6 +567,25 @@ function renderSelectionToolbar() {
     }
   }
 
+  const sliderRow = document.getElementById("componentSliderRow");
+  if (sliderRow) {
+    const sliderConfig = soleComp && SLIDER_SENSOR_TAGS[soleComp.tag];
+    sliderRow.hidden = !sliderConfig;
+    if (sliderConfig) {
+      const value = soleComp.sensorValue ?? sliderConfig.default;
+      const input = document.getElementById("componentSliderInput");
+      const label = document.getElementById("componentSliderLabel");
+      const valueSpan = document.getElementById("componentSliderValue");
+      if (label) label.textContent = sliderConfig.label;
+      if (input) {
+        input.min = sliderConfig.min;
+        input.max = sliderConfig.max;
+        input.value = value;
+      }
+      if (valueSpan) valueSpan.textContent = value + sliderConfig.unit;
+    }
+  }
+
   // A part near the top of the canvas (the default seeded LED included)
   // can leave too little room above it for the toolbar — worse now that
   // the LED color row can make it two rows tall. Rather than let it
@@ -623,6 +642,7 @@ async function duplicateComponent(id) {
   }
   if (source.tag === "wokwi-led") clone.el.color = source.el.color; // a re-colored LED duplicates the same color, not the default red
   if (NO_UI_SENSOR_TAGS.includes(source.tag)) clone.sensorTriggered = source.sensorTriggered;
+  if (SLIDER_SENSOR_TAGS[source.tag]) clone.sensorValue = source.sensorValue;
   // A duplicate is a fresh part, not a clone of what it was wired to —
   // matches how every other design tool's "duplicate" behaves.
   trySnapToBreadboard(clone.id);
@@ -665,6 +685,30 @@ document.getElementById("componentToolbar")?.addEventListener("pointerdown", (e)
   // Stop this reaching the canvas's own pan-drag listener — clicking/
   // tapping a toolbar button is not a click on empty canvas background.
   e.stopPropagation();
+});
+// Range inputs fire "input" continuously while dragging — live-update the
+// sim on every tick (cheap, and lets a running sketch react as you drag)
+// but only touch the undo stack/autosave once per drag: recordHistory()
+// has to run BEFORE the value changes (it snapshots "before", matching
+// every other control here), so it belongs on pointerdown, not on the
+// eventual "change" — recording there would snapshot the already-dragged
+// value and make undo a no-op. scheduleAutoSave() is debounced already,
+// so calling it on every "input" tick is fine.
+document.getElementById("componentSliderInput")?.addEventListener("pointerdown", () => {
+  const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+  const soleComp = soleId ? placedComponents.get(soleId) : null;
+  if (soleComp && SLIDER_SENSOR_TAGS[soleComp.tag]) recordHistory();
+});
+document.getElementById("componentSliderInput")?.addEventListener("input", (e) => {
+  const soleId = selectedComponentIds.size === 1 ? [...selectedComponentIds][0] : null;
+  const soleComp = soleId ? placedComponents.get(soleId) : null;
+  const config = soleComp && SLIDER_SENSOR_TAGS[soleComp.tag];
+  if (!config) return;
+  soleComp.sensorValue = Number(e.target.value);
+  const valueSpan = document.getElementById("componentSliderValue");
+  if (valueSpan) valueSpan.textContent = soleComp.sensorValue + config.unit;
+  soleComp.el.dispatchEvent(new CustomEvent("sensor-value-change"));
+  scheduleAutoSave();
 });
 document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
   const sensorBtn = e.target.closest("button[data-sensor-toggle]");
@@ -1475,6 +1519,20 @@ const NO_UI_SENSOR_TAGS = [
   "wokwi-tilt-switch",
 ];
 
+// These three read a fixed value with no way to change it either (same
+// underlying reason as NO_UI_SENSOR_TAGS above), but the value itself is
+// a continuous READING, not an on/off STATE — a slider in the selection
+// toolbar (componentSliderRow), not a toggle. `unit` is cosmetic only;
+// `min`/`max`/`default` feed the <input type="range"> directly. The
+// bindings in bindComponentsToSimulation read comp.sensorValue live
+// (falling back to `default` the first time a part is selected), so
+// dragging the slider mid-run changes what a running sketch reads.
+const SLIDER_SENSOR_TAGS = {
+  "wokwi-hc-sr04": { label: "Distance", unit: "cm", min: 2, max: 400, default: 50 },
+  "wokwi-photoresistor-sensor": { label: "Light Level", unit: "%", min: 0, max: 100, default: 50 },
+  "wokwi-ntc-temperature-sensor": { label: "Temperature", unit: "°C", min: -10, max: 50, default: 25 },
+};
+
 // Both boards are the same ATmega328P chip with identical Arduino
 // silkscreen pin names ("0"-"13", "A0"-"A5") — confirmed directly against
 // @wokwi/elements' ArduinoNanoElement pinInfo, not assumed — so every
@@ -1748,15 +1806,29 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
     } else if (comp.tag === "wokwi-photoresistor-sensor" || comp.tag === "wokwi-ntc-temperature-sensor") {
       // Neither part has an interactive "light level"/"temperature"
       // control on the element itself (unlike the potentiometer's
-      // draggable knob) — a fixed mid-range reading is still a real ADC
-      // round-trip end to end, just not adjustable by the student yet.
+      // draggable knob) — this app adds its own, the selection toolbar's
+      // Light Level/Temperature slider (SLIDER_SENSOR_TAGS,
+      // componentSliderRow), driving a real ADC round-trip that updates
+      // live as the slider moves. Temperature is a plain linear map over
+      // the slider's -10..50C range, not a real NTC thermistor curve
+      // (those vary by beta coefficient/reference resistance — there's no
+      // single "generic NTC" formula to be accurate to), same spirit as
+      // every other honestly-simplified fixed-value sensor here.
       if (!adc) continue;
       const pinName = comp.tag === "wokwi-photoresistor-sensor" ? "AO" : "OUT";
+      const config = SLIDER_SENSOR_TAGS[comp.tag];
+      const toVoltage = (value) =>
+        comp.tag === "wokwi-photoresistor-sensor" ? (value / 100) * 5 : ((value - config.min) / (config.max - config.min)) * 5;
       for (const { ownPin, arduinoPin } of connections) {
         if (ownPin !== pinName) continue;
         const channel = ANALOG_CHANNEL[arduinoPin];
         if (channel === undefined) continue;
-        adc.channelValues[channel] = 2.5;
+        const applyValue = () => {
+          adc.channelValues[channel] = toVoltage(comp.sensorValue ?? config.default);
+        };
+        applyValue();
+        comp.el.addEventListener("sensor-value-change", applyValue);
+        eventListeners.push({ el: comp.el, type: "sensor-value-change", handler: applyValue });
       }
     } else if (comp.tag === "wokwi-analog-joystick") {
       // VERT/HORZ are analog axes (xValue/yValue, -1..1, "input" event);
@@ -1879,12 +1951,11 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
       // formula every real HC-SR04 tutorial's code already assumes. No
       // interactive "distance" control exists on this part at all
       // (confirmed against @wokwi/elements' HCSR04Element source — pure
-      // SVG, zero reactive properties), so — same honest simplification
-      // as the photoresistor/NTC above — a fixed simulated distance still
-      // produces a real, correctly-timed echo a sketch can measure.
-      const SIMULATED_DISTANCE_CM = 50;
+      // SVG, zero reactive properties), so this app adds its own — the
+      // selection toolbar's Distance slider (SLIDER_SENSOR_TAGS,
+      // componentSliderRow) — reading comp.sensorValue fresh on every
+      // trigger, so dragging it mid-run changes the very next reading.
       const ECHO_START_DELAY_US = 150; // a real sensor takes a short beat before the echo starts
-      const ECHO_DURATION_US = SIMULATED_DISTANCE_CM * 58;
       let trigLoc = null, echoLoc = null;
       for (const { ownPin, arduinoPin } of connections) {
         const loc = PIN_TO_PORT[arduinoPin];
@@ -1906,9 +1977,11 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
           const pulseUs = ((cpu.cycles - risingAtCycle) / CPU_HZ) * 1_000_000;
           risingAtCycle = null;
           if (pulseUs < 10) return; // too short to be a real trigger
+          const distanceCm = comp.sensorValue ?? SLIDER_SENSOR_TAGS["wokwi-hc-sr04"].default;
+          const echoDurationUs = distanceCm * 58;
           scheduleAt(cpu, ECHO_START_DELAY_US, () => {
             echoPort.setPin(echoLoc.bit, true);
-            scheduleAt(cpu, ECHO_DURATION_US, () => echoPort.setPin(echoLoc.bit, false));
+            scheduleAt(cpu, echoDurationUs, () => echoPort.setPin(echoLoc.bit, false));
           });
         };
         trigPort.addListener(listener);
@@ -2526,8 +2599,9 @@ function serializeCircuit() {
       // write for anything else — keeps this one line instead of a
       // per-tag branch, and restoreCircuit already guards on tag anyway.
       color: c.el.color,
-      // Only meaningful for NO_UI_SENSOR_TAGS parts, same reasoning.
+      // Only meaningful for NO_UI_SENSOR_TAGS/SLIDER_SENSOR_TAGS parts, same reasoning.
       sensorTriggered: !!c.sensorTriggered,
+      sensorValue: c.sensorValue,
     })),
     // waypoints is cloned (not just referenced) since, unlike from/to
     // (set once at wire creation and never mutated in place), a wire's
@@ -2582,6 +2656,7 @@ async function restoreCircuit(snapshot) {
         }
         if (c.tag === "wokwi-led" && c.color) comp.el.color = c.color;
         if (NO_UI_SENSOR_TAGS.includes(c.tag)) comp.sensorTriggered = !!c.sensorTriggered;
+        if (SLIDER_SENSOR_TAGS[c.tag] && c.sensorValue !== undefined) comp.sensorValue = c.sensorValue;
       }
       for (const [key, holeKey] of snapshot.breadboardPlacements || []) {
         breadboardPlacements.set(key, holeKey);
