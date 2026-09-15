@@ -89,6 +89,7 @@ const BUILTIN_LIBRARIES = [
   "DHT sensor library",
   "Adafruit Unified Sensor",
   "LiquidCrystal I2C",
+  "LiquidCrystal", // the plain parallel-wiring LCD library — wokwi-lcd1602/2004 default to RS/E/D4-D7 pins, not I2C
   "Adafruit NeoPixel",
   "Keypad",
 ];

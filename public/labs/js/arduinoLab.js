@@ -2421,6 +2421,106 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
       bindWS2812Strip(cpu, ports, PinState, connections, (index, r, g, b) => {
         if (index < (comp.el.pixels || 16)) comp.el.setPixel(index, { r, g, b });
       });
+    } else if (comp.tag === "wokwi-lcd1602" || comp.tag === "wokwi-lcd2004") {
+      // Real HD44780 parallel protocol — confirmed against the actual
+      // installed "LiquidCrystal" library source (LiquidCrystal.cpp, now
+      // curated in BUILTIN_LIBRARIES), not guessed. Every write is RS +
+      // an 8-bit value, latched on the Enable pin's falling edge; in
+      // 4-bit mode (the default wiring for this part, and what every
+      // common tutorial uses — pins default to RS/E/D4-D7 only, not I2C:
+      // confirmed against LCD1602Element's own pinInfo) each byte arrives
+      // as TWO consecutive nibble pulses, high nibble first. The
+      // library's own 4-bit init sequence sends 4 raw single-nibble
+      // pulses before the first real paired byte — an even count, so
+      // naively pairing nibbles two-at-a-time from the very first pulse
+      // still lands back in sync afterward; the two bogus "bytes" that
+      // produces along the way (0x33, 0x32) just don't match any
+      // recognized command below and are harmlessly ignored.
+      const numCols = comp.tag === "wokwi-lcd1602" ? 16 : 20;
+      const numRows = comp.tag === "wokwi-lcd1602" ? 2 : 4;
+      // Same row-start-address formula LiquidCrystal.cpp's begin() itself
+      // uses (setRowOffsets(0x00, 0x40, cols, 0x40+cols)) — a real,
+      // well-known HD44780 controller quirk, not something to compute
+      // from scratch.
+      const ROW_OFFSETS = [0x00, 0x40, numCols, 0x40 + numCols];
+
+      const pinLocs = {};
+      for (const { ownPin, arduinoPin } of connections) {
+        const loc = PIN_TO_PORT[arduinoPin];
+        if (loc && ports[loc.port]) pinLocs[ownPin] = loc;
+      }
+      const is8Bit = ["D0", "D1", "D2", "D3"].every((p) => pinLocs[p]);
+      const dataPins = is8Bit ? ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"] : ["D4", "D5", "D6", "D7"];
+
+      if (pinLocs.RS && pinLocs.E && dataPins.every((p) => pinLocs[p])) {
+        const readBit = (loc) => ports[loc.port].pinState(loc.bit) === PinState.High;
+        const characters = comp.el.characters.slice();
+        let cursorAddr = 0;
+        let incrementCursor = true;
+        let pendingNibble = null; // holds the high nibble while waiting for the low nibble (4-bit mode)
+
+        const addrToIndex = (addr) => {
+          let row = 0;
+          for (let r = numRows - 1; r >= 0; r--) {
+            if (addr >= ROW_OFFSETS[r]) {
+              row = r;
+              break;
+            }
+          }
+          const col = addr - ROW_OFFSETS[row];
+          return row < numRows && col >= 0 && col < numCols ? row * numCols + col : null;
+        };
+
+        const handleByte = (rs, byte) => {
+          if (rs) {
+            const index = addrToIndex(cursorAddr);
+            if (index !== null) characters[index] = byte;
+            cursorAddr += incrementCursor ? 1 : -1;
+            comp.el.characters = characters.slice();
+          } else if (byte === 0x01) {
+            characters.fill(0x20);
+            cursorAddr = 0;
+            comp.el.characters = characters.slice();
+          } else if ((byte & 0xfe) === 0x02) {
+            cursorAddr = 0;
+          } else if ((byte & 0xfc) === 0x04) {
+            incrementCursor = !!(byte & 0x02);
+          } else if (byte & 0x80) {
+            cursorAddr = byte & 0x7f;
+          } // else: function set / display control / CGRAM addr / cursor
+          // shift — setup/cosmetic, no character-grid state to update.
+        };
+
+        let wasEnHigh = false;
+        const listener = () => {
+          const isEnHigh = readBit(pinLocs.E);
+          if (wasEnHigh && !isEnHigh) {
+            const rs = readBit(pinLocs.RS);
+            if (is8Bit) {
+              let byte = 0;
+              dataPins.forEach((p, i) => {
+                if (readBit(pinLocs[p])) byte |= 1 << i;
+              });
+              handleByte(rs, byte);
+            } else {
+              let nibble = 0;
+              ["D4", "D5", "D6", "D7"].forEach((p, i) => {
+                if (readBit(pinLocs[p])) nibble |= 1 << i;
+              });
+              if (pendingNibble === null) {
+                pendingNibble = nibble;
+              } else {
+                handleByte(rs, (pendingNibble << 4) | nibble);
+                pendingNibble = null;
+              }
+            }
+          }
+          wasEnHigh = isEnHigh;
+        };
+        const relevantPorts = new Set([pinLocs.E.port, pinLocs.RS.port, ...dataPins.map((p) => pinLocs[p].port)]);
+        for (const portKey of relevantPorts) ports[portKey].addListener(listener);
+        boundVisuals.push({ el: comp.el, prop: "characters", resetValue: new Uint8Array(numCols * numRows).fill(0x20) });
+      }
     } else if (comp.tag === "wokwi-dht22") {
       // WORK IN PROGRESS — not promoted to simulated:true yet (see
       // KNOWN_GOOD_COMPONENTS in adminArduinoComponentController.js).
