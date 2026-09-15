@@ -558,12 +558,22 @@ function renderSelectionToolbar() {
   const sensorRow = document.getElementById("componentSensorRow");
   if (sensorRow) {
     const isNoUiSensor = !!(soleComp && NO_UI_SENSOR_TAGS.includes(soleComp.tag));
-    sensorRow.hidden = !isNoUiSensor;
+    const isIrSend = !!(soleComp && IR_SEND_TAGS.includes(soleComp.tag));
+    sensorRow.hidden = !(isNoUiSensor || isIrSend);
+    const btn = sensorRow.querySelector("button");
     if (isNoUiSensor) {
       const triggered = !!soleComp.sensorTriggered;
       sensorRow.classList.toggle("sensor-row--triggered", triggered);
-      const btn = sensorRow.querySelector("button");
-      if (btn) btn.textContent = triggered ? "⚡ Triggered — click to reset" : "◯ Idle — click to trigger";
+      if (btn) {
+        btn.textContent = triggered ? "⚡ Triggered — click to reset" : "◯ Idle — click to trigger";
+        btn.title = "This part has no built-in way to change its reading — toggle it here to test your code against both states.";
+      }
+    } else if (isIrSend) {
+      sensorRow.classList.remove("sensor-row--triggered"); // momentary, never shows a "held" state
+      if (btn) {
+        btn.textContent = "📡 Send NEC Code";
+        btn.title = "Transmits one fixed NEC infrared code your sketch can decode with the IRremote library.";
+      }
     }
   }
 
@@ -724,6 +734,10 @@ document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
       soleComp.el.dispatchEvent(new CustomEvent("sensor-value-change"));
       renderSelectionToolbar();
       scheduleAutoSave();
+    } else if (soleComp && IR_SEND_TAGS.includes(soleComp.tag)) {
+      // Momentary — no persisted state to snapshot, so no recordHistory()/
+      // scheduleAutoSave() here (there's nothing for undo/save to capture).
+      soleComp.el.dispatchEvent(new CustomEvent("sensor-value-change"));
     }
     return;
   }
@@ -1532,6 +1546,14 @@ const SLIDER_SENSOR_TAGS = {
   "wokwi-photoresistor-sensor": { label: "Light Level", unit: "%", min: 0, max: 100, default: 50 },
   "wokwi-ntc-temperature-sensor": { label: "Temperature", unit: "°C", min: -10, max: 50, default: 25 },
 };
+
+// Reuses the exact same componentSensorRow toolbar slot as
+// NO_UI_SENSOR_TAGS above, but as a momentary action (click = "send one
+// NEC code now"), not a persistent on/off state — wokwi-ir-remote (the
+// separate physical remote-control prop) has no pins in @wokwi/elements
+// at all, so there's nothing to simulate "pressing a button" on it; this
+// is the only way a student can test an IR-receiver sketch at all.
+const IR_SEND_TAGS = ["wokwi-ir-receiver"];
 
 // Both boards are the same ATmega328P chip with identical Arduino
 // silkscreen pin names ("0"-"13", "A0"-"A5") — confirmed directly against
@@ -2521,6 +2543,76 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
         for (const portKey of relevantPorts) ports[portKey].addListener(listener);
         boundVisuals.push({ el: comp.el, prop: "characters", resetValue: new Uint8Array(numCols * numRows).fill(0x20) });
       }
+    } else if (comp.tag === "wokwi-hx711") {
+      // Real bit-banged protocol, confirmed against the actual installed
+      // "HX711" library source (not guessed): is_ready() reads DOUT LOW
+      // as "conversion ready" — this sim's DT idles low (always ready; a
+      // real device's up-to-~100ms conversion delay isn't modeled), then
+      // 24 clock pulses shift out a fixed reading MSB-first, one bit per
+      // pulse. Critically, the library samples DT WHILE SCK is still
+      // HIGH (not after it falls) — confirmed in _shiftIn()'s exact
+      // instruction order — so this sets DT synchronously the instant it
+      // sees SCK's rising edge, not on a delay. A 25th (or up to 27th)
+      // "extra" pulse selects gain/channel and carries no data — SCK
+      // being AVR-driven the whole time (never bidirectional, unlike
+      // DHT22's single-wire line) means pinState() is safe to use
+      // directly here, no raw-register workaround needed. Fixed reading
+      // (no interactive "weight" control exists on this part at all —
+      // confirmed, pure static SVG), same honest simplification as every
+      // other fixed-value sensor above.
+      //
+      // begin()'s own default doReset=true calls reset(), which pulses
+      // SCK once (power_down: HIGH for 64us, then power_up: LOW) BEFORE
+      // the real 24+1 shiftIn pulses ever start — confirmed by reading
+      // reset()/power_down()/power_up() directly, not assumed. Counting
+      // that lone pulse as bit 0 of a data shift throws every following
+      // bit off by one AND, worse, can leave DT stuck HIGH (whatever bit
+      // 23 of the fixed reading is) straight through read()'s own
+      // `while (digitalRead(DOUT) == HIGH) yield();` ready-wait — since
+      // yield() is a no-op on plain AVR, that hangs the sketch forever
+      // (found exactly this way: an HX711 test sketch that compiled fine
+      // but never printed anything). Fix: treat SCK edges as belonging to
+      // the SAME shift session only while they're arriving close together
+      // (real shiftIn's own pulses, with no delay between them, are
+      // typically <2us apart); a gap of IDLE_RESET_US (comfortably above
+      // that, comfortably below the 64us power-down gap) means whatever
+      // came before wasn't a real shift and the next rising edge starts a
+      // fresh session at bit 0 — same idle-timeout + generation-counter
+      // shape as bindWS2812Strip's flush above (scheduleAt has no cancel
+      // API, so a generation counter is how a stale timeout gets ignored
+      // once a newer edge has already reset things).
+      const SIMULATED_RAW_VALUE = 8_388_608; // 2^23 — a plausible mid-scale 24-bit ADC reading
+      const sckConn = connections.find((c) => c.ownPin === "SCK");
+      const dtConn = connections.find((c) => c.ownPin === "DT");
+      if (sckConn && dtConn) {
+        const sckLoc = PIN_TO_PORT[sckConn.arduinoPin];
+        const dtLoc = PIN_TO_PORT[dtConn.arduinoPin];
+        if (sckLoc && ports[sckLoc.port] && dtLoc && ports[dtLoc.port]) {
+          const sckPort = ports[sckLoc.port];
+          const dtPort = ports[dtLoc.port];
+          const IDLE_RESET_US = 20;
+          let bitIndex = 0; // 0-23 = data bits (MSB first); 24+ = extra gain-select pulses, ignored
+          let generation = 0;
+          dtPort.setPin(dtLoc.bit, false); // idle low = "ready"
+          const idleReset = () => {
+            bitIndex = 0;
+            dtPort.setPin(dtLoc.bit, false);
+          };
+          sckPort.addListener(() => {
+            const isHigh = sckPort.pinState(sckLoc.bit) === PinState.High;
+            if (isHigh) {
+              if (bitIndex < 24) {
+                dtPort.setPin(dtLoc.bit, !!((SIMULATED_RAW_VALUE >> (23 - bitIndex)) & 1));
+              }
+              bitIndex++;
+              const myGeneration = ++generation;
+              scheduleAt(cpu, IDLE_RESET_US, () => {
+                if (myGeneration === generation) idleReset();
+              });
+            }
+          });
+        }
+      }
     } else if (comp.tag === "wokwi-dht22") {
       // WORK IN PROGRESS — not promoted to simulated:true yet (see
       // KNOWN_GOOD_COMPONENTS in adminArduinoComponentController.js).
@@ -2623,6 +2715,62 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
               }
             }
           });
+        }
+      }
+    } else if (comp.tag === "wokwi-ir-receiver") {
+      // Real NEC infrared protocol, confirmed against the actual installed
+      // "IRremote" library source (IRremote@4.7.1, not guessed): on an
+      // ATmega328P the receiver does NOT use an edge/pin-change interrupt
+      // at all — private/IRTimer.hpp sets TIMSK2 = _BV(OCIE2B), a periodic
+      // ~50us Timer2 compare-match ISR that repeatedly samples the DAT pin
+      // and reconstructs mark/space durations from that polling (confirmed
+      // by reading the source, not assumed) — which is why runSketch()
+      // above instantiates a Timer2 (new AVRTimer(cpu, timer2Config)) even
+      // though nothing else in this file needs one. A real TSOP-style
+      // receiver module demodulates the 38kHz carrier and idles HIGH,
+      // pulling LOW for the duration of each IR burst ("mark") — this
+      // binding drives DAT the same way, purely in scheduled simulated
+      // time (no actual carrier needed, since the receiver — and the real
+      // IRremote library's timing — only cares about mark/space
+      // durations). No interactive "what code to send" control exists;
+      // one fixed NEC address/command is sent on every press, the same
+      // honest simplification as HX711's fixed reading above.
+      const conn = connections.find((c) => c.ownPin === "DAT");
+      if (conn) {
+        const loc = PIN_TO_PORT[conn.arduinoPin];
+        if (loc && ports[loc.port]) {
+          const port = ports[loc.port];
+          const ADDRESS = 0x00;
+          const COMMAND = 0x45;
+          // Classic NEC frame: address, ~address, command, ~command — each
+          // byte sent LSB-first (confirmed against IRremote's ir_NEC.hpp).
+          const bytes = [ADDRESS, ~ADDRESS & 0xff, COMMAND, ~COMMAND & 0xff];
+
+          port.setPin(loc.bit, true); // idle high — no IR detected
+
+          const sendFrame = () => {
+            let cursor = 0;
+            const schedule = (fn) => scheduleAt(cpu, cursor, fn);
+            schedule(() => port.setPin(loc.bit, false)); // 9ms leader mark
+            cursor += 9000;
+            schedule(() => port.setPin(loc.bit, true)); // 4.5ms leader space
+            cursor += 4500;
+            for (const byte of bytes) {
+              for (let bit = 0; bit < 8; bit++) {
+                const isOne = (byte >> bit) & 1;
+                schedule(() => port.setPin(loc.bit, false)); // 562.5us mark, every bit
+                cursor += 562.5;
+                schedule(() => port.setPin(loc.bit, true));
+                cursor += isOne ? 1687.5 : 562.5; // long space = 1, short space = 0
+              }
+            }
+            schedule(() => port.setPin(loc.bit, false)); // trailing 562.5us mark
+            cursor += 562.5;
+            schedule(() => port.setPin(loc.bit, true)); // release back to idle high
+          };
+
+          comp.el.addEventListener("sensor-value-change", sendFrame);
+          eventListeners.push({ el: comp.el, type: "sensor-value-change", handler: sendFrame });
         }
       }
     }
@@ -3835,7 +3983,7 @@ async function runSketch() {
 
   const {
     CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, AVRTWI, portBConfig, portCConfig, portDConfig,
-    timer0Config, timer1Config, usart0Config, adcConfig, twiConfig, avrInstruction, PinState,
+    timer0Config, timer1Config, timer2Config, usart0Config, adcConfig, twiConfig, avrInstruction, PinState,
   } = avr8js;
 
   const progMem = parseIntelHex(compileResult.hex);
@@ -3855,6 +4003,14 @@ async function runSketch() {
   // fires, no pulse ever appears on the pin, and the servo binding above
   // (which times whatever pulse IS there) sees nothing to measure.
   new AVRTimer(cpu, timer1Config);
+  // The IRremote library's receiver (wokwi-ir-receiver binding below)
+  // doesn't watch its data pin via a normal edge interrupt at all — it
+  // uses a periodic ~50us Timer2 compare-match interrupt to repeatedly
+  // sample the pin and build up mark/space durations from that (confirmed
+  // against the actual installed IRremote source, IRTimer.hpp: TIMSK2 =
+  // _BV(OCIE2B)). No Timer2 instance means that ISR never fires and
+  // nothing is ever received, regardless of what the data pin is doing.
+  new AVRTimer(cpu, timer2Config);
   // Feeds analogRead() a real voltage per channel — see the potentiometer/
   // photoresistor branches in bindComponentsToSimulation below, which set
   // adc.channelValues[n] instead of toggling a pin like everything else.

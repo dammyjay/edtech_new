@@ -92,6 +92,8 @@ const BUILTIN_LIBRARIES = [
   "LiquidCrystal", // the plain parallel-wiring LCD library — wokwi-lcd1602/2004 default to RS/E/D4-D7 pins, not I2C
   "Adafruit NeoPixel",
   "Keypad",
+  "HX711", // Rob Tillaart's — exact match for "HX711" in the Library Manager index, verified not guessed
+  "IRremote", // ArminJo's — exact match for "IRremote" in the Library Manager index, verified not guessed
 ];
 
 async function ensureAvrCoreInstalled() {
