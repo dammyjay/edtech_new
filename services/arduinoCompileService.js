@@ -97,6 +97,7 @@ const BUILTIN_LIBRARIES = [
   "Adafruit ILI9341",
   "Adafruit GFX Library", // Adafruit_SPITFT (the ILI9341 library's SPI base class) lives here
   "Adafruit BusIO", // Adafruit_GFX_Library's own dependency for SPI/I2C transaction helpers
+  "SD", // Arduino/SparkFun's SD library (wraps SdFat) — exact match for "SD" in the Library Manager index, verified not guessed
 ];
 
 async function ensureAvrCoreInstalled() {

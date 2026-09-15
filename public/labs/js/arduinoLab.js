@@ -2955,6 +2955,122 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
           // after the microcontroller stops driving it.
         }
       }
+    } else if (comp.tag === "wokwi-microsd-card" && spiDevices) {
+      // Real SD-card SPI *initialization* handshake, confirmed against
+      // the actual installed "SD" library (the Arduino/SparkFun one
+      // wrapping SdFat) source: SD.begin(csPin) is
+      // `card.init() && volume.init(card) && root.openRoot(volume)`
+      // (SD.cpp) — three real steps, not one. This binding genuinely
+      // implements the first two:
+      //  - card.init() (Sd2Card.cpp): CMD0 (GO_IDLE_STATE) until idle,
+      //    CMD8 (SEND_IF_COND, an R7 response echoing the argument, SD
+      //    v2 card), CMD55+ACMD41 (the "are you ready" polling
+      //    handshake — this binding reports ready on the first try) and
+      //    CMD58 (READ_OCR) to declare itself SDHC. Every 6-byte command
+      //    frame (opcode|0x40, 4 argument bytes, a CRC byte real cards
+      //    ignore once CRC-checking is off) is played back exactly per
+      //    cardCommand()'s own framing, over the same real hardware SPI
+      //    peripheral (AVRSPI, via the spiDevices dispatcher above) the
+      //    ILI9341 binding uses.
+      //  - volume.init(card) (SdVolume.cpp): reads block 0 via a real
+      //    CMD17 (READ_SINGLE_BLOCK — R1, a 0xFE start token, 512 data
+      //    bytes, 2 dummy CRC bytes, all per readData()'s own protocol)
+      //    and validates it as a BIOS Parameter Block. This binding
+      //    serves a genuinely valid, freshly-formatted, EMPTY FAT16
+      //    boot sector there — confirmed field-by-field against
+      //    SdVolume::init()'s own validation (bytesPerSector,
+      //    sectorsPerCluster, reservedSectorCount, fatCount,
+      //    rootDirEntryCount, totalSectors16, sectorsPerFat16), tuned so
+      //    the computed cluster count lands in FAT16's own range
+      //    (4085-65524) — so mounting isn't faked, it's a real formatted
+      //    volume the library's own math accepts. root.openRoot() then
+      //    needs no further SPI at all for FAT16 (confirmed by reading
+      //    it — it's pure arithmetic from fields volume.init() already
+      //    parsed), so SD.begin() now genuinely returns true.
+      //
+      // What ISN'T modeled: actual file storage. Every block other than
+      // 0 (the FAT tables, the root directory, every data cluster) reads
+      // back as all zero — which SdVolume/root.openRoot() never even
+      // look at for a successful mount, but means the root directory
+      // looks genuinely empty (SD.open() on any existing name correctly
+      // fails — a real, honest "not found", not a hang) and writing
+      // (CMD24) isn't implemented at all, so creating a new file fails
+      // cleanly after a real protocol timeout rather than succeeding.
+      const csConn = connections.find((c) => c.ownPin === "CS");
+      if (csConn) {
+        const csLoc = PIN_TO_PORT[csConn.arduinoPin];
+        if (csLoc && ports[csLoc.port]) {
+          const csPort = ports[csLoc.port];
+          const CMD0 = 0, CMD8 = 8, CMD17 = 17, CMD55 = 55, ACMD41 = 41, CMD58 = 58;
+          const R1_IDLE = 0x01, R1_READY = 0x00;
+
+          const bootSector = new Uint8Array(512);
+          const writeU16 = (offset, value) => {
+            bootSector[offset] = value & 0xff;
+            bootSector[offset + 1] = (value >> 8) & 0xff;
+          };
+          // Only the fields SdVolume::init() actually reads are
+          // meaningful (confirmed by reading its exact validation code
+          // above) — everything else, including the MBR-partition-table
+          // bytes this same block doubles as when read via the part=1
+          // path SD.begin() tries first, is left zero, which correctly
+          // reads as "not a valid partition" and falls through to the
+          // part=0 (superfloppy) path that accepts this boot sector
+          // directly.
+          writeU16(11, 512); // bytesPerSector
+          bootSector[13] = 8; // sectorsPerCluster (a power of 2, per spec)
+          writeU16(14, 1); // reservedSectorCount
+          bootSector[16] = 2; // fatCount
+          writeU16(17, 512); // rootDirEntryCount
+          writeU16(19, 45000); // totalSectors16 — a ~22MB volume; with the fields above this yields a cluster count of 5610, safely inside FAT16's 4085-65524 range
+          bootSector[21] = 0xf8; // mediaType (fixed media)
+          writeU16(22, 40); // sectorsPerFat16
+          bootSector[510] = 0x55;
+          bootSector[511] = 0xaa;
+
+          let cmdBuf = [];
+          let responseQueue = [];
+          spiDevices.push({
+            isSelected: () => csPort.pinState(csLoc.bit) === PinState.Low,
+            onByte(value) {
+              if (responseQueue.length > 0) return responseQueue.shift();
+              // A byte in [0x40,0x7F] (opcode|0x40 for a 0-63 command
+              // index) starts a new 6-byte command frame; anything else
+              // while idle is a dummy 0xFF poll (e.g. waitNotBusy()) —
+              // answered with 0xFF, exactly what "not busy" means to it.
+              if (cmdBuf.length === 0 && (value < 0x40 || value > 0x7f)) return 0xff;
+              cmdBuf.push(value);
+              if (cmdBuf.length < 6) return 0xff; // still clocking in the argument + CRC bytes — their own response is discarded by the real host anyway
+              const [opByte, a3, a2, a1, a0] = cmdBuf;
+              cmdBuf = [];
+              const cmd = opByte & 0x3f;
+              const arg = ((a3 << 24) | (a2 << 16) | (a1 << 8) | a0) >>> 0;
+              if (cmd === CMD0) {
+                responseQueue = [R1_IDLE];
+              } else if (cmd === CMD8) {
+                // R7: R1 + the argument echoed back — real cards enforce
+                // the check pattern (0xAA here) matches, but since this
+                // is the "card" side, this binding always echoes exactly
+                // what it was sent.
+                responseQueue = [R1_IDLE, (arg >> 24) & 0xff, (arg >> 16) & 0xff, (arg >> 8) & 0xff, arg & 0xff];
+              } else if (cmd === CMD55) {
+                responseQueue = [R1_IDLE]; // still idle — ACMD41 (below) is what actually finishes init
+              } else if (cmd === ACMD41) {
+                responseQueue = [R1_READY]; // ready on the very first poll
+              } else if (cmd === CMD58) {
+                responseQueue = [R1_READY, 0xc0, 0xff, 0x80, 0x00]; // OCR with the top 2 bits set = "power-up complete, SDHC"
+              } else if (cmd === CMD17) {
+                const block = arg; // SDHC is block-addressed, not byte-addressed — confirmed against readData()'s own `if (type() != SDHC) block <<= 9`
+                const data = block === 0 ? bootSector : new Uint8Array(512); // every other block is genuinely empty — see the note above
+                responseQueue = [R1_READY, 0xfe, ...data, 0xff, 0xff]; // start-block token + 512 data bytes + 2 dummy CRC bytes
+              } else {
+                responseQueue = [R1_READY]; // any other command (e.g. CMD16 SET_BLOCKLEN): accept, no further effect
+              }
+              return 0xff; // this byte (the CRC byte) — its own response is discarded by the real host too
+            },
+          });
+        }
+      }
     }
   }
 

@@ -203,8 +203,8 @@ const KNOWN_GOOD_COMPONENTS = [
     tag: "wokwi-microsd-card",
     label: "MicroSD Card Module",
     category: "Modules",
-    simulated: false,
-    note: "Visual/wireable only — its SPI storage protocol isn't simulated yet.",
+    simulated: true,
+    note: "Real SPI init handshake and a genuinely valid, empty FAT16 volume — SD.begin() actually succeeds. File storage isn't modeled yet: reading/creating files will fail (cleanly, not hang), since the card has no real data on it.",
   },
   {
     tag: "wokwi-ili9341",
