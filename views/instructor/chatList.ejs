@@ -1,121 +1,94 @@
 <%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 
-<h2 style="margin-top:20px;">💬 Your Chat Conversations</h2>
+<div class="dm-list-wrap">
 
-<div style="margin:20px 0;">
-  <button class="chat-tab active" onclick="showTab('privateChat')">
-    💬 Private Chat
-  </button>
+  <h2 style="margin-top:20px;">💬 Your Chat Conversations</h2>
 
-  <button class="chat-tab" onclick="showTab('classChat')">
-    📚 Class Groups
-  </button>
-</div>
+  <div style="margin:20px 0;">
+    <button class="chat-tab active" onclick="showTab('privateChat')">
+      💬 Private Chat
+    </button>
 
+    <button class="chat-tab" onclick="showTab('classChat')">
+      📚 Class Groups
+    </button>
+  </div>
 
-<div id="privateChat" style="width: 100%;">
+  <div id="privateChat">
 
-  <div style="margin:15px 0;">
-    <form id="searchForm" style="display:flex; gap:10px; align-items:center;">
-      <input type="text" id="searchInput" placeholder="🔍 Search student by name or class"
-        style="padding:8px; width:250px; border:1px solid #ccc; border-radius:5px;" />
-      <button type="submit"
-        style="background:#2ecc71; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;">
-        Search
-      </button>
+    <form id="searchForm" class="dm-search-bar">
+      <input type="text" id="searchInput" placeholder="🔍 Search student by name or class" />
+      <button type="submit">Search</button>
     </form>
-  </div>
 
-  <div class="table-responsive">
     <div id="searchResults"></div>
+
+    <h3 style="margin:18px 0 10px;">Previous Chats</h3>
+
+    <% if (chats.length > 0) { %>
+      <div class="dm-list">
+        <% chats.forEach(c => { %>
+          <a href="/instructor/chats/<%= c.student_id %>" class="dm-list-item <%= c.unread_count > 0 ? 'dm-unread' : '' %>">
+            <img src="<%= c.profile_picture || '/images/profile male.png' %>" class="dm-list-avatar" alt="">
+            <div class="dm-list-body">
+              <div class="dm-list-top">
+                <span class="dm-list-name"><%= c.student_name %></span>
+                <span class="dm-list-time"><%= new Date(c.last_message_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) %></span>
+              </div>
+              <div class="dm-list-preview">
+                <%= c.last_message_sender_id == user.id ? 'You: ' : '' %><%= c.last_message %>
+              </div>
+            </div>
+            <% if (c.unread_count > 0) { %>
+              <span class="dm-unread-badge"><%= c.unread_count %></span>
+            <% } %>
+          </a>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="dm-empty-state">No chat conversations yet — search for a student above to start one.</div>
+    <% } %>
+
   </div>
 
-  <h2 style="margin-top:20px;">💬 Previous Chat</h2>
+  <div id="classChat" style="display:none;">
+    <select id="schoolFilter" style="padding:8px 14px; border-radius:20px; border:1.8px solid #ddd; margin-bottom:14px;">
+      <option value="">All Schools</option>
+      <% classes.forEach(c => { %>
+      <option value="<%= c.school_name %>"><%= c.school_name %></option>
+      <% }) %>
+    </select>
 
-  <div class="table-responsive">
-    <% if (chats.length > 0) { %>
-      <table class="user-table" style="width:90%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Student Name</th>
-            <th>Email</th>
-            <th>Last Message</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% chats.forEach(c => { %>
-            <tr>
-              <td><%= c.student_name %></td>
-              <td><%= c.email %></td>
-              <td><%= new Date(c.last_message_time).toLocaleString() %></td>
-              <td>
-                <a href="/instructor/chats/<%= c.student_id %>" 
-                  style="background:#916d0d; color:white; border:none; padding:6px 10px; border-radius:5px; text-decoration:none;">
-                  💬
-                </a>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+    <h3 style="margin-bottom:10px;">📚 School Class Groups</h3>
+    <% if (classes && classes.length > 0) { %>
+      <div class="dm-list">
+        <% classes.forEach(c => { %>
+          <a href="/instructor/class-chat/<%= c.id %>" class="dm-list-item" data-school="<%= c.school_name %>">
+            <div class="dm-list-avatar" style="background:var(--brand-pri-light); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">
+              <%= c.name.charAt(0).toUpperCase() %>
+            </div>
+            <div class="dm-list-body">
+              <div class="dm-list-name"><%= c.name %></div>
+              <div class="dm-list-preview"><%= c.school_name %></div>
+            </div>
+            <span style="color:var(--brand-pri-dark); font-weight:600; font-size:13px;">Open →</span>
+          </a>
+        <% }) %>
+      </div>
     <% } else { %>
-      <p style="color:gray;">No chat conversations yet.</p>
+      <div class="dm-empty-state">No classes found</div>
     <% } %>
   </div>
 
 </div>
 
-<div id="classChat" style="display:none;" width="100%;">
-  <select id="schoolFilter">
-    <option value="">All Schools</option>
-
-    <% classes.forEach(c => { %>
-    <option value="<%= c.school_name %>"><%= c.school_name %></option>
-    <% }) %>
-
-  </select>
-
-  <h2>📚School Class Groups</h2>
-  <div class="table-responsive" style="width: 90%;">
-    <table class="user-table">
-      <thead>
-        <tr>
-          <th>Class</th>
-          <th>School</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <% if (classes && classes.length > 0) { %>
-          <% classes.forEach(c => { %>
-
-          <tr>
-            <td><%= c.name %></td>
-            <td><%= c.school_name %></td>
-
-            <td>
-              <a href="/instructor/class-chat/<%= c.id %>"
-              style="background:#000000;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
-              Open Group
-              </a>
-            </td>
-          </tr>
-
-          <% }) %>
-          <% } else { %>
-            <tr>
-              <td colspan="2" style="color:gray;">No classes found</td>
-            </tr>
-          <% } %>
-      </tbody>
-    </table>
-  </div>
-  
-</div>
-
 <script>
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   document.getElementById("searchForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const query = document.getElementById("searchInput").value.trim();
@@ -128,78 +101,43 @@
     container.innerHTML = "";
 
     if (data.length === 0) {
-      container.innerHTML = "<p style='color:gray;'>No matching students found.</p>";
+      container.innerHTML = "<div class='dm-empty-state'>No matching students found.</div>";
       return;
     }
 
-    const table = document.createElement("table");
-    table.className = "user-table";
-    table.style = "width:90%; border-collapse:collapse; margin-top:10px;";
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Class</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${data.map(s => `
-          <tr>
-            <td>${s.fullname}</td>
-            <td>${s.email}</td>
-            <td>${s.class_name || "—"}</td>
-            <td>
-              <a href="/instructor/chats/${s.id}" 
-                 style="background:#3498db; color:white; padding:6px 10px; border-radius:5px; text-decoration:none;">
-                 💬 Start Chat
-              </a>
-            </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    `;
-    container.appendChild(table);
+    const list = document.createElement("div");
+    list.className = "dm-list";
+    list.style.marginBottom = "16px";
+    list.innerHTML = data.map(s => `
+      <a href="/instructor/chats/${s.id}" class="dm-list-item">
+        <img src="/images/profile male.png" class="dm-list-avatar" alt="">
+        <div class="dm-list-body">
+          <div class="dm-list-name">${escapeHtml(s.fullname)}</div>
+          <div class="dm-list-preview">${escapeHtml(s.email)}</div>
+        </div>
+        <span style="color:var(--brand-pri-dark); font-weight:600; font-size:13px;">💬 Chat</span>
+      </a>
+    `).join("");
+    container.appendChild(list);
   });
 </script>
 
 <script>
-  document.getElementById("schoolFilter").addEventListener("change",function(){
-
-  const school=this.value
-  const rows=document.querySelectorAll("#classChat tbody tr")
-
-  rows.forEach(row=>{
-
-  const rowSchool=row.children[1].innerText
-
-  if(!school || rowSchool===school){
-  row.style.display=""
-  }else{
-  row.style.display="none"
-  }
-
-  })
-
-  })
+  document.getElementById("schoolFilter").addEventListener("change", function () {
+    const school = this.value;
+    document.querySelectorAll("#classChat .dm-list-item").forEach(row => {
+      row.style.display = (!school || row.dataset.school === school) ? "" : "none";
+    });
+  });
 </script>
 
 <script>
+  function showTab(tab) {
+    document.getElementById("privateChat").style.display = "none";
+    document.getElementById("classChat").style.display = "none";
+    document.getElementById(tab).style.display = "block";
 
-  function showTab(tab){
-
-  document.getElementById("privateChat").style.display="none"
-  document.getElementById("classChat").style.display="none"
-
-  document.getElementById(tab).style.display="block"
-
-  document.querySelectorAll(".chat-tab").forEach(btn=>{
-  btn.classList.remove("active")
-  })
-
-  event.target.classList.add("active")
-
+    document.querySelectorAll(".chat-tab").forEach(btn => btn.classList.remove("active"));
+    event.target.classList.add("active");
   }
-
 </script>

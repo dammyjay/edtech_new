@@ -145,19 +145,33 @@ router.post("/assignments/:id/delete", learningController.deleteAssignment);
 // Projects
 router.post("/admin/courses/:id/project", learningController.createProject);
 
-// Download student course summary
+// Download student course/module summary — same handlers admin's rich
+// progress page uses, reused so instructor's parity version can offer
+// the same report-download buttons.
 router.get(
   "/student/:studentId/course-summary/:courseId/download",
   adminController.downloadCourseSummary
+);
+router.get(
+  "/student/:studentId/module-summary/:moduleId/download",
+  adminController.downloadModuleSummary
 );
 
 router.get("/dashboard", ensureInstructorOrAdmin, (req, res) => {
   res.render("instructor/dashboard", { info: req.info });
 });
 
-// studentRoutes.js
-router.post("/instructor/chat/send", adminController.sendChatMessage);
-router.get("/chat/messages/:receiverId", adminController.getChatMessages);
+// Direct 1:1 chat (instructor <-> student). Previously mis-wired: the
+// send route was double-prefixed ("/instructor/instructor/chat/send",
+// unreachable) and the get-messages route pointed at adminController's
+// copy instead of instructorController's own — the chat UI silently
+// worked around both by calling the student-side routes instead, which
+// meant instructor messages skipped the profanity filter students'
+// messages go through. Fixed to point at instructor's own controller,
+// which now has the same filter (see instructorController.sendChatMessage).
+router.post("/chat/send", instructorController.sendChatMessage);
+router.get("/chat/messages/:receiverId", instructorController.getChatMessages);
+router.get("/chats/unread-count", instructorController.getUnreadChatCount);
 router.get("/chats", instructorController.getInstructorChats);
 
 router.get("/chats/:studentId", instructorController.getChatWithStudent);

@@ -1,69 +1,31 @@
 <%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 
-<h2 class="class-title">📚 Class Chat: <%= classroom.name %></h2>
-<!-- <div class="display:flex">
-    <button class="btn-black" onclick="lockChat()">🔒 Lock Chat</button>
-    <button class="btn-black" onclick="unlockChat()">🔓 Unlock Chat</button>
-</div> -->
+<div class="gc-header">
+  <div class="gc-header-icon">📚</div>
+  <div class="gc-header-info">
+    <h2><%= classroom.name %></h2>
+    <p><%= students.length %> student<%= students.length === 1 ? '' : 's' %> in this class</p>
+  </div>
+  <button id="chatToggleBtn" class="gc-lock-toggle" onclick="toggleChatLock()"></button>
+</div>
 
-<button id="chatToggleBtn" class="btn-black" onclick="toggleChatLock()"></button>
 <div class="chat-layout">
 
     <!-- LEFT: Chat -->
     <div class="chat-section">
 
-        <div id="chatContainer" class="chat-box">
+        <div id="chatContainer" class="chat-box"></div>
 
-            <% messages.forEach(msg => { %>
-
-            <div class="chat-msg">
-
-                <div class="chat-name">
-
-                    <img src="<%= msg.profile_picture %>" 
-                    class="chat-avatar">
-
-                    <%= msg.fullname %>
-
-                    <span class="chat-role role-<%= msg.role %>">
-                        <%= msg.role %>
-                    </span>
-                    <button onclick="deleteMessage(<%= msg.id %>)" style="margin-left:8px;">🗑</button>
-                </div>
-
-                <div class="chat-bubble msg-<%= msg.role %>">
-
-                   <% if (msg.role !== 'instructor') { %>
-                    <button onclick="deleteMessage(<%= msg.id %>)" class="delete-msg">
-                    🗑
-                    </button>
-                    <% } %>
-
-                    <br>
-
-                    <small class="chat-time">
-                        <%= new Date(msg.created_at).toLocaleTimeString() %>
-                    </small>
-
-                </div>
-
-            </div>
-
-            <% }) %>
-
-        </div>
-
-        <div class="chat-input-area">
+        <div class="chat-input-area gc-input-bar">
 
             <textarea
             id="chatMessage"
-            rows="2"
+            rows="1"
             placeholder="Type message to class..."
+            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendClassMessage();}"
             ></textarea>
 
-            <button onclick="sendClassMessage()">
-                Send
-            </button>
+            <button class="gc-send-btn" onclick="sendClassMessage()" title="Send">➤</button>
 
         </div>
 
@@ -79,9 +41,17 @@
 
         <div class="student-row">
 
-            <div>
-                <b><%= s.fullname %></b><br>
-                <small><%= s.email %></small>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="gc-student-avatar-wrap">
+                    <img src="<%= s.profile_picture || '/images/profile male.png' %>" class="chat-avatar" style="width:32px; height:32px;">
+                    <% if (s.muted) { %>
+                        <span class="gc-muted-dot" title="Muted">🔇</span>
+                    <% } %>
+                </div>
+                <div>
+                    <b><%= s.fullname %></b><br>
+                    <small><%= s.email %></small>
+                </div>
             </div>
 
             <div class="student-actions">
@@ -90,13 +60,11 @@
                     💬
                 </a>
 
-                <button onclick="muteStudent(<%= s.id %>)" class="mute-btn">
-                    🔇
-                </button>
-
-                <button onclick="unmuteStudent(<%= s.id %>)" class="unmute-btn">
-                    🔊
-                </button>
+                <% if (s.muted) { %>
+                    <button onclick="unmuteStudent(<%= s.id %>)" class="unmute-btn">🔊</button>
+                <% } else { %>
+                    <button onclick="muteStudent(<%= s.id %>)" class="mute-btn">🔇</button>
+                <% } %>
 
             </div>
 
@@ -111,246 +79,126 @@
 <script>
 
     const classroomId = "<%= classroom.id %>"
+    const currentUserId = <%= user.id %>
     const chatContainer = document.getElementById('chatContainer')
-    const bannedWords = [
-        "stupid",
-        "idiot",
-        "hate",
-        "fool",
-        "nonsense"
-    ]
 
-    chatContainer.scrollTop = chatContainer.scrollHeight
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function renderMessages(messages) {
+        if (!messages.length) {
+            chatContainer.innerHTML = '<p style="text-align:center; color:#999;">No messages yet — start the conversation 👋</p>';
+            return;
+        }
+
+        chatContainer.innerHTML = messages.map(msg => {
+            const isSelf = Number(msg.sender_id) === Number(currentUserId);
+            const avatar = msg.profile_picture || '/images/profile male.png';
+
+            return `
+                <div class="chat-msg gc-msg-row ${isSelf ? 'gc-self' : ''}">
+                    <img src="${avatar}" class="chat-avatar">
+                    <div>
+                        <div class="chat-name">
+                            ${escapeHtml(msg.fullname)}
+                            <span class="chat-role role-${msg.role}">${msg.role}</span>
+                        </div>
+                        <div class="chat-bubble msg-${msg.role}">
+                            ${escapeHtml(msg.message)}
+                            <br>
+                            <small class="chat-time">${new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                            ${msg.role !== 'instructor' || isSelf ? `<button class="btn-nobg" onclick="deleteMessage(${msg.id})" style="margin-left:8px;">🗑</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
 
     async function muteStudent(studentId){
-
         await fetch("/instructor/mute-student",{
             method:"POST",
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                classroomId,
-                studentId
-            })
+            body:JSON.stringify({ classroomId, studentId })
         })
-
-        showAlert("Student muted")
-
+        location.reload()
     }
 
     async function unmuteStudent(studentId){
-
         await fetch("/instructor/unmute-student",{
             method:"POST",
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                classroomId,
-                studentId
-            })
+            body:JSON.stringify({ classroomId, studentId })
         })
-
-        showAlert("Student unmuted")
-
+        location.reload()
     }
 
     async function sendClassMessage(){
-
-        const message = document.getElementById('chatMessage').value.trim()
-
+        const input = document.getElementById('chatMessage')
+        const message = input.value.trim()
         if(!message) return
 
         await fetch('/instructor/class/send',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-        classroomId,
-        message
-        })
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ classroomId, message })
         })
 
-        document.getElementById('chatMessage').value=""
-
+        input.value = ""
         loadMessages()
-
     }
 
-
     async function loadMessages(){
-
         const res = await fetch(`/instructor/class/messages/${classroomId}`)
         const messages = await res.json()
-
-        chatContainer.innerHTML=""
-
-        messages.forEach(msg=>{
-
-            const div=document.createElement("div")
-            div.className="chat-msg"
-
-            const avatar = msg.profile_picture
-                ? `<img src="${msg.profile_picture}" class="chat-avatar">`
-                : `<img src="/images/profile male.png" class="chat-avatar">`
-
-            // div.innerHTML=`
-
-            // <div class="chat-row">
-
-            //     ${avatar}
-
-            //     <div>
-
-            //         <div class="chat-name">
-            //             ${msg.fullname}
-
-            //             <span class="chat-role role-${msg.role}">
-            //                 ${msg.role}
-            //             </span>
-            //         </div>
-
-            //         <div class="chat-bubble msg-${msg.role}">
-            //             ${msg.message}
-
-            //             <br>
-
-            //             <small style="color:gray;font-size:10px;">
-            //                 ${new Date(msg.created_at).toLocaleTimeString()}
-            //             </small>
-            //         </div>
-
-            //     </div>
-
-            // </div>
-            // `
-
-                div.innerHTML=`
-                <div class="chat-row">
-
-                    ${avatar}
-
-                    <div>
-
-                        <div class="chat-name">
-                            ${msg.fullname}
-
-                            <span class="chat-role role-${msg.role}">
-                                ${msg.role}
-                            </span>
-
-                        </div>
-
-                        <div class="chat-bubble msg-${msg.role}">
-                            ${msg.message}
-
-                            <br>
-                            
-                            <small style="color:gray;font-size:10px;">
-                                ${new Date(msg.created_at).toLocaleTimeString()}
-                            </small>
-                            <span>
-                            ${msg.role !== 'instructor' ? `
-                            <button class="btn-nobg" onclick="deleteMessage(${msg.id})" style="margin-left:8px;">
-                            🗑
-                            </button>
-                            ` : ''}
-                            </span>
-                        </div>
-
-                    </div>
-
-                </div>
-                `
-
-            chatContainer.appendChild(div)
-
-        })
-
-        chatContainer.scrollTop = chatContainer.scrollHeight
+        renderMessages(messages)
     }
 
     let chatLocked = <%= classroom.chat_locked ? "true" : "false" %>
 
     function updateLockButton(){
-
         const btn = document.getElementById("chatToggleBtn")
-
         if(chatLocked){
-
             btn.innerText = "🔓 Unlock Chat"
             btn.style.background = "#28a745"
-            btn.style.color = "#fff"
-
         }else{
-
             btn.innerText = "🔒 Lock Chat"
-            btn.style.background = "#000"
-            btn.style.color = "#fff"
-
+            btn.style.background = "#c0392b"
         }
-
-    }
-
-   async function lockChat(){
-
-        await fetch("/instructor/class/lock",{
-            method:"POST",
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ classroomId })
-        })
-
-        showAlert("Chat locked")
-
-    }
-
-    async function unlockChat(){
-
-    await fetch("/instructor/class/unlock",{
-        method:"POST",
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ classroomId })
-    })
-
-    showAlert("Chat unlocked")
-
     }
 
     async function deleteMessage(messageId){
-
         if(!(await showConfirm("Delete this message?"))) return
-
         await fetch("/instructor/class/delete-message",{
             method:"POST",
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({messageId})
         })
-
         loadMessages()
-
     }
-   
+
     async function toggleChatLock(){
-
-        const url = chatLocked
-            ? "/instructor/class/unlock"
-            : "/instructor/class/lock"
-
+        const url = chatLocked ? "/instructor/class/unlock" : "/instructor/class/lock"
         const res = await fetch(url,{
             method:"POST",
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({ classroomId })
         })
-
         const data = await res.json()
-
         if(data.success){
-
             chatLocked = !chatLocked
             updateLockButton()
-
         }else{
             showAlert("Action failed")
         }
-
     }
 
+    renderMessages(<%- JSON.stringify(messages).replace(/</g, '\\u003c') %>);
     updateLockButton()
     setInterval(loadMessages,5000)
 

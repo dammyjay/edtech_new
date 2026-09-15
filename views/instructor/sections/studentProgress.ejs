@@ -1,104 +1,651 @@
 <%- include('../../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 <link rel="stylesheet" href="/css/instructor.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-<div style="max-width:1100px; margin:0 auto; padding:24px;">
+<style>
+  /* Same visual language as the admin/parent rich progress page
+     (views/admin/studentProgress.ejs) — kept in sync deliberately so a
+     score/grade/tier looks identical everywhere it's shown. Scoped by
+     the sp- prefix so it coexists with instructor.css/adminHeader. */
+  .sp-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .sp-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    border-radius: var(--radius-lg, 16px);
+    padding: 26px 28px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+  }
+  .sp-avatar {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; flex-shrink: 0;
+  }
+  .sp-hero-info { flex: 1; min-width: 200px; }
+  .sp-hero-info h1 { margin: 0; font-size: 21px; color: #fff; }
+  .sp-hero-info p { margin: 4px 0 0; opacity: 0.92; font-size: 12.5px; }
+  .sp-hero-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+  .sp-hero-stat {
+    background: rgba(255,255,255,0.16);
+    border-radius: var(--radius, 10px);
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 84px;
+  }
+  .sp-hero-stat .val { font-size: 18px; font-weight: 800; }
+  .sp-hero-stat .lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.88; }
+
+  .sp-growth-ring {
+    --pct: 0;
+    width: 92px; height: 92px; border-radius: 50%;
+    background: conic-gradient(#fff calc(var(--pct) * 1%), rgba(255,255,255,0.25) 0);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sp-growth-ring-inner {
+    width: 74px; height: 74px; border-radius: 50%;
+    background: var(--brand-pri-dark, #4C3802);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .sp-growth-ring-inner .num { font-size: 19px; font-weight: 800; }
+  .sp-growth-ring-inner .lbl { font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+
+  .sp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .sp-tab {
+    padding: 10px 18px; border-radius: 999px; background: #fff;
+    border: 1px solid var(--border-light, #e0e0e0);
+    cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text-secondary, #666);
+    transition: 0.15s ease;
+  }
+  .sp-tab:hover { background: var(--brand-tint, #FBF3DD); }
+  .sp-tab.active { background: var(--brand-pri, #A17807); color: #fff; border-color: var(--brand-pri, #A17807); }
+
+  .sp-panel { display: none; }
+  .sp-panel.active { display: block; animation: spFadeIn 0.25s ease; }
+  @keyframes spFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .sp-section {
+    background: #fff; border-radius: var(--radius-lg, 16px);
+    padding: 20px 22px; margin-bottom: 18px;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+  }
+  .sp-section h2 {
+    margin: 0 0 14px; font-size: 16px; color: var(--brand-pri-dark, #4C3802);
+    border-bottom: 2px solid var(--bg-secondary, #f8f9fa); padding-bottom: 8px;
+  }
+  .sp-section h3 { margin: 14px 0 8px; font-size: 13.5px; color: var(--brand-pri-dark, #4C3802); }
+
+  .sp-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .sp-stat-card { background: var(--bg-secondary, #f8f9fa); border-radius: var(--radius, 10px); padding: 16px; text-align: center; }
+  .sp-stat-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .sp-stat-card .val { font-size: 18px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); }
+  .sp-stat-card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary, #666); margin-top: 2px; }
+
+  .sp-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 12px; white-space: nowrap; }
+  .sp-badge.tier-great { background: #EAF6EE; color: #1E6B34; }
+  .sp-badge.tier-good { background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); }
+  .sp-badge.tier-try { background: #FFF1E6; color: #B5651D; }
+  .sp-badge.tier-neutral { background: #f0f0f0; color: #777; }
+
+  .sp-grade-circle {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sp-grade-circle .letter { font-size: 16px; font-weight: 800; line-height: 1; }
+  .sp-grade-circle .lbl { font-size: 6.5px; text-transform: uppercase; margin-top: 2px; }
+  .sp-grade-circle.tier-great { background: #EAF6EE; color: #1E6B34; }
+  .sp-grade-circle.tier-good { background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); }
+  .sp-grade-circle.tier-try { background: #FFF1E6; color: #B5651D; }
+  .sp-grade-circle.tier-neutral { background: #f0f0f0; color: #888; }
+
+  .sp-bar { height: 9px; background: var(--bg-secondary, #f8f9fa); border-radius: 999px; overflow: hidden; }
+  .sp-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); transition: width 0.3s; }
+
+  .sp-risk-card { border-radius: var(--radius, 10px); padding: 16px; border-left: 5px solid; }
+  .sp-risk-card.risk-healthy { border-color: #1E6B34; background: #EAF6EE; }
+  .sp-risk-card.risk-low { border-color: #b8860b; background: #fffdf2; }
+  .sp-risk-card.risk-medium { border-color: #e67e22; background: #fff7f0; }
+  .sp-risk-card.risk-high { border-color: #e74c3c; background: #fff5f5; }
+  .sp-risk-card .risk-text { font-weight: 800; font-size: 16px; margin: 4px 0 10px; }
+  .sp-risk-card ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary, #666); }
+
+  .sp-heatmap-scroll { overflow-x: auto; padding-bottom: 8px; }
+  .sp-heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; width: max-content; }
+  .sp-heat-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--bg-secondary, #f8f9fa); }
+  .sp-heat-cell.level-1 { background: #F0DFA3; }
+  .sp-heat-cell.level-2 { background: #E4C466; }
+  .sp-heat-cell.level-3 { background: #D9A82C; }
+  .sp-heat-cell.level-4 { background: #A17807; }
+  .sp-heat-cell.future { background: transparent; }
+  .sp-heatmap-legend { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--text-secondary, #666); }
+  .sp-heatmap-legend .sp-heat-cell { display: inline-block; }
+
+  .sp-badge-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+  .sp-badge-card { background: var(--bg-secondary, #f8f9fa); border-radius: 14px; padding: 16px 10px; text-align: center; }
+  .sp-badge-card img { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; margin: 0 auto 8px; display: block; }
+  .sp-badge-card .fallback { font-size: 44px; margin-bottom: 8px; }
+  .sp-badge-card .name { font-weight: 800; font-size: 13px; color: var(--text-primary, #222); }
+  .sp-badge-card .ctx { font-size: 10.5px; color: var(--text-secondary, #666); margin-top: 2px; }
+
+  .sp-cert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .sp-cert-card { background: var(--bg-secondary, #f8f9fa); border-radius: 14px; padding: 14px; text-align: center; }
+  .sp-cert-card img { max-width: 100%; border-radius: 8px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
+  .sp-cert-card .cert-title { font-weight: 700; margin-top: 10px; font-size: 13px; }
+  .sp-cert-card .cert-date { font-size: 11px; color: var(--text-secondary, #666); margin-top: 2px; }
+
+  .sp-empty { color: var(--text-secondary, #666); font-size: 13.5px; padding: 10px 0; }
+
+  .sp-insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .sp-insight-card { background: var(--bg-secondary, #f8f9fa); border-radius: var(--radius, 10px); padding: 18px; }
+  .sp-insight-card h3 { margin: 0 0 10px; font-size: 14px; color: var(--brand-pri-dark, #4C3802); }
+  .sp-insight-big { font-size: 26px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); }
+  .sp-insight-sub { font-size: 12.5px; color: var(--text-secondary, #666); margin-top: 4px; }
+  .sp-rank-list { list-style: none; margin: 8px 0 0; padding: 0; }
+  .sp-rank-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--border-light, #e0e0e0); font-size: 13px; }
+  .sp-rank-list li:last-child { border-bottom: none; }
+  .sp-rank-list .rank-title { flex: 1; }
+  .sp-rank-list .rank-sub { font-size: 11px; color: var(--text-secondary, #666); }
+
+  .sp-course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+  .sp-course-card { background: #fff; border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); overflow: hidden; }
+  .sp-course-thumb { width: 100%; height: 130px; object-fit: cover; }
+  .sp-course-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; cursor: pointer; gap: 10px; flex-wrap: wrap;
+  }
+  .sp-course-head:hover { background: var(--brand-tint, #FBF3DD); }
+  .sp-course-head h3 { margin: 0; font-size: 15px; }
+  .sp-course-head .percent { font-size: 12px; color: var(--text-secondary, #666); }
+  .sp-course-actions { display: flex; align-items: center; gap: 10px; }
+  .sp-course-body { padding: 0 18px 18px; }
+  .sp-toggle-icon { font-size: 18px; font-weight: 800; transition: transform 0.25s ease; color: var(--brand-pri-dark, #4C3802); }
+  .sp-toggle-icon.open { transform: rotate(45deg); }
+
+  .sp-module-list { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-top: 8px; }
+  .sp-module-list.open { max-height: 3000px; }
+  .sp-module-card { background: var(--bg-secondary, #f8f9fa); border-radius: var(--radius, 10px); padding: 14px 16px; margin-bottom: 10px; }
+  .sp-module-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .sp-module-head h4 { margin: 0; font-size: 13.5px; }
+  .sp-lesson-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; border-bottom: 1px dashed var(--border-light, #e0e0e0); }
+  .sp-lesson-row:last-child { border-bottom: none; }
+  .sp-lesson-row .lesson-title { flex: 1; }
+  .sp-lesson-time { font-size: 11px; color: var(--text-secondary, #666); }
+  .sp-status-ok { color: #1E6B34; font-weight: 800; }
+  .sp-status-no { color: #B5651D; font-weight: 800; }
+
+  .sp-list-card {
+    background: #fff; border-radius: var(--radius, 10px); padding: 14px 18px; margin-bottom: 10px;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .sp-list-card .main { flex: 1; min-width: 180px; }
+  .sp-list-card .title { font-weight: 700; font-size: 14px; }
+  .sp-list-card .sub { font-size: 11.5px; color: var(--text-secondary, #666); margin-top: 2px; }
+  .sp-list-card .actions { display: flex; gap: 8px; align-items: center; }
+  .sp-icon-btn {
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802); text-decoration: none; font-size: 13px;
+  }
+  .sp-icon-btn:hover { background: var(--brand-pri, #A17807); color: #fff; }
+
+  @media (max-width: 768px) {
+    .sp-hero { padding: 20px; }
+    .sp-hero-stats { width: 100%; justify-content: space-between; }
+  }
+</style>
+
+<div class="sp-wrap">
+
   <div class="instructor-breadcrumb">
     <a href="/instructor/dashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
   </div>
 
-  <div class="instructor-topbar">
-    <div>
-      <h1><i class="fa-solid fa-chart-line"></i> <%= student.fullname %></h1>
-      <p class="subtitle"><%= student.email %></p>
+  <% if (!courses || courses.length === 0) { %>
+    <div class="sp-hero" style="margin-top:14px;">
+      <div class="sp-avatar"><%= (student.fullname || '?').trim().charAt(0).toUpperCase() %></div>
+      <div class="sp-hero-info">
+        <h1><%= student.fullname %></h1>
+        <p><%= student.email %></p>
+      </div>
+    </div>
+    <div class="sp-section">
+      <p class="sp-empty">No courses found that you teach this student yet.</p>
+    </div>
+  <% } else { %>
+
+  <%
+    function spScoreTier(score) {
+      if (score === null || score === undefined) return { emoji: '📋', cls: 'tier-neutral' };
+      if (score >= 80) return { emoji: '🌟', cls: 'tier-great' };
+      if (score >= 60) return { emoji: '👍', cls: 'tier-good' };
+      return { emoji: '💪', cls: 'tier-try' };
+    }
+    function spLetterGrade(score) {
+      if (score === null || score === undefined) return null;
+      if (score >= 80) return 'A';
+      if (score >= 70) return 'B';
+      if (score >= 60) return 'C';
+      if (score >= 50) return 'D';
+      return 'F';
+    }
+    function spFriendlyQuizTitle(q) {
+      const raw = (q.title || '').trim();
+      if (q.lesson_title && /^quiz for lesson\s*\d+$/i.test(raw)) {
+        return `Quiz for Lesson: ${q.lesson_title}`;
+      }
+      return raw || q.lesson_title || 'Quiz';
+    }
+    const platformScore = metrics.overall.platformScore;
+    let riskClass = "risk-healthy";
+    if (metrics.risk.riskLevel === "Low Risk") riskClass = "risk-low";
+    else if (metrics.risk.riskLevel === "Medium Risk") riskClass = "risk-medium";
+    else if (metrics.risk.riskLevel === "High Risk") riskClass = "risk-high";
+  %>
+
+  <!-- HERO -->
+  <div class="sp-hero">
+    <div class="sp-avatar"><%= (student.fullname || '?').trim().charAt(0).toUpperCase() %></div>
+    <div class="sp-hero-info">
+      <h1><%= student.fullname %></h1>
+      <p><%= student.email %> · Joined <%= new Date(student.created_at).toLocaleDateString() %></p>
+    </div>
+    <div class="sp-hero-stats">
+      <div class="sp-hero-stat">
+        <div class="val">🎮 <%= levelInfo.level %></div>
+        <div class="lbl"><%= levelInfo.name %></div>
+      </div>
+      <div class="sp-hero-stat">
+        <div class="val">🔥 <%= streak.currentStreak %></div>
+        <div class="lbl">Day Streak</div>
+      </div>
+      <div class="sp-hero-stat">
+        <div class="val">⚡ <%= levelInfo.xp %></div>
+        <div class="lbl">Total XP</div>
+      </div>
+    </div>
+    <div class="sp-growth-ring" style="--pct: <%= platformScore %>;">
+      <div class="sp-growth-ring-inner">
+        <span class="num"><%= platformScore %>%</span>
+        <span class="lbl">Growth Score</span>
+      </div>
     </div>
   </div>
 
-  <% if (!courses || courses.length === 0) { %>
-    <div class="instructor-empty">
-      <i class="fa-solid fa-chart-line"></i>
-      <p>No progress data available for this student yet.</p>
+  <!-- TABS -->
+  <div class="sp-tabs">
+    <div class="sp-tab active" onclick="ispOpenTab('summary')">📌 Summary</div>
+    <div class="sp-tab" onclick="ispOpenTab('achievements')">🏅 Achievements</div>
+    <div class="sp-tab" onclick="ispOpenTab('insights')">📈 Insights</div>
+    <div class="sp-tab" onclick="ispOpenTab('courses')">🎓 Courses</div>
+    <div class="sp-tab" onclick="ispOpenTab('modules')">🧩 Modules</div>
+    <div class="sp-tab" onclick="ispOpenTab('lessons')">📖 Lessons</div>
+    <div class="sp-tab" onclick="ispOpenTab('quizzes')">🧠 Quizzes</div>
+    <div class="sp-tab" onclick="ispOpenTab('assignments')">📝 Assignments</div>
+  </div>
+
+  <!-- ============ SUMMARY ============ -->
+  <div id="summary" class="sp-panel active">
+
+    <div class="sp-section">
+      <h2>⏱ Engagement</h2>
+      <div class="sp-stat-grid">
+        <div class="sp-stat-card"><div class="icon">⏱️</div><div class="val"><%= metrics.engagement.totalTimeSpent %></div><div class="lbl">Total Time</div></div>
+        <div class="sp-stat-card"><div class="icon">📖</div><div class="val"><%= metrics.engagement.lessonTime %></div><div class="lbl">Lesson Time</div></div>
+        <div class="sp-stat-card"><div class="icon">📝</div><div class="val"><%= metrics.engagement.assignmentTime %></div><div class="lbl">Assignment Time</div></div>
+        <div class="sp-stat-card"><div class="icon">📅</div><div class="val"><%= metrics.engagement.activeDays.week.count %></div><div class="lbl">Active Days (7d)</div></div>
+        <div class="sp-stat-card"><div class="icon">📅</div><div class="val"><%= metrics.engagement.activeDays.month.count %></div><div class="lbl">Active Days (30d)</div></div>
+        <div class="sp-stat-card"><div class="icon">🗓️</div><div class="val"><%= metrics.engagement.activeDays.all.count %></div><div class="lbl">Active Days (All)</div></div>
+      </div>
+
+      <h3>🗓️ Activity Heatmap <span style="font-weight:400; font-size:11.5px; color:var(--text-secondary,#666);">(past year)</span></h3>
+      <div class="sp-heatmap-scroll">
+        <div class="sp-heatmap">
+          <% heatmapWeeks.forEach(week => { %>
+            <% week.forEach(day => { %>
+              <% if (day.count === null) { %>
+                <div class="sp-heat-cell future"></div>
+              <% } else { %>
+                <div class="sp-heat-cell level-<%= day.level %>" title="<%= day.date %>: <%= day.count %> activit<%= day.count === 1 ? 'y' : 'ies' %>"></div>
+              <% } %>
+            <% }) %>
+          <% }) %>
+        </div>
+      </div>
+      <div class="sp-heatmap-legend">
+        Less
+        <span class="sp-heat-cell level-0"></span>
+        <span class="sp-heat-cell level-1"></span>
+        <span class="sp-heat-cell level-2"></span>
+        <span class="sp-heat-cell level-3"></span>
+        <span class="sp-heat-cell level-4"></span>
+        More
+      </div>
+
+      <p style="margin-top:12px; font-size:12.5px; color:var(--text-secondary,#666);">
+        <strong>Last active:</strong> <%= metrics.engagement.lastActive ? new Date(metrics.engagement.lastActive).toLocaleString() : "Never" %>
+      </p>
     </div>
-  <% } else { %>
-    <% courses.forEach(c => { %>
-      <div class="card" style="margin-bottom:18px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-          <h3 style="margin:0;"><i class="fa-solid fa-graduation-cap"></i> <%= c.course_title %></h3>
-          <span class="student-coin-badge"><%= c.percent %>% complete</span>
+
+    <div class="sp-section">
+      <h2>📊 Performance &amp; Progress</h2>
+      <div class="sp-stat-grid">
+        <div class="sp-stat-card"><div class="icon">🧠</div><div class="val"><%= metrics.performance.quizAvg %>%</div><div class="lbl">Quiz Average</div></div>
+        <div class="sp-stat-card"><div class="icon">📝</div><div class="val"><%= metrics.performance.assignmentAvg %>%</div><div class="lbl">Assignment Average</div></div>
+        <div class="sp-stat-card"><div class="icon">✅</div><div class="val"><%= metrics.performance.passRate %>%</div><div class="lbl">Quiz Pass Rate</div></div>
+        <div class="sp-stat-card"><div class="icon">📈</div><div class="val"><%= metrics.progress.completedLessons %>/<%= metrics.progress.totalLessons %></div><div class="lbl">Lessons Complete</div></div>
+      </div>
+      <div style="height:14px;"></div>
+      <div class="sp-bar"><div class="sp-bar-fill" style="width:<%= metrics.progress.progressPercent %>%"></div></div>
+    </div>
+
+    <div class="sp-section">
+      <h2>🕰️ On This Platform</h2>
+      <p style="font-size:13.5px; color:var(--text-secondary,#666);">
+        <%= membershipDuration.readable %> ago (<%= new Date(student.created_at).toLocaleDateString() %>)
+      </p>
+    </div>
+
+    <div class="sp-section">
+      <h2>⚠️ Areas to Watch</h2>
+      <div class="sp-risk-card <%= riskClass %>">
+        <p class="risk-text"><%= metrics.risk.riskLevel %></p>
+        <% if (metrics.risk.flags.length) { %>
+          <ul>
+            <% metrics.risk.flags.forEach(flag => { %><li><%= flag %></li><% }) %>
+          </ul>
+        <% } else { %>
+          <p style="margin:0; font-size:13px; color:var(--text-secondary,#666);">No concerns flagged — this student is doing well! 🎉</p>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <div id="achievements" class="sp-panel">
+    <div class="sp-section">
+      <h2>🏅 Badges Earned (<%= badges.length %>)</h2>
+      <% if (badges.length) { %>
+        <div class="sp-badge-gallery">
+          <% badges.forEach(b => { %>
+            <div class="sp-badge-card">
+              <% if (b.badge_image) { %>
+                <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" />
+              <% } else { %>
+                <div class="fallback">🏅</div>
+              <% } %>
+              <div class="name"><%= b.badge_name %></div>
+              <div class="ctx"><%= b.module_title %> · <%= b.course_title %></div>
+            </div>
+          <% }) %>
         </div>
-        <div class="award-budget-meter" style="margin:0;">
-          <div class="fill" style="width: <%= c.percent %>%;"></div>
+      <% } else { %>
+        <p class="sp-empty">No badges earned yet.</p>
+      <% } %>
+    </div>
+
+    <div class="sp-section">
+      <h2>🎓 Certificates (<%= certificates.length %>)</h2>
+      <% if (certificates.length) { %>
+        <div class="sp-cert-grid">
+          <% certificates.forEach(c => { %>
+            <div class="sp-cert-card">
+              <% if (c.certificate_url) { %><img src="<%= c.certificate_url %>" alt="Certificate" /><% } %>
+              <div class="cert-title"><%= c.course_title %></div>
+              <div class="cert-date">Issued <%= c.issued_at ? new Date(c.issued_at).toLocaleDateString() : '' %></div>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="sp-empty">No certificates earned yet.</p>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- ============ INSIGHTS ============ -->
+  <div id="insights" class="sp-panel">
+    <div class="sp-section">
+      <h2>📈 Deeper Insights</h2>
+      <div class="sp-insight-grid">
+
+        <div class="sp-insight-card">
+          <h3>🏆 Classroom Standing</h3>
+          <% if (classroomPercentile) { %>
+            <div class="sp-insight-big"><%= classroomPercentile.percentile %>th</div>
+            <div class="sp-insight-sub">percentile for quiz performance, out of <%= classroomPercentile.classSize %> classmates (quiz avg: <%= classroomPercentile.quizAvg %>%)</div>
+          <% } else { %>
+            <p class="sp-empty">Not enough classroom data to compare yet.</p>
+          <% } %>
         </div>
 
-        <% c.modules.forEach(m => { %>
-          <div class="module-card gamified" style="margin-top:14px;">
-            <button class="module-toggle" onclick="this.classList.toggle('open'); const c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';">
-              <span>📦 <%= m.module_title %> — <%= m.percent %>% complete</span>
-              <i class="fa-solid fa-chevron-right chevron"></i>
-            </button>
+        <div class="sp-insight-card">
+          <h3>🚀 Predicted Completion Pace</h3>
+          <% if (predictedCompletion && predictedCompletion.remainingLessons === 0) { %>
+            <div class="sp-insight-big">🎉 Done!</div>
+            <div class="sp-insight-sub">All enrolled lessons completed.</div>
+          <% } else if (predictedCompletion) { %>
+            <div class="sp-insight-big"><%= predictedCompletion.estimatedDate.toLocaleDateString() %></div>
+            <div class="sp-insight-sub"><%= predictedCompletion.remainingLessons %> lessons left, at ~<%= predictedCompletion.velocityPerWeek %>/week recently</div>
+          <% } else { %>
+            <p class="sp-empty">Not enough recent activity to estimate a pace.</p>
+          <% } %>
+        </div>
 
-            <div style="display:none; padding: 14px;">
-              <div class="table-responsive">
-                <table class="user-table">
-                  <thead>
-                    <tr>
-                      <th>Lesson</th>
-                      <th>Status</th>
-                      <th>Quiz</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% m.lessons.forEach(l => { %>
-                      <tr>
-                        <td><%= l.title %></td>
-                        <td><%= l.completed ? "✅ Completed" : "⏳ Not Completed" %></td>
-                        <td>
-                          <% const lessonQuizzes = m.quizzes.filter(q => q.lesson_id === l.id); %>
-                          <% if (lessonQuizzes.length) { %>
-                            <% lessonQuizzes.forEach(q => { %>
-                              <%
-                                const quizLabel = /^quiz for lesson\s*\d+$/i.test((q.title || '').trim())
-                                  ? `Quiz for Lesson: ${l.title}`
-                                  : (q.title || 'Quiz');
-                              %>
-                              <div style="margin-bottom:4px;">
-                                <%= quizLabel %> —
-                                <% if (q.score !== null) { %>
-                                  Score: <strong><%= q.score %></strong>
-                                  &nbsp;<a href="/instructor/student/<%= student.id %>/quizzes/<%= q.id %>/download" style="color:var(--brand-pri-dark); font-weight:600;">📥 Download</a>
-                                <% } else { %>
-                                  <span style="color:#999;">Not attempted</span>
-                                <% } %>
-                              </div>
-                            <% }) %>
-                          <% } else { %>
-                            <span style="color:#999;">–</span>
-                          <% } %>
-                        </td>
-                      </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
+        <div class="sp-insight-card">
+          <h3>💪 Strongest Modules</h3>
+          <% if (strengths.length) { %>
+            <ul class="sp-rank-list">
+              <% strengths.forEach(s => { %>
+                <li>
+                  <span class="rank-title"><%= s.moduleTitle %> <span class="rank-sub">— <%= s.courseTitle %></span></span>
+                  <% const t = spScoreTier(s.quizAvg); %>
+                  <span class="sp-badge <%= t.cls %>"><%= t.emoji %> <%= s.quizAvg %>%</span>
+                </li>
+              <% }) %>
+            </ul>
+          <% } else { %>
+            <p class="sp-empty">No quiz data yet.</p>
+          <% } %>
+        </div>
+
+        <div class="sp-insight-card">
+          <h3>🎯 Needs the Most Practice</h3>
+          <% if (weaknesses.length) { %>
+            <ul class="sp-rank-list">
+              <% weaknesses.forEach(w => { %>
+                <li>
+                  <span class="rank-title"><%= w.moduleTitle %> <span class="rank-sub">— <%= w.courseTitle %></span></span>
+                  <% const t = spScoreTier(w.quizAvg); %>
+                  <span class="sp-badge <%= t.cls %>"><%= t.emoji %> <%= w.quizAvg %>%</span>
+                </li>
+              <% }) %>
+            </ul>
+          <% } else { %>
+            <p class="sp-empty">Not enough modules with quiz data to compare yet.</p>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COURSES ============ -->
+  <div id="courses" class="sp-panel">
+    <div class="sp-section">
+      <h2>🎓 Courses You Teach This Student</h2>
+      <div class="sp-course-grid">
+        <% courses.forEach((c, ci) => { %>
+          <div class="sp-course-card">
+            <img class="sp-course-thumb" src="<%= c.thumbnail_url || '/images/default-course.png' %>" alt="" />
+            <div class="sp-course-head" onclick="ispToggleCourse(<%= ci %>)">
+              <div>
+                <h3><%= c.course_title %></h3>
+                <span class="percent"><%= c.percent %>% complete · Assigned <%= c.enrolled_at ? new Date(c.enrolled_at).toLocaleDateString() : "N/A" %></span>
               </div>
+              <div class="sp-course-actions">
+                <a class="sp-icon-btn" href="/instructor/student/<%= student.id %>/course-summary/<%= c.id %>/download" onclick="event.stopPropagation()" title="Download course report">
+                  <i class="fa-solid fa-download"></i>
+                </a>
+                <span class="sp-toggle-icon" id="isp-icon-<%= ci %>">➕</span>
+              </div>
+            </div>
+            <div style="padding:0 18px;">
+              <div class="sp-bar"><div class="sp-bar-fill" style="width:<%= c.percent %>%"></div></div>
+            </div>
 
-              <div style="margin-top:14px;">
-                <h5 style="margin:0 0 8px; font-size:13px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em;">Module Assignments</h5>
-                <% if (m.assignments.length) { %>
-                  <ul class="recent-awards-list">
-                    <% m.assignments.forEach(a => { %>
-                      <li>
-                        <span><%= a.title %></span>
-                        <span class="award-amount"><%= a.grade ?? "Pending" %> / <%= a.total ?? "–" %></span>
-                      </li>
+            <div class="sp-module-list" id="isp-course-body-<%= ci %>">
+              <div class="sp-course-body">
+                <% c.modules.forEach((m) => { %>
+                  <div class="sp-module-card">
+                    <div class="sp-module-head">
+                      <h4>🧩 <%= m.module_title %> — <%= m.percent %>%</h4>
+                      <a class="sp-icon-btn" href="/instructor/student/<%= student.id %>/module-summary/<%= m.id %>/download" title="Download module report">
+                        <i class="fa-solid fa-download"></i>
+                      </a>
+                    </div>
+                    <div class="sp-bar" style="margin:6px 0 8px;"><div class="sp-bar-fill" style="width:<%= m.percent %>%"></div></div>
+                    <p style="font-size:12px; color:var(--text-secondary,#666); margin:0 0 6px;">
+                      Quiz: <%= m.quizAvg ?? "N/A" %>% · Assignment: <%= m.assignmentAvg ?? "N/A" %>%
+                    </p>
+                    <% m.lessons.forEach(l => { %>
+                      <div class="sp-lesson-row">
+                        <span class="lesson-title">📖 <%= l.lesson_title %></span>
+                        <span class="sp-lesson-time">⏱ <%= l.timeSpent %></span>
+                        <span class="<%= l.completed_at ? 'sp-status-ok' : 'sp-status-no' %>"><%= l.completed_at ? '✔' : '✖' %></span>
+                      </div>
                     <% }) %>
-                  </ul>
-                <% } else { %>
-                  <p style="color:#999; font-size:13px;">No assignments for this module.</p>
-                <% } %>
+                  </div>
+                <% }) %>
               </div>
             </div>
           </div>
         <% }) %>
       </div>
-    <% }) %>
+    </div>
+  </div>
+
+  <!-- ============ MODULES ============ -->
+  <div id="modules" class="sp-panel">
+    <div class="sp-section">
+      <h2>🧩 Modules</h2>
+      <% courses.forEach(c => { %>
+        <% c.modules.forEach(m => { %>
+          <% const grade = spLetterGrade(m.quizAvg); const gt = grade ? spScoreTier(m.quizAvg) : { cls: 'tier-neutral' }; %>
+          <div class="sp-list-card">
+            <% if (grade) { %>
+              <div class="sp-grade-circle <%= gt.cls %>"><span class="letter"><%= grade %></span><span class="lbl">Grade</span></div>
+            <% } %>
+            <div class="main">
+              <div class="title"><%= m.module_title %> <span style="font-weight:400; color:var(--text-secondary,#666); font-size:12px;">— <%= c.course_title %></span></div>
+              <div class="sub"><%= m.completedLessons %>/<%= m.totalLessons %> lessons · Quiz <%= m.quizAvg ?? "N/A" %>% · Assignment <%= m.assignmentAvg ?? "N/A" %>% · <%= m.moduleTime %></div>
+              <div class="sp-bar" style="margin-top:6px; max-width:220px;"><div class="sp-bar-fill" style="width:<%= m.percent %>%"></div></div>
+            </div>
+            <div class="actions">
+              <a class="sp-icon-btn" href="/instructor/student/<%= student.id %>/module-summary/<%= m.id %>/download" title="Download module report">
+                <i class="fa-solid fa-download"></i>
+              </a>
+            </div>
+          </div>
+        <% }) %>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- ============ LESSONS ============ -->
+  <div id="lessons" class="sp-panel">
+    <div class="sp-section">
+      <h2>📖 Lessons</h2>
+      <% courses.forEach(c => { %>
+        <% c.modules.forEach(m => { %>
+          <% m.lessons.forEach(l => { %>
+            <div class="sp-list-card">
+              <span style="font-size:20px;"><%= l.completed_at ? '✅' : '⭕' %></span>
+              <div class="main">
+                <div class="title"><%= l.lesson_title %></div>
+                <div class="sub"><%= m.module_title %> · <%= c.course_title %><%= l.completed_at ? ' · Completed ' + new Date(l.completed_at).toLocaleDateString() : '' %></div>
+              </div>
+            </div>
+          <% }) %>
+        <% }) %>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- ============ QUIZZES ============ -->
+  <div id="quizzes" class="sp-panel">
+    <div class="sp-section">
+      <h2>🧠 Quiz Results <span style="font-weight:400; font-size:13px; color:var(--text-secondary,#666);">— Overall average: <%= quizAvg ?? "N/A" %>%</span></h2>
+      <% if (quizzes.length) { %>
+        <% quizzes.forEach(q => { %>
+          <% const t = spScoreTier(q.score); %>
+          <div class="sp-list-card">
+            <span class="sp-badge <%= t.cls %>"><%= t.emoji %> <%= q.score %>%</span>
+            <div class="main">
+              <div class="title"><%= spFriendlyQuizTitle(q) %></div>
+              <div class="sub"><%= q.taken_at ? new Date(q.taken_at).toLocaleString() : '' %></div>
+            </div>
+            <div class="actions">
+              <a class="sp-icon-btn" href="/instructor/student/<%= student.id %>/quizzes/<%= q.id %>/download" title="Download quiz report"><i class="fa-solid fa-download"></i></a>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p class="sp-empty">No quizzes taken yet.</p>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- ============ ASSIGNMENTS ============ -->
+  <div id="assignments" class="sp-panel">
+    <div class="sp-section">
+      <h2>📝 Assignments</h2>
+      <% let anyAssignments = false; %>
+      <% courses.forEach(c => { %>
+        <% c.modules.forEach(m => { %>
+          <% (m.assignments || []).forEach(a => { %>
+            <% anyAssignments = true; %>
+            <div class="sp-list-card">
+              <span class="sp-badge <%= spScoreTier(a.total).cls %>"><%= a.total !== null && a.total !== undefined ? a.total + '%' : 'Pending' %></span>
+              <div class="main">
+                <div class="title"><%= a.title %></div>
+                <div class="sub"><%= m.module_title %> · <%= c.course_title %><%= a.submitted_at ? ' · Submitted ' + new Date(a.submitted_at).toLocaleDateString() : '' %></div>
+                <% if (a.ai_feedback) { %><div class="sub" style="font-style:italic; margin-top:4px;">🤖 <%= a.ai_feedback %></div><% } %>
+              </div>
+            </div>
+          <% }) %>
+        <% }) %>
+      <% }) %>
+      <% if (!anyAssignments) { %>
+        <p class="sp-empty">No assignments submitted yet.</p>
+      <% } %>
+    </div>
+  </div>
+
   <% } %>
 </div>
+
+<script>
+  function ispOpenTab(tabId) {
+    document.querySelectorAll('.sp-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.sp-panel').forEach(panel => panel.classList.remove('active'));
+    document.querySelector(`.sp-tab[onclick="ispOpenTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+
+  function ispToggleCourse(index) {
+    const body = document.getElementById("isp-course-body-" + index);
+    const icon = document.getElementById("isp-icon-" + index);
+    body.classList.toggle("open");
+    if (body.classList.contains("open")) {
+      icon.textContent = "✖";
+      icon.classList.add("open");
+    } else {
+      icon.textContent = "➕";
+      icon.classList.remove("open");
+    }
+  }
+</script>

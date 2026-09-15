@@ -1,57 +1,89 @@
 <%- include('../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
 
-<h2 style="margin-top:20px;">💬 Chat with <%= student.fullname %></h2>
-<p><%= student.email %></p>
+<div class="dm-page">
 
-<div id="chatContainer"
-     style="border:1px solid #ccc; border-radius:10px; padding:15px; width:90%; max-width:700px; height:400px; overflow-y:auto; background:#fafafa;">
-  <% if (messages.length > 0) { %>
-    <% messages.forEach(msg => { %>
-      <div style="text-align:<%= msg.sender === 'self' ? 'right' : 'left' %>; margin:8px 0;">
-        <div style="display:inline-block; padding:8px 12px; border-radius:10px;
-                    background:<%= msg.sender === 'self' ? '#d1f1ff' : '#f1f1f1' %>;">
-          <%= msg.message %>
-          <br>
-          <small style="color:gray; font-size:10px;">
-            <%= new Date(msg.created_at).toLocaleTimeString() %>
-            <% if (msg.sender === 'self') { %>
-              <% if (msg.is_read) { %> ✅✅
-              <% } else if (msg.is_delivered) { %> ✅
-              <% } else { %> ⏳
-              <% } %>
-            <% } %>
-          </small>
-        </div>
-      </div>
-    <% }) %>
-  <% } else { %>
-    <p style="text-align:center; color:gray;">No messages yet.</p>
-  <% } %>
-</div>
+  <div class="dm-header">
+    <img src="<%= student.profile_picture || '/images/profile male.png' %>" class="dm-header-avatar" alt="">
+    <div class="dm-header-info">
+      <h2><%= student.fullname %></h2>
+      <p><%= student.email %></p>
+    </div>
+    <% if (messages.length > 0) { %>
+      <span class="dm-streak">💬 <%= messages.length %> messages</span>
+    <% } %>
+  </div>
 
-<div style="margin-top:10px; width:90%; max-width:700px;">
-  <textarea id="chatMessage" rows="2" placeholder="Type your message..."
-            style="width:80%; padding:8px;"></textarea>
-  <button onclick="sendMessage()"
-          style="padding:8px 12px; background:#3498db; color:white; border:none; border-radius:5px;">
-    Send
-  </button>
+  <div id="chatContainer" class="dm-messages"></div>
+
+  <div class="dm-input-bar">
+    <textarea id="chatMessage" rows="1" placeholder="Type your message..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendMessage();}"></textarea>
+    <button class="dm-send-btn" onclick="sendMessage()" title="Send">➤</button>
+  </div>
+
+  <a href="/instructor/chats" class="dm-header-back" style="display:inline-block; margin-top:14px;">← Back to Chats</a>
+
 </div>
 
 <script>
 const studentId = "<%= student.id %>";
+const instructorAvatar = "<%= profilePic || '/images/profile male.png' %>";
+const studentAvatar = "<%= student.profile_picture || '/images/profile male.png' %>";
 const chatContainer = document.getElementById('chatContainer');
 
-// Scroll to bottom on load
-chatContainer.scrollTop = chatContainer.scrollHeight;
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-// ✅ Send message
+function renderMessages(messages) {
+  if (!messages.length) {
+    chatContainer.innerHTML = '<p class="dm-empty">No messages yet — say hello 👋</p>';
+    return;
+  }
+
+  let html = '';
+  let lastDay = null;
+
+  messages.forEach(msg => {
+    const date = new Date(msg.created_at);
+    const dayKey = date.toDateString();
+    if (dayKey !== lastDay) {
+      html += `<div class="dm-day-divider">${date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</div>`;
+      lastDay = dayKey;
+    }
+
+    const isSelf = msg.sender === 'self';
+    let statusIcon = '';
+    if (isSelf) {
+      if (msg.is_read) statusIcon = '✅✅';
+      else if (msg.is_delivered) statusIcon = '✅';
+      else statusIcon = '⏳';
+    }
+
+    html += `
+      <div class="dm-msg-row ${isSelf ? 'dm-self' : 'dm-other'}">
+        <img class="dm-msg-avatar" src="${isSelf ? instructorAvatar : studentAvatar}" alt="">
+        <div class="dm-bubble">
+          ${escapeHtml(msg.message)}
+          <span class="dm-meta">${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${statusIcon}</span>
+        </div>
+      </div>`;
+  });
+
+  chatContainer.innerHTML = html;
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+renderMessages(<%- JSON.stringify(messages).replace(/</g, '\\u003c') %>);
+
 async function sendMessage() {
-  const message = document.getElementById('chatMessage').value.trim();
+  const input = document.getElementById('chatMessage');
+  const message = input.value.trim();
   if (!message) return showAlert('Please type a message.');
 
   try {
-    const res = await fetch('/student/chat/send', {
+    const res = await fetch('/instructor/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ receiverId: studentId, message })
@@ -59,7 +91,7 @@ async function sendMessage() {
 
     const data = await res.json();
     if (data.success) {
-      document.getElementById('chatMessage').value = '';
+      input.value = '';
       await loadNewMessages();
     } else {
       showAlert('❌ ' + data.message);
@@ -70,49 +102,21 @@ async function sendMessage() {
   }
 }
 
-// ✅ Auto-refresh chat every 5s
 async function loadNewMessages() {
   try {
-    const res = await fetch(`/student/chat/messages/${studentId}`);
+    const res = await fetch(`/instructor/chat/messages/${studentId}`);
     const messages = await res.json();
-
-    chatContainer.innerHTML = '';
-    messages.forEach(msg => {
-      const msgDiv = document.createElement('div');
-      msgDiv.style.textAlign = msg.sender === 'self' ? 'right' : 'left';
-      msgDiv.style.margin = '8px 0';
-
-      let statusIcon = '';
-      if (msg.sender === 'self') {
-        if (msg.is_read) statusIcon = '✅✅';
-        else if (msg.is_delivered) statusIcon = '✅';
-        else statusIcon = '⏳';
-      }
-
-      msgDiv.innerHTML = `
-        <div style="display:inline-block; padding:8px 12px; border-radius:10px;
-                    background:${msg.sender === 'self' ? '#d1f1ff' : '#f1f1f1'};">
-          ${msg.message}
-          <br>
-          <small style="color:gray; font-size:10px;">
-            ${new Date(msg.created_at).toLocaleTimeString()} ${statusIcon}
-          </small>
-        </div>`;
-      chatContainer.appendChild(msgDiv);
-    });
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    renderMessages(messages);
   } catch (err) {
     console.error('Error loading messages:', err);
   }
 }
 
-// 🔄 Auto refresh
 setInterval(loadNewMessages, 5000);
 
-// ✅ Mark messages as read when chat opens
 (async () => {
   try {
-    await fetch(`/student/chat/markRead/${studentId}`, { method: 'POST' });
+    await fetch(`/instructor/chat/markRead/${studentId}`, { method: 'POST' });
   } catch (err) {
     console.warn('Failed to mark messages as read:', err);
   }

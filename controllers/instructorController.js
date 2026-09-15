@@ -5,6 +5,11 @@ const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/
 const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const instructorAwardService = require("../services/instructorAwardService");
 
+// Same banned-word list as the student side (studentController.sendChatMessage)
+// — kept in sync so instructor messages get the same moderation, now that
+// this function is actually reachable (see routes/instructor.js).
+const CHAT_BANNED_WORDS = ["stupid", "idiot", "hate", "fool", "nonsense"];
+
 exports.sendChatMessage = async (req, res) => {
   try {
     const { receiverId, message } = req.body;
@@ -16,6 +21,16 @@ exports.sendChatMessage = async (req, res) => {
 
     if (!receiverId || !message.trim()) {
       return res.status(400).json({ success: false, message: "Invalid input" });
+    }
+
+    const cleanMessage = message.toLowerCase();
+    for (const word of CHAT_BANNED_WORDS) {
+      if (cleanMessage.includes(word)) {
+        return res.json({
+          success: false,
+          message: "Your message contains inappropriate words.",
+        });
+      }
     }
 
     await pool.query(
@@ -89,21 +104,34 @@ exports.getInstructorChats = async (req, res) => {
     const instructorId = req.user.id;
     const schoolId = req.session.activeSchoolId;
 
-    // 🔹 Get student chat list
+    // 🔹 Get student chat list — one row per conversation, with a last-
+    // message preview and per-conversation unread count for the
+    // restyled conversation-list UI (badges, previews).
     const { rows } = await pool.query(
       `
-      SELECT DISTINCT 
+      SELECT
         u.id AS student_id,
         u.fullname AS student_name,
         u.email,
-        MAX(m.created_at) AS last_message_time
-      FROM messages m
-      JOIN users2 u ON 
-        (u.id = m.sender_id AND m.receiver_id = $1)
-        OR (u.id = m.receiver_id AND m.sender_id = $1)
+        u.profile_picture,
+        lm.message AS last_message,
+        lm.created_at AS last_message_time,
+        lm.sender_id AS last_message_sender_id,
+        (
+          SELECT COUNT(*) FROM messages
+          WHERE sender_id = u.id AND receiver_id = $1 AND is_read = FALSE
+        ) AS unread_count
+      FROM users2 u
+      JOIN LATERAL (
+        SELECT message, created_at, sender_id
+        FROM messages
+        WHERE (sender_id = u.id AND receiver_id = $1)
+           OR (sender_id = $1 AND receiver_id = u.id)
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) lm ON true
       WHERE u.role = 'student'
-      GROUP BY u.id, u.fullname, u.email
-      ORDER BY last_message_time DESC
+      ORDER BY lm.created_at DESC
       `,
       [instructorId]
     );
@@ -160,8 +188,8 @@ exports.getChatWithStudent = async (req, res) => {
 
     const { rows } = await pool.query(
       `
-      SELECT 
-        m.id, m.sender_id, m.receiver_id, m.message, m.created_at,
+      SELECT
+        m.id, m.sender_id, m.receiver_id, m.message, m.created_at, m.is_read, m.is_delivered,
         CASE WHEN m.sender_id = $1 THEN 'self' ELSE 'other' END AS sender
       FROM messages m
       WHERE (m.sender_id = $1 AND m.receiver_id = $2)
@@ -172,7 +200,7 @@ exports.getChatWithStudent = async (req, res) => {
     );
 
     const studentResult = await pool.query(
-      `SELECT id, fullname, email FROM users2 WHERE id = $1`,
+      `SELECT id, fullname, email, profile_picture FROM users2 WHERE id = $1`,
       [studentId]
     );
 
@@ -211,6 +239,28 @@ exports.markMessagesAsRead = async (req, res) => {
   } catch (err) {
     console.error("Mark read error:", err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Total unread direct-message count across every conversation — feeds
+// the small badge on the "Chats" nav link (see partials/adminHeader.ejs),
+// polled the same way the general notification bell already is.
+exports.getUnreadChatCount = async (req, res) => {
+  try {
+    const instructorId = req.session.user?.id;
+    if (!instructorId) {
+      return res.status(401).json({ success: false, count: 0 });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) AS count FROM messages WHERE receiver_id = $1 AND is_read = FALSE`,
+      [instructorId]
+    );
+
+    res.json({ success: true, count: Number(rows[0].count) });
+  } catch (err) {
+    console.error("Get unread chat count error:", err);
+    res.status(500).json({ success: false, count: 0 });
   }
 };
 
@@ -313,7 +363,7 @@ exports.renderClassChat = async (req, res) => {
 
     // get classroom info
     const classResult = await pool.query(
-      `SELECT id, name FROM classrooms WHERE id = $1`,
+      `SELECT id, name, chat_locked FROM classrooms WHERE id = $1`,
       [classroomId]
     );
 
@@ -321,14 +371,16 @@ exports.renderClassChat = async (req, res) => {
 
     const studentsResult = await pool.query(
     `
-    SELECT 
+    SELECT
       u.id,
       u.fullname,
       u.email,
       u.role,
-      u.profile_picture
+      u.profile_picture,
+      (ms.student_id IS NOT NULL) AS muted
     FROM users2 u
     JOIN user_school us ON us.user_id = u.id
+    LEFT JOIN muted_students ms ON ms.classroom_id = us.classroom_id AND ms.student_id = u.id
     WHERE us.classroom_id = $1
     AND us.role_in_school = 'student'
     ORDER BY u.fullname
@@ -336,15 +388,20 @@ exports.renderClassChat = async (req, res) => {
     [classroomId]
     );
 
-    // get class messages
+    // get class messages — role/profile_picture kept in sync with
+    // getClassMessages below (the AJAX refresh), since classChatView.ejs
+    // now renders both through the same client-side renderMessages()
+    // function and needs the same fields either way.
     const { rows } = await pool.query(
       `
-      SELECT 
+      SELECT
         cm.id,
         cm.message,
         cm.created_at,
         cm.sender_id,
-        u.fullname
+        u.fullname,
+        u.role,
+        u.profile_picture
       FROM class_messages cm
       JOIN users2 u ON u.id = cm.sender_id
       WHERE cm.classroom_id = $1
@@ -769,9 +826,6 @@ exports.loadSection = async (req, res) => {
       req.session.activeSchoolId = req.query.school_id;
     }
 
-    // const schoolId = req.session.activeSchoolId;
-    let schoolId = req.session.activeSchoolId;
-
     // Fetch shared data
     const info =
       (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"))
@@ -788,14 +842,23 @@ exports.loadSection = async (req, res) => {
     `, [instructorId]);
 
     const schools = schoolsRes.rows;
-    if (!schoolId) {
-      schoolId = req.session.activeSchoolId || null;
-    }
-    // const activeSchoolId = req.query.school_id || (schools[0] ? schools[0].id : null);
-    let activeSchoolId = req.session.activeSchoolId;
 
-    if (!activeSchoolId) {
-      activeSchoolId = null;
+    // req.session.activeSchoolId only ever gets set when a request
+    // explicitly carries ?school_id= (the <select id="schoolSelect"> on
+    // the Dashboard tab sends this on every subsequent tab click) — but
+    // that select only exists once the Dashboard tab's own AJAX call has
+    // rendered it. If the instructor clicks straight to another tab
+    // (Attendance, Students, ...) before that happens — or in a fresh
+    // session before Dashboard is ever opened — activeSchoolId stays
+    // unset, the `if (activeSchoolId)` block below never runs, and every
+    // classroom-dependent list (attendance's classroom dropdown among
+    // them) silently renders empty instead of erroring, which is
+    // confusing to debug from the UI alone. Default to (and persist) the
+    // instructor's first school so every tab works standalone.
+    let activeSchoolId = req.session.activeSchoolId || null;
+    if (!activeSchoolId && schools.length) {
+      activeSchoolId = schools[0].id;
+      req.session.activeSchoolId = activeSchoolId;
     }
 
     let school = null;
@@ -1331,19 +1394,17 @@ exports.getInstructorStudentsSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
     const schoolId = req.session.activeSchoolId;
-    // const studentsRes = await pool.query(
-    //   `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
-    //    FROM user_school us
-    //    JOIN users2 u ON u.id = us.user_id
-    //    JOIN classrooms c ON c.id = us.classroom_id
-    //    JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
-    //    WHERE ci.instructor_id = $1 AND us.role_in_school = 'student' AND us.approved = true AND c.school_id = $2`,
-    //   [instructorId, schoolId]
-    // );
 
+    // Row shape (classroom_id, coins, profile_picture) kept in sync with
+    // loadSection's "students" branch, since both render
+    // instructor/sections/students.ejs — that view's Award Points button
+    // needs classroom_id and its coin badge needs coins, neither of
+    // which this query previously selected.
     const studentsRes = await pool.query(
       `
-      SELECT DISTINCT u.id, u.fullname, u.email, c.name AS classroom_name
+      SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
+             COALESCE(u.coins, 0) AS coins,
+             c.id AS classroom_id, c.name AS classroom_name
       FROM user_school us
       JOIN users2 u ON u.id = us.user_id
       JOIN classrooms c ON c.id = us.classroom_id
@@ -1357,7 +1418,19 @@ exports.getInstructorStudentsSection = async (req, res) => {
       [instructorId, schoolId]
     );
 
-    res.render("instructor/sections/students", { students: studentsRes.rows });
+    // This view is a bare fragment (no <html>/header — it's normally
+    // injected into the dashboard shell's #main-content by loadSection's
+    // AJAX flow), so hitting this route directly renders it unstyled and
+    // without navigation. Not fixing that here — it's a separate,
+    // pre-existing gap — but awardBudget/awardCategories are supplied so
+    // it at least renders instead of throwing "awardBudget is not defined".
+    const awardBudget = await instructorAwardService.getRemainingBudget(instructorId);
+
+    res.render("instructor/sections/students", {
+      students: studentsRes.rows,
+      awardBudget,
+      awardCategories: instructorAwardService.getCategoryList(),
+    });
   } catch (err) {
     console.error("Instructor Students Section Error:", err);
     res.status(500).send("<p>Error loading students</p>");
@@ -1431,7 +1504,7 @@ exports.viewStudentProgress = async (req, res) => {
 
     /* 👤 2. Student info */
     const studentRes = await pool.query(
-      `SELECT id, fullname, email FROM users2 WHERE id = $1`,
+      `SELECT id, fullname, email, created_at, profile_picture FROM users2 WHERE id = $1`,
       [studentId]
     );
 
@@ -1450,156 +1523,90 @@ exports.viewStudentProgress = async (req, res) => {
     const layoutInfo = (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1")).rows[0] || {};
     const layoutData = { info: layoutInfo, role: "instructor", profilePic: req.session.user?.profile_picture || null };
 
-    /* 📚 3. Courses instructor teaches this student */
+    /* 📚 3. Courses instructor teaches this student — row shape kept
+       identical to adminController.viewStudentProgress's query (see
+       services/studentProgressAnalyticsService.js) so the same shared
+       computation (engagement, mastery, risk, heatmap, etc.) can run
+       on it; only the scoping differs (ci.instructor_id = instructorId,
+       so an instructor can never see a course they don't actually
+       teach this student). */
     const coursesRes = await pool.query(
       `
-      SELECT DISTINCT c.id, c.title AS course_title
+      SELECT DISTINCT ON (c.id) c.id, c.title AS course_title, c.thumbnail_url, cc.assigned_at AS enrolled_at
       FROM classroom_courses cc
       JOIN courses c ON c.id = cc.course_id
       JOIN classroom_instructors ci ON ci.classroom_id = cc.classroom_id
       JOIN user_school us ON us.classroom_id = cc.classroom_id
       WHERE us.user_id = $1
         AND ci.instructor_id = $2
-        AND c.school_id = $3
-      ORDER BY c.title
+      ORDER BY c.id, cc.assigned_at DESC
       `,
-      [studentId, instructorId, schoolId]
+      [studentId, instructorId]
     );
-
-    if (!coursesRes.rows.length) {
-      return res.render("instructor/sections/studentProgress", {
-        ...layoutData,
-        student,
-        courses: []
-      });
-    }
-
     const courseIds = coursesRes.rows.map(c => c.id);
 
-    /* 📦 4. Modules */
-    const modulesRes = await pool.query(
-      `
-      SELECT id, title AS module_title, course_id
-      FROM modules
-      WHERE course_id = ANY($1::int[])
-      ORDER BY order_number
-      `,
-      [courseIds]
-    );
+    const modulesRes = courseIds.length
+      ? await pool.query(
+          `SELECT id, title AS module_title, course_id FROM modules WHERE course_id = ANY($1::int[]) ORDER BY order_number`,
+          [courseIds]
+        )
+      : { rows: [] };
+    const moduleIds = modulesRes.rows.map(m => m.id);
 
-    /* 📘 5. Lessons + completion */
-    const lessonsRes = await pool.query(
-      `
-      SELECT l.id, l.title, l.module_id,
-             CASE
-               WHEN ulp.completed_at IS NOT NULL THEN true
-               ELSE false
-             END AS completed
-      FROM lessons l
-      LEFT JOIN user_lesson_progress ulp
-        ON ulp.lesson_id = l.id
-       AND ulp.user_id = $1
-      WHERE l.module_id = ANY(
-        SELECT id FROM modules WHERE course_id = ANY($2::int[])
-      )
-      ORDER BY l.order_number
-      `,
-      [studentId, courseIds]
-    );
+    const lessonsRes = moduleIds.length
+      ? await pool.query(
+          `
+          SELECT l.id, l.title AS lesson_title, l.module_id, ulp.completed_at
+          FROM lessons l
+          LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
+          WHERE l.module_id = ANY($2::int[])
+          ORDER BY l.order_number
+          `,
+          [studentId, moduleIds]
+        )
+      : { rows: [] };
 
-    /* 🧠 6. Quizzes */
-    const quizzesRes = await pool.query(
-      `
-      SELECT q.id, q.title, l.module_id, l.id AS lesson_id,
-             COALESCE(qs.score, NULL) AS score
-      FROM quizzes q
-      JOIN lessons l ON q.lesson_id = l.id
-      LEFT JOIN quiz_submissions qs
-        ON qs.quiz_id = q.id
-       AND qs.student_id = $1
-      WHERE l.module_id = ANY(
-        SELECT id FROM modules WHERE course_id = ANY($2::int[])
-      )
-      ORDER BY q.id
-      `,
-      [studentId, courseIds]
-    );
+    const quizzesRes = moduleIds.length
+      ? await pool.query(
+          `
+          SELECT q.id, q.title, l.module_id, qs.score, qs.created_at AS taken_at, l.title AS lesson_title, qs.passed
+          FROM quiz_submissions qs
+          JOIN quizzes q ON qs.quiz_id = q.id
+          JOIN lessons l ON q.lesson_id = l.id
+          WHERE l.module_id = ANY($1::int[]) AND qs.student_id = $2
+          ORDER BY qs.created_at DESC
+          `,
+          [moduleIds, studentId]
+        )
+      : { rows: [] };
 
-    /* 📑 7. Assignments */
-    const assignmentsRes = await pool.query(
-      `
-      SELECT ma.id, ma.title, ma.module_id,
-             COALESCE(asub.grade, NULL) AS grade,
-             COALESCE(asub.total, NULL) AS total
-      FROM module_assignments ma
-      LEFT JOIN assignment_submissions asub
-        ON asub.assignment_id = ma.id
-       AND asub.student_id = $1
-      WHERE ma.module_id = ANY(
-        SELECT id FROM modules WHERE course_id = ANY($2::int[])
-      )
-      ORDER BY ma.id
-      `,
-      [studentId, courseIds]
-    );
+    const assignmentsRes = moduleIds.length
+      ? await pool.query(
+          `
+          SELECT ma.id, ma.title, ma.module_id, s.total, s.grade, s.ai_feedback, s.created_at AS submitted_at
+          FROM assignment_submissions s
+          JOIN module_assignments ma ON s.assignment_id = ma.id
+          WHERE ma.module_id = ANY($1::int[]) AND s.student_id = $2
+          ORDER BY s.created_at DESC
+          `,
+          [moduleIds, studentId]
+        )
+      : { rows: [] };
 
-    /* 🧠 8. Build nested structure */
-    const courses = coursesRes.rows.map(course => {
-      const courseModules = modulesRes.rows.filter(
-        m => m.course_id === course.id
-      );
-
-      const modules = courseModules.map(module => {
-        const lessons = lessonsRes.rows.filter(
-          l => l.module_id === module.id
-        );
-
-        const quizzes = quizzesRes.rows.filter(
-          q => q.module_id === module.id
-        );
-
-        const assignments = assignmentsRes.rows.filter(
-          a => a.module_id === module.id
-        );
-
-        const totalLessons = lessons.length;
-        const completedLessons = lessons.filter(l => l.completed).length;
-
-        return {
-          ...module,
-          lessons,
-          quizzes,
-          assignments,
-          totalLessons,
-          completedLessons,
-          percent: totalLessons
-            ? Math.round((completedLessons / totalLessons) * 100)
-            : 0
-        };
-      });
-
-      const totalLessons = modules.reduce((s, m) => s + m.totalLessons, 0);
-      const completedLessons = modules.reduce(
-        (s, m) => s + m.completedLessons,
-        0
-      );
-
-      return {
-        ...course,
-        modules,
-        totalLessons,
-        completedLessons,
-        percent: totalLessons
-          ? Math.round((completedLessons / totalLessons) * 100)
-          : 0
-      };
+    const { computeStudentProgressAnalytics } = require("../services/studentProgressAnalyticsService");
+    const analytics = await computeStudentProgressAnalytics(studentId, {
+      courseRows: coursesRes.rows,
+      moduleRows: modulesRes.rows,
+      lessonRows: lessonsRes.rows,
+      quizRows: quizzesRes.rows,
+      assignmentRows: assignmentsRes.rows,
     });
 
-    /* 🎯 9. Render */
     res.render("instructor/sections/studentProgress", {
       ...layoutData,
       student,
-      courses
+      membershipDuration: analytics.formatDuration(student.created_at),
+      ...analytics,
     });
 
   } catch (err) {

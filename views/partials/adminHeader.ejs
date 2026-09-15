@@ -64,9 +64,9 @@
         <% } %>
 
         <% if (role === 'instructor') { %>
-          
+
           <a href="/instructor/dashboard">Dashboard</a>
-          <a href="/instructor/chats">Chats</a>
+          <a href="/instructor/chats">Chats<span id="navChatBadge" class="nav-chat-badge" style="display:none;"></span></a>
         <% } %>
         <div class="dropdown">
             <button class="dropbtn" onclick="toggleDropdown('resourceMenu')">
@@ -383,5 +383,41 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState({}, '', cleanUrl);
   })();
 </script>
+
+<% if (role === 'instructor') { %>
+<script>
+  (function () {
+    var POLL_MS = 25000;
+    var badge = document.getElementById('navChatBadge');
+    if (!badge) return;
+
+    function refreshChatBadge() {
+      fetch('/instructor/chats/unread-count')
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          if (data.count > 0) {
+            badge.textContent = data.count > 99 ? '99+' : String(data.count);
+            badge.style.display = 'inline-flex';
+          } else {
+            badge.style.display = 'none';
+          }
+        })
+        .catch(function () {});
+    }
+
+    refreshChatBadge();
+    var timer = setInterval(refreshChatBadge, POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        clearInterval(timer);
+      } else {
+        refreshChatBadge();
+        timer = setInterval(refreshChatBadge, POLL_MS);
+      }
+    });
+  })();
+</script>
+<% } %>
 </body>
 </html>
