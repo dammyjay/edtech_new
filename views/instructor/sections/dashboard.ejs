@@ -73,8 +73,8 @@
             <td><%= course.student_count %></td>
             <td class="multi-btn">
               <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'">View Content</button>
-              <button class="btn-edit" onclick="window.location.href='/instructor/admin/courses/<%= course.id %>/edit'">Edit</button>
-              <button class="btn-blue" onclick="window.location.href='/instructor/courses/<%= course.id %>/students'">Students</button>
+              <button class="btn-edit" onclick="window.location.href='/instructor/courses/<%= course.id %>'">Edit</button>
+              <button class="btn-blue" onclick="loadSection('students')">Students</button>
             </td>
           </tr>
         <% }) %>

@@ -1,33 +1,43 @@
-<h2>📑 Student Reports</h2>
-<div class="table-responsive">
-  <table class="user-table sortable-table" border="1" cellpadding="8" cellspacing="0" width="100%">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Full Name</th>
-        <th>Email</th>
-        <th>Classroom</th>
-        <th>Download Report</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% if (students.length > 0) { %>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-file-arrow-down"></i> Student Reports</h1>
+    <p class="subtitle">Download a full progress report (PDF) for any student you teach.</p>
+  </div>
+</div>
+
+<% if (!students || students.length === 0) { %>
+  <div class="instructor-empty">
+    <i class="fa-solid fa-file-arrow-down"></i>
+    <p>No students found.</p>
+  </div>
+<% } else { %>
+  <div class="table-responsive">
+    <table class="user-table sortable-table">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Classroom</th>
+          <th>Report</th>
+        </tr>
+      </thead>
+      <tbody>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
             <td>
-              <a href="/instructor/student/<%= stu.id %>/report">⬇️ Download</a>
+              <a class="btn-view" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;" href="/instructor/student/<%= stu.id %>/report">
+                <i class="fa-solid fa-download"></i> Download
+              </a>
+              <button class="btn-blue" onclick="window.location.href='/instructor/student/<%= stu.id %>/progress'">
+                <i class="fa-solid fa-chart-line"></i> View Progress
+              </button>
             </td>
           </tr>
         <% }) %>
-      <% } else { %>
-        <tr>
-          <td colspan="5">No reports available.</td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-</div>
+      </tbody>
+    </table>
+  </div>
+<% } %>

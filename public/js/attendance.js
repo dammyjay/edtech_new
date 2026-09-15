@@ -1,13 +1,34 @@
 async function loadAttendanceHistory() {
-  const term_id = document.getElementById("attendanceFilterTerm").value;
-  const classroom_id = document.getElementById(
-    "attendanceFilterClassroom",
-  ).value;
+  // Guards against a real (if narrow) race: saveAttendance() calls this
+  // on success, but the instructor may have already clicked a different
+  // sidebar tab in the meantime — loadSection() swaps #main-content's
+  // whole innerHTML= before that fetch/response cycle finishes, so
+  // these elements (and #attendanceTableBody below) can legitimately be
+  // gone by the time this runs. Without this, that reads .value off
+  // null and throws.
+  const termEl = document.getElementById("attendanceFilterTerm");
+  const classroomEl = document.getElementById("attendanceFilterClassroom");
+  if (!termEl || !classroomEl) return;
 
-  const res = await fetch(
-    `/instructor/attendance/history?term_id=${term_id}&classroom_id=${classroom_id}`,
-  );
-  const data = await res.json();
+  const term_id = termEl.value;
+  const classroom_id = classroomEl.value;
+
+  const tbody = document.getElementById("attendanceTableBody");
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="instructor-loading-inline"><div class="instructor-spinner small"></div> Loading history…</div></td></tr>`;
+  }
+
+  let data;
+  try {
+    const res = await fetch(
+      `/instructor/attendance/history?term_id=${term_id}&classroom_id=${classroom_id}`,
+    );
+    data = await res.json();
+  } catch (err) {
+    console.error("Load attendance history error:", err);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Failed to load history — try again.</td></tr>`;
+    return;
+  }
 
   let html = "";
 
@@ -46,7 +67,11 @@ async function loadAttendanceHistory() {
     });
   }
 
-  document.getElementById("attendanceTableBody").innerHTML = html;
+  // Reuse the same tbody reference captured (and null-checked) above —
+  // a fresh getElementById here was the actual source of the
+  // "setting innerHTML on null" race (this fetch can finish after the
+  // instructor has already navigated to a different tab).
+  if (tbody) tbody.innerHTML = html;
 }
 
 function openAttendanceModal() {
@@ -58,73 +83,57 @@ function closeModal(id) {
   document.getElementById(id).style.display = "none";
 }
 
-// async function loadAttendanceStudents() {
-//   const term_id = document.getElementById("attendanceFilterTerm").value;
-//   const classroom_id = document.getElementById(
-//     "attendanceFilterClassroom",
-//   ).value;
-
-//   const res = await fetch(
-//     `/instructor/attendance/students?term_id=${term_id}&classroom_id=${classroom_id}`,
-//   );
-//   const data = await res.json();
-
-//   let html = "<h3>Mark Attendance</h3>";
-
-//   data.forEach((s) => {
-//     html += `
-//       <div style="margin:5px 0;">
-//         <span>${s.fullname}</span>
-//         <select data-id="${s.id}">
-//           <option value="present">Present</option>
-//           <option value="absent">Absent</option>
-//           <option value="late">Late</option>
-//         </select>
-//       </div>
-//     `;
-//   });
-
-//   html += `<button onclick="saveAttendance()">Save</button>`;
-
-//   document.getElementById("attendanceStudentList").innerHTML = html;
-// }
-
 async function loadAttendanceStudents() {
   const term_id = document.getElementById("attendanceFilterTerm").value;
   const classroom_id = document.getElementById(
     "attendanceFilterClassroom",
   ).value;
 
+  const container = document.getElementById("attendanceStudentList");
+
   if (!classroom_id) {
-    document.getElementById("attendanceStudentList").innerHTML =
-      "<p style='color:red;'>⚠️ Please select a classroom first</p>";
+    container.innerHTML =
+      "<p style='color:#c0392b; font-weight:600;'>⚠️ Please select a classroom first</p>";
     return;
   }
 
-  const res = await fetch(
-    `/instructor/attendance/students?term_id=${term_id}&classroom_id=${classroom_id}`,
-  );
+  container.innerHTML = `<div class="instructor-loading-inline"><div class="instructor-spinner small"></div> Loading students…</div>`;
 
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(
+      `/instructor/attendance/students?term_id=${term_id}&classroom_id=${classroom_id}`,
+    );
+    data = await res.json();
+  } catch (err) {
+    console.error("Load attendance students error:", err);
+    container.innerHTML = `<p style="color:#c0392b;">Failed to load students — try again.</p>`;
+    return;
+  }
 
-  let html = "<h3>Mark Attendance</h3>";
+  if (!data.length) {
+    container.innerHTML = `<p style="color:#999;">No students found in this classroom.</p>`;
+    return;
+  }
+
+  let html = "<h4 style='margin:14px 0 8px;'>Mark Attendance</h4>";
 
   data.forEach((s) => {
     html += `
-      <div style="margin:5px 0;">
-        <span>${s.fullname}</span>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:8px; background:#faf7f0; margin-bottom:6px;">
+        <span style="font-weight:600; font-size:13.5px;">${s.fullname}</span>
         <select data-id="${s.id}">
-          <option value="present">Present</option>
-          <option value="absent">Absent</option>
-          <option value="late">Late</option>
+          <option value="present">✅ Present</option>
+          <option value="absent">❌ Absent</option>
+          <option value="late">⏰ Late</option>
         </select>
       </div>
     `;
   });
 
-  html += `<button onclick="saveAttendance()">Save</button>`;
+  html += `<button class="btn-primary" id="saveAttendanceBtn" onclick="saveAttendance()" style="margin-top:10px; width:100%;">Save Attendance</button>`;
 
-  document.getElementById("attendanceStudentList").innerHTML = html;
+  container.innerHTML = html;
 }
 
 // This file is loaded once via a persistent <script src> in
@@ -135,6 +144,12 @@ async function loadAttendanceStudents() {
 // never fire. Delegating from document works regardless of load order.
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "sessionStatus") loadAttendanceStudents();
+  // Auto-reload the history table the moment either filter changes —
+  // same delegation reason as above (these selects live inside an
+  // AJAX-swapped section, not the persistent shell this file loads in).
+  if (e.target && (e.target.id === "attendanceFilterTerm" || e.target.id === "attendanceFilterClassroom")) {
+    loadAttendanceHistory();
+  }
 });
 
 async function saveAttendance() {
@@ -162,14 +177,32 @@ const payload = {
   records,
 };
 
-  const res = await fetch("/instructor/attendance/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  const saveBtn = document.getElementById("saveAttendanceBtn");
+  const originalLabel = saveBtn ? saveBtn.textContent : null;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<span class="instructor-spinner small" style="border-color:rgba(255,255,255,0.4); border-top-color:#fff; vertical-align:middle; margin-right:6px;"></span> Saving…`;
+  }
 
-  const data = await res.json();
-  showAlert(data.success ? "Saved!" : "Error saving");
+  try {
+    const res = await fetch("/instructor/attendance/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    showAlert(data.success ? "Attendance saved!" : (data.message || "Error saving attendance"), data.success ? "success" : "error");
+    if (data.success) loadAttendanceHistory();
+  } catch (err) {
+    console.error("Save attendance error:", err);
+    showAlert("Server error saving attendance.", "error");
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalLabel;
+    }
+  }
 }
 
 async function toggleAttendanceDetails(sessionId) {

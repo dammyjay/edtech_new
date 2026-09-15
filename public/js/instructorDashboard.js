@@ -20,7 +20,42 @@
 
 let currentSection = "dashboard";
 
+// Small shared helper for "disable + spinner" button states on
+// one-off form submissions (award, class report save/delete) — the
+// section-level loading state above covers whole-page navigation, this
+// covers a single in-place async action.
+async function withButtonLoading(selector, label, fn) {
+  const btn = document.querySelector(selector);
+  const original = btn ? btn.innerHTML : null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="instructor-spinner small" style="border-color:rgba(255,255,255,0.4); border-top-color:#fff; vertical-align:middle; margin-right:6px;"></span> ${label}`;
+  }
+  try {
+    await fn();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+}
+
 async function loadSection(section) {
+  // A live CKEditor instance (from the class-report composer) keeps
+  // internal references to its own DOM (iframe, floating toolbars) that
+  // #main-content's innerHTML= is about to rip out from under it —
+  // CKEditor doesn't know that happened, so its next internal
+  // reposition/cleanup pass throws ("getClientRect on null", etc.).
+  // destroy() itself isn't fully synchronous for every internal
+  // teardown step (a known CKEditor 4 quirk), so give it a real tick
+  // before tearing the DOM out from under it, instead of assuming
+  // destroy() returning means it's actually done.
+  if (classReportEditor) {
+    destroyClassReportEditor();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   const baseSection = section.split("?")[0];
   const schoolSelect = document.getElementById("schoolSelect");
   const schoolId = schoolSelect ? schoolSelect.value : null;
@@ -37,14 +72,35 @@ async function loadSection(section) {
   });
 
   const main = document.getElementById("main-content");
+  main.innerHTML = `
+    <div class="instructor-loading">
+      <div class="instructor-spinner"></div>
+      <p>Loading…</p>
+    </div>
+  `;
+
   try {
     const res = await fetch(url);
+    if (!res.ok) {
+      main.innerHTML = `
+        <div class="instructor-empty">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <p>Couldn't load this section (${res.status}). Please try again.</p>
+        </div>
+      `;
+      return;
+    }
     const html = await res.text();
     main.innerHTML = html;
     afterSectionLoad(baseSection);
   } catch (err) {
     console.error("Load section error:", err);
-    main.innerHTML = "<p style='color:red'>Failed to load section</p>";
+    main.innerHTML = `
+      <div class="instructor-empty">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <p>Couldn't load this section — check your connection and try again.</p>
+      </div>
+    `;
   }
 }
 
@@ -54,6 +110,12 @@ function afterSectionLoad(section) {
   if (section === "students") refreshAwardBudget();
   if (section === "class_reports") initClassReportsSection();
   if (section === "schools") renderAnalyticsCharts();
+  // attendance.js (loaded persistently, same reason as this file) owns
+  // loadAttendanceHistory() — auto-populate the table the moment the
+  // tab opens instead of waiting for the instructor to click Refresh.
+  if (section === "attendance" && typeof loadAttendanceHistory === "function") {
+    loadAttendanceHistory();
+  }
 }
 
 function bindSchoolSelector() {
@@ -240,24 +302,26 @@ async function submitAward() {
   const noteEl = document.getElementById("awardNote");
   const note = noteEl ? noteEl.value.trim() : "";
 
-  try {
-    const res = await fetch(`/instructor/students/${selectedAwardStudentId}/award`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: selectedAwardCategory, classroom_id: selectedAwardClassroomId, note }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert(`🎉 Awarded ${data.amount} coins for "${data.category}"!`, "success");
-      closeAwardModal();
-      loadSection(currentSection);
-    } else {
-      showAlert(data.message || "Couldn't award points.", "error");
+  await withButtonLoading("#awardModal .btn-award", "Awarding…", async () => {
+    try {
+      const res = await fetch(`/instructor/students/${selectedAwardStudentId}/award`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: selectedAwardCategory, classroom_id: selectedAwardClassroomId, note }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert(`🎉 Awarded ${data.amount} coins for "${data.category}"!`, "success");
+        closeAwardModal();
+        loadSection(currentSection);
+      } else {
+        showAlert(data.message || "Couldn't award points.", "error");
+      }
+    } catch (err) {
+      console.error("Submit award error:", err);
+      showAlert("Server error awarding points.", "error");
     }
-  } catch (err) {
-    console.error("Submit award error:", err);
-    showAlert("Server error awarding points.", "error");
-  }
+  });
 }
 
 // =====================================================================
@@ -346,7 +410,31 @@ function initClassReportsSection() {
 
 function ensureReportEditor() {
   if (classReportEditor) return;
-  classReportEditor = CKEDITOR.replace("reportContentField", { height: 280 });
+  // versionCheck:false — CKEditor 4's own "this version is insecure"
+  // self-check schedules an async notification (a real network request,
+  // resolving well after CKEDITOR.replace() itself returns) that tries
+  // to lay itself out against the editor's toolbar. In a page that
+  // swaps this editor's whole DOM away on the next tab click (this one),
+  // that notification can still be in flight when it happens, and
+  // throws trying to position itself against elements that are already
+  // gone. This is CKEditor's own documented flag for turning that
+  // specific check off — not a workaround for anything this app does.
+  classReportEditor = CKEDITOR.replace("reportContentField", { height: 280, versionCheck: false });
+}
+
+// Safe to call even if no instance exists, or if its DOM is already
+// gone (CKEDITOR.instances is a plain lookup by name, and .destroy()
+// itself tolerates a detached DOM — it's only the LATER, unsolicited
+// internal callbacks that don't).
+function destroyClassReportEditor() {
+  if (!classReportEditor) return;
+  try {
+    classReportEditor.destroy(true);
+  } catch (err) {
+    // Already-detached DOM can make destroy() itself throw — the goal
+    // here is just making sure nothing keeps a dangling reference.
+  }
+  classReportEditor = null;
 }
 
 function openNewReportModal() {
@@ -417,24 +505,26 @@ async function submitClassReport() {
   }
 
   const url = editingReportId ? `/instructor/class-reports/${editingReportId}/edit` : "/instructor/class-reports";
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content, classroom_id: classroomId, report_date: reportDate }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert(editingReportId ? "Report updated!" : "Report saved!", "success");
-      closeClassReportModal();
-      loadSection("class_reports");
-    } else {
-      showAlert(data.message || "Couldn't save the report.", "error");
+  await withButtonLoading("#classReportModal .btn-primary", "Saving…", async () => {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content, classroom_id: classroomId, report_date: reportDate }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert(editingReportId ? "Report updated!" : "Report saved!", "success");
+        closeClassReportModal();
+        loadSection("class_reports");
+      } else {
+        showAlert(data.message || "Couldn't save the report.", "error");
+      }
+    } catch (err) {
+      console.error("Submit class report error:", err);
+      showAlert("Server error saving report.", "error");
     }
-  } catch (err) {
-    console.error("Submit class report error:", err);
-    showAlert("Server error saving report.", "error");
-  }
+  });
 }
 
 async function deleteClassReportConfirm(id) {

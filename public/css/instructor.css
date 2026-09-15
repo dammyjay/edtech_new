@@ -345,3 +345,276 @@
     padding: 64px 16px 40px; /* extra top padding clears the fixed toggle button */
   }
 }
+
+/* ---------- Section loading state ---------- */
+/* Shown in #main-content the instant a tab/dropdown-triggered
+   loadSection() fetch starts, and in any smaller in-section list that
+   re-fetches on a filter change (attendance history, etc.) — swapped
+   out again the moment real content (or an error) arrives. */
+.instructor-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.instructor-spinner {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 4px solid #f0e6cc;
+  border-top-color: var(--brand-pri);
+  animation: instructor-spin 0.8s linear infinite;
+}
+
+.instructor-spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 3px;
+}
+
+@keyframes instructor-spin {
+  to { transform: rotate(360deg); }
+}
+
+.instructor-loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* Small "in-progress" state for a dropdown/select while its section is
+   refetching (visual only — the select stays usable). */
+select.is-loading { opacity: 0.6; pointer-events: none; }
+
+/* ---------- Empty states ---------- */
+.instructor-empty {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text-secondary);
+}
+
+.instructor-empty i {
+  font-size: 2.2rem;
+  color: var(--border-dark);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.instructor-empty p { margin: 4px 0 0; font-size: 14px; }
+
+/* ---------- Course cards (reports.ejs / assigned_courses.ejs / classes.ejs) ---------- */
+.course-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 6px 0 26px;
+}
+
+.course-card {
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.course-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+.course-card .course-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #E9C25E, var(--brand-pri));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.course-card h3 { margin: 0; font-size: 1.02rem; }
+
+.course-card .course-card-meta {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.course-card .course-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+/* ---------- Breadcrumb / page intro ---------- */
+.instructor-breadcrumb {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.instructor-breadcrumb a { color: var(--brand-pri-dark); text-decoration: none; font-weight: 600; }
+.instructor-breadcrumb a:hover { text-decoration: underline; }
+
+/* ---------- Gamified instructor course-learning page ---------- */
+.instructor-learn-header {
+  background: linear-gradient(135deg, #201B12, #3a2f18);
+  color: #EDE6D6;
+  border-radius: var(--radius-lg, 16px);
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.instructor-learn-header .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #E9C25E;
+  margin-bottom: 4px;
+}
+
+.instructor-learn-header h1 { margin: 0; font-size: 1.5rem; }
+
+.instructor-learn-header .preview-badge {
+  background: rgba(233, 194, 94, 0.15);
+  border: 1px solid rgba(233, 194, 94, 0.4);
+  color: #E9C25E;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.instructor-learn-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.instructor-learn-progress .bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.instructor-learn-progress .bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-pri), #E9C25E);
+  border-radius: 999px;
+}
+
+.instructor-learn-progress .pct { font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+.module-card.gamified {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius, 10px);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.module-card.gamified .module-toggle {
+  width: 100%;
+  text-align: left;
+  background: #faf7f0;
+  border: none;
+  padding: 13px 14px;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-primary);
+}
+
+.module-card.gamified .module-toggle:hover { background: #f3ece0; }
+
+.module-card.gamified .module-toggle .chevron { transition: transform 0.2s ease; opacity: 0.6; }
+.module-card.gamified .module-toggle.open .chevron { transform: rotate(90deg); }
+
+.lesson-pill-list { list-style: none; padding: 10px 12px; margin: 0; }
+
+.lesson-pill-list > li { margin-bottom: 10px; }
+
+.lesson-toggle-pill {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm, 8px);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.lesson-toggle-pill:hover { border-color: var(--brand-pri); }
+
+.lesson-part-chips {
+  list-style: none;
+  padding: 8px 0 0 14px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lesson-part-chips button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.lesson-part-chips button:hover { background: #faf7f0; color: var(--brand-pri-dark); }
+
+.instructor-learn-empty-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.instructor-learn-empty-main i { font-size: 2.6rem; color: var(--border-dark); margin-bottom: 12px; }

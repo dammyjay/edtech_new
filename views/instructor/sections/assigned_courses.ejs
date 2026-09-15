@@ -1,42 +1,34 @@
-<h2>📚 Assigned Courses</h2>
-
-<% if (classroomCourse.length === 0) { %>
-  <p>No courses assigned to your classrooms in this school.</p>
-<% } else { %>
-  <div class="table-responsive">
-     <table class="user-table sortable-table" style="width:80%; margin-top:20px;">
-      <thead>
-        <tr>
-          <th>Course</th>
-          <th>Classroom</th>
-          <th>Students</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% classroomCourse.forEach(course => { %>
-          <tr>
-            <td><%= course.title %></td>
-            <td><%= course.classroom_name %></td>
-            <td><%= course.student_count %></td>
-            <td>
-              <button
-                class="btn-edit"
-                onclick="location.href='/instructor/courses/<%= course.id %>/learn'">
-                Teach
-              </button>
-
-              <button
-                class="btn-edit"
-                style="background:#6c5ce7;"
-                onclick="location.href='/instructor/courses/<%= course.id %>/students?classroom=<%= course.classroom_id %>'">
-                Students
-              </button>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-book-open"></i> Assigned Courses</h1>
+    <p class="subtitle">Courses assigned to your classrooms in this school.</p>
   </div>
-  
+</div>
+
+<% if (!classroomCourse || classroomCourse.length === 0) { %>
+  <div class="instructor-empty">
+    <i class="fa-solid fa-book-open"></i>
+    <p>No courses assigned to your classrooms in this school yet.</p>
+  </div>
+<% } else { %>
+  <div class="course-card-grid">
+    <% classroomCourse.forEach(course => { %>
+      <div class="course-card">
+        <div class="course-card-icon"><i class="fa-solid fa-book"></i></div>
+        <h3><%= course.title %></h3>
+        <div class="course-card-meta">
+          <span><i class="fa-solid fa-school"></i> <%= course.classroom_name %></span>
+          <span><i class="fa-solid fa-user-graduate"></i> <%= course.student_count %> students</span>
+        </div>
+        <div class="course-card-actions">
+          <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'">
+            <i class="fa-solid fa-chalkboard"></i> Teach
+          </button>
+          <button class="btn-blue" onclick="loadSection('students?classroom_id=<%= course.classroom_id %>')">
+            <i class="fa-solid fa-user-graduate"></i> Students
+          </button>
+        </div>
+      </div>
+    <% }) %>
+  </div>
 <% } %>

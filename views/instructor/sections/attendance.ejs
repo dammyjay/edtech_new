@@ -24,7 +24,7 @@
       <% }) %>
     </select>
   </div>
-  <button class="btn-blue" onclick="loadAttendanceHistory()"><i class="fa-solid fa-magnifying-glass"></i> Load History</button>
+  <button class="btn-blue" onclick="loadAttendanceHistory()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
 </div>
 
 <div id="studentList" style="margin-top:15px;"></div>
@@ -40,7 +40,7 @@
       </tr>
     </thead>
     <tbody id="attendanceTableBody">
-      <tr><td colspan="5">No data yet — pick a term/classroom and click "Load History".</td></tr>
+      <tr><td colspan="5"><div class="instructor-loading-inline"><div class="instructor-spinner small"></div> Loading history…</div></td></tr>
     </tbody>
   </table>
 </div>

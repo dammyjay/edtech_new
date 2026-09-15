@@ -1,66 +1,69 @@
-<section>
-  <a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back</a>
-
-<h2>📚 My Classes Overview</h2>
-
-<div class="cards-container">
-  <div class="card">
-    <h3>🏫 Total Classes</h3>
-    <p><%= overview.total_classes || 0 %></p>
-  </div>
-  <div class="card">
-    <h3>👩‍🎓 Students</h3>
-    <p><%= overview.total_students || 0 %></p>
-  </div>
-  <div class="card">
-    <h3>📘 Lessons</h3>
-    <p><%= overview.total_lessons || 0 %></p>
-  </div>
-  <div class="card">
-    <h3>📊 Avg Quiz Score</h3>
-    <p><%= overview.avg_quiz_score || "–" %></p>
-  </div>
-  <div class="card">
-    <h3>📝 Avg Assignment Score</h3>
-    <p><%= overview.avg_assignment_score || "–" %></p>
-  </div>
-  <div class="card">
-    <h3>🔥 Engagement (7d)</h3>
-    <p><%= overview.engagement_last7 || 0 %>%</p>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-school"></i> My Classes</h1>
+    <p class="subtitle">An overview of every classroom you teach in this school.</p>
   </div>
 </div>
 
-<h2>📚 My Classes</h2>
-<div class="table-responsive">
-  <table class="user-table sortable-table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Class Name</th>
-        <th>Number of Lessons</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% if (classes.length > 0) { %>
+<div class="stat-card-grid">
+  <div class="stat-card">
+    <div class="stat-icon icon-blue"><i class="fa-solid fa-school"></i></div>
+    <div><div class="stat-value"><%= overview.total_classes || 0 %></div><div class="stat-label">Classes</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-green"><i class="fa-solid fa-user-graduate"></i></div>
+    <div><div class="stat-value"><%= overview.total_students || 0 %></div><div class="stat-label">Students</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-gold"><i class="fa-solid fa-book"></i></div>
+    <div><div class="stat-value"><%= overview.total_lessons || 0 %></div><div class="stat-label">Lessons</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-purple"><i class="fa-solid fa-chart-line"></i></div>
+    <div><div class="stat-value"><%= overview.avg_quiz_score || "–" %></div><div class="stat-label">Avg Quiz Score</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-red"><i class="fa-solid fa-file-pen"></i></div>
+    <div><div class="stat-value"><%= overview.avg_assignment_score || "–" %></div><div class="stat-label">Avg Assignment Score</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-gold"><i class="fa-solid fa-fire"></i></div>
+    <div><div class="stat-value"><%= overview.engagement_last7 || 0 %>%</div><div class="stat-label">Engagement (7d)</div></div>
+  </div>
+</div>
+
+<h2><i class="fa-solid fa-list"></i> Classroom List</h2>
+<% if (!classes || classes.length === 0) { %>
+  <div class="instructor-empty">
+    <i class="fa-solid fa-school"></i>
+    <p>No classrooms assigned to you yet.</p>
+  </div>
+<% } else { %>
+  <div class="table-responsive">
+    <table class="user-table sortable-table">
+      <thead>
+        <tr>
+          <th>Class Name</th>
+          <th>Lessons</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
         <% classes.forEach(cls => { %>
           <tr>
-            <td><%= cls.id %></td>
             <td><%= cls.name %></td>
             <td><%= (lessonsPerClass.find(l => l.id == cls.id) || {}).lesson_count || 0 %></td>
             <td>
-              <a href="/instructor/section/students?classroom_id=<%= cls.id %>">
-                👀 View Students
-              </a>
-
+              <button class="btn-view" onclick="loadSection('students?classroom_id=<%= cls.id %>')">
+                <i class="fa-solid fa-user-graduate"></i> View Students
+              </button>
+              <button class="btn-blue" onclick="loadSection('schools?classroom_id=<%= cls.id %>')">
+                <i class="fa-solid fa-chart-pie"></i> Analytics
+              </button>
             </td>
           </tr>
         <% }) %>
-      <% } else { %>
-        <tr><td colspan="4">No classes assigned.</td></tr>
-      <% } %>
-    </tbody>
-  </table>
-</div>
-
-</section>
+      </tbody>
+    </table>
+  </div>
+<% } %>

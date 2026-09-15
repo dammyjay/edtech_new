@@ -180,11 +180,16 @@ router.get(
   instructorController.viewCourseAsStudent
 );
 
-// View enrolled students
-router.get(
-  "/courses/:courseId/students",
-  instructorController.viewStudentProgress
-);
+// Was wired to viewStudentProgress, which reads req.params.id (a
+// student id) — this route only ever supplies :courseId, so every hit
+// silently 403'd ("Not authorized to view this student"). The two
+// buttons that linked here (dashboard.ejs, assigned_courses.ejs) now
+// call loadSection('students'/'students?classroom_id=...') directly
+// instead (the real "view students" feature, already built) — this
+// route is kept only as a safe fallback for any stray bookmark/link.
+router.get("/courses/:courseId/students", (req, res) => {
+  res.redirect("/instructor/dashboard");
+});
 
 // router.get(
 //   "/lessons/:lessonId/preview",ensureInstructorOrAdmin,

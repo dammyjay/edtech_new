@@ -1170,6 +1170,7 @@ exports.loadSection = async (req, res) => {
         SELECT DISTINCT
           crs.id,
           crs.title,
+          c.id AS classroom_id,
           c.name AS classroom_name,
           (
             SELECT COUNT(*)
@@ -1232,13 +1233,19 @@ exports.loadSection = async (req, res) => {
       case "classes":
       case "students":
       case "reports":
-      case "messages":
       case "assigned_courses":
       case "attendance":
       case "class_reports":
         return res.render(`instructor/sections/${section}`, data);
       default:
-        return res.send("<p>Section not found</p>");
+        // A real 404 (not the default 200) so the client's loadSection()
+        // treats it as a genuine failure rather than silently rendering
+        // "Section not found" text as if it were normal page content —
+        // this is also what a stray/typo tab key now surfaces instead of
+        // a bare unstyled sentence with no way back for the instructor.
+        return res.status(404).send(
+          "<div class=\"instructor-empty\"><i class=\"fa-solid fa-compass\"></i><p>That section doesn't exist. Use the sidebar to pick another one.</p></div>"
+        );
     }
   } catch (err) {
     console.error("Load Section Error:", err);
@@ -2311,10 +2318,18 @@ exports.saveAttendance = async (req, res) => {
   const userId = req.session.user.id;
   const schoolId = req.session.activeSchoolId; // ✅ FIX
 
+  // classroom_id arrives as "" when the filter is still on "All" (its
+  // default) — that used to reach the INSERT below as-is and crash with
+  // an unhandled "invalid input syntax for type integer" 500, instead of
+  // a clear message telling the instructor to pick a real classroom.
+  if (!classroom_id || !term_id || !date) {
+    return res.status(400).json({ success: false, message: "Please select a term, a specific classroom, and a date." });
+  }
+
   try {
     const sessionResult = await pool.query(
       `
-      INSERT INTO attendance_sessions 
+      INSERT INTO attendance_sessions
       (school_id, term_id, classroom_id, taken_by, date, session_status, note, week_number)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       ON CONFLICT (term_id, classroom_id, date)
