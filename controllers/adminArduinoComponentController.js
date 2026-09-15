@@ -210,8 +210,8 @@ const KNOWN_GOOD_COMPONENTS = [
     tag: "wokwi-ili9341",
     label: "TFT Display (ILI9341)",
     category: "Modules",
-    simulated: false,
-    note: "Visual/wireable only — its SPI display protocol isn't simulated yet.",
+    simulated: true,
+    note: "Real command/GRAM protocol over hardware SPI — draws whatever a sketch actually sends via the standard Adafruit_GFX/ILI9341 libraries; orientation and secondary features (scrolling, color-invert, sleep) aren't modeled.",
   },
 ];
 

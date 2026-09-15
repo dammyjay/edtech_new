@@ -1711,7 +1711,7 @@ function bindWS2812Strip(cpu, ports, PinState, connections, applyPixel) {
 // onWrite, onRead} device object into — see the AVRTWI eventHandler set
 // up in runSketch, which dispatches real Wire.h traffic to whichever
 // entry here matches the address the sketch actually addressed.
-function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
+function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDevices) {
   const uno = findArduinoComponent();
   const boundVisuals = []; // {el, prop, resetValue} — restored on stop
   const eventListeners = []; // {el, type, handler} — removed on stop
@@ -2825,6 +2825,134 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
           };
           comp.el.addEventListener("dial", handleDial);
           eventListeners.push({ el: comp.el, type: "dial", handler: handleDial });
+        }
+      }
+    } else if (comp.tag === "wokwi-ili9341" && spiDevices) {
+      // Real ILI9341 command/GRAM protocol over hardware SPI, confirmed
+      // against the actual installed "Adafruit ILI9341" + "Adafruit GFX
+      // Library" (Adafruit_SPITFT) source: writeCommand()/sendCommand()
+      // hold D/C LOW for exactly the command opcode byte, then HIGH
+      // again for any data bytes that follow it — both sent over the
+      // same real SPDR-register hardware SPI transfer avr8js's AVRSPI
+      // models (see the spiDevices dispatcher in runSketch() above).
+      // Drawing (fillScreen/drawPixel/print/etc, via Adafruit_GFX) all
+      // funnels through setAddrWindow's CASET (0x2A) + PASET (0x2B) to
+      // pick a rectangle, then a RAMWR (0x2C) command streams that
+      // rectangle's pixels MSB-first as RGB565 — confirmed via
+      // SPI_WRITE16's own big-endian byte order. Every other command
+      // (SWRESET, SLPOUT, MADCTL, PIXFMT, the whole init sequence,
+      // etc.) is safely ignored without needing to know its parameter
+      // count: since D/C only ever drops LOW for the NEXT command's own
+      // opcode byte, an unrecognized command's data bytes just get
+      // silently consumed until that next LOW byte re-syncs the state
+      // machine — no explicit per-command byte-count table needed.
+      //
+      // @wokwi/elements' ILI9341Element exposes a genuine 240x320
+      // <canvas> (confirmed against its own source, not a decorative
+      // shape) — this renders ACTUAL pixels a sketch draws, not a
+      // placeholder. Orientation (setRotation/MADCTL) and secondary
+      // features (scrolling, color-invert, sleep) aren't modeled — same
+      // "functional, not exhaustive" scope as the SSD1306 binding above.
+      const csConn = connections.find((c) => c.ownPin === "CS");
+      const dcConn = connections.find((c) => c.ownPin === "D/C");
+      if (csConn && dcConn) {
+        const csLoc = PIN_TO_PORT[csConn.arduinoPin];
+        const dcLoc = PIN_TO_PORT[dcConn.arduinoPin];
+        if (csLoc && ports[csLoc.port] && dcLoc && ports[dcLoc.port]) {
+          const csPort = ports[csLoc.port];
+          const dcPort = ports[dcLoc.port];
+          const WIDTH = 240, HEIGHT = 320;
+          const IDLE_FLUSH_US = 50; // comfortably above one SPI byte's transfer time, so a whole burst of pixel writes coalesces into one repaint
+          const CASET = 0x2a, PASET = 0x2b, RAMWR = 0x2c;
+          const pixels = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
+          let col = 0, row = 0, colStart = 0, colEnd = WIDTH - 1, rowStart = 0, rowEnd = HEIGHT - 1;
+          let pendingCmd = null;
+          let paramBuf = [];
+          let pixelByteBuf = [];
+          let flushGeneration = 0;
+
+          const setPixel = (x, y, r, g, b) => {
+            if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return;
+            const idx = (y * WIDTH + x) * 4;
+            pixels[idx] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+            pixels[idx + 3] = 255;
+          };
+          const flush = () => {
+            const canvas = comp.el.canvas;
+            if (!canvas) return;
+            canvas.getContext("2d").putImageData(new ImageData(pixels.slice(), WIDTH, HEIGHT), 0, 0);
+          };
+          const scheduleFlush = () => {
+            const myGeneration = ++flushGeneration;
+            scheduleAt(cpu, IDLE_FLUSH_US, () => {
+              if (myGeneration === flushGeneration) flush();
+            });
+          };
+
+          spiDevices.push({
+            isSelected: () => csPort.pinState(csLoc.bit) === PinState.Low,
+            onByte(value) {
+              const dcHigh = dcPort.pinState(dcLoc.bit) === PinState.High;
+              if (!dcHigh) {
+                // Command opcode byte.
+                pendingCmd = value;
+                paramBuf = [];
+                if (value === RAMWR) {
+                  // A real ILI9341 resets its internal GRAM pointer to
+                  // the address window's origin the instant RAMWR is
+                  // received — confirmed against the datasheet's own
+                  // RAMWR description, and matches setAddrWindow() only
+                  // conditionally re-sending CASET/PASET at all (its own
+                  // static old_x1/old_y1 memoization skips them when the
+                  // window hasn't changed since the last draw call), so
+                  // relying on CASET/PASET alone to reset the pointer
+                  // would miss every repeated-window draw after the
+                  // first.
+                  col = colStart;
+                  row = rowStart;
+                }
+                return 0;
+              }
+              // Data byte for whichever command is currently pending.
+              if (pendingCmd === CASET) {
+                paramBuf.push(value);
+                if (paramBuf.length === 4) {
+                  colStart = Math.min((paramBuf[0] << 8) | paramBuf[1], WIDTH - 1);
+                  colEnd = Math.min((paramBuf[2] << 8) | paramBuf[3], WIDTH - 1);
+                  paramBuf = [];
+                }
+              } else if (pendingCmd === PASET) {
+                paramBuf.push(value);
+                if (paramBuf.length === 4) {
+                  rowStart = Math.min((paramBuf[0] << 8) | paramBuf[1], HEIGHT - 1);
+                  rowEnd = Math.min((paramBuf[2] << 8) | paramBuf[3], HEIGHT - 1);
+                  paramBuf = [];
+                }
+              } else if (pendingCmd === RAMWR) {
+                pixelByteBuf.push(value);
+                if (pixelByteBuf.length === 2) {
+                  const rgb565 = (pixelByteBuf[0] << 8) | pixelByteBuf[1];
+                  pixelByteBuf = [];
+                  const r = ((rgb565 >> 11) & 0x1f) * 255 / 31;
+                  const g = ((rgb565 >> 5) & 0x3f) * 255 / 63;
+                  const b = (rgb565 & 0x1f) * 255 / 31;
+                  setPixel(col, row, r, g, b);
+                  col++;
+                  if (col > colEnd) {
+                    col = colStart;
+                    row = row >= rowEnd ? rowStart : row + 1;
+                  }
+                  scheduleFlush();
+                }
+              } // else: an unrecognized command's data byte — consumed, no effect
+              return 0;
+            },
+          });
+          // Deliberately no boundVisuals reset-on-stop here — same as the
+          // WS2812 binding above, a real TFT holds its last-drawn frame
+          // after the microcontroller stops driving it.
         }
       }
     }
@@ -4036,8 +4164,8 @@ async function runSketch() {
   }
 
   const {
-    CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, AVRTWI, portBConfig, portCConfig, portDConfig,
-    timer0Config, timer1Config, timer2Config, usart0Config, adcConfig, twiConfig, avrInstruction, PinState,
+    CPU, AVRIOPort, AVRTimer, AVRUSART, AVRADC, AVRTWI, AVRSPI, portBConfig, portCConfig, portDConfig,
+    timer0Config, timer1Config, timer2Config, usart0Config, adcConfig, twiConfig, spiConfig, avrInstruction, PinState,
   } = avr8js;
 
   const progMem = parseIntelHex(compileResult.hex);
@@ -4107,7 +4235,25 @@ async function runSketch() {
     },
   };
 
-  const unbindComponents = bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices);
+  // SPI.h talks to the ATmega328P's dedicated hardware SPI peripheral —
+  // confirmed against avr8js's own source (peripherals/spi.js): a clean
+  // byte-oriented onTransfer(value)->response callback, the exact same
+  // shape as AVRTWI's I2C eventHandler above, not bit-banged. Unlike
+  // I2C's address-based device selection, SPI has no hardware-automated
+  // select at all — each device's chip-select (CS) is just a plain GPIO
+  // pin the sketch toggles itself — so spiDevices dispatches by asking
+  // each registered device whether ITS OWN CS pin currently reads LOW
+  // (bindComponentsToSimulation below registers e.g. the ILI9341 this
+  // way), same "route to whoever's actually selected right now" idea as
+  // the I2C address dispatch, just keyed differently.
+  const spi = new AVRSPI(cpu, spiConfig, CPU_HZ);
+  const spiDevices = [];
+  spi.onTransfer = (value) => {
+    const dev = spiDevices.find((d) => d.isSelected());
+    return dev ? dev.onByte(value) : 0xff;
+  };
+
+  const unbindComponents = bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDevices);
 
   simState = { cpu, startWallMs: performance.now(), timeoutId: null, unbindComponents };
   setButtonsRunning(true, false);

@@ -94,6 +94,9 @@ const BUILTIN_LIBRARIES = [
   "Keypad",
   "HX711", // Rob Tillaart's — exact match for "HX711" in the Library Manager index, verified not guessed
   "IRremote", // ArminJo's — exact match for "IRremote" in the Library Manager index, verified not guessed
+  "Adafruit ILI9341",
+  "Adafruit GFX Library", // Adafruit_SPITFT (the ILI9341 library's SPI base class) lives here
+  "Adafruit BusIO", // Adafruit_GFX_Library's own dependency for SPI/I2C transaction helpers
 ];
 
 async function ensureAvrCoreInstalled() {
