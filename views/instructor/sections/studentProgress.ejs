@@ -2,6 +2,10 @@
 
 
 
+<%- include('../../partials/adminHeader', { info: info, role: role, profilePic: profilePic, user: user }) %>
+<div style="max-width:1100px; margin:0 auto; padding:24px;">
+<a href="/instructor/dashboard" class="back-btn">⬅ Back to Dashboard</a>
+
 <style>
   /* Sidebar */
   .sidenav {
@@ -293,4 +297,5 @@
     });
   });
 </script>
+</div>
 

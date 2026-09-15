@@ -3,6 +3,7 @@ const pool = require("../models/db");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
 const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
+const instructorAwardService = require("../services/instructorAwardService");
 
 exports.sendChatMessage = async (req, res) => {
   try {
@@ -808,6 +809,14 @@ exports.loadSection = async (req, res) => {
     let overview = {};
     let lessonsPerClass = [];
     let terms = [];
+    // "Classroom Analytics" tab (sections/schools.ejs) state — see the
+    // section === "schools" block below for where these get populated.
+    let avgProgress = 0;
+    let topStudent = {};
+    let genderSummary = [];
+    let progressDist = { low: 0, mid: 0, high: 0 };
+    let selectedClassroomId = null;
+    let classReports = [];
 
     if (activeSchoolId) {
       
@@ -914,8 +923,14 @@ exports.loadSection = async (req, res) => {
       if (section === "students" || section === "reports") {
         const classroomId = req.query.classroom_id || null;
 
+        // c.id/c.name both selected (not just the name) — the "Award
+        // Points" button on the students section needs the classroom id
+        // to pass along, and coins is shown so the instructor sees each
+        // student's current balance before awarding more.
         const studentsQuery = `
-          SELECT DISTINCT u.id, u.fullname, u.email, c.name AS classroom_name
+          SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
+                 COALESCE(u.coins, 0) AS coins,
+                 c.id AS classroom_id, c.name AS classroom_name
           FROM user_school us
           JOIN users2 u ON u.id = us.user_id
           JOIN classrooms c ON c.id = us.classroom_id
@@ -988,8 +1003,8 @@ exports.loadSection = async (req, res) => {
         JOIN courses cr ON cc.course_id = cr.id
         JOIN classrooms c ON cc.classroom_id = c.id
         JOIN classroom_instructors ci ON ci.classroom_id = c.id
-        LEFT JOIN user_school us 
-          ON us.classroom_id = c.id 
+        LEFT JOIN user_school us
+          ON us.classroom_id = c.id
           AND us.role_in_school = 'student'
           AND us.approved = true
         WHERE ci.instructor_id = $1
@@ -1000,6 +1015,124 @@ exports.loadSection = async (req, res) => {
 
       const assignedCourses = assignedCoursesRes.rows;
 
+      // "Classroom Analytics" tab (rendered by sections/schools.ejs — kept
+      // that filename to avoid touching every reference, but the sidenav
+      // now labels it "Classroom Analytics"). Was previously unreachable:
+      // no sidenav entry pointed at it AND this data block didn't exist
+      // at all, so every variable the template needs (avgProgress,
+      // topStudent, genderSummary, progressDist, per-student gender/
+      // lessons/quiz/assignment/last-login) was undefined. Query shape
+      // mirrors the teacher role's equivalent (classroom-students.ejs),
+      // scoped through classroom_instructors instead of classroom_teachers.
+      if (section === "schools") {
+        const analyticsClassroomId = req.query.classroom_id || (classes[0] && classes[0].id) || null;
+
+        if (analyticsClassroomId) {
+          const analyticsStudentsRes = await pool.query(
+            `WITH last_activity AS (
+               SELECT user_id, MAX(created_at) AS last_login
+               FROM activities
+               GROUP BY user_id
+             )
+             SELECT
+                u.id, u.fullname, u.email, u.gender,
+                COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
+                COUNT(DISTINCT l.id) AS total_lessons,
+                ROUND(AVG(qs.score::numeric), 1) AS avg_quiz_score,
+                ROUND(AVG(asub.grade::numeric), 1) AS avg_assignment_score,
+                la.last_login
+             FROM user_school us
+             JOIN users2 u ON u.id = us.user_id
+             JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+             LEFT JOIN last_activity la ON la.user_id = u.id
+             LEFT JOIN classroom_courses cc ON us.classroom_id = cc.classroom_id
+             LEFT JOIN courses cr ON cc.course_id = cr.id
+             LEFT JOIN modules m ON m.course_id = cr.id
+             LEFT JOIN lessons l ON l.module_id = m.id
+             LEFT JOIN user_lesson_progress ulp ON ulp.user_id = u.id AND ulp.lesson_id = l.id
+             LEFT JOIN quiz_submissions qs ON qs.student_id = u.id
+             LEFT JOIN assignment_submissions asub ON asub.student_id = u.id
+             WHERE us.classroom_id = $1
+               AND ci.instructor_id = $2
+               AND us.role_in_school = 'student'
+               AND us.approved = true
+             GROUP BY u.id, u.fullname, u.email, u.gender, la.last_login
+             ORDER BY u.fullname`,
+            [analyticsClassroomId, instructorId]
+          );
+          const analyticsStudents = analyticsStudentsRes.rows;
+
+          const genderSummaryRes = await pool.query(
+            `SELECT u.gender, COUNT(*)
+             FROM user_school us
+             JOIN users2 u ON u.id = us.user_id
+             JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+             WHERE us.classroom_id = $1 AND ci.instructor_id = $2
+               AND us.role_in_school = 'student' AND us.approved = true
+             GROUP BY u.gender`,
+            [analyticsClassroomId, instructorId]
+          );
+
+          const analyticsTopStudent = analyticsStudents.reduce(
+            (best, s) => ((s.avg_quiz_score || 0) > (best.avg_quiz_score || 0) ? s : best),
+            { avg_quiz_score: 0 }
+          );
+
+          const analyticsAvgProgress = analyticsStudents.length > 0
+            ? Math.round(
+                analyticsStudents.reduce((sum, s) => {
+                  const pct = s.total_lessons > 0 ? (s.lessons_completed / s.total_lessons) * 100 : 0;
+                  return sum + pct;
+                }, 0) / analyticsStudents.length
+              )
+            : 0;
+
+          const analyticsProgressDist = { low: 0, mid: 0, high: 0 };
+          analyticsStudents.forEach((s) => {
+            const pct = s.total_lessons > 0 ? (s.lessons_completed / s.total_lessons) * 100 : 0;
+            if (pct < 50) analyticsProgressDist.low++;
+            else if (pct < 75) analyticsProgressDist.mid++;
+            else analyticsProgressDist.high++;
+          });
+
+          // Reuses the same `students`/`genderSummary`/etc. locals the
+          // rest of loadSection declares — safe because only one section
+          // branch ever runs per request, so there's no cross-section
+          // collision despite the shared variable names.
+          students = analyticsStudents;
+          genderSummary = genderSummaryRes.rows;
+          topStudent = analyticsTopStudent;
+          avgProgress = analyticsAvgProgress;
+          progressDist = analyticsProgressDist;
+          selectedClassroomId = analyticsClassroomId;
+        }
+      }
+
+      // Class Reports tab (sections/classReports.ejs) — the narrative
+      // CKEditor write-up feature, distinct from the auto-generated PDF
+      // "reports" section above.
+      if (section === "class_reports") {
+        const reportsClassroomId = req.query.classroom_id || null;
+        const reportsQuery = `
+          SELECT cr.id, cr.title, cr.content, cr.report_date, cr.created_at, cr.updated_at,
+                 c.id AS classroom_id, c.name AS classroom_name,
+                 t.name AS term_name
+          FROM classroom_reports cr
+          JOIN classrooms c ON c.id = cr.classroom_id
+          JOIN classroom_instructors ci ON ci.classroom_id = c.id
+          LEFT JOIN academic_terms t ON t.id = cr.term_id
+          WHERE ci.instructor_id = $1
+            AND c.school_id = $2
+            ${reportsClassroomId ? "AND c.id = $3" : ""}
+          ORDER BY cr.report_date DESC, cr.created_at DESC
+        `;
+        const reportsParams = reportsClassroomId
+          ? [instructorId, activeSchoolId, reportsClassroomId]
+          : [instructorId, activeSchoolId];
+        const classReportsRes = await pool.query(reportsQuery, reportsParams);
+        classReports = classReportsRes.rows;
+        selectedClassroomId = reportsClassroomId || selectedClassroomId;
+      }
     }
 
     // Messages
@@ -1074,8 +1207,23 @@ exports.loadSection = async (req, res) => {
       selectedSchoolId: activeSchoolId,
       overview,
       lessonsPerClass,
-      terms
+      terms,
+      // Classroom Analytics tab (sections/schools.ejs)
+      avgProgress,
+      topStudent,
+      genderSummary,
+      progressDist,
+      selectedClassroomId,
+      classReports,
+      // Award-points tab config (sections/students.ejs) — the fixed
+      // category list + today's remaining budget, so the UI can show
+      // both before the instructor even opens the award modal.
+      awardCategories: instructorAwardService.getCategoryList(),
     };
+
+    if (section === "students") {
+      data.awardBudget = await instructorAwardService.getRemainingBudget(instructorId);
+    }
 
     // Render section
     switch (section) {
@@ -1087,6 +1235,7 @@ exports.loadSection = async (req, res) => {
       case "messages":
       case "assigned_courses":
       case "attendance":
+      case "class_reports":
         return res.render(`instructor/sections/${section}`, data);
       default:
         return res.send("<p>Section not found</p>");
@@ -1256,6 +1405,8 @@ exports.viewStudentProgress = async (req, res) => {
       `
       SELECT 1
       FROM user_school us
+      JOIN classrooms c
+        ON c.id = us.classroom_id
       JOIN classroom_instructors ci
         ON ci.classroom_id = us.classroom_id
       WHERE us.user_id = $1
@@ -1283,6 +1434,15 @@ exports.viewStudentProgress = async (req, res) => {
 
     const student = studentRes.rows[0];
 
+    // This view is reached via a full page navigation (not the AJAX
+    // loadSection() tab-swap the rest of the dashboard uses), so it
+    // needs its own layout data — previously missing entirely, which
+    // meant this page rendered as an unstyled bare HTML fragment (no
+    // <head>, no CSS, no CKEditor/alert scripts) whenever a student's
+    // "View Progress" link was actually clicked.
+    const layoutInfo = (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1")).rows[0] || {};
+    const layoutData = { info: layoutInfo, role: "instructor", profilePic: req.session.user?.profile_picture || null };
+
     /* 📚 3. Courses instructor teaches this student */
     const coursesRes = await pool.query(
       `
@@ -1301,6 +1461,7 @@ exports.viewStudentProgress = async (req, res) => {
 
     if (!coursesRes.rows.length) {
       return res.render("instructor/sections/studentProgress", {
+        ...layoutData,
         student,
         courses: []
       });
@@ -1429,6 +1590,7 @@ exports.viewStudentProgress = async (req, res) => {
 
     /* 🎯 9. Render */
     res.render("instructor/sections/studentProgress", {
+      ...layoutData,
       student,
       courses
     });
@@ -2723,3 +2885,184 @@ exports.exportAttendanceExcel = async (req, res) => {
 //     res.status(500).send("Update failed");
 //   }
 // };
+
+// =====================================================================
+// GAMIFIED POINTS/COINS — instructor awards a student real coins from a
+// fixed, capped set of categories. See services/instructorAwardService.js
+// for the actual rules (anti-bias caps enforced there, not here).
+// =====================================================================
+
+exports.awardStudentPoints = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const studentId = req.params.id;
+    const { category, classroom_id, note } = req.body;
+
+    const result = await instructorAwardService.awardPoints({
+      req,
+      instructorId,
+      studentId,
+      classroomId: classroom_id,
+      category,
+      note,
+    });
+
+    if (!result.ok) {
+      const messages = {
+        invalid_request: "Missing or invalid award details.",
+        not_authorized: "You don't teach this student.",
+        student_daily_limit: `This student has already received the maximum of ${instructorAwardService.MAX_AWARDS_PER_STUDENT_PER_DAY} awards today.`,
+        category_already_used_today: "You've already used this category for this student today — try a different one.",
+        daily_budget_exhausted: `You've used today's ${instructorAwardService.MAX_COINS_PER_INSTRUCTOR_PER_DAY}-coin award budget. It resets tomorrow.`,
+      };
+      return res.status(400).json({
+        success: false,
+        reason: result.reason,
+        message: messages[result.reason] || "Couldn't award points right now.",
+        remaining: result.remaining,
+      });
+    }
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Award student points error:", err);
+    res.status(500).json({ success: false, message: "Server error awarding points" });
+  }
+};
+
+exports.getRecentAwards = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const classroomId = req.query.classroom_id || null;
+    const [awards, budget] = await Promise.all([
+      instructorAwardService.getRecentAwards({ instructorId, classroomId }),
+      instructorAwardService.getRemainingBudget(instructorId),
+    ]);
+    res.json({ success: true, awards, budget });
+  } catch (err) {
+    console.error("Get recent awards error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// =====================================================================
+// CLASS REPORTS — narrative CKEditor write-ups an instructor keeps per
+// classroom, visible to the instructor themselves and to the school
+// admin overseeing that school (controllers/schoolAdminController.js).
+// =====================================================================
+
+async function instructorOwnsClassroom(classroomId, instructorId) {
+  const result = await pool.query(
+    `SELECT c.school_id FROM classrooms c
+     JOIN classroom_instructors ci ON ci.classroom_id = c.id
+     WHERE c.id = $1 AND ci.instructor_id = $2`,
+    [classroomId, instructorId]
+  );
+  return result.rows[0] || null;
+}
+
+exports.createClassReport = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { classroom_id, term_id, title, content, report_date } = req.body;
+
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ success: false, message: "Title and content are required" });
+    }
+
+    const classroom = await instructorOwnsClassroom(classroom_id, instructorId);
+    if (!classroom) {
+      return res.status(403).json({ success: false, message: "Not your classroom" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO classroom_reports
+         (classroom_id, school_id, instructor_id, term_id, title, content, report_date)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_DATE))
+       RETURNING id, title, content, report_date, created_at`,
+      [classroom_id, classroom.school_id, instructorId, term_id || null, title.trim(), content, report_date || null]
+    );
+
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Create class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.getClassReport = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT cr.*
+       FROM classroom_reports cr
+       JOIN classroom_instructors ci ON ci.classroom_id = cr.classroom_id
+       WHERE cr.id = $1 AND ci.instructor_id = $2`,
+      [id, instructorId]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ success: false, message: "Report not found" });
+    }
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Get class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.updateClassReport = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { id } = req.params;
+    const { title, content, report_date, term_id } = req.body;
+
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ success: false, message: "Title and content are required" });
+    }
+
+    // Only the original author may edit — matches
+    // deleteClassroomAnnouncement's ownership-check convention in
+    // teacherController.js, tightened to author-only (not just
+    // any co-instructor of the classroom) since this is one person's
+    // written narrative, not a shared classroom fixture.
+    const result = await pool.query(
+      `UPDATE classroom_reports
+       SET title = $1, content = $2,
+           report_date = COALESCE($3, report_date),
+           term_id = COALESCE($4, term_id),
+           updated_at = NOW()
+       WHERE id = $5 AND instructor_id = $6
+       RETURNING id, title, content, report_date, updated_at`,
+      [title.trim(), content, report_date || null, term_id || null, id, instructorId]
+    );
+
+    if (!result.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to edit this report" });
+    }
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Update class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.deleteClassReport = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `DELETE FROM classroom_reports WHERE id = $1 AND instructor_id = $2 RETURNING id`,
+      [id, instructorId]
+    );
+    if (!result.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to delete this report" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

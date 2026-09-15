@@ -259,6 +259,31 @@ exports.loadSection = async (req, res) => {
     return res.render("partials/teachers", { teachers: teachers.rows });
   }
 
+  // Narrative class reports instructors write in CKEditor
+  // (classroom_reports — see controllers/instructorController.js). A
+  // read-only oversight list for the school admin: instructors are
+  // invisible to every other school-admin query in this file (they
+  // relate to schools only via classroom_instructors, never
+  // user_school/role_in_school, which has no 'instructor' value at
+  // all), so this joins classroom_reports -> classrooms ->
+  // classroom_reports.instructor_id -> users2 directly rather than
+  // going through any of the teacher-oriented queries above.
+  if (section === "classroom-reports") {
+    const reports = await pool.query(
+      `SELECT cr.id, cr.title, cr.content, cr.report_date, cr.created_at,
+              c.name AS classroom_name, t.name AS term_name,
+              u.fullname AS instructor_name
+       FROM classroom_reports cr
+       JOIN classrooms c ON c.id = cr.classroom_id
+       JOIN users2 u ON u.id = cr.instructor_id
+       LEFT JOIN academic_terms t ON t.id = cr.term_id
+       WHERE cr.school_id = $1
+       ORDER BY cr.report_date DESC, cr.created_at DESC`,
+      [schoolId]
+    );
+    return res.render("school-admin/classroomReports", { reports: reports.rows, schoolName });
+  }
+
   if (section === "students") {
 
     const students = await pool.query(

@@ -1,31 +1,90 @@
-<h2>🎓 My Students</h2>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-user-graduate"></i> My Students</h1>
+    <p class="subtitle">Recognize great work with real, capped coin awards — never arbitrary amounts.</p>
+  </div>
+</div>
+
+<% if (awardBudget) { %>
+  <div class="card" style="max-width:420px;">
+    <strong>Today's award budget</strong>
+    <div class="award-budget-meter">
+      <div class="fill" style="width: <%= Math.min(100, Math.round((awardBudget.spentToday / awardBudget.budget) * 100)) %>%;"></div>
+    </div>
+    <div class="award-budget-label">
+      <span><%= awardBudget.spentToday %> / <%= awardBudget.budget %> coins used</span>
+      <span><%= awardBudget.remaining %> left today</span>
+    </div>
+  </div>
+<% } %>
+
 <div class="table-responsive">
-  <table class="user-table"  border="1" cellpadding="8" cellspacing="0" width="100%">
+  <table class="user-table sortable-table">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Full Name</th>
         <th>Email</th>
         <th>Classroom</th>
-        <th>Progress</th>
+        <th>Coins</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
-            <td><a href="/instructor/student/<%= stu.id %>/progress">📊 View Progress</a></td>
+            <td><span class="student-coin-badge">🪙 <%= stu.coins || 0 %></span></td>
+            <td class="multi-btn">
+              <button class="btn-award" onclick="openAwardModal(<%= stu.id %>, <%= stu.classroom_id %>, '<%= stu.fullname.replace(/'/g, "\\'") %>')">
+                <i class="fa-solid fa-star"></i> Award Points
+              </button>
+              <button class="btn-view" onclick="window.location.href='/instructor/student/<%= stu.id %>/progress'">📊 Progress</button>
+            </td>
           </tr>
         <% }) %>
       <% } else { %>
-        <tr>
-          <td colspan="5">No students found.</td>
-        </tr>
+        <tr><td colspan="5" style="text-align:center;">No students found.</td></tr>
       <% } %>
     </tbody>
   </table>
+</div>
+
+<h2 style="margin-top:26px;"><i class="fa-solid fa-medal"></i> Recent Awards</h2>
+<ul class="recent-awards-list" id="recentAwardsList">
+  <p style="color:#999; font-size:13px;">Loading…</p>
+</ul>
+
+<!-- Award Modal -->
+<div id="awardModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeAwardModal()">&times;</span>
+    <h3>🌟 Award Points to <span id="awardModalStudentName"></span></h3>
+
+    <div class="award-budget-meter">
+      <div class="fill" id="awardBudgetFill" style="width:0%;"></div>
+    </div>
+    <div class="award-budget-label"><span id="awardBudgetLabel">Loading budget…</span></div>
+
+    <p style="font-size:13px; color:#666; margin:14px 0 4px;">Pick ONE reason — the coin value is fixed per category, and you can give each student at most 3 awards a day.</p>
+    <div class="award-category-grid">
+      <% (awardCategories || []).forEach(cat => { %>
+        <div class="award-category-chip" onclick="selectAwardCategory('<%= cat.key %>', this)">
+          <span class="emoji"><%= cat.emoji %></span>
+          <span class="label"><%= cat.label %></span>
+          <span class="amount">+<%= cat.amount %> coins</span>
+        </div>
+      <% }) %>
+    </div>
+
+    <label style="font-size:13px; font-weight:600;">Note (optional)</label>
+    <textarea id="awardNote" rows="2" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); box-sizing:border-box;" placeholder="e.g. Helped explain the loop to the whole class"></textarea>
+
+    <div class="multi-btn" style="margin-top:16px;">
+      <button class="btn-award" onclick="submitAward()"><i class="fa-solid fa-gift"></i> Give Award</button>
+      <button class="btn-pri" onclick="closeAwardModal()">Cancel</button>
+    </div>
+  </div>
 </div>

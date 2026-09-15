@@ -1,0 +1,307 @@
+/* Instructor dashboard — gamified redesign layer.
+   Built ON TOP of public/css/style.css + styles2.css (cards, tables,
+   the consolidated .modal system, brand colors, --sidebar-* tokens
+   already used by the school-admin sidenav) rather than reinventing
+   any of that — this file only adds what's genuinely instructor-
+   specific: the sidebar shell, stat cards with icons, the award
+   modal/category chips, and the CKEditor report composer. */
+
+.instructor-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.instructor-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg, #201B12);
+  color: var(--sidebar-text, #EDE6D6);
+  min-height: 100vh;
+  padding: 20px 14px;
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+}
+
+.instructor-sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 20px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 14px;
+}
+
+.instructor-sidebar .brand i { color: var(--brand-pri); }
+
+.instructor-tabs { list-style: none; padding: 0; margin: 0; }
+
+.instructor-tabs .tab-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  color: var(--sidebar-text-muted, #B4A98C);
+  border: none;
+  padding: 11px 14px;
+  border-radius: var(--radius, 10px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.instructor-tabs .tab-btn i { width: 18px; text-align: center; }
+
+.instructor-tabs .tab-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--sidebar-text, #EDE6D6);
+}
+
+.instructor-tabs .tab-btn.active {
+  background: var(--sidebar-bg-active, #2C2415);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--brand-pri);
+}
+
+/* ---------- Main area / topbar ---------- */
+.instructor-main {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 28px 60px;
+  box-sizing: border-box;
+}
+
+.instructor-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.instructor-topbar h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.instructor-topbar .subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.school-switcher select {
+  padding: 9px 14px;
+  border-radius: var(--radius, 10px);
+  border: 1px solid var(--border-light);
+  font-weight: 600;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* ---------- Gamified stat cards ---------- */
+.stat-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+.stat-card .stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.stat-card .stat-value { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.stat-card .stat-label { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+
+.stat-icon.icon-gold { background: linear-gradient(135deg, #E9C25E, var(--brand-pri)); }
+.stat-icon.icon-blue { background: linear-gradient(135deg, #6FA8E9, var(--blue)); }
+.stat-icon.icon-green { background: linear-gradient(135deg, #5FD494, var(--success)); }
+.stat-icon.icon-purple { background: linear-gradient(135deg, #A48CE0, #6c5ce7); }
+.stat-icon.icon-red { background: linear-gradient(135deg, #F08A87, var(--red)); }
+
+/* ---------- Students list: coin badge + award button ---------- */
+.student-coin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #FCE9B8, #F0D485);
+  color: #6b5209;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.btn-award {
+  background: linear-gradient(135deg, #D9A82C, var(--brand-pri));
+  color: #fff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.btn-award:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.btn-award:active { transform: scale(0.97); }
+
+/* ---------- Award modal ---------- */
+.award-budget-meter {
+  background: #f3ece0;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  margin: 6px 0 18px;
+}
+
+.award-budget-meter .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-pri), #E9C25E);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.award-budget-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+}
+
+.award-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.award-category-chip {
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius, 10px);
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.award-category-chip .emoji { font-size: 22px; display: block; margin-bottom: 4px; }
+.award-category-chip .label { font-size: 12.5px; font-weight: 700; display: block; }
+.award-category-chip .amount { font-size: 12px; color: var(--brand-pri-dark); font-weight: 700; }
+
+.award-category-chip:hover { border-color: #E9C25E; transform: translateY(-2px); }
+
+.award-category-chip.selected {
+  border-color: var(--brand-pri);
+  background: #FFF9EC;
+  box-shadow: 0 0 0 3px rgba(161,120,7,0.12);
+}
+
+.award-category-chip[disabled],
+.award-category-chip.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ---------- Recent awards feed ---------- */
+.recent-awards-list { list-style: none; padding: 0; margin: 0; }
+
+.recent-awards-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 8px);
+  background: #faf7f0;
+  margin-bottom: 6px;
+  font-size: 13.5px;
+}
+
+.recent-awards-list .award-amount {
+  font-weight: 800;
+  color: var(--brand-pri-dark);
+  white-space: nowrap;
+}
+
+/* ---------- Class Reports ---------- */
+.report-card {
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  transition: box-shadow 0.15s ease;
+}
+
+.report-card:hover { box-shadow: var(--shadow-md); }
+
+.report-card .report-meta {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+}
+
+.report-card .report-preview {
+  font-size: 13.5px;
+  color: #444;
+  max-height: 3.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .instructor-shell { flex-direction: column; }
+  .instructor-sidebar {
+    width: 100%;
+    min-height: auto;
+    position: static;
+    padding: 12px;
+  }
+  .instructor-tabs { display: flex; overflow-x: auto; gap: 6px; }
+  .instructor-tabs .tab-btn { flex-shrink: 0; }
+  .instructor-main { padding: 16px; }
+}

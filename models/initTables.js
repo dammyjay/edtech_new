@@ -963,6 +963,56 @@ async function createTables() {
       );
     `);
 
+    // Instructor-awarded gamification points/coins. One row per award —
+    // this table IS the audit trail (an instructor can see what they
+    // gave and why, a school admin can see it too) AND the source of
+    // truth for the anti-bias daily caps enforced in
+    // services/instructorAwardService.js (COUNT/SUM queries against
+    // created_at::date = CURRENT_DATE, the same rate-limit idiom already
+    // used for the AI tutor's daily free-question cap in
+    // studentController.js — no separate "daily_limit" column anywhere
+    // in this schema, and this doesn't introduce one either). `category`
+    // is always one of a fixed, hardcoded set and `amount` is always
+    // that category's fixed value — the instructor never gets to type
+    // an arbitrary number, which is the actual anti-bias mechanism, not
+    // just the caps.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS instructor_point_awards (
+        id SERIAL PRIMARY KEY,
+        instructor_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        classroom_id INT REFERENCES classrooms(id) ON DELETE SET NULL,
+        school_id INT REFERENCES schools(id) ON DELETE SET NULL,
+        category TEXT NOT NULL,
+        amount INT NOT NULL,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // A narrative class report an instructor writes (CKEditor HTML) —
+    // deliberately separate from class_term_reports (an admin-triggered,
+    // chart/analytics-driven PDF with no free text and no per-entry
+    // author) and from classroom_announcements (the teacher role's
+    // plain-text, chat-facing notices). Modeled on
+    // classroom_announcements' shape instead: per-classroom,
+    // instructor-authored, simple CRUD. Visible to the instructor who
+    // wrote it and to the school admin overseeing that school.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classroom_reports (
+        id SERIAL PRIMARY KEY,
+        classroom_id INT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+        school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+        instructor_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        term_id INT REFERENCES academic_terms(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        report_date DATE DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,

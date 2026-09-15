@@ -26,11 +26,21 @@ function ensureTeacher(req, res, next) {
   return res.status(403).send("Access denied");
 }
 
+// Was previously gated on req.isAuthenticated() — a Passport.js method
+// this app never sets up (no passport anywhere in app.js; every other
+// login check in this file, e.g. ensureParent/ensureTeacher directly
+// above, correctly reads req.session.user instead). req.isAuthenticated
+// is simply undefined here, so `req.isAuthenticated && req.isAuthenticated()`
+// was always falsy and this middleware redirected EVERY request to
+// /admin/login regardless of session state — silently blocking every
+// route that used it (instructor course/module/lesson creation in
+// routes/instructor.js, and the new award/class-report routes). Fixed
+// to match the same req.session.user pattern its siblings already use
+// correctly.
 function ensureInstructorOrAdmin(req, res, next) {
   if (
-    req.isAuthenticated &&
-    req.isAuthenticated() &&
-    (req.user.role === "instructor" || req.user.role === "admin")
+    req.session.user &&
+    (req.session.user.role === "instructor" || req.session.user.role === "admin")
   ) {
     return next();
   }

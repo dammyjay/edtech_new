@@ -48,6 +48,18 @@ router.get("/attendance/session/:id", instructorController.getAttendanceSessionD
 
 router.get("/attendance/export/pdf/:sessionId", instructorController.exportAttendancePDF);
 
+// Gamified points/coins — anti-bias caps enforced server-side in
+// services/instructorAwardService.js, not just in the UI.
+router.post("/students/:id/award", ensureInstructorOrAdmin, instructorController.awardStudentPoints);
+router.get("/awards/recent", ensureInstructorOrAdmin, instructorController.getRecentAwards);
+
+// Class Reports — narrative CKEditor write-ups, distinct from the
+// downloadable PDF student reports above.
+router.post("/class-reports", ensureInstructorOrAdmin, instructorController.createClassReport);
+router.get("/class-reports/:id", ensureInstructorOrAdmin, instructorController.getClassReport);
+router.post("/class-reports/:id/edit", ensureInstructorOrAdmin, instructorController.updateClassReport);
+router.post("/class-reports/:id/delete", ensureInstructorOrAdmin, instructorController.deleteClassReport);
+
 // Courses
 router.post(
   "/courses",

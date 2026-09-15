@@ -1,283 +1,27 @@
-<style>
-  /* Sidebar */
-  .sidenav {
-    width: 220px;
-    background: var(--brand-pri);
-    color: #fff;
-    height: 100vh;
-    padding: 15px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1000;
-  }
-
-  .sidenav h2 {
-    margin-bottom: 20px;
-  }
-
-  .sidenav ul {
-    list-style: none;
-    padding: 0;
-  }
-
-  .sidenav ul li {
-    margin: 10px 0;
-  }
-
-  .sidenav ul li a {
-    color: #fff;
-    text-decoration: none;
-    display: block;
-    padding: 8px;
-    border-radius: 4px;
-  }
-
-  .sidenav ul li a:hover {
-    background: var(--brand-pri-dark);
-  }
-
-  /* Main content */
-  .main-content {
-    margin-left: 240px;
-    padding: 20px;
-    transition: margin-left 0.3s ease-in-out;
-  }
-
-  /* Toggle button */
-  .toggle-btn {
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: var(--brand-pri);
-    color: #fff;
-    border: none;
-    padding: 10px 14px;
-    font-size: 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    z-index: 1100;
-  }
-
-  .table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    /* allows horizontal scroll if needed */
-    -webkit-overflow-scrolling: touch;
-    /* smooth scrolling on iOS */
-    max-height: 400px;
-        /* Adjust height as needed */
-        overflow-y: auto;
-        margin-top: 20px;
-}
-
-
-th.sortable {
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-}
-
-th.sortable::after {
-  content: " ↕";
-  font-size: px;
-  font-weight: bold;
-  /* opacity: 0.6; */
-}
-
-th.sort-asc::after {
-  content: " ▲";
-}
-
-th.sort-desc::after {
-  content: " ▼";
-}
-
-.user-table-wrapper {
-    max-height: 400px;
-    /* Adjust height as needed */
-    overflow-y: auto;
-    margin-top: 20px;
-    border: 1px solid #ddd;
-    border-radius: 6px;   
-}
-
-.user-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px;
-    font-family: sans-serif;
-}
-
-.user-table th {
-    position: sticky;
-        top: 0;
-    background-color: #333;
-    color: white;
-    text-align: left;
-    padding: 12px;
-}
-
-.user-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-.user-table tr:hover {
-    background-color: #f5f5f5;
-}
-
-.btn-edit {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-view {
-    background-color: #000000;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.btn-edit:hover {
-    background-color: #45a049;
-}
-.btn-delete {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.btn-delete:hover {
-    background-color: #e53935;
-}
-
-/* Card grid */
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-  margin: 20px 0;
-}
-
-.card {
-  background: #f4f4f4;
-  padding: 20px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-}
-
-.card h3 {
-  margin-bottom: 10px;
-  font-size: 1.1rem;
-}
-
-.card-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: var(--brand-pri);
-}
-
-.back-btn {
-  display: inline-block;
-  background-color: #000;
-  color: #fff;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: background 0.2s ease-in-out;
-  margin-bottom: 15px;
-}
-
-.back-btn:hover {
-  background-color: #333;
-}
-.btns{
-  display: flex;
-  justify-content: space-between;
-  margin: auto;
-}
-
-
-/* On very large screens, limit card width */
-@media (min-width: 1200px) {
-  .card-grid {
-    max-width: 1000px;
-  }
-}
-
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .sidenav {
-      transform: translateX(-100%);
-    }
-    .sidenav.active {
-      transform: translateX(0);
-    }
-    .main-content {
-      margin-left: 0;
-      padding: 15px;
-    }
-    .toggle-btn {
-      display: block;
-    }
-    .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            /* allows horizontal scroll if needed */
-            -webkit-overflow-scrolling: touch;
-            /* smooth scrolling on iOS */   }
-    .user-table th,
-    .user-table td {
-        padding: 8px 6px;
-        font-size: 12px;
-    }
-    .user-table img {
-        width: 35px !important;
-        height: 35px !important;
-    }
-    .card-grid {
-    width: 100%;
-  }
-  }
-</style>
-
-<div class="btns">
-   <a href="javascript:void(0);" onclick="history.back()" class="back-btn">⬅ Back to classes</a>
-   
-   <a class="back-btn" 
-    href="/teacher/dashboard">⬅ Back to dashboard</a>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-chart-pie"></i> Classroom Analytics</h1>
+    <p class="subtitle">Progress, gender mix, and quiz performance for one classroom at a time.</p>
+  </div>
+  <div>
+    <select id="analyticsClassroomSelect" onchange="loadSection('schools?classroom_id=' + this.value)">
+      <% (classes || []).forEach(c => { %>
+        <option value="<%= c.id %>" <%= String(selectedClassroomId) === String(c.id) ? "selected" : "" %>><%= c.name %></option>
+      <% }) %>
+    </select>
+  </div>
 </div>
 
-
-<h2>📊 Classroom Overview</h2>
+<% if (!classes || classes.length === 0) { %>
+  <p style="color:#999;">No classrooms assigned yet.</p>
+<% } else { %>
 
 <div class="card-grid">
- 
   <div class="card">
     <h3>📘 Avg Progress</h3>
-    <p class="card-value"><%= avgProgress %>%</p>
+    <p class="stat-value"><%= avgProgress %>%</p>
   </div>
 
- 
   <div class="card">
     <h3>🏅 Top Student</h3>
     <% if (topStudent && topStudent.fullname) { %>
@@ -288,14 +32,12 @@ th.sort-desc::after {
     <% } %>
   </div>
 
-
   <div class="card">
     <h3>👩‍🎓 Gender Ratio</h3>
     <canvas id="genderChart"></canvas>
   </div>
 </div>
 
-<!-- Charts -->
 <h2>📈 Class Analytics</h2>
 <div style="display:flex; gap:30px; flex-wrap:wrap;">
   <div style="flex:1; min-width:300px;">
@@ -308,13 +50,11 @@ th.sort-desc::after {
   </div>
 </div>
 
-<!-- Student Table -->
 <h2>👥 Student Details</h2>
 <div class="table-responsive">
-  <table class="user-table" border="1" cellpadding="8" cellspacing="0" width="100%">
+  <table class="user-table sortable-table">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Full Name</th>
         <th>Email</th>
         <th>Gender</th>
@@ -328,64 +68,35 @@ th.sort-desc::after {
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
           <tr>
-            <td><%= stu.id %></td>
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.gender || "–" %></td>
             <td><%= stu.lessons_completed %> / <%= stu.total_lessons %></td>
             <td><%= stu.avg_quiz_score || "–" %></td>
             <td><%= stu.avg_assignment_score || "–" %></td>
-            <td><%= stu.last_login ? stu.last_login.toLocaleString() : "Never" %></td>
+            <td><%= stu.last_login ? new Date(stu.last_login).toLocaleString() : "Never" %></td>
           </tr>
         <% }) %>
       <% } else { %>
-        <tr>
-          <td colspan="8">No students found in this class.</td>
-        </tr>
+        <tr><td colspan="7">No students found in this classroom.</td></tr>
       <% } %>
     </tbody>
   </table>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // Gender chart
-  new Chart(document.getElementById('genderChart'), {
-    type: 'doughnut',
-    data: {
-      labels: <%- JSON.stringify(genderSummary.map(g => g.gender || "Unknown")) %>,
-      datasets: [{
-        data: <%- JSON.stringify(genderSummary.map(g => parseInt(g.count))) %>,
-        backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56']
-      }]
-    }
-  });
-
-  // Progress distribution
-  new Chart(document.getElementById('progressChart'), {
-    type: 'bar',
-    data: {
-      labels: ['0–49%', '50–74%', '75–100%'],
-      datasets: [{
-        label: 'Number of Students',
-        data: [<%= progressDist.low %>, <%= progressDist.mid %>, <%= progressDist.high %>],
-        backgroundColor: ['#e74c3c', '#f39c12', '#27ae60']
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
-
-  // Quiz scores per student
-  new Chart(document.getElementById('quizChart'), {
-    type: 'bar',
-    data: {
-      labels: <%- JSON.stringify(students.map(s => s.fullname)) %>,
-      datasets: [{
-        label: 'Avg Quiz Score',
-        data: <%- JSON.stringify(students.map(s => s.avg_quiz_score || 0)) %>,
-        backgroundColor: '#2980b9'
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+<!-- Chart.js is loaded once, persistently, from the shell — and this
+     JSON block (never executed, just read) is how the analytics data
+     reaches instructorDashboard.js's renderAnalyticsCharts(), since this
+     whole section arrives via innerHTML= and a real <script> here would
+     never run (same reason the award modal / class-report JS all live
+     in the persistent shell instead of inline in their own sections). -->
+<script type="application/json" id="analyticsChartData">
+  <%- JSON.stringify({
+    genderLabels: genderSummary.map(g => g.gender || "Unknown"),
+    genderCounts: genderSummary.map(g => parseInt(g.count)),
+    progressDist,
+    studentNames: students.map(s => s.fullname),
+    studentQuizAvgs: students.map(s => s.avg_quiz_score || 0),
+  }) %>
 </script>
+<% } %>

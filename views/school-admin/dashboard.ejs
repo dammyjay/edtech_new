@@ -625,6 +625,20 @@ async function viewAttendance(sessionId) {
     }
   });
 
+// Defined here (the persistent shell), not inside
+// school-admin/classroomReports.ejs itself — that partial is injected via
+// loadSection()'s innerHTML=, which never executes <script> tags it
+// contains, so a function defined there would never actually exist by
+// the time its onclick tries to call it.
+function openClassroomReport(id) {
+  const card = document.querySelector(`[onclick="openClassroomReport(${id})"]`);
+  const titleEl = card ? card.querySelector("h3") : null;
+  const dataEl = document.getElementById(`classroomReportData-${id}`);
+  document.getElementById("classroomReportModalTitle").textContent = titleEl ? titleEl.textContent : "";
+  document.getElementById("classroomReportModalBody").innerHTML = dataEl ? dataEl.innerHTML : "";
+  document.getElementById("classroomReportModal").style.display = "flex";
+}
+
 function attachEvents() {
   // EXISTING CODE (keep it)
   const form = document.getElementById("assignClassForm");

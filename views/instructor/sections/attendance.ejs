@@ -1,28 +1,31 @@
-<link rel="stylesheet" href="/css/styles3.css">
-
-
-<h3>📋 Attendance</h3>
-
-<div style="margin-bottom:15px;">
-  <label>Term:</label>
-  <select id="attendanceFilterTerm">
-    <% (school?.terms || []).forEach(t => { %>
-      <option value="<%= t.term_id %>"><%= t.term_name %></option>
-    <% }) %>
-  </select>
-
-  <label>Classroom:</label>
-  <select id="attendanceFilterClassroom">
-    <option value="">All</option>
-    <% classes.forEach(c => { %>
-      <option value="<%= c.id %>"><%= c.name %></option>
-    <% }) %>
-  </select>
-
-  <button onclick="loadAttendanceHistory()">Load</button>
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-user-check"></i> Attendance</h1>
+    <p class="subtitle">Take attendance and review past sessions for your classes.</p>
+  </div>
+  <button class="btn-primary" onclick="openAttendanceModal()"><i class="fa-solid fa-plus"></i> Take Attendance</button>
 </div>
 
-<button onclick="openAttendanceModal()">➕ Take Attendance</button>
+<div class="card" style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; margin-bottom:18px;">
+  <div>
+    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Term</label>
+    <select id="attendanceFilterTerm">
+      <% (school?.terms || []).forEach(t => { %>
+        <option value="<%= t.term_id %>"><%= t.term_name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div>
+    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Classroom</label>
+    <select id="attendanceFilterClassroom">
+      <option value="">All</option>
+      <% classes.forEach(c => { %>
+        <option value="<%= c.id %>"><%= c.name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <button class="btn-blue" onclick="loadAttendanceHistory()"><i class="fa-solid fa-magnifying-glass"></i> Load History</button>
+</div>
 
 <div id="studentList" style="margin-top:15px;"></div>
 <div class="table-responsive">
@@ -33,38 +36,35 @@
         <th>Classroom</th>
         <th>Status</th>
         <th>Students</th>
-        <th>Actions</th>
+        <th>Details</th>
       </tr>
     </thead>
-
     <tbody id="attendanceTableBody">
-      <tr>
-        <td colspan="5">No data yet</td>
-      </tr>
+      <tr><td colspan="5">No data yet — pick a term/classroom and click "Load History".</td></tr>
     </tbody>
   </table>
 </div>
 
 <div id="attendanceModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
-    <span onclick="closeModal('attendanceModal')" class="close-btn">&times;</span>
+    <span onclick="closeModal('attendanceModal')" class="close">&times;</span>
 
-    <h3>📋 Take Attendance</h3>
+    <h3><i class="fa-solid fa-user-check"></i> Take Attendance</h3>
 
-    <label>Session Type</label>
-    <select id="sessionStatus">
+    <label style="font-size:13px; font-weight:600;">Session Type</label>
+    <select id="sessionStatus" style="width:100%; margin-bottom:12px;">
       <option value="held">✅ Class Held</option>
       <option value="holiday">🎉 Holiday</option>
       <option value="no_class">📭 No Class</option>
       <option value="cancelled">❌ Cancelled</option>
     </select>
 
-    <label>Date</label>
-    <input type="date" id="attendanceDate"
-    value="<%= new Date().toISOString().split('T')[0] %>" />
+    <label style="font-size:13px; font-weight:600;">Date</label>
+    <input type="date" id="attendanceDate" style="width:100%; margin-bottom:12px;"
+      value="<%= new Date().toISOString().split('T')[0] %>" />
 
-    <label>Week</label>
-    <select id="week_number">
+    <label style="font-size:13px; font-weight:600;">Week</label>
+    <select id="week_number" style="width:100%; margin-bottom:12px;">
       <% for(let i = 1; i <= 10; i++) { %>
         <option value="<%= i %>">Week <%= i %></option>
       <% } %>

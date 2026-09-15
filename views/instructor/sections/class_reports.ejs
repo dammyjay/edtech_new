@@ -1,0 +1,59 @@
+<div class="instructor-topbar">
+  <div>
+    <h1><i class="fa-solid fa-file-pen"></i> Class Reports</h1>
+    <p class="subtitle">Narrative notes about your class — visible to your school's admin.</p>
+  </div>
+  <button class="btn-primary" onclick="openNewReportModal()"><i class="fa-solid fa-plus"></i> New Report</button>
+</div>
+
+<% if (!classReports || classReports.length === 0) { %>
+  <p style="color:#999;">No class reports yet — write your first one above.</p>
+<% } else { %>
+  <% classReports.forEach(r => { %>
+    <div class="report-card">
+      <h3><%= r.title %></h3>
+      <div class="report-meta">
+        <span><i class="fa-solid fa-school"></i> <%= r.classroom_name %></span>
+        <% if (r.term_name) { %><span><i class="fa-solid fa-calendar"></i> <%= r.term_name %></span><% } %>
+        <span><i class="fa-solid fa-clock"></i> <%= new Date(r.report_date).toLocaleDateString() %></span>
+      </div>
+      <div class="report-preview"><%- r.content %></div>
+      <div class="multi-btn" style="margin-top:10px;">
+        <button class="btn-edit" onclick="openEditReportModal(<%= r.id %>)">Edit</button>
+        <button class="btn-delete" onclick="deleteClassReportConfirm(<%= r.id %>)">Delete</button>
+      </div>
+    </div>
+  <% }) %>
+<% } %>
+
+<!-- Compose / Edit Modal -->
+<div id="classReportModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeClassReportModal()">&times;</span>
+    <h3 id="reportModalTitle">📝 New Class Report</h3>
+
+    <div id="reportClassroomRow">
+      <label style="font-size:13px; font-weight:600;">Classroom</label>
+      <select id="reportClassroomSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); margin-bottom:12px;">
+        <% (classes || []).forEach(c => { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <label style="font-size:13px; font-weight:600;">Title</label>
+    <input type="text" id="reportTitleInput" placeholder="e.g. Week 5 progress notes"
+      style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); box-sizing:border-box; margin-bottom:12px;" />
+
+    <label style="font-size:13px; font-weight:600;">Date</label>
+    <input type="date" id="reportDateInput" style="padding:8px; border-radius:8px; border:1px solid var(--border-light); margin-bottom:12px;" />
+
+    <label style="font-size:13px; font-weight:600;">Report</label>
+    <textarea id="reportContentField" name="content" rows="10"></textarea>
+
+    <div class="multi-btn" style="margin-top:16px;">
+      <button class="btn-primary" onclick="submitClassReport()"><i class="fa-solid fa-floppy-disk"></i> Save Report</button>
+      <button class="btn-pri" onclick="closeClassReportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
