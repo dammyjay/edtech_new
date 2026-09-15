@@ -2773,6 +2773,60 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
           eventListeners.push({ el: comp.el, type: "sensor-value-change", handler: sendFrame });
         }
       }
+    } else if (comp.tag === "wokwi-rotary-dialer") {
+      // A real old-style pulse-dial telephone dialer. No Arduino library
+      // exists for this part (every real sketch just reads DIAL/PULSE
+      // directly) so there's no library source to confirm timing against
+      // — instead confirmed the exact pin convention against a real
+      // Wokwi example sketch for this component: DIAL idles HIGH
+      // (INPUT_PULLUP) and goes LOW for the whole dialing-in-progress
+      // window; PULSE idles HIGH and pulses LOW once per unit as the
+      // dial spins back to rest; digit 0 sends 10 pulses, digits 1-9
+      // send that many — all standard North American rotary-phone
+      // convention, not guessed.
+      //
+      // Unlike every other input device above, this needs no toolbar
+      // control at all — @wokwi/elements' own RotaryDialerElement
+      // already renders a real clickable dial (click a digit on the
+      // canvas) and dispatches its own 'dial-start' -> 'dial' ->
+      // 'dial-end' custom events as it animates, confirmed by reading
+      // the actual element source: 'dial-start' fires the instant a
+      // digit is picked (the outward pull — no pulses yet on a real
+      // dial either), 'dial' fires exactly when its spring-return CSS
+      // animation begins — the same moment a real dial starts
+      // generating pulses — and 'dial-end' fires once it's back at
+      // rest. So this binding listens for 'dial', not 'dial-start'.
+      const dialConn = connections.find((c) => c.ownPin === "DIAL");
+      const pulseConn = connections.find((c) => c.ownPin === "PULSE");
+      if (dialConn && pulseConn) {
+        const dialLoc = PIN_TO_PORT[dialConn.arduinoPin];
+        const pulseLoc = PIN_TO_PORT[pulseConn.arduinoPin];
+        if (dialLoc && ports[dialLoc.port] && pulseLoc && ports[pulseLoc.port]) {
+          const dialPort = ports[dialLoc.port];
+          const pulsePort = ports[pulseLoc.port];
+          dialPort.setPin(dialLoc.bit, true); // idle high — at rest
+          pulsePort.setPin(pulseLoc.bit, true); // idle high — contact closed
+          const handleDial = (e) => {
+            const digit = Number(e.detail?.digit);
+            if (!Number.isFinite(digit)) return;
+            const pulseCount = digit === 0 ? 10 : digit;
+            const PULSE_PERIOD_US = 100_000; // ~10 pulses/sec — standard North American rotary rate
+            const PULSE_LOW_US = 60_000; // ~60% break ratio, typical of a real dial
+            let cursor = 0;
+            const schedule = (fn) => scheduleAt(cpu, cursor, fn);
+            schedule(() => dialPort.setPin(dialLoc.bit, false)); // dialing in progress
+            for (let i = 0; i < pulseCount; i++) {
+              schedule(() => pulsePort.setPin(pulseLoc.bit, false));
+              cursor += PULSE_LOW_US;
+              schedule(() => pulsePort.setPin(pulseLoc.bit, true));
+              cursor += PULSE_PERIOD_US - PULSE_LOW_US;
+            }
+            schedule(() => dialPort.setPin(dialLoc.bit, true)); // back at rest
+          };
+          comp.el.addEventListener("dial", handleDial);
+          eventListeners.push({ el: comp.el, type: "dial", handler: handleDial });
+        }
+      }
     }
   }
 

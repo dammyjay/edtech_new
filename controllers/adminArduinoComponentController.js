@@ -71,8 +71,8 @@ const KNOWN_GOOD_COMPONENTS = [
     tag: "wokwi-rotary-dialer",
     label: "Rotary Dialer",
     category: "Input",
-    simulated: false,
-    note: "Visual/wireable only — its pulse-dial protocol isn't simulated yet.",
+    simulated: true,
+    note: "Real pulse-dial protocol — click a digit on the dial itself (no toolbar control needed) to send that many real pulses on the PULSE pin, DIAL held low the whole time.",
   },
 
   // --- Sensors --------------------------------------------------------------
