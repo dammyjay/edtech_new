@@ -6,23 +6,41 @@
    specific: the sidebar shell, stat cards with icons, the award
    modal/category chips, and the CKEditor report composer. */
 
-.instructor-shell {
-  display: flex;
-  align-items: flex-start;
-  min-height: 100vh;
-}
-
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar ----------
+   Same fixed off-canvas pattern as the rest of the app's dashboards
+   (views/partials/sidenav.ejs, the school-admin one): a fixed,
+   full-height sidebar reserved via .instructor-main's margin-left on
+   desktop, sliding fully off-screen behind a hamburger toggle on
+   narrow screens — NOT a horizontally-scrolling tab strip, which is
+   what this used to collapse into and read as broken/non-standard. */
 .instructor-sidebar {
   width: 240px;
-  flex-shrink: 0;
   background: var(--sidebar-bg, #201B12);
   color: var(--sidebar-text, #EDE6D6);
-  min-height: 100vh;
+  height: 100vh;
   padding: 20px 14px;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  overflow-y: auto;
   box-sizing: border-box;
+  transition: transform 0.3s ease-in-out;
+  z-index: 1000;
+}
+
+.instructor-toggle-btn {
+  display: none;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: var(--sidebar-bg, #201B12);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  z-index: 1100;
 }
 
 .instructor-sidebar .brand {
@@ -38,7 +56,22 @@
 
 .instructor-sidebar .brand i { color: var(--brand-pri); }
 
-.instructor-tabs { list-style: none; padding: 0; margin: 0; }
+/* public/css/style.css already defines a GLOBAL .instructor-tabs rule
+   (display:flex, overflow-x:auto, border-bottom) meant for an entirely
+   different layout — a horizontal, horizontally-scrolling underline tab
+   bar (shared with the login page's .login-tabs). That's the pre-
+   redesign look the sidebar's own tab list inherited by reusing the
+   same class names, and it's exactly what made this sidebar render as
+   a horizontally-scrolling strip instead of a normal vertical list.
+   Everything below explicitly resets it for the sidebar context. */
+.instructor-tabs {
+  display: block;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-x: visible;
+  border-bottom: none;
+}
 
 .instructor-tabs .tab-btn {
   width: 100%;
@@ -49,12 +82,15 @@
   background: transparent;
   color: var(--sidebar-text-muted, #B4A98C);
   border: none;
+  border-bottom: none; /* overrides style.css's .tab-btn underline-tab border */
+  flex: initial; /* overrides style.css's .tab-btn { flex: 0 0 auto } — irrelevant now .instructor-tabs isn't flex, but explicit so nothing lingers */
   padding: 11px 14px;
   border-radius: var(--radius, 10px);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   margin-bottom: 4px;
+  white-space: normal;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -73,10 +109,11 @@
 
 /* ---------- Main area / topbar ---------- */
 .instructor-main {
-  flex: 1;
-  min-width: 0;
+  margin-left: 240px;
   padding: 22px 28px 60px;
   box-sizing: border-box;
+  min-height: 100vh;
+  transition: margin-left 0.3s ease-in-out;
 }
 
 .instructor-topbar {
@@ -294,14 +331,17 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
-  .instructor-shell { flex-direction: column; }
   .instructor-sidebar {
-    width: 100%;
-    min-height: auto;
-    position: static;
-    padding: 12px;
+    transform: translateX(-100%);
   }
-  .instructor-tabs { display: flex; overflow-x: auto; gap: 6px; }
-  .instructor-tabs .tab-btn { flex-shrink: 0; }
-  .instructor-main { padding: 16px; }
+  .instructor-sidebar.active {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+  .instructor-toggle-btn { display: block; }
+  .instructor-main {
+    margin-left: 0;
+    width: 100%;
+    padding: 64px 16px 40px; /* extra top padding clears the fixed toggle button */
+  }
 }

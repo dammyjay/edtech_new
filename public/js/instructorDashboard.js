@@ -460,6 +460,53 @@ async function deleteClassReportConfirm(id) {
 }
 
 // =====================================================================
+// Sidebar toggle (mobile) — same fixed off-canvas + hamburger pattern
+// as the rest of the app's dashboards (views/partials/sidenav.ejs).
+// =====================================================================
+
+function initSidebarToggle() {
+  const sidenav = document.getElementById("instructorSidenav");
+  const toggleBtn = document.getElementById("instructorToggleBtn");
+  if (!sidenav || !toggleBtn) return;
+
+  toggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = sidenav.classList.toggle("active");
+    toggleBtn.setAttribute("aria-expanded", isOpen);
+  });
+
+  // Close after picking a tab, but only on mobile — on desktop the
+  // sidebar is always visible and this would be a no-op anyway.
+  sidenav.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (window.innerWidth <= 900) {
+        sidenav.classList.remove("active");
+        toggleBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      window.innerWidth <= 900 &&
+      sidenav.classList.contains("active") &&
+      !sidenav.contains(e.target) &&
+      e.target !== toggleBtn
+    ) {
+      sidenav.classList.remove("active");
+      toggleBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 900) {
+      sidenav.classList.remove("active");
+      toggleBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+// =====================================================================
 // Boot
 // =====================================================================
 
@@ -471,5 +518,6 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => loadSection(btn.dataset.tab));
   });
+  initSidebarToggle();
   loadSection(currentSection);
 });
