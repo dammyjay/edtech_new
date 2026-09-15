@@ -7,10 +7,9 @@ const pool = require("../models/db");
 // (compiled/simulated as the AVR chip itself, not a "peripheral" needing
 // its own binding), or the hand-drawn breadboard. Letting admin pick a
 // truly arbitrary tag would just make it easy to add something that LOOKS
-// draggable but does nothing when a sketch runs (exactly the gap found —
-// and left honestly noted here — with wokwi-dht22 below, which has a real
-// pin layout and renders correctly, but whose actual sensor protocol
-// isn't simulated yet).
+// draggable but does nothing when a sketch runs (the gap this allowlist
+// exists to close, and every simulated:false entry below flags honestly
+// rather than hiding).
 // Every tag below is a real @wokwi/elements custom element, confirmed by
 // pulling and inspecting the actual bundle (not guessed from the docs) —
 // same rigor as the DHT22 investigation this comment used to describe
@@ -84,7 +83,7 @@ const KNOWN_GOOD_COMPONENTS = [
     label: "DHT22",
     category: "Sensors",
     simulated: false,
-    note: "Visual/wireable only — live temperature/humidity readings aren't simulated yet.",
+    note: "Visual/wireable only — a real single-wire protocol attempt exists in code but doesn't interoperate with the DHT sensor library correctly yet (dht.readTemperature()/readHumidity() still return NaN).",
   },
   {
     tag: "wokwi-pir-motion-sensor",

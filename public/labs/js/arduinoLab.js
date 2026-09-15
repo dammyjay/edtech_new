@@ -2349,20 +2349,39 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
         if (index < (comp.el.pixels || 16)) comp.el.setPixel(index, { r, g, b });
       });
     } else if (comp.tag === "wokwi-dht22") {
-      // Real single-wire protocol, the same "classify a pulse WIDTH"
-      // approach already proven for HC-SR04's echo and WS2812's bit-bang
-      // above — just single-wire and bidirectional instead of one-shot or
-      // continuous: the host pulls the line low for >=1ms to request a
-      // reading, then releases it; the sensor replies with an 80us-low/
-      // 80us-high "I'm here" ack, then 40 bits (5 bytes: humidity hi/lo,
-      // temp hi/lo, checksum), each bit a ~50us low pulse followed by a
-      // short (~27us, bit 0) or long (~70us, bit 1) high pulse. No
-      // interactive "temperature/humidity" control exists on this part in
-      // @wokwi/elements at all (confirmed against DHT22Element's source —
-      // pure static SVG), so — same honest simplification as the
-      // photoresistor/NTC sensor above — a fixed reading (23.5C, 55.2%
-      // humidity) is used, just delivered via a real, correctly-timed
-      // protocol a library's read() actually has to decode correctly.
+      // WORK IN PROGRESS — not promoted to simulated:true yet (see
+      // KNOWN_GOOD_COMPONENTS in adminArduinoComponentController.js).
+      // Real single-wire protocol attempt, the same "classify a pulse
+      // WIDTH" approach already proven for HC-SR04's echo and WS2812's
+      // bit-bang above: the host pulls the line low for >=1ms to request a
+      // reading, then releases it; the sensor should reply with an
+      // 80us-low/80us-high "I'm here" ack, then 40 bits (5 bytes: humidity
+      // hi/lo, temp hi/lo, checksum), each bit a ~50us low pulse followed
+      // by a short (~27us, bit 0) or long (~70us, bit 1) high pulse — a
+      // fixed 23.5C/55.2% reading, the same honest simplification as the
+      // photoresistor/NTC sensor above (no interactive control exists on
+      // this part in @wokwi/elements at all).
+      //
+      // Doesn't interoperate with the real "DHT sensor library" yet
+      // (dht.readTemperature()/readHumidity() still return NaN) — root
+      // cause not fully nailed down, but one real, load-bearing avr8js
+      // fact was confirmed while investigating (worth keeping for
+      // whoever picks this back up): port.addListener()'s callback only
+      // fires from writeGpio(), which only runs when the AVR ITSELF
+      // writes its DDR or PORT register — an external setPin() call
+      // updates the raw PIN register (so the AVR's own direct-memory
+      // busy-wait reads, like this library's expectPulse(), DO see it)
+      // but never triggers addListener() on its own. Every OTHER binding
+      // here only ever listens on pins the AVR drives as output, so this
+      // never mattered before — DHT22 is the first single-wire part where
+      // the SAME pin alternates between host-driven and sensor-driven,
+      // and is the reason pinState() (output-only semantics — confirmed
+      // against avr8js's gpio.js source) got swapped for a raw
+      // cpu.data[...PIN] read (readRawPin, below) partway through
+      // debugging this. That fix alone wasn't sufficient to get a clean
+      // read; the remaining discrepancy looked like a timing/sequencing
+      // issue in exactly when the host's own release is detected relative
+      // to its own DDR/PORT writes, not confirmed further.
       const conn = connections.find((c) => c.ownPin === "SDA");
       if (conn) {
         const loc = PIN_TO_PORT[conn.arduinoPin];
@@ -2404,16 +2423,31 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices) {
             });
           };
 
+          // pinState() only reports a meaningful HIGH/LOW for a pin the AVR
+          // currently has configured as OUTPUT (confirmed against avr8js's
+          // own gpio.js source) — for an INPUT-configured pin (which SDA
+          // alternates into every time the host releases the line to
+          // listen) it returns Input/InputPullUp instead, never High/Low,
+          // regardless of what setPin() was called with. The RAW pin
+          // register byte avr8js actually writes (cpu.data[...PIN]) has no
+          // such blind spot — it already composites "AVR's own driven
+          // value when DDR=output" with "externally set value when
+          // DDR=input" as one real bit, which is exactly the single-wire
+          // line's true electrical state at any given moment.
+          const readRawPin = () => !!(cpu.data[port.portConfig.PIN] & (1 << loc.bit));
+
           port.setPin(loc.bit, true); // idle high (pulled up)
           port.addListener(() => {
             if (responding) return;
-            const isHigh = port.pinState(loc.bit) === PinState.High;
+            const isHigh = readRawPin();
             if (!isHigh) {
               fallingAtCycle = cpu.cycles;
             } else if (fallingAtCycle !== null) {
               const lowUs = ((cpu.cycles - fallingAtCycle) / CPU_HZ) * 1_000_000;
               fallingAtCycle = null;
-              if (lowUs >= 800) startResponse(); // a real start request (typically 1-18ms), not noise
+              if (lowUs >= 800) {
+                startResponse(); // a real start request (typically 1-18ms), not noise
+              }
             }
           });
         }
