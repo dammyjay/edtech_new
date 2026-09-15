@@ -2306,6 +2306,7 @@ exports.getArcade = async (req, res) => {
 
     res.render("student/arcade", {
       title: "Arcade",
+      users: req.session.user, // partials/header.ejs needs this for its nav links
       games: ARCADE_GAMES,
       coins: studentRes.rows[0]?.coins || 0,
       arcadeEnabled,
