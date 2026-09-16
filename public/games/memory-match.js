@@ -1,5 +1,5 @@
-// Arcade: Memory Match: Code Concepts — self-contained, no dependencies.
-// Mounted by views/student/arcade.ejs via
+// Arcade: Memory Match: Code Concepts — responsive grid, tap/click cards.
+// Mounted by views/student/arcade.ejs through
 // window.ArcadeGames['memory-match'].start(container).
 (function () {
   // Each pair: a short snippet card + the card describing what it does.
@@ -24,25 +24,20 @@
   }
 
   function start(container) {
+    container.classList.add("arcade-game");
+    container.style.setProperty("--game-accent", "#4f46e5");
     container.innerHTML = `
-      <div style="text-align:center;">
-        <p style="margin:0 0 8px; font-size:14px; color:#555;">Match each code snippet to what it does.</p>
-        <div id="memGrid" style="display:grid; grid-template-columns:repeat(4, 110px); gap:10px; margin:0 auto; width:max-content;"></div>
-        <p style="margin-top:8px; font-weight:bold;">Moves: <span id="memMoves">0</span></p>
-        <div id="memOverlay" style="display:none; margin-top:8px;">
-          <p style="color:#16a34a; font-weight:bold;">🎉 Solved in <span id="memFinalMoves"></span> moves!</p>
-          <button id="memRestart" class="btn" style="cursor:pointer;">Play Again</button>
-        </div>
+      <p class="arcade-game-hint">Match each code snippet to what it does.</p>
+      <div class="arcade-scoreboard">
+        <div class="arcade-score-pill"><span class="label">Moves</span><span class="value" id="memMoves">0</span></div>
       </div>
+      <div id="memGrid" style="display:grid; grid-template-columns:repeat(4, minmax(70px, 1fr)); gap:10px; margin:0 auto; max-width:460px;"></div>
     `;
 
     const grid = container.querySelector("#memGrid");
     const movesEl = container.querySelector("#memMoves");
-    const overlay = container.querySelector("#memOverlay");
-    const finalMoves = container.querySelector("#memFinalMoves");
-    const restartBtn = container.querySelector("#memRestart");
 
-    let cards, flipped, matched, moves, lock;
+    let cards, flipped, matched, moves, lock, overlayEl;
 
     function buildDeck() {
       const deck = [];
@@ -54,13 +49,13 @@
     }
 
     function reset() {
+      if (overlayEl) { overlayEl.remove(); overlayEl = null; }
       cards = buildDeck();
       flipped = [];
       matched = new Set();
       moves = 0;
       lock = false;
       movesEl.textContent = "0";
-      overlay.style.display = "none";
       render();
     }
 
@@ -69,7 +64,7 @@
       cards.forEach((card, idx) => {
         const isUp = matched.has(idx) || flipped.includes(idx);
         const el = document.createElement("div");
-        el.style.cssText = `width:110px; height:80px; border-radius:8px; display:flex; align-items:center; justify-content:center; text-align:center; padding:6px; font-size:12px; font-weight:${card.kind === "snippet" ? "bold" : "normal"}; font-family:${card.kind === "snippet" ? "monospace" : "inherit"}; cursor:pointer; color:#fff; background:${matched.has(idx) ? "#16a34a" : isUp ? "#4f46e5" : "#64748b"}; transition:background .15s;`;
+        el.style.cssText = `aspect-ratio:0.85; border-radius:10px; display:flex; align-items:center; justify-content:center; text-align:center; padding:6px; font-size:clamp(10px,2.6vw,12px); font-weight:${card.kind === "snippet" ? "bold" : "normal"}; font-family:${card.kind === "snippet" ? "monospace" : "inherit"}; cursor:pointer; color:#fff; background:${matched.has(idx) ? "#16a34a" : isUp ? "#4f46e5" : "rgba(255,255,255,0.08)"}; border:1px solid rgba(255,255,255,0.12); transition:transform .15s, background .15s; transform:${isUp ? "scale(1)" : "scale(1)"};`;
         el.textContent = isUp ? card.text : "❓";
         el.addEventListener("click", () => onFlip(idx));
         grid.appendChild(el);
@@ -78,6 +73,7 @@
 
     function onFlip(idx) {
       if (lock || matched.has(idx) || flipped.includes(idx) || flipped.length >= 2) return;
+      ArcadeEngine.vibrate(10);
       flipped.push(idx);
       render();
       if (flipped.length === 2) {
@@ -90,8 +86,11 @@
           flipped = [];
           render();
           if (matched.size === cards.length) {
-            finalMoves.textContent = String(moves);
-            overlay.style.display = "block";
+            ArcadeEngine.confetti(container);
+            overlayEl = ArcadeEngine.overlay(container, {
+              emoji: "🎉", title: "Solved!", subtitle: `Finished in ${moves} moves.`,
+              buttonLabel: "Play Again", onRestart: reset,
+            });
           }
         } else {
           lock = true;
@@ -104,9 +103,7 @@
       }
     }
 
-    restartBtn.addEventListener("click", reset);
     container._cleanup = () => {};
-
     reset();
   }
 

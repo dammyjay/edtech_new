@@ -1,34 +1,32 @@
-// Arcade: 2048 — self-contained, no dependencies. Mounted by
-// views/student/arcade.ejs via window.ArcadeGames['2048'].start(container).
+// Arcade: 2048 — responsive grid + swipe/keyboard controls. Mounted by
+// views/student/arcade.ejs through window.ArcadeGames['2048'].start(container).
 (function () {
   const SIZE = 4;
+  const TILE_COLORS = {
+    0: "rgba(255,255,255,0.06)", 2: "#eee4da", 4: "#ede0c8", 8: "#f2b179", 16: "#f59563",
+    32: "#f67c5f", 64: "#f65e3b", 128: "#edcf72", 256: "#edcc61",
+    512: "#edc850", 1024: "#edc53f", 2048: "#edc22e", 4096: "#3c3a32",
+  };
 
   function start(container) {
+    container.classList.add("arcade-game");
+    container.style.setProperty("--game-accent", "#f59e0b");
     container.innerHTML = `
-      <div style="text-align:center;">
-        <p style="margin:0 0 8px; font-size:14px; color:#555;">Arrow keys to slide tiles. Matching tiles merge — reach 2048!</p>
-        <div id="g2048Board" style="display:grid; grid-template-columns:repeat(${SIZE}, 64px); grid-template-rows:repeat(${SIZE}, 64px); gap:8px; background:#94867a; padding:8px; border-radius:8px; margin:0 auto; width:max-content;"></div>
-        <p style="margin-top:8px; font-weight:bold;">Score: <span id="g2048Score">0</span></p>
-        <div id="g2048Overlay" style="display:none; margin-top:8px;">
-          <p id="g2048OverlayText" style="font-weight:bold;"></p>
-          <button id="g2048Restart" class="btn" style="cursor:pointer;">Play Again</button>
-        </div>
+      <p class="arcade-game-hint">Swipe or use arrow keys. Matching tiles merge — reach 2048!</p>
+      <div class="arcade-scoreboard">
+        <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="g2048Score">0</span></div>
+        <div class="arcade-score-pill"><span class="label">Best</span><span class="value" id="g2048Best">${Number(localStorage.getItem("arcade_2048_best") || 0)}</span></div>
+      </div>
+      <div id="g2048BoardWrap" style="display:inline-block; max-width:100%;">
+        <div id="g2048Board" style="display:grid; grid-template-columns:repeat(${SIZE}, 1fr); gap:8px; background:rgba(255,255,255,0.05); padding:8px; border-radius:14px; margin:0 auto; width:min(92vw, 360px); aspect-ratio:1;"></div>
       </div>
     `;
 
     const board = container.querySelector("#g2048Board");
     const scoreEl = container.querySelector("#g2048Score");
-    const overlay = container.querySelector("#g2048Overlay");
-    const overlayText = container.querySelector("#g2048OverlayText");
-    const restartBtn = container.querySelector("#g2048Restart");
+    const bestEl = container.querySelector("#g2048Best");
 
-    const TILE_COLORS = {
-      0: "#cdc1b4", 2: "#eee4da", 4: "#ede0c8", 8: "#f2b179", 16: "#f59563",
-      32: "#f67c5f", 64: "#f65e3b", 128: "#edcf72", 256: "#edcc61",
-      512: "#edc850", 1024: "#edc53f", 2048: "#edc22e",
-    };
-
-    let grid, score, over, won;
+    let grid, score, over, won, overlayEl, removeSwipe;
 
     function emptyGrid() {
       return Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -43,13 +41,13 @@
     }
 
     function reset() {
+      if (overlayEl) { overlayEl.remove(); overlayEl = null; }
       grid = emptyGrid();
       score = 0;
       over = false;
       won = false;
       addRandomTile();
       addRandomTile();
-      overlay.style.display = "none";
       render();
     }
 
@@ -58,10 +56,11 @@
       for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
           const v = grid[r][c];
-          const cell = document.createElement("div");
-          cell.style.cssText = `width:64px;height:64px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:${v >= 1000 ? 18 : 22}px;color:${v <= 4 ? "#776e65" : "#fff"};background:${TILE_COLORS[v] || "#3c3a32"};`;
-          cell.textContent = v || "";
-          board.appendChild(cell);
+          const cellEl = document.createElement("div");
+          cellEl.style.cssText = `border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:${v >= 1000 ? "5vw" : "6vw"};max-font-size:26px;color:${v && v <= 4 ? "#776e65" : "#fff"};background:${TILE_COLORS[v] || "#3c3a32"};transition:background .15s;`;
+          cellEl.style.fontSize = v >= 1000 ? "clamp(14px, 5vw, 22px)" : "clamp(16px, 6vw, 26px)";
+          cellEl.textContent = v || "";
+          board.appendChild(cellEl);
         }
       }
       scoreEl.textContent = String(score);
@@ -92,34 +91,6 @@
       return res;
     }
 
-    function move(direction) {
-      if (over) return;
-      let rotations = { left: 0, up: 1, right: 2, down: 3 }[direction];
-      let working = grid;
-      for (let i = 0; i < rotations; i++) working = rotateGridCW(working);
-
-      const before = JSON.stringify(working);
-      working = working.map(slideRowLeft);
-      const changed = JSON.stringify(working) !== before;
-
-      for (let i = 0; i < (4 - rotations) % 4; i++) working = rotateGridCW(working);
-      grid = working;
-
-      if (changed) {
-        addRandomTile();
-        render();
-        if (won) {
-          over = true;
-          overlayText.textContent = "🎉 You reached 2048!";
-          overlay.style.display = "block";
-        } else if (!hasMoves()) {
-          over = true;
-          overlayText.textContent = "Game Over — no more moves.";
-          overlay.style.display = "block";
-        }
-      }
-    }
-
     function hasMoves() {
       for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
@@ -131,6 +102,38 @@
       return false;
     }
 
+    function finish(text, emoji) {
+      over = true;
+      const best = Math.max(score, Number(localStorage.getItem("arcade_2048_best") || 0));
+      localStorage.setItem("arcade_2048_best", String(best));
+      bestEl.textContent = String(best);
+      if (won) ArcadeEngine.confetti(container);
+      overlayEl = ArcadeEngine.overlay(container, { emoji, title: text, subtitle: `Score: ${score}`, buttonLabel: "Play Again", onRestart: reset });
+    }
+
+    function move(direction) {
+      if (over) return;
+      let rotations = { left: 0, up: 1, right: 2, down: 3 }[direction];
+      if (rotations === undefined) return;
+      let working = grid;
+      for (let i = 0; i < rotations; i++) working = rotateGridCW(working);
+
+      const before = JSON.stringify(working);
+      working = working.map(slideRowLeft);
+      const changed = JSON.stringify(working) !== before;
+
+      for (let i = 0; i < (4 - rotations) % 4; i++) working = rotateGridCW(working);
+      grid = working;
+
+      if (changed) {
+        ArcadeEngine.vibrate(10);
+        addRandomTile();
+        render();
+        if (won) finish("🎉 You reached 2048!", "🏆");
+        else if (!hasMoves()) finish("No more moves", "😵");
+      }
+    }
+
     function onKey(e) {
       const map = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
       const dir = map[e.key];
@@ -140,8 +143,11 @@
     }
 
     document.addEventListener("keydown", onKey);
-    restartBtn.addEventListener("click", reset);
-    container._cleanup = () => document.removeEventListener("keydown", onKey);
+    removeSwipe = ArcadeEngine.bindSwipe(board, { onSwipe: move });
+    container._cleanup = () => {
+      document.removeEventListener("keydown", onKey);
+      if (removeSwipe) removeSwipe();
+    };
 
     reset();
   }

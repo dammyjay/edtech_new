@@ -1,29 +1,35 @@
-// Arcade: Snake — self-contained, no dependencies. Mounted by
-// views/student/arcade.ejs via window.ArcadeGames.snake.start(container).
+// Arcade: Snake — responsive canvas + swipe/D-pad/keyboard controls via
+// window.ArcadeEngine. Mounted by views/student/arcade.ejs through
+// window.ArcadeGames.snake.start(container).
 (function () {
-  const GRID = 20; // cells per side
-  const CELL = 18; // px per cell
+  const GRID = 18; // cells per side
 
   function start(container) {
+    container.classList.add("arcade-game");
+    container.style.setProperty("--game-accent", "#22c55e");
     container.innerHTML = `
-      <div style="text-align:center;">
-        <p style="margin:0 0 8px; font-size:14px; color:#555;">Arrow keys / WASD to move. Eat the dot, don't hit yourself or the wall.</p>
-        <canvas id="snakeCanvas" width="${GRID * CELL}" height="${GRID * CELL}" style="background:#0f172a; border-radius:8px; touch-action:none;"></canvas>
-        <p style="margin-top:8px; font-weight:bold;">Score: <span id="snakeScore">0</span></p>
-        <div id="snakeOverlay" style="display:none; margin-top:8px;">
-          <p style="color:#dc2626; font-weight:bold;">Game Over!</p>
-          <button id="snakeRestart" class="btn" style="cursor:pointer;">Play Again</button>
-        </div>
+      <p class="arcade-game-hint">Swipe, use the D-pad, or arrow keys / WASD. Eat the dot, don't hit yourself or the wall.</p>
+      <div class="arcade-scoreboard">
+        <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="snakeScore">0</span></div>
+        <div class="arcade-score-pill"><span class="label">Best</span><span class="value" id="snakeBest">${Number(localStorage.getItem("arcade_snake_best") || 0)}</span></div>
       </div>
+      <div class="arcade-canvas-wrap"><canvas id="snakeCanvas"></canvas></div>
+      <div id="snakeDpadHolder"></div>
     `;
 
     const canvas = container.querySelector("#snakeCanvas");
-    const ctx = canvas.getContext("2d");
     const scoreEl = container.querySelector("#snakeScore");
-    const overlay = container.querySelector("#snakeOverlay");
-    const restartBtn = container.querySelector("#snakeRestart");
+    const bestEl = container.querySelector("#snakeBest");
+    let cell, ctx, dims;
 
-    let snake, dir, nextDir, food, score, alive, loopId;
+    let snake, dir, nextDir, food, score, alive, loopId, overlayEl, removeResize, removeSwipe;
+
+    function layout() {
+      dims = ArcadeEngine.fitCanvas(canvas, 1, 420);
+      ctx = dims.ctx;
+      cell = dims.width / GRID;
+      draw();
+    }
 
     function randomFood() {
       let pos;
@@ -34,16 +40,17 @@
     }
 
     function reset() {
-      snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+      if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+      snake = [{ x: 9, y: 9 }, { x: 8, y: 9 }, { x: 7, y: 9 }];
       dir = { x: 1, y: 0 };
       nextDir = dir;
       score = 0;
       alive = true;
       food = randomFood();
       scoreEl.textContent = "0";
-      overlay.style.display = "none";
       if (loopId) clearInterval(loopId);
-      loopId = setInterval(tick, 110);
+      loopId = setInterval(tick, 115);
+      layout();
     }
 
     function tick() {
@@ -53,7 +60,13 @@
       if (head.x < 0 || head.y < 0 || head.x >= GRID || head.y >= GRID || snake.some((s) => s.x === head.x && s.y === head.y)) {
         alive = false;
         clearInterval(loopId);
-        overlay.style.display = "block";
+        const best = Math.max(score, Number(localStorage.getItem("arcade_snake_best") || 0));
+        localStorage.setItem("arcade_snake_best", String(best));
+        bestEl.textContent = String(best);
+        overlayEl = ArcadeEngine.overlay(container, {
+          emoji: "🐍", title: "Game Over", subtitle: `You scored ${score}. ${score >= best ? "New best!" : "Best: " + best}`,
+          buttonLabel: "Play Again", onRestart: reset,
+        });
         return;
       }
 
@@ -62,47 +75,74 @@
         score++;
         scoreEl.textContent = String(score);
         food = randomFood();
+        ArcadeEngine.vibrate(15);
       } else {
         snake.pop();
       }
       draw();
     }
 
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     function draw() {
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!ctx) return;
+      const g = ctx.createLinearGradient(0, 0, 0, dims.height);
+      g.addColorStop(0, "#0f172a");
+      g.addColorStop(1, "#1e293b");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, dims.width, dims.height);
+
       ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(food.x * CELL, food.y * CELL, CELL - 2, CELL - 2);
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 12;
+      roundRect(food.x * cell + 2, food.y * cell + 2, cell - 4, cell - 4, cell * 0.3);
+      ctx.shadowBlur = 0;
+
       snake.forEach((s, i) => {
         ctx.fillStyle = i === 0 ? "#4ade80" : "#22c55e";
-        ctx.fillRect(s.x * CELL, s.y * CELL, CELL - 2, CELL - 2);
+        roundRect(s.x * cell + 1, s.y * cell + 1, cell - 2, cell - 2, cell * 0.28);
       });
     }
 
-    function onKey(e) {
+    function move(direction) {
       if (!alive) return;
-      const map = {
-        ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 },
-        ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 },
-        ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 },
-        ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 },
-      };
-      const next = map[e.key];
+      const map = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+      const next = map[direction];
       if (!next) return;
       if (next.x === -dir.x && next.y === -dir.y) return; // no 180s
       nextDir = next;
+    }
+
+    function onKey(e) {
+      const map = { ArrowUp: "up", w: "up", ArrowDown: "down", s: "down", ArrowLeft: "left", a: "left", ArrowRight: "right", d: "right" };
+      const dir2 = map[e.key];
+      if (!dir2) return;
       e.preventDefault();
+      move(dir2);
     }
 
     document.addEventListener("keydown", onKey);
-    restartBtn.addEventListener("click", reset);
+    ArcadeEngine.dpad(container.querySelector("#snakeDpadHolder"), move);
+    removeSwipe = ArcadeEngine.bindSwipe(canvas, { onSwipe: move });
+    removeResize = ArcadeEngine.onResize(layout);
+
     container._cleanup = () => {
       document.removeEventListener("keydown", onKey);
       if (loopId) clearInterval(loopId);
+      if (removeResize) removeResize();
+      if (removeSwipe) removeSwipe();
     };
 
     reset();
-    draw();
   }
 
   function stop(container) {
