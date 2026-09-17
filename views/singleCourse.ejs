@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/css/styles3.css" />
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <script src="/js/overviewModal.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <% const ogTitle = course.title;
@@ -26,9 +27,17 @@
     <div class="new-hero">
         <div class="hero-content">
             <h1><%= course.title %></h1>
-            <div class="article-body">
-            <%- course.description %>
-            </div>
+            <% const courseTeaser = (course.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 180); %>
+            <p><%= courseTeaser %><%= courseTeaser.length >= 180 ? '…' : '' %></p>
+            <button type="button" class="btn-sec overview-trigger-btn"
+              data-kind="Course"
+              data-title="<%= course.title %>"
+              data-thumbnail="<%= course.thumbnail_url || '' %>"
+              data-content-id="courseOverviewData"
+              <% if (user && user.role === 'admin') { %>
+              data-download-url="/courses/<%= course.id %>/curriculum/download"
+              <% } %>
+            >📘 View Full Overview</button>
         </div>
 
         <div class="hero-content">
@@ -38,15 +47,17 @@
         </div>
     </div>
 
+    <!-- Course description HTML, read by overviewModal.js rather than
+         dumped inline — kept off-page (hidden) so it's still there for a
+         no-JS crawler/OG-scrape but never shown as a raw unstyled blob
+         to a real visitor. -->
+    <div id="courseOverviewData" hidden><%- course.description %></div>
+
     <h2>Intro Video</h2>
-  
+
 
 
      <div style="margin-top: 30px;">
-        
-        <h3>About this Course</h3>
-        <div class="rich-content"><%- course.description %></div>
-        
         <div class="">
             <h4>🎯 Level: </h4>
             <p><%- course.level %></p>
@@ -78,9 +89,11 @@
 
   <% if (isLoggedIn && !isEnrolled) { %>
     <br>
-    <button type="button" class="btn-pri" 
+    <% if (user && user.role === 'admin') { %>
+    <button type="button" class="btn-pri"
     onclick="window.location.href='/courses/<%= course.id %>/curriculum/download'">
-    Download Curriculum</button>
+    ⬇️ Download Overview (PDF)</button>
+    <% } %>
 
     <% if (course.amount == 0) { %>
       <!-- Free course -->
@@ -106,7 +119,7 @@
   <% } else { %>
     <div class="enroll-cta">
       <button class="btn-sec" onclick="promptLogin()">Login to Enroll</button>
-      <p class="cta-subtext">Also available: download curriculum</p>
+      <p class="cta-subtext">Use "View Full Overview" above to see what's covered.</p>
     </div>
   <% } %>
 
@@ -135,12 +148,15 @@
     <div class="article-card">
       <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
       <h4><%= module.title %></h4>
-      <!-- <p>Module ID: <%= module.id %></p> -->
-       <% if (module.description) { %>
-                    <div class="rich-content"><%- module.description %></div>
-                <% } %>
-      <!-- <p>Created At: <%= module.created_at.toDateString() %></p> -->
-     
+      <% if (module.description) { %>
+        <div id="moduleOverviewData-<%= module.id %>" hidden><%- module.description %></div>
+        <button type="button" class="btn-sec overview-trigger-btn" style="font-size:13px; padding:6px 14px;"
+          data-kind="Module"
+          data-title="<%= module.title %>"
+          data-thumbnail="<%= module.thumbnail || '' %>"
+          data-content-id="moduleOverviewData-<%= module.id %>"
+        >📦 View Overview</button>
+      <% } %>
     </div>
   <% }) %>
 </section>

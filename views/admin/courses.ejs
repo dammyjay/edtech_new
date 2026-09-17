@@ -14,10 +14,11 @@
           required
         /><br />
       </div>
+      <label for="content">Course Overview</label>
       <textarea
         name="description"
         id="content"
-        placeholder="Description"
+        placeholder="Course Overview — shown to students/parents in a styled 'View Overview' popup"
       ></textarea
       ><br />
 
@@ -112,11 +113,19 @@
                   <div class="card-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
                     <%- course.description.substring(0, 100) %>...
                   </div>
+                  <div id="courseOverviewData-<%= course.id %>" hidden><%- course.description %></div>
 
                   <p><strong>Price: </strong> ₦ <%= course.amount %></p>
                   <p style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></p>
                   <div class="article-buttons">
                     <button class="btn-edit" onclick="openEditModal(<%= course.id %>)">Edit</button>
+                    <button type="button" class="overview-trigger-btn"
+                      data-kind="Course"
+                      data-title="<%= course.title %>"
+                      data-thumbnail="<%= course.thumbnail_url || '' %>"
+                      data-content-id="courseOverviewData-<%= course.id %>"
+                      data-download-url="/admin/courses/<%= course.id %>/curriculum/download"
+                    >📘 View Overview</button>
                     <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Replace the current thumbnail with a new auto-generated one?')">
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button type="submit">🖼️ Regenerate Thumbnail</button>
@@ -137,7 +146,7 @@
                   <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="redirect_to" value="/admin/courses" />
                     <input type="text" name="title" value="<%= course.title %>" required /><br />
-                    <!-- <textarea id="content" name="description"><%- course.description %></textarea><br /> -->
+                    <label for="editContent-<%= course.id %>">Course Overview</label>
                     <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea>
 
                     <select name="level" required>

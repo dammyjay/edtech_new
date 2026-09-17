@@ -52,12 +52,22 @@
       <h4><%= module.title %></h4>
       <p>Module ID: <%= module.id %></p>
       <p>Created At: <%= module.created_at.toDateString() %></p>
-      
-     
+
+      <% if (module.description) { %>
+        <div id="moduleOverviewData-<%= module.id %>" hidden><%- module.description %></div>
+      <% } %>
 
       <!-- Edit Button triggers modal -->
        <div class="article-buttons">
         <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
+        <% if (module.description) { %>
+          <button type="button" class="overview-trigger-btn"
+            data-kind="Module"
+            data-title="<%= module.title %>"
+            data-thumbnail="<%= module.thumbnail || '' %>"
+            data-content-id="moduleOverviewData-<%= module.id %>"
+          >📦 View Overview</button>
+        <% } %>
 
         <!-- Regenerate Thumbnail -->
         <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
@@ -88,7 +98,7 @@
           <form action="/admin/modules/edit/<%= module.id %>" method="POST" enctype="multipart/form-data">
             <label for="">Title</label>
             <input type="text" name="title" value="<%= module.title %>" required />
-            <label for="">Description</label>
+            <label for="">Module Overview</label>
             <textarea name="description" id="editckeditor-<%= module.id %>"><%= module.description %></textarea>
             <label for="">Objectives</label>
             <textarea name="objectives" id="editckeditor1-<%= module.id %>"><%= module.objectives %></textarea>
@@ -160,7 +170,7 @@
   <label>Title</label>
   <input type="text" name="title" placeholder="Module Title" required />
 
-  <label>Description</label>
+  <label>Module Overview</label>
   <textarea name="description" id="ckeditor"></textarea>
 
   <label>Objectives</label>

@@ -3009,11 +3009,24 @@ exports.deleteCourse = async (req, res) => {
   }
 };
 
+// Admin-only (see the role check below) — the course "Overview" (the
+// courses.description CKEditor field, previously and confusingly also
+// called "curriculum" in this route's name) rendered to a branded PDF.
+// This used to read a `curriculum_content` column that has no matching
+// schema definition (models/initTables.js) and no form field anywhere
+// in views/admin/courses.ejs — req.body.curriculum_content was always
+// undefined on every create/edit, so this endpoint always 400'd with
+// "No curriculum available" no matter what an admin actually wrote.
+// Reading `description` instead is the actual content that exists.
 exports.downloadCurriculum = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).send("Only an admin can download the course overview.");
+  }
+
   const courseId = req.params.id;
 
   const result = await pool.query(
-    `SELECT title, curriculum_content FROM courses WHERE id = $1`,
+    `SELECT title, description AS curriculum_content FROM courses WHERE id = $1`,
     [courseId]
   );
 
@@ -3024,7 +3037,7 @@ exports.downloadCurriculum = async (req, res) => {
   const course = result.rows[0];
 
   if (!course.curriculum_content) {
-    return res.status(400).send("No curriculum available");
+    return res.status(400).send("No course overview available yet.");
   }
 
   const infoResult = await pool.query(

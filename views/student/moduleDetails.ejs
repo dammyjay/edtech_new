@@ -1,11 +1,34 @@
 <%- include('../partials/header', { title: module.title }) %>
 
-<h2><%= module.title %></h2>
-<div class="lessons-grid">
-  <% lessons.forEach(lesson => { %>
-    <div class="lesson-card">
-      <h4>Lesson <%= lesson.order_number %>: <%= lesson.title.replace(/^lesson\s+\d+\s*[:.\-]?\s*/i, '') %></h4>
-      <a href="/student/lessons/<%= lesson.id %>">View Lesson</a>
+<div style="max-width:1000px; margin:0 auto; padding:20px;">
+  <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:16px;">
+    <% if (module.thumbnail) { %>
+      <img src="<%= module.thumbnail %>" alt="" style="width:90px; height:90px; object-fit:cover; border-radius:12px; flex-shrink:0;">
+    <% } %>
+    <div>
+      <h2 style="margin:0 0 6px;"><%= module.title %></h2>
+      <% if (module.description) { %>
+        <button type="button" class="btn-sec overview-trigger-btn"
+          data-kind="Module"
+          data-title="<%= module.title %>"
+          data-thumbnail="<%= module.thumbnail || '' %>"
+          data-content-id="moduleOverviewData"
+        >📦 View Module Overview</button>
+      <% } %>
     </div>
-  <% }) %>
+  </div>
+
+  <% if (module.description) { %>
+    <div id="moduleOverviewData" hidden><%- module.description %></div>
+  <% } %>
+
+  <h3 style="margin-top:26px;">Lessons</h3>
+  <div class="lessons-grid">
+    <% lessons.forEach(lesson => { %>
+      <div class="lesson-card">
+        <h4>Lesson <%= lesson.order_number %>: <%= lesson.title.replace(/^lesson\s+\d+\s*[:.\-]?\s*/i, '') %></h4>
+        <a href="/student/lessons/<%= lesson.id %>">View Lesson</a>
+      </div>
+    <% }) %>
+  </div>
 </div>

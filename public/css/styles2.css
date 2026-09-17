@@ -3313,7 +3313,10 @@ canvas {
 }
 
 /* 🔹 NOTE VIEW */
-.lesson-note {
+.lesson-note ,
+
+/* 🔹 NOTE VIEW */
+.overview-content {
     line-height: 1.6;
     padding: 20px;
     background: #fff;
@@ -3331,7 +3334,10 @@ canvas {
 }
 
 /* 🔹 Lesson Note Images */
-.lesson-note img {
+.lesson-note img ,
+
+/* 🔹 Lesson Note Images */
+.overview-content img {
     display: block;
     max-width: 100%;
     /* Fit container width */
@@ -3388,16 +3394,18 @@ canvas {
 /* 🔹 BRANDED RICH-TEXT TYPOGRAPHY ------------------------------------
    Shared styling for every place CKEditor-authored HTML gets rendered
    back out: lesson content/plan, course/module/pathway/event/project
-   descriptions, the About page. One ruleset via this combined selector
-   list so a heading/list/table/quote looks the same everywhere instead
-   of just inheriting bare browser defaults. Any new content wrapper
-   that doesn't already have one of these classes should use
-   .rich-content. NOT included below: img rules for .lesson-note/
-   .slide-body — those already have their own (display:block,
-   object-fit, max-height tuned for the lesson viewer) a few lines up,
-   deliberately left untouched here. */
+   descriptions, the About page, and now the course/module "Overview"
+   viewer modal (.overview-content — see public/js/overviewModal.js).
+   One ruleset via this combined selector list so a heading/list/table/
+   quote looks the same everywhere instead of just inheriting bare
+   browser defaults. Any new content wrapper that doesn't already have
+   one of these classes should use .rich-content. NOT included below:
+   img rules for .lesson-note/.slide-body — those already have their
+   own (display:block, object-fit, max-height tuned for the lesson
+   viewer) a few lines up, deliberately left untouched here. */
 .rich-content,
 .lesson-note,
+.overview-content,
 .slide-body,
 .lesson-plan-content,
 .article-body,
@@ -3408,12 +3416,12 @@ canvas {
     color: var(--text-primary, #222222);
 }
 
-.rich-content h1, .lesson-note h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1,
-.rich-content h2, .lesson-note h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2,
-.rich-content h3, .lesson-note h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3,
-.rich-content h4, .lesson-note h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
-.rich-content h5, .lesson-note h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
-.rich-content h6, .lesson-note h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 {
+.rich-content h1, .lesson-note h1, .overview-content h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1,
+.rich-content h2, .lesson-note h2, .overview-content h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2,
+.rich-content h3, .lesson-note h3, .overview-content h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3,
+.rich-content h4, .lesson-note h4, .overview-content h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
+.rich-content h5, .lesson-note h5, .overview-content h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
+.rich-content h6, .lesson-note h6, .overview-content h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 {
     font-family: 'Inter', sans-serif;
     color: var(--brand-pri-dark, #4C3802);
     font-weight: 700;
@@ -3421,39 +3429,39 @@ canvas {
     margin: 1.4em 0 0.5em;
 }
 
-.rich-content h1, .lesson-note h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1 { font-size: 28px; }
-.rich-content h2, .lesson-note h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2 {
+.rich-content h1, .lesson-note h1, .overview-content h1, .slide-body h1, .lesson-plan-content h1, .article-body h1, .curriculum-content h1, .project-desc h1, .about-content h1 { font-size: 28px; }
+.rich-content h2, .lesson-note h2, .overview-content h2, .slide-body h2, .lesson-plan-content h2, .article-body h2, .curriculum-content h2, .project-desc h2, .about-content h2 {
     font-size: 24px;
     padding-bottom: 0.3em;
     border-bottom: 2px solid var(--brand-tint, #FBF3DD);
 }
-.rich-content h3, .lesson-note h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3 { font-size: 20px; }
-.rich-content h4, .lesson-note h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
-.rich-content h5, .lesson-note h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
-.rich-content h6, .lesson-note h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 { font-size: 17px; }
+.rich-content h3, .lesson-note h3, .overview-content h3, .slide-body h3, .lesson-plan-content h3, .article-body h3, .curriculum-content h3, .project-desc h3, .about-content h3 { font-size: 20px; }
+.rich-content h4, .lesson-note h4, .overview-content h4, .slide-body h4, .lesson-plan-content h4, .article-body h4, .curriculum-content h4, .project-desc h4, .about-content h4,
+.rich-content h5, .lesson-note h5, .overview-content h5, .slide-body h5, .lesson-plan-content h5, .article-body h5, .curriculum-content h5, .project-desc h5, .about-content h5,
+.rich-content h6, .lesson-note h6, .overview-content h6, .slide-body h6, .lesson-plan-content h6, .article-body h6, .curriculum-content h6, .project-desc h6, .about-content h6 { font-size: 17px; }
 
-.rich-content p, .lesson-note p, .slide-body p, .lesson-plan-content p, .article-body p, .curriculum-content p, .project-desc p, .about-content p {
+.rich-content p, .lesson-note p, .overview-content p, .slide-body p, .lesson-plan-content p, .article-body p, .curriculum-content p, .project-desc p, .about-content p {
     font-size: 16px;
     margin: 0 0 1em;
 }
 
-.rich-content strong, .lesson-note strong, .slide-body strong, .lesson-plan-content strong, .article-body strong, .curriculum-content strong, .project-desc strong, .about-content strong {
+.rich-content strong, .lesson-note strong, .overview-content strong, .slide-body strong, .lesson-plan-content strong, .article-body strong, .curriculum-content strong, .project-desc strong, .about-content strong {
     color: var(--brand-pri-dark, #4C3802);
 }
 
-.rich-content ul, .lesson-note ul, .slide-body ul, .lesson-plan-content ul, .article-body ul, .curriculum-content ul, .project-desc ul, .about-content ul,
-.rich-content ol, .lesson-note ol, .slide-body ol, .lesson-plan-content ol, .article-body ol, .curriculum-content ol, .project-desc ol, .about-content ol {
+.rich-content ul, .lesson-note ul, .overview-content ul, .slide-body ul, .lesson-plan-content ul, .article-body ul, .curriculum-content ul, .project-desc ul, .about-content ul,
+.rich-content ol, .lesson-note ol, .overview-content ol, .slide-body ol, .lesson-plan-content ol, .article-body ol, .curriculum-content ol, .project-desc ol, .about-content ol {
     margin: 0 0 1em;
     padding-left: 1.4em;
 }
-.rich-content li, .lesson-note li, .slide-body li, .lesson-plan-content li, .article-body li, .curriculum-content li, .project-desc li, .about-content li {
+.rich-content li, .lesson-note li, .overview-content li, .slide-body li, .lesson-plan-content li, .article-body li, .curriculum-content li, .project-desc li, .about-content li {
     margin-bottom: 0.4em;
 }
-.rich-content ul li::marker, .lesson-note ul li::marker, .slide-body ul li::marker, .lesson-plan-content ul li::marker, .article-body ul li::marker, .curriculum-content ul li::marker, .project-desc ul li::marker, .about-content ul li::marker {
+.rich-content ul li::marker, .lesson-note ul li::marker, .overview-content ul li::marker, .slide-body ul li::marker, .lesson-plan-content ul li::marker, .article-body ul li::marker, .curriculum-content ul li::marker, .project-desc ul li::marker, .about-content ul li::marker {
     color: var(--brand-pri, #A17807);
 }
 
-.rich-content blockquote, .lesson-note blockquote, .slide-body blockquote, .lesson-plan-content blockquote, .article-body blockquote, .curriculum-content blockquote, .project-desc blockquote, .about-content blockquote {
+.rich-content blockquote, .lesson-note blockquote, .overview-content blockquote, .slide-body blockquote, .lesson-plan-content blockquote, .article-body blockquote, .curriculum-content blockquote, .project-desc blockquote, .about-content blockquote {
     margin: 1.2em 0;
     padding: 12px 18px;
     border-left: 4px solid var(--brand-pri, #A17807);
@@ -3463,7 +3471,7 @@ canvas {
     font-style: italic;
 }
 
-.rich-content table, .lesson-note table, .slide-body table, .lesson-plan-content table, .article-body table, .curriculum-content table, .project-desc table, .about-content table {
+.rich-content table, .lesson-note table, .overview-content table, .slide-body table, .lesson-plan-content table, .article-body table, .curriculum-content table, .project-desc table, .about-content table {
     width: 100%;
     margin: 1.2em 0;
     border-collapse: collapse;
@@ -3473,28 +3481,28 @@ canvas {
     display: block;
     overflow-x: auto;
 }
-.rich-content thead th, .lesson-note thead th, .slide-body thead th, .lesson-plan-content thead th, .article-body thead th, .curriculum-content thead th, .project-desc thead th, .about-content thead th {
+.rich-content thead th, .lesson-note thead th, .overview-content thead th, .slide-body thead th, .lesson-plan-content thead th, .article-body thead th, .curriculum-content thead th, .project-desc thead th, .about-content thead th {
     background: var(--brand-pri, #A17807);
     color: #ffffff;
     font-weight: 600;
     text-align: left;
     padding: 10px 14px;
 }
-.rich-content td, .lesson-note td, .slide-body td, .lesson-plan-content td, .article-body td, .curriculum-content td, .project-desc td, .about-content td,
-.rich-content th, .lesson-note th, .slide-body th, .lesson-plan-content th, .article-body th, .curriculum-content th, .project-desc th, .about-content th {
+.rich-content td, .lesson-note td, .overview-content td, .slide-body td, .lesson-plan-content td, .article-body td, .curriculum-content td, .project-desc td, .about-content td,
+.rich-content th, .lesson-note th, .overview-content th, .slide-body th, .lesson-plan-content th, .article-body th, .curriculum-content th, .project-desc th, .about-content th {
     padding: 10px 14px;
     border-bottom: 1px solid var(--border-light, #e0e0e0);
 }
-.rich-content tbody tr:nth-child(even), .lesson-note tbody tr:nth-child(even), .slide-body tbody tr:nth-child(even), .lesson-plan-content tbody tr:nth-child(even), .article-body tbody tr:nth-child(even), .curriculum-content tbody tr:nth-child(even), .project-desc tbody tr:nth-child(even), .about-content tbody tr:nth-child(even) {
+.rich-content tbody tr:nth-child(even), .lesson-note tbody tr:nth-child(even), .overview-content tbody tr:nth-child(even), .slide-body tbody tr:nth-child(even), .lesson-plan-content tbody tr:nth-child(even), .article-body tbody tr:nth-child(even), .curriculum-content tbody tr:nth-child(even), .project-desc tbody tr:nth-child(even), .about-content tbody tr:nth-child(even) {
     background: var(--bg-secondary, #f8f9fa);
 }
 
-.rich-content a, .lesson-note a, .slide-body a, .lesson-plan-content a, .article-body a, .curriculum-content a, .project-desc a, .about-content a {
+.rich-content a, .lesson-note a, .overview-content a, .slide-body a, .lesson-plan-content a, .article-body a, .curriculum-content a, .project-desc a, .about-content a {
     color: var(--brand-pri, #A17807);
     font-weight: 600;
     text-decoration: none;
 }
-.rich-content a:hover, .lesson-note a:hover, .slide-body a:hover, .lesson-plan-content a:hover, .article-body a:hover, .curriculum-content a:hover, .project-desc a:hover, .about-content a:hover {
+.rich-content a:hover, .lesson-note a:hover, .overview-content a:hover, .slide-body a:hover, .lesson-plan-content a:hover, .article-body a:hover, .curriculum-content a:hover, .project-desc a:hover, .about-content a:hover {
     text-decoration: underline;
 }
 
@@ -3509,7 +3517,7 @@ canvas {
     box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
 }
 
-.rich-content code, .lesson-note code, .slide-body code, .lesson-plan-content code, .article-body code, .curriculum-content code, .project-desc code, .about-content code {
+.rich-content code, .lesson-note code, .overview-content code, .slide-body code, .lesson-plan-content code, .article-body code, .curriculum-content code, .project-desc code, .about-content code {
     background: var(--bg-secondary, #f8f9fa);
     color: var(--brand-pri-dark, #4C3802);
     padding: 2px 6px;
@@ -3517,37 +3525,38 @@ canvas {
     font-family: monospace;
     font-size: 0.9em;
 }
-.rich-content pre, .lesson-note pre, .slide-body pre, .lesson-plan-content pre, .article-body pre, .curriculum-content pre, .project-desc pre, .about-content pre {
+.rich-content pre, .lesson-note pre, .overview-content pre, .slide-body pre, .lesson-plan-content pre, .article-body pre, .curriculum-content pre, .project-desc pre, .about-content pre {
     padding: 14px;
     border-radius: var(--radius-sm, 8px);
     background: var(--bg-secondary, #f8f9fa);
     overflow-x: auto;
 }
-.rich-content pre code, .lesson-note pre code, .slide-body pre code, .lesson-plan-content pre code, .article-body pre code, .curriculum-content pre code, .project-desc pre code, .about-content pre code {
+.rich-content pre code, .lesson-note pre code, .overview-content pre code, .slide-body pre code, .lesson-plan-content pre code, .article-body pre code, .curriculum-content pre code, .project-desc pre code, .about-content pre code {
     background: none;
     padding: 0;
 }
 
-.rich-content hr, .lesson-note hr, .slide-body hr, .lesson-plan-content hr, .article-body hr, .curriculum-content hr, .project-desc hr, .about-content hr {
+.rich-content hr, .lesson-note hr, .overview-content hr, .slide-body hr, .lesson-plan-content hr, .article-body hr, .curriculum-content hr, .project-desc hr, .about-content hr {
     border: 0;
     border-top: 1px solid var(--border-light, #e0e0e0);
     margin: 2em 0;
 }
 
-.rich-content > *:first-child, .lesson-note > *:first-child, .slide-body > *:first-child, .lesson-plan-content > *:first-child, .article-body > *:first-child, .curriculum-content > *:first-child, .project-desc > *:first-child, .about-content > *:first-child {
+.rich-content > *:first-child, .lesson-note > *:first-child, .overview-content > *:first-child, .slide-body > *:first-child, .lesson-plan-content > *:first-child, .article-body > *:first-child, .curriculum-content > *:first-child, .project-desc > *:first-child, .about-content > *:first-child {
     margin-top: 0;
 }
-.rich-content > *:last-child, .lesson-note > *:last-child, .slide-body > *:last-child, .lesson-plan-content > *:last-child, .article-body > *:last-child, .curriculum-content > *:last-child, .project-desc > *:last-child, .about-content > *:last-child {
+.rich-content > *:last-child, .lesson-note > *:last-child, .overview-content > *:last-child, .slide-body > *:last-child, .lesson-plan-content > *:last-child, .article-body > *:last-child, .curriculum-content > *:last-child, .project-desc > *:last-child, .about-content > *:last-child {
     margin-bottom: 0;
 }
 
 /* 🔹 LESSON DOCUMENT THEME — branded, "gamified" wrapper for the
-   Lesson Plan (teacher) and Lesson Note (student) viewers, built to
-   dress up whatever the instructor pasted into CKEditor without
-   requiring any structured fields. Deliberately layered AFTER the
-   shared .rich-content ruleset above and scoped to .lesson-doc
-   .lesson-note/.lesson-plan-content only — course/module/about/etc.
-   pages that also use .rich-content are untouched. */
+   Lesson Plan (teacher), Lesson Note (student), and course/module
+   Overview modal viewers, built to dress up whatever was pasted into
+   CKEditor without requiring any structured fields. Deliberately
+   layered AFTER the shared .rich-content ruleset above and scoped to
+   .lesson-doc .lesson-note/.lesson-plan-content/.overview-content
+   only — other .rich-content pages (About, marketing pages, etc.) are
+   untouched. */
 .lesson-doc {
     background: #fff;
     border-radius: 16px;
@@ -3599,6 +3608,7 @@ canvas {
    when they're sitting inside a .lesson-doc header card, so there's no
    double border/shadow. */
 .lesson-doc .lesson-note,
+.lesson-doc .overview-content,
 .lesson-doc .lesson-plan-content {
     border: 0;
     box-shadow: none;
@@ -3619,10 +3629,12 @@ canvas {
 /* Section headings become numbered dark bars with a gold badge —
    the "1 / 2 / 3" step-card look from the branded template. */
 .lesson-doc .lesson-note,
+.lesson-doc .overview-content,
 .lesson-doc .lesson-plan-content {
     counter-reset: lessonSection;
 }
 .lesson-doc .lesson-note h2,
+.lesson-doc .overview-content h2,
 .lesson-doc .lesson-plan-content h2 {
     counter-increment: lessonSection;
     display: flex;
@@ -3637,6 +3649,7 @@ canvas {
     letter-spacing: 0.3px;
 }
 .lesson-doc .lesson-note h2::before,
+.lesson-doc .overview-content h2::before,
 .lesson-doc .lesson-plan-content h2::before {
     content: counter(lessonSection);
     flex-shrink: 0;
@@ -3653,6 +3666,7 @@ canvas {
 }
 
 .lesson-doc .lesson-note h3,
+.lesson-doc .overview-content h3,
 .lesson-doc .lesson-plan-content h3 {
     display: inline-block;
     color: var(--brand-pri-dark, #4C3802);
@@ -3662,26 +3676,31 @@ canvas {
 
 /* Tables get the invoice/receipt-style dark header + tinted stripes. */
 .lesson-doc .lesson-note table,
+.lesson-doc .overview-content table,
 .lesson-doc .lesson-plan-content table {
     border: 1px solid var(--border-light, #e7ddc0);
     border-radius: 10px;
 }
 .lesson-doc .lesson-note thead th,
+.lesson-doc .overview-content thead th,
 .lesson-doc .lesson-plan-content thead th {
     background: #16161d;
     color: var(--brand-tint, #FBF3DD);
 }
 .lesson-doc .lesson-note tbody tr:nth-child(even),
+.lesson-doc .overview-content tbody tr:nth-child(even),
 .lesson-doc .lesson-plan-content tbody tr:nth-child(even) {
     background: var(--brand-tint, #FBF3DD);
 }
 .lesson-doc .lesson-note td, .lesson-doc .lesson-note th,
+.lesson-doc .overview-content td, .lesson-doc .overview-content th,
 .lesson-doc .lesson-plan-content td, .lesson-doc .lesson-plan-content th {
     border-color: var(--border-light, #e7ddc0);
 }
 
 /* Callouts (blockquotes) become a tip card with an icon. */
 .lesson-doc .lesson-note blockquote,
+.lesson-doc .overview-content blockquote,
 .lesson-doc .lesson-plan-content blockquote {
     position: relative;
     background: var(--brand-tint, #FBF3DD);
@@ -3691,6 +3710,7 @@ canvas {
     font-style: normal;
 }
 .lesson-doc .lesson-note blockquote::before,
+.lesson-doc .overview-content blockquote::before,
 .lesson-doc .lesson-plan-content blockquote::before {
     content: "💡";
     position: absolute;
@@ -3702,18 +3722,21 @@ canvas {
 /* Numbered steps get gold circle badges instead of default numerals —
    the "step-by-step explanation" look. */
 .lesson-doc .lesson-note ol,
+.lesson-doc .overview-content ol,
 .lesson-doc .lesson-plan-content ol {
     list-style: none;
     padding-left: 0;
     counter-reset: lessonStep;
 }
 .lesson-doc .lesson-note ol li,
+.lesson-doc .overview-content ol li,
 .lesson-doc .lesson-plan-content ol li {
     counter-increment: lessonStep;
     position: relative;
     padding-left: 36px;
 }
 .lesson-doc .lesson-note ol li::before,
+.lesson-doc .overview-content ol li::before,
 .lesson-doc .lesson-plan-content ol li::before {
     content: counter(lessonStep);
     position: absolute;
@@ -3733,16 +3756,19 @@ canvas {
 
 /* Bulleted lists get a gold dot instead of the browser default. */
 .lesson-doc .lesson-note ul,
+.lesson-doc .overview-content ul,
 .lesson-doc .lesson-plan-content ul {
     list-style: none;
     padding-left: 0;
 }
 .lesson-doc .lesson-note ul li,
+.lesson-doc .overview-content ul li,
 .lesson-doc .lesson-plan-content ul li {
     position: relative;
     padding-left: 22px;
 }
 .lesson-doc .lesson-note ul li::before,
+.lesson-doc .overview-content ul li::before,
 .lesson-doc .lesson-plan-content ul li::before {
     content: "";
     position: absolute;
@@ -3762,9 +3788,47 @@ canvas {
         font-size: 16px;
     }
     .lesson-doc .lesson-note,
+    .lesson-doc .overview-content,
     .lesson-doc .lesson-plan-content {
         padding: 18px 16px 22px;
     }
+}
+
+/* 🔹 OVERVIEW MODAL (public/js/overviewModal.js) — the "view, don't
+   dump inline" course/module overview popup: thumbnail + the same
+   .lesson-doc card treatment above, opened via window.openOverviewModal().
+   Reuses the site-wide .modal-overlay/.modal-content system from
+   style.css for the backdrop/centering/close-button behavior; these
+   rules only add what's specific to this modal's content. */
+.overview-modal-content {
+    max-width: 720px;
+}
+
+.overview-modal-thumb {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    display: block;
+}
+
+.overview-modal-body {
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.overview-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 26px;
+    border-top: 1px solid var(--border-light, #e7ddc0);
+    background: #fafafa;
+}
+
+.overview-modal-empty {
+    padding: 40px 26px;
+    text-align: center;
+    color: var(--text-secondary, #666);
 }
 
 /* 🔹 ADAPTIVE MASTERY SIGNALS (services/masteryPathService.js) —
