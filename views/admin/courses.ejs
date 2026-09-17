@@ -14,11 +14,11 @@
           required
         /><br />
       </div>
-      <label for="content">Course Overview</label>
+      <label for="content">Course Curriculum</label>
       <textarea
         name="description"
         id="content"
-        placeholder="Course Overview — shown to students/parents in a styled 'View Overview' popup"
+        placeholder="Course Curriculum — shown to students/parents in a styled 'View Curriculum' popup"
       ></textarea
       ><br />
 
@@ -125,7 +125,7 @@
                       data-thumbnail="<%= course.thumbnail_url || '' %>"
                       data-content-id="courseOverviewData-<%= course.id %>"
                       data-download-url="/admin/courses/<%= course.id %>/curriculum/download"
-                    >📘 View Overview</button>
+                    >📘 View Curriculum</button>
                     <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Replace the current thumbnail with a new auto-generated one?')">
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button type="submit">🖼️ Regenerate Thumbnail</button>
@@ -146,7 +146,7 @@
                   <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="redirect_to" value="/admin/courses" />
                     <input type="text" name="title" value="<%= course.title %>" required /><br />
-                    <label for="editContent-<%= course.id %>">Course Overview</label>
+                    <label for="editContent-<%= course.id %>">Course Curriculum</label>
                     <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea>
 
                     <select name="level" required>

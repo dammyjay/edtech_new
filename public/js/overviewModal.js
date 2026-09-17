@@ -1,12 +1,15 @@
 // public/js/overviewModal.js
 //
-// Shared "View Overview" modal for courses and modules — a thumbnail +
+// Shared "View Curriculum" modal for courses and modules — a thumbnail +
 // the CKEditor-authored description, styled with the same .lesson-doc
 // card treatment the student lesson-note viewer already uses (see
 // public/css/styles2.css's "LESSON DOCUMENT THEME" section), shown
 // view-only in a popup instead of being dumped as a raw HTML blob
 // inline on the page (the previous pattern on singleCourse.ejs and
-// nowhere at all on moduleDetails.ejs).
+// nowhere at all on moduleDetails.ejs). Internally still called
+// "overview" (function/file names, CSS classes, element ids) — only the
+// user-facing label is "Curriculum"; renaming the internals wasn't
+// worth the churn across every call site for a display-text change.
 //
 // Load this once per page (views/singleCourse.ejs, views/student/
 // moduleDetails.ejs, admin course/module lists, etc.) and call
@@ -36,7 +39,7 @@
           <div class="lesson-doc-header">
             <span class="lesson-doc-badge" id="${MODAL_ID}Badge">📘</span>
             <div>
-              <div class="lesson-doc-eyebrow" id="${MODAL_ID}Eyebrow">Overview</div>
+              <div class="lesson-doc-eyebrow" id="${MODAL_ID}Eyebrow">Curriculum</div>
               <div class="lesson-doc-title" id="${MODAL_ID}Title"></div>
             </div>
           </div>
@@ -67,7 +70,7 @@
     const badge = kind === "Module" ? "📦" : "📘";
 
     modal.querySelector(`#${MODAL_ID}Badge`).textContent = badge;
-    modal.querySelector(`#${MODAL_ID}Eyebrow`).textContent = `${kind || "Course"} Overview`;
+    modal.querySelector(`#${MODAL_ID}Eyebrow`).textContent = `${kind || "Course"} Curriculum`;
     modal.querySelector(`#${MODAL_ID}Title`).textContent = title || "";
 
     const thumbEl = modal.querySelector(`#${MODAL_ID}Thumb`);
@@ -82,7 +85,7 @@
     const contentEl = modal.querySelector(`#${MODAL_ID}Content`);
     contentEl.innerHTML = contentHtml && contentHtml.trim()
       ? contentHtml
-      : '<p style="color:#999;">No overview has been added yet.</p>';
+      : '<p style="color:#999;">No curriculum has been added yet.</p>';
 
     const actions = modal.querySelector(`#${MODAL_ID}Actions`);
     const downloadLink = modal.querySelector(`#${MODAL_ID}Download`);

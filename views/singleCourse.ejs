@@ -37,7 +37,7 @@
               <% if (user && user.role === 'admin') { %>
               data-download-url="/courses/<%= course.id %>/curriculum/download"
               <% } %>
-            >📘 View Full Overview</button>
+            >📘 View Full Curriculum</button>
         </div>
 
         <div class="hero-content">
@@ -92,7 +92,7 @@
     <% if (user && user.role === 'admin') { %>
     <button type="button" class="btn-pri"
     onclick="window.location.href='/courses/<%= course.id %>/curriculum/download'">
-    ⬇️ Download Overview (PDF)</button>
+    ⬇️ Download Curriculum (PDF)</button>
     <% } %>
 
     <% if (course.amount == 0) { %>
@@ -119,7 +119,7 @@
   <% } else { %>
     <div class="enroll-cta">
       <button class="btn-sec" onclick="promptLogin()">Login to Enroll</button>
-      <p class="cta-subtext">Use "View Full Overview" above to see what's covered.</p>
+      <p class="cta-subtext">Use "View Full Curriculum" above to see what's covered.</p>
     </div>
   <% } %>
 
@@ -155,7 +155,7 @@
           data-title="<%= module.title %>"
           data-thumbnail="<%= module.thumbnail || '' %>"
           data-content-id="moduleOverviewData-<%= module.id %>"
-        >📦 View Overview</button>
+        >📦 View Curriculum</button>
       <% } %>
     </div>
   <% }) %>
