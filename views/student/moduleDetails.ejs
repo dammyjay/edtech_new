@@ -7,7 +7,8 @@
     <% } %>
     <div>
       <h2 style="margin:0 0 6px;"><%= module.title %></h2>
-      <% if (module.description) { %>
+      <% const moduleCurriculum = module.curriculum_content || module.description; %>
+      <% if (moduleCurriculum) { %>
         <button type="button" class="btn-sec overview-trigger-btn"
           data-kind="Module"
           data-title="<%= module.title %>"
@@ -18,8 +19,8 @@
     </div>
   </div>
 
-  <% if (module.description) { %>
-    <div id="moduleOverviewData" hidden><%- module.description %></div>
+  <% if (moduleCurriculum) { %>
+    <div id="moduleOverviewData" hidden><%- moduleCurriculum %></div>
   <% } %>
 
   <h3 style="margin-top:26px;">Lessons</h3>

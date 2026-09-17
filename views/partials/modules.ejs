@@ -53,14 +53,15 @@
       <p>Module ID: <%= module.id %></p>
       <p>Created At: <%= module.created_at.toDateString() %></p>
 
-      <% if (module.description) { %>
-        <div id="moduleOverviewData-<%= module.id %>" hidden><%- module.description %></div>
+      <% const moduleCurriculum = module.curriculum_content || module.description; %>
+      <% if (moduleCurriculum) { %>
+        <div id="moduleOverviewData-<%= module.id %>" hidden><%- moduleCurriculum %></div>
       <% } %>
 
       <!-- Edit Button triggers modal -->
        <div class="article-buttons">
         <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
-        <% if (module.description) { %>
+        <% if (moduleCurriculum) { %>
           <button type="button" class="overview-trigger-btn"
             data-kind="Module"
             data-title="<%= module.title %>"
@@ -98,8 +99,10 @@
           <form action="/admin/modules/edit/<%= module.id %>" method="POST" enctype="multipart/form-data">
             <label for="">Title</label>
             <input type="text" name="title" value="<%= module.title %>" required />
-            <label for="">Module Curriculum</label>
+            <label for="">Short Description</label>
             <textarea name="description" id="editckeditor-<%= module.id %>"><%= module.description %></textarea>
+            <label for="">Module Curriculum</label>
+            <textarea name="curriculum_content" id="editckeditorCurriculum-<%= module.id %>"><%= module.curriculum_content || '' %></textarea>
             <label for="">Objectives</label>
             <textarea name="objectives" id="editckeditor1-<%= module.id %>"><%= module.objectives %></textarea>
             <label for="">Learning Outcomes</label> 
@@ -170,8 +173,11 @@
   <label>Title</label>
   <input type="text" name="title" placeholder="Module Title" required />
 
-  <label>Module Curriculum</label>
+  <label>Short Description</label>
   <textarea name="description" id="ckeditor"></textarea>
+
+  <label>Module Curriculum</label>
+  <textarea name="curriculum_content" id="ckeditorCurriculum"></textarea>
 
   <label>Objectives</label>
   <textarea name="objectives" id="ckeditor1"></textarea>
@@ -262,6 +268,7 @@
 
 <script>
   CKEDITOR.replace("ckeditor");
+  CKEDITOR.replace("ckeditorCurriculum");
   CKEDITOR.replace("ckeditor1");
   CKEDITOR.replace("ckeditor2");
 </script>
@@ -269,6 +276,7 @@
 <script>
   <% modules.forEach(module => { %>
     CKEDITOR.replace("editckeditor-<%= module.id %>");
+    CKEDITOR.replace("editckeditorCurriculum-<%= module.id %>");
     CKEDITOR.replace("editckeditor1-<%= module.id %>");
     CKEDITOR.replace("editckeditor2-<%= module.id %>");
   <% }) %>

@@ -3010,13 +3010,12 @@ exports.deleteCourse = async (req, res) => {
 };
 
 // Admin-only (see the role check below) — the course Curriculum (the
-// courses.description CKEditor field) rendered to a branded PDF. This
-// used to read a `curriculum_content` column that has no matching
-// schema definition (models/initTables.js) and no form field anywhere
-// in views/admin/courses.ejs — req.body.curriculum_content was always
-// undefined on every create/edit, so this endpoint always 400'd with
-// "No curriculum available" no matter what an admin actually wrote.
-// Reading `description` instead is the actual content that exists.
+// courses.curriculum_content CKEditor field, a real, separately-edited
+// field distinct from the shorter courses.description blurb — written
+// via views/admin/pathwayCourses.ejs's edit form, which posts to
+// learningController.updateCourse, and also via
+// views/admin/courses.ejs's create/edit forms once those gained their
+// own curriculum_content field too) rendered to a branded PDF.
 exports.downloadCurriculum = async (req, res) => {
   if (!req.session.user || req.session.user.role !== "admin") {
     return res.status(403).send("Only an admin can download the course curriculum.");
@@ -3025,7 +3024,7 @@ exports.downloadCurriculum = async (req, res) => {
   const courseId = req.params.id;
 
   const result = await pool.query(
-    `SELECT title, description AS curriculum_content FROM courses WHERE id = $1`,
+    `SELECT title, curriculum_content FROM courses WHERE id = $1`,
     [courseId]
   );
 

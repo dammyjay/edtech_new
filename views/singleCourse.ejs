@@ -47,11 +47,13 @@
         </div>
     </div>
 
-    <!-- Course description HTML, read by overviewModal.js rather than
-         dumped inline — kept off-page (hidden) so it's still there for a
-         no-JS crawler/OG-scrape but never shown as a raw unstyled blob
-         to a real visitor. -->
-    <div id="courseOverviewData" hidden><%- course.description %></div>
+    <!-- The full curriculum (courses.curriculum_content — a distinct,
+         separately-edited field from the short description teaser
+         above), read by overviewModal.js rather than dumped inline —
+         kept off-page (hidden) so it's still there for a no-JS crawler/
+         OG-scrape but never shown as a raw unstyled blob to a real
+         visitor. -->
+    <div id="courseOverviewData" hidden><%- course.curriculum_content || '' %></div>
 
     <h2>Intro Video</h2>
 
@@ -148,8 +150,9 @@
     <div class="article-card">
       <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
       <h4><%= module.title %></h4>
-      <% if (module.description) { %>
-        <div id="moduleOverviewData-<%= module.id %>" hidden><%- module.description %></div>
+      <% const moduleCurriculum = module.curriculum_content || module.description; %>
+      <% if (moduleCurriculum) { %>
+        <div id="moduleOverviewData-<%= module.id %>" hidden><%- moduleCurriculum %></div>
         <button type="button" class="btn-sec overview-trigger-btn" style="font-size:13px; padding:6px 14px;"
           data-kind="Module"
           data-title="<%= module.title %>"

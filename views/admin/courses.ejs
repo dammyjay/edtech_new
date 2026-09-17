@@ -14,11 +14,19 @@
           required
         /><br />
       </div>
-      <label for="content">Course Curriculum</label>
+      <label for="content">Short Description</label>
       <textarea
         name="description"
         id="content"
-        placeholder="Course Curriculum — shown to students/parents in a styled 'View Curriculum' popup"
+        placeholder="A short intro shown as a preview blurb"
+      ></textarea
+      ><br />
+
+      <label for="curriculumContent">Course Curriculum</label>
+      <textarea
+        name="curriculum_content"
+        id="curriculumContent"
+        placeholder="The full curriculum/syllabus — shown to students/parents in a styled 'View Curriculum' popup"
       ></textarea
       ><br />
 
@@ -113,7 +121,7 @@
                   <div class="card-body" id="desc-<%= course.id %>" data-full="<%- course.description.replace(/"/g, '&quot;') %>">
                     <%- course.description.substring(0, 100) %>...
                   </div>
-                  <div id="courseOverviewData-<%= course.id %>" hidden><%- course.description %></div>
+                  <div id="courseOverviewData-<%= course.id %>" hidden><%- course.curriculum_content || '' %></div>
 
                   <p><strong>Price: </strong> ₦ <%= course.amount %></p>
                   <p style="color: rgb(9, 31, 143);"><strong>Created on: </strong><%= course.created_at %></p>
@@ -146,8 +154,11 @@
                   <form action="/admin/courses/edit/<%= course.id %>" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="redirect_to" value="/admin/courses" />
                     <input type="text" name="title" value="<%= course.title %>" required /><br />
-                    <label for="editContent-<%= course.id %>">Course Curriculum</label>
+                    <label for="editContent-<%= course.id %>">Short Description</label>
                     <textarea id="editContent-<%= course.id %>" name="description"><%- course.description %></textarea>
+
+                    <label for="editCurriculumContent-<%= course.id %>">Course Curriculum</label>
+                    <textarea id="editCurriculumContent-<%= course.id %>" name="curriculum_content"><%- course.curriculum_content || '' %></textarea>
 
                     <select name="level" required>
                       <option value="">Select Level</option>
@@ -212,6 +223,7 @@
     <!-- script for ckeditor -->
     <script>
       CKEDITOR.replace("content");
+      CKEDITOR.replace("curriculumContent");
     </script>
 
     
@@ -411,6 +423,7 @@
           <% for (let level in groupedCourses[pathway]) { %>
             <% groupedCourses[pathway][level].forEach(course => { %>
               CKEDITOR.replace("editContent-<%= course.id %>");
+              CKEDITOR.replace("editCurriculumContent-<%= course.id %>");
             <% }) %>
           <% } %>
         <% } %>

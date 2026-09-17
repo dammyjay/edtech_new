@@ -149,7 +149,7 @@ exports.updateCourse = async (req, res) => {
 // CREATE MODULE
 exports.createModule = async (req, res) => {
   try {
-    const { title, description, objectives, learning_outcomes, order_number, course_id } = req.body;
+    const { title, description, objectives, learning_outcomes, curriculum_content, order_number, course_id } = req.body;
 
     // Thumbnail/badge uploads are optional — multer-storage-cloudinary has
     // already uploaded them to Cloudinary by this point (req.files.*[0].path
@@ -195,9 +195,9 @@ exports.createModule = async (req, res) => {
 
     await pool.query(
       `INSERT INTO modules
-       (title, description, objectives, learning_outcomes, thumbnail, thumbnail_source, badge_image, badge_source, order_number, course_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, course_id]
+       (title, description, objectives, learning_outcomes, curriculum_content, thumbnail, thumbnail_source, badge_image, badge_source, order_number, course_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [title, description, objectives, learning_outcomes, curriculum_content, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, course_id]
     );
 
     res.redirect(withFeedback(`/admin/courses/${course_id}?tab=modules`, "Module created successfully.", "success"));
@@ -210,7 +210,7 @@ exports.createModule = async (req, res) => {
 // EDIT MODULE
 exports.editModule = async (req, res) => {
   try {
-    const { title, description, objectives, learning_outcomes, order_number, regenerate_badge, regenerate_thumbnail } = req.body;
+    const { title, description, objectives, learning_outcomes, curriculum_content, order_number, regenerate_badge, regenerate_thumbnail } = req.body;
     const { id } = req.params;
 
     // Fetch existing module to get current images
@@ -272,9 +272,9 @@ exports.editModule = async (req, res) => {
     }
 
     await pool.query(
-      `UPDATE modules SET title=$1, description=$2, objectives=$3, learning_outcomes=$4,
-       thumbnail=$5, thumbnail_source=$6, badge_image=$7, badge_source=$8, order_number=$9 WHERE id=$10`,
-      [title, description, objectives, learning_outcomes, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, id]
+      `UPDATE modules SET title=$1, description=$2, objectives=$3, learning_outcomes=$4, curriculum_content=$5,
+       thumbnail=$6, thumbnail_source=$7, badge_image=$8, badge_source=$9, order_number=$10 WHERE id=$11`,
+      [title, description, objectives, learning_outcomes, curriculum_content, thumbnailUrl, thumbnailSource, badgeUrl, badgeSource, order_number, id]
     );
 
     res.redirect(withFeedback(`/admin/courses/${oldModule.rows[0].course_id}?tab=modules`, "Module updated successfully.", "success"));

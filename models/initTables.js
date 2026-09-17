@@ -155,6 +155,16 @@ async function createTables() {
       ALTER TABLE courses ADD COLUMN IF NOT EXISTS thumbnail_source TEXT;
     `);
 
+    // curriculum_content — the detailed syllabus, distinct from the short
+    // `description` blurb. Already read/written by adminController.js's
+    // createCourse/editCourse/downloadCurriculum and edited via a real
+    // CKEditor field in views/admin/pathwayCourses.ejs; declared here too
+    // (it already existed in live databases, added outside this file)
+    // so a fresh database gets it, same as badge_image above.
+    await pool.query(`
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS curriculum_content TEXT;
+    `);
+
     // table for transactions
     await pool.query(
       `CREATE TABLE IF NOT EXISTS transactions (
@@ -347,6 +357,15 @@ async function createTables() {
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS badge_image TEXT;
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS badge_source TEXT;
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS thumbnail_source TEXT;
+    `);
+
+    // The detailed syllabus/curriculum, distinct from the short
+    // `description` blurb above — mirrors courses.curriculum_content
+    // (a real, separately-edited CKEditor field on the course side, via
+    // views/admin/pathwayCourses.ejs) so modules get the same
+    // description-vs-curriculum distinction courses already have.
+    await pool.query(`
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS curriculum_content TEXT;
     `);
 
     // table for lessons
