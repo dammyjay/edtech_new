@@ -1,0 +1,22 @@
+<%- include('partials/header', { title: 'Something Went Wrong', user: user || null, users: user || null, info: info || {} }) %>
+
+<div style="min-height:45vh;"></div>
+
+<script>
+(function () {
+  var message = <%- JSON.stringify(message || "Something went wrong. Please try again.") %>;
+  var backUrl = <%- JSON.stringify(backUrl || "/") %>;
+
+  function show() {
+    showAlert(message, "error").then(function () {
+      window.location.href = backUrl;
+    });
+  }
+
+  if (window.showAlert) {
+    show();
+  } else {
+    window.addEventListener("load", show);
+  }
+})();
+</script>

@@ -69,10 +69,24 @@ app.use(
   })
 );
 app.use((req, res, next) => {
-  if (req.session && req.session.user) {
-    req.user = req.session.user; // 👈 Attach user to req
-    res.locals.user = req.session.user; // (optional) make available in views
+  // Both names are set, always — this codebase inconsistently uses
+  // `user` (singular) in some views/partials and `users` (plural, e.g.
+  // partials/header.ejs's school_admin nav check, partials/adminHeader.ejs
+  // throughout) for the exact same "currently logged-in person" concept.
+  // Without this, any view/partial that references either bare local
+  // throws "X is not defined" for a genuinely anonymous visitor — these
+  // were previously only ever set when someone WAS logged in, so a
+  // logged-out visitor got a 500 on any page that touched either one.
+  // That's easy to misread as "this page requires login" when it's
+  // really just an unguarded template variable crashing (see
+  // views/singleCourse.ejs and views/partials/header.ejs for two real
+  // examples this broke).
+  const currentUser = (req.session && req.session.user) || null;
+  if (currentUser) {
+    req.user = currentUser; // 👈 Attach user to req
   }
+  res.locals.user = currentUser;
+  res.locals.users = currentUser;
   next();
 });
 
@@ -235,6 +249,20 @@ createTables();
 // than taking the whole app down — every other lab is unaffected either way.
 ensureAvrCoreInstalled().catch((err) => {
   console.error("Arduino AVR core not ready:", err.message);
+});
+
+// Last-resort net for anything that throws and was never wrapped in its
+// own try/catch (or calls next(err) directly) — without this, such an
+// error fell through to Express's built-in handler, which is where the
+// bare "Internal Server Error" page came from. Individual routes should
+// still prefer utils/errorPage.js's renderErrorPage(req, res, err, ...)
+// for a more specific message/back-link; this is only the final fallback.
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  if (res.headersSent) return next(err);
+
+  const renderErrorPage = require("./utils/errorPage");
+  renderErrorPage(req, res, err, { context: "Unhandled error" });
 });
 
 // Start server

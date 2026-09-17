@@ -11,7 +11,8 @@ const userController = require("../controllers/userController");
 const adminController = require("../controllers/adminController");
 const sendEmail = require("../utils/sendEmail");
 const { feedback } = require("../controllers/adminController");
-const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates"); 
+const { buildFeedbackThankYouEmail } = require("../utils/emailTemplates");
+const renderErrorPage = require("../utils/errorPage");
 // const buildFeedbackThankYouEmail = require("../utils/feedbackEmailTemplate");
 const buildFeedbackAdminEmail = require("../utils/feedbackAdminEmail");
 const getAnnouncements = require("../utils/getAnnouncements");
@@ -81,8 +82,7 @@ router.get("/achievements/:slug", async (req, res) => {
       company,
     });
   } catch (err) {
-    console.error("Public achievement page error:", err.message);
-    res.status(500).send("Something went wrong loading this page.");
+    renderErrorPage(req, res, err, { context: "Public achievement page error" });
   }
 });
 
@@ -1195,6 +1195,7 @@ router.get("/courses/:id", async (req, res) => {
     res.render("singleCourse", {
       info,
       users,
+      user: req.session.user || null, // the view's admin-only download-link check (user && user.role === 'admin') needs this declared even for anonymous visitors
       isLoggedIn,
       profilePic,
       course,
