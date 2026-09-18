@@ -166,6 +166,7 @@ router.post("/shop/equip", express.json(), studentController.equipShopItem);
 router.post("/shop/xp-boost", express.json(), studentController.buyXpBoost);
 router.post("/quizzes/:lessonId/hint", express.json(), studentController.useQuizHint);
 router.post("/quizzes/:lessonId/fifty-fifty", express.json(), studentController.useFiftyFifty);
+router.post("/quizzes/:lessonId/questions/:questionId/check-answer", express.json(), studentController.checkQuizAnswer);
 
 router.get("/arcade", studentController.getArcade);
 router.post("/arcade/:gameId/play", express.json(), studentController.playArcadeGame);

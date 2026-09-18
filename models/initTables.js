@@ -620,6 +620,29 @@ async function createTables() {
     );
     `);
 
+    // One row per live, in-progress-quiz correctness check
+    // (studentController.checkQuizAnswer) — lets the quiz UI reveal
+    // correct/wrong the instant a student picks an option without ever
+    // sending quiz_questions.correct_option to the browser. Scoped to
+    // "since the student's last quiz_submissions row for this quiz" so a
+    // question can only be checked once per attempt (matching the
+    // locks-after-reveal UI) while a later retake still gets fresh
+    // checks — without this, someone could bypass the UI lock and brute
+    // force a question's correct option for free by calling the
+    // check-answer endpoint once per option.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS quiz_answer_checks (
+        id SERIAL PRIMARY KEY,
+        student_id INT NOT NULL,
+        question_id INT NOT NULL,
+        checked_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_quiz_answer_checks_student_question
+      ON quiz_answer_checks (student_id, question_id);
+    `);
+
     // junction table for unlocked lessons
     await pool.query(
       `CREATE TABLE IF NOT EXISTS unlocked_lessons (

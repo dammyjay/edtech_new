@@ -1992,12 +1992,20 @@ canvas {
   border-radius: 20px;
   text-align: center;
   width: 400px;
+  max-width: 90vw;
+  position: relative;
+  overflow: hidden;
   animation: popIn 0.4s ease;
 }
 
 .badge-mode {
-  background: linear-gradient(135deg, #ffd700, #ffcc00);
-  color: #111;
+  background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+  color: #fff;
+}
+
+.certificate-mode {
+  background: linear-gradient(135deg, #1c4e8a, #2f6fb0);
+  color: #fff;
 }
 
 .xp-box {

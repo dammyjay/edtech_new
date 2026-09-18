@@ -2276,6 +2276,69 @@ exports.useFiftyFifty = async (req, res) => {
   }
 };
 
+// POST /student/quizzes/:lessonId/questions/:questionId/check-answer {answer}
+// — live, per-question instant feedback for the quiz-gamification UI.
+// Same "never leak correct_option" posture as useFiftyFifty above: only
+// ever returns whether the submitted answer matched, never the answer
+// itself. Free (no coin cost) since it grants nothing of value on its
+// own — but exactly because it's free, it's rate-limited to one check per
+// question per quiz attempt via quiz_answer_checks (scoped to "since this
+// student's last submission of this quiz"), so it can't be used to brute
+// force a question's correct option for free by trying every option.
+exports.checkQuizAnswer = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { lessonId, questionId } = req.params;
+    const { answer } = req.body;
+
+    const qRes = await pool.query(
+      `SELECT qq.id, qq.quiz_id, qq.correct_option
+       FROM quiz_questions qq
+       JOIN quizzes q ON qq.quiz_id = q.id
+       WHERE q.lesson_id = $1 AND qq.id = $2`,
+      [lessonId, questionId]
+    );
+    const question = qRes.rows[0];
+    if (!question) {
+      return res.status(404).json({ success: false, message: "Question not found" });
+    }
+
+    const lastSubmission = await pool.query(
+      `SELECT created_at FROM quiz_submissions
+       WHERE quiz_id = $1 AND student_id = $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [question.quiz_id, studentId]
+    );
+    const sinceTime = lastSubmission.rows[0]?.created_at || new Date(0);
+
+    const already = await pool.query(
+      `SELECT id FROM quiz_answer_checks
+       WHERE student_id = $1 AND question_id = $2 AND checked_at > $3`,
+      [studentId, questionId, sinceTime]
+    );
+    if (already.rows.length > 0) {
+      return res.json({ success: false, message: "This question has already been checked for this attempt." });
+    }
+
+    await pool.query(
+      `INSERT INTO quiz_answer_checks (student_id, question_id) VALUES ($1, $2)`,
+      [studentId, questionId]
+    );
+
+    const isCorrect =
+      (answer ?? "").toString().trim().toLowerCase() ===
+      (question.correct_option ?? "").toString().trim().toLowerCase();
+
+    res.json({ success: true, isCorrect });
+  } catch (err) {
+    console.error("checkQuizAnswer error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
 // GET /student/arcade — the game picker. Coins are a pure sink here (pay
 // per play, see playArcadeGame below), gated per-classroom by
 // classrooms.arcade_enabled, which school admins toggle from their

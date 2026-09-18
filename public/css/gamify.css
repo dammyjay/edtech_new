@@ -1,0 +1,143 @@
+/* Student dashboard quiz gamification — confetti, mascot, streak/feedback
+   UI. A dedicated module (like arcade.css) loaded only from the student
+   dashboard, not the shared header, so it stays contained to this pass. */
+
+/* ---------- Confetti ---------- */
+.confetti-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 2;
+}
+
+.gamify-confetti-piece {
+  position: absolute;
+  top: 6%;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: gamifyConfettiFall ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes gamifyConfettiFall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx, 0px), 240px) rotate(540deg); opacity: 0; }
+}
+
+/* ---------- Mascot ---------- */
+.celebration-mascot {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 8px;
+  position: relative;
+  z-index: 3;
+}
+
+.quiz-mascot {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 8px;
+}
+
+.mascot-bounce {
+  animation: gamifyMascotBounce 0.6s ease;
+}
+
+.mascot-shake {
+  animation: gamifyMascotShake 0.5s ease;
+}
+
+@keyframes gamifyMascotBounce {
+  0% { transform: scale(0.6) translateY(10px); opacity: 0; }
+  55% { transform: scale(1.15) translateY(-6px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes gamifyMascotShake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-6px) rotate(-4deg); }
+  40% { transform: translateX(6px) rotate(4deg); }
+  60% { transform: translateX(-4px) rotate(-2deg); }
+  80% { transform: translateX(4px) rotate(2deg); }
+}
+
+/* ---------- Quiz option instant feedback ---------- */
+.quiz-option.correct-flash {
+  border-color: #22c55e !important;
+  background: #ecfdf5 !important;
+}
+
+.quiz-option.wrong-flash {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+.quiz-option.locked {
+  cursor: default;
+}
+
+.quiz-option-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.quiz-icon-btn svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* ---------- In-quiz streak badge ---------- */
+.quiz-streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff4e5;
+  color: #b5651d;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-left: 10px;
+}
+
+.quiz-streak-badge.pop {
+  animation: gamifyStreakPop 0.4s ease;
+}
+
+@keyframes gamifyStreakPop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Sound toggle ---------- */
+.gamify-sound-toggle {
+  border: none;
+  background: #eee;
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gamify-sound-toggle.muted {
+  background: #f3f4f6;
+  opacity: 0.6;
+}
+
+.quiz-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}

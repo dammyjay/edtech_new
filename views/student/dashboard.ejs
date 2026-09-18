@@ -1,6 +1,13 @@
 <%- include('../partials/header', { title: 'Dashboard' }) %>
 <%- include("../partials/announcementPopup") %>
 
+<!-- Quiz gamification module (confetti, mascot, chimes, icons) — a
+     dedicated stylesheet/script pair scoped to the student dashboard
+     only, not the shared header, matching public/css/arcade.css +
+     public/js/arcadeEngine.js's existing pattern. -->
+<link rel="stylesheet" href="/css/gamify.css" />
+<script src="/js/gamify.js"></script>
+
 <button id="toggleSidebar" class="hamburger" style="margin-bottom: 20px">
   ☰
 </button>
@@ -247,25 +254,9 @@
 
 <!-- QUIZ CELEBRATION MODAL -->
 <div id="quizCelebration" class="celebration-modal">
-  <div class="celebration-content">
-    <div class="confetti"></div>
-
-    <h2>🎉 Congratulations!</h2>
-    <p id="celebrationMessage"></p>
-
-    <div class="xp-box">
-      <h3>⭐ XP Earned</h3>
-      <p id="xpEarnedText"></p>
-    </div>
-
-    <button onclick="closeCelebration()">Continue Learning ➜</button>
-  </div>
-</div>
-
-<!-- QUIZ CELEBRATION MODAL -->
-<div id="quizCelebration" class="celebration-modal">
-  <div class="celebration-content">
-    <div class="confetti"></div>
+  <div class="celebration-content" id="quizCelebrationContent">
+    <div class="confetti-stage"></div>
+    <div class="celebration-mascot" data-mascot-slot="quizCelebration"></div>
 
     <h2>🎉 Congratulations!</h2>
     <p id="celebrationMessage"></p>
@@ -281,8 +272,9 @@
 
 <!-- LEVEL UP MODAL -->
 <div id="levelUpCelebration" class="celebration-modal">
-  <div class="celebration-content badge-mode">
-    <div class="confetti"></div>
+  <div class="celebration-content badge-mode" id="levelUpCelebrationContent">
+    <div class="confetti-stage"></div>
+    <div class="celebration-mascot" data-mascot-slot="levelUpCelebration"></div>
     <h2>⬆️ Level Up!</h2>
     <div style="font-size:48px; margin:10px 0;">🎉</div>
     <h3 id="levelUpName"></h3>
@@ -292,7 +284,9 @@
 
 <!-- BADGE AWARD MODAL -->
 <div id="badgeCelebration" class="celebration-modal">
-  <div class="celebration-content badge-mode">
+  <div class="celebration-content badge-mode" id="badgeCelebrationContent">
+    <div class="confetti-stage"></div>
+    <div class="celebration-mascot" data-mascot-slot="badgeCelebration"></div>
     <h2>🏅 Badge Unlocked!</h2>
 
     <div id="badgeVisual"></div>
@@ -304,9 +298,10 @@
 
 <!-- CERTIFICATE CELEBRATION MODAL -->
 <div id="certificateCelebration" class="celebration-modal">
-  <div class="celebration-content certificate-mode">
+  <div class="celebration-content certificate-mode" id="certificateCelebrationContent">
 
-    <div class="confetti"></div>
+    <div class="confetti-stage"></div>
+    <div class="celebration-mascot" data-mascot-slot="certificateCelebration"></div>
 
     <h2>🎓 Certificate Unlocked!</h2>
 
@@ -2503,6 +2498,7 @@ if(classroomId){
 
     function render(message) {
       body.innerHTML = `
+        <div class="celebration-mascot" data-mascot-slot="bossBattle" style="width:56px; height:56px; margin:0 auto 4px;"></div>
         <h2 style="margin:6px 0;">⚔️ Boss Battle</h2>
         <div style="font-size:56px; margin:8px 0;">${bossHp <= 0 ? "💀" : "👾"}</div>
         <div style="margin:0 auto 6px; max-width:320px;">
@@ -2522,6 +2518,10 @@ if(classroomId){
           ? `<button class="btn" onclick="bossBattleStrike()">${i === 0 ? "Start" : "Next"} ⚔️</button>`
           : `<button class="btn" onclick="closeBossBattle()">Close</button>`}
       `;
+      if (window.Gamify) {
+        const mascotEl = body.querySelector('[data-mascot-slot="bossBattle"]');
+        Gamify.setMascot(mascotEl, bossHp <= 0 ? "cheer" : "idle");
+      }
     }
 
     window.bossBattleStrike = function () {
@@ -2530,13 +2530,21 @@ if(classroomId){
       if (q.isCorrect) {
         bossHp -= step;
         render(`✅ Hit! "${(q.question || "").slice(0, 60)}"`);
+        if (window.Gamify) Gamify.playChime("correct");
       } else {
         playerHp -= step;
         render(`❌ The boss hits back! "${(q.question || "").slice(0, 60)}"`);
+        if (window.Gamify) Gamify.playChime("wrong");
       }
       i++;
       if (i >= review.length) {
-        setTimeout(() => render(bossHp <= 0 ? "🎉 Boss defeated!" : "The boss survives — review and try again!"), 400);
+        setTimeout(() => {
+          render(bossHp <= 0 ? "🎉 Boss defeated!" : "The boss survives — review and try again!");
+          if (window.Gamify && bossHp <= 0) {
+            Gamify.confetti(modal, 36);
+            Gamify.playChime("levelup");
+          }
+        }, 400);
       }
     };
 
@@ -2781,29 +2789,6 @@ if(classroomId){
     }
   });
 
-  }
-</script>
-
-<!-- Focus Mode toggle — deliberately its OWN script tag, not appended to
-     the sidebar-collapse script above: that one starts with
-     document.getElementById("lessonSidebar") unguarded and throws on
-     every page that isn't the learning view once a sidebar-collapsed
-     preference is saved, which would silently prevent anything placed
-     after it in the SAME block from ever registering. A separate tag
-     runs independently regardless of what happens in that one. -->
-<script>
-  const learningContainer = document.getElementById("learningContainer");
-  const focusModeBtn = document.getElementById("focusModeBtn");
-  if (learningContainer && focusModeBtn) {
-    if (localStorage.getItem("focusMode") === "true") {
-      learningContainer.classList.add("focus-mode");
-      focusModeBtn.classList.add("active");
-    }
-    window.toggleFocusMode = function () {
-      const isOn = learningContainer.classList.toggle("focus-mode");
-      focusModeBtn.classList.toggle("active", isOn);
-      localStorage.setItem("focusMode", isOn);
-    };
   }
 </script>
 
@@ -3309,7 +3294,8 @@ async function submitExchange() {
 
   function loadLessonPart(lessonId, part) {
     showLoading();
-    
+    if (typeof restoreQuizSidebarIfAutoCollapsed === "function") restoreQuizSidebarIfAutoCollapsed();
+
     fetch(`/student/lessons/${lessonId}`)
       .then(res => res.json())
       // .then(lesson => {
@@ -4327,6 +4313,7 @@ function showCertificateCelebration(url) {
   document.getElementById(
     "certificateCelebration"
   ).style.display = "flex";
+  fireCelebrationFx("certificateCelebrationContent", "cheer", "badge");
 }
 
 function closeCertificateCelebration() {
@@ -4486,6 +4473,12 @@ let currentQuizLessonId = null;
 // that question — kept for the rest of this quiz attempt so navigating
 // Previous/Next doesn't lose the narrowed choices or require paying again.
 let quizFiftyFiftyOptions = {};
+// questionId -> true/false once a live instant-feedback check has come
+// back for that question (see checkAnswerLive below) — once set, that
+// question's options render locked/revealed instead of neutral, on this
+// render AND any later Previous/Next back to it.
+let quizChecked = {};
+let quizStreak = 0;
 
 let reviewQuestions = [];
 let reviewIndex = 0;
@@ -4649,8 +4642,37 @@ async function requestFiftyFifty(questionId) {
       });
   }
 
+  // Auto-collapses the lesson sidebar into its slim rail while a quiz is
+  // in progress, for less on-screen clutter — reuses the sidebar's
+  // existing collapse mechanism/CSS (dashboard.ejs's sidebar-toggle
+  // script + .lesson-sidebar.collapsed in styles2.css) rather than
+  // introducing a second one. Only restores it afterward if THIS
+  // triggered the collapse — a student who'd already manually collapsed
+  // it keeps that preference.
+  let quizAutoCollapsedSidebar = false;
+  function autoCollapseQuizSidebar() {
+    const sb = document.getElementById("lessonSidebar");
+    if (sb && !sb.classList.contains("collapsed")) {
+      sb.classList.add("collapsed");
+      const handle = document.getElementById("sidebarHandle");
+      if (handle) handle.innerHTML = "❯";
+      quizAutoCollapsedSidebar = true;
+    }
+  }
+  function restoreQuizSidebarIfAutoCollapsed() {
+    if (!quizAutoCollapsedSidebar) return;
+    const sb = document.getElementById("lessonSidebar");
+    if (sb) {
+      sb.classList.remove("collapsed");
+      const handle = document.getElementById("sidebarHandle");
+      if (handle) handle.innerHTML = "❮";
+    }
+    quizAutoCollapsedSidebar = false;
+  }
+
   function loadQuizInline(lessonId) {
     showLoading();
+    autoCollapseQuizSidebar();
     fetch(`/student/lessons/${lessonId}/quiz`)
       .then(res => res.json())
       .then(data => {
@@ -4712,6 +4734,8 @@ async function requestFiftyFifty(questionId) {
         }
 
         quizAnswers = {};
+        quizChecked = {};
+        quizStreak = 0;
         currentQuestionIndex = 0;
         currentQuizLessonId = lessonId;
 
@@ -4751,9 +4775,20 @@ async function requestFiftyFifty(questionId) {
   const container =
     document.getElementById("lessonMainArea");
 
+  const checked = quizChecked[q.id];
+  const isMuted = window.Gamify ? Gamify.isMuted() : false;
+
   container.innerHTML = `
 
   <div class="quiz-container">
+
+    <div class="quiz-top-row">
+      <div class="quiz-mascot" data-mascot-slot="quizMascot"></div>
+      <div style="display:flex; align-items:center;">
+        ${quizStreak >= 2 ? `<span class="quiz-streak-badge" id="quizStreakBadge">🔥 ${quizStreak} in a row!</span>` : ""}
+        <button type="button" class="gamify-sound-toggle${isMuted ? " muted" : ""}" id="gamifySoundToggle" onclick="toggleGamifySound()" title="${isMuted ? "Sound off" : "Sound on"}">${isMuted ? "🔇" : "🔊"}</button>
+      </div>
+    </div>
 
     <div class="quiz-progress">
       <div
@@ -4780,31 +4815,33 @@ async function requestFiftyFifty(questionId) {
       🔊 Read Question
     </button>
 
-    <button type="button" onclick="requestQuizHint(${q.id})">💡 Hint</button>
-    <button type="button" onclick="requestFiftyFifty(${q.id})" ${quizFiftyFiftyOptions[q.id] ? "disabled" : ""}>🎯 50/50</button>
+    <button type="button" class="quiz-icon-btn" onclick="requestQuizHint(${q.id})">${window.Gamify ? Gamify.icons.bulb : "💡"} Hint</button>
+    <button type="button" class="quiz-icon-btn" onclick="requestFiftyFifty(${q.id})" ${quizFiftyFiftyOptions[q.id] ? "disabled" : ""}>${window.Gamify ? Gamify.icons.target : "🎯"} 50/50</button>
     <p id="quizHintText" style="font-size:13px; color:#7c3aed; font-style:italic; margin:6px 0 0;"></p>
 
     <div class="quiz-options">
 
-      ${(quizFiftyFiftyOptions[q.id] || q.options).map(option => `
-
-        <div
-          class="quiz-option ${
-            selectedAnswer === option
-              ? "selected"
-              : ""
-          }"
-
-          onclick="selectAnswer(
-            ${q.id},
-            '${option.replace(/'/g, "\\'")}'
-          )"
-
-        >
-          ${option}
+      ${(quizFiftyFiftyOptions[q.id] || q.options).map(option => {
+        const isSelected = selectedAnswer === option;
+        let cls = isSelected ? "selected" : "";
+        let flashIcon = "";
+        if (checked) {
+          cls += " locked";
+          if (isSelected) {
+            cls += checked.isCorrect ? " correct-flash" : " wrong-flash";
+            const iconMarkup = window.Gamify ? (checked.isCorrect ? Gamify.icons.check : Gamify.icons.x) : (checked.isCorrect ? "✅" : "❌");
+            flashIcon = `<span class="quiz-option-icon">${iconMarkup}</span>`;
+          }
+        }
+        const clickHandler = checked
+          ? ""
+          : `onclick="selectAnswer(${q.id}, '${option.replace(/'/g, "\\'")}')"`;
+        return `
+        <div class="quiz-option ${cls}" ${clickHandler}>
+          ${flashIcon}${option}
         </div>
-
-      `).join("")}
+        `;
+      }).join("")}
 
     </div>
 
@@ -4846,6 +4883,26 @@ async function requestFiftyFifty(questionId) {
 
   </div>
   `;
+
+  if (window.Gamify) {
+    const mascotEl = container.querySelector('[data-mascot-slot="quizMascot"]');
+    const state = checked ? (checked.isCorrect ? "cheer" : "sad") : "idle";
+    Gamify.setMascot(mascotEl, state);
+    const streakBadge = document.getElementById("quizStreakBadge");
+    if (streakBadge) streakBadge.classList.add("pop");
+  }
+}
+
+function toggleGamifySound() {
+  if (!window.Gamify) return;
+  const muted = !Gamify.isMuted();
+  Gamify.setMuted(muted);
+  const btn = document.getElementById("gamifySoundToggle");
+  if (btn) {
+    btn.classList.toggle("muted", muted);
+    btn.textContent = muted ? "🔇" : "🔊";
+    btn.title = muted ? "Sound off" : "Sound on";
+  }
 }
 
 function renderQuizSummary() {
@@ -4986,9 +5043,51 @@ function goToNextModule(moduleId) {
 
 function selectAnswer(questionId, answer){
 
+  if (quizChecked[questionId]) return; // already revealed — locked in
+
   quizAnswers[questionId] = answer;
 
   renderQuestion();
+
+  if (window.Gamify) {
+    const mascotEl = document.querySelector('[data-mascot-slot="quizMascot"]');
+    Gamify.setMascot(mascotEl, "think");
+    Gamify.playChime("select");
+  }
+
+  checkAnswerLive(currentQuizLessonId, questionId, answer);
+}
+
+// Live, per-question correctness check — a small, answer-key-safe
+// endpoint (mirrors useQuizHint/useFiftyFifty's pattern: it touches only
+// the one question asked about, and never returns correct_option itself,
+// only whether the submitted answer matched it). Purely informational —
+// the existing /quiz/submit endpoint stays the sole source of truth for
+// score/XP/badges, so this can't be farmed for anything of value.
+function checkAnswerLive(lessonId, questionId, answer) {
+  fetch(`/student/quizzes/${lessonId}/questions/${questionId}/check-answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answer }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) return;
+      quizChecked[questionId] = { isCorrect: !!data.isCorrect, answer };
+      quizStreak = data.isCorrect ? quizStreak + 1 : 0;
+
+      if (window.Gamify) {
+        Gamify.playChime(data.isCorrect ? (quizStreak >= 3 ? "streak" : "correct") : "wrong");
+      }
+
+      // Only re-render if the student is still looking at this question
+      // (they may have already clicked Next while the check was in flight).
+      const current = quizQuestions[currentQuestionIndex];
+      if (current && current.id === questionId) {
+        renderQuestion();
+      }
+    })
+    .catch(err => console.error("checkAnswerLive error:", err));
 }
 
 function startReview(){
@@ -5406,6 +5505,21 @@ function goToAssignment() {
   loadAssignment(assignmentId);
 }
 
+// Fires confetti + a chime + the mascot's celebratory pose inside a
+// celebration-modal's content card — shared by all four modals in the
+// chain below rather than repeating the same three calls in each.
+function fireCelebrationFx(contentId, mascotState, chimeType) {
+  if (!window.Gamify) return;
+  const content = document.getElementById(contentId);
+  if (content) {
+    const stage = content.querySelector(".confetti-stage");
+    if (stage) Gamify.confetti(stage, 32);
+    const mascotEl = content.querySelector("[data-mascot-slot]");
+    if (mascotEl) Gamify.setMascot(mascotEl, mascotState);
+  }
+  Gamify.playChime(chimeType);
+}
+
 function showQuizCelebration(score, xp) {
   const modal = document.getElementById("quizCelebration");
   document.getElementById("celebrationMessage").innerHTML =
@@ -5415,6 +5529,7 @@ function showQuizCelebration(score, xp) {
     `+${xp} XP`;
 
   modal.style.display = "flex";
+  fireCelebrationFx("quizCelebrationContent", "cheer", "correct");
 }
 
 function closeCelebration() {
@@ -5433,6 +5548,8 @@ function showBadgeCelebration(name, image) {
       ? `<img src="${image}" width="80">`
       : `<div style="font-size:60px;">🏅</div>`;
 
+  fireCelebrationFx("badgeCelebrationContent", "cheer", "badge");
+
   modal.style.display = "flex";
 }
 
@@ -5443,6 +5560,7 @@ function closeBadgeCelebration() {
 function showLevelUpCelebration(levelName) {
   document.getElementById("levelUpName").textContent = levelName;
   document.getElementById("levelUpCelebration").style.display = "flex";
+  fireCelebrationFx("levelUpCelebrationContent", "cheer", "levelup");
 }
 
 function closeLevelUpCelebration() {
