@@ -4479,6 +4479,11 @@ let quizFiftyFiftyOptions = {};
 // render AND any later Previous/Next back to it.
 let quizChecked = {};
 let quizStreak = 0;
+// Question ids (from reviewData) the student has actually opened in the
+// review screen, restricted in practice to ones they got wrong/skipped —
+// renderQuizSummary uses this to require reviewing every missed question
+// before offering the "Next Lesson"/"Next Module" button.
+let reviewedMissedIds = new Set();
 
 let reviewQuestions = [];
 let reviewIndex = 0;
@@ -4673,6 +4678,7 @@ async function requestFiftyFifty(questionId) {
   function loadQuizInline(lessonId) {
     showLoading();
     autoCollapseQuizSidebar();
+    reviewedMissedIds = new Set(); // fresh quiz/review load — nothing reviewed yet
     fetch(`/student/lessons/${lessonId}/quiz`)
       .then(res => res.json())
       .then(data => {
@@ -4946,7 +4952,7 @@ function renderQuizSummary() {
     </div>
   ` : "";
 
-  const nextActionButton = nextInfo.nextModuleUnlocked
+  const realNextActionButton = nextInfo.nextModuleUnlocked
     ? `<button class="quiz-btn quiz-btn-primary" onclick="goToNextModule(${nextInfo.nextModuleId})">🎉 Next Module</button>`
     : nextInfo.pendingLab
       ? `<button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${nextInfo.pendingLab.lab_type === 'blockly' ? '/labs/blockly' : '/labs/web'}?labId=${nextInfo.pendingLab.id}&lessonId=${window.currentLessonId}'">🧩 Proceed to Lab Task</button>`
@@ -4954,12 +4960,31 @@ function renderQuizSummary() {
         ? `<button class="quiz-btn quiz-btn-primary" onclick="loadLessonPart(${nextInfo.nextLessonId}, 'content')">➡️ Next Lesson</button>`
         : "";
 
+  // Missed (wrong or skipped) questions must be opened in the review
+  // screen at least once before the real "Next Lesson"/"Next Module"/lab
+  // button appears — reviewedMissedIds is populated by
+  // renderReviewQuestion below and reset fresh by loadQuizInline.
+  const missedQuestions = reviewQuestions.filter(q => q.isCorrect === false);
+  const unreviewedMissed = missedQuestions.filter(q => !reviewedMissedIds.has(q.id));
+  const mustReviewFirst = !!realNextActionButton && unreviewedMissed.length > 0;
+
+  const nextActionButton = mustReviewFirst
+    ? `<button class="quiz-btn quiz-btn-primary" onclick="startMissedReview()">📖 Review ${unreviewedMissed.length} Missed Question${unreviewedMissed.length > 1 ? "s" : ""} to Continue</button>`
+    : realNextActionButton;
+
+  const missedReviewBanner = mustReviewFirst ? `
+    <div style="background:#fff3cd; color:#856404; border-radius:var(--radius-lg, 16px); padding:14px 20px; margin-bottom:18px; text-align:center;">
+      📖 Review what you missed before moving on to the next lesson — it only takes a moment.
+    </div>
+  ` : "";
+
   lessonMain.innerHTML = `
 
   <div class="quiz-summary-container">
 
     ${moduleUnlockedBanner}
     ${pendingLabBanner}
+    ${missedReviewBanner}
 
     <h2>📊 Quiz Summary</h2>
     <button type="button" class="btn" onclick="startBossBattle(reviewQuestions)">⚔️ Boss Battle Replay</button>
@@ -5093,6 +5118,20 @@ function checkAnswerLive(lessonId, questionId, answer) {
 function startReview(){
 
   reviewIndex = 0;
+
+  renderReviewQuestion();
+}
+
+// Jumps straight to the first not-yet-reviewed missed question, rather
+// than making the student click Previous/Next through ones they already
+// got right — used by the "Review N Missed Questions to Continue" button.
+function startMissedReview(){
+
+  const idx = reviewQuestions.findIndex(
+    q => q.isCorrect === false && !reviewedMissedIds.has(q.id)
+  );
+
+  reviewIndex = idx >= 0 ? idx : 0;
 
   renderReviewQuestion();
 }
@@ -5296,6 +5335,12 @@ function renderReviewQuestion(){
 
   const q =
     reviewQuestions[reviewIndex];
+
+  // Opening a missed question here satisfies the "must review before
+  // moving on" requirement checked by renderQuizSummary.
+  if (q && q.isCorrect === false) {
+    reviewedMissedIds.add(q.id);
+  }
 
   const total =
     reviewQuestions.length;

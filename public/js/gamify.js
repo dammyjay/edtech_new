@@ -34,9 +34,12 @@
 
   // ---------------------------------------------------------------
   // Sound — short synthesized chimes via Web Audio, no audio files to
-  // source/host/license. Lazily creates its AudioContext on first use
-  // (browsers block autoplay before a user gesture; a quiz-option click
-  // or Submit click already is one).
+  // source/host/license. Lazily creates its AudioContext on first use.
+  // Browsers only let an AudioContext actually play once it's been
+  // resumed inside a genuine user gesture — a quiz-option click already
+  // is one, but as a safety net (some browsers are stricter about which
+  // gestures count) a one-time listener below also tries to warm it up
+  // on the very first tap/click/key anywhere on the page.
   let audioCtx = null;
   function getCtx() {
     if (!audioCtx) {
@@ -47,6 +50,13 @@
     if (audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
   }
+
+  function warmUpAudio() {
+    getCtx();
+  }
+  ["pointerdown", "keydown", "touchstart"].forEach((evt) => {
+    document.addEventListener(evt, warmUpAudio, { once: true, capture: true });
+  });
 
   function tone(ctx, freq, startTime, duration, peakGain) {
     const osc = ctx.createOscillator();
@@ -61,13 +71,16 @@
     osc.stop(startTime + duration + 0.02);
   }
 
+  // Peak gains are deliberately well above "just audible" (0.2-0.3 on
+  // the 0-1 scale) — the first pass used 0.05-0.09, which turned out to
+  // be too quiet to notice over normal speaker/system volume.
   const CHIME_SEQUENCES = {
-    select: [[600, 0, 0.07, 0.05]],
-    correct: [[523.25, 0, 0.11, 0.09], [784, 0.09, 0.16, 0.09]],
-    wrong: [[392, 0, 0.16, 0.06], [330, 0.1, 0.18, 0.05]],
-    streak: [[523.25, 0, 0.1, 0.08], [659.25, 0.08, 0.1, 0.08], [880, 0.16, 0.18, 0.09]],
-    levelup: [[523.25, 0, 0.11, 0.08], [659.25, 0.09, 0.11, 0.08], [784, 0.18, 0.11, 0.08], [1046.5, 0.27, 0.22, 0.09]],
-    badge: [[659.25, 0, 0.12, 0.08], [880, 0.1, 0.12, 0.08], [1174.66, 0.2, 0.22, 0.09]],
+    select: [[600, 0, 0.07, 0.18]],
+    correct: [[523.25, 0, 0.11, 0.26], [784, 0.09, 0.16, 0.26]],
+    wrong: [[392, 0, 0.16, 0.2], [330, 0.1, 0.18, 0.18]],
+    streak: [[523.25, 0, 0.1, 0.24], [659.25, 0.08, 0.1, 0.24], [880, 0.16, 0.18, 0.26]],
+    levelup: [[523.25, 0, 0.11, 0.24], [659.25, 0.09, 0.11, 0.24], [784, 0.18, 0.11, 0.24], [1046.5, 0.27, 0.22, 0.28]],
+    badge: [[659.25, 0, 0.12, 0.24], [880, 0.1, 0.12, 0.24], [1174.66, 0.2, 0.22, 0.28]],
   };
 
   const MUTE_KEY = "gamifySoundMuted";
@@ -93,6 +106,13 @@
     seq.forEach(([freq, offset, duration, peakGain]) => {
       tone(ctx, freq, now + offset, duration, peakGain);
     });
+  }
+
+  // Debug helper — not used by the UI, but useful from a console to
+  // confirm the context ever left "suspended" if sound reports missing
+  // again (e.g. Gamify.getAudioState() -> "running"/"suspended"/"none").
+  function getAudioState() {
+    return audioCtx ? audioCtx.state : "none";
   }
 
   // ---------------------------------------------------------------
@@ -189,5 +209,5 @@
     coin: `<svg viewBox="0 0 32 32" width="16" height="16"><circle cx="16" cy="16" r="14" fill="#facc15" stroke="#a16207" stroke-width="1.6"/><circle cx="16" cy="16" r="9" fill="none" stroke="#a16207" stroke-width="1.4"/></svg>`,
   };
 
-  window.Gamify = { confetti, playChime, isMuted, setMuted, setMascot, setMascotAll, icons };
+  window.Gamify = { confetti, playChime, isMuted, setMuted, setMascot, setMascotAll, icons, getAudioState };
 })();
