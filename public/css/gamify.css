@@ -64,15 +64,19 @@
   80% { transform: translateX(4px) rotate(2deg); }
 }
 
-/* ---------- Quiz option instant feedback ---------- */
+/* ---------- Quiz option instant feedback ----------
+   Solid, saturated colors (not light pastels) — the option boxes are
+   .wg-option-box now, which sets white text; a light background here
+   would leave that white text unreadable. Bright green/red also reads
+   as a clearer "correct/wrong" signal than a pale tint would. */
 .quiz-option.correct-flash {
-  border-color: #22c55e !important;
-  background: #ecfdf5 !important;
+  border-color: #16a34a !important;
+  background: #16a34a !important;
 }
 
 .quiz-option.wrong-flash {
-  border-color: #ef4444 !important;
-  background: #fef2f2 !important;
+  border-color: #dc2626 !important;
+  background: #dc2626 !important;
 }
 
 .quiz-option.locked {
