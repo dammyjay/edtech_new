@@ -4,6 +4,7 @@ const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
 const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const instructorAwardService = require("../services/instructorAwardService");
+const classroomPacingService = require("../services/classroomPacingService");
 
 // Same banned-word list as the student side (studentController.sendChatMessage)
 // — kept in sync so instructor messages get the same moderation, now that
@@ -2072,10 +2073,24 @@ exports.viewCourseAsStudent = async (req, res) => {
   const courseId = req.params.courseId;
   const instructor = req.user;
 
+  // The "Teach" button on assigned_courses.ejs passes ?classroomId= so
+  // this view knows which classroom's pacing to show/control — without
+  // it (or if it doesn't belong to this instructor) this stays a plain
+  // read-only preview with no release controls, same as before this
+  // feature existed.
+  let classroomId = req.query.classroomId ? parseInt(req.query.classroomId, 10) : null;
+  if (classroomId) {
+    const ownsClassroomRes = await pool.query(
+      `SELECT 1 FROM classroom_instructors WHERE classroom_id = $1 AND instructor_id = $2`,
+      [classroomId, instructor.id]
+    );
+    if (!ownsClassroomRes.rows.length) classroomId = null;
+  }
+
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
-  const info = infoResult.rows[0] || {};  
+  const info = infoResult.rows[0] || {};
   // Fetch course
   const course = await pool.query("SELECT * FROM courses WHERE id = $1", [courseId]);
 
@@ -2116,6 +2131,21 @@ exports.viewCourseAsStudent = async (req, res) => {
   const moduleQuizzes = {};
   const moduleAssignments = {};
 
+  // Per-lesson release state for the "Release to Class" controls —
+  // only meaningful (and only computed) when this view is scoped to a
+  // classroom this instructor actually teaches.
+  if (classroomId) {
+    const lessonIds = lessons.rows.map((l) => l.id);
+    const [firstLessonIds, releasedLessonIds] = await Promise.all([
+      classroomPacingService.getFirstLessonIdsForCourses([courseId]),
+      classroomPacingService.getReleasedLessonIds(classroomId, lessonIds),
+    ]);
+    lessons.rows.forEach((lesson) => {
+      lesson.isFirst = firstLessonIds.has(lesson.id);
+      lesson.released = lesson.isFirst || releasedLessonIds.has(lesson.id);
+    });
+  }
+
   lessons.rows.forEach(lesson => {
     if (!moduleLessons[lesson.module_id]) moduleLessons[lesson.module_id] = [];
     moduleLessons[lesson.module_id].push(lesson);
@@ -2141,8 +2171,65 @@ exports.viewCourseAsStudent = async (req, res) => {
     modules: modules.rows,
     moduleLessons,
     moduleQuizzes,
-    moduleAssignments
+    moduleAssignments,
+    classroomId
   });
+};
+
+// POST /instructor/classrooms/:classroomId/lessons/:lessonId/release
+// Makes a lesson available to every student in the classroom, on top of
+// (not instead of) each student's own individual unlocked_lessons
+// progress — see services/classroomPacingService.js for the combined
+// check both students.getLessonQuiz/submitLessonQuiz/viewLesson and this
+// view's own lesson list use.
+exports.releaseLessonToClassroom = async (req, res) => {
+  const instructorId = req.user.id;
+  const classroomId = parseInt(req.params.classroomId, 10);
+  const lessonId = parseInt(req.params.lessonId, 10);
+
+  try {
+    const ownsClassroomRes = await pool.query(
+      `SELECT 1 FROM classroom_instructors WHERE classroom_id = $1 AND instructor_id = $2`,
+      [classroomId, instructorId]
+    );
+    if (!ownsClassroomRes.rows.length) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
+
+    await classroomPacingService.releaseLesson(classroomId, lessonId, instructorId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("releaseLessonToClassroom error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /instructor/classrooms/:classroomId/lessons/:lessonId/unrelease
+// Refuses on the first lesson of a course server-side (not just a
+// disabled button) — that one is always available to a classroom.
+exports.unreleaseLessonFromClassroom = async (req, res) => {
+  const instructorId = req.user.id;
+  const classroomId = parseInt(req.params.classroomId, 10);
+  const lessonId = parseInt(req.params.lessonId, 10);
+
+  try {
+    const ownsClassroomRes = await pool.query(
+      `SELECT 1 FROM classroom_instructors WHERE classroom_id = $1 AND instructor_id = $2`,
+      [classroomId, instructorId]
+    );
+    if (!ownsClassroomRes.rows.length) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
+
+    const result = await classroomPacingService.unreleaseLesson(classroomId, lessonId);
+    if (!result.ok) {
+      return res.json({ success: false, message: result.reason });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("unreleaseLessonFromClassroom error:", err.message);
+    res.status(500).json({ success: false });
+  }
 };
 
 exports.assignedCoursesSection = async (req, res) => {
@@ -2177,6 +2264,7 @@ exports.assignedCoursesSection = async (req, res) => {
       SELECT DISTINCT
         crs.id,
         crs.title,
+        c.id AS classroom_id,
         c.name AS classroom_name,
         (
           SELECT COUNT(*)
@@ -2192,7 +2280,13 @@ exports.assignedCoursesSection = async (req, res) => {
 
     res.render("instructor/sections/assigned_courses", {
       classrooms: classroomsResult.rows,
-      courses: coursesResult.rows
+      // The template reads `classroomCourse` (it renders one card per
+      // (classroom, course) pair, since an instructor's classroom_courses
+      // join can return the same course multiple times across
+      // classrooms) — this was previously passed as `courses`, which the
+      // template never reads, throwing "classroomCourse is not defined"
+      // on every render of this section.
+      classroomCourse: coursesResult.rows
     });
 
   } catch (err) {

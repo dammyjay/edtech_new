@@ -194,6 +194,22 @@ router.get(
   instructorController.viewCourseAsStudent
 );
 
+// Classroom-wide lesson pacing — makes a lesson available to (or holds it
+// back from) every student in a classroom, on top of each student's own
+// individual progress. State-changing, so both routes require the
+// instructor role AND (checked in the controller) that this instructor
+// actually teaches the given classroom.
+router.post(
+  "/classrooms/:classroomId/lessons/:lessonId/release",
+  ensureInstructorOrAdmin,
+  instructorController.releaseLessonToClassroom
+);
+router.post(
+  "/classrooms/:classroomId/lessons/:lessonId/unrelease",
+  ensureInstructorOrAdmin,
+  instructorController.unreleaseLessonFromClassroom
+);
+
 // Was wired to viewStudentProgress, which reads req.params.id (a
 // student id) — this route only ever supplies :courseId, so every hit
 // silently 403'd ("Not authorized to view this student"). The two

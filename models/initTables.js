@@ -877,6 +877,25 @@ async function createTables() {
 
       `);
 
+    // A second, classroom-wide gate on top of unlocked_lessons above: a
+    // student's own progress can unlock a lesson individually, but for
+    // classroom students it isn't actually reachable until the instructor
+    // also releases it here — lets an instructor keep a whole class on
+    // the same pace instead of everyone racing ahead independently.
+    // Existence of a row = released, same pattern as unlocked_lessons.
+    // The first lesson of a course is always available and never needs a
+    // row here (see services/classroomPacingService.js#isFirstLessonOfCourse).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classroom_lesson_releases (
+        id SERIAL PRIMARY KEY,
+        classroom_id INT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+        lesson_id INT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+        released_at TIMESTAMP DEFAULT NOW(),
+        released_by INT REFERENCES users2(id),
+        UNIQUE(classroom_id, lesson_id)
+      );
+      `);
+
       await pool.query(`
         CREATE TABLE IF NOT EXISTS academic_terms (
           id SERIAL PRIMARY KEY,

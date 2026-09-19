@@ -39,6 +39,18 @@
                 <button class="lesson-toggle-pill" onclick="toggleLessonMenu(<%= lesson.id %>)">
                   📘 <%= lesson.title %>
                 </button>
+                <% if (classroomId) { %>
+                  <% if (lesson.isFirst) { %>
+                    <span class="lesson-release-badge always-available" title="Always available to the class — can't be locked">✅ Always Available</span>
+                  <% } else { %>
+                    <button type="button"
+                      class="lesson-release-toggle <%= lesson.released ? 'released' : 'not-released' %>"
+                      id="release-btn-<%= lesson.id %>"
+                      onclick="toggleLessonRelease(<%= lesson.id %>, <%= lesson.released ? 'true' : 'false' %>)">
+                      <%= lesson.released ? '🔓 Released to class' : '🔒 Release to class' %>
+                    </button>
+                  <% } %>
+                <% } %>
                 <ul id="lesson-menu-<%= lesson.id %>" class="lesson-part-chips" style="display:none;">
                   <li><button onclick="loadLessonPart(<%= lesson.id %>, 'lesson_plan')"><i class="fa-solid fa-clipboard-list"></i> Lesson Plan</button></li>
                   <li><button onclick="loadLessonPart(<%= lesson.id %>, 'video')"><i class="fa-solid fa-video"></i> Video</button></li>
@@ -81,6 +93,41 @@
 </div>
 
 <script>
+const classroomId = <%- JSON.stringify(classroomId || null) %>;
+
+// Release/hold-back a lesson for the whole classroom — layered on top of
+// (not instead of) each student's own individual progress. Only rendered
+// when this view is scoped to a classroom (see classroomId above) and
+// never for a course's first lesson, which is always available.
+function toggleLessonRelease(lessonId, currentlyReleased) {
+  if (!classroomId) return;
+  const btn = document.getElementById(`release-btn-${lessonId}`);
+  const action = currentlyReleased ? "unrelease" : "release";
+  if (btn) btn.disabled = true;
+
+  fetch(`/instructor/classrooms/${classroomId}/lessons/${lessonId}/${action}`, { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        showAlert(data.message || "Could not update release status.");
+        if (btn) btn.disabled = false;
+        return;
+      }
+      const nowReleased = !currentlyReleased;
+      if (btn) {
+        btn.className = "lesson-release-toggle " + (nowReleased ? "released" : "not-released");
+        btn.textContent = nowReleased ? "🔓 Released to class" : "🔒 Release to class";
+        btn.setAttribute("onclick", `toggleLessonRelease(${lessonId}, ${nowReleased})`);
+        btn.disabled = false;
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      showAlert("Could not update release status.");
+      if (btn) btn.disabled = false;
+    });
+}
+
 function toggleModule(moduleId, btn) {
   const el = document.getElementById(`module-${moduleId}`);
   const open = el.style.display !== "none";

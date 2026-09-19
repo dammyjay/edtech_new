@@ -618,3 +618,46 @@ select.is-loading { opacity: 0.6; pointer-events: none; }
 }
 
 .instructor-learn-empty-main i { font-size: 2.6rem; color: var(--border-dark); margin-bottom: 12px; }
+
+/* Classroom lesson pacing — release/hold-back controls on courseContent.ejs */
+.lesson-release-badge {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #15803d;
+  background: #eafaf1;
+  border-radius: 999px;
+  padding: 3px 8px;
+  margin: 2px 4px 4px;
+  text-align: center;
+}
+
+.lesson-release-toggle {
+  display: block;
+  width: calc(100% - 8px);
+  margin: 2px 4px 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+
+.lesson-release-toggle.not-released {
+  background: #fff4e5;
+  color: #b5651d;
+  border-color: #f0d9a8;
+}
+
+.lesson-release-toggle.released {
+  background: #eafaf1;
+  color: #15803d;
+  border-color: #b7e4c7;
+}
+
+.lesson-release-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

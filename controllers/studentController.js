@@ -28,6 +28,7 @@ const { getStudentStreak } = require("../services/streakService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 const { getStudentProgressDetail } = require("../services/studentProgressDetailService");
 const { getStudentSkillTreeData } = require("../services/skillTreeService");
+const classroomPacingService = require("../services/classroomPacingService");
 const { awardCoins, spendCoins, buyCoinsWithWallet, NAIRA_PER_COIN } = require("../services/coinService");
 const { exchangeXp: exchangeXpService } = require("../services/xpExchangeService");
 const { AVATAR_FRAMES, getFrameByKey } = require("../utils/avatarFrames");
@@ -497,6 +498,25 @@ exports.getDashboard = async (req, res) => {
         lesson.termLocked = !!termLockedByCourseId[moduleIdToCourseId[lesson.module_id]];
       });
 
+      // Classroom-wide release gate, folded into the same `unlocked` flag
+      // the sidebar already reads — a classroom student's own progress
+      // (computed above) can say a lesson is unlocked, but it isn't
+      // actually available until the instructor has also released it
+      // (or it's the first lesson of its course, always available).
+      // Independent students (classroom === null) are unaffected.
+      if (classroom) {
+        const lessonIds = lessonsRes.rows.map((l) => l.id);
+        const courseIdsForLessons = [...new Set(modulesRes.rows.map((m) => m.course_id))];
+        const [firstLessonIds, releasedLessonIds] = await Promise.all([
+          classroomPacingService.getFirstLessonIdsForCourses(courseIdsForLessons),
+          classroomPacingService.getReleasedLessonIds(classroom.id, lessonIds),
+        ]);
+        lessonsRes.rows.forEach((lesson) => {
+          const releasedToClass = firstLessonIds.has(lesson.id) || releasedLessonIds.has(lesson.id);
+          lesson.unlocked = lesson.unlocked && releasedToClass;
+        });
+      }
+
       lessonsRes.rows.forEach((lesson) => {
         if (!moduleLessons[lesson.module_id])
           moduleLessons[lesson.module_id] = [];
@@ -928,6 +948,21 @@ exports.getDashboard = async (req, res) => {
           lessonsRes2.rows.forEach((lsn) => {
             lsn.termLocked = courseTermLocked;
           });
+
+          // Same classroom-wide release gate as the main dashboard lesson
+          // list above — folded into `unlocked` here too, since this
+          // focused single-module view has its own separate query.
+          if (classroom) {
+            const lessonIds2 = lessonsRes2.rows.map((l) => l.id);
+            const [firstLessonIds2, releasedLessonIds2] = await Promise.all([
+              classroomPacingService.getFirstLessonIdsForCourses([moduleInfo.course_id]),
+              classroomPacingService.getReleasedLessonIds(classroom.id, lessonIds2),
+            ]);
+            lessonsRes2.rows.forEach((lsn) => {
+              const releasedToClass = firstLessonIds2.has(lsn.id) || releasedLessonIds2.has(lsn.id);
+              lsn.unlocked = lsn.unlocked && releasedToClass;
+            });
+          }
 
           moduleLessons = { [moduleInfo.id]: lessonsRes2.rows };
 
@@ -3193,6 +3228,26 @@ exports.viewLesson = async (req, res) => {
 
     const lesson = lessonRes.rows[0];
 
+    // Classroom students: gate on BOTH this student's own progress
+    // (unlocked_lessons — previously not checked at all here, only
+    // enforced client-side) AND the instructor having released this
+    // lesson to the whole class (classroom_lesson_releases). Independent
+    // students have no classroom and skip this entirely.
+    const classroomId = await classroomPacingService.getStudentClassroomId(studentId);
+    if (classroomId) {
+      const individuallyUnlockedRes = await pool.query(
+        `SELECT 1 FROM unlocked_lessons WHERE student_id = $1 AND lesson_id = $2`,
+        [studentId, lessonId]
+      );
+      if (individuallyUnlockedRes.rows.length === 0) {
+        return res.json({ success: false, locked: "not_unlocked", message: "Complete the previous lesson first." });
+      }
+      const releasedToClass = await classroomPacingService.isLessonAvailableToClassroom(classroomId, lessonId);
+      if (!releasedToClass) {
+        return res.json({ success: false, locked: "not_released", message: "Your instructor hasn't made this lesson available yet." });
+      }
+    }
+
     // 🔔 Find pending assignments
     const pendingRes = await pool.query(
       `
@@ -3437,6 +3492,25 @@ exports.getLessonQuiz = async (req, res) => {
       });
     }
 
+    // 2️⃣.6 Classroom students: gate on this student's own progress
+    // (unlocked_lessons) AND the instructor having released this lesson
+    // to the whole class — same pairing as viewLesson. Independent
+    // students have no classroom and skip this entirely.
+    const quizClassroomId = await classroomPacingService.getStudentClassroomId(studentId);
+    if (quizClassroomId) {
+      const individuallyUnlockedRes = await pool.query(
+        `SELECT 1 FROM unlocked_lessons WHERE student_id = $1 AND lesson_id = $2`,
+        [studentId, lessonId]
+      );
+      if (individuallyUnlockedRes.rows.length === 0) {
+        return res.json({ success: false, locked: "not_unlocked", message: "Complete the previous lesson first." });
+      }
+      const releasedToClass = await classroomPacingService.isLessonAvailableToClassroom(quizClassroomId, lessonId);
+      if (!releasedToClass) {
+        return res.json({ success: false, locked: "not_released", message: "Your instructor hasn't made this lesson available yet." });
+      }
+    }
+
     // 3️⃣ Otherwise, fetch quiz questions
     const questionsRes = await pool.query(
       `SELECT id, question, question_type, options
@@ -3512,6 +3586,25 @@ exports.submitLessonQuiz = async (req, res) => {
         message:
           "The term you were enrolled in for this course has ended. Ask your school to reactivate it, or pay to reactivate it yourself from your wallet, to continue.",
       });
+    }
+
+    // Classroom students: gate on this student's own progress
+    // (unlocked_lessons) AND the instructor having released this lesson
+    // to the whole class — same pairing as viewLesson/getLessonQuiz.
+    // Independent students have no classroom and skip this entirely.
+    const submitClassroomId = await classroomPacingService.getStudentClassroomId(studentId);
+    if (submitClassroomId) {
+      const individuallyUnlockedRes = await pool.query(
+        `SELECT 1 FROM unlocked_lessons WHERE student_id = $1 AND lesson_id = $2`,
+        [studentId, lessonId]
+      );
+      if (individuallyUnlockedRes.rows.length === 0) {
+        return res.status(403).json({ success: false, locked: "not_unlocked", message: "Complete the previous lesson first." });
+      }
+      const releasedToClass = await classroomPacingService.isLessonAvailableToClassroom(submitClassroomId, lessonId);
+      if (!releasedToClass) {
+        return res.status(403).json({ success: false, locked: "not_released", message: "Your instructor hasn't made this lesson available yet." });
+      }
     }
 
     // ✅ Fetch lesson content

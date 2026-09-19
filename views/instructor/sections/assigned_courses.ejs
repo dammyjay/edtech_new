@@ -21,7 +21,7 @@
           <span><i class="fa-solid fa-user-graduate"></i> <%= course.student_count %> students</span>
         </div>
         <div class="course-card-actions">
-          <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'">
+          <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn?classroomId=<%= course.classroom_id %>'">
             <i class="fa-solid fa-chalkboard"></i> Teach
           </button>
           <button class="btn-blue" onclick="loadSection('students?classroom_id=<%= course.classroom_id %>')">
