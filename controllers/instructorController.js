@@ -1030,7 +1030,7 @@ exports.loadSection = async (req, res) => {
           AND c.school_id = $2
           GROUP BY c.id
         `,
-          [instructorId, schoolId],
+          [instructorId, activeSchoolId],
         );
 
         const lessonsPerClassResDB = await pool.query(`
@@ -1044,7 +1044,7 @@ exports.loadSection = async (req, res) => {
           WHERE ci.instructor_id = $1
             AND c.school_id = $2
           GROUP BY c.id
-        `, [instructorId, schoolId]);
+        `, [instructorId, activeSchoolId]);
 
         lessonsPerClass = lessonsPerClassResDB.rows;
 
