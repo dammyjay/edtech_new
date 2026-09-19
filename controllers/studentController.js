@@ -1526,8 +1526,85 @@ exports.getEnrolledCourses = async (req, res) => {
         ),
       ]);
 
+    // student/dashboard.ejs's sidebar renders unconditionally on every
+    // section, so it needs these regardless of which section this
+    // request is for (announcements, level/streak, equipped cosmetics) —
+    // same computations getDashboard already does for the same template.
+    const student = studentRes.rows[0];
+    const announcements = await getAnnouncements("dashboard");
+    const levelInfo = getLevelForXp(student.xp);
+    const streak = await getStudentStreak(studentId);
+    const equippedFrame = student.equipped_avatar_frame ? getFrameByKey(student.equipped_avatar_frame) : null;
+    const equippedFrameStyle = equippedFrame ? equippedFrame.style + " border-radius:50%;" : "";
+    const equippedBanner = student.equipped_profile_banner
+      ? getEquippableByKey("profile_banner", student.equipped_profile_banner)
+      : null;
+    const equippedBannerStyle = equippedBanner ? equippedBanner.style : "";
+    const equippedTitleTag = student.equipped_title_tag
+      ? getEquippableByKey("title_tag", student.equipped_title_tag)
+      : null;
+    // This route only ever lists independent (course_enrollments-based)
+    // enrollments, not classroom ones — school/classroom/teacher stay
+    // null here the same way they would for a role that isn't "student"
+    // in getDashboard; the sidebar already renders fine with them unset.
+    const role = req.session.user.role;
+    const school = null;
+    const classroom = null;
+    const teacher = null;
+
+    const pendingAssignmentsRes = await pool.query(
+      `SELECT COUNT(*) AS count
+       FROM unlocked_assignments ua
+       LEFT JOIN assignment_submissions s
+         ON s.assignment_id = ua.assignment_id
+        AND s.student_id = ua.student_id
+       WHERE ua.student_id = $1
+         AND s.id IS NULL`,
+      [studentId]
+    );
+    const pendingAssignmentCount = parseInt(pendingAssignmentsRes.rows[0].count) || 0;
+
     const courses = enrolledCoursesRes.rows;
     const courseIds = courses.map((c) => c.id);
+
+    // The badge/certificate/project modals on this template (opened via
+    // the stat-box row's onclick handlers) need these too, or referencing
+    // them at all throws — same queries getDashboard runs for the same
+    // template.
+    let courseProjects = {};
+    let projectSubmissions = {};
+    if (courseIds.length > 0) {
+      const projectsRes = await pool.query(
+        `SELECT cp.id, cp.course_id, cp.title, cp.description, cp.resource_url
+         FROM course_projects cp
+         WHERE cp.course_id = ANY($1)
+         ORDER BY cp.id ASC`,
+        [courseIds]
+      );
+      projectsRes.rows.forEach((project) => {
+        if (!courseProjects[project.course_id]) courseProjects[project.course_id] = [];
+        courseProjects[project.course_id].push(project);
+      });
+
+      const submissionsRes = await pool.query(
+        `SELECT ps.id AS project_id, ps.course_id, ps.file_url, ps.notes, ps.submitted_at
+         FROM project_submissions ps
+         WHERE ps.student_id = $1 AND ps.course_id = ANY($2)`,
+        [studentId, courseIds]
+      );
+      submissionsRes.rows.forEach((sub) => {
+        projectSubmissions[sub.project_id] = sub;
+      });
+    }
+
+    const certificatesRes = await pool.query(
+      `SELECT c.id AS course_id, c.title AS course_title, uc.issued_at, uc.certificate_url
+       FROM user_certificates uc
+       JOIN courses c ON uc.course_id = c.id
+       WHERE uc.user_id = $1`,
+      [studentId]
+    );
+    const certificates = certificatesRes.rows;
 
     // --- Fetch modules with unlock status
     let modulesRes = { rows: [] };
@@ -1695,11 +1772,11 @@ exports.getEnrolledCourses = async (req, res) => {
     );
     const completedProjects = parseInt(completedProjectsRes.rows[0].count);
 
-    const certificatesRes = await pool.query(
+    const certificatesCountRes = await pool.query(
       `SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND progress = 100`,
       [studentId]
     );
-    const certificatesCount = parseInt(certificatesRes.rows[0].count);
+    const certificatesCount = parseInt(certificatesCountRes.rows[0].count);
 
     // const courses = enrolledCoursesRes.rows;
 
@@ -1729,7 +1806,7 @@ exports.getEnrolledCourses = async (req, res) => {
 
     // Render
     res.render("student/dashboard", {
-      student: studentRes.rows[0],
+      student,
       info,
       isLoggedIn,
       profilePic,
@@ -1750,6 +1827,27 @@ exports.getEnrolledCourses = async (req, res) => {
       selectedPathway: req.query.pathway || null,
       parents,
       parentRequests,
+      announcements,
+      levelInfo,
+      streak,
+      equippedFrameStyle,
+      equippedBannerStyle,
+      equippedTitleTag,
+      role,
+      school,
+      classroom,
+      teacher,
+      pendingAssignmentCount,
+      certificates,
+      courseProjects,
+      projectSubmissions,
+      query: req.query,
+      // This route doesn't run the daily-streak-coin-claim logic
+      // getDashboard does (that atomic claim belongs in one place) — 0
+      // just means the "you got a bonus" toast doesn't fire from here;
+      // the claim itself still happens correctly next time the student
+      // hits the main dashboard.
+      streakBonusCoins: 0,
     });
   } catch (err) {
     console.error("Error fetching courses:", err.message);
