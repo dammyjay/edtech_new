@@ -4916,67 +4916,65 @@ async function requestFiftyFifty(questionId) {
   const checked = quizChecked[q.id];
   const isMuted = window.Gamify ? Gamify.isMuted() : false;
 
+  const WG_COLORS = ["#EF4444", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#EC4899"];
+  const WG_SHAPES = ["▲", "◆", "●", "■", "★", "✦"];
+
   container.innerHTML = `
 
-  <div class="quiz-container">
+  <div class="quiz-container wg-quiz">
 
-    <div class="quiz-top-row">
-      <div class="quiz-mascot" data-mascot-slot="quizMascot"></div>
-      <div style="display:flex; align-items:center;">
-        ${quizStreak >= 2 ? `<span class="quiz-streak-badge" id="quizStreakBadge">🔥 ${quizStreak} in a row!</span>` : ""}
-        <button type="button" class="gamify-sound-toggle${isMuted ? " muted" : ""}" id="gamifySoundToggle" onclick="toggleGamifySound()" title="${isMuted ? "Sound off" : "Sound on"}">${isMuted ? "🔇" : "🔊"}</button>
+    <div class="wg-header-row">
+      <div class="quiz-mascot wg-header-mascot" data-mascot-slot="quizMascot"></div>
+      <div class="wg-progress-wrap">
+        <div class="quiz-progress">
+          <div class="quiz-progress-bar" style="width:${progress}%"></div>
+        </div>
+        <span class="wg-progress-label">Question ${currentQuestionIndex + 1} of ${total}</span>
       </div>
+      ${quizStreak >= 2 ? `<span class="quiz-streak-badge" id="quizStreakBadge">🔥 ${quizStreak}</span>` : ""}
+      <button type="button" class="gamify-sound-toggle${isMuted ? " muted" : ""}" id="gamifySoundToggle" onclick="toggleGamifySound()" title="${isMuted ? "Sound off" : "Sound on"}">${isMuted ? "🔇" : "🔊"}</button>
     </div>
 
-    <div class="quiz-progress">
-      <div
-        class="quiz-progress-bar"
-        style="width:${progress}%">
-      </div>
+    <div class="wg-toolbar">
+      <button
+        type="button" class="wg-tool-btn" title="Read question aloud"
+        onclick='speakQuestionWithOptions(
+          ${JSON.stringify(q.question)},
+          ${JSON.stringify(q.options)}
+        )'
+      >🔊</button>
+      <button type="button" class="wg-tool-btn" title="Hint" onclick="requestQuizHint(${q.id})">💡</button>
+      <button type="button" class="wg-tool-btn" title="50/50" onclick="requestFiftyFifty(${q.id})" ${quizFiftyFiftyOptions[q.id] ? "disabled" : ""}>🎯</button>
     </div>
+    <p id="quizHintText" class="wg-hint-text"></p>
 
-    <p>
-      Question ${currentQuestionIndex + 1}
-      of ${total}
-    </p>
-
-    <h2 class="quiz-question-title">
+    <h2 class="quiz-question-title wg-question-title">
       ${q.question}
     </h2>
 
-    <button
-      onclick='speakQuestionWithOptions(
-        ${JSON.stringify(q.question)},
-        ${JSON.stringify(q.options)}
-      )'
-    >
-      🔊 Read Question
-    </button>
+    <div class="quiz-options wg-options-grid">
 
-    <button type="button" class="quiz-icon-btn" onclick="requestQuizHint(${q.id})">${window.Gamify ? Gamify.icons.bulb : "💡"} Hint</button>
-    <button type="button" class="quiz-icon-btn" onclick="requestFiftyFifty(${q.id})" ${quizFiftyFiftyOptions[q.id] ? "disabled" : ""}>${window.Gamify ? Gamify.icons.target : "🎯"} 50/50</button>
-    <p id="quizHintText" style="font-size:13px; color:#7c3aed; font-style:italic; margin:6px 0 0;"></p>
-
-    <div class="quiz-options">
-
-      ${(quizFiftyFiftyOptions[q.id] || q.options).map(option => {
+      ${(quizFiftyFiftyOptions[q.id] || q.options).map((option, i) => {
         const isSelected = selectedAnswer === option;
-        let cls = isSelected ? "selected" : "";
-        let flashIcon = "";
+        let cls = (isSelected ? "selected " : "") + "wg-option-box";
+        let extraStyle = `background:${WG_COLORS[i % WG_COLORS.length]};`;
+        let shapeMarkup = `<span class="wg-option-shape">${WG_SHAPES[i % WG_SHAPES.length]}</span>`;
         if (checked) {
           cls += " locked";
           if (isSelected) {
             cls += checked.isCorrect ? " correct-flash" : " wrong-flash";
             const iconMarkup = window.Gamify ? (checked.isCorrect ? Gamify.icons.check : Gamify.icons.x) : (checked.isCorrect ? "✅" : "❌");
-            flashIcon = `<span class="quiz-option-icon">${iconMarkup}</span>`;
+            shapeMarkup = `<span class="wg-option-shape">${iconMarkup}</span>`;
+          } else {
+            extraStyle += "opacity:0.45;";
           }
         }
         const clickHandler = checked
           ? ""
           : `onclick="selectAnswer(${q.id}, '${option.replace(/'/g, "\\'")}')"`;
         return `
-        <div class="quiz-option ${cls}" ${clickHandler}>
-          ${flashIcon}${option}
+        <div class="quiz-option ${cls}" style="${extraStyle}" ${clickHandler}>
+          ${shapeMarkup}<span class="wg-option-text">${option}</span>
         </div>
         `;
       }).join("")}
