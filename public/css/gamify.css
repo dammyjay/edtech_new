@@ -141,3 +141,140 @@
   gap: 10px;
   margin-bottom: 6px;
 }
+
+/* ---------- Per-answer feedback card ---------- */
+.quiz-feedback-card {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 20px);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 15500;
+  max-width: 90vw;
+  pointer-events: none;
+}
+
+.quiz-feedback-card.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.quiz-feedback-card.correct {
+  border-left: 5px solid #22c55e;
+}
+
+.quiz-feedback-card.wrong {
+  border-left: 5px solid #f59e0b;
+}
+
+.quiz-feedback-mascot {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.quiz-feedback-text {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: #1f2937;
+}
+
+/* ---------- Whole-page confetti layer (streak milestones) ---------- */
+.gamify-fullpage-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 19999;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---------- Immersive overlay ---------- */
+.immersive-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: linear-gradient(180deg, var(--brand-tint, #FBF3DD) 0%, #fff 220px);
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.immersive-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border-light, #e0e0e0);
+  z-index: 2;
+}
+
+.immersive-back-btn {
+  border: 1px solid var(--brand-pri-light, #D9A82C);
+  background: #fff;
+  color: var(--brand-pri-dark, #4C3802);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.immersive-mascot {
+  width: 44px;
+  height: 44px;
+  animation: gamifyMascotIdleFloat 3s ease-in-out infinite;
+}
+
+.immersive-topbar-spacer {
+  flex: 1;
+}
+
+.immersive-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 20px 16px 60px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.immersive-body .lesson-main-area {
+  width: 100%;
+}
+
+.immersive-decor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.immersive-decor-icon {
+  position: absolute;
+  opacity: 0.18;
+  transform: scale(1.6);
+}
+
+@keyframes gamifyMascotIdleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* ---------- Lesson-note image zoom ---------- */
+.lesson-note img,
+.slide-body img {
+  cursor: zoom-in;
+}

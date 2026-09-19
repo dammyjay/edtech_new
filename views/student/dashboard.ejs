@@ -397,6 +397,33 @@
   </div>
 </div>
 
+<!-- IMAGE LIGHTBOX — click any image inside a lesson note/slide to view
+     it large; same .modal-overlay/.modal-content pattern (and z-index)
+     as the certificate lightbox above, so it still shows correctly even
+     over the immersive overlay. -->
+<div id="imageLightbox" class="modal-overlay">
+  <div class="modal-content" style="max-width:900px; text-align:center; background:transparent; box-shadow:none; padding:10px;">
+    <span class="close" onclick="closeImageLightbox()">&times;</span>
+    <img id="imageLightboxImg" src="" alt=""
+         style="width:100%; height:auto; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.3); cursor:zoom-out;"
+         onclick="closeImageLightbox()" />
+  </div>
+</div>
+
+<!-- STREAK MILESTONE CELEBRATION — 3-in-a-row / 5-in-a-row, distinct
+     from the small in-quiz streak badge: a bigger moment with whole-page
+     confetti (#gamifyFullPageConfetti below) since real coins were just
+     awarded server-side (see checkQuizAnswer). -->
+<div id="streakMilestoneOverlay" class="celebration-modal">
+  <div class="celebration-content badge-mode" id="streakMilestoneContent">
+    <div class="confetti-stage"></div>
+    <div class="celebration-mascot" data-mascot-slot="streakMilestone"></div>
+    <h2>🔥 <span id="streakMilestoneCount"></span> in a Row!</h2>
+    <div class="xp-box">+<span id="streakMilestoneCoins"></span> 🪙 Coins!</div>
+  </div>
+</div>
+<div id="gamifyFullPageConfetti" class="gamify-fullpage-confetti" aria-hidden="true"></div>
+
 <!-- Pending Assignment modal -->
 
 <div id="assignmentReminderModal" class="modal">
@@ -1177,6 +1204,24 @@
   <% } else if (section === 'module') { %>
   <% if (moduleInfo) { %>
   <!-- LEARNING VIEW -->
+
+  <!-- Immersive overlay — covers the whole page (header + sidebars
+       included) so only the current video/lesson note/slide/quiz is
+       visible while learning. #lessonMainArea itself is MOVED in here
+       (see enterImmersiveMode/exitImmersiveMode below) rather than
+       duplicated, so every existing render function that targets
+       document.getElementById("lessonMainArea") keeps working
+       unchanged regardless of which parent it's currently sitting in. -->
+  <div id="immersiveOverlay" class="immersive-overlay">
+    <div class="immersive-decor" aria-hidden="true"></div>
+    <div class="immersive-topbar">
+      <button type="button" class="immersive-back-btn" onclick="exitImmersiveMode()">← Back</button>
+      <div class="immersive-mascot" data-mascot-slot="immersiveMascot"></div>
+      <div class="immersive-topbar-spacer"></div>
+    </div>
+    <div id="immersiveOverlayBody" class="immersive-body"></div>
+  </div>
+
   <div class="learning-container" id="learningContainer">
     <!-- Mini Sidebar -->
 
@@ -2815,6 +2860,90 @@ if(classroomId){
   }
 </script>
 
+<!-- Immersive overlay — covers the whole page for video/lesson-note/
+     slide/quiz content (hooked into loadLessonPart below), and the
+     image-zoom lightbox for pictures inside a lesson note/slide. -->
+<script>
+  let immersiveOriginalNextSibling = undefined;
+
+  function enterImmersiveMode() {
+    const overlay = document.getElementById("immersiveOverlay");
+    const overlayBody = document.getElementById("immersiveOverlayBody");
+    const lessonMainArea = document.getElementById("lessonMainArea");
+    if (!overlay || !overlayBody || !lessonMainArea) return;
+
+    if (lessonMainArea.parentNode !== overlayBody) {
+      immersiveOriginalNextSibling = lessonMainArea.nextSibling;
+      overlayBody.appendChild(lessonMainArea);
+    }
+
+    overlay.style.display = "flex";
+    document.body.style.overflow = "hidden";
+
+    if (window.Gamify) {
+      Gamify.setMascot(document.querySelector('[data-mascot-slot="immersiveMascot"]'), "idle");
+    }
+
+    populateImmersiveDecor();
+  }
+
+  function exitImmersiveMode() {
+    const overlay = document.getElementById("immersiveOverlay");
+    const learningContainer = document.getElementById("learningContainer");
+    const lessonMainArea = document.getElementById("lessonMainArea");
+    if (!overlay || !learningContainer || !lessonMainArea) return;
+
+    if (lessonMainArea.parentNode !== learningContainer) {
+      learningContainer.insertBefore(lessonMainArea, immersiveOriginalNextSibling || null);
+    }
+
+    overlay.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  // A handful of small, non-interactive brand icons scattered around the
+  // overlay's edges — purely decorative "well gamified and branded"
+  // atmosphere, populated once (not on every enter) so they don't reset
+  // position/opacity each time.
+  function populateImmersiveDecor() {
+    const decor = document.querySelector(".immersive-decor");
+    if (!decor || decor.dataset.populated || !window.Gamify) return;
+    decor.dataset.populated = "true";
+    const spots = [
+      { icon: "star", top: "8%", left: "4%" },
+      { icon: "coin", top: "18%", left: "92%" },
+      { icon: "star", top: "80%", left: "6%" },
+      { icon: "coin", top: "70%", left: "94%" },
+      { icon: "star", top: "45%", left: "1.5%" },
+    ];
+    decor.innerHTML = spots.map(s =>
+      `<span class="immersive-decor-icon" style="top:${s.top}; left:${s.left};">${Gamify.icons[s.icon]}</span>`
+    ).join("");
+  }
+
+  // Delegated so it keeps working after every renderQuestion()/lesson-part
+  // re-render, and even after #lessonMainArea is moved into/out of the
+  // immersive overlay (delegation only cares about the listener's own
+  // element, not what's currently inside it).
+  document.getElementById("lessonMainArea")?.addEventListener("click", (e) => {
+    const img = e.target.closest(".lesson-note img, .slide-body img");
+    if (img) openImageLightbox(img.src);
+  });
+
+  function openImageLightbox(src) {
+    const modal = document.getElementById("imageLightbox");
+    const img = document.getElementById("imageLightboxImg");
+    if (!modal || !img) return;
+    img.src = src;
+    modal.style.display = "flex";
+  }
+
+  function closeImageLightbox() {
+    const modal = document.getElementById("imageLightbox");
+    if (modal) modal.style.display = "none";
+  }
+</script>
+
 <!-- script to Highlight active navbar -->
 <script>
   const tabs = document.querySelectorAll(".nav-tab");
@@ -3295,6 +3424,9 @@ async function submitExchange() {
   function loadLessonPart(lessonId, part) {
     showLoading();
     if (typeof restoreQuizSidebarIfAutoCollapsed === "function") restoreQuizSidebarIfAutoCollapsed();
+    // Video/note/slide/quiz all get the full-page immersive overlay —
+    // only lab tasks (their own full editor experience already) opt out.
+    if (part !== "lab" && typeof enterImmersiveMode === "function") enterImmersiveMode();
 
     fetch(`/student/lessons/${lessonId}`)
       .then(res => res.json())
@@ -4864,6 +4996,18 @@ async function requestFiftyFifty(questionId) {
       </button>
 
       ${
+        !checked
+        ?
+        `
+        <button
+          class="quiz-btn quiz-btn-primary"
+          onclick="submitCurrentAnswer()"
+          ${!selectedAnswer ? "disabled" : ""}
+        >
+          ✅ Submit Answer
+        </button>
+        `
+        :
         currentQuestionIndex === total - 1
         ?
         `
@@ -5072,23 +5216,36 @@ function selectAnswer(questionId, answer){
 
   quizAnswers[questionId] = answer;
 
-  renderQuestion();
+  renderQuestion(); // shows the highlighted choice + an enabled Submit Answer button
+
+  if (window.Gamify) Gamify.playChime("select");
+}
+
+// Explicit "Submit Answer" step — selecting an option no longer grades it
+// immediately; the student picks, reviews their choice, then confirms.
+function submitCurrentAnswer(){
+
+  const q = quizQuestions[currentQuestionIndex];
+  const answer = q && quizAnswers[q.id];
+  if (!q || !answer || quizChecked[q.id]) return;
 
   if (window.Gamify) {
     const mascotEl = document.querySelector('[data-mascot-slot="quizMascot"]');
     Gamify.setMascot(mascotEl, "think");
-    Gamify.playChime("select");
   }
 
-  checkAnswerLive(currentQuizLessonId, questionId, answer);
+  checkAnswerLive(currentQuizLessonId, q.id, answer);
 }
 
 // Live, per-question correctness check — a small, answer-key-safe
 // endpoint (mirrors useQuizHint/useFiftyFifty's pattern: it touches only
 // the one question asked about, and never returns correct_option itself,
-// only whether the submitted answer matched it). Purely informational —
-// the existing /quiz/submit endpoint stays the sole source of truth for
-// score/XP/badges, so this can't be farmed for anything of value.
+// only whether the submitted answer matched it). Purely informational for
+// grading purposes — the existing /quiz/submit endpoint stays the sole
+// source of truth for score/XP/badges — but the server DOES now also
+// compute a validated streak and award streak-milestone coins here (see
+// checkQuizAnswer), since that's real value and can't be trusted from the
+// client the way plain correctness feedback safely can.
 function checkAnswerLive(lessonId, questionId, answer) {
   fetch(`/student/quizzes/${lessonId}/questions/${questionId}/check-answer`, {
     method: "POST",
@@ -5099,20 +5256,93 @@ function checkAnswerLive(lessonId, questionId, answer) {
     .then(data => {
       if (!data.success) return;
       quizChecked[questionId] = { isCorrect: !!data.isCorrect, answer };
-      quizStreak = data.isCorrect ? quizStreak + 1 : 0;
+      quizStreak = typeof data.streak === "number" ? data.streak : (data.isCorrect ? quizStreak + 1 : 0);
 
-      if (window.Gamify) {
-        Gamify.playChime(data.isCorrect ? (quizStreak >= 3 ? "streak" : "correct") : "wrong");
+      // Only re-render/react if the student is still looking at this
+      // question (they may have navigated away while the check was in flight).
+      const current = quizQuestions[currentQuestionIndex];
+      const stillOnThisQuestion = !!current && current.id === questionId;
+      if (stillOnThisQuestion) {
+        renderQuestion();
       }
 
-      // Only re-render if the student is still looking at this question
-      // (they may have already clicked Next while the check was in flight).
-      const current = quizQuestions[currentQuestionIndex];
-      if (current && current.id === questionId) {
-        renderQuestion();
+      if (window.Gamify) {
+        Gamify.playChime(data.isCorrect ? "correct" : "wrong");
+      }
+
+      if (data.coinsAwarded) {
+        const bal = parseInt((document.getElementById("coinsBalance") || {}).textContent, 10) || 0;
+        updateCoinsDisplay(bal + data.coinsAwarded);
+      }
+
+      showAnswerFeedbackCard(data.isCorrect);
+
+      const advanceToNext = () => {
+        if (!stillOnThisQuestion) return;
+        const idx = quizQuestions.findIndex(q => q.id === questionId);
+        const isLast = idx === quizQuestions.length - 1;
+        if (!isLast) nextQuestion();
+      };
+
+      if (data.streakMilestone) {
+        setTimeout(() => {
+          showStreakMilestoneCard(data.streakMilestone, data.coinsAwarded);
+          setTimeout(advanceToNext, 2200);
+        }, 1400);
+      } else {
+        setTimeout(advanceToNext, 1800);
       }
     })
     .catch(err => console.error("checkAnswerLive error:", err));
+}
+
+// Small bottom-anchored toast-style card — fires after every submitted
+// answer, so deliberately quicker/lighter than the full celebration-modal
+// treatment reserved for streak milestones and quiz-level results.
+function showAnswerFeedbackCard(isCorrect) {
+  const correctMessages = ["🎉 Great job!", "⭐ You got it!", "✅ Nailed it!", "💪 Correct — nice work!"];
+  const wrongMessages = ["💡 Almost there — you'll get the next one!", "🌟 Good try! Keep going.", "📘 Not quite — review it and you'll improve!", "💪 Keep pushing, you're learning!"];
+  const pool = isCorrect ? correctMessages : wrongMessages;
+  const message = pool[Math.floor(Math.random() * pool.length)];
+
+  const card = document.createElement("div");
+  card.className = "quiz-feedback-card " + (isCorrect ? "correct" : "wrong");
+  card.innerHTML = `
+    <div class="quiz-feedback-mascot" data-mascot-slot="feedbackCard"></div>
+    <div class="quiz-feedback-text">${message}</div>
+  `;
+  document.body.appendChild(card);
+
+  if (window.Gamify) {
+    Gamify.setMascot(card.querySelector('[data-mascot-slot="feedbackCard"]'), isCorrect ? "cheer" : "sad");
+  }
+
+  requestAnimationFrame(() => card.classList.add("show"));
+  setTimeout(() => card.classList.remove("show"), 1500);
+  setTimeout(() => card.remove(), 1900);
+}
+
+// Bigger, whole-page-confetti celebration for hitting a streak milestone
+// (3 or 5 in a row) — the coin award itself already happened server-side.
+function showStreakMilestoneCard(streakCount, coinsAwarded) {
+  const overlay = document.getElementById("streakMilestoneOverlay");
+  const content = document.getElementById("streakMilestoneContent");
+  if (!overlay || !content) return;
+
+  document.getElementById("streakMilestoneCount").textContent = streakCount;
+  document.getElementById("streakMilestoneCoins").textContent = coinsAwarded;
+  overlay.style.display = "flex";
+
+  if (window.Gamify) {
+    const stage = content.querySelector(".confetti-stage");
+    if (stage) Gamify.confetti(stage, 40);
+    const fullPage = document.getElementById("gamifyFullPageConfetti");
+    if (fullPage) Gamify.confetti(fullPage, 60);
+    Gamify.setMascot(content.querySelector("[data-mascot-slot]"), "streak");
+    Gamify.playChime("streak");
+  }
+
+  setTimeout(() => { overlay.style.display = "none"; }, 2000);
 }
 
 function startReview(){

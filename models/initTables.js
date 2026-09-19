@@ -642,6 +642,13 @@ async function createTables() {
       CREATE INDEX IF NOT EXISTS idx_quiz_answer_checks_student_question
       ON quiz_answer_checks (student_id, question_id);
     `);
+    // Lets checkQuizAnswer compute a server-validated "N in a row" streak
+    // (trailing consecutive correct checks for the current attempt) to
+    // safely award streak-milestone coins — a client-reported streak
+    // count couldn't be trusted for that.
+    await pool.query(`
+      ALTER TABLE quiz_answer_checks ADD COLUMN IF NOT EXISTS was_correct BOOLEAN;
+    `);
 
     // junction table for unlocked lessons
     await pool.query(

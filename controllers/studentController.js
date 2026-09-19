@@ -2323,16 +2323,44 @@ exports.checkQuizAnswer = async (req, res) => {
       return res.json({ success: false, message: "This question has already been checked for this attempt." });
     }
 
-    await pool.query(
-      `INSERT INTO quiz_answer_checks (student_id, question_id) VALUES ($1, $2)`,
-      [studentId, questionId]
-    );
-
     const isCorrect =
       (answer ?? "").toString().trim().toLowerCase() ===
       (question.correct_option ?? "").toString().trim().toLowerCase();
 
-    res.json({ success: true, isCorrect });
+    await pool.query(
+      `INSERT INTO quiz_answer_checks (student_id, question_id, was_correct) VALUES ($1, $2, $3)`,
+      [studentId, questionId, isCorrect]
+    );
+
+    // Trailing "N in a row" streak for this attempt — computed server-side
+    // (not trusted from the client) so streak-milestone coin awards below
+    // can't be spoofed. Chronological order of when each question was
+    // checked, matching how the student experiences "in a row" as they
+    // answer in sequence.
+    const history = await pool.query(
+      `SELECT qac.was_correct
+       FROM quiz_answer_checks qac
+       JOIN quiz_questions qq ON qac.question_id = qq.id
+       WHERE qac.student_id = $1 AND qq.quiz_id = $2 AND qac.checked_at > $3
+       ORDER BY qac.checked_at DESC`,
+      [studentId, question.quiz_id, sinceTime]
+    );
+    let streak = 0;
+    for (const row of history.rows) {
+      if (row.was_correct) streak++;
+      else break;
+    }
+
+    const STREAK_MILESTONE_COINS = { 3: 1, 5: 2 };
+    let streakMilestone = null;
+    let coinsAwarded = 0;
+    if (STREAK_MILESTONE_COINS[streak]) {
+      coinsAwarded = STREAK_MILESTONE_COINS[streak];
+      streakMilestone = streak;
+      await awardCoins(studentId, coinsAwarded, `Quiz streak: ${streak} in a row`);
+    }
+
+    res.json({ success: true, isCorrect, streak, streakMilestone, coinsAwarded });
   } catch (err) {
     console.error("checkQuizAnswer error:", err.message);
     res.status(500).json({ success: false });
