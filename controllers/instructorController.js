@@ -431,11 +431,28 @@ exports.renderClassChat = async (req, res) => {
   }
 };
 
+// Shared by the class-chat moderation actions below — none of them
+// previously verified the calling instructor actually teaches the
+// classroomId they were handed, so any logged-in instructor could
+// mute/unmute/lock/unlock/delete-message in a classroom they have
+// nothing to do with.
+async function instructorOwnsClassroom(classroomId, instructorId) {
+  const result = await pool.query(
+    `SELECT 1 FROM classroom_instructors WHERE classroom_id = $1 AND instructor_id = $2`,
+    [classroomId, instructorId]
+  );
+  return result.rowCount > 0;
+}
+
 exports.muteStudent = async (req, res) => {
   try {
 
     const { classroomId, studentId } = req.body
     const instructorId = req.session.user.id
+
+    if (!(await instructorOwnsClassroom(classroomId, instructorId))) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
 
     await pool.query(
     `INSERT INTO muted_students (classroom_id, student_id, muted_by)
@@ -456,6 +473,11 @@ exports.unmuteStudent = async (req, res) => {
   try {
 
     const { classroomId, studentId } = req.body
+    const instructorId = req.session.user.id
+
+    if (!(await instructorOwnsClassroom(classroomId, instructorId))) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
 
     await pool.query(
       `DELETE FROM muted_students
@@ -518,6 +540,21 @@ exports.deleteClassMessage = async (req,res)=>{
   try{
 
     const { messageId } = req.body
+    const instructorId = req.session.user?.id;
+    if (!instructorId) {
+      return res.status(401).json({ success: false });
+    }
+
+    const msgRes = await pool.query(
+      `SELECT classroom_id FROM class_messages WHERE id = $1`,
+      [messageId]
+    );
+    if (!msgRes.rows.length) {
+      return res.status(404).json({ success: false });
+    }
+    if (!(await instructorOwnsClassroom(msgRes.rows[0].classroom_id, instructorId))) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
 
     await pool.query(
       `DELETE FROM class_messages WHERE id=$1`,
@@ -535,6 +572,13 @@ exports.deleteClassMessage = async (req,res)=>{
 exports.getClassMessages = async (req, res) => {
   try {
     const classroomId = req.params.classroomId;
+    const instructorId = req.session.user?.id;
+    if (!instructorId) {
+      return res.status(401).json([]);
+    }
+    if (!(await instructorOwnsClassroom(classroomId, instructorId))) {
+      return res.status(403).json([]);
+    }
 
     const { rows } = await pool.query(
       `
@@ -566,6 +610,13 @@ exports.lockClassChat = async (req,res)=>{
   try{
 
     const { classroomId } = req.body
+    const instructorId = req.session.user?.id;
+    if (!instructorId) {
+      return res.status(401).json({ success: false });
+    }
+    if (!(await instructorOwnsClassroom(classroomId, instructorId))) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
 
     await pool.query(
       `UPDATE classrooms
@@ -586,6 +637,13 @@ exports.unlockClassChat = async (req,res)=>{
   try{
 
     const { classroomId } = req.body
+    const instructorId = req.session.user?.id;
+    if (!instructorId) {
+      return res.status(401).json({ success: false });
+    }
+    if (!(await instructorOwnsClassroom(classroomId, instructorId))) {
+      return res.status(403).json({ success: false, message: "You don't teach this classroom." });
+    }
 
     await pool.query(
       `UPDATE classrooms
@@ -1620,6 +1678,25 @@ exports.downloadQuizReport = async (req, res) => {
   const { studentId, quizId } = req.params;
 
   try {
+    /* 🔒 Authorization: instructor must teach this student — same
+       classroom_instructors join used by viewStudentProgress above. This
+       route previously had no check at all beyond the router-level
+       ensureInstructorOrAdmin, so any instructor could pull any other
+       instructor's student's quiz report by guessing an id. */
+    const accessCheck = await pool.query(
+      `SELECT 1
+       FROM user_school us
+       JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+       WHERE us.user_id = $1
+         AND ci.instructor_id = $2
+         AND us.role_in_school = 'student'
+         AND us.approved = true`,
+      [studentId, req.user.id]
+    );
+    if (!accessCheck.rowCount) {
+      return res.status(403).send("Not authorized to view this student's report");
+    }
+
     // --- Company Info
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -1711,6 +1788,21 @@ exports.downloadQuizReport = async (req, res) => {
 exports.downloadStudentReport = async (req, res) => {
   try {
     const studentId = req.params.id;
+
+    /* 🔒 Authorization: instructor must teach this student */
+    const accessCheck = await pool.query(
+      `SELECT 1
+       FROM user_school us
+       JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+       WHERE us.user_id = $1
+         AND ci.instructor_id = $2
+         AND us.role_in_school = 'student'
+         AND us.approved = true`,
+      [studentId, req.user.id]
+    );
+    if (!accessCheck.rowCount) {
+      return res.status(403).send("Not authorized to view this student's report");
+    }
 
     const infoResult = await pool.query(
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -2643,6 +2735,19 @@ exports.getAttendanceSessionDetails = async (req, res) => {
   const { id } = req.params;
 
   try {
+    /* 🔒 Authorization: instructor must teach this session's classroom.
+       Previously had no check at all — any request could read any
+       classroom's attendance roster by guessing a session id. */
+    const accessCheck = await pool.query(
+      `SELECT 1 FROM attendance_sessions s
+       JOIN classroom_instructors ci ON ci.classroom_id = s.classroom_id
+       WHERE s.id = $1 AND ci.instructor_id = $2`,
+      [id, req.user.id]
+    );
+    if (!accessCheck.rowCount) {
+      return res.status(403).send("Not authorized to view this attendance session");
+    }
+
     const result = await pool.query(`
       SELECT 
         u.fullname,
@@ -2689,6 +2794,17 @@ exports.exportAttendancePDF = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
+    /* 🔒 Authorization: instructor must teach this session's classroom. */
+    const accessCheck = await pool.query(
+      `SELECT 1 FROM attendance_sessions s
+       JOIN classroom_instructors ci ON ci.classroom_id = s.classroom_id
+       WHERE s.id = $1 AND ci.instructor_id = $2`,
+      [sessionId, req.user.id]
+    );
+    if (!accessCheck.rowCount) {
+      return res.status(403).send("Not authorized to export this attendance session");
+    }
+
     const session = await pool.query(
       `SELECT * FROM attendance_sessions WHERE id=$1`,
       [sessionId]

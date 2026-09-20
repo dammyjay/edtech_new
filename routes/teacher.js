@@ -2,10 +2,21 @@ const express = require("express");
 const router = express.Router();
 const teacherController = require("../controllers/teacherController");
 const { ensureTeacher } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // Every /teacher/* route requires a logged-in teacher — previously this
 // file had no guard at all, so any session could reach these endpoints.
 router.use(ensureTeacher);
+
+// CSRF protection — see the matching comment in routes/adminRoutes.js.
+// This router is mounted at "/teacher" (a specific prefix, not "/"), so
+// unlike the routes/adminFaqRoutes.js incident, a path-less router.use()
+// here is safe. teacher/dashboard.ejs (the only standalone page this
+// router renders) now carries the token + public/js/csrf.js; every other
+// view is an AJAX section fragment (views/teacher/sections/*.ejs,
+// classChatView.ejs) injected into that same page, confirmed by checking
+// every .ejs file under views/teacher/ before enabling this.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 // ------------------ MAIN DASHBOARD WRAPPER ------------------
 router.get("/dashboard", (req, res) => {

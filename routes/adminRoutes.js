@@ -6,6 +6,8 @@ const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/uplo
 // const parser = require("../middlewares/upload");
 // const upload = require("../middlewares/upload");
 const { ensureAdmin } = require("../middlewares/auth");
+const { loginLimiter } = require("../middlewares/rateLimiters");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 
 const adminController = require("../controllers/adminController");
@@ -46,12 +48,25 @@ const storage2 = multer.diskStorage({
   },
 });
 
-const upload2 = multer({ storage: storage2 });
+// Used only for the CSV bulk-user-import route below — previously no
+// size limit and no type filter, so any file of any size could be
+// uploaded here and would sit permanently in uploads/ (the controller
+// never deleted it after processing).
+const upload2 = multer({
+  storage: storage2,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (path.extname(file.originalname).toLowerCase() !== ".csv") {
+      return cb(new Error("Only .csv files are accepted for bulk import."));
+    }
+    cb(null, true);
+  },
+});
 
 router.get("/login", adminController.showLogin);
-router.post("/login", adminController.login);
+router.post("/login", loginLimiter, adminController.login);
 
-router.post("/student/avatar-login", adminController.avatarPinLogin);
+router.post("/student/avatar-login", loginLimiter, adminController.avatarPinLogin);
 
 router.get(
   "/classroom/:classroomId/students",
@@ -67,9 +82,37 @@ router.get(
 );
 
   router.get("/forgot-password", adminController.showForgotPasswordForm);
-  router.post("/forgot-password", adminController.handleForgotPassword);
+  router.post("/forgot-password", loginLimiter, adminController.handleForgotPassword);
   router.get("/reset-password/:token", adminController.showResetPasswordForm);
-  router.post("/reset-password/:token", adminController.handleResetPassword);
+  router.post("/reset-password/:token", loginLimiter, adminController.handleResetPassword);
+
+// Used by the (unauthenticated) login page itself, views/admin/login.ejs,
+// to populate its school -> classroom -> student avatar-login picker
+// before anyone is logged in — moved up from its old spot further down
+// this file (search "getClassroomStudents") so it stays reachable once
+// ensureAdmin below gates everything else in this router.
+router.get("/classrooms/:id/students", adminController.getClassroomStudents);
+
+// Every route above this line is a genuine pre-login surface (the login
+// page itself, its avatar/PIN picker, and password reset). Everything
+// below requires an authenticated admin session — this file previously
+// had NO auth middleware anywhere (the `ensureAdmin` imported at the top
+// didn't even exist as an export until now), leaving ~180 routes,
+// including destructive ones like deleteUser/updateUser/resetPassword,
+// reachable by anyone with no login at all.
+router.use(ensureAdmin);
+
+// CSRF protection for everything below — placed after ensureAdmin (not
+// app-wide) so an anonymous visitor to a public page never gets a session
+// row created just for a CSRF token (this app uses saveUninitialized:
+// false specifically to avoid that). ensureCsrfToken makes
+// res.locals.csrfToken available to every view this router renders (see
+// the <meta name="csrf-token"> tag in partials/adminHeader.ejs +
+// public/js/csrf.js, which auto-attaches it to same-origin fetch() calls
+// and form submits); verifyCsrfToken rejects any POST/PUT/PATCH/DELETE
+// below that doesn't carry a valid one — GET/HEAD/OPTIONS pass through
+// untouched.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
   // Newsletter Dashboard
 router.get("/", newsletterController.getNewslettersPage);
@@ -381,8 +424,11 @@ router.post("/lessons/:id/edit", lessonSlideUpload, learningController.editLesso
 router.post("/lessons/:id/delete", learningController.deleteLesson);
 router.get("/lessons/:id/json", learningController.getLessonJSON);
 
-// Get or create quiz for lesson
-router.get("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
+// Get-or-create quiz for lesson — POST because it can write (creates the
+// quiz row the first time it's opened). Was a GET, which meant a plain
+// <img>/link could trigger the write (one-click CSRF); now it also
+// requires the admin session this router gates everything behind.
+router.post("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
 
 // Get / save / delete the lab task attached to a lesson (Blockly/Web)
 router.get("/lesson/:lessonId/lab", lessonLabController.getOrCreateLessonLab);
@@ -721,7 +767,8 @@ router.post(
   adminController.platformBulkAddUsers,
 );
 
-router.get("/classrooms/:id/students", adminController.getClassroomStudents);
+// GET "/classrooms/:id/students" moved up near the top of this file,
+// above the ensureAdmin gate — see the comment there.
 router.post("/classrooms/:id/assign", adminController.assignUsersToClassroom);
 
 
@@ -753,6 +800,20 @@ router.get(
 router.get(
   "/schools/:schoolId/download-login-cards",
   adminController.downloadStudentLoginCards
+);
+
+// Active/inactive status + term-scoped assignment pickers
+router.post(
+  "/schools/:schoolId/users/:userId/toggle-active",
+  adminController.toggleUserActiveStatus
+);
+router.get(
+  "/schools/:schoolId/terms/:termId/classroom-candidates",
+  adminController.getClassroomCandidates
+);
+router.get(
+  "/schools/:schoolId/terms/:termId/term-candidates",
+  adminController.getTermCandidates
 );
 
 module.exports = router;

@@ -4032,7 +4032,8 @@ exports.getLesson = async (req, res) => {
       has_quiz: !!lesson.quiz_id,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Failed to load lesson." });
   }
 };
 
@@ -4858,6 +4859,18 @@ exports.sendClassMessage = async (req, res) => {
       return res.status(400).json({success:false})
     }
 
+    // 🔒 Membership check — same "is this student actually in this
+    // classroom" pattern used by getClassroomAnnouncements below. Without
+    // this, any logged-in student could post into a classroom they aren't
+    // enrolled in just by supplying its id.
+    const membershipCheck = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND classroom_id = $2 AND role_in_school = 'student'`,
+      [senderId, classroomId]
+    );
+    if (!membershipCheck.rowCount) {
+      return res.status(403).json({ success: false, message: "You're not enrolled in this classroom." });
+    }
+
     // 🔇 Check if student is muted
     const muteCheck = await pool.query(
       `SELECT * FROM muted_students
@@ -4905,6 +4918,17 @@ exports.getClassMessages = async (req, res) => {
   try {
 
     const classroomId = req.params.classroomId
+    const studentId = req.session.user?.id;
+    if (!studentId) {
+      return res.status(401).json({ success: false });
+    }
+    const membershipCheck = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND classroom_id = $2 AND role_in_school = 'student'`,
+      [studentId, classroomId]
+    );
+    if (!membershipCheck.rowCount) {
+      return res.status(403).json({ success: false, message: "You're not enrolled in this classroom." });
+    }
 
     const { rows } = await pool.query(
       `
@@ -4961,7 +4985,16 @@ exports.getClassroomAnnouncements = async (req, res) => {
 
 exports.submitProject = async (req, res) => {
   try {
-    const studentId = req.session.studentId;
+    // Was req.session.studentId, a field never set anywhere in this app
+    // (login only ever sets req.session.user) — always undefined. Note:
+    // this function is still non-functional beyond that (it calls
+    // undefined `db.query` a few lines down and reads from an
+    // "enrollments" table that doesn't exist in this schema — this file
+    // only ever uses `pool`, and the real table is "course_enrollments").
+    // That's a pre-existing functional bug, not a security issue, and is
+    // out of scope for this pass; fixing the identifier here at least
+    // stops it from being wrong in a way that looks like an auth bug.
+    const studentId = req.session.user?.id;
     const { courseId, projectId, notes } = req.body;
 
     // Check if the course is completed

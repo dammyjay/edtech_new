@@ -8,6 +8,19 @@ const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 const studentController = require("../controllers/studentController");
 
 const { ensureAuthenticated } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// CSRF protection — see the matching comment in routes/adminRoutes.js.
+// Mounted at "/student" (a specific prefix, not "/"), so a path-less
+// router.use() here is safe. Unlike the other role routers, this file has
+// no consistent router-wide auth gate of its own (ensureAuthenticated is
+// applied ad hoc per-route below, a separate pre-existing gap — see the
+// tracker) — but every view it renders either includes partials/header.ejs
+// directly (confirmed for all 8 views this controller renders) or has no
+// forms/fetch calls at all, so it's safe to add CSRF here regardless of
+// that inconsistency.
+router.use(ensureCsrfToken, verifyCsrfToken);
+
 router.get("/dashboard", studentController.getDashboard);
 router.get("/courses", studentController.getEnrolledCourses);
 router.get("/past-courses/:courseId", ensureAuthenticated, studentController.viewPastCourse);
@@ -234,9 +247,9 @@ router.post("/chat/send", studentController.sendChatMessage);
 router.get("/chat/messages/:receiverId", studentController.getChatMessages);
 router.post("/chat/markRead/:receiverId", studentController.markMessagesAsRead);
 
-router.post("/class/send", studentController.sendClassMessage)
-router.get("/class/messages/:classroomId",studentController.getClassMessages)
-router.get("/classroom/:id/announcements", studentController.getClassroomAnnouncements)
+router.post("/class/send", ensureAuthenticated, studentController.sendClassMessage)
+router.get("/class/messages/:classroomId", ensureAuthenticated, studentController.getClassMessages)
+router.get("/classroom/:id/announcements", ensureAuthenticated, studentController.getClassroomAnnouncements)
 
 router.post(
   "/projects/submit",

@@ -768,6 +768,14 @@ async function createTables() {
                 'parent'
             )
         );
+
+        -- Whether this student (or other role) is still actually at this
+        -- school — previously nothing recorded this, so a graduated/
+        -- withdrawn student stayed in every classroom/term assignment
+        -- picker forever. DEFAULT true means every existing row (and
+        -- every future insert) starts active with no backfill needed.
+        ALTER TABLE user_school
+        ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
       `);
 
       // table for classrooms

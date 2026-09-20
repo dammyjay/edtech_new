@@ -58,12 +58,20 @@ app.use(express.static(path.join(__dirname, "public")));
 // app.use(bodyParser.urlencoded({ extended: false }));
 app.use(
   session({
+    // connect-pg-simple was imported but never actually wired in as the
+    // store — sessions were silently running on express-session's default
+    // in-memory store, which its own docs call out as unfit for
+    // production (unbounded memory growth, and every server
+    // restart/redeploy silently logs everyone out since nothing
+    // persists). Backing it with Postgres fixes both.
+    store: new pgSession({ pool, createTableIfMissing: true }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       secure: false, // Change to true only in HTTPS
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
   })
@@ -90,6 +98,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// Same "always define it" pattern as user/users above, for the same
+// reason: partials/adminHeader.ejs, header.ejs, and userHeader.ejs are
+// shared across public and authenticated pages alike, and now render a
+// <meta name="csrf-token"> tag referencing csrfToken. Deliberately NOT
+// touching req.session here (that's middlewares/csrf.js's
+// ensureCsrfToken, applied only inside already-authenticated routers) —
+// this app uses saveUninitialized: false specifically so an anonymous
+// visitor never gets a session row created just from browsing a public
+// page, and this default must stay session-free to preserve that. A
+// gated router's ensureCsrfToken overrides this null with a real token
+// later in the same request.
+app.use((req, res, next) => {
+  res.locals.csrfToken = res.locals.csrfToken || null;
+  next();
+});
+
 // Exposed to EVERY view (not just student pages) so the shared
 // partials/userHeader.ejs — included on ~48 pages — can render an
 // equipped avatar frame around the small header avatar for whichever
@@ -107,10 +131,16 @@ app.locals.vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 
 app.use(methodOverride("_method"));
 
-app.use((req, res, next) => {
-  console.log("🧾 SESSION:", req.session);
-  next();
-});
+// Was unconditionally logging the full session object (user id/email/
+// role/etc.) to stdout on every single request in production — real PII
+// piling up in server logs with no way to turn it off. Gate it behind an
+// explicit opt-in env var for local debugging instead.
+if (process.env.DEBUG_SESSION_LOGGING === "true") {
+  app.use((req, res, next) => {
+    console.log("🧾 SESSION:", req.session);
+    next();
+  });
+}
 
 app.use((req, res, next) => {
   res.locals.title = "Company"; // Default title
@@ -138,6 +168,16 @@ app.use(async (req, res, next) => {
   next();
 });
 
+
+// Rate limiting — previously absent entirely, anywhere in the app,
+// including on login. A generous global cap guards against raw
+// flooding/DoS; a much stricter shared loginLimiter (middlewares/
+// rateLimiters.js, applied per-route inside adminRoutes.js/instructor.js
+// to /login and the password-reset routes) guards specifically against
+// password brute-forcing, which had no attempt limit, delay, or lockout
+// of any kind.
+const { globalLimiter } = require("./middlewares/rateLimiters");
+app.use(globalLimiter);
 
 const publicRoutes = require("./routes/publicRoutes");
 app.use("/", publicRoutes);

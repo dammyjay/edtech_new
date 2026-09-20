@@ -175,9 +175,9 @@ exports.createNewsletter = async (req, res) => {
 
     res.redirect("/admin/newsletters");
   } catch (err) {
-    console.log(err);
+    console.error(err);
 
-    res.status(500).send(err.message);
+    res.status(500).send("Failed to send newsletter.");
   }
 };
 

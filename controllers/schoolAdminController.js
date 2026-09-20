@@ -13,6 +13,7 @@ const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = requir
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
@@ -286,14 +287,19 @@ exports.loadSection = async (req, res) => {
 
   if (section === "students") {
 
+    // is_active is selected (not filtered on) here — the school admin
+    // should still see a graduated/inactive student in their own list,
+    // just marked with a status badge (partials/students.ejs); the
+    // classroom-assignment picker below is where inactive students are
+    // actually excluded.
     const students = await pool.query(
-      `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+      `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at, us.is_active,
               COALESCE(c.name, 'Not assigned') AS classroom_name
       FROM users2 u
       JOIN user_school us ON u.id = us.user_id
       LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1 
-        AND us.role_in_school = 'student' 
+      WHERE us.school_id = $1
+        AND us.role_in_school = 'student'
         AND us.approved = true
       ORDER BY u.fullname`,
       [schoolId]
@@ -336,13 +342,17 @@ exports.loadSection = async (req, res) => {
       [schoolId]
     );
 
+    // Feeds the classroom-assignment picker below — inactive/graduated
+    // students are excluded here (unlike the main students list above,
+    // which shows everyone with a status badge for visibility).
     const availableStudents = await pool.query(
       `SELECT u.id, u.fullname, u.email
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 
-         AND us.role_in_school = 'student' 
-         AND us.approved = true`,
+       WHERE us.school_id = $1
+         AND us.role_in_school = 'student'
+         AND us.approved = true
+         AND us.is_active = true`,
       [schoolId]
     );
 
@@ -831,8 +841,17 @@ exports.addStudent = async (req, res) => {
 
     const email = `${cleanName}@${schoolFirstWord}school.com`;
 
-    // 🔥 Default password
-    const defaultPassword = "12345678";
+    // Random per-account password — previously a fixed "12345678" for
+    // every bulk/quick-added student, which combined with the equally
+    // predictable auto-generated email above meant anyone who knew a
+    // student's name and school could log in as them. Students are meant
+    // to log in via their PIN (see downloadStudentLoginCards) — this
+    // password mainly exists so the email+password login form still
+    // works and so "forgot password" email recovery is available; it
+    // isn't handed out directly, so it only needs to be unguessable, not
+    // memorable. Passed back via the redirect so the school admin can see
+    // and record it if they want to.
+    const defaultPassword = generateDefaultPassword();
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     // 1️⃣ Create user
@@ -852,7 +871,9 @@ exports.addStudent = async (req, res) => {
       [userId, schoolId]
     );
 
-    res.redirect("/school-admin/dashboard?section=students");
+    res.redirect(
+      `/school-admin/dashboard?section=students&created_email=${encodeURIComponent(email)}&created_password=${encodeURIComponent(defaultPassword)}`
+    );
 
   } catch (err) {
     console.error("Add student error:", err);
@@ -885,6 +906,11 @@ exports.bulkAddStudents = async (req, res) => {
 
     const students = [];
     const errors = [];
+    // Every created account's generated credentials, returned in the
+    // response so the school admin can actually distribute them —
+    // previously every row silently got the same fixed "12345678" and
+    // this list didn't exist because it didn't need to.
+    const createdCredentials = [];
 
     fs.createReadStream(req.file.path)
       .pipe(csv())
@@ -902,7 +928,11 @@ exports.bulkAddStudents = async (req, res) => {
             const cleanName = s.fullname.toLowerCase().replace(/\s+/g, "");
             const email = `${cleanName}@${schoolFirstWord}school.com`;
 
-            const hashedPassword = await bcrypt.hash("12345678", 10);
+            // Random per-student password — see the comment on the
+            // single-student addStudent above for why a fixed value here
+            // was a real account-takeover risk.
+            const rowPassword = generateDefaultPassword();
+            const hashedPassword = await bcrypt.hash(rowPassword, 10);
 
             const userRes = await pool.query(
               `INSERT INTO users2 (fullname, email, password, role, gender)
@@ -921,23 +951,31 @@ exports.bulkAddStudents = async (req, res) => {
                  ON CONFLICT DO NOTHING`,
                 [userId, schoolId],
               );
+              createdCredentials.push({ fullname: s.fullname, email, password: rowPassword });
             }
           } catch (err) {
             errors.push(`Row ${index + 1}: ${err.message}`);
           }
         }
 
+        // Delete the uploaded CSV now that it's been fully read — it was
+        // never cleaned up before, leaving every bulk-import file
+        // (unbounded size/type before this fix) permanently in uploads/.
+        fs.unlink(req.file.path, () => {});
+
         if (errors.length > 0) {
           return res.json({
             success: false,
             message: "Some rows failed",
             errors,
+            createdCredentials,
           });
         }
 
         res.json({
           success: true,
           message: "Students uploaded successfully",
+          createdCredentials,
         });
       });
   } catch (err) {

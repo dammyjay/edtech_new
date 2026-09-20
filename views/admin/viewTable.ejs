@@ -139,6 +139,7 @@
     <span onclick="closeEditModal()" class="close">&times;</span>
     <h3>Edit Record</h3>
     <form id="editForm" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div id="editFields"></div>
       <button type="submit">Update</button>
     </form>
@@ -147,6 +148,8 @@
 
 <!-- View row content modal script -->
 <script>
+  const CSRF_TOKEN = "<%= csrfToken %>";
+
   function openRowModal(row) {
     const container = document.getElementById("modalContent");
     container.innerHTML = "";
@@ -217,7 +220,8 @@ async function confirmDelete(id) {
   if (!(await showConfirm("Are you sure you want to delete this record?"))) return;
 
   fetch(`/admin/db/<%= table %>/delete/${id}`, {
-    method: "POST"
+    method: "POST",
+    headers: { "X-CSRF-Token": CSRF_TOKEN }
   })
   .then(res => {
     if (res.ok) {
@@ -305,7 +309,8 @@ document.getElementById("createForm").addEventListener("submit", async function(
     const res = await fetch("/admin/db/<%= table %>", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-CSRF-Token": CSRF_TOKEN
       },
       body: JSON.stringify(data)
     });

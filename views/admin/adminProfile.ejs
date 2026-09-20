@@ -5,6 +5,8 @@
     <title><%= title %> — <%= (info?.company_name || 'JKT Hub').trim() %></title>
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <link rel="stylesheet" href="/css/style.css" />
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <script src="/js/csrf.js"></script>
   </head>
   <body>
     <h2>Your Profile</h2>

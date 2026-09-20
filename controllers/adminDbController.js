@@ -255,7 +255,8 @@ exports.viewTable = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error("viewTable error:", err);
+    res.status(500).send("Failed to load table.");
   }
 };
 
@@ -292,7 +293,7 @@ exports.createRecord = async (req, res) => {
 
   } catch (err) {
     console.error("CREATE ERROR:", err);
-    res.status(500).send(err.message);
+    res.status(500).send("Failed to create record.");
   }
 };
 
@@ -312,7 +313,8 @@ exports.deleteRecord = async (req, res) => {
     await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
     res.redirect(`/admin/db/${table}`);
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error("deleteRecord error:", err);
+    res.status(500).send("Failed to delete record.");
   }
 };
 
@@ -451,7 +453,7 @@ exports.updateRecord = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Update error:", err);
-    res.status(500).send(err.message);
+    res.status(500).send("Failed to update record.");
   }
 };
 

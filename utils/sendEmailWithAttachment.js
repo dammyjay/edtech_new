@@ -7,8 +7,6 @@ apiInstance.setApiKey(
   Brevo.TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY,
 );
-console.log("BREVO_API_KEY:", process.env.BREVO_API_KEY);
-console.log("BREVO_FROM:", process.env.BREVO_FROM);
 
 async function sendEmailWithAttachment(
   to,

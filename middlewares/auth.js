@@ -47,12 +47,14 @@ function ensureInstructorOrAdmin(req, res, next) {
   return res.redirect("/admin/login");
 }
 
-function isAdmin(req, res, next) {
-  if (
-    req.isAuthenticated &&
-    req.isAuthenticated() &&
-    (req.user.role === "admin")
-  ) {
+// Same req.isAuthenticated() bug as ensureInstructorOrAdmin used to have
+// (see comment above it) — this app has no Passport.js, so that check was
+// always falsy. routes/adminRoutes.js imports this as `ensureAdmin`, which
+// didn't even exist as an export, so the import silently resolved to
+// undefined and no middleware ever actually ran on any /admin/* route.
+// Fixed to match req.session.user, and now actually exported.
+function ensureAdmin(req, res, next) {
+  if (req.session.user && req.session.user.role === "admin") {
     return next();
   }
   return res.redirect("/admin/login");
@@ -99,6 +101,7 @@ module.exports = {
   ensureParent,
   ensureTeacher,
   ensureInstructorOrAdmin,
+  ensureAdmin,
   requireSchoolAdmin,
 };
 

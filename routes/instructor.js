@@ -2,19 +2,39 @@
 const express = require("express");
 const router = express.Router();
 const { ensureInstructorOrAdmin } = require("../middlewares/auth");
+const { loginLimiter } = require("../middlewares/rateLimiters");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 const learningController = require("../controllers/learningController");
 const adminController = require("../controllers/adminController");
 const instructorController = require("../controllers/instructorController");
 // const upload = require("../middlewares/upload");
 const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/upload");
 
-router.post("/login", adminController.login);
+router.post("/login", loginLimiter, adminController.login);
 // Instructor dashboard
 // router.get("/dashboard", (req, res) => {
 //   res.render("instructor/dashboard", {
 //     info: req.user || { fullname: "Instructor" }, // better than req.info
 //   });
 // });
+
+// Everything below this line requires a logged-in instructor/admin
+// session. Previously only a scattered subset of routes in this file
+// carried ensureInstructorOrAdmin individually — report downloads,
+// attendance session details/export, and chat-moderation routes
+// (mute/lock/delete-message) had none at all, reachable anonymously.
+// A single router-wide gate (matching the pattern already used in
+// routes/teacher.js and routes/schoolAdmin.js) closes that gap for
+// every current and future route in this file at once.
+router.use(ensureInstructorOrAdmin);
+
+// CSRF protection for everything below — see the matching comment in
+// routes/adminRoutes.js. Every view this router renders either includes
+// partials/adminHeader.ejs directly, or is an AJAX section fragment
+// (views/instructor/sections/*.ejs) injected into instructor/dashboard.ejs,
+// which already has the token + public/js/csrf.js loaded — confirmed by
+// checking every .ejs file under views/instructor/ before enabling this.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 router.post("/set-school", instructorController.setActiveSchool);
 router.get("/dashboard", adminController.instructorDashboard);
@@ -109,8 +129,9 @@ router.post("/lessons/:id/edit", lessonSlideUpload, learningController.editLesso
 router.post("/lessons/:id/delete", learningController.deleteLesson);
 router.get("/lessons/:id/json", learningController.getLessonJSON);
 
-// Get or create quiz for lesson
-router.get("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
+// Get-or-create quiz for lesson — see the matching comment in
+// routes/adminRoutes.js for why this is POST, not GET.
+router.post("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
 
 // Create question
 router.post(
@@ -156,10 +177,6 @@ router.get(
   "/student/:studentId/module-summary/:moduleId/download",
   adminController.downloadModuleSummary
 );
-
-router.get("/dashboard", ensureInstructorOrAdmin, (req, res) => {
-  res.render("instructor/dashboard", { info: req.info });
-});
 
 // Direct 1:1 chat (instructor <-> student). Previously mis-wired: the
 // send route was double-prefixed ("/instructor/instructor/chat/send",

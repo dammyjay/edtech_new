@@ -4,6 +4,7 @@ const schoolAdminController = require("../controllers/schoolAdminController");
 const adminController = require("../controllers/adminController");
 const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 const { requireSchoolAdmin } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 const multer = require("multer");
 const path = require("path");
 
@@ -12,6 +13,16 @@ const path = require("path");
 // fixes (it wasn't just missing, req.session.user.school_id was never
 // populated at all, breaking several routes below outright).
 router.use(requireSchoolAdmin);
+
+// CSRF protection — see the matching comment in routes/adminRoutes.js.
+// Mounted at "/school-admin" (a specific prefix), so a path-less
+// router.use() here is safe (unlike routes/adminFaqRoutes.js). Every view
+// this router renders either includes partials/header.ejs directly
+// (school-admin/dashboard.ejs, classroomDashboard.ejs) or is an AJAX
+// fragment (views/partials/approvals.ejs, classrooms.ejs, quotes.ejs,
+// etc.) injected into that same dashboard — confirmed by checking every
+// res.render() call in schoolAdminController.js before enabling this.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -22,7 +33,19 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+// Used only for the CSV bulk-student-import route below — previously no
+// size limit and no type filter, and the uploaded file was never deleted
+// after processing (see the fs.unlink added in bulkAddStudents).
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (path.extname(file.originalname).toLowerCase() !== ".csv") {
+      return cb(new Error("Only .csv files are accepted for bulk import."));
+    }
+    cb(null, true);
+  },
+});
 
 // Dashboard
 router.get("/dashboard", schoolAdminController.getDashboard);

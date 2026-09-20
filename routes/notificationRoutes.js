@@ -3,7 +3,13 @@ const router = express.Router();
 const pool = require("../models/db");
 const { ensureAuthenticated } = require("../middlewares/auth");
 
-router.use(ensureAuthenticated);
+// Scoped to "/notifications" specifically — this router is mounted at "/"
+// (app.js), so a path-less router.use() here would run for EVERY request
+// in the app that falls through to this router (any request not matched
+// by an earlier, more specific one), not just these four routes. See
+// routes/adminFaqRoutes.js for the exact same mistake, caught live when it
+// broke /instructor/login.
+router.use("/notifications", ensureAuthenticated);
 
 router.get("/notifications", async (req, res) => {
   try {

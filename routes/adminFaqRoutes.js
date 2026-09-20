@@ -2,6 +2,27 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../models/db");
 const { sendFaqAnswerEmail } = require("../utils/sendEmail");
+const { ensureAdmin } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// Every route in this file is admin-only FAQ management (list/edit/update/
+// delete) — previously only the list route (below) checked
+// req.session.user.role === "admin" itself; the edit-form, update, and
+// delete routes had no auth check whatsoever, reachable by anyone with no
+// login at all. A router-wide gate closes that for all four at once and
+// covers any route added here in future. CSRF protection follows the same
+// pattern as routes/adminRoutes.js.
+//
+// CRITICAL: this router is mounted at "/" (app.js), not "/admin/faqs" —
+// its own routes hardcode the full "/admin/faqs/..." path instead of being
+// relative. A path-less router.use() here would therefore run for EVERY
+// request in the entire app that falls through to this router (i.e. isn't
+// matched by an earlier, more specific one) — which briefly broke
+// /instructor/login and any other not-yet-matched route site-wide during
+// testing. The explicit "/admin/faqs" prefix scopes it back to only what
+// this file actually owns.
+router.use("/admin/faqs", ensureAdmin);
+router.use("/admin/faqs", ensureCsrfToken, verifyCsrfToken);
 
 // Show all FAQs
 // router.get("/admin/faqs", async (req, res) => {

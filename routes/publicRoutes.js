@@ -20,6 +20,7 @@ const { getCompanyInfo } = require("../utils/companyInfo");
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getPublicStudentBySlug, toDisplayName } = require("../services/publicAchievementService");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
 // an HMAC of the user id (same secret the session already uses), so no new
@@ -762,7 +763,13 @@ router.post("/feedback", async (req, res) => {
   }
 });
 
-router.get("/make-payment", async (req, res) => {
+// Per-route (not router.use()) — this file is mounted at "/" (app root)
+// and registered before almost everything else, so a blanket router-wide
+// middleware here would run for nearly every request in the app (this is
+// exactly the mistake caught live in routes/adminFaqRoutes.js). Only these
+// two routes actually need the token, since /make-payment is the one
+// public-page flow that requires a real login session.
+router.get("/make-payment", ensureCsrfToken, async (req, res) => {
   if (!req.session.user || !req.session.user.email) {
     return res.redirect("/admin/login"); // Redirect if not logged in
   }
@@ -795,18 +802,57 @@ router.get("/make-payment", async (req, res) => {
   }
 });
 
-router.post("/verify-payment", async (req, res) => {
-  const { reference, email, fullName } = req.body;
+router.post("/verify-payment", verifyCsrfToken, async (req, res) => {
+  const { reference } = req.body;
+
+  // 🔒 Identity comes from the session, never the request body. Previously
+  // this handler trusted req.body.email/fullName directly — anyone could
+  // POST here (there was no login check at all) with any reference they'd
+  // legitimately obtained (even for a small, unrelated payment of their
+  // own) and an arbitrary target email, crediting that account's wallet
+  // for a payment that had nothing to do with it. wallet_balance2 must
+  // only ever move for the person who actually authenticated this
+  // request. See security/security-audit-tracker.xlsx for the full
+  // writeup of this finding.
+  if (!req.session.user || !req.session.user.email) {
+    return res.status(401).json({
+      success: false,
+      message: "Please log in before verifying a payment.",
+    });
+  }
+  const email = req.session.user.email;
+
+  if (!reference || typeof reference !== "string") {
+    return res.status(400).json({ success: false, message: "Missing payment reference." });
+  }
 
   try {
-    console.log(
-      "🔍 Verifying payment with ref:",
-      reference,
-      "Email:",
-      email,
-      "Full Name:",
-      fullName
+    // 🔒 Reject a reused reference before ever calling Paystack — both a
+    // clearer error than the generic 500 the transactions.reference UNIQUE
+    // constraint alone would have produced, and defense-in-depth: it
+    // means this check doesn't depend on that constraint continuing to
+    // exist. A given real payment can only ever fund one wallet, once.
+    const existing = await pool.query(
+      `SELECT id FROM transactions WHERE reference = $1`,
+      [reference]
     );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "This payment has already been processed.",
+      });
+    }
+
+    const userRes = await pool.query(
+      `SELECT id, fullname FROM users2 WHERE email = $1`,
+      [email]
+    );
+    if (!userRes.rows.length) {
+      return res.status(404).json({ success: false, message: "Account not found." });
+    }
+    const { id: userId, fullname } = userRes.rows[0];
+
+    console.log("🔍 Verifying payment with ref:", reference, "for user:", email);
 
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
@@ -827,22 +873,20 @@ router.post("/verify-payment", async (req, res) => {
       await pool.query(
         `INSERT INTO transactions (fullname, email, amount, reference, status)
          VALUES ($1, $2, $3, $4, $5)`,
-        [fullName, email, amount, reference, "success"]
+        [fullname, email, amount, reference, "success"]
       );
 
       // ✅ Update user's wallet balance
-      const updatedUser = await pool.query(
-        `UPDATE users2 SET wallet_balance2 = wallet_balance2 + $1 WHERE email = $2 RETURNING id`,
-        [amount, email]
+      await pool.query(
+        `UPDATE users2 SET wallet_balance2 = wallet_balance2 + $1 WHERE id = $2`,
+        [amount, userId]
       );
 
-      if (updatedUser.rows[0]) {
-        await pool.query(
-          `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference)
-           VALUES ($1, 'fund', 'credit', $2, 'Wallet funded via Paystack', $3)`,
-          [updatedUser.rows[0].id, amount, reference]
-        );
-      }
+      await pool.query(
+        `INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference)
+         VALUES ($1, 'fund', 'credit', $2, 'Wallet funded via Paystack', $3)`,
+        [userId, amount, reference]
+      );
 
       return res.json({
         success: true,
@@ -957,7 +1001,13 @@ router.get("/pay-event/:regId", async (req, res) => {
     console.log("Registration details:", reg);
 
     // ✅ Ensure correct amount is sent to Paystack
-    reg.amount_paid = reg.total_amount || reg.amount_paid || e.amount || 0;
+    // Was `e.amount` — `e` is only a SQL alias, not a JS variable in
+    // scope here, so this threw a ReferenceError (crashing the page)
+    // whenever a registration had neither total_amount nor amount_paid
+    // set yet. reg.amount holds the same value (selected as "e.amount"
+    // above, which lands on reg.amount since event_registrations has no
+    // column of that name to collide with).
+    reg.amount_paid = reg.total_amount || reg.amount_paid || reg.amount || 0;
 
     res.render("eventPayment", {
       reg,
@@ -974,10 +1024,59 @@ router.get("/pay-event/:regId", async (req, res) => {
 // POST Verify Payment
 // =========================
 
+// This route has no session/login of any kind (event registration is a
+// public, guest-friendly flow — regId comes from an emailed link, not an
+// account), so there's no session identity for CSRF to protect. The real
+// fix for the two issues found here isn't auth, it's tying the verified
+// payment back to the specific registration it claims to be for:
+//   1. transactions.reference is checked/recorded here too (the same
+//      UNIQUE-constrained table /verify-payment uses) — previously
+//      nothing stopped one real reference from being replayed against the
+//      same or a different regId any number of times.
+//   2. Paystack's own verify response's customer.email (set from
+//      reg.registrant_email at checkout — see eventPayment.ejs's
+//      PaystackPop.setup) is cross-checked against this registration's
+//      registrant_email — previously any real, unrelated reference could
+//      be pointed at any regId to (partially or fully) mark someone
+//      else's registration paid.
 router.post("/verify-event-payment", async (req, res) => {
   const { reference, regId } = req.body;
 
+  if (!reference || typeof reference !== "string" || !regId) {
+    return res.status(400).json({ success: false, message: "Missing reference or registration." });
+  }
+
   try {
+    const existing = await pool.query(
+      `SELECT id FROM transactions WHERE reference = $1`,
+      [reference]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "This payment has already been processed.",
+      });
+    }
+
+    // Fetch registration details up front — needed for the email
+    // cross-check below, and no reason to call Paystack at all for a
+    // regId that doesn't exist.
+    const regResult = await pool.query(
+      `SELECT r.*, e.amount AS event_amount
+       FROM event_registrations r
+       JOIN events e ON r.event_id = e.id
+       WHERE r.id = $1`,
+      [regId]
+    );
+
+    if (regResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Registration not found" });
+    }
+
+    const reg = regResult.rows[0];
+
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
@@ -991,23 +1090,21 @@ router.post("/verify-event-payment", async (req, res) => {
     console.log("Paystack Response:", payment);
 
     if (payment.status === "success") {
-      const amountPaid = payment.amount / 100; // convert from kobo
-
-      // Fetch registration details
-      const regResult = await pool.query(
-        `SELECT * FROM event_registrations WHERE id = $1`,
-        [regId]
-      );
-
-      if (regResult.rows.length === 0) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Registration not found" });
+      const paidEmail = (payment.customer && payment.customer.email || "").toLowerCase().trim();
+      const regEmail = (reg.registrant_email || "").toLowerCase().trim();
+      if (!paidEmail || paidEmail !== regEmail) {
+        console.error(
+          `verify-event-payment email mismatch: paystack customer=${paidEmail} registration=${regEmail} regId=${regId} ref=${reference}`
+        );
+        return res.status(403).json({
+          success: false,
+          message: "This payment does not match this registration.",
+        });
       }
 
-      const reg = regResult.rows[0];
+      const amountPaid = payment.amount / 100; // convert from kobo
       const totalEventFee =
-        reg.total_amount || reg.amount * (reg.num_people || 1);
+        reg.total_amount || reg.event_amount * (reg.num_people || 1);
 
       // Calculate cumulative amount
       const newTotalPaid = (reg.amount_paid || 0) + amountPaid;
@@ -1016,6 +1113,15 @@ router.post("/verify-event-payment", async (req, res) => {
       if (newTotalPaid >= totalEventFee) {
         paymentStatus = "completed";
       }
+
+      // Record the reference (same ledger /verify-payment uses) BEFORE
+      // updating the registration — its UNIQUE constraint is what makes
+      // this reference un-replayable from here on.
+      await pool.query(
+        `INSERT INTO transactions (fullname, email, amount, reference, status)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [reg.registrant_name, reg.registrant_email, amountPaid, reference, "success"]
+      );
 
       // Update registration record
       await pool.query(

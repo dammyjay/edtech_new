@@ -71,7 +71,16 @@
 
     <div class="multi-btn">
       <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= school.id %>/download-progress'">📄 Download School Summary</button>
-      <button class="btn-pri" onclick="window.location.href='/admin/schools/<%= school.id %>/download-login-cards'">📥Student Login Cards</button>
+      <label for="loginCardsTermFilter" style="align-self:center;">Term:</label>
+      <select id="loginCardsTermFilter">
+        <option value="">All students</option>
+        <% school.terms.forEach(term => { %>
+          <option value="<%= term.term_id %>" <%= term.status === 'active' ? 'selected' : '' %>>
+            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+          </option>
+        <% }) %>
+      </select>
+      <button class="btn-pri" onclick="downloadLoginCards()">📥Student Login Cards</button>
     </div>
 
     <hr>
@@ -487,6 +496,7 @@
           <th>Name</th>
           <th>Email</th>
           <th>Classroom</th>
+          <th>Status</th>
           <th>Login Type</th>
           <th>Pin</th>
           <th>Log Enabled</th>
@@ -498,10 +508,17 @@
       <tbody>
         <% if (school.students.length > 0) { %>
           <% school.students.forEach(student => { %>
-            <tr>
+            <tr id="student-row-<%= student.id %>">
               <td><%= student.full_name %></td>
               <td><%= student.email %></td>
               <td><%= student.classroom_name || '—' %></td>
+              <td id="student-status-<%= student.id %>">
+                <% if (student.is_active === false) { %>
+                  <span style="background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Inactive</span>
+                <% } else { %>
+                  <span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Active</span>
+                <% } %>
+              </td>
               <td><%= student.login_type || '—' %></td>
               <td><%= student.pin || '—' %></td>
               <td><%= student.classroom_login_enabled ? 'Yes' : 'No' %></td>
@@ -522,6 +539,9 @@
                 </a>
                 <a href="#" class="no-bg" onclick="deleteUser('<%= student.id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
+                </a>
+                <a href="#" class="no-bg" onclick="toggleActiveStatus('<%= student.id %>', <%= student.is_active !== false %>); return false;" title="<%= student.is_active === false ? 'Reactivate student' : 'Mark inactive (graduated/left)' %>">
+                  <i class="fa-solid <%= student.is_active === false ? 'fa-rotate-left' : 'fa-user-slash' %>" style="color: <%= student.is_active === false ? '#16a34a' : '#6b7280' %>"></i>
                 </a>
                 <a href="#" class="no-bg" onclick="toggleAvatarLogin('<%= student.id %>', this); return false;" title="Toggle Avatar Login">
                   <i class="fa-solid fa-wand-magic-sparkles"
@@ -557,6 +577,41 @@
   <button class="btn-blue" onclick="openModal('createClassroomModal')" style="margin-bottom:15px;">
     ➕ Create Classroom
   </button>
+
+  <!-- Which term's students are eligible for assignment below — a
+       student not enrolled in this term, already assigned to a
+       classroom, or marked inactive, won't appear in any of the
+       "Assign Multiple Students" pickers. Defaults to the school's
+       currently active term (same "active" definition already shown
+       in the Terms tab's status labels). -->
+  <div style="margin-bottom:15px;">
+    <label for="classroomAssignTermFilter"><strong>Assigning students from term:</strong></label>
+    <select id="classroomAssignTermFilter" onchange="loadClassroomCandidates()">
+      <% if (school.terms.length === 0) { %>
+        <option value="">No terms yet</option>
+      <% } else { %>
+        <% school.terms.forEach(term => { %>
+          <%
+            // Prefer the term just used to assign students (see
+            // preferredTermId in adminController.js's getSchoolDetails)
+            // over the date-computed "active" one — they're often the
+            // same, but not when an admin deliberately assigns students
+            // to a term other than whichever one's dates cover today.
+            const isSelected = typeof preferredTermId !== 'undefined' && preferredTermId
+              ? term.term_id === preferredTermId
+              : term.status === 'active';
+          %>
+          <option value="<%= term.term_id %>" <%= isSelected ? 'selected' : '' %>>
+            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+          </option>
+        <% }) %>
+      <% } %>
+    </select>
+    <label style="margin-left:14px; font-weight:normal;">
+      <input type="checkbox" id="includeAssignedStudents" onchange="loadClassroomCandidates()">
+      Also show students already in another classroom (to move them)
+    </label>
+  </div>
 
   <div class="table-responsive">
     <table class="user-table sortable-table" style="margin-top:20px;">
@@ -606,12 +661,11 @@
               <td colspan="5">
                 <form onsubmit="assignUsers(event, '<%= c.id %>', 'student')">
                   <label><strong>Assign Multiple Students to <%= c.name %>:</strong></label>
-                  <select id="studentMultiSelect-<%= c.id %>" multiple size="5" style="width:100%; margin-top:8px;">
-                    <% school.students
-                      .filter(s => !s.classroom_id) // only unassigned students
-                      .forEach(s => { %>
-                        <option value="<%= s.id %>"><%= s.full_name %> (<%= s.email %>)</option>
-                    <% }) %>
+                  <!-- Populated by loadClassroomCandidates() from the term
+                       picker above — not server-rendered, since the
+                       eligible list depends on which term is selected. -->
+                  <select id="studentMultiSelect-<%= c.id %>" class="classroom-candidate-select" multiple size="5" style="width:100%; margin-top:8px;">
+                    <option disabled>Loading…</option>
                   </select>
                   <button type="submit" class="btn-sec">
                     Assign Selected Students
@@ -880,19 +934,11 @@
       <input type="hidden" name="school_id" value="<%= school.id %>" />
 
           <label>Select Term</label>
-          <select name="term_id" required>
+          <select name="term_id" id="assignTermSelect" required onchange="loadTermCandidates()">
             <% school.terms.forEach(t => { %>
-              <option value="<%= t.term_id %>"><%= t.term_name %></option>
+              <option value="<%= t.term_id %>" <%= t.status === 'active' ? 'selected' : '' %>><%= t.term_name %></option>
             <% }) %>
           </select>
-
-      <label>Select Classroom</label>
-      <select name="classroom_id">
-        <option value="">-- All Classrooms --</option>
-        <% school.classrooms.forEach(c => { %>
-          <option value="<%= c.id %>"><%= c.name %></option>
-        <% }) %>
-      </select>
 
       <div class="multi-btn">
         <button class="btn-green" type="button" onclick="selectAllStudents()">✅ Select All</button>
@@ -901,16 +947,19 @@
 
       <hr>
 
+      <!-- Active students not already enrolled in the selected term above
+           — see loadTermCandidates()/adminController.js's getTermCandidates.
+           Was previously every student in the school regardless of active
+           status or existing term enrollment, fed by a "Select Classroom"
+           filter that never actually worked (student.classroom_id was
+           never populated) — removed rather than fixed, since a
+           term-enrollment picker filtering by current classroom wasn't
+           the intent. -->
       <label>Select Students</label>
       <div style="max-height:200px; overflow:auto; border:1px solid #ddd; padding:10px;">
 
         <div id="studentList">
-          <% school.students.forEach(s => { %>
-            <label class="student-item" data-classroom="<%= s.classroom_id || '' %>" style="display:block;">
-              <input type="checkbox" name="student_ids[]" value="<%= s.id %>" />
-              <%= s.full_name %>
-            </label>
-          <% }) %>
+          <option disabled>Loading…</option>
         </div>
       </div>
 
@@ -1131,6 +1180,62 @@
       });
     } else {
       showAlert(data.message);
+    }
+  }
+
+  // Login cards: "All students" (default, whole-school) or a specific
+  // term — either way, inactive students are excluded server-side.
+  function downloadLoginCards() {
+    const termId = document.getElementById("loginCardsTermFilter").value;
+    const url = `/admin/schools/<%= school.id %>/download-login-cards` + (termId ? `?term_id=${termId}` : "");
+    window.location.href = url;
+  }
+
+  // Marks a student inactive (graduated/left) or reactivates them —
+  // inactive students are excluded from classroom/term assignment
+  // pickers and login-card downloads (see adminController.js's
+  // toggleUserActiveStatus). Updates the row in place rather than
+  // reloading the whole page.
+  async function toggleActiveStatus(studentId, currentlyActive) {
+    if (currentlyActive) {
+      if (!(await showConfirm("Mark this student inactive? They'll be hidden from classroom/term assignment lists and login-card downloads until reactivated."))) return;
+    }
+
+    try {
+      const res = await fetch(`/admin/schools/<%= school.id %>/users/${studentId}/toggle-active`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (!data.success) {
+        return showAlert("❌ " + (data.message || "Failed to update status."));
+      }
+
+      const isActive = data.is_active;
+      const statusCell = document.getElementById(`student-status-${studentId}`);
+      if (statusCell) {
+        statusCell.innerHTML = isActive
+          ? '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Active</span>'
+          : '<span style="background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Inactive</span>';
+      }
+
+      const row = document.getElementById(`student-row-${studentId}`);
+      const toggleLink = row && row.querySelector('a[onclick^="toggleActiveStatus"]');
+      if (toggleLink) {
+        toggleLink.setAttribute("onclick", `toggleActiveStatus('${studentId}', ${isActive}); return false;`);
+        toggleLink.setAttribute("title", isActive ? "Mark inactive (graduated/left)" : "Reactivate student");
+        const icon = toggleLink.querySelector("i");
+        if (icon) {
+          icon.className = isActive ? "fa-solid fa-user-slash" : "fa-solid fa-rotate-left";
+          icon.style.color = isActive ? "#6b7280" : "#16a34a";
+        }
+      }
+
+      // The classroom-candidate list depends on active status, so refresh
+      // it in case this student is currently shown/hidden there.
+      if (typeof loadClassroomCandidates === "function") loadClassroomCandidates();
+    } catch (err) {
+      console.error("toggleActiveStatus error:", err);
+      showAlert("❌ Request failed.");
     }
   }
 
@@ -2052,20 +2157,29 @@ function exportExcel() {
             countCell.textContent = currentCount + selected.length;
           }
 
-          // 🔄 Rebuild dropdown with unassigned users
-          select.innerHTML = "";
-          if (data.unassigned && data.unassigned.length > 0) {
-            data.unassigned.forEach(u => {
-              const opt = document.createElement("option");
-              opt.value = u.id;
-              opt.textContent = `${u.full_name || u.fullname} (${u.email})`;
-              select.appendChild(opt);
-            });
+          // 🔄 Rebuild dropdowns. For students, re-fetch the term-scoped
+          // candidate list (a student just assigned to THIS classroom
+          // needs to disappear from every OTHER classroom's picker too,
+          // which data.unassigned alone can't do since it isn't
+          // term-aware). For other roles, fall back to the old per-select
+          // rebuild from data.unassigned.
+          if (role === "student") {
+            await loadClassroomCandidates();
           } else {
-            const opt = document.createElement("option");
-            opt.disabled = true;
-            opt.textContent = `No unassigned ${role}s available`;
-            select.appendChild(opt);
+            select.innerHTML = "";
+            if (data.unassigned && data.unassigned.length > 0) {
+              data.unassigned.forEach(u => {
+                const opt = document.createElement("option");
+                opt.value = u.id;
+                opt.textContent = `${u.full_name || u.fullname} (${u.email})`;
+                select.appendChild(opt);
+              });
+            } else {
+              const opt = document.createElement("option");
+              opt.disabled = true;
+              opt.textContent = `No unassigned ${role}s available`;
+              select.appendChild(opt);
+            }
           }
         } else {
           showAlert("❌ Failed: " + data.message);
@@ -2075,6 +2189,64 @@ function exportExcel() {
         showAlert("❌ Request failed.");
       }
     }
+
+    // Populates every classroom's "Assign Multiple Students" picker from
+    // the term selected in #classroomAssignTermFilter — active students
+    // enrolled in that term. By default only students not already in any
+    // classroom (see adminController.js's getClassroomCandidates); with
+    // #includeAssignedStudents checked, also includes students already
+    // assigned elsewhere (labeled with their current classroom) so they
+    // can be deliberately moved — otherwise a term where every student
+    // already has a classroom (e.g. reorganizing into a newly-created
+    // section) would show no candidates at all.
+    async function loadClassroomCandidates() {
+      const termSelect = document.getElementById("classroomAssignTermFilter");
+      const includeAssigned = document.getElementById("includeAssignedStudents")?.checked;
+      const selects = document.querySelectorAll(".classroom-candidate-select");
+      if (!termSelect || !termSelect.value) {
+        selects.forEach(sel => {
+          sel.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.disabled = true;
+          opt.textContent = "No term selected";
+          sel.appendChild(opt);
+        });
+        return;
+      }
+
+      try {
+        const url = `/admin/schools/<%= school.id %>/terms/${termSelect.value}/classroom-candidates` +
+          (includeAssigned ? "?include_assigned=true" : "");
+        const res = await fetch(url);
+        const data = await res.json();
+        const students = (data.success && data.students) || [];
+
+        selects.forEach(sel => {
+          sel.innerHTML = "";
+          if (students.length === 0) {
+            const opt = document.createElement("option");
+            opt.disabled = true;
+            opt.textContent = includeAssigned
+              ? "No students in this term"
+              : "No unassigned students in this term — try \"also show students already in another classroom\" above";
+            sel.appendChild(opt);
+            return;
+          }
+          students.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.textContent = s.current_classroom_name
+              ? `${s.fullname} (${s.email}) — currently in ${s.current_classroom_name}`
+              : `${s.fullname} (${s.email})`;
+            sel.appendChild(opt);
+          });
+        });
+      } catch (err) {
+        console.error("loadClassroomCandidates error:", err);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadClassroomCandidates);
 
 
     // Refresh only this classroom's student list
@@ -2706,31 +2878,48 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 </script>
 
-<!-- script for filter student in a classroom to be selectd -->
+<!-- Populates #assignTermModal's student checklist for the selected term -->
 <script>
-   document.querySelector("#assignTermModal select[name='classroom_id']")
-  .addEventListener("change", function () {
+  // Active students at this school not already enrolled in the term
+  // selected above — see adminController.js's getTermCandidates. Was
+  // previously every student in the school (no active-status or
+  // already-enrolled filtering), paired with a "Select Classroom" filter
+  // that never worked (student.classroom_id was always undefined) — that
+  // dropdown has been removed rather than fixed, see the HTML comment
+  // above the student list.
+  async function loadTermCandidates() {
+    const termSelect = document.getElementById("assignTermSelect");
+    const container = document.getElementById("studentList");
+    if (!container) return;
 
-    const selectedClass = this.value;
+    if (!termSelect || !termSelect.value) {
+      container.innerHTML = "<em>No term selected</em>";
+      return;
+    }
 
-    document.querySelectorAll("#assignTermModal .student-item").forEach(item => {
-      const studentClass = item.dataset.classroom;
+    try {
+      const res = await fetch(`/admin/schools/<%= school.id %>/terms/${termSelect.value}/term-candidates`);
+      const data = await res.json();
+      const students = (data.success && data.students) || [];
 
-      // Show all if "All Classrooms"
-      if (!selectedClass) {
-        item.style.display = "block";
+      if (students.length === 0) {
+        container.innerHTML = "<em>No students available to add to this term.</em>";
         return;
       }
 
-      // Show only matching classroom
-      if (String(studentClass) === String(selectedClass)) {
-        item.style.display = "block";
-      } else {
-        item.style.display = "none";
-      }
-    });
+      container.innerHTML = students.map(s => `
+        <label class="student-item" style="display:block;">
+          <input type="checkbox" name="student_ids[]" value="${s.id}" />
+          ${s.fullname}
+        </label>
+      `).join("");
+    } catch (err) {
+      console.error("loadTermCandidates error:", err);
+      container.innerHTML = "<em>Failed to load students.</em>";
+    }
+  }
 
-  });
+  document.addEventListener("DOMContentLoaded", loadTermCandidates);
 </script>
 
 

@@ -12,6 +12,7 @@ const csv = require("csv-parser");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
+const generateDefaultPassword = require("../utils/generateDefaultPassword");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
@@ -92,10 +93,15 @@ exports.handleForgotPassword = async (req, res) => {
   const result = await pool.query("SELECT * FROM users2 WHERE email = $1", [
     email,
   ]);
+  // Always show the same generic message regardless of whether the email
+  // is registered — previously this branch said "Email does not exist."
+  // verbatim, letting anyone enumerate valid account emails by trying
+  // this form. The real reset email is still only ever sent when the
+  // account is real.
+  const genericMessage = "If that email is registered, a reset link has been sent.";
   if (result.rows.length === 0) {
-    // Show a clear message if email does not exist
     return res.render("admin/forgotPassword", {
-      message: "Email does not exist.",
+      message: genericMessage,
     });
   }
   const user = result.rows[0];
@@ -115,7 +121,7 @@ exports.handleForgotPassword = async (req, res) => {
   );
 
   res.render("admin/forgotPassword", {
-    message: "a reset link has been sent.",
+    message: genericMessage,
   });
 };
 
@@ -267,6 +273,16 @@ exports.login = async (req, res) => {
     // ===============================
     // 3️⃣ SESSION + REDIRECT
     // ===============================
+    // Regenerate the session id before establishing the authenticated
+    // session (session-fixation prevention) — previously this just
+    // mutated the existing session object in place, so an attacker who
+    // fixed a victim's pre-login session id (e.g. via a shared network or
+    // a cookie set from a sibling subdomain) would inherit a valid
+    // authenticated session the moment the victim logged in.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+
     req.session.user = {
       id: user.id,
       email: user.email,
@@ -483,7 +499,7 @@ exports.getLearningDashboard = async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to load learning dashboard data." });
   }
 };
 
@@ -1135,8 +1151,13 @@ exports.addUser = async (req, res) => {
     // const { fullname, email, phone, gender, role, schoolId } = req.body;
     let { fullname,email,phone,gender,role,schoolId } = req.body;
 
-    // Default password
-    const defaultPassword = "12345678";
+    // Random per-account default password — previously a fixed
+    // "12345678" for every account this form created (including
+    // admin/school_admin/teacher roles with no PIN-based fallback
+    // login). The real value is still emailed to the new user below
+    // (see "${defaultPassword}" further down), so nothing about the
+    // notification flow changes — it just stops being predictable.
+    const defaultPassword = generateDefaultPassword();
 
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
@@ -5604,11 +5625,17 @@ exports.getSchoolDetails = async (req, res) => {
     if (!school) return res.status(404).send("School not found");
 
     // Fetch students
+    // Was missing us.classroom_id (and us.is_active) entirely — the
+    // school-details view's "only show unassigned students" filter and
+    // the single-student assign modal's current-classroom pre-selection
+    // both read student.classroom_id, so both were silently broken
+    // (always undefined) with only c.name AS classroom_name here.
     const studentsResult = await pool.query(
       `
       SELECT u.id, u.fullname AS full_name, u.email, u.phone, u.dob, u.gender,
              u.role, u.wallet_balance, u.pin, u.avatar_url, u.avatar_seed, u.classroom_login_enabled,
              u.login_type, u.created_at,
+             us.classroom_id, us.is_active,
              c.name AS classroom_name
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
@@ -5823,6 +5850,18 @@ exports.getSchoolDetails = async (req, res) => {
       quotes: quotesResult.rows,
       currentPage: "schools",
       role: "admin",
+      // Set when redirected here right after assigning students to a
+      // term (see assignStudentsToTerm) — lets the Classroom tab's term
+      // selector default to that same term instead of independently
+      // guessing "whichever term's dates cover today," which is a
+      // different thing whenever an admin deliberately assigns students
+      // to a term that isn't the current one (backfilling a past term,
+      // preparing an upcoming one, etc.). Without this, a student just
+      // assigned to term X could look "not assigned for this term" on
+      // the Classroom tab simply because it defaulted to term Y.
+      preferredTermId: req.query.assigned_term_id
+        ? parseInt(req.query.assigned_term_id, 10)
+        : null,
     });
   } catch (err) {
     console.error("Error fetching school details:", err);
@@ -6086,6 +6125,11 @@ exports.getSchoolDetails = async (req, res) => {
 // 📄 Download Student Login Cards (PDF with Logo)
 exports.downloadStudentLoginCards = async (req, res) => {
   const { schoolId } = req.params;
+  // Optional ?term_id=X — scopes the cards to students enrolled in that
+  // term instead of every student ever added to the school. Either way,
+  // inactive/graduated students (us.is_active = false) are excluded —
+  // they shouldn't get login cards printed regardless of term.
+  const termId = req.query.term_id ? parseInt(req.query.term_id, 10) : null;
   try {
     // 1️⃣ Fetch school info
     const schoolRes = await pool.query(
@@ -6096,18 +6140,33 @@ exports.downloadStudentLoginCards = async (req, res) => {
     if (!school) return res.status(404).send("School not found");
 
     // 2️⃣ Fetch students
-    const studentRes = await pool.query(
-      `SELECT 
-        u.fullname AS full_name, 
-        u.email, u.pin, u.avatar_url, u.avatar_seed, 
-        c.name AS classroom_name
-      FROM user_school us
-      JOIN users2 u ON us.user_id = u.id
-      LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1 AND us.role_in_school = 'student'
-      ORDER BY c.name, u.fullname`,
-      [schoolId]
-    );
+    const studentRes = termId
+      ? await pool.query(
+          `SELECT
+            u.fullname AS full_name,
+            u.email, u.pin, u.avatar_url, u.avatar_seed,
+            c.name AS classroom_name
+          FROM student_term_enrollments ste
+          JOIN user_school us ON us.user_id = ste.student_id AND us.school_id = ste.school_id
+          JOIN users2 u ON u.id = ste.student_id
+          LEFT JOIN classrooms c ON us.classroom_id = c.id
+          WHERE ste.term_id = $1 AND us.school_id = $2
+            AND us.role_in_school = 'student' AND us.is_active = true
+          ORDER BY c.name, u.fullname`,
+          [termId, schoolId]
+        )
+      : await pool.query(
+          `SELECT
+            u.fullname AS full_name,
+            u.email, u.pin, u.avatar_url, u.avatar_seed,
+            c.name AS classroom_name
+          FROM user_school us
+          JOIN users2 u ON us.user_id = u.id
+          LEFT JOIN classrooms c ON us.classroom_id = c.id
+          WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.is_active = true
+          ORDER BY c.name, u.fullname`,
+          [schoolId]
+        );
     const students = studentRes.rows;
 
     // 3️⃣ Build the HTML
@@ -6197,9 +6256,8 @@ exports.downloadStudentLoginCards = async (req, res) => {
                 <h2>${s.full_name}</h2>
                 <p><strong>Class:</strong> ${s.classroom_name || "—"}</p>
                 <p><strong>Email:</strong> ${s.email}</p>
-                <p><strong>Password:</strong> 12345678</p>
                 <p style="font-size: 0.85em; color: #07af2b;">
-                  You can also Login with your PIN by Select your school and class
+                  Login with your PIN by selecting your school and class
                 </p>
                 <p><strong>PIN:</strong> ${s.pin || "N/A"}</p>
                 <p><a class="login-link" href="https://acad.jkthub.com/admin/login">acad.jkthub.com/admin/login</a></p>
@@ -6848,7 +6906,7 @@ exports.generateSchoolReceipt = async (req, res) => {
     res.send(doc.pdf);
   } catch (err) {
     console.error("GENERATE SCHOOL RECEIPT ERROR:", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Failed to generate receipt." });
   }
 };
 
@@ -9395,7 +9453,13 @@ exports.addUserToSchool = async (req, res) => {
 
     // Handle profile picture
     const profile_picture = file ? file.path : "/profile.webp";
-    const hashed = await bcrypt.hash(password || "12345678", 10); // default pw if missing
+    // Random per-account password when the admin leaves the field blank
+    // — previously a fixed "12345678" for every such account, including
+    // roles (teacher/school_admin) with no PIN-based login fallback.
+    // Returned below (only when auto-generated) so the admin can still
+    // hand it to the new user.
+    const generatedPassword = password || generateDefaultPassword();
+    const hashed = await bcrypt.hash(generatedPassword, 10);
     const created_at = new Date();
     let finalEmail = email;
 
@@ -9429,9 +9493,18 @@ exports.addUserToSchool = async (req, res) => {
       [newUser.rows[0].id, school.id, role, true] // ✅ auto-approved since admin adds directly
     );
 
-    return res
-      .status(200)
-      .json({ message: `${role} added successfully`, user: newUser.rows[0] });
+    // Don't echo the password hash back to the client — it was already
+    // being returned here for no reason (RETURNING * includes it).
+    const { password: _omitHash, ...createdUser } = newUser.rows[0];
+
+    return res.status(200).json({
+      message: `${role} added successfully`,
+      user: createdUser,
+      // Only present when the admin left the password field blank —
+      // lets the UI show/copy it once so it can actually be handed to
+      // the new user, since it's random now rather than a known constant.
+      ...(password ? {} : { generatedPassword }),
+    });
   } catch (err) {
     console.error("❌ addUserToSchool error:", err.message);
     res.status(500).json({ message: "Internal server error" });
@@ -9463,6 +9536,7 @@ exports.platformBulkAddUsers = async (req, res) => {
 
     const students = [];
     const errors = [];
+    const createdCredentials = [];
     let successCount = 0;
 
     // ✅ Normalize keys (fix headers like " Full Name ", "GENDER", etc.)
@@ -9522,7 +9596,11 @@ exports.platformBulkAddUsers = async (req, res) => {
               continue;
             }
 
-            const hashedPassword = await bcrypt.hash("12345678", 10);
+            // Random per-account password — was a fixed "12345678" for
+            // every row (any role, not just students), returned below so
+            // the admin can still distribute credentials.
+            const rowPassword = generateDefaultPassword();
+            const hashedPassword = await bcrypt.hash(rowPassword, 10);
 
             const userRes = await pool.query(
               `INSERT INTO users2 (fullname, email, password, role, gender)
@@ -9547,6 +9625,7 @@ exports.platformBulkAddUsers = async (req, res) => {
               [userId, schoolId, role],
             );
 
+            createdCredentials.push({ fullname: name, email, role, password: rowPassword });
             successCount++;
           } catch (err) {
             console.error(err);
@@ -9554,18 +9633,25 @@ exports.platformBulkAddUsers = async (req, res) => {
           }
         }
 
+        // Delete the uploaded CSV now that it's been fully read — was
+        // never cleaned up before (unbounded size/type before this fix),
+        // leaving every bulk-import file permanently in uploads/.
+        fs.unlink(req.file.path, () => {});
+
         // ✅ Final response
         if (errors.length > 0) {
           return res.json({
             success: false,
             message: `${successCount} users uploaded, some failed`,
             errors,
+            createdCredentials,
           });
         }
 
         res.json({
           success: true,
           message: `${successCount} users uploaded successfully`,
+          createdCredentials,
         });
       });
   } catch (err) {
@@ -9695,14 +9781,15 @@ exports.addStudentsToClassroom = async (req, res) => {
         .json({ success: false, message: "Classroom not found" });
     }
 
-    // verify students belong to this school
+    // verify students belong to this school and are still active there
     const studentResult = await pool.query(
       `SELECT u.id, u.fullname, u.email
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
        WHERE u.id = ANY($1::int[])
          AND us.school_id = $2
-         AND us.role_in_school = 'student'`,
+         AND us.role_in_school = 'student'
+         AND us.is_active = true`,
       [student_ids, schoolId]
     );
 
@@ -9731,6 +9818,7 @@ exports.addStudentsToClassroom = async (req, res) => {
        WHERE us.school_id = $1
          AND us.role_in_school = 'student'
          AND us.classroom_id IS NULL
+         AND us.is_active = true
        ORDER BY u.fullname`,
       [schoolId]
     );
@@ -9822,7 +9910,8 @@ exports.assignUsersToClassroom = async (req, res) => {
          JOIN user_school us ON u.id = us.user_id
          WHERE u.id = ANY($1::int[])
            AND us.school_id = $2
-           AND us.role_in_school = $3`,
+           AND us.role_in_school = $3
+           AND us.is_active = true`,
         [user_ids, schoolId, role]
       );
 
@@ -9851,6 +9940,7 @@ exports.assignUsersToClassroom = async (req, res) => {
          WHERE us.school_id = $1
            AND us.role_in_school = $2
            AND us.classroom_id IS NULL
+           AND us.is_active = true
          ORDER BY u.fullname`,
         [schoolId, role]
       );
@@ -9867,6 +9957,110 @@ exports.assignUsersToClassroom = async (req, res) => {
     }
   } catch (err) {
     console.error(`Error assigning ${role}s to classroom:`, err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Flip a student's (or other role's) active status at this school. A
+// student marked inactive (graduated, withdrawn, etc.) stops appearing in
+// the classroom/term assignment pickers and login-card exports, without
+// deleting their account or history — see the two candidate-list
+// endpoints and downloadStudentLoginCards below, all of which filter on
+// this same column.
+exports.toggleUserActiveStatus = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const schoolId = parseInt(req.params.schoolId, 10);
+  const userId = parseInt(req.params.userId, 10);
+
+  try {
+    const result = await pool.query(
+      `UPDATE user_school
+       SET is_active = NOT is_active
+       WHERE user_id = $1 AND school_id = $2
+       RETURNING is_active`,
+      [userId, schoolId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: "Membership not found." });
+    }
+
+    return res.json({ success: true, is_active: result.rows[0].is_active });
+  } catch (err) {
+    console.error("toggleUserActiveStatus error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Active students at this school, enrolled in the given term, not
+// currently assigned to ANY classroom — the actual candidate list for the
+// classroom-assignment picker (replaces the old school.students-derived
+// client-side filter, which never worked — see school-details.ejs).
+exports.getClassroomCandidates = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const schoolId = parseInt(req.params.schoolId, 10);
+  const termId = parseInt(req.params.termId, 10);
+  // Default (no param, or "false"): only genuinely unassigned students —
+  // the safe default this was built with. ?include_assigned=true opt-in
+  // also returns students already in another classroom (labeled with
+  // that classroom's name), for the real, legitimate case of moving
+  // students into a newly-created section/classroom mid-term — a school
+  // with every student in this term already assigned somewhere would
+  // otherwise have no way to do that through this picker at all.
+  const includeAssigned = req.query.include_assigned === "true";
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.fullname, u.email, us.classroom_id, c.name AS current_classroom_name
+       FROM student_term_enrollments ste
+       JOIN user_school us ON us.user_id = ste.student_id AND us.school_id = ste.school_id
+       JOIN users2 u ON u.id = ste.student_id
+       LEFT JOIN classrooms c ON c.id = us.classroom_id
+       WHERE ste.term_id = $1
+         AND us.school_id = $2
+         AND us.is_active = true
+         ${includeAssigned ? "" : "AND us.classroom_id IS NULL"}
+       ORDER BY u.fullname`,
+      [termId, schoolId]
+    );
+    return res.json({ success: true, students: result.rows });
+  } catch (err) {
+    console.error("getClassroomCandidates error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Active students at this school NOT already enrolled in the given term —
+// the candidate list for the "assign students to term" modal.
+exports.getTermCandidates = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const schoolId = parseInt(req.params.schoolId, 10);
+  const termId = parseInt(req.params.termId, 10);
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.fullname, u.email
+       FROM users2 u
+       JOIN user_school us ON u.id = us.user_id
+       WHERE us.school_id = $1
+         AND us.role_in_school = 'student'
+         AND us.is_active = true
+         AND NOT EXISTS (
+           SELECT 1 FROM student_term_enrollments ste
+           WHERE ste.student_id = u.id AND ste.term_id = $2
+         )
+       ORDER BY u.fullname`,
+      [schoolId, termId]
+    );
+    return res.json({ success: true, students: result.rows });
+  } catch (err) {
+    console.error("getTermCandidates error:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -10228,7 +10422,11 @@ exports.assignStudentsToTerm = async (req, res) => {
       [studentCount, total, term_id]
     );
 
-    res.redirect(`/admin/schools/${school_id}`);
+    // Carries the just-used term through the redirect so the Classroom
+    // tab's term selector (school-details.ejs) defaults to it instead of
+    // independently guessing "today's" term — see the comment on
+    // preferredTermId in getSchoolDetails.
+    res.redirect(`/admin/schools/${school_id}?assigned_term_id=${term_id}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error assigning students");
