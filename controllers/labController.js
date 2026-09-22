@@ -38,6 +38,12 @@ const LAB_TEMPLATES = {
     title: "Arduino Lab",
     starter: {},
   },
+  python: {
+    title: "Python Lab",
+    starter: {
+      code: 'print("Hello, world!")\n',
+    },
+  },
   appinventor: {
     title: "App Inventor Lab",
     starter: {},
@@ -122,6 +128,28 @@ exports.getWebLab = async (req, res) => {
 
   res.render("labs/web/editor", {
     title: "Web Playground",
+    users: req.session.user,
+    student,
+    levelInfo,
+    streak,
+    lessonLab,
+  });
+};
+
+exports.getPythonLab = async (req, res) => {
+  const studentId = req.session.user.id;
+
+  const studentRes = await pool.query(
+    "SELECT id, xp, coins FROM users2 WHERE id = $1",
+    [studentId]
+  );
+  const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+  const levelInfo = getLevelForXp(student.xp);
+  const streak = await getStudentStreak(studentId);
+  const lessonLab = await getLessonLabContext(req.query.labId);
+
+  res.render("labs/python/editor", {
+    title: "Python Playground",
     users: req.session.user,
     student,
     levelInfo,
@@ -554,6 +582,10 @@ async function gradeLessonLabSubmission(project, lessonLab, projectId, studentId
     submissionText = data.generatedCode?.trim()
       ? data.generatedCode
       : "(No blocks were placed — the workspace is empty.)";
+  } else if (project.lab_type === "python") {
+    submissionText = data.code?.trim()
+      ? data.code
+      : "(No code was written — the editor is empty.)";
   } else {
     submissionText = (data.pages || [])
       .map((p) => `--- ${p.name} ---\n${p.html || ""}`)

@@ -12,6 +12,8 @@ router.get("/web", labController.getWebLab);
 
 router.get("/blockly", labController.getBlocklyLab);
 
+router.get("/python", labController.getPythonLab);
+
 router.get("/arduino", labController.getArduinoLab);
 router.post("/arduino/compile", labController.compileArduinoSketch);
 

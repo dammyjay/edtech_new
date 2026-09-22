@@ -57,8 +57,11 @@ const PRECACHE_URLS = [
   "/js/markdownLite.js",
   "/labs/css/web.css",
   "/labs/css/blockly.css",
+  "/labs/css/python.css",
   "/labs/js/webLab.js",
   "/labs/js/blocklyLab.js",
+  "/labs/js/pythonLab.js",
+  "/labs/js/pythonWorker.js",
   "/labs/js/labAiTutor.js",
   "/labs/js/offlineSync.js",
   "/labs/js/blockly/engine.js",
@@ -77,14 +80,16 @@ const PRECACHE_URLS = [
   "/labs/js/blockly/generators/control.js",
 ];
 
-// Requests to these hosts (Monaco/Blockly/Font Awesome CDNs — see
-// views/labs/web/editor.ejs and views/labs/blockly/editor.ejs) are cached
-// opportunistically as they're actually requested, rather than
-// precached — Monaco's own AMD loader pulls in dozens of files at
-// runtime depending on what's used, with no fixed list to hardcode.
-const RUNTIME_CACHE_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com"];
+// Requests to these hosts (Monaco/Blockly/Font Awesome/Pyodide CDNs — see
+// views/labs/web/editor.ejs, views/labs/blockly/editor.ejs, and
+// public/labs/js/pythonWorker.js) are cached opportunistically as they're
+// actually requested, rather than precached — Monaco's own AMD loader
+// pulls in dozens of files at runtime depending on what's used, with no
+// fixed list to hardcode, and Pyodide is similar (its assets depend on
+// which packages a student's code actually imports).
+const RUNTIME_CACHE_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com", "cdn.jsdelivr.net"];
 
-const LAB_NAVIGATION_PATHS = ["/labs", "/labs/web", "/labs/blockly"];
+const LAB_NAVIGATION_PATHS = ["/labs", "/labs/web", "/labs/blockly", "/labs/python"];
 const STATIC_ASSET_PREFIXES = ["/labs/", "/js/", "/css/", "/images/"];
 
 self.addEventListener("install", (event) => {

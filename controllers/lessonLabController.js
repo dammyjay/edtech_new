@@ -8,7 +8,7 @@
 
 const pool = require("../models/db");
 
-const ALLOWED_LAB_TYPES = ["web", "blockly"];
+const ALLOWED_LAB_TYPES = ["web", "blockly", "python"];
 
 // GET /admin/lesson/:lessonId/lab
 // Unlike getOrCreateLessonQuiz, this does NOT auto-insert a blank row —

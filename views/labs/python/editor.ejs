@@ -1,0 +1,121 @@
+<%- include('../../partials/header', { title: 'Python Playground' }) %>
+
+<link rel="stylesheet" href="/labs/css/python.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+
+<% if (lessonLab) { %>
+  <script>
+    // Read by pythonLab.js's submit handler to build the "Back to Lesson" /
+    // "Proceed to Next Lesson" deep links, same pattern as Web Lab.
+    window.LESSON_MODULE_ID = <%- JSON.stringify(lessonLab.module_id || null) %>;
+  </script>
+<% } %>
+
+<div class="editor-toolbar">
+  <% if (lessonLab) { %>
+    <a href="/student/dashboard?section=module&moduleId=<%= lessonLab.module_id %>&openLesson=<%= lessonLab.lesson_id %>" class="editor-back-link" title="Back to your lesson"><i class="fas fa-arrow-left"></i> Back to Lesson</a>
+  <% } else { %>
+    <a href="/labs" class="editor-back-link" title="Back to Learning Labs"><i class="fas fa-arrow-left"></i> Labs</a>
+  <% } %>
+
+  <div class="toolbar-group">
+    <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
+  </div>
+
+  <div class="toolbar-group">
+    <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
+    <button id="resetBtn" class="tb-danger"><i class="fas fa-undo"></i> Reset</button>
+  </div>
+
+  <div class="toolbar-group">
+    <button id="fullscreenBtn"><i class="fas fa-expand"></i> Fullscreen</button>
+    <button id="exitFullscreenBtn" style="display:none"><i class="fas fa-compress"></i> Exit</button>
+  </div>
+
+  <span id="saveStatus" class="save-status">Loading Python…</span>
+</div>
+
+<% if (lessonLab) { %>
+  <div class="weblab-lesson-banner">
+    <strong>🐍 <%= lessonLab.title %></strong>
+    <% if (lessonLab.description) { %><p><%= lessonLab.description %></p><% } %>
+    <% if (lessonLab.instructions) { %>
+      <details>
+        <summary>Instructions</summary>
+        <div style="white-space:pre-wrap;"><%= lessonLab.instructions %></div>
+      </details>
+    <% } %>
+  </div>
+<% } %>
+
+<div class="weblab-stats">
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon">⭐</span>
+    <div>
+      <strong><%= levelInfo.name %></strong>
+      <small>Level <%= levelInfo.level %></small>
+    </div>
+  </div>
+
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon"><%= streak.currentStreak > 0 ? "🔥" : "💤" %></span>
+    <div>
+      <strong><%= streak.currentStreak %> day<%= streak.currentStreak === 1 ? "" : "s" %></strong>
+      <small>Streak</small>
+    </div>
+  </div>
+
+  <div class="weblab-stat">
+    <span class="weblab-stat-icon">💰</span>
+    <div>
+      <strong><%= student.coins || 0 %></strong>
+      <small>Coins</small>
+    </div>
+  </div>
+
+  <button id="submitBtn" class="weblab-submit-btn"><i class="fas fa-flag-checkered"></i> Submit Project</button>
+</div>
+
+<div class="pylab-container">
+  <div class="editor-card">
+    <div class="editor-header">🐍 <span>Python</span></div>
+    <div id="codeEditor"></div>
+  </div>
+
+  <div class="pylab-output-panel">
+    <div class="console-panel">
+      <div class="console-header">
+        <span><i class="fas fa-terminal"></i> Output</span>
+        <button id="clearConsoleBtn" title="Clear output">Clear</button>
+      </div>
+      <div id="consoleOutput"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/labs/js/offlineSync.js"></script>
+<script src="/labs/js/pythonLab.js"></script>
+
+<script>
+  // AI tutor context provider (public/labs/js/labAiTutor.js) — hands over
+  // the student's current code + latest output each time they ask a
+  // question, read fresh from the Monaco editor so it's never stale even
+  // mid-edit. Same pattern as Web Lab's editor.ejs.
+  window.LAB_AI_TUTOR_TITLE = "🤖 Python Lab Tutor";
+  window.getLabAIContext = function () {
+    try {
+      const code = window.codeEditor ? window.codeEditor.getValue() : "";
+      let context = `--- Python code ---\n${code}`;
+
+      const consoleText = (document.getElementById("consoleOutput")?.innerText || "").trim();
+      if (consoleText) context += `\n\n--- Output ---\n${consoleText}`;
+
+      return { labType: "python", code: context };
+    } catch (e) {
+      console.error("getLabAIContext error:", e);
+      return null;
+    }
+  };
+</script>
+<script src="/js/markdownLite.js"></script>
+<script src="/labs/js/labAiTutor.js"></script>

@@ -4733,7 +4733,8 @@ async function requestFiftyFifty(questionId) {
         }
 
         const lab = data.lab;
-        const editorPath = lab.lab_type === "blockly" ? "/labs/blockly" : "/labs/web";
+        const LAB_EDITOR_PATHS = { blockly: "/labs/blockly", python: "/labs/python", web: "/labs/web" };
+        const editorPath = LAB_EDITOR_PATHS[lab.lab_type] || "/labs/web";
         const openUrl = `${editorPath}?labId=${lab.id}&lessonId=${lessonId}`;
 
         const statusBadge = data.status === "submitted"
@@ -5097,7 +5098,7 @@ function renderQuizSummary() {
   const realNextActionButton = nextInfo.nextModuleUnlocked
     ? `<button class="quiz-btn quiz-btn-primary" onclick="goToNextModule(${nextInfo.nextModuleId})">🎉 Next Module</button>`
     : nextInfo.pendingLab
-      ? `<button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${nextInfo.pendingLab.lab_type === 'blockly' ? '/labs/blockly' : '/labs/web'}?labId=${nextInfo.pendingLab.id}&lessonId=${window.currentLessonId}'">🧩 Proceed to Lab Task</button>`
+      ? `<button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${({ blockly: '/labs/blockly', python: '/labs/python' }[nextInfo.pendingLab.lab_type]) || '/labs/web'}?labId=${nextInfo.pendingLab.id}&lessonId=${window.currentLessonId}'">🧩 Proceed to Lab Task</button>`
       : nextInfo.nextLessonId
         ? `<button class="quiz-btn quiz-btn-primary" onclick="loadLessonPart(${nextInfo.nextLessonId}, 'content')">➡️ Next Lesson</button>`
         : "";
