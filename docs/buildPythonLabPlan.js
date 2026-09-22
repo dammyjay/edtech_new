@@ -344,7 +344,7 @@ const doc = new Document({
         ),
         heading("2.3 Trade-offs to accept", HeadingLevel.HEADING_2),
         bullet("First-load size: the Pyodide core runtime is roughly 6–10 MB (gzipped) to download and initialize on first use; every package loaded on top adds more. This is a one-time cost per browser session (cacheable), not a per-run cost."),
-        bullet("Cold-start latency: 2–5 seconds to initialize the interpreter the first time a student opens the lab in a session. Subsequent runs in the same worker are near-instant."),
+        bullet("Cold-start latency: measured at 8–11 seconds to initialize the interpreter the first time a student opens the lab in a session (Phase 0 spike, Section 5.7) — higher than a first guess of 2–5s. Subsequent runs in the same worker are near-instant; a respawned worker after a timeout-kill reloads from browser cache in 2–5s."),
         bullet(
           "No true blocking input(): a real synchronous, blocking stdin read requires SharedArrayBuffer, which in turn requires Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy response headers. This app sets neither today (confirmed — no CSP/helmet middleware exists anywhere in the server), so student code that calls input() would hang forever with the plain async Pyodide path. Section 5 below covers the recommended workaround."
         ),
@@ -452,6 +452,22 @@ const doc = new Document({
         bodyPara(
           "For a plain IDE (Phase 1), a fresh worker per Run (or reused until it times out / errors) is simplest and matches how each Run should start from a clean interpreter state — this also sidesteps a whole class of \"leftover state from a previous run\" bugs. A notebook-style UI (Phase 2) is different: it needs one long-lived worker with a persistent Python namespace across cell executions, which is meaningfully more state to manage — this is one of the reasons Phase 2 is estimated far higher than Phase 1 (Section 9)."
         ),
+        heading("5.7 Package loading — a correction from the Phase 0 spike", HeadingLevel.HEADING_2),
+        bodyPara(
+          "Original assumption going into the spike: pyodide.runPythonAsync() auto-loads whatever packages a script imports. It does not. Calling it directly on code containing \"import numpy\" raises ModuleNotFoundError, even though numpy ships in the Pyodide distribution — Pyodide only reports that it's available and tells you how to load it. The correct call sequence, confirmed working in the spike, is pyodide.loadPackagesFromImports(code) (scans the source for import statements and fetches whichever of Pyodide's prebuilt wheels are needed) immediately before runPythonAsync(code). First load of a package like numpy took about 5 seconds in testing; already-loaded packages are instant on subsequent runs in the same worker."
+        ),
+
+        // ---------------- SPIKE RESULTS ----------------
+        calloutBox(
+          "Phase 0 spike — completed and verified (2026-09-22)",
+          [
+            "Built as a standalone page (not wired into the real app) at spike/python-lab-poc/: index.html + worker.js + a zero-dependency static server. Driven with a real headless browser, not just read for correctness.",
+            "Confirmed working: Pyodide loads and runs entirely inside a Web Worker; stdout is captured in the exact order printed and streamed back to the main thread as plain text (no innerHTML); Python tracebacks surface cleanly on error; a 10-second wall-clock timeout kills a genuine infinite loop and a freshly spawned worker is immediately usable again afterward.",
+            "Two corrections this made to the plan, both folded into the sections above: cold-start latency is 8-11s (Section 2.3), not the original 2-5s guess; and package imports need an explicit loadPackagesFromImports() call (Section 5.7), they are not automatic.",
+            "Conclusion: the core execution mechanism this whole plan depends on works as designed. No blockers found for proceeding to Phase 1.",
+          ],
+          { color: GREEN }
+        ),
 
         // ---------------- 6. UI PLAN ----------------
         heading("6. Editor UI Plan"),
@@ -507,7 +523,7 @@ const doc = new Document({
         dataTable(
           ["Phase", "Scope", "Est. effort", "Depends on"],
           [
-            ["0 — Spike", "Load Pyodide in a Worker; round-trip a print() through stdout capture back to the main thread. Proves the core mechanism before committing to the rest.", "4–6 hrs", "—"],
+            ["0 — Spike (DONE)", "Load Pyodide in a Worker; round-trip a print() through stdout capture back to the main thread. Proves the core mechanism before committing to the rest.", "~3 hrs actual", "—"],
             ["1 — IDE Lab", "All 14 core change-points (Section 4) + editor UI (6.1) + execution engine (Section 5, items 5.1–5.4) + data model (Section 7). Save/submit/AI-grading/lesson-gating, no gallery.", "3–5 days", "Phase 0"],
             ["1.5a — Rich output", "matplotlib inline PNG rendering (5.5), batch-stdin box (5.3) if deferred from Phase 1.", "~1 day", "Phase 1"],
             ["1.5b — Gallery", "Items 15–18 (gallery/showcase eligibility, filters, read-only preview rendering per 8.2).", "1–2 days", "Phase 1"],
