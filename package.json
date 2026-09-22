@@ -49,5 +49,8 @@
     "stopword": "^3.1.5",
     "web-push": "^3.6.7",
     "wordcloud2": "^1.0.0"
+  },
+  "devDependencies": {
+    "docx": "^9.7.1"
   }
 }
