@@ -205,6 +205,9 @@ const doc = new Document({
 
         // ---------------- 4. DATA MODEL ----------------
         heading("4. Data Model"),
+        bodyPara(
+          "Revised from the first draft after a real gap was raised: a task often needs more than one thing submitted (code + a screenshot + a demo video link), and different pieces need different file types — forcing everything through one generic \"file or link\" field, or forcing a zip when a single .py file would do, doesn't hold up. The fix is a per-task CHECKLIST of deliverables, each with its own accepted format, instead of one generic submission slot."
+        ),
         heading("4.1 external_projects — the assignment definition", HeadingLevel.HEADING_2),
         bodyPara("Authored by an instructor/admin. Attaches to exactly one of a lesson, module, or course — same \"one nullable FK set, the rest null\" convention this codebase already uses elsewhere."),
         bodyPara([code(
@@ -215,7 +218,13 @@ const doc = new Document({
           "  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,\n" +
           "  title VARCHAR(255) NOT NULL,\n" +
           "  instructions TEXT,\n" +
-          "  submission_mode VARCHAR(20) NOT NULL DEFAULT 'either', -- 'file' | 'github_link' | 'either'\n" +
+          "  deliverables JSONB NOT NULL,\n" +
+          "  -- [{ \"label\": \"Source code\", \"type\": \"file_or_link\",\n" +
+          "  --    \"accepted_formats\": [\"zip\",\"single_file\",\"github_link\"], \"required\": true },\n" +
+          "  --  { \"label\": \"Screenshot\", \"type\": \"file\",\n" +
+          "  --    \"accepted_formats\": [\"png\",\"jpg\"], \"required\": true },\n" +
+          "  --  { \"label\": \"Demo video\", \"type\": \"link\",\n" +
+          "  --    \"accepted_formats\": [\"youtube\",\"drive\",\"loom\"], \"required\": false }]\n" +
           "  rubric JSONB NOT NULL, -- [{ \"criterion\": \"...\", \"weight\": 30 }, ...] — weights sum to 100\n" +
           "  points INTEGER DEFAULT 10,\n" +
           "  created_by INTEGER REFERENCES users2(id),\n" +
@@ -223,7 +232,7 @@ const doc = new Document({
           ");"
         )]),
         bodyPara(
-          "rubric is a real, structured field the instructor fills in when creating the assignment — not text the AI has to guess at parsing out of a paragraph, which is the single biggest quality problem with the existing assignment_submissions grader (Section 2.1)."
+          "rubric is a real, structured field the instructor fills in when creating the assignment — not text the AI has to guess at parsing out of a paragraph, which is the single biggest quality problem with the existing assignment_submissions grader (Section 2.1). deliverables is the checklist the student sees and submits against — a code-only task lists just one item; a fuller project can list several, each accepting only what actually makes sense for it (no forced zip for a single file, no forced file upload for a video that should just be a link)."
         ),
         heading("4.2 external_project_submissions — one row per submission", HeadingLevel.HEADING_2),
         bodyPara([code(
@@ -231,9 +240,11 @@ const doc = new Document({
           "  id SERIAL PRIMARY KEY,\n" +
           "  external_project_id INTEGER REFERENCES external_projects(id) ON DELETE CASCADE,\n" +
           "  student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,\n" +
-          "  submission_type VARCHAR(20) NOT NULL, -- 'file' | 'github_link'\n" +
-          "  file_url TEXT,\n" +
-          "  github_url TEXT,\n" +
+          "  attachments JSONB NOT NULL,\n" +
+          "  -- [{ \"label\": \"Source code\", \"type\": \"github_link\", \"url\": \"https://github.com/...\" },\n" +
+          "  --  { \"label\": \"Screenshot\", \"type\": \"file\", \"url\": \"https://res.cloudinary.com/...\" }]\n" +
+          "  -- one entry per deliverable the student actually provided, matched\n" +
+          "  -- by label back to external_projects.deliverables\n" +
           "  notes TEXT, -- student's own write-up, optional\n" +
           "  status VARCHAR(20) NOT NULL DEFAULT 'grading', -- 'grading' | 'graded' | 'grading_failed'\n" +
           "  score INTEGER,\n" +
@@ -251,9 +262,11 @@ const doc = new Document({
 
         // ---------------- 5. SUBMISSION FLOW ----------------
         heading("5. Submission Flow"),
-        bullet("Student opens the assignment (wherever it's attached — a lesson tab, a module page, or a course page) and sees the title, instructions, and the rubric criteria (so they know exactly what they're being graded on before submitting — a real improvement over today's buried-in-a-paragraph rubric)."),
-        bullet("Two submission paths, matching submission_mode: (a) File upload — reuses the exact existing Cloudinary/multer pattern already used for assignment file uploads and lesson slide uploads, no new upload infrastructure needed. (b) GitHub link — a plain URL field, validated to look like a real github.com repo URL."),
-        bullet("Optional notes field — the student's own explanation of what they built and how to evaluate it, exactly like the existing description field, just optional here since the actual artifact (file/repo) is what's graded, not a written summary."),
+        bullet("Student opens the task (wherever it's attached — a lesson tab, a module page, or a course page) and sees the title, instructions, the rubric criteria, AND the deliverables checklist — exactly what's expected, item by item, before they submit anything."),
+        bullet("The page shows one upload/link box per deliverable, each only accepting what that item's accepted_formats allows — a code box takes a zip, a single file, or a GitHub link; a screenshot box only takes an image; a video item is a link field only (video files are too large to sensibly upload directly, and a link to YouTube/Drive/Loom is the realistic way students already share video)."),
+        bullet("File uploads reuse the exact existing Cloudinary/multer pattern already used for assignment file uploads and lesson slide uploads elsewhere in this app — no new upload infrastructure needed, just one upload field per deliverable instead of one generic field."),
+        bullet("Optional notes field — the student's own explanation of what they built, same as today's assignment flow, just optional here since the actual artifacts are what's graded."),
+        bullet("Required deliverables are enforced before submit is even allowed; optional ones (like that demo video) can be left out without blocking submission."),
         bullet("On submit: insert a row (status='grading'), respond immediately to the student (\"Submitted — grading now\"), then grade asynchronously and update the row — unlike the current assignment flow, which blocks the HTTP request on a synchronous AI call. Avoids a slow/failed AI call turning into a failed submission from the student's point of view."),
 
         // ---------------- 6. GATHERING CONTENT TO GRADE ----------------
@@ -262,16 +275,27 @@ const doc = new Document({
         bodyPara(
           "The biggest real gap in the existing system (Section 2.1): a file gets uploaded and then never looked at. Fixing that is the actual new engineering work here — everything else is assembling patterns already proven elsewhere in this codebase."
         ),
-        heading("6.1 File submissions", HeadingLevel.HEADING_2),
         bodyPara(
-          "The uploaded file already lives at a Cloudinary URL (file_url) the instant multer/CloudinaryStorage finishes the upload — same as today. To grade it: the server fetches that URL's bytes (a plain HTTP GET the server makes to Cloudinary, not executing anything), and if it's a recognizable text/code file (by extension: .py, .js, .md, .txt, .json, .html, .css, a small .zip's member list) reads its text content, capped at a size limit (e.g. 20,000 characters) before handing it to the AI prompt. Binary or unrecognized files fall back to grading on the student's notes plus the file's name/type alone, with the AI told explicitly that it couldn't read the file content."
+          "Each deliverable in the checklist (Section 4.1) is gathered by its own type — a code submission is read very differently from a screenshot. The grading step goes through every attachment on the submission and builds up whatever content it can, then hands the AI everything it managed to gather plus an honest note about anything it couldn't read."
         ),
-        bullet("A .zip is the realistic case for a small multi-file project (a Flask app, a Dockerized service): extract the file list plus the content of a few conventionally-important files if present — README.md, requirements.txt/package.json, app.py/main.py/server.py — capped the same way. Extraction only (reading bytes), never running anything inside the archive."),
-        heading("6.2 GitHub link submissions", HeadingLevel.HEADING_2),
+        heading("6.1 Code — file, zip, or GitHub link", HeadingLevel.HEADING_2),
         bodyPara(
-          "GitHub's REST API is read-only-safe to call server-side (a GET request for metadata/file contents — never a code execution risk, the same category of action this app already takes calling third-party APIs elsewhere): fetch the repo's file tree, then the README and a handful of key files by the same convention as above, capped the same way. No auth token needed for public repos (v1 scope); a private-repo submission would need the student to grant read access some way — flagged as an open decision (Section 10), not solved here."
+          "A single uploaded file already lives at a Cloudinary URL the instant multer/CloudinaryStorage finishes the upload — same as today. The server fetches that URL's bytes (a plain HTTP GET the server makes to Cloudinary, not executing anything) and reads it as text if it's a recognizable code/text extension (.py, .js, .md, .txt, .json, .html, .css), capped at a size limit (e.g. 20,000 characters) before it goes into the AI prompt."
         ),
-        heading("6.3 What this deliberately does NOT do", HeadingLevel.HEADING_2),
+        bullet("A .zip (the realistic case for a small multi-file project — a Flask app, a Dockerized service): extract the file list plus the content of a few conventionally-important files if present — README.md, requirements.txt/package.json, app.py/main.py/server.py — capped the same way. Extraction only (reading bytes), never running anything inside the archive."),
+        bullet("A GitHub link: GitHub's REST API is read-only-safe to call server-side (a GET request for metadata/file contents — never a code execution risk, the same category of action this app already takes calling third-party APIs elsewhere) — fetch the repo's file tree, then the README and the same conventionally-important files, capped the same way. No auth token needed for public repos (v1 scope); a private-repo submission needs a separate decision (Section 10)."),
+        heading("6.2 Screenshots and reports", HeadingLevel.HEADING_2),
+        bodyPara(
+          "A PDF or Word doc (e.g. a written report deliverable) has its text extracted server-side the same safe way — reading, never executing — and capped the same way as code."
+        ),
+        bodyPara(
+          "An image (e.g. a required \"screenshot showing it running\") can only be genuinely graded if the AI model in use can actually see images, not just read text — worth confirming which model/plan this account has access to before promising this works (flagged in Section 10). If it can't, the image is still accepted and stored, just noted to the AI as \"a screenshot was attached but its visual content isn't analyzed\" rather than silently ignored the way an uploaded file is ignored in the existing assignment grader today."
+        ),
+        heading("6.3 Video", HeadingLevel.HEADING_2),
+        bodyPara(
+          "A video link (YouTube/Drive/Loom) isn't something a text-based AI grader can meaningfully watch. Realistic v1 scope: video deliverables are accepted and shown to a teacher during review (Section 9), but aren't scored automatically as part of the AI's rubric pass — the AI grades what it can actually read, and the submission's status/UI makes clear that item is \"awaiting teacher review\" rather than silently scoring it as if it had been evaluated."
+        ),
+        heading("6.4 What this deliberately does NOT do", HeadingLevel.HEADING_2),
         bodyPara(
           "It never runs, imports, installs, or executes anything the student submitted — consistent with the posture held everywhere else in this app all session (Web/Blockly/Python Labs run only in the student's own browser; Arduino only compiles, never executes, server-side). Grading here is entirely a text-reading exercise: the AI reads code the same way a human reviewer would skim a pull request, it never runs it. This is exactly why option 3 from the earlier discussion (a real sandboxed execution service, actually running the Flask app / Docker build) is a materially bigger, separate decision — this design deliberately stays inside the same safe, established pattern instead."
         ),
@@ -300,7 +324,18 @@ const doc = new Document({
         // ---------------- 8. AUTHORING SIDE ----------------
         heading("8. Authoring Side (Instructor/Admin)"),
         bodyPara(
-          "A \"Manage External Project\" modal, structurally the same shape as the existing Lab Task modal (views/partials/lessons.ejs) and Assignment modal (views/partials/courseAssignment.ejs) this codebase already has two working examples of: title, instructions, a repeatable rubric-row UI (criterion text + weight number, add/remove rows, client-side validated to sum to 100), submission_mode selector, points. One new piece not present in either existing modal: which LEVEL it attaches to (lesson / module / course) — a simple selector plus the relevant id, mirroring how lesson_labs already scopes to exactly one lesson today."
+          "A \"Manage External Project\" modal, structurally the same shape as the existing Lab Task modal (views/partials/lessons.ejs) and Assignment modal (views/partials/courseAssignment.ejs) this codebase already has two working examples of: title, instructions, a repeatable rubric-row UI (criterion text + weight number, add/remove rows, client-side validated to sum to 100), points, and which LEVEL it attaches to (lesson / module / course) — mirroring how lesson_labs already scopes to exactly one lesson today."
+        ),
+        bodyPara(
+          "New beyond either existing modal: a second repeatable row UI for the deliverables checklist itself — each row is a label (\"Source code\"), a type (file / link / file-or-link), which formats it accepts, and a required/optional toggle. This is what actually drives the student's submission page (Section 5) and what each deliverable is matched against during grading (Section 6)."
+        ),
+        heading("8.1 Sandbox tasks and submit-your-own-work tasks sit side by side", HeadingLevel.HEADING_2),
+        bodyPara(
+          "This isn't something the platform needs to detect at runtime — it's an authoring decision, made once per lesson/module/course. A lesson can have a Lab Task (lesson_labs — opens the in-browser Web/Blockly/Python editor, clearly labeled e.g. \"🧪 Work in the Sandbox\") and/or an External Project task (external_projects — clearly labeled e.g. \"📤 Submit Your Project — build this outside the lab\"), and a student only ever sees whichever one(s) the instructor actually attached. For anything on the can't-run-in-a-browser list (a real web server, Docker, OS-level automation — see the earlier Python-curriculum feasibility discussion), the instructor simply doesn't attach a Lab Task at all for that lesson, only an External Project — so there's nothing ambiguous for the student to choose between."
+        ),
+        heading("8.2 Guiding students on how to prepare and submit", HeadingLevel.HEADING_2),
+        bodyPara(
+          "Reuses an existing feature rather than inventing a new one: this codebase already has a learning_guides table (guide_type, title, description, video_url, sample_question, sample_submission) used today to show students a help video + worked example for a task type. A new guide_type='external_project' row — written once by an admin — gives every external-project submission page the same reusable \"how to zip your project,\" \"how to push to GitHub and share the link,\" \"how to get a shareable video link\" walkthrough, plus a sample_submission showing what a genuinely good submission looks like. Instructors authoring an individual task don't have to re-explain this every time; they only write the task-specific instructions and rubric."
         ),
 
         // ---------------- 9. TEACHER OVERRIDE ----------------
@@ -314,7 +349,9 @@ const doc = new Document({
         heading("10. Open Decisions"),
         bullet("Private GitHub repos — v1 scope is public repos only (no auth needed to read them). Supporting private repos needs the student to either make the repo temporarily public, add a bot account as a collaborator, or go through GitHub OAuth — a real added-scope decision, not solved in this design."),
         bullet("Async grading delivery — how does the student find out a grade landed after they've left the page? Reuse the existing notifyUser() in-app notification pattern (already proven for lab and assignment grading) is the obvious default; confirm before building."),
-        bullet("Zip extraction depth/size limits — exact caps (max files inspected, max characters per file, max total zip size) need to be picked deliberately, balancing grading quality against AI prompt size/cost."),
+        bullet("Zip/PDF extraction depth and size limits — exact caps (max files inspected, max characters per file, max total size) need to be picked deliberately, balancing grading quality against AI prompt size/cost."),
+        bullet("Image grading capability — whether the AI model/plan this account has access to can actually see and assess an uploaded screenshot, or only read text. Confirm before promising screenshot deliverables are graded rather than just stored (Section 6.2)."),
+        bullet("Video review workflow — since video deliverables aren't AI-scored (Section 6.3), confirm how a teacher is meant to be prompted to actually watch and score one — a queue item, a manual flag, or folded into the existing grading-queue view (Section 9)."),
         bullet("Where this shows up per course — does every course get an \"External Projects\" tab by default, or is it opt-in per course/module the way Lab Tasks and Assignments already are? Recommend opt-in, matching the existing pattern."),
         bullet("Module completion gating — should a graded (or merely submitted) external project gate module/course completion the way assignment_submissions currently does? A real product decision, not a technical one."),
 
