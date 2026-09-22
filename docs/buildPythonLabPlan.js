@@ -436,9 +436,12 @@ const doc = new Document({
         bodyPara(
           "Pyodide exposes setStdout / setStderr callback hooks. Point both at postMessage calls back to the main thread, which appends lines to the same kind of #consoleOutput panel Web Lab already renders (Web Lab writes console entries via line.textContent = ..., not innerHTML — the same XSS-safe approach applies here, since student-printed output must never be interpreted as HTML)."
         ),
-        heading("5.3 input() and stdin", HeadingLevel.HEADING_2),
+        heading("5.3 input() and stdin — implemented and shipped", HeadingLevel.HEADING_2),
         bodyPara(
-          "True blocking input() needs SharedArrayBuffer, which needs COOP/COEP headers this app does not set (and adding them site-wide is out of scope for a labs feature and could break unrelated pages/CDN embeds). Recommended v1 approach: a simple \"Stdin\" textarea in the toolbar where a student pre-types the lines their program will read, matching a common simplified-classroom-sandbox pattern; the worker feeds those lines to input() calls in order via a small shim, and a call past the last provided line raises a clear \"no more input provided\" error rather than hanging silently. This is a scoping choice, not a technical blocker — flagged again in Section 10."
+          "Confirmed directly (not assumed): Pyodide's pyodide.setStdin({ stdin }) callback must return synchronously. A version returning a Promise — to genuinely pause a script mid-run and wait for a student to type an answer, then resume exactly where it left off — was tested against Pyodide 0.26.4 and does not work; Pyodide does not await it, and raises the same OSError [Errno 29] immediately. True one-prompt-at-a-time interactive input is only achievable by enabling SharedArrayBuffer via COOP/COEP response headers, which was evaluated and deliberately not pursued for v1: those headers require every cross-origin resource the page loads (Monaco from cdnjs, Pyodide from jsdelivr, Font Awesome) to explicitly cooperate or be blocked, an app-wide risk needing careful, separate testing before it could be trusted on a production page."
+        ),
+        bodyPara(
+          "Shipped instead: an \"Input\" textarea above the console panel where a student pre-types the lines their program will read, one per input() call, in order. The worker feeds those lines synchronously via the callback above; a call past the last provided line raises a real EOFError — the exact same error a `python script.py < input.txt` gets from running out of input, not an invented message. This covers every input()-using program, including loops with a variable number of prompts, since the student decides how many lines to provide. Persisted as part of project_data alongside code, so it survives save/reload."
         ),
         heading("5.4 Runaway-code protection", HeadingLevel.HEADING_2),
         bodyPara(
@@ -448,9 +451,12 @@ const doc = new Document({
         bodyPara(
           "Pyodide supports matplotlib with a non-interactive Agg backend that can render a figure to a base64 PNG string, postMessage'd back and displayed inline below the console panel. Not required for a first ship; a natural, self-contained add-on once the base editor works, since it touches only the worker script and the output-rendering code, nothing else in this plan."
         ),
-        heading("5.6 Persistent worker vs. respawn-per-run", HeadingLevel.HEADING_2),
+        heading("5.6 Persistent worker vs. respawn-per-run — shipped as always-fresh", HeadingLevel.HEADING_2),
         bodyPara(
-          "For a plain IDE (Phase 1), a fresh worker per Run (or reused until it times out / errors) is simplest and matches how each Run should start from a clean interpreter state — this also sidesteps a whole class of \"leftover state from a previous run\" bugs. A notebook-style UI (Phase 2) is different: it needs one long-lived worker with a persistent Python namespace across cell executions, which is meaningfully more state to manage — this is one of the reasons Phase 2 is estimated far higher than Phase 1 (Section 9)."
+          "Shipped as: a fresh worker after every single Run, not just after a timeout-kill. This was tightened from an earlier \"reused until it errors\" draft after a real bug surfaced in testing: Pyodide can leave internal state behind between separate runPythonAsync() calls in the same worker — specifically, an un-flushed partial stdout line (e.g. an input() prompt printed with no trailing newline, right before the run then errors) stayed buffered and bled into the next run's output as duplicated, concatenated text. Respawning fresh every time sidesteps this whole bug class outright. Cost: each Run now waits for a worker respawn afterward (fast, warm-cache reload, usually hidden behind the student's natural look-at-output pause) before the next Run is clickable — the button is visibly disabled during that window, never silently unresponsive."
+        ),
+        bodyPara(
+          "A notebook-style UI (Phase 2) is different: it needs one long-lived worker with a persistent Python namespace across cell executions, which is meaningfully more state to manage — this is one of the reasons Phase 2 is estimated far higher than Phase 1 (Section 9)."
         ),
         heading("5.7 Package loading — a correction from the Phase 0 spike", HeadingLevel.HEADING_2),
         bodyPara(
@@ -540,7 +546,7 @@ const doc = new Document({
         heading("10. Open Decisions"),
         bodyPara("Flagged here for a decision before implementation starts — not assumed or acted on in this document."),
         bullet("Gallery/publish in v1 or later — recommendation is later (Section 8.1); confirm before scoping Phase 1's exact boundary."),
-        bullet("stdin handling — pre-typed batch textarea (5.3, recommended) vs. disallowing input() entirely in v1 with a clear error message vs. deferring any stdin support until real classroom need appears."),
+        bullet("stdin handling — DECIDED and shipped: pre-typed batch textarea (5.3). Real interactive one-prompt-at-a-time input would need SharedArrayBuffer/COOP/COEP, evaluated and deliberately not pursued for v1 (5.3)."),
         bullet("Default package preload — ship with just core Pyodide (~6-8 MB) and lazy-load numpy/pandas/matplotlib only when a student's code imports them, vs. preloading the common ones up front at the cost of a larger first load. Lazy-load is the lighter default; worth confirming against the intended curriculum (a pure intro-to-Python course may never need them at all)."),
         bullet("Execution timeout length — 10-15 seconds suggested, matching Arduino's 15-second compile timeout precedent; may want to differ since Python programs can legitimately run longer for compute-heavy examples."),
 

@@ -50,18 +50,37 @@ self.onmessage = async (event) => {
       // input() has no real stdin by default in a Worker — raises OSError
       // [Errno 29] the instant a script calls it. Feed it pre-typed lines
       // instead: since they're all known up front, this callback returns
-      // synchronously, no SharedArrayBuffer needed. Returning null past the
-      // last line raises the same EOFError a real `python script.py <
-      // input.txt` running out of input gets. Confirmed working against
-      // Pyodide 0.26.4 here before this shipped in the real Python Lab
-      // (public/labs/js/pythonWorker.js).
+      // synchronously, no SharedArrayBuffer needed.
+      //
+      // Confirmed by direct testing (this spike) that this is the ONLY
+      // option available without SharedArrayBuffer/COOP/COEP: Pyodide's
+      // setStdin callback must return synchronously — returning a Promise
+      // (to genuinely pause the script and wait for a user to type an
+      // answer, then resume) is not awaited at all; Pyodide treats the
+      // non-string return as invalid and raises the same OSError
+      // immediately. True one-prompt-at-a-time interactive input is not
+      // achievable here without enabling SharedArrayBuffer app-wide, which
+      // was evaluated and deliberately not pursued (real risk of breaking
+      // the Monaco/Pyodide CDN loads under COEP without further testing).
+      //
+      // Returning null past the last provided line raises the same
+      // EOFError a real `python script.py < input.txt` running out of
+      // input gets — a clear, standard failure instead of the OSError.
       const lines = (stdinLines || []).slice();
       pyodide.setStdin({ stdin: () => (lines.length ? lines.shift() : null) });
 
+      // runPythonAsync does NOT auto-load a script's imported packages —
+      // confirmed the hard way in this spike. Without this line,
+      // "import numpy" raises ModuleNotFoundError even though numpy ships
+      // in the Pyodide distribution; this scans the source for import
+      // statements and fetches whichever prebuilt wheels are actually
+      // needed (once — cached for later runs in this same worker).
       await pyodide.loadPackagesFromImports(code);
       await pyodide.runPythonAsync(code);
       postMessage({ type: "done", runMs: Math.round(performance.now() - t0) });
     } catch (err) {
+      // Pyodide surfaces Python tracebacks as the JS error's message —
+      // exactly what a student needs to see to debug their own code.
       postMessage({ type: "run-error", message: String(err && err.message ? err.message : err) });
     }
   }

@@ -40,6 +40,11 @@
   .line-stderr { color: #d64545; }
   .line-meta { color: #888; font-style: italic; }
   footer { flex: none; padding: 8px 12px; font-size: 12px; color: #666; background: #eee9dc; }
+  #stdinInput {
+    flex: none; height: 48px; border: none; border-top: 1px solid #ddd; padding: 8px 12px;
+    font: 12px/1.4 Consolas, monospace; resize: none; outline: none;
+  }
+  .stdin-label { font-size: 10px; color: #888; padding: 4px 12px 0; flex: none; }
 </style>
 </head>
 <body>
@@ -63,13 +68,16 @@ print("done")
     <div class="pane">
       <div class="pane-label">Output</div>
       <div id="consoleOutput"></div>
+      <div class="stdin-label">Input (one value per line, for each input() call, in order) — Pyodide's stdin must return synchronously, so this has to be filled in before Run, not prompted live; see worker.js's comment.</div>
+      <textarea id="stdinInput" placeholder="e.g.&#10;87"></textarea>
     </div>
   </main>
   <footer>
-    Try the "Infinite loop" / "Import numpy" buttons below the editor via the console — or just edit the code and hit Run.
+    Try the example buttons below, or just edit the code and hit Run.
     <button id="infiniteLoopBtn" style="margin-left:8px;">Load infinite-loop example</button>
     <button id="numpyBtn">Load numpy example</button>
     <button id="errorBtn">Load traceback example</button>
+    <button id="inputBtn">Load input() example</button>
   </footer>
 
 <script>
@@ -106,18 +114,19 @@ print("done")
         appendLine(msg.line, "line-stdout");
       } else if (msg.type === "stderr") {
         appendLine(msg.line, "line-stderr");
-      } else if (msg.type === "done") {
+      } else if (msg.type === "done" || msg.type === "run-error") {
         clearTimeout(timeoutHandle);
         running = false;
-        runBtn.disabled = false;
-        appendLine(`[finished in ${msg.runMs}ms]`, "line-meta");
-        statusLine.textContent = "Ready";
-      } else if (msg.type === "run-error") {
-        clearTimeout(timeoutHandle);
-        running = false;
-        runBtn.disabled = false;
-        appendLine(msg.message, "line-stderr");
-        statusLine.textContent = "Ready (last run errored)";
+        if (msg.type === "done") appendLine(`[finished in ${msg.runMs}ms]`, "line-meta");
+        else appendLine(msg.message, "line-stderr");
+        // Fresh worker after every run — a run that errors right after an
+        // un-flushed partial stdout line (e.g. an input() prompt with no
+        // trailing newline) can otherwise bleed into the next run's
+        // output. See public/labs/js/pythonLab.js for the same fix.
+        runBtn.disabled = true;
+        statusLine.textContent = "Restarting…";
+        worker.terminate();
+        spawnWorker();
       }
     };
     worker.onerror = (e) => {
@@ -133,7 +142,9 @@ print("done")
     consoleOutput.innerHTML = "";
     statusLine.textContent = "Running…";
 
-    worker.postMessage({ type: "run", code: codeInput.value });
+    const stdinRaw = document.getElementById("stdinInput").value;
+    const stdinLines = stdinRaw ? stdinRaw.split("\n") : [];
+    worker.postMessage({ type: "run", code: codeInput.value, stdinLines });
 
     // Wall-clock timeout — a worker can't be gracefully interrupted
     // mid-execution without SharedArrayBuffer (unavailable here, see plan
@@ -157,6 +168,10 @@ print("done")
   });
   document.getElementById("errorBtn").addEventListener("click", () => {
     codeInput.value = "def boom():\n    return 1 / 0\n\nprint(\"before\")\nboom()\nprint(\"after (never reached)\")\n";
+  });
+  document.getElementById("inputBtn").addEventListener("click", () => {
+    codeInput.value = 'score = float(input("Enter the score (0-100): "))\nif score >= 90:\n    grade = "A"\nelif score >= 80:\n    grade = "B"\nelse:\n    grade = "C or below"\nprint(f"Grade: {grade}")\n';
+    document.getElementById("stdinInput").value = "87";
   });
 
   spawnWorker();
