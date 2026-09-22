@@ -348,26 +348,63 @@ async function getLearningAnalytics(bounds) {
       (SELECT COUNT(*) FROM lessons) total_lessons
   `);
 
+  // Each of the four branches below (enrollments, school/user_school,
+  // module->lesson->progress, certificates) is joined only to `c`, not to
+  // each other — so joining them all directly at the same level, as this
+  // query used to, produces their FULL CARTESIAN PRODUCT per course (e.g.
+  // 200 enrollments x 50 school/user_school matches x 500 module/lesson/
+  // progress rows x 100 certificates = 500 million intermediate rows for
+  // one course) before GROUP BY ever collapses it back down. That's what
+  // was spilling a temp file large enough to exhaust the DB's disk
+  // ("no space left on device" out of getLearningAnalytics). Pre-aggregate
+  // each branch to one row per course_id first, so joining them together
+  // is 1:1:1:1 instead of a fan-out.
   const courseStats = await pool.query(`
-    WITH ${EFFECTIVE_ENROLLMENTS_CTE}
+    WITH ${EFFECTIVE_ENROLLMENTS_CTE},
+    enrollment_counts AS (
+      SELECT course_id, COUNT(DISTINCT user_id) AS enrollments
+      FROM effective_enrollments
+      GROUP BY course_id
+    ),
+    school_counts AS (
+      SELECT
+        sc.course_id,
+        COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN us.user_id END) AS school_learners,
+        COUNT(DISTINCT sc.school_id) AS schools
+      FROM school_courses sc
+      LEFT JOIN user_school us ON us.school_id = sc.school_id
+      GROUP BY sc.course_id
+    ),
+    module_lesson_counts AS (
+      SELECT
+        m.course_id,
+        COUNT(DISTINCT m.id) AS modules,
+        COUNT(DISTINCT l.id) AS lessons,
+        COUNT(DISTINCT ulp.id) AS lesson_completions
+      FROM modules m
+      LEFT JOIN lessons l ON l.module_id = m.id
+      LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id
+      GROUP BY m.course_id
+    ),
+    certificate_counts AS (
+      SELECT course_id, COUNT(DISTINCT id) AS certificates
+      FROM user_certificates
+      GROUP BY course_id
+    )
     SELECT
       c.id, c.title,
-      COUNT(DISTINCT ee.user_id) AS enrollments,
-      COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN us.user_id END) AS school_learners,
-      COUNT(DISTINCT sc.school_id) AS schools,
-      COUNT(DISTINCT m.id) AS modules,
-      COUNT(DISTINCT l.id) AS lessons,
-      COUNT(DISTINCT ulp.id) AS lesson_completions,
-      COUNT(DISTINCT uc.id) AS certificates
+      COALESCE(ec.enrollments, 0) AS enrollments,
+      COALESCE(sco.school_learners, 0) AS school_learners,
+      COALESCE(sco.schools, 0) AS schools,
+      COALESCE(mlc.modules, 0) AS modules,
+      COALESCE(mlc.lessons, 0) AS lessons,
+      COALESCE(mlc.lesson_completions, 0) AS lesson_completions,
+      COALESCE(cc.certificates, 0) AS certificates
     FROM courses c
-    LEFT JOIN effective_enrollments ee ON ee.course_id = c.id
-    LEFT JOIN school_courses sc ON sc.course_id = c.id
-    LEFT JOIN user_school us ON us.school_id = sc.school_id
-    LEFT JOIN modules m ON m.course_id = c.id
-    LEFT JOIN lessons l ON l.module_id = m.id
-    LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id
-    LEFT JOIN user_certificates uc ON uc.course_id = c.id
-    GROUP BY c.id
+    LEFT JOIN enrollment_counts ec ON ec.course_id = c.id
+    LEFT JOIN school_counts sco ON sco.course_id = c.id
+    LEFT JOIN module_lesson_counts mlc ON mlc.course_id = c.id
+    LEFT JOIN certificate_counts cc ON cc.course_id = c.id
     ORDER BY enrollments DESC
   `);
 
