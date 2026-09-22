@@ -38,7 +38,7 @@ function loadPyodideOnce() {
 }
 
 self.onmessage = async (event) => {
-  const { type, code } = event.data;
+  const { type, code, stdinLines } = event.data;
 
   if (type === "init") {
     try {
@@ -53,6 +53,23 @@ self.onmessage = async (event) => {
   if (type === "run") {
     try {
       const pyodide = await loadPyodideOnce();
+
+      // input() has no real stdin to read from by default in a Worker —
+      // Pyodide raises OSError [Errno 29] the instant a script calls it,
+      // which reads as a broken interpreter rather than "this program
+      // wants input." Feed it the student's pre-typed lines (the Stdin
+      // box in the editor) instead: since every line is already known up
+      // front, this callback can return synchronously — no
+      // SharedArrayBuffer / blocking-read machinery needed (this app sets
+      // no COOP/COEP headers, so that path isn't available anyway).
+      // Returning null past the last line raises the same EOFError a real
+      // Python script gets from `python script.py < input.txt` running out
+      // of input — a clear, standard failure instead of the OSError.
+      // Verified against Pyodide 0.26.4 directly (spike/python-lab-poc)
+      // before wiring in here.
+      const lines = (stdinLines || []).slice();
+      pyodide.setStdin({ stdin: () => (lines.length ? lines.shift() : null) });
+
       // runPythonAsync does NOT auto-load a script's imported packages —
       // confirmed the hard way in the Phase 0 spike. Without this line,
       // "import numpy" raises ModuleNotFoundError even though numpy ships

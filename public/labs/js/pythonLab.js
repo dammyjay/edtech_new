@@ -78,17 +78,24 @@ function spawnWorker() {
       appendConsoleEntry(msg.line, "stdout");
     } else if (msg.type === "stderr") {
       appendConsoleEntry(msg.line, "stderr");
-    } else if (msg.type === "done") {
+    } else if (msg.type === "done" || msg.type === "run-error") {
       clearTimeout(runTimeoutHandle);
       running = false;
-      document.getElementById("runBtn").disabled = false;
-      setStatus("Ready");
-    } else if (msg.type === "run-error") {
-      clearTimeout(runTimeoutHandle);
-      running = false;
-      document.getElementById("runBtn").disabled = false;
-      appendConsoleEntry(msg.message, "error");
-      setStatus("Ready");
+      if (msg.type === "run-error") appendConsoleEntry(msg.message, "error");
+
+      // Respawn a fresh worker after every run, not just after a
+      // timeout-kill — matches the plan doc's Section 5.6 recommendation
+      // for Phase 1. Pyodide can leave state behind between separate
+      // runPythonAsync() calls in the same worker (e.g. an un-flushed
+      // partial stdout line from a run that errored right after a
+      // no-newline input() prompt bleeds into the next run's output) —
+      // a fresh interpreter per Run avoids that whole bug class. Usually
+      // invisible: the respawn happens during the student's natural
+      // look-at-output pause, and reloads fast from browser cache after
+      // the first load.
+      document.getElementById("runBtn").disabled = true;
+      worker.terminate();
+      spawnWorker();
     }
   };
 
@@ -110,7 +117,9 @@ function runCode() {
   document.getElementById("consoleOutput").innerHTML = "";
   setStatus("Running…");
 
-  worker.postMessage({ type: "run", code: window.codeEditor.getValue() });
+  const stdinRaw = document.getElementById("stdinInput").value;
+  const stdinLines = stdinRaw ? stdinRaw.split("\n") : [];
+  worker.postMessage({ type: "run", code: window.codeEditor.getValue(), stdinLines });
 
   runTimeoutHandle = setTimeout(() => {
     appendConsoleEntry(`[Timed out after ${RUN_TIMEOUT_MS / 1000}s — stopped. Check for an infinite loop.]`, "error");
@@ -127,7 +136,10 @@ async function saveProject(manual) {
 
   const payload = {
     projectId: window.currentProjectId,
-    projectData: { code: window.codeEditor.getValue() },
+    projectData: {
+      code: window.codeEditor.getValue(),
+      stdin: document.getElementById("stdinInput").value,
+    },
   };
 
   try {
@@ -178,8 +190,9 @@ async function initLab() {
     window.labSubmissionCount = data.submissionCount || 0;
     window.currentProjectStatus = data.project.status;
 
-    const code = (data.project.project_data && data.project.project_data.code) || STARTER_TEMPLATE.code;
-    window.codeEditor.setValue(code);
+    const projectData = data.project.project_data || {};
+    window.codeEditor.setValue(projectData.code || STARTER_TEMPLATE.code);
+    document.getElementById("stdinInput").value = projectData.stdin || "";
 
     window.autoSaveEnabled = true;
   } catch (err) {
@@ -222,9 +235,12 @@ require(["vs/editor/editor.main"], function () {
     if (!confirmed) return;
 
     window.codeEditor.setValue(STARTER_TEMPLATE.code);
+    document.getElementById("stdinInput").value = "";
     autoSave();
     showToast("Project reset to starter template.", "success");
   });
+
+  document.getElementById("stdinInput").addEventListener("input", autoSave);
 
   document.getElementById("fullscreenBtn").addEventListener("click", () => {
     document.querySelector(".pylab-container").requestFullscreen().catch(() => {

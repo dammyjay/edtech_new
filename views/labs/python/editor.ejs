@@ -83,6 +83,13 @@
   </div>
 
   <div class="pylab-output-panel">
+    <div class="pylab-stdin-panel">
+      <div class="pylab-stdin-header">
+        <span><i class="fas fa-keyboard"></i> Input <small>(one value per line, for each <code>input()</code> call, in order)</small></span>
+      </div>
+      <textarea id="stdinInput" placeholder="e.g.&#10;87&#10;Ada"></textarea>
+    </div>
+
     <div class="console-panel">
       <div class="console-header">
         <span><i class="fas fa-terminal"></i> Output</span>
@@ -106,6 +113,9 @@
     try {
       const code = window.codeEditor ? window.codeEditor.getValue() : "";
       let context = `--- Python code ---\n${code}`;
+
+      const stdin = (document.getElementById("stdinInput")?.value || "").trim();
+      if (stdin) context += `\n\n--- Input values provided (for input() calls, in order) ---\n${stdin}`;
 
       const consoleText = (document.getElementById("consoleOutput")?.innerText || "").trim();
       if (consoleText) context += `\n\n--- Output ---\n${consoleText}`;

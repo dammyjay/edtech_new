@@ -19,11 +19,6 @@ function loadPyodideOnce() {
       importScripts(PYODIDE_CDN_BASE + "pyodide.js");
       const pyodide = await self.loadPyodide({ indexURL: PYODIDE_CDN_BASE });
 
-      // Line-buffered stdout/stderr capture — postMessage each completed
-      // line back to the main thread's console panel. Matches Web Lab's
-      // "never use innerHTML for printed output" rule (buildInjectedScript
-      // in public/labs/js/webLab.js) — the main thread renders these as
-      // plain text, never HTML, so student-printed output can't inject markup.
       pyodide.setStdout({ batched: (line) => postMessage({ type: "stdout", line }) });
       pyodide.setStderr({ batched: (line) => postMessage({ type: "stderr", line }) });
 
@@ -34,7 +29,7 @@ function loadPyodideOnce() {
 }
 
 self.onmessage = async (event) => {
-  const { type, code } = event.data;
+  const { type, code, stdinLines } = event.data;
 
   if (type === "init") {
     try {
@@ -51,19 +46,22 @@ self.onmessage = async (event) => {
     try {
       const pyodide = await loadPyodideOnce();
       const t0 = performance.now();
-      // runPythonAsync does NOT auto-load packages a script imports — that
-      // was a wrong assumption going in (see docs/python-lab-implementation-
-      // plan.docx section 10, "default package preload"). Without this line
-      // `import numpy` throws ModuleNotFoundError even though numpy ships in
-      // the Pyodide distribution; loadPackagesFromImports scans the source
-      // for import statements and fetches whichever of Pyodide's prebuilt
-      // wheels are actually needed, once, then they're cached for reuse.
+
+      // input() has no real stdin by default in a Worker — raises OSError
+      // [Errno 29] the instant a script calls it. Feed it pre-typed lines
+      // instead: since they're all known up front, this callback returns
+      // synchronously, no SharedArrayBuffer needed. Returning null past the
+      // last line raises the same EOFError a real `python script.py <
+      // input.txt` running out of input gets. Confirmed working against
+      // Pyodide 0.26.4 here before this shipped in the real Python Lab
+      // (public/labs/js/pythonWorker.js).
+      const lines = (stdinLines || []).slice();
+      pyodide.setStdin({ stdin: () => (lines.length ? lines.shift() : null) });
+
       await pyodide.loadPackagesFromImports(code);
       await pyodide.runPythonAsync(code);
       postMessage({ type: "done", runMs: Math.round(performance.now() - t0) });
     } catch (err) {
-      // Pyodide surfaces Python tracebacks as the JS error's message —
-      // exactly what a student needs to see to debug their own code.
       postMessage({ type: "run-error", message: String(err && err.message ? err.message : err) });
     }
   }
