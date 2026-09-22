@@ -24,20 +24,40 @@ function ensureCsrfToken(req, res, next) {
   next();
 }
 
-// Accepts the token either as an X-CSRF-Token header (used by this app's
-// fetch()-based AJAX calls) or a _csrf body field (used by native <form>
-// submits) — checked against the session's token via a constant-time
-// comparison so response timing can't be used to guess it. Safe methods
-// (GET/HEAD/OPTIONS) are never state-changing, so they pass through
-// unchecked — lets this run as a blanket router.use() without needing to
-// be threaded onto only the POST/PUT/PATCH/DELETE routes individually.
+// Accepts the token as an X-CSRF-Token header (used by this app's
+// fetch()-based AJAX calls), a _csrf body field (native <form method="post">
+// submits whose body the global express.urlencoded()/json() parser already
+// parsed by the time this runs), or a _csrf query-string field — checked
+// against the session's token via a constant-time comparison so response
+// timing can't be used to guess it. Safe methods (GET/HEAD/OPTIONS) are
+// never state-changing, so they pass through unchecked — lets this run as
+// a blanket router.use() without needing to be threaded onto only the
+// POST/PUT/PATCH/DELETE routes individually.
+//
+// The query-string fallback exists specifically for multipart/form-data
+// submits (file-upload forms): those bodies are NOT parsed by the global
+// body-parser — only a route's own multer middleware parses them, and that
+// middleware always runs after this blanket router.use() check (declared
+// per-route, further down the router, so it's later in the middleware
+// stack no matter where the route itself is registered). That left
+// req.body._csrf permanently empty for every multipart form here,
+// rejecting legitimate submits with "Invalid or expired form session"
+// (e.g. admin lesson create/edit, which uploads a slide file).
+// public/js/csrf.js's form hook appends the token to the form's action URL
+// as ?_csrf=... specifically when the form is multipart, since a native
+// form can't set a custom header the way fetch() can. req.query is always
+// available immediately — Express parses the URL itself, independent of
+// Content-Type/body parsing.
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function verifyCsrfToken(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
 
   const sessionToken = req.session && req.session.csrfToken;
-  const submittedToken = req.headers["x-csrf-token"] || (req.body && req.body._csrf);
+  const submittedToken =
+    req.headers["x-csrf-token"] ||
+    (req.body && req.body._csrf) ||
+    (req.query && req.query._csrf);
 
   if (
     !sessionToken ||

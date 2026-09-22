@@ -8,6 +8,16 @@
 //   2. Adds a hidden _csrf field to every same-origin <form method="post">
 //      on submit, for pages that still use plain form posts.
 // Safe no-op on a page with no meta tag (public pages not yet wired in).
+//
+// Multipart (file-upload) forms get the token a second way: also appended
+// to the form's action URL as ?_csrf=... . A native <form> submit can't
+// set a custom header the way fetch() can, and the server's CSRF check
+// (middlewares/csrf.js) runs before the route's own multer middleware has
+// parsed a multipart body — so the hidden _csrf field alone arrives too
+// late for the server to see it on those forms. The query-string copy is
+// read from req.query, which Express populates immediately regardless of
+// Content-Type. Non-multipart forms don't need this — their body is
+// already parsed by the time the check runs — so it's left untouched.
 (function () {
   function getToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
@@ -66,6 +76,12 @@
         input.name = "_csrf";
         input.value = token;
         form.appendChild(input);
+      }
+
+      var enctype = (form.getAttribute("enctype") || "").toLowerCase();
+      if (enctype === "multipart/form-data" && form.action.indexOf("_csrf=") === -1) {
+        var sep = form.action.indexOf("?") === -1 ? "?" : "&";
+        form.action = form.action + sep + "_csrf=" + encodeURIComponent(token);
       }
     },
     true // capture phase — runs before the form's own submit handlers fire
