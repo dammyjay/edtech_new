@@ -17,6 +17,19 @@
 
 const axios = require("axios");
 const AdmZip = require("adm-zip");
+// pdf-parse 2.x bundles a modern pdfjs-dist that calls
+// process.getBuiltinModule() (a Node API added in 22.3+) — crashed the
+// entire app on boot in production, where the deployed Node runtime was
+// older than that. The classic 1.x line avoids that specific call but
+// turned out to choke on pdfkit-generated PDFs ("bad XRef entry" — its
+// bundled PDF.js is genuinely too old/buggy for some modern PDF
+// structures, confirmed directly, not assumed). Fixed the real root
+// cause instead of downgrading further: package.json now pins Node
+// >=22.3.0 (see the "engines" field) so Railway/Nixpacks provisions a
+// Node version that actually has process.getBuiltinModule, matching
+// local dev where this exact v2.4.5 + class-based API was already
+// verified working end to end (real PDF round-trip, real submission
+// grading) before this ever shipped.
 const { PDFParse } = require("pdf-parse");
 const { askTutor } = require("../utils/ai");
 
