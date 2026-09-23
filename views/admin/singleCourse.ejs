@@ -57,6 +57,13 @@
         Capstone Project
       </a>
 
+      <a
+        href="?tab=external-projects"
+        class="login-tab <%= activeTab === 'external-projects' ? 'active' : '' %>"
+      >
+        External Projects
+      </a>
+
     </div>
 
     <div class="tab-content">
@@ -68,7 +75,9 @@
       <% } else if (activeTab === 'assignment') { %> <%-
       include('../partials/courseAssignment', { assignments: moduleAssignments }) %> <% } else if
       (activeTab === 'project') { %> <%- include('../partials/courseProject', {
-      projects }) %> <% } %>
+      projects }) %> <% } else if (activeTab === 'external-projects') { %>
+      <%- include('../partials/courseExternalProjects', { externalProjects, modules, lessons, course }) %>
+      <% } %>
     </div>
 
     <a href="/admin/courses/<%= course.id %>/certificate-preview" 

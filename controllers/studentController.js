@@ -562,6 +562,34 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
+    // --- External projects (work built outside any in-app lab, submitted
+    // as a file/GitHub link — see controllers/externalProjectController.js).
+    // Deliberately no quiz-gate unlocking here unlike moduleAssignments
+    // above — always visible once attached, a simpler v1 scope.
+    let moduleExternalProjects = {};
+    let lessonExternalProjects = {};
+    let courseExternalProjects = {};
+
+    if (moduleIds.length > 0) {
+      const epRes = await pool.query(
+        `SELECT ep.*,
+                CASE WHEN ep.lesson_id IS NOT NULL THEN 'lesson'
+                     WHEN ep.module_id IS NOT NULL THEN 'module'
+                     ELSE 'course' END AS level
+         FROM external_projects ep
+         LEFT JOIN lessons l ON l.id = ep.lesson_id
+         WHERE ep.module_id = ANY($1) OR l.module_id = ANY($1)`,
+        [moduleIds]
+      );
+      epRes.rows.forEach((ep) => {
+        if (ep.level === "module") {
+          (moduleExternalProjects[ep.module_id] = moduleExternalProjects[ep.module_id] || []).push(ep);
+        } else if (ep.level === "lesson") {
+          (lessonExternalProjects[ep.lesson_id] = lessonExternalProjects[ep.lesson_id] || []).push(ep);
+        }
+      });
+    }
+
     // --- AUTO UNLOCK NEXT MODULE LOGIC
     for (const mod of modulesRes.rows) {
       if (!mod.unlocked) continue;
@@ -698,6 +726,17 @@ exports.getDashboard = async (req, res) => {
       // Key submissions by project.id
       submissionsRes.rows.forEach((sub) => {
         projectSubmissions[sub.project_id] = sub;
+      });
+
+      // External projects attached directly to one of the student's
+      // courses (as opposed to a specific module/lesson within it —
+      // grouped separately above).
+      const courseEpRes = await pool.query(
+        `SELECT * FROM external_projects WHERE course_id = ANY($1)`,
+        [courseIds]
+      );
+      courseEpRes.rows.forEach((ep) => {
+        (courseExternalProjects[ep.course_id] = courseExternalProjects[ep.course_id] || []).push(ep);
       });
     }
 
@@ -1168,6 +1207,9 @@ exports.getDashboard = async (req, res) => {
       courseModules,
       moduleLessons,
       moduleAssignments,
+      moduleExternalProjects,
+      lessonExternalProjects,
+      courseExternalProjects,
       lessonCounts,
       completedCourses,
       completedProjects,

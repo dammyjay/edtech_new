@@ -31,6 +31,8 @@ module.exports = [
   "courses",
   "event_registrations",
   "events",
+  "external_project_submissions",
+  "external_projects",
   "faqs",
   "feedback",
   "gallery_categories",

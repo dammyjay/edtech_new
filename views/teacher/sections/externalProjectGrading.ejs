@@ -1,0 +1,86 @@
+<h2 class="tc-section-title">📤 External Project Grading</h2>
+<p style="font-size:12.5px; color:#777; margin-top:-6px;">
+  Projects built outside any in-app lab (a real web server, a Docker deployment) and submitted as a file or link — see the separate Grading Queue tab for module assignments.
+</p>
+
+<% if (!submissions.length) { %>
+  <p class="tc-empty">Nothing here — you're all caught up! 🎉</p>
+<% } else { %>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <% submissions.forEach(function(s) { %>
+      <div class="tc-classroom-card">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center;">
+          <div>
+            <h3 style="margin:0 0 4px;"><%= s.project_title %></h3>
+            <p style="margin:0; color:#777; font-size:12.5px;"><%= s.student_name %> · <%= new Date(s.submitted_at).toLocaleDateString() %></p>
+          </div>
+          <% if (s.graded_by) { %>
+            <span class="tc-chip">✅ Reviewed</span>
+          <% } else if (s.status === 'graded') { %>
+            <span class="tc-chip">🤖 AI-graded</span>
+          <% } else if (s.status === 'grading_failed') { %>
+            <span class="tc-chip">⚠️ Grading failed</span>
+          <% } else { %>
+            <span class="tc-chip">⏳ Grading…</span>
+          <% } %>
+        </div>
+
+        <div style="margin:10px 0; font-size:13px;">
+          <strong>Submitted:</strong>
+          <ul style="margin:4px 0 0; padding-left:18px;">
+            <% (s.attachments || []).forEach(function(a) { %>
+              <li><%= a.label %> — <a href="<%= a.url %>" target="_blank" rel="noopener">view</a></li>
+            <% }) %>
+          </ul>
+          <% if (s.notes) { %><p style="margin:8px 0 0; white-space:pre-wrap;"><%= s.notes %></p><% } %>
+        </div>
+
+        <% if (s.score !== null || s.feedback) { %>
+          <div style="background:#f8f9fa; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12.5px;">
+            <strong>AI grade:</strong> <%= s.score ?? "–" %>/100
+            <% if (s.feedback) { %><br><%= s.feedback %><% } %>
+            <% if (s.criteria_breakdown) { %>
+              <ul style="margin:8px 0 0; padding-left:18px;">
+                <% (s.criteria_breakdown || []).forEach(function(c) { %>
+                  <li><%= c.criterion %>: <%= c.score %> — <%= c.comment %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </div>
+        <% } %>
+
+        <form class="tc-ep-grade-form" data-id="<%= s.id %>" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600;">Score (0-100)</label>
+            <input type="number" name="score" value="<%= s.score ?? '' %>" min="0" max="100" style="width:80px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <label style="display:block; font-size:11px; font-weight:600;">Feedback</label>
+            <input type="text" name="teacher_feedback" value="<%= s.teacher_feedback || '' %>" placeholder="Feedback for the student" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          </div>
+          <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm">Save Grade</button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<script>
+  document.querySelectorAll('.tc-ep-grade-form').forEach(function (form) {
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const id = form.dataset.id;
+      const score = form.score.value;
+      const teacher_feedback = form.teacher_feedback.value;
+
+      const res = await fetch(`/teacher/external-projects/submission/${id}/grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, teacher_feedback })
+      });
+      const data = await res.json();
+      showAlert(data.message || (data.success ? 'Grade saved' : 'Error saving grade'), data.success ? 'success' : 'error');
+      if (data.success && window.loadSection) loadSection('external-projects');
+    });
+  });
+</script>

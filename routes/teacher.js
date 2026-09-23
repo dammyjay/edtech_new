@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const teacherController = require("../controllers/teacherController");
+const externalProjectController = require("../controllers/externalProjectController");
 const { ensureTeacher } = require("../middlewares/auth");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
@@ -44,6 +45,8 @@ router.get("/section/:name", async (req, res) => {
         return teacherController.getAttendanceSection(req, res);
       case "grading":
         return teacherController.getGradingQueue(req, res);
+      case "external-projects":
+        return externalProjectController.getExternalProjectGradingQueue(req, res);
       default:
         return res.status(404).send("<p>Section not found</p>");
     }
@@ -94,6 +97,12 @@ router.get("/attendance/term-summary", teacherController.getTermAttendanceSummar
 // ------------------ GRADING ------------------
 router.get("/grading", teacherController.getGradingQueue);
 router.post("/grading/:submissionId", teacherController.submitGrade);
+
+// ------------------ EXTERNAL PROJECT GRADING ------------------
+// Separate queue from the assignment one above — external_project_
+// submissions is a different table (see controllers/externalProjectController.js).
+router.get("/external-projects/queue", externalProjectController.getExternalProjectGradingQueue);
+router.post("/external-projects/submission/:submissionId/grade", externalProjectController.overrideExternalProjectGrade);
 
 // ------------------ CLASSROOM-WIDE CHAT ------------------
 router.get("/class-chat/:classroomId", teacherController.renderClassChat);

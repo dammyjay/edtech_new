@@ -1254,7 +1254,52 @@ async function createTables() {
           graded_by INTEGER,
           submitted_at TIMESTAMP DEFAULT NOW()
       );
-      
+
+    `);
+
+    // External project submissions — for coursework that can't run inside
+    // any in-app sandbox (a real web server, a Docker deployment, OS-level
+    // automation) and has to be built elsewhere and submitted as a file or
+    // a link. A deliberately separate, parallel system from
+    // module_assignments/assignment_submissions (which only scopes to a
+    // module, never actually reads its uploaded file, and guesses a rubric
+    // out of free-text instructions) and from course_projects/
+    // project_submissions (non-functional — references a nonexistent db
+    // handle and columns/constraints that don't exist). Modeled instead on
+    // lab_submissions: one row per attempt, a real structured rubric, and
+    // an AI grading contract validated/clamped in code.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS external_projects (
+          id SERIAL PRIMARY KEY,
+          lesson_id INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+          module_id INTEGER REFERENCES modules(id) ON DELETE CASCADE,
+          course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+          title VARCHAR(255) NOT NULL,
+          instructions TEXT,
+          deliverables JSONB NOT NULL DEFAULT '[]',
+          rubric JSONB NOT NULL DEFAULT '[]',
+          points INTEGER DEFAULT 10,
+          created_by INTEGER REFERENCES users2(id),
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS external_project_submissions (
+          id SERIAL PRIMARY KEY,
+          external_project_id INTEGER REFERENCES external_projects(id) ON DELETE CASCADE,
+          student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+          attachments JSONB NOT NULL DEFAULT '[]',
+          notes TEXT,
+          status VARCHAR(20) NOT NULL DEFAULT 'grading',
+          score INTEGER,
+          feedback TEXT,
+          criteria_breakdown JSONB,
+          graded_by INTEGER REFERENCES users2(id),
+          teacher_feedback TEXT,
+          submitted_at TIMESTAMP DEFAULT NOW(),
+          graded_at TIMESTAMP
+      );
     `);
 
     await pool.query(`

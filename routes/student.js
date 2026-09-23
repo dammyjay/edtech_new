@@ -6,6 +6,7 @@ const multer = require("multer");
 const { upload, lessonUpload } = require("../middlewares/upload");
 const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 const studentController = require("../controllers/studentController");
+const externalProjectController = require("../controllers/externalProjectController");
 
 const { ensureAuthenticated } = require("../middlewares/auth");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
@@ -228,6 +229,29 @@ router.get(
   "/assignments/submission/:id",
   ensureAuthenticated,
   studentController.getSubmissionById
+);
+
+// External project submissions — work built outside any in-app lab (a real
+// web server, a Docker deployment, OS-level automation), submitted as a
+// file or a link. Separate system from assignments above — see
+// controllers/externalProjectController.js.
+router.get(
+  "/external-projects/:id",
+  ensureAuthenticated,
+  activityLoggerMiddleware("Viewed External Project", (req) => `External Project ${req.params.id}`),
+  externalProjectController.viewExternalProject
+);
+router.post(
+  "/external-projects/:id/submit",
+  ensureAuthenticated,
+  upload.any(), // field names are dynamic (file_0, file_1, ...) — one per deliverable the task defines
+  activityLoggerMiddleware("Submitted External Project", (req) => `External Project ${req.params.id}`),
+  externalProjectController.submitExternalProject
+);
+router.get(
+  "/external-projects/mine/list",
+  ensureAuthenticated,
+  externalProjectController.getMyExternalProjectSubmissions
 );
 
 // ✅ Parent request response (approve / reject)

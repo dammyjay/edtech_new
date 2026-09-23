@@ -29,6 +29,11 @@
         Teacher Guide
     </button>
 
+    <button class="login-tab"
+        onclick="openGuideTab('external-project-section',this)">
+        External Project Guide
+    </button>
+
 </div>
 
 
@@ -88,6 +93,22 @@
 <h2>Teacher Guide</h2>
 
 <button onclick="openGuideModal('teacher')">
+    Edit Guide
+</button>
+
+</div>
+
+<div id="external-project-section" style="display:none">
+
+<h2>External Project Guide</h2>
+<p style="font-size:13px; color:#666; max-width:600px;">
+    Shown to every student on every External Project submission page — write it once here
+    (how to zip a project, how to share a GitHub link, how to get a shareable video link) instead of
+    every instructor re-explaining it per task. sample_submission can hold a worked example of a
+    genuinely good submission.
+</p>
+
+<button onclick="openGuideModal('external_project')">
     Edit Guide
 </button>
 
@@ -373,7 +394,8 @@ async function deleteGuide(){
             "course-section",
             "certificate-section",
             "parent-section",
-            "teacher-section"
+            "teacher-section",
+            "external-project-section"
         ];
 
         sections.forEach(id=>{

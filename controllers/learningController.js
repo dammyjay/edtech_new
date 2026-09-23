@@ -1306,6 +1306,25 @@ exports.viewSingleCourse = async (req, res) => {
       [id]
     );
 
+    // External project submissions (submit-your-own-work tasks — see
+    // controllers/externalProjectController.js) attached anywhere in this
+    // course: directly on the course, on one of its modules, or on a
+    // lesson inside one of those modules.
+    const externalProjects = await pool.query(
+      `SELECT ep.*,
+              CASE WHEN ep.lesson_id IS NOT NULL THEN 'lesson'
+                   WHEN ep.module_id IS NOT NULL THEN 'module'
+                   ELSE 'course' END AS level,
+              l.title AS lesson_title, m.title AS module_title
+       FROM external_projects ep
+       LEFT JOIN lessons l ON l.id = ep.lesson_id
+       LEFT JOIN modules lm2 ON lm2.id = l.module_id
+       LEFT JOIN modules m ON m.id = ep.module_id
+       WHERE ep.course_id = $1 OR m.course_id = $1 OR lm2.course_id = $1
+       ORDER BY ep.created_at DESC`,
+      [id]
+    );
+
     // Get quizzes
     const quizzes = await pool.query(
       `
@@ -1333,6 +1352,7 @@ exports.viewSingleCourse = async (req, res) => {
       moduleAssignments: moduleAssignments.rows,
       lessonAssignments: lessonAssignments.rows,
       projects: projects.rows,
+      externalProjects: externalProjects.rows,
       quizzes: quizzes.rows,
       activeTab: req.query.tab || "details",
       role: req.session.user?.role || "admin", // ✅ ensure role is passed

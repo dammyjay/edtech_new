@@ -1259,6 +1259,9 @@
                   <% if (lesson.has_lab) { %>
                     <li><button class="no-bg" onclick="loadLessonPart(<%= lesson.id %>, 'lab')">🧩 Lab Task</button></li>
                   <% } %>
+                  <% (lessonExternalProjects[lesson.id] || []).forEach(ep => { %>
+                    <li><button class="no-bg external-project-btn" data-id="<%= ep.id %>">📤 <%= ep.title %></button></li>
+                  <% }) %>
                 </ul>
 
               </li>
@@ -1266,16 +1269,22 @@
             <h3>Assignments</h3>
             <% (moduleAssignments[module.id] || []).forEach(assign => { %>
               <li>
-                <button 
+                <button
                   class="no-bg assignment-btn"
                   data-id="<%= assign.id %>"
-                  <%= assign.unlocked 
-                        ? '' 
+                  <%= assign.unlocked
+                        ? ''
                         : 'disabled style="opacity:0.5; cursor:not-allowed;"' %>>
                   <%= assign.unlocked ? "📑" : "🔒" %> <%= assign.title %>
                 </button>
               </li>
             <% }) %>
+            <% if ((moduleExternalProjects[module.id] || []).length) { %>
+              <h3>External Projects</h3>
+              <% moduleExternalProjects[module.id].forEach(ep => { %>
+                <li><button class="no-bg external-project-btn" data-id="<%= ep.id %>">📤 <%= ep.title %></button></li>
+              <% }) %>
+            <% } %>
           </ul>
 
         </div>
@@ -1295,6 +1304,16 @@
       <p style="opacity:0.5;">🔒 Complete all modules to unlock the final project for <%= course.title %></p>
     <% } %>
   <% }) %>
+
+  <% const anyCourseExternalProjects = enrolledCourses.some(c => (courseExternalProjects[c.id] || []).length); %>
+  <% if (anyCourseExternalProjects) { %>
+    <h3>📤 External Projects</h3>
+    <% enrolledCourses.forEach(course => { %>
+      <% (courseExternalProjects[course.id] || []).forEach(ep => { %>
+        <button class="external-project-btn" data-id="<%= ep.id %>">📤 <%= ep.title %></button>
+      <% }) %>
+    <% }) %>
+  <% } %>
 
   <% if (nextModuleId) { %>
     <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>&moduleId=<%= nextModuleId %>"
@@ -4332,7 +4351,139 @@ document.addEventListener("visibilitychange", () => {
         }
       });
     });
+
+    // External project button event binding — work built outside any
+    // in-app lab, submitted as a file/GitHub link per deliverable.
+    document.querySelectorAll(".external-project-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = Number(btn.dataset.id);
+        if (!isNaN(id)) loadExternalProject(id);
+      });
+    });
   });
+
+  function escapeHtmlEp(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  async function loadExternalProject(projectId) {
+    showLoading();
+    try {
+      const res = await fetch(`/student/external-projects/${projectId}`);
+      const data = await res.json();
+      if (!data.success) { showAlert("Could not load this project."); return; }
+
+      const { project, guide, submission } = data;
+      const lessonMain = document.getElementById("lessonMainArea");
+
+      let guideHTML = "";
+      if (guide) {
+        guideHTML = `
+          <details class="assignment-guide">
+            <summary>📘 External Project Guide</summary>
+            <div style="padding:15px;">
+              <h2>${escapeHtmlEp(guide.title)}</h2>
+              ${guide.video_url ? `<iframe width="100%" height="350" src="${convertYoutube(guide.video_url)}" allowfullscreen></iframe>` : ""}
+              <h3>How to prepare and submit</h3>
+              ${guide.description || "<p>No guide written yet.</p>"}
+              ${guide.sample_submission ? `<hr><h3>What a good submission looks like</h3>${guide.sample_submission}` : ""}
+            </div>
+          </details>`;
+      }
+
+      const rubricHTML = (project.rubric || []).map(r =>
+        `<li>${escapeHtmlEp(r.criterion)} — <strong>${escapeHtmlEp(r.weight)} pts</strong></li>`
+      ).join("");
+
+      if (submission) {
+        const statusLabel = submission.status === "graded" ? `✅ Graded — ${submission.score}/100`
+          : submission.status === "grading_failed" ? "⚠️ Grading failed — a teacher will review this"
+          : "⏳ Grading in progress…";
+
+        const criteriaHTML = (submission.criteria_breakdown || []).map(c =>
+          `<li>${escapeHtmlEp(c.criterion)}: ${escapeHtmlEp(c.score)} — ${escapeHtmlEp(c.comment)}</li>`
+        ).join("");
+
+        const attachmentsHTML = (submission.attachments || []).map(a =>
+          `<li>${escapeHtmlEp(a.label)} — <a href="${a.url}" target="_blank" rel="noopener">view</a></li>`
+        ).join("");
+
+        lessonMain.innerHTML = `
+          ${guideHTML}
+          <h2>📤 ${escapeHtmlEp(project.title)}</h2>
+          <p>${project.instructions || ""}</p>
+          <h3>Rubric</h3><ul>${rubricHTML}</ul>
+          <hr>
+          <h3>Your submission</h3>
+          <p><strong>${statusLabel}</strong></p>
+          <ul>${attachmentsHTML}</ul>
+          ${submission.notes ? `<p><em>Your notes:</em> ${escapeHtmlEp(submission.notes)}</p>` : ""}
+          ${submission.feedback ? `<div style="background:#f8f9fa; border-radius:10px; padding:12px; margin-top:10px;"><strong>Feedback:</strong> ${escapeHtmlEp(submission.feedback)}<ul>${criteriaHTML}</ul></div>` : ""}
+          ${submission.teacher_feedback ? `<div style="background:#fff8e1; border-radius:10px; padding:12px; margin-top:10px;"><strong>Teacher feedback:</strong> ${escapeHtmlEp(submission.teacher_feedback)}</div>` : ""}
+          <button type="button" onclick="loadExternalProject(${project.id})" style="margin-top:12px;">🔄 Refresh status</button>
+        `;
+        return;
+      }
+
+      const deliverableFieldsHTML = (project.deliverables || []).map((d, i) => {
+        const acceptsFile = d.type === "file" || d.type === "file_or_link";
+        const acceptsLink = d.type === "link" || d.type === "file_or_link";
+        const formats = (d.accepted_formats || []).join(", ");
+        return `
+          <div style="margin-bottom:14px; padding:10px; border:1px solid #e0e0e0; border-radius:8px;">
+            <label style="font-weight:600;">${escapeHtmlEp(d.label)} ${d.required ? '<span style="color:#c0392b;">*</span>' : "(optional)"}</label>
+            ${formats ? `<p style="font-size:11px; color:#888; margin:2px 0 8px;">Accepted: ${escapeHtmlEp(formats)}</p>` : ""}
+            ${acceptsFile ? `<input type="file" name="file_${i}" style="display:block; margin-bottom:6px;">` : ""}
+            ${acceptsLink ? `<input type="url" name="link_${i}" placeholder="Paste a link (e.g. GitHub, Drive, YouTube)" style="width:100%; box-sizing:border-box;">` : ""}
+          </div>`;
+      }).join("");
+
+      lessonMain.innerHTML = `
+        ${guideHTML}
+        <h2>📤 ${escapeHtmlEp(project.title)}</h2>
+        <p>${project.instructions || ""}</p>
+        <h3>Rubric</h3><ul>${rubricHTML}</ul>
+        <hr>
+        <form id="externalProjectSubmitForm">
+          <h3>Submit your project</h3>
+          ${deliverableFieldsHTML}
+          <label>Notes (optional)</label>
+          <textarea name="notes" rows="3" style="width:100%; box-sizing:border-box;"></textarea>
+          <button type="submit" style="margin-top:10px;">Submit</button>
+        </form>
+      `;
+
+      document.getElementById("externalProjectSubmitForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting…";
+        try {
+          const res = await fetch(`/student/external-projects/${projectId}/submit`, { method: "POST", body: formData });
+          const result = await res.json();
+          if (result.success) {
+            showAlert("Submitted! Grading now — check back shortly.", "success");
+            loadExternalProject(projectId);
+          } else {
+            showAlert(result.message || "Couldn't submit — try again.", "error");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Submit";
+          }
+        } catch (err) {
+          showAlert("Couldn't submit — try again.", "error");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Submit";
+        }
+      });
+    } catch (err) {
+      console.error("loadExternalProject error:", err);
+      showAlert("Could not load this project.");
+    } finally {
+      hideLoading();
+    }
+  }
 
   async function loadPastSubmissions() {
     showLoading();

@@ -1,0 +1,303 @@
+<h3>External Projects</h3>
+<p style="font-size:13px; color:#666; max-width:640px;">
+  For work that can't run in any in-browser lab — a real web server, a Docker deployment, OS-level
+  automation — attach a task here instead of a Lab Task. Students submit a file or a GitHub link per
+  deliverable you define, and it's graded against the rubric you set. See the "External Project Guide"
+  under Guides for the shared "how to submit" help shown to every student.
+</p>
+
+<button type="button" onclick="openExternalProjectModal()">+ Add External Project</button>
+
+<div class="article-grid" id="externalProjectList">
+  <% externalProjects.forEach(function(ep) { %>
+    <div class="article-card" data-id="<%= ep.id %>">
+      <h3><%= ep.title %></h3>
+      <p><strong>Attached to:</strong>
+        <%= ep.level === 'lesson' ? ('Lesson — ' + ep.lesson_title) : ep.level === 'module' ? ('Module — ' + ep.module_title) : 'This course' %>
+      </p>
+      <p><strong>Deliverables:</strong> <%= (ep.deliverables || []).map(function(d){ return d.label; }).join(', ') %></p>
+      <p><strong>Points:</strong> <%= ep.points %></p>
+      <div class="article-buttons">
+        <button class="btn-edit" type="button" onclick='openEditExternalProjectModal(<%- JSON.stringify(ep) %>)'>Edit</button>
+        <button class="btn-delete" type="button" onclick="deleteExternalProject(<%= ep.id %>)">Delete</button>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- CREATE MODAL -->
+<div id="externalProjectModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-height:85vh; overflow-y:auto;">
+    <h2>Create External Project</h2>
+    <form id="createExternalProjectForm">
+      <label>Title</label>
+      <input type="text" name="title" required>
+
+      <label>Instructions</label>
+      <textarea name="instructions" rows="4"></textarea>
+
+      <label>Attach to</label>
+      <select name="level" id="epLevelSelect" onchange="toggleExternalProjectLevelFields('create')" required>
+        <option value="course">This course</option>
+        <option value="module">A specific module</option>
+        <option value="lesson">A specific lesson</option>
+      </select>
+
+      <div id="epModuleField-create" style="display:none;">
+        <label>Module</label>
+        <select name="module_level_id">
+          <% modules.forEach(function(mod) { %>
+            <option value="<%= mod.id %>"><%= mod.title %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div id="epLessonField-create" style="display:none;">
+        <label>Lesson</label>
+        <select name="lesson_level_id">
+          <% lessons.forEach(function(l) { %>
+            <option value="<%= l.id %>"><%= l.title %> (<%= l.module_title %>)</option>
+          <% }) %>
+        </select>
+      </div>
+
+      <label>Points (awarded on grading)</label>
+      <input type="number" name="points" min="0" value="10">
+
+      <hr>
+      <h3 style="margin-bottom:6px;">Deliverables checklist</h3>
+      <p style="font-size:12px; color:#888;">What must the student submit? Each row is one item.</p>
+      <div id="epDeliverables-create"></div>
+      <button type="button" onclick="addDeliverableRow('create')">+ Add deliverable</button>
+
+      <hr>
+      <h3 style="margin-bottom:6px;">Rubric</h3>
+      <p style="font-size:12px; color:#888;">Criteria weights must add up to 100.</p>
+      <div id="epRubric-create"></div>
+      <button type="button" onclick="addRubricRow('create')">+ Add criterion</button>
+      <p style="font-size:12px;">Total: <span id="epRubricTotal-create">0</span> / 100</p>
+
+      <div class="modal-actions">
+        <button type="submit">Save</button>
+        <button type="button" onclick="closeExternalProjectModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editExternalProjectModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-height:85vh; overflow-y:auto;">
+    <h2>Edit External Project</h2>
+    <form id="editExternalProjectForm">
+      <input type="hidden" name="id" id="editEpId">
+
+      <label>Title</label>
+      <input type="text" name="title" id="editEpTitle" required>
+
+      <label>Instructions</label>
+      <textarea name="instructions" id="editEpInstructions" rows="4"></textarea>
+
+      <label>Points (awarded on grading)</label>
+      <input type="number" name="points" id="editEpPoints" min="0">
+
+      <hr>
+      <h3 style="margin-bottom:6px;">Deliverables checklist</h3>
+      <div id="epDeliverables-edit"></div>
+      <button type="button" onclick="addDeliverableRow('edit')">+ Add deliverable</button>
+
+      <hr>
+      <h3 style="margin-bottom:6px;">Rubric</h3>
+      <div id="epRubric-edit"></div>
+      <button type="button" onclick="addRubricRow('edit')">+ Add criterion</button>
+      <p style="font-size:12px;">Total: <span id="epRubricTotal-edit">0</span> / 100</p>
+
+      <div class="modal-actions">
+        <button type="submit">Update</button>
+        <button type="button" onclick="closeEditExternalProjectModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const DELIVERABLE_TYPES = [
+    { value: "file", label: "File upload" },
+    { value: "link", label: "Link" },
+    { value: "file_or_link", label: "File OR link" },
+  ];
+
+  function deliverableRowHtml(d) {
+    d = d || { label: "", type: "file_or_link", accepted_formats: "", required: true };
+    const formats = Array.isArray(d.accepted_formats) ? d.accepted_formats.join(",") : (d.accepted_formats || "");
+    return `
+      <div class="ep-row" style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <input type="text" class="ep-deliverable-label" placeholder="Label (e.g. Source code)" value="${d.label.replace(/"/g, '&quot;')}" style="flex:2;">
+        <select class="ep-deliverable-type" style="flex:1;">
+          ${DELIVERABLE_TYPES.map((t) => `<option value="${t.value}" ${t.value === d.type ? "selected" : ""}>${t.label}</option>`).join("")}
+        </select>
+        <input type="text" class="ep-deliverable-formats" placeholder="Formats (e.g. zip,py,github_link)" value="${formats}" style="flex:2;">
+        <label style="flex:0; white-space:nowrap; font-size:12px;"><input type="checkbox" class="ep-deliverable-required" ${d.required !== false ? "checked" : ""}> Required</label>
+        <button type="button" onclick="this.parentElement.remove()" style="flex:0;">&times;</button>
+      </div>`;
+  }
+
+  function rubricRowHtml(r, scope) {
+    r = r || { criterion: "", weight: 0 };
+    return `
+      <div class="ep-row" style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <input type="text" class="ep-rubric-criterion" placeholder="Criterion" value="${(r.criterion || "").replace(/"/g, '&quot;')}" style="flex:3;">
+        <input type="number" class="ep-rubric-weight" placeholder="Weight" value="${r.weight || 0}" min="0" max="100" style="flex:1;" oninput="updateRubricTotal('${scope}')">
+        <button type="button" onclick="this.parentElement.remove(); updateRubricTotal('${scope}')" style="flex:0;">&times;</button>
+      </div>`;
+  }
+
+  window.addDeliverableRow = function (scope, data) {
+    document.getElementById(`epDeliverables-${scope}`).insertAdjacentHTML("beforeend", deliverableRowHtml(data));
+  };
+  window.addRubricRow = function (scope, data) {
+    document.getElementById(`epRubric-${scope}`).insertAdjacentHTML("beforeend", rubricRowHtml(data, scope));
+    updateRubricTotal(scope);
+  };
+  window.updateRubricTotal = function (scope) {
+    const weights = Array.from(document.querySelectorAll(`#epRubric-${scope} .ep-rubric-weight`)).map((el) => Number(el.value) || 0);
+    document.getElementById(`epRubricTotal-${scope}`).textContent = weights.reduce((a, b) => a + b, 0);
+  };
+
+  function collectDeliverables(scope) {
+    return Array.from(document.querySelectorAll(`#epDeliverables-${scope} .ep-row`)).map((row) => ({
+      label: row.querySelector(".ep-deliverable-label").value.trim(),
+      type: row.querySelector(".ep-deliverable-type").value,
+      accepted_formats: row.querySelector(".ep-deliverable-formats").value.split(",").map((s) => s.trim()).filter(Boolean),
+      required: row.querySelector(".ep-deliverable-required").checked,
+    }));
+  }
+  function collectRubric(scope) {
+    return Array.from(document.querySelectorAll(`#epRubric-${scope} .ep-row`)).map((row) => ({
+      criterion: row.querySelector(".ep-rubric-criterion").value.trim(),
+      weight: Number(row.querySelector(".ep-rubric-weight").value) || 0,
+    }));
+  }
+
+  window.toggleExternalProjectLevelFields = function (scope) {
+    const level = document.getElementById("epLevelSelect").value;
+    document.getElementById(`epModuleField-${scope}`).style.display = level === "module" ? "block" : "none";
+    document.getElementById(`epLessonField-${scope}`).style.display = level === "lesson" ? "block" : "none";
+  };
+
+  window.openExternalProjectModal = function () {
+    document.getElementById("createExternalProjectForm").reset();
+    document.getElementById("epDeliverables-create").innerHTML = "";
+    document.getElementById("epRubric-create").innerHTML = "";
+    addDeliverableRow("create");
+    addRubricRow("create");
+    toggleExternalProjectLevelFields("create");
+    document.getElementById("externalProjectModal").style.display = "block";
+  };
+  window.closeExternalProjectModal = function () {
+    document.getElementById("externalProjectModal").style.display = "none";
+  };
+
+  document.getElementById("createExternalProjectForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const level = document.getElementById("epLevelSelect").value;
+    const levelId = level === "course" ? <%= course.id %> : level === "module"
+      ? document.querySelector('select[name="module_level_id"]').value
+      : document.querySelector('select[name="lesson_level_id"]').value;
+
+    const deliverables = collectDeliverables("create");
+    const rubric = collectRubric("create");
+    if (!deliverables.length || deliverables.some((d) => !d.label)) {
+      showAlert("Every deliverable needs a label.");
+      return;
+    }
+    const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
+    if (rubricTotal !== 100) {
+      showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
+      return;
+    }
+
+    const body = new URLSearchParams({
+      title: this.title.value,
+      instructions: this.instructions.value,
+      level,
+      level_id: levelId,
+      points: this.points.value,
+      deliverables: JSON.stringify(deliverables),
+      rubric: JSON.stringify(rubric),
+    });
+
+    const res = await fetch("/admin/external-projects/create", { method: "POST", body });
+    const data = await res.json();
+    if (data.success) {
+      window.location.reload();
+    } else {
+      showAlert(data.message || "Error creating external project.");
+    }
+  });
+
+  window.openEditExternalProjectModal = function (ep) {
+    document.getElementById("editEpId").value = ep.id;
+    document.getElementById("editEpTitle").value = ep.title;
+    document.getElementById("editEpInstructions").value = ep.instructions || "";
+    document.getElementById("editEpPoints").value = ep.points;
+
+    const delivContainer = document.getElementById("epDeliverables-edit");
+    delivContainer.innerHTML = "";
+    (ep.deliverables || []).forEach((d) => addDeliverableRow("edit", d));
+
+    const rubricContainer = document.getElementById("epRubric-edit");
+    rubricContainer.innerHTML = "";
+    (ep.rubric || []).forEach((r) => addRubricRow("edit", r));
+    updateRubricTotal("edit");
+
+    document.getElementById("editExternalProjectModal").style.display = "block";
+  };
+  window.closeEditExternalProjectModal = function () {
+    document.getElementById("editExternalProjectModal").style.display = "none";
+  };
+
+  document.getElementById("editExternalProjectForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const id = document.getElementById("editEpId").value;
+    const deliverables = collectDeliverables("edit");
+    const rubric = collectRubric("edit");
+    if (!deliverables.length || deliverables.some((d) => !d.label)) {
+      showAlert("Every deliverable needs a label.");
+      return;
+    }
+    const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
+    if (rubricTotal !== 100) {
+      showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
+      return;
+    }
+
+    const body = new URLSearchParams({
+      title: document.getElementById("editEpTitle").value,
+      instructions: document.getElementById("editEpInstructions").value,
+      points: document.getElementById("editEpPoints").value,
+      deliverables: JSON.stringify(deliverables),
+      rubric: JSON.stringify(rubric),
+    });
+
+    const res = await fetch(`/admin/external-projects/${id}/edit`, { method: "POST", body });
+    const data = await res.json();
+    if (data.success) {
+      window.location.reload();
+    } else {
+      showAlert(data.message || "Error updating external project.");
+    }
+  });
+
+  window.deleteExternalProject = async function (id) {
+    if (!(await showConfirm("Delete this external project? Existing student submissions stay on record."))) return;
+    const res = await fetch(`/admin/external-projects/${id}/delete`, { method: "POST" });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      showAlert("Error deleting external project.");
+    }
+  };
+})();
+</script>

@@ -15,6 +15,7 @@ const companyController = require("../controllers/companyController");
 const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
 const lessonLabController = require("../controllers/lessonLabController");
+const externalProjectController = require("../controllers/externalProjectController");
 const userController = require("../controllers/userController")
 const newsletterController = require("../controllers/newsletterController");
 const reportController = require("../controllers/reportController");
@@ -512,6 +513,13 @@ router.post("/assignments/:id/delete", learningController.deleteAssignment);
 router.post("/courses/:id/project", learningController.createProject);
 router.post("/projects/edit/:id", learningController.editProject);
 router.post("/projects/delete/:id", learningController.deleteProject);
+
+// External project submissions (work built outside any in-app lab, graded
+// from a file/GitHub link) — see controllers/externalProjectController.js.
+router.post("/external-projects/create", upload.none(), externalProjectController.createExternalProject);
+router.post("/external-projects/:id/edit", upload.none(), externalProjectController.editExternalProject);
+router.post("/external-projects/:id/delete", externalProjectController.deleteExternalProject);
+router.get("/external-projects/course/:courseId", externalProjectController.getExternalProjectsForCourse);
 
 
 
