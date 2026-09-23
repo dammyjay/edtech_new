@@ -44,6 +44,13 @@ function validateDeliverables(deliverables) {
   return null;
 }
 
+function parseAiGraded(value) {
+  // Native form posts send "on"/undefined for a checkbox; the admin
+  // partial's fetch() call sends the string "true"/"false" explicitly —
+  // handle both.
+  return value === true || value === "true" || value === "on";
+}
+
 // ---------------------------------------------------------------------
 // Authoring (admin)
 // ---------------------------------------------------------------------
@@ -52,6 +59,7 @@ exports.createExternalProject = async (req, res) => {
   try {
     const { title, instructions, level, level_id, points } = req.body;
     let { deliverables, rubric } = req.body;
+    const aiGraded = parseAiGraded(req.body.ai_graded);
 
     if (!title || !level || !level_id) {
       return res.status(400).json({ success: false, message: "Title, level, and level_id are required." });
@@ -69,17 +77,21 @@ exports.createExternalProject = async (req, res) => {
 
     const deliverablesError = validateDeliverables(deliverables);
     if (deliverablesError) return res.status(400).json({ success: false, message: deliverablesError });
-    const rubricError = validateRubric(rubric);
-    if (rubricError) return res.status(400).json({ success: false, message: rubricError });
+    if (aiGraded) {
+      const rubricError = validateRubric(rubric);
+      if (rubricError) return res.status(400).json({ success: false, message: rubricError });
+    } else {
+      rubric = null; // not graded — a rubric would never be used, don't pretend one applies
+    }
 
     const lessonId = level === "lesson" ? level_id : null;
     const moduleId = level === "module" ? level_id : null;
     const courseId = level === "course" ? level_id : null;
 
     const result = await pool.query(
-      `INSERT INTO external_projects (lesson_id, module_id, course_id, title, instructions, deliverables, rubric, points, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [lessonId, moduleId, courseId, title, instructions || null, JSON.stringify(deliverables), JSON.stringify(rubric), Number(points) || 10, req.session?.user?.id || null]
+      `INSERT INTO external_projects (lesson_id, module_id, course_id, title, instructions, deliverables, rubric, points, ai_graded, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [lessonId, moduleId, courseId, title, instructions || null, JSON.stringify(deliverables), rubric ? JSON.stringify(rubric) : null, Number(points) || 10, aiGraded, req.session?.user?.id || null]
     );
 
     res.json({ success: true, project: result.rows[0] });
@@ -94,6 +106,7 @@ exports.editExternalProject = async (req, res) => {
     const { id } = req.params;
     const { title, instructions, points } = req.body;
     let { deliverables, rubric } = req.body;
+    const aiGraded = parseAiGraded(req.body.ai_graded);
 
     try {
       deliverables = typeof deliverables === "string" ? JSON.parse(deliverables) : deliverables;
@@ -104,14 +117,18 @@ exports.editExternalProject = async (req, res) => {
 
     const deliverablesError = validateDeliverables(deliverables);
     if (deliverablesError) return res.status(400).json({ success: false, message: deliverablesError });
-    const rubricError = validateRubric(rubric);
-    if (rubricError) return res.status(400).json({ success: false, message: rubricError });
+    if (aiGraded) {
+      const rubricError = validateRubric(rubric);
+      if (rubricError) return res.status(400).json({ success: false, message: rubricError });
+    } else {
+      rubric = null;
+    }
 
     const result = await pool.query(
       `UPDATE external_projects
-       SET title=$1, instructions=$2, deliverables=$3, rubric=$4, points=$5
-       WHERE id=$6 RETURNING *`,
-      [title, instructions || null, JSON.stringify(deliverables), JSON.stringify(rubric), Number(points) || 10, id]
+       SET title=$1, instructions=$2, deliverables=$3, rubric=$4, points=$5, ai_graded=$6
+       WHERE id=$7 RETURNING *`,
+      [title, instructions || null, JSON.stringify(deliverables), rubric ? JSON.stringify(rubric) : null, Number(points) || 10, aiGraded, id]
     );
     if (!result.rowCount) return res.status(404).json({ success: false, message: "Not found" });
 
@@ -159,6 +176,110 @@ exports.getExternalProjectsForCourse = async (req, res) => {
   } catch (err) {
     console.error("getExternalProjectsForCourse error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Admin moderation — separate from the Labs Gallery's student self-publish
+// model. An admin reviews a graded (or manually-reviewed) submission and
+// decides whether to feature it, rather than the student deciding for
+// themselves. Only graded/reviewed submissions are worth showing here —
+// nothing still mid-grading.
+exports.getAdminExternalProjectSubmissions = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+  try {
+    const featuredOnly = req.query.featured === "true";
+    const search = (req.query.search || "").trim();
+    const params = [];
+    const conditions = ["eps.status IN ('graded', 'submitted')"];
+
+    if (featuredOnly) conditions.push("eps.featured = true");
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(ep.title ILIKE $${params.length} OR u.fullname ILIKE $${params.length})`);
+    }
+
+    const result = await pool.query(
+      `SELECT eps.id, eps.attachments, eps.notes, eps.status, eps.score, eps.feedback,
+              eps.featured, eps.featured_at, eps.submitted_at,
+              ep.id AS external_project_id, ep.title AS project_title, ep.ai_graded,
+              u.id AS student_id, u.fullname AS student_name, u.public_profile_enabled
+       FROM external_project_submissions eps
+       JOIN external_projects ep ON ep.id = eps.external_project_id
+       JOIN users2 u ON u.id = eps.student_id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY eps.featured DESC, eps.submitted_at DESC
+       LIMIT 200`,
+      params
+    );
+    res.json({ success: true, submissions: result.rows });
+  } catch (err) {
+    console.error("getAdminExternalProjectSubmissions error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.featureExternalProjectSubmission = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE external_project_submissions
+       SET featured = true, featured_by = $1, featured_at = NOW()
+       WHERE id = $2 RETURNING id`,
+      [req.session.user.id, req.params.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("featureExternalProjectSubmission error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.unfeatureExternalProjectSubmission = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+  try {
+    await pool.query(
+      `UPDATE external_project_submissions SET featured = false, featured_by = NULL, featured_at = NULL WHERE id = $1`,
+      [req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("unfeatureExternalProjectSubmission error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Gallery (logged-in) / Showcase (public) — admin-featured submissions
+// only. Kept as its own endpoint rather than merged into labController.js's
+// getGalleryProjects: that query is paginated/sorted against lab_projects,
+// a genuinely different shape (likes/reviews/remix all key off
+// lab_projects.id) — featured external projects render as a separate,
+// clearly-labeled section instead of forcing a fragile UNION across two
+// unrelated tables.
+exports.getFeaturedExternalProjects = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT eps.id, eps.attachments, eps.notes, eps.score, eps.feedback, eps.featured_at,
+              ep.title AS project_title,
+              u.fullname AS student_name
+       FROM external_project_submissions eps
+       JOIN external_projects ep ON ep.id = eps.external_project_id
+       JOIN users2 u ON u.id = eps.student_id
+       WHERE eps.featured = true
+       ORDER BY eps.featured_at DESC
+       LIMIT 60`
+    );
+    res.json({ success: true, projects: result.rows });
+  } catch (err) {
+    console.error("getFeaturedExternalProjects error:", err.message);
+    res.status(500).json({ success: false });
   }
 };
 
@@ -238,10 +359,15 @@ exports.submitExternalProject = async (req, res) => {
       return res.status(400).json({ success: false, message: "At least one deliverable must be submitted." });
     }
 
+    // Some tasks have AI grading turned off entirely (project.ai_graded
+    // false — e.g. a robotics build log or a photo of a physical build,
+    // nothing a text-reading grader could meaningfully score). Those just
+    // get stored as 'submitted' for manual review; no AI call, no score.
+    const initialStatus = project.ai_graded ? "grading" : "submitted";
     const insertRes = await pool.query(
       `INSERT INTO external_project_submissions (external_project_id, student_id, attachments, notes, status)
-       VALUES ($1,$2,$3,$4,'grading') RETURNING *`,
-      [id, studentId, JSON.stringify(attachments), req.body.notes || null]
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, studentId, JSON.stringify(attachments), req.body.notes || null, initialStatus]
     );
     const submission = insertRes.rows[0];
 
@@ -249,7 +375,17 @@ exports.submitExternalProject = async (req, res) => {
     // trip + an AI call) can take a real number of seconds and shouldn't
     // block the student's submit click on it, unlike the older
     // assignment_submissions flow this deliberately does NOT copy.
-    res.json({ success: true, submissionId: submission.id, status: "grading" });
+    res.json({ success: true, submissionId: submission.id, status: initialStatus });
+
+    if (!project.ai_graded) {
+      await notifyUser(studentId, {
+        type: "submission_received",
+        title: "Your project was submitted",
+        message: `${project.title} — a teacher will review it.`,
+        url: "/student/dashboard",
+      });
+      return;
+    }
 
     gradeSubmission(project, submission)
       .then(async (result) => {

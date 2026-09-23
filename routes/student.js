@@ -241,10 +241,32 @@ router.get(
   activityLoggerMiddleware("Viewed External Project", (req) => `External Project ${req.params.id}`),
   externalProjectController.viewExternalProject
 );
+// upload.any()'s own errors (a corrupted file, Cloudinary rejecting
+// something that isn't really the image/PDF/etc. type it claims to be —
+// confirmed live: "Invalid image file") happen inside multer's own
+// middleware, before externalProjectController.submitExternalProject's
+// try/catch ever runs, and previously crashed to a generic HTML error page
+// instead of the JSON response this route's client-side fetch() expects to
+// parse. Same problem middlewares/upload.js's lessonSlideUpload wrapper
+// already solves for a different route — this is that same fix, JSON
+// instead of an HTML page since this route is fetch()-driven, not a native
+// form submit.
+function safeExternalProjectUpload(req, res, next) {
+  upload.any()(req, res, (err) => {
+    if (!err) return next();
+    console.error("External project upload error:", err);
+    const isTooLarge = err.code === "LIMIT_FILE_SIZE" || /file size too large/i.test(err.message || "");
+    const message = isTooLarge
+      ? "One of your files is too large (25MB max)."
+      : (err && err.message) || (err && err.error && err.error.message) || "That upload was rejected — check the file and try again.";
+    res.status(400).json({ success: false, message });
+  });
+}
+
 router.post(
   "/external-projects/:id/submit",
   ensureAuthenticated,
-  upload.any(), // field names are dynamic (file_0, file_1, ...) — one per deliverable the task defines
+  safeExternalProjectUpload, // field names are dynamic (file_0, file_1, ...) — one per deliverable the task defines
   activityLoggerMiddleware("Submitted External Project", (req) => `External Project ${req.params.id}`),
   externalProjectController.submitExternalProject
 );

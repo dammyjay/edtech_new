@@ -1284,6 +1284,28 @@ async function createTables() {
       );
     `);
 
+    // Some tasks (e.g. a robotics build log, a photo of a physical project)
+    // don't have anything an AI can meaningfully grade — this lets an
+    // instructor turn AI grading off per task; the submission is just
+    // collected with status='submitted' and left for manual review, instead
+    // of forcing a rubric that doesn't really apply.
+    await pool.query(`
+      ALTER TABLE external_projects ADD COLUMN IF NOT EXISTS ai_graded BOOLEAN NOT NULL DEFAULT true;
+    `);
+    await pool.query(`
+      ALTER TABLE external_projects ALTER COLUMN rubric DROP NOT NULL;
+    `);
+
+    // Admin-curated showcase, separate from the Labs Gallery's student
+    // self-publish model (lab_projects.is_published) — an instructor
+    // decides which graded external projects are good enough to feature,
+    // rather than the student deciding for themselves.
+    await pool.query(`
+      ALTER TABLE external_project_submissions ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE external_project_submissions ADD COLUMN IF NOT EXISTS featured_by INTEGER REFERENCES users2(id);
+      ALTER TABLE external_project_submissions ADD COLUMN IF NOT EXISTS featured_at TIMESTAMP;
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS external_project_submissions (
           id SERIAL PRIMARY KEY,

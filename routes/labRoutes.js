@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const labController = require("../controllers/labController");
+const externalProjectController = require("../controllers/externalProjectController");
 const { ensureAuthenticated } = require("../middlewares/auth");
 
 router.use(ensureAuthenticated);
@@ -36,11 +37,13 @@ router.post("/project/save", labController.saveProject);
 router.post("/project/submit", labController.submitProject);
 
 router.get("/peer-review/reviewable", labController.getReviewableProjects);
+router.get("/peer-review/project/:id", labController.getReviewableProjectDetail);
 router.post("/peer-review/submit", express.json(), labController.submitReview);
 router.get("/peer-review/mine", labController.getMyProjectReviews);
 
 router.get("/gallery/projects", labController.getGalleryProjects);
 router.get("/gallery/projects/:id", labController.getGalleryProjectDetail);
+router.get("/gallery/external-projects", externalProjectController.getFeaturedExternalProjects);
 router.post("/gallery/publish", labController.publishProject);
 router.post("/gallery/unpublish", labController.unpublishProject);
 router.post("/gallery/like", labController.toggleLike);

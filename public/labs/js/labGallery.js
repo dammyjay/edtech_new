@@ -343,5 +343,67 @@
     }
   }
 
+  // ---------------- Featured External Projects ----------------
+  // A separate, admin-curated set (controllers/externalProjectController.js)
+  // — not paginated/sorted like the self-published lab_projects grid above,
+  // and not wired into the like/remix/review flow above (those don't apply
+  // to a graded external submission). Reuses the same gallery-card visual
+  // language and the same modal shell for its own simpler read-only detail
+  // view.
+  const externalSection = document.getElementById("externalProjectsSection");
+  const externalGrid = document.getElementById("externalProjectsGrid");
+  let lastExternalProjects = [];
+
+  function externalCardHtml(p) {
+    return `
+      <div class="gallery-card" data-ext-id="${p.id}">
+        <div class="gallery-card-top">
+          <span class="gallery-card-icon">📤</span>
+          <div>
+            <p class="gallery-card-title">${escapeHtml(p.project_title)}</p>
+            <p class="gallery-card-author">by ${escapeHtml(p.student_name)}</p>
+          </div>
+        </div>
+        ${p.score !== null ? `<div class="gallery-card-badges"><span>★ ${p.score}/100</span></div>` : ""}
+      </div>`;
+  }
+
+  function renderExternalDetail(p) {
+    const attachmentsHtml = (p.attachments || [])
+      .map((a) => `<li>${escapeHtml(a.label)} — <a href="${a.url}" target="_blank" rel="noopener">view</a></li>`)
+      .join("");
+    modalBody.innerHTML = `
+      <p class="gallery-card-title" style="font-size:19px;">📤 ${escapeHtml(p.project_title)}</p>
+      <p class="gallery-card-author">by ${escapeHtml(p.student_name)}</p>
+      ${p.score !== null ? `<p style="margin-top:10px;"><strong>Score:</strong> ${p.score}/100</p>` : ""}
+      ${p.feedback ? `<p style="margin-top:6px; font-size:13px;">${escapeHtml(p.feedback)}</p>` : ""}
+      <ul style="margin-top:12px; padding-left:18px;">${attachmentsHtml}</ul>
+    `;
+  }
+
+  async function loadExternalProjects() {
+    try {
+      const res = await fetch("/labs/gallery/external-projects");
+      const data = await res.json();
+      if (!data.success || !data.projects.length) return; // section stays hidden — nothing featured yet
+      lastExternalProjects = data.projects;
+      externalGrid.innerHTML = data.projects.map(externalCardHtml).join("");
+      externalSection.style.display = "block";
+    } catch (err) {
+      console.error("Featured external projects load error:", err);
+    }
+  }
+
+  externalGrid.addEventListener("click", (e) => {
+    const card = e.target.closest("[data-ext-id]");
+    if (!card) return;
+    const project = lastExternalProjects.find((p) => String(p.id) === card.dataset.extId);
+    if (project) {
+      modal.style.display = "flex";
+      renderExternalDetail(project);
+    }
+  });
+
   loadProjects(true);
+  loadExternalProjects();
 })();

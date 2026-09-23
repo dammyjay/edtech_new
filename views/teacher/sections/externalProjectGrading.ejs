@@ -20,6 +20,8 @@
             <span class="tc-chip">🤖 AI-graded</span>
           <% } else if (s.status === 'grading_failed') { %>
             <span class="tc-chip">⚠️ Grading failed</span>
+          <% } else if (s.status === 'submitted') { %>
+            <span class="tc-chip">📥 Awaiting review (not AI-graded)</span>
           <% } else { %>
             <span class="tc-chip">⏳ Grading…</span>
           <% } %>

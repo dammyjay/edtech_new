@@ -706,6 +706,51 @@ exports.getReviewableProjects = async (req, res) => {
   }
 };
 
+// GET /labs/peer-review/project/:id — full project_data for a SINGLE
+// reviewable project, fetched on demand when a reviewer clicks "View
+// Project" (not embedded in the list above, to avoid shipping every
+// classmate's full code/project JSON on page load). Same eligibility rule
+// as getReviewableProjects: same classroom, submitted, not the viewer's
+// own — re-checked here independently rather than trusted from the list
+// response, since a project's status could change between the two calls.
+exports.getReviewableProjectDetail = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { id } = req.params;
+
+    const classroomRes = await pool.query(
+      `SELECT classroom_id FROM user_school
+       WHERE user_id = $1 AND role_in_school = 'student' AND approved = true
+       LIMIT 1`,
+      [studentId]
+    );
+    const classroomId = classroomRes.rows[0]?.classroom_id;
+    if (!classroomId) {
+      return res.status(403).json({ success: false, message: "You're not in a classroom." });
+    }
+
+    const result = await pool.query(
+      `SELECT lp.id, lp.lab_type, lp.project_name, lp.project_data,
+              u.fullname AS student_name
+       FROM lab_projects lp
+       JOIN users2 u ON u.id = lp.student_id
+       JOIN user_school us ON us.user_id = lp.student_id
+         AND us.classroom_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+       WHERE lp.id = $2 AND lp.status = 'submitted' AND lp.student_id != $3`,
+      [classroomId, id, studentId]
+    );
+    const project = result.rows[0];
+    if (!project) {
+      return res.status(404).json({ success: false, message: "This project isn't available to review." });
+    }
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("getReviewableProjectDetail error:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
 exports.submitReview = async (req, res) => {
   try {
     const reviewerId = req.user.id;

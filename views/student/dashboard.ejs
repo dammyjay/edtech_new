@@ -1449,6 +1449,21 @@
       </div>
     </div>
 
+    <!-- Peer-review project viewer — reviewers previously saw only a
+         project's name and author, never its actual output. Web Lab gets a
+         real sandboxed live preview, Blockly shows its generated code
+         (running its sprite/stage engine outside the Blockly editor's own
+         setup is a bigger, separate job), Python actually RUNS the code —
+         safe here since Pyodide executes entirely in the reviewer's own
+         browser, the same worker sandbox the Python Lab editor itself
+         uses, not a server or public-page concern. -->
+    <div id="reviewProjectModal" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+      <div style="background:#fff; border-radius:12px; max-width:900px; width:92%; max-height:88vh; overflow-y:auto; padding:20px; position:relative;">
+        <button type="button" onclick="closeReviewProjectModal()" style="position:absolute; top:12px; right:12px; font-size:18px; border:none; background:none; cursor:pointer;">✕</button>
+        <div id="reviewProjectModalBody"><p style="color:#888;">Loading…</p></div>
+      </div>
+    </div>
+
   <% } else if (section === 'skill-tree') { %>
     <div style="padding:20px; max-width:1000px; margin:0 auto;">
       <h2>🗺️ Skill Tree</h2>
@@ -4399,6 +4414,7 @@ document.addEventListener("visibilitychange", () => {
       if (submission) {
         const statusLabel = submission.status === "graded" ? `✅ Graded — ${submission.score}/100`
           : submission.status === "grading_failed" ? "⚠️ Grading failed — a teacher will review this"
+          : submission.status === "submitted" ? "📥 Submitted — a teacher will review this"
           : "⏳ Grading in progress…";
 
         const criteriaHTML = (submission.criteria_breakdown || []).map(c =>
@@ -4644,10 +4660,12 @@ async function loadReviewableProjects() {
       container.innerHTML = "<p style='color:#888;'>No projects to review right now.</p>";
       return;
     }
+    const labIcon = { web: "🌐", blockly: "🧩", python: "🐍" };
     container.innerHTML = data.projects.map(p => `
       <div class="project-card" style="margin-bottom:12px; padding:14px; border:1px solid #eee; border-radius:10px;">
-        <h4 style="margin:0 0 6px;">${escapeHtml(p.project_name || p.lab_type)}</h4>
+        <h4 style="margin:0 0 6px;">${labIcon[p.lab_type] || "🛠️"} ${escapeHtml(p.project_name || p.lab_type)}</h4>
         <p style="margin:0 0 8px; color:#666; font-size:13px;">By ${escapeHtml(p.student_name)}</p>
+        <button type="button" onclick="viewReviewableProject(${p.id})" style="margin-bottom:10px;">👁️ View Project</button>
         ${p.already_reviewed
           ? `<p style="color:#2a9d5c; font-size:13px;">✅ You already reviewed this</p>`
           : `<div>
@@ -4669,6 +4687,117 @@ async function loadReviewableProjects() {
     console.error("Failed to load reviewable projects:", err);
     container.innerHTML = "<p style='color:#c00;'>Failed to load projects.</p>";
   }
+}
+
+function closeReviewProjectModal() {
+  document.getElementById("reviewProjectModal").style.display = "none";
+  if (window._reviewPyWorker) {
+    window._reviewPyWorker.terminate();
+    window._reviewPyWorker = null;
+  }
+}
+
+// Mirrors public/labs/js/webLab.js's normalizeProjectData — a saved
+// project can be the current {pages,css,js,activePage} shape or the
+// legacy flat {html,css,js} shape.
+function normalizeWebProjectDataForReview(raw) {
+  if (raw && Array.isArray(raw.pages) && raw.pages.length) {
+    const active = raw.pages.find(p => p.name === raw.activePage) || raw.pages[0];
+    return { html: active.html || "", css: raw.css || "", js: raw.js || "" };
+  }
+  return { html: (raw && raw.html) || "", css: (raw && raw.css) || "", js: (raw && raw.js) || "" };
+}
+
+async function viewReviewableProject(projectId) {
+  const modal = document.getElementById("reviewProjectModal");
+  const body = document.getElementById("reviewProjectModalBody");
+  modal.style.display = "flex";
+  body.innerHTML = "<p style='color:#888;'>Loading…</p>";
+
+  try {
+    const res = await fetch(`/labs/peer-review/project/${projectId}`);
+    const data = await res.json();
+    if (!data.success) {
+      body.innerHTML = `<p style="color:#c00;">${escapeHtml(data.message || "Couldn't load this project.")}</p>`;
+      return;
+    }
+    const project = data.project;
+    const header = `<h3 style="margin:0 0 4px;">${escapeHtml(project.project_name || project.lab_type)}</h3><p style="color:#666; font-size:13px; margin:0 0 14px;">By ${escapeHtml(project.student_name)}</p>`;
+
+    if (project.lab_type === "web") {
+      const { html, css, js } = normalizeWebProjectDataForReview(project.project_data);
+      const srcdoc = `<!DOCTYPE html><html><head><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
+      body.innerHTML = header + `<iframe id="reviewWebFrame" sandbox="allow-scripts" style="width:100%; height:420px; border:1px solid #eee; border-radius:8px;"></iframe>`;
+      // Set as a DOM property, not an HTML attribute string — the
+      // project's HTML/CSS/JS is full of double quotes that would break
+      // out of an attribute (same reasoning as labGallery.js's
+      // buildWebPreviewSrcdoc).
+      document.getElementById("reviewWebFrame").srcdoc = srcdoc;
+
+    } else if (project.lab_type === "blockly") {
+      const code = (project.project_data && project.project_data.generatedCode) || "";
+      body.innerHTML = header + (code
+        ? `<pre style="background:#1e1e1e; color:#ddd; padding:14px; border-radius:8px; overflow-x:auto; font-size:13px;">${escapeHtml(code)}</pre><p style="font-size:12px; color:#888; margin-top:8px;">Showing the generated code — running the sprite/stage playback here isn't supported yet.</p>`
+        : `<p style="color:#888;">This project's workspace is empty.</p>`);
+
+    } else if (project.lab_type === "python") {
+      const code = (project.project_data && project.project_data.code) || "";
+      body.innerHTML = header + `
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <pre style="flex:1; min-width:260px; background:#1e1e1e; color:#ddd; padding:14px; border-radius:8px; overflow-x:auto; font-size:13px; max-height:360px;">${escapeHtml(code)}</pre>
+          <div style="flex:1; min-width:260px;">
+            <div style="font-size:12px; color:#888; margin-bottom:6px;" id="reviewPyStatus">Starting Python…</div>
+            <div id="reviewPyOutput" style="background:#fff; border:1px solid #eee; border-radius:8px; padding:10px; font-family:Consolas,monospace; font-size:12.5px; min-height:200px; max-height:360px; overflow-y:auto; white-space:pre-wrap;"></div>
+            <p style="font-size:11px; color:#aaa; margin-top:6px;">If this program calls input(), it'll stop with an error — reviewing here doesn't supply any input values.</p>
+          </div>
+        </div>`;
+      runPythonForReview(code);
+    } else {
+      body.innerHTML = header + `<p style="color:#888;">No preview available for this lab type yet.</p>`;
+    }
+  } catch (err) {
+    console.error("viewReviewableProject error:", err);
+    body.innerHTML = `<p style="color:#c00;">Couldn't load this project.</p>`;
+  }
+}
+
+function runPythonForReview(code) {
+  const statusEl = document.getElementById("reviewPyStatus");
+  const outputEl = document.getElementById("reviewPyOutput");
+  if (window._reviewPyWorker) window._reviewPyWorker.terminate();
+
+  const worker = new Worker("/labs/js/pythonWorker.js");
+  window._reviewPyWorker = worker;
+  const timeoutHandle = setTimeout(() => {
+    statusEl.textContent = "Timed out after 15s (possible infinite loop) — stopped.";
+    worker.terminate();
+  }, 15000);
+
+  worker.onmessage = (event) => {
+    const msg = event.data;
+    if (msg.type === "ready") {
+      statusEl.textContent = "Running…";
+      worker.postMessage({ type: "run", code, stdinLines: [] });
+    } else if (msg.type === "init-error") {
+      statusEl.textContent = "Couldn't start the Python engine.";
+    } else if (msg.type === "stdout" || msg.type === "stderr") {
+      const line = document.createElement("div");
+      if (msg.type === "stderr") line.style.color = "#d64545";
+      line.textContent = msg.line; // textContent only — never innerHTML for a classmate's printed output
+      outputEl.appendChild(line);
+    } else if (msg.type === "done") {
+      clearTimeout(timeoutHandle);
+      statusEl.textContent = "Finished.";
+    } else if (msg.type === "run-error") {
+      clearTimeout(timeoutHandle);
+      statusEl.textContent = "Ran with an error (see output).";
+      const line = document.createElement("div");
+      line.style.color = "#d64545";
+      line.textContent = msg.message;
+      outputEl.appendChild(line);
+    }
+  };
+  worker.postMessage({ type: "init" });
 }
 
 async function submitProjectReview(projectId) {

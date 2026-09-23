@@ -190,6 +190,22 @@ router.get("/showcase", async (req, res) => {
       walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
     }
 
+    // Admin-featured External Projects (controllers/externalProjectController.js)
+    // — a separate, admin-curated set, not student self-published like the
+    // lab_projects above, but held to the same public_profile_enabled
+    // family-consent gate since this page has no login wall.
+    const externalProjectsRes = await pool.query(
+      `SELECT eps.id, eps.attachments, eps.score, eps.featured_at,
+              ep.title AS project_title,
+              u.fullname
+       FROM external_project_submissions eps
+       JOIN external_projects ep ON ep.id = eps.external_project_id
+       JOIN users2 u ON u.id = eps.student_id
+       WHERE eps.featured = true AND u.public_profile_enabled = true
+       ORDER BY eps.featured_at DESC
+       LIMIT 60`
+    );
+
     res.render("public/showcase", {
       info,
       isLoggedIn: !!req.session.user,
@@ -205,6 +221,7 @@ router.get("/showcase", async (req, res) => {
       // the full, unlocked in-app gallery (/labs/gallery) is one click away.
       FREE_COUNT: 9,
       projects: result.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) })),
+      externalProjects: externalProjectsRes.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) })),
     });
   } catch (err) {
     console.error("Public showcase error:", err.message);

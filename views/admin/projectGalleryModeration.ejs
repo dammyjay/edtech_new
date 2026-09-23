@@ -2,39 +2,77 @@
 
 <div class="pgm-page">
   <h2>🖼️ Project Gallery Moderation</h2>
-  <p class="pgm-sub">Every project currently published to the platform-wide gallery. Lesson lab tasks never appear here — only students' own freeform Web Lab / Blockly Lab projects can be published.</p>
 
-  <div class="pgm-toolbar">
-    <input type="text" id="pgmSearch" placeholder="Search by project or student name…" />
-    <select id="pgmLabType">
-      <option value="">All lab types</option>
-      <option value="web">🌐 Web Lab</option>
-      <option value="blockly">🧩 Blockly Lab</option>
-    </select>
-    <label class="pgm-flag-toggle">
-      <input type="checkbox" id="pgmFlaggedOnly" /> Flagged only 🚩
-    </label>
-    <button type="button" id="pgmRefresh">Refresh</button>
+  <div class="pgm-tabs">
+    <button type="button" class="pgm-tab active" data-tab="lab">Lab Gallery</button>
+    <button type="button" class="pgm-tab" data-tab="external">External Projects</button>
   </div>
 
-  <div class="pgm-table-wrap">
-    <table class="pgm-table">
-      <thead>
-        <tr>
-          <th>Project</th>
-          <th>Student</th>
-          <th>Type</th>
-          <th>Published</th>
-          <th>❤️ Likes</th>
-          <th>★ Rating</th>
-          <th>🚩 Flags</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="pgmTableBody">
-        <tr><td colspan="8" class="pgm-empty">Loading…</td></tr>
-      </tbody>
-    </table>
+  <div id="pgm-tab-lab">
+    <p class="pgm-sub">Every project currently published to the platform-wide gallery. Lesson lab tasks never appear here — only students' own freeform Web Lab / Blockly Lab projects can be published.</p>
+
+    <div class="pgm-toolbar">
+      <input type="text" id="pgmSearch" placeholder="Search by project or student name…" />
+      <select id="pgmLabType">
+        <option value="">All lab types</option>
+        <option value="web">🌐 Web Lab</option>
+        <option value="blockly">🧩 Blockly Lab</option>
+      </select>
+      <label class="pgm-flag-toggle">
+        <input type="checkbox" id="pgmFlaggedOnly" /> Flagged only 🚩
+      </label>
+      <button type="button" id="pgmRefresh">Refresh</button>
+    </div>
+
+    <div class="pgm-table-wrap">
+      <table class="pgm-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Student</th>
+            <th>Type</th>
+            <th>Published</th>
+            <th>❤️ Likes</th>
+            <th>★ Rating</th>
+            <th>🚩 Flags</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pgmTableBody">
+          <tr><td colspan="8" class="pgm-empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="pgm-tab-external" style="display:none;">
+    <p class="pgm-sub">Graded (or manually reviewed) External Project submissions. Featuring one here — an admin decision, separate from student self-publishing — shows it in the Labs Gallery to every logged-in platform user, and in the public Showcase teaser IF the student's family has also enabled public sharing.</p>
+
+    <div class="pgm-toolbar">
+      <input type="text" id="pgmExtSearch" placeholder="Search by project or student name…" />
+      <label class="pgm-flag-toggle">
+        <input type="checkbox" id="pgmExtFeaturedOnly" /> Featured only ⭐
+      </label>
+      <button type="button" id="pgmExtRefresh">Refresh</button>
+    </div>
+
+    <div class="pgm-table-wrap">
+      <table class="pgm-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Student</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Public sharing?</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pgmExtTableBody">
+          <tr><td colspan="6" class="pgm-empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -99,6 +137,20 @@
     font-weight: 600;
   }
   .pgm-unpublish-btn:hover { background: #ffe1e1; }
+
+  .pgm-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .pgm-tab {
+    border: 1px solid #ddd; background: #fff; color: #444;
+    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .pgm-tab.active { background: #333; color: #fff; border-color: #333; }
+
+  .pgm-feature-btn {
+    border: none; background: #f1f1f1; color: #4a3b00; padding: 6px 12px;
+    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .pgm-feature-btn.featured { background: #fff3cd; color: #856404; }
+  .pgm-feature-btn:hover { opacity: 0.85; }
 </style>
 
 <script>
@@ -183,5 +235,75 @@
   refreshBtn.addEventListener("click", load);
 
   load();
+
+  // ---------------- Tabs ----------------
+  document.querySelectorAll(".pgm-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".pgm-tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("pgm-tab-lab").style.display = tab.dataset.tab === "lab" ? "block" : "none";
+      document.getElementById("pgm-tab-external").style.display = tab.dataset.tab === "external" ? "block" : "none";
+      if (tab.dataset.tab === "external") loadExternal();
+    });
+  });
+
+  // ---------------- External Projects tab ----------------
+  const extTbody = document.getElementById("pgmExtTableBody");
+  const extSearch = document.getElementById("pgmExtSearch");
+  const extFeaturedOnly = document.getElementById("pgmExtFeaturedOnly");
+  const extRefreshBtn = document.getElementById("pgmExtRefresh");
+  let extLoaded = false;
+
+  async function loadExternal() {
+    extTbody.innerHTML = `<tr><td colspan="6" class="pgm-empty">Loading…</td></tr>`;
+    const params = new URLSearchParams();
+    if (extSearch.value.trim()) params.set("search", extSearch.value.trim());
+    if (extFeaturedOnly.checked) params.set("featured", "true");
+
+    try {
+      const res = await fetch(`/admin/external-projects/submissions?${params.toString()}`);
+      const data = await res.json();
+      if (!data.success || !data.submissions.length) {
+        extTbody.innerHTML = `<tr><td colspan="6" class="pgm-empty">No submissions match this filter.</td></tr>`;
+        return;
+      }
+      extTbody.innerHTML = data.submissions.map((s) => {
+        const statusLabel = s.status === "graded" ? `✅ Graded` : "📥 Submitted (not AI-graded)";
+        return `
+          <tr data-id="${s.id}">
+            <td>${escapeHtml(s.project_title)}</td>
+            <td>${escapeHtml(s.student_name)}</td>
+            <td>${statusLabel}</td>
+            <td>${s.ai_graded ? (s.score ?? "—") : "—"}</td>
+            <td>${s.public_profile_enabled ? "✅ Public OK" : "🔒 Gallery only"}</td>
+            <td><button type="button" class="pgm-feature-btn ${s.featured ? "featured" : ""}" data-id="${s.id}" data-featured="${s.featured}">${s.featured ? "★ Featured — remove" : "☆ Feature"}</button></td>
+          </tr>
+        `;
+      }).join("");
+    } catch (err) {
+      console.error("External moderation load error:", err);
+      extTbody.innerHTML = `<tr><td colspan="6" class="pgm-empty">Couldn't load submissions.</td></tr>`;
+    }
+  }
+
+  extTbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".pgm-feature-btn");
+    if (!btn) return;
+    const isFeatured = btn.dataset.featured === "true";
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/admin/external-projects/submission/${btn.dataset.id}/${isFeatured ? "unfeature" : "feature"}`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) loadExternal();
+      else btn.disabled = false;
+    } catch (err) {
+      console.error("Feature toggle error:", err);
+      btn.disabled = false;
+    }
+  });
+
+  extSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") loadExternal(); });
+  extFeaturedOnly.addEventListener("change", loadExternal);
+  extRefreshBtn.addEventListener("click", loadExternal);
 })();
 </script>

@@ -521,6 +521,13 @@ router.post("/external-projects/:id/edit", upload.none(), externalProjectControl
 router.post("/external-projects/:id/delete", externalProjectController.deleteExternalProject);
 router.get("/external-projects/course/:courseId", externalProjectController.getExternalProjectsForCourse);
 
+// Admin moderation — feature a graded submission into the Gallery/Showcase.
+// Separate from the teacher grading queue (routes/teacher.js) — grading is
+// a teacher's job, deciding what's showcase-worthy is an admin one.
+router.get("/external-projects/submissions", externalProjectController.getAdminExternalProjectSubmissions);
+router.post("/external-projects/submission/:id/feature", externalProjectController.featureExternalProjectSubmission);
+router.post("/external-projects/submission/:id/unfeature", externalProjectController.unfeatureExternalProjectSubmission);
+
 
 
 router.get("/benefits", adminController.showBenefits);

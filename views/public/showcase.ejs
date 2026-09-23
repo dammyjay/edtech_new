@@ -171,6 +171,50 @@
         </div>
       <% } %>
 
+      <% if (externalProjects && externalProjects.length) { %>
+        <div class="sc-hero" style="margin-top:40px;">
+          <h1>📤 Featured External Projects</h1>
+          <p>Bigger builds our students shared — reviewed and selected by our team.</p>
+        </div>
+        <% const freeExternal = externalProjects.slice(0, FREE_COUNT); const lockedExternal = externalProjects.slice(FREE_COUNT); %>
+        <div class="sc-grid">
+          <% freeExternal.forEach(p => { %>
+            <div class="sc-card" style="cursor:default;">
+              <div class="sc-card-top">
+                <span class="sc-card-icon">📤</span>
+                <div>
+                  <p class="sc-card-title"><%= p.project_title %></p>
+                  <p class="sc-card-author">by <%= p.displayName %></p>
+                </div>
+              </div>
+              <% if (p.score !== null) { %>
+                <div class="sc-card-badges"><span>★ <%= p.score %>/100</span></div>
+              <% } %>
+            </div>
+          <% }) %>
+
+          <% if (lockedExternal.length) { %>
+            <% lockedExternal.slice(0, 3).forEach(p => { %>
+              <div class="sc-card sc-card--locked" aria-hidden="true">
+                <div class="sc-card-top">
+                  <span class="sc-card-icon">📤</span>
+                  <div>
+                    <p class="sc-card-title"><%= p.project_title %></p>
+                    <p class="sc-card-author">by <%= p.displayName %></p>
+                  </div>
+                </div>
+                <div class="sc-lock-overlay">🔒</div>
+              </div>
+            <% }) %>
+            <a class="sc-card sc-card--unlock" href="/signup?role=user&redirect=<%= encodeURIComponent('/showcase') %>">
+              <div class="sc-unlock-count">+<%= lockedExternal.length %></div>
+              <p class="sc-unlock-text">more project<%= lockedExternal.length === 1 ? '' : 's' %> to see</p>
+              <span class="sc-unlock-btn">Sign up free →</span>
+            </a>
+          <% } %>
+        </div>
+      <% } %>
+
       <p class="sc-cta">Want to build something like this? <a href="/admin/login">Log in or sign up</a> to start coding.</p>
     </div>
 

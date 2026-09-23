@@ -65,17 +65,26 @@
       <input type="number" name="points" min="0" value="10">
 
       <hr>
+      <label style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+        <input type="checkbox" id="epAiGraded-create" checked onchange="toggleRubricSection('create')">
+        AI-grade submissions to this task
+      </label>
+      <p style="font-size:12px; color:#888; margin-top:2px;">Turn off for work an AI can't meaningfully score (a robotics build log, a photo of a physical project) — submissions are just collected for manual review instead.</p>
+
+      <hr>
       <h3 style="margin-bottom:6px;">Deliverables checklist</h3>
       <p style="font-size:12px; color:#888;">What must the student submit? Each row is one item.</p>
       <div id="epDeliverables-create"></div>
       <button type="button" onclick="addDeliverableRow('create')">+ Add deliverable</button>
 
       <hr>
-      <h3 style="margin-bottom:6px;">Rubric</h3>
-      <p style="font-size:12px; color:#888;">Criteria weights must add up to 100.</p>
-      <div id="epRubric-create"></div>
-      <button type="button" onclick="addRubricRow('create')">+ Add criterion</button>
-      <p style="font-size:12px;">Total: <span id="epRubricTotal-create">0</span> / 100</p>
+      <div id="epRubricSection-create">
+        <h3 style="margin-bottom:6px;">Rubric</h3>
+        <p style="font-size:12px; color:#888;">Criteria weights must add up to 100.</p>
+        <div id="epRubric-create"></div>
+        <button type="button" onclick="addRubricRow('create')">+ Add criterion</button>
+        <p style="font-size:12px;">Total: <span id="epRubricTotal-create">0</span> / 100</p>
+      </div>
 
       <div class="modal-actions">
         <button type="submit">Save</button>
@@ -102,15 +111,23 @@
       <input type="number" name="points" id="editEpPoints" min="0">
 
       <hr>
+      <label style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+        <input type="checkbox" id="epAiGraded-edit" onchange="toggleRubricSection('edit')">
+        AI-grade submissions to this task
+      </label>
+
+      <hr>
       <h3 style="margin-bottom:6px;">Deliverables checklist</h3>
       <div id="epDeliverables-edit"></div>
       <button type="button" onclick="addDeliverableRow('edit')">+ Add deliverable</button>
 
       <hr>
-      <h3 style="margin-bottom:6px;">Rubric</h3>
-      <div id="epRubric-edit"></div>
-      <button type="button" onclick="addRubricRow('edit')">+ Add criterion</button>
-      <p style="font-size:12px;">Total: <span id="epRubricTotal-edit">0</span> / 100</p>
+      <div id="epRubricSection-edit">
+        <h3 style="margin-bottom:6px;">Rubric</h3>
+        <div id="epRubric-edit"></div>
+        <button type="button" onclick="addRubricRow('edit')">+ Add criterion</button>
+        <p style="font-size:12px;">Total: <span id="epRubricTotal-edit">0</span> / 100</p>
+      </div>
 
       <div class="modal-actions">
         <button type="submit">Update</button>
@@ -180,6 +197,11 @@
     }));
   }
 
+  window.toggleRubricSection = function (scope) {
+    const aiGraded = document.getElementById(`epAiGraded-${scope}`).checked;
+    document.getElementById(`epRubricSection-${scope}`).style.display = aiGraded ? "block" : "none";
+  };
+
   window.toggleExternalProjectLevelFields = function (scope) {
     const level = document.getElementById("epLevelSelect").value;
     document.getElementById(`epModuleField-${scope}`).style.display = level === "module" ? "block" : "none";
@@ -193,6 +215,8 @@
     addDeliverableRow("create");
     addRubricRow("create");
     toggleExternalProjectLevelFields("create");
+    document.getElementById("epAiGraded-create").checked = true;
+    toggleRubricSection("create");
     document.getElementById("externalProjectModal").style.display = "block";
   };
   window.closeExternalProjectModal = function () {
@@ -205,17 +229,21 @@
     const levelId = level === "course" ? <%= course.id %> : level === "module"
       ? document.querySelector('select[name="module_level_id"]').value
       : document.querySelector('select[name="lesson_level_id"]').value;
+    const aiGraded = document.getElementById("epAiGraded-create").checked;
 
     const deliverables = collectDeliverables("create");
-    const rubric = collectRubric("create");
     if (!deliverables.length || deliverables.some((d) => !d.label)) {
       showAlert("Every deliverable needs a label.");
       return;
     }
-    const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
-    if (rubricTotal !== 100) {
-      showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
-      return;
+    let rubric = [];
+    if (aiGraded) {
+      rubric = collectRubric("create");
+      const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
+      if (rubricTotal !== 100) {
+        showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
+        return;
+      }
     }
 
     const body = new URLSearchParams({
@@ -224,6 +252,7 @@
       level,
       level_id: levelId,
       points: this.points.value,
+      ai_graded: String(aiGraded),
       deliverables: JSON.stringify(deliverables),
       rubric: JSON.stringify(rubric),
     });
@@ -242,6 +271,8 @@
     document.getElementById("editEpTitle").value = ep.title;
     document.getElementById("editEpInstructions").value = ep.instructions || "";
     document.getElementById("editEpPoints").value = ep.points;
+    document.getElementById("epAiGraded-edit").checked = ep.ai_graded !== false;
+    toggleRubricSection("edit");
 
     const delivContainer = document.getElementById("epDeliverables-edit");
     delivContainer.innerHTML = "";
@@ -261,22 +292,27 @@
   document.getElementById("editExternalProjectForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     const id = document.getElementById("editEpId").value;
+    const aiGraded = document.getElementById("epAiGraded-edit").checked;
     const deliverables = collectDeliverables("edit");
-    const rubric = collectRubric("edit");
     if (!deliverables.length || deliverables.some((d) => !d.label)) {
       showAlert("Every deliverable needs a label.");
       return;
     }
-    const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
-    if (rubricTotal !== 100) {
-      showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
-      return;
+    let rubric = [];
+    if (aiGraded) {
+      rubric = collectRubric("edit");
+      const rubricTotal = rubric.reduce((a, r) => a + r.weight, 0);
+      if (rubricTotal !== 100) {
+        showAlert(`Rubric weights must add up to 100 (currently ${rubricTotal}).`);
+        return;
+      }
     }
 
     const body = new URLSearchParams({
       title: document.getElementById("editEpTitle").value,
       instructions: document.getElementById("editEpInstructions").value,
       points: document.getElementById("editEpPoints").value,
+      ai_graded: String(aiGraded),
       deliverables: JSON.stringify(deliverables),
       rubric: JSON.stringify(rubric),
     });
