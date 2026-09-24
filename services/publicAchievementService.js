@@ -13,7 +13,7 @@ function toDisplayName(fullname) {
 // disabling takes effect immediately even though the slug itself persists).
 async function getPublicStudentBySlug(slug) {
   const res = await pool.query(
-    `SELECT id, fullname, avatar_url FROM users2 WHERE public_profile_slug = $1 AND public_profile_enabled = true`,
+    `SELECT id, fullname, avatar_url FROM users2 WHERE public_profile_slug = $1 AND public_profile_enabled = true AND archived_at IS NULL`,
     [slug]
   );
   const student = res.rows[0];

@@ -73,6 +73,7 @@
         <th>Gender</th>
         <th>Classroom</th>
         <th>Status</th>
+        <th>Login PIN</th>
         <th>Joined On</th>
         <th>Actions</th>
       </tr>
@@ -92,6 +93,7 @@
                 <span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Active</span>
               <% } %>
             </td>
+            <td><%= s.classroom_login_enabled && s.pin ? s.pin : '—' %></td>
             <td><%= new Date(s.joined_at).toDateString() %></td>
             <td>
               <button class="btn-edit" onclick="openAssignClassroomModal(<%= s.id %>, '<%= s.fullname %>')">➕ Add to Classroom</button>
@@ -100,7 +102,7 @@
           </tr>
         <% }) %>
       <% } else { %>
-        <tr><td colspan="3" style="text-align:center;">No students yet</td></tr>
+        <tr><td colspan="8" style="text-align:center;">No students yet</td></tr>
       <% } %>
     </tbody>
   </table>

@@ -4,9 +4,9 @@ const { pool } = require('../models/db');
 
 async function getLessonsByCourse(courseId) {
   const result = await pool.query(
-    `SELECT l.* FROM lessons l 
-     JOIN modules m ON l.module_id = m.id 
-     WHERE m.course_id = $1 ORDER BY l.sort_order ASC`,
+    `SELECT l.* FROM lessons l
+     JOIN modules m ON l.module_id = m.id
+     WHERE m.course_id = $1 AND l.archived_at IS NULL AND m.archived_at IS NULL ORDER BY l.sort_order ASC`,
     [courseId]
   );
   return result.rows;

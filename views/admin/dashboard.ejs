@@ -277,7 +277,7 @@
                 <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);">  </i>
                 </a>
 
-                <a href="#" class="no-bg" onclick="confirmDelete('<%= user.id %>'); return false;">
+                <a href="#" class="no-bg" title="Archive" onclick="confirmDelete('<%= user.id %>'); return false;">
                 <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
                 </a>
             </td>
@@ -1201,7 +1201,7 @@
     <!-- script for delete user -->
     <script>
       async function confirmDelete(userId) {
-        if (!(await showConfirm("Delete this user?"))) return;
+        if (!(await showConfirm("Archive this user? Their account will be hidden and they won't be able to log in, but nothing is deleted — restore it later from the Archive screen."))) return;
 
         fetch(`/admin/users/delete/${userId}`, {
           method: "POST",

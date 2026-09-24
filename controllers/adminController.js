@@ -17,6 +17,7 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
 const { getAllSchoolsWithPaymentSummary } = require("../services/schoolsAdminListService");
+const archiveService = require("../services/archiveService");
 const { escapeHtml, formatNaira } = require("../services/platformReportSections/sectionHelpers");
 const { renderCourseReportHtml, renderModuleReportHtml } = require("../utils/reportTemplate");
 const { logActivityForUser } = require("../utils/activityLogger");
@@ -99,7 +100,11 @@ exports.handleForgotPassword = async (req, res) => {
   // this form. The real reset email is still only ever sent when the
   // account is real.
   const genericMessage = "If that email is registered, a reset link has been sent.";
-  if (result.rows.length === 0) {
+  // Same generic message for an archived account as for "not found" — it
+  // can't be logged into anyway (see the archived_at check in
+  // exports.login below), and this keeps the response identical either
+  // way so it can't be used to tell the two cases apart.
+  if (result.rows.length === 0 || result.rows[0].archived_at) {
     return res.render("admin/forgotPassword", {
       message: genericMessage,
     });
@@ -270,6 +275,15 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (user.archived_at) {
+      return res.render("admin/login", {
+        error: "This account has been deactivated. Contact an administrator.",
+        title: "Login",
+        redirect: redirectUrl || "",
+        pendingEmail: "",
+      });
+    }
+
     // ===============================
     // 3️⃣ SESSION + REDIRECT
     // ===============================
@@ -320,6 +334,7 @@ exports.avatarPinLogin = async (req, res) => {
       AND pin = $2
       AND role = 'student'
       AND classroom_login_enabled = true
+      AND archived_at IS NULL
       `,
       [studentId, pin],
     );
@@ -391,7 +406,7 @@ exports.dashboard = async (req, res) => {
     const info = infoResult.rows[0];
 
     // Step 2: Build dynamic user query
-    let query = "SELECT * FROM users2 WHERE 1=1";
+    let query = "SELECT * FROM users2 WHERE archived_at IS NULL";
     const params = [];
 
     if (gender) {
@@ -803,7 +818,7 @@ exports.filterUsersAjax = async (req, res) => {
   try {
     const { gender, role, email } = req.query;
 
-    let query = `SELECT * FROM users2 WHERE 1=1`;
+    let query = `SELECT * FROM users2 WHERE archived_at IS NULL`;
     const values = [];
 
     if (gender) {
@@ -1296,7 +1311,7 @@ if(role==="teacher" || role==="student"){
         `
         SELECT *
         FROM schools
-        WHERE school_id=$1
+        WHERE school_id=$1 AND archived_at IS NULL
         `,
         [schoolId]
     );
@@ -1633,7 +1648,7 @@ exports.checkSchool = async (req, res) => {
         `
         SELECT *
         FROM schools
-        WHERE school_id=$1
+        WHERE school_id=$1 AND archived_at IS NULL
         `,
         [schoolId]
     );
@@ -2422,15 +2437,18 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+// "Delete" archives the account instead of an immediate, cascading DELETE
+// — see services/archiveService.js. Permanent deletion is a separate,
+// later, explicit action from /admin/archive.
 exports.deleteUser = async (req, res) => {
   const userId = req.params.id;
 
   try {
-    await pool.query("DELETE FROM users2 WHERE id = $1", [userId]);
-    await logActivityForUser(req, "User Deleted");
+    await archiveService.archive("user", userId, req.session?.user?.id);
+    await logActivityForUser(req, "User archived");
     res.redirect("/admin/dashboard");
   } catch (error) {
-    console.error("Error deleting user:", error);
+    console.error("Error archiving user:", error);
     res.status(500).send("Server error");
   }
 };
@@ -2621,12 +2639,13 @@ exports.showCourses = async (req, res) => {
     SELECT courses.*, cp.title AS pathway_name
     FROM courses
     LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
+    WHERE courses.archived_at IS NULL
   `;
   let params = [];
 
   // ✅ If instructor → only fetch their courses
   if (req.user.role === "instructor") {
-    coursesQuery += ` WHERE courses.instructor_id = $1 `;
+    coursesQuery += ` AND courses.instructor_id = $1 `;
     params.push(req.user.id);
   }
 
@@ -3019,11 +3038,13 @@ exports.deleteCourse = async (req, res) => {
       return res.status(403).send("You are not allowed to delete this course.");
     }
 
-    // ✅ Delete course
-    await pool.query("DELETE FROM courses WHERE id = $1", [id]);
+    // Archive instead of an immediate, cascading delete — see
+    // services/archiveService.js. Permanent deletion is a separate, later
+    // action from /admin/archive.
+    await archiveService.archive("course", id, req.session?.user?.id);
 
     const redirectTo = safeRedirectTarget(req.body.redirect_to, "/admin/courses");
-    res.redirect(withFeedback(redirectTo, "Course deleted.", "success"));
+    res.redirect(withFeedback(redirectTo, "Course archived.", "success"));
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error.");
@@ -3582,7 +3603,7 @@ exports.listStudents = async (req, res) => {
     const info = infoResult.rows[0];
     const users = await pool.query(
       `SELECT id, fullname, email, phone, gender, role, created_at, profile_picture
-       FROM users2 WHERE role='user'
+       FROM users2 WHERE role='user' AND archived_at IS NULL
        ORDER BY created_at DESC`
     );
     const parentsRes = await pool.query(
@@ -3595,7 +3616,7 @@ exports.listStudents = async (req, res) => {
         profile_picture,
         created_at
       FROM users2
-      WHERE role='parent'
+      WHERE role='parent' AND archived_at IS NULL
       ORDER BY created_at DESC
       `
     );
@@ -4520,7 +4541,7 @@ exports.assignChildToParent = async (req, res) => {
       `SELECT id, fullname, email
        FROM users2
        WHERE LOWER(email) = LOWER($1)
-       AND role = 'parent'`,
+       AND role = 'parent' AND archived_at IS NULL`,
       [parentEmail]
     );
 
@@ -4533,7 +4554,7 @@ exports.assignChildToParent = async (req, res) => {
       `SELECT id, fullname, email
        FROM users2
        WHERE LOWER(email) = LOWER($1)
-       AND role = 'user'`,
+       AND role = 'user' AND archived_at IS NULL`,
       [childEmail]
     );
 
@@ -4578,6 +4599,7 @@ exports.searchUsers = async (req, res) => {
         role
       FROM users2
       WHERE role = $1
+      AND archived_at IS NULL
       AND (
         fullname ILIKE $2
         OR email ILIKE $2
@@ -5386,6 +5408,7 @@ exports.getSchoolsApi = async (req, res) => {
         id,
         name
       FROM schools
+      WHERE archived_at IS NULL
       ORDER BY name ASC
     `);
 
@@ -5640,7 +5663,7 @@ exports.getSchoolDetails = async (req, res) => {
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
       LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1 AND us.role_in_school = 'student'
+      WHERE us.school_id = $1 AND us.role_in_school = 'student' AND u.archived_at IS NULL
       `,
       [id]
     );
@@ -5668,7 +5691,7 @@ exports.getSchoolDetails = async (req, res) => {
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
       LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1 AND us.role_in_school = 'teacher'
+      WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND u.archived_at IS NULL
       `,
       [id]
     );
@@ -5687,9 +5710,9 @@ exports.getSchoolDetails = async (req, res) => {
       FROM users2 u
       LEFT JOIN classroom_instructors ci 
         ON ci.instructor_id = u.id
-      LEFT JOIN classrooms c 
+      LEFT JOIN classrooms c
         ON ci.classroom_id = c.id AND c.school_id = $1   -- ✅ only restrict classrooms, not instructors
-      WHERE u.role = 'instructor'
+      WHERE u.role = 'instructor' AND u.archived_at IS NULL
       GROUP BY u.id, u.fullname, u.email
       ORDER BY u.fullname;
 
@@ -5899,8 +5922,9 @@ exports.getSchoolDetails = async (req, res) => {
         FROM user_school us
         JOIN users2 u ON us.user_id = u.id
         LEFT JOIN classrooms c ON us.classroom_id = c.id
-        WHERE us.role_in_school = 'student' 
+        WHERE us.role_in_school = 'student'
           AND us.school_id = $1
+          AND u.archived_at IS NULL
         ORDER BY c.name, u.fullname`,
         [schoolId]
       );
@@ -5908,14 +5932,15 @@ exports.getSchoolDetails = async (req, res) => {
 
       // --- 4. Get teachers
       const teacherRes = await pool.query(
-        `SELECT 
-            u.id, 
-            u.fullname AS full_name, 
+        `SELECT
+            u.id,
+            u.fullname AS full_name,
             u.email
         FROM user_school us
         JOIN users2 u ON us.user_id = u.id
         WHERE us.role_in_school = 'teacher'
           AND us.school_id = $1
+          AND u.archived_at IS NULL
         ORDER BY u.fullname`,
         [schoolId]
       );
@@ -6152,6 +6177,7 @@ exports.downloadStudentLoginCards = async (req, res) => {
           LEFT JOIN classrooms c ON us.classroom_id = c.id
           WHERE ste.term_id = $1 AND us.school_id = $2
             AND us.role_in_school = 'student' AND us.is_active = true
+            AND u.archived_at IS NULL
           ORDER BY c.name, u.fullname`,
           [termId, schoolId]
         )
@@ -6164,6 +6190,7 @@ exports.downloadStudentLoginCards = async (req, res) => {
           JOIN users2 u ON us.user_id = u.id
           LEFT JOIN classrooms c ON us.classroom_id = c.id
           WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.is_active = true
+            AND u.archived_at IS NULL
           ORDER BY c.name, u.fullname`,
           [schoolId]
         );
@@ -6318,7 +6345,7 @@ exports.exportStudentsExcel = async (req, res) => {
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
       LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1 AND us.role_in_school = 'student'
+      WHERE us.school_id = $1 AND us.role_in_school = 'student' AND u.archived_at IS NULL
       ORDER BY u.fullname ASC
     `,
       [id],
@@ -6563,6 +6590,7 @@ exports.getClassroomStudents = async (req, res) => {
         ON us.user_id = u.id
       WHERE us.classroom_id = $1
       AND u.role = 'student'
+      AND u.archived_at IS NULL
       ORDER BY u.fullname ASC
       `,
       [classroomId]
@@ -7279,6 +7307,7 @@ exports.searchParents = async (req, res) => {
           phone
       FROM users2
       WHERE role='parent'
+      AND archived_at IS NULL
       AND (
             fullname ILIKE $1
             OR email ILIKE $1
@@ -9018,13 +9047,13 @@ exports.getSchoolCourses = async (req, res) => {
   try {
     // Fetch all schools
     const schoolsResult = await pool.query(
-      `SELECT * FROM schools ORDER BY name`
+      `SELECT * FROM schools WHERE archived_at IS NULL ORDER BY name`
     );
     const schools = schoolsResult.rows;
 
     // Fetch all courses
     const coursesResult = await pool.query(
-      `SELECT * FROM courses ORDER BY title`
+      `SELECT * FROM courses WHERE archived_at IS NULL ORDER BY title`
     );
     const courses = coursesResult.rows;
 
@@ -9232,6 +9261,58 @@ exports.generateStudentAvatar = async (req, res) => {
   }
 };
 
+// Shared by the "whole school" and "just the students I checked" avatar-
+// generation actions, so the two never drift apart.
+async function generateAvatarsForStudentIds(studentIds) {
+  let updated = 0;
+  for (const id of studentIds) {
+    const seed = `student-${id}-${Date.now()}`;
+    const avatarUrl = `https://api.dicebear.com/7.x/adventurer/png?seed=${seed}`;
+    await pool.query(
+      `UPDATE users2 SET avatar_seed = $1, avatar_url = $2 WHERE id = $3`,
+      [seed, avatarUrl, id]
+    );
+    updated++;
+  }
+  return updated;
+}
+
+// Same idea for enabling avatar/PIN login — shared by the whole-school and
+// selected-students variants.
+async function enableAvatarLoginForStudentIds(studentIds) {
+  const updated = [];
+  for (const id of studentIds) {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    const avatarSeed = `user-${id}`;
+    await pool.query(
+      `UPDATE users2
+       SET pin = $1, avatar_seed = $2, login_type = 'avatar_pin', classroom_login_enabled = true
+       WHERE id = $3`,
+      [pin, avatarSeed, id]
+    );
+    updated.push(id);
+  }
+  return updated;
+}
+
+// Re-validates a submitted list of ids against the school + role + archive
+// state server-side — the UI only ever offers valid ids, but a raw request
+// shouldn't be trusted to have respected that.
+async function getValidStudentIdsInSchool(schoolId, studentIds) {
+  if (!Array.isArray(studentIds) || !studentIds.length) return [];
+  const result = await pool.query(
+    `SELECT u.id
+     FROM users2 u
+     JOIN user_school us ON us.user_id = u.id
+     WHERE us.school_id = $1
+       AND us.role_in_school = 'student'
+       AND u.archived_at IS NULL
+       AND u.id = ANY($2::int[])`,
+    [schoolId, studentIds]
+  );
+  return result.rows.map((r) => r.id);
+}
+
 exports.bulkGenerateAvatars = async (req, res) => {
   const { schoolId } = req.params;
 
@@ -9244,30 +9325,12 @@ exports.bulkGenerateAvatars = async (req, res) => {
         ON us.user_id = u.id
       WHERE us.school_id = $1
       AND us.role_in_school = 'student'
+      AND u.archived_at IS NULL
     `,
       [schoolId],
     );
 
-    let updated = 0;
-
-    for (const student of students.rows) {
-      const seed = `student-${student.id}-${Date.now()}`;
-
-      // const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;y
-      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/png?seed=${seed}`;
-
-      await pool.query(
-        `
-        UPDATE users2
-        SET avatar_seed = $1,
-            avatar_url = $2
-        WHERE id = $3
-      `,
-        [seed, avatarUrl, student.id],
-      );
-
-      updated++;
-    }
+    const updated = await generateAvatarsForStudentIds(students.rows.map((s) => s.id));
 
     res.json({
       success: true,
@@ -9280,6 +9343,30 @@ exports.bulkGenerateAvatars = async (req, res) => {
       success: false,
       message: "Bulk avatar generation failed",
     });
+  }
+};
+
+// Same as bulkGenerateAvatars, but only for the student ids the admin
+// actually checked in the Students tab.
+exports.bulkGenerateAvatarsForSelected = async (req, res) => {
+  const { schoolId } = req.params;
+  const { studentIds } = req.body;
+
+  try {
+    const validIds = await getValidStudentIdsInSchool(schoolId, studentIds);
+    if (!validIds.length) {
+      return res.status(400).json({ success: false, message: "No valid students selected." });
+    }
+
+    const updated = await generateAvatarsForStudentIds(validIds);
+
+    res.json({
+      success: true,
+      message: `${updated} avatar(s) generated for the selected students`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Bulk avatar generation failed" });
   }
 };
 
@@ -9379,26 +9466,10 @@ exports.bulkEnableAvatarLogin = async (req, res) => {
       JOIN user_school us ON us.user_id = u.id
       WHERE us.school_id = $1
       AND us.role_in_school = 'student'
+      AND u.archived_at IS NULL
     `, [schoolId]);
 
-    let updated = [];
-
-    for (const s of students.rows) {
-      const pin = Math.floor(1000 + Math.random() * 9000).toString();
-      const avatarSeed = `user-${s.id}`;
-
-      await pool.query(`
-        UPDATE users2
-        SET 
-          pin = $1,
-          avatar_seed = $2,
-          login_type = 'avatar_pin',
-          classroom_login_enabled = true
-        WHERE id = $3
-      `, [pin, avatarSeed, s.id]);
-
-      updated.push(s.id);
-    }
+    const updated = await enableAvatarLoginForStudentIds(students.rows.map((s) => s.id));
 
     res.json({
       success: true,
@@ -9409,6 +9480,31 @@ exports.bulkEnableAvatarLogin = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Bulk enable failed" });
+  }
+};
+
+// Same as bulkEnableAvatarLogin, but only for the student ids the admin
+// actually checked in the Students tab.
+exports.bulkEnableAvatarLoginForSelected = async (req, res) => {
+  const { schoolId } = req.params;
+  const { studentIds } = req.body;
+
+  try {
+    const validIds = await getValidStudentIdsInSchool(schoolId, studentIds);
+    if (!validIds.length) {
+      return res.status(400).json({ success: false, message: "No valid students selected." });
+    }
+
+    const updated = await enableAvatarLoginForStudentIds(validIds);
+
+    res.json({
+      success: true,
+      message: `${updated.length} student(s) enabled for avatar login`,
+      updated,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Bulk enable failed" });
   }
 };
 
@@ -9720,23 +9816,22 @@ exports.updateUserInSchool = async (req, res) => {
   }
 };
 
+// Archives the account (see services/archiveService.js) rather than
+// deleting it — deliberately no longer touches user_school, since
+// archiving should preserve the membership record for a later restore,
+// not sever it the way the old hard delete did.
 exports.deleteUserFromSchool = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // delete from user_school first
-    await pool.query("DELETE FROM user_school WHERE user_id = $1", [userId]);
-    // delete from users2
-    const result = await pool.query(
-      "DELETE FROM users2 WHERE id = $1 RETURNING *",
-      [userId]
-    );
+    const item = await archiveService.archive("user", userId, req.session?.user?.id);
 
-    if (result.rowCount === 0) {
+    if (!item) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.status(200).json({ message: "User deleted successfully" });
+    await logActivityForUser(req, "User archived", `id: ${userId}`);
+    return res.status(200).json({ message: "User archived successfully" });
   } catch (err) {
     console.error("❌ deleteUserFromSchool error:", err.message);
     res.status(500).json({ message: "Internal server error" });
@@ -9789,7 +9884,8 @@ exports.addStudentsToClassroom = async (req, res) => {
        WHERE u.id = ANY($1::int[])
          AND us.school_id = $2
          AND us.role_in_school = 'student'
-         AND us.is_active = true`,
+         AND us.is_active = true
+         AND u.archived_at IS NULL`,
       [student_ids, schoolId]
     );
 
@@ -9819,6 +9915,7 @@ exports.addStudentsToClassroom = async (req, res) => {
          AND us.role_in_school = 'student'
          AND us.classroom_id IS NULL
          AND us.is_active = true
+         AND u.archived_at IS NULL
        ORDER BY u.fullname`,
       [schoolId]
     );
@@ -9874,7 +9971,7 @@ exports.assignUsersToClassroom = async (req, res) => {
     INSERT INTO classroom_instructors (classroom_id, instructor_id)
     SELECT $1, u.id
     FROM users2 u
-    WHERE u.id = ANY($2::int[])
+    WHERE u.id = ANY($2::int[]) AND u.archived_at IS NULL
     ON CONFLICT (classroom_id, instructor_id) DO NOTHING
     `,
         [classroomId, user_ids]
@@ -9883,7 +9980,7 @@ exports.assignUsersToClassroom = async (req, res) => {
       // Fetch all instructor users & their assigned classrooms (if any)
       const instructorsResult = await pool.query(
         `
-    SELECT 
+    SELECT
       u.id,
       u.fullname AS full_name,
       u.email,
@@ -9891,7 +9988,7 @@ exports.assignUsersToClassroom = async (req, res) => {
     FROM users2 u
     LEFT JOIN classroom_instructors ci ON ci.instructor_id = u.id
     LEFT JOIN classrooms c ON ci.classroom_id = c.id
-    WHERE u.role = 'instructor'
+    WHERE u.role = 'instructor' AND u.archived_at IS NULL
     GROUP BY u.id, u.fullname, u.email
     ORDER BY u.fullname
     `
@@ -9911,7 +10008,8 @@ exports.assignUsersToClassroom = async (req, res) => {
          WHERE u.id = ANY($1::int[])
            AND us.school_id = $2
            AND us.role_in_school = $3
-           AND us.is_active = true`,
+           AND us.is_active = true
+           AND u.archived_at IS NULL`,
         [user_ids, schoolId, role]
       );
 
@@ -9941,6 +10039,7 @@ exports.assignUsersToClassroom = async (req, res) => {
            AND us.role_in_school = $2
            AND us.classroom_id IS NULL
            AND us.is_active = true
+           AND u.archived_at IS NULL
          ORDER BY u.fullname`,
         [schoolId, role]
       );
@@ -10023,6 +10122,7 @@ exports.getClassroomCandidates = async (req, res) => {
        WHERE ste.term_id = $1
          AND us.school_id = $2
          AND us.is_active = true
+         AND u.archived_at IS NULL
          ${includeAssigned ? "" : "AND us.classroom_id IS NULL"}
        ORDER BY u.fullname`,
       [termId, schoolId]
@@ -10051,6 +10151,7 @@ exports.getTermCandidates = async (req, res) => {
        WHERE us.school_id = $1
          AND us.role_in_school = 'student'
          AND us.is_active = true
+         AND u.archived_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM student_term_enrollments ste
            WHERE ste.student_id = u.id AND ste.term_id = $2
@@ -10704,8 +10805,9 @@ exports.getAttendanceStudents = async (req, res) => {
       FROM student_term_enrollments ts
       JOIN users2 u ON ts.student_id = u.id
       JOIN user_school us ON us.user_id = u.id
-      WHERE ts.term_id = $1 
+      WHERE ts.term_id = $1
       AND us.classroom_id = $2
+      AND u.archived_at IS NULL
       ORDER BY u.fullname ASC
     `,
       [term_id, classroom_id],

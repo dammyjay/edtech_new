@@ -138,9 +138,9 @@
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button type="submit">🖼️ Regenerate Thumbnail</button>
                     </form>
-                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return handleConfirmSubmit(event, 'Delete this course?')">
+                    <form action="/admin/courses/delete/<%= course.id %>" method="POST" onsubmit="return handleConfirmSubmit(event, 'Archive this course? It will be hidden everywhere but can be restored later from the Archive screen.')">
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
-                      <button class="btn-delete" type="submit">Delete</button>
+                      <button class="btn-delete" type="submit">Archive</button>
                     </form>
                   </div>
                 </div>

@@ -20,6 +20,7 @@ const userController = require("../controllers/userController")
 const newsletterController = require("../controllers/newsletterController");
 const reportController = require("../controllers/reportController");
 const reportsAdminController = require("../controllers/reportsAdminController");
+const archiveController = require("../controllers/archiveController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
 const {
@@ -115,6 +116,15 @@ router.use(ensureAdmin);
 // untouched.
 router.use(ensureCsrfToken, verifyCsrfToken);
 
+// Archive screen — everything "Delete" now archives first (see
+// controllers/archiveController.js) lands here for review, restore, or a
+// separate, explicit permanent delete. Admin-only, same as every route in
+// this file below ensureAdmin.
+router.get("/archive", archiveController.getArchivePage);
+router.get("/archive/:entity/:id/impact", archiveController.getImpact);
+router.post("/archive/:entity/:id/restore", archiveController.restoreEntity);
+router.post("/archive/:entity/:id/delete-permanent", archiveController.deleteEntityPermanently);
+
   // Newsletter Dashboard
 router.get("/", newsletterController.getNewslettersPage);
 
@@ -163,14 +173,22 @@ router.post(
   "/schools/:schoolId/generate-avatars",
   adminController.bulkGenerateAvatars,
 );
+router.post(
+  "/schools/:schoolId/generate-avatars-selected",
+  adminController.bulkGenerateAvatarsForSelected,
+);
 
 router.post(
   "/users/:userId/toggle-avatar-login",
   adminController.toggleAvatarLogin,
 );
 
-// Bulk enable for school students
-router.post("/schooxls/:schoolId/bulk-enable-avatar-login", adminController.bulkEnableAvatarLogin);
+// Bulk enable for school students. Was registered at the typo'd
+// "/schooxls/..." (unreachable — school-details.ejs always called the
+// correctly-spelled "/schools/..." path) — fixed as part of adding the
+// selected-students variant right below it.
+router.post("/schools/:schoolId/bulk-enable-avatar-login", adminController.bulkEnableAvatarLogin);
+router.post("/schools/:schoolId/bulk-enable-avatar-login-selected", adminController.bulkEnableAvatarLoginForSelected);
 
 router.post(
   "/migrate-student-login",
@@ -605,6 +623,9 @@ router.post(
   adminController.updateSchoolInfo
 );
 router.get("/schools/:id", adminController.getSchoolDetails);
+// Schools had no delete/archive action at all before this — see
+// controllers/archiveController.js and services/archiveService.js.
+router.post("/schools/:id/archive", archiveController.archiveEntity("school"));
 router.get("/schools/:id/export-students-excel", adminController.exportStudentsExcel);
 // router.get("/admin/schools/:id/export-students-pdf", adminController.exportStudentsPDF);
 

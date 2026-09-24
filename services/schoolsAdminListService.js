@@ -66,6 +66,7 @@ async function getAllSchoolsWithPaymentSummary() {
       JOIN quotes q ON q.id = sp.quote_id
       WHERE q.term_id = lt.id AND q.school_id = s.id
     ) tp ON true
+    WHERE s.archived_at IS NULL
     GROUP BY s.id, lt.id, lt.name, sc.student_count_last_term, tp.total_paid_last_term
     ORDER BY s.created_at DESC
   `);

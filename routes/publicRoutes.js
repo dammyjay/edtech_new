@@ -177,7 +177,7 @@ router.get("/showcase", async (req, res) => {
        JOIN users2 u ON u.id = lp.student_id
        LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
        LEFT JOIN (SELECT project_id, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
-       WHERE lp.is_published = true AND u.public_profile_enabled = true ${labTypeFilter}
+       WHERE lp.is_published = true AND u.public_profile_enabled = true AND u.archived_at IS NULL ${labTypeFilter}
        ORDER BY lp.published_at DESC
        LIMIT 60`,
       params
@@ -201,7 +201,7 @@ router.get("/showcase", async (req, res) => {
        FROM external_project_submissions eps
        JOIN external_projects ep ON ep.id = eps.external_project_id
        JOIN users2 u ON u.id = eps.student_id
-       WHERE eps.featured = true AND u.public_profile_enabled = true
+       WHERE eps.featured = true AND u.public_profile_enabled = true AND u.archived_at IS NULL
        ORDER BY eps.featured_at DESC
        LIMIT 60`
     );
@@ -236,7 +236,7 @@ router.get("/showcase/:id", async (req, res) => {
               u.fullname
        FROM lab_projects lp
        JOIN users2 u ON u.id = lp.student_id
-       WHERE lp.id = $1 AND lp.is_published = true AND u.public_profile_enabled = true`,
+       WHERE lp.id = $1 AND lp.is_published = true AND u.public_profile_enabled = true AND u.archived_at IS NULL`,
       [req.params.id]
     );
     const project = result.rows[0];
@@ -941,6 +941,7 @@ router.get("/courses", async (req, res) => {
     SELECT courses.*, cp.title AS pathway_name
     FROM courses
     LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
+    WHERE courses.archived_at IS NULL
     ORDER BY cp.title ASC, courses.level ASC, sort_order ASC
   `);
 
@@ -1187,8 +1188,8 @@ router.get("/pathways/:id", async (req, res) => {
 
      // Get courses under this pathway, grouped by level
      const courseResult = await pool.query(
-       `SELECT * FROM courses 
-       WHERE career_pathway_id = $1
+       `SELECT * FROM courses
+       WHERE career_pathway_id = $1 AND archived_at IS NULL
        ORDER BY level ASC, sort_order ASC`,
        [id]
      );
@@ -1249,7 +1250,7 @@ router.get("/courses/:id", async (req, res) => {
 
     // Course details
     const courseResult = await pool.query(
-      "SELECT * FROM courses WHERE id = $1",
+      "SELECT * FROM courses WHERE id = $1 AND archived_at IS NULL",
       [id]
     );
     const course = courseResult.rows[0];
@@ -1257,7 +1258,7 @@ router.get("/courses/:id", async (req, res) => {
 
     // Modules
     const modulesResult = await pool.query(
-      `SELECT * FROM modules WHERE course_id = $1 ORDER BY order_number ASC`,
+      `SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL ORDER BY order_number ASC`,
       [id]
     );
     const modules = modulesResult.rows;

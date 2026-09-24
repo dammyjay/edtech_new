@@ -7,6 +7,7 @@ const { getCompanyInfo } = require("../utils/companyInfo");
 const generateModuleBadge = require("../utils/generateModuleBadge");
 const generateThumbnail = require("../utils/generateThumbnail");
 const { withFeedback, safeRedirectTarget } = require("../utils/adminFeedback");
+const archiveService = require("../services/archiveService");
 
 // Renders a badge via utils/generateModuleBadge, uploads it to Cloudinary,
 // and cleans up the local temp file — the one place both createModule and
@@ -331,18 +332,21 @@ exports.regenerateModuleBadge = async (req, res) => {
   }
 };
 
+// Archives the module instead of an immediate, cascading delete — see
+// services/archiveService.js. Permanent deletion is a separate, later
+// action from /admin/archive.
 exports.deleteModule = async (req, res) => {
   const { id } = req.params;
 
-  // Find course ID first before delete
+  // Find course ID first before archiving
   const result = await pool.query(
     "SELECT course_id FROM modules WHERE id = $1",
     [id]
   );
   const course_id = result.rows[0].course_id;
 
-  await pool.query("DELETE FROM modules WHERE id = $1", [id]);
-  res.redirect(withFeedback(`/admin/courses/${course_id}?tab=modules`, "Module deleted.", "success"));
+  await archiveService.archive("module", id, req.session?.user?.id);
+  res.redirect(withFeedback(`/admin/courses/${course_id}?tab=modules`, "Module archived.", "success"));
 };
 
 exports.getLessonsPage = async (req, res) => {
@@ -358,11 +362,12 @@ exports.getLessonsPage = async (req, res) => {
       SELECT m.*, c.title AS course_title
       FROM modules m
       JOIN courses c ON m.course_id = c.id
+      WHERE m.archived_at IS NULL AND c.archived_at IS NULL
     `;
     let queryParams = [];
 
     if (courseId) {
-      modulesQuery += ` WHERE c.id = $1`;
+      modulesQuery += ` AND c.id = $1`;
       queryParams.push(courseId);
     }
 
@@ -376,7 +381,7 @@ exports.getLessonsPage = async (req, res) => {
     if (selectedModuleId && selectedModuleId !== "all") {
       // Count total lessons
       const countRes = await pool.query(
-        `SELECT COUNT(*) AS total FROM lessons WHERE module_id = $1`,
+        `SELECT COUNT(*) AS total FROM lessons WHERE module_id = $1 AND archived_at IS NULL`,
         [selectedModuleId]
       );
       const totalLessons = parseInt(countRes.rows[0].total);
@@ -384,7 +389,7 @@ exports.getLessonsPage = async (req, res) => {
 
       // Fetch paginated lessons
       const lessonsRes = await pool.query(
-        `SELECT * FROM lessons WHERE module_id = $1 ORDER BY order_number ASC LIMIT $2 OFFSET $3`,
+        `SELECT * FROM lessons WHERE module_id = $1 AND archived_at IS NULL ORDER BY order_number ASC LIMIT $2 OFFSET $3`,
         [selectedModuleId, limit, offset]
       );
       lessons = lessonsRes.rows;
@@ -461,15 +466,18 @@ exports.editLesson = async (req, res) => {
   }
 };
 
+// Archives the lesson instead of an immediate, cascading delete — see
+// services/archiveService.js. Permanent deletion is a separate, later
+// action from /admin/archive.
 exports.deleteLesson = async (req, res) => {
   const { id } = req.params;
   const { course_id } = req.body;
 
   try {
-    await pool.query("DELETE FROM lessons WHERE id = $1", [id]);
+    await archiveService.archive("lesson", id, req.session?.user?.id);
     res.redirect(`/admin/courses/${course_id}?tab=lessons`);
   } catch (err) {
-    console.error("Error deleting lesson:", err.message);
+    console.error("Error archiving lesson:", err.message);
     res.status(500).send("Server error");
   }
 };
@@ -1204,14 +1212,14 @@ exports.getSingleCourse = async (req, res) => {
     courseId,
   ]);
   const modules = await pool.query(
-    `SELECT * FROM modules WHERE course_id = $1`,
+    `SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL`,
     [courseId]
   );
   const lessons = await pool.query(
     `
-    SELECT l.*, m.title as module_title 
-    FROM lessons l JOIN modules m ON l.module_id = m.id 
-    WHERE m.course_id = $1`,
+    SELECT l.*, m.title as module_title
+    FROM lessons l JOIN modules m ON l.module_id = m.id
+    WHERE m.course_id = $1 AND l.archived_at IS NULL AND m.archived_at IS NULL`,
     [courseId]
   );
   const assignment = await pool.query(
@@ -1258,7 +1266,7 @@ exports.viewSingleCourse = async (req, res) => {
 
     // Get modules for the course
     const modules = await pool.query(
-      "SELECT * FROM modules WHERE course_id = $1",
+      "SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL",
       [id]
     );
 
@@ -1267,7 +1275,7 @@ exports.viewSingleCourse = async (req, res) => {
       SELECT l.*, m.title AS module_title
       FROM lessons l
       JOIN modules m ON l.module_id = m.id
-      WHERE m.course_id = $1
+      WHERE m.course_id = $1 AND l.archived_at IS NULL AND m.archived_at IS NULL
     `;
     let params = [id];
     if (selectedModuleId !== "all") {

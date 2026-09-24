@@ -1,0 +1,259 @@
+<%- include('../partials/adminHeader', { info: typeof info !== 'undefined' ? info : {}, currentPage: 'archive' }) %>
+
+<div class="arc-page">
+  <h2>🗄️ Archive</h2>
+  <p class="arc-sub">
+    "Delete" on a school, a user, a course, a module, or a lesson archives it here first — nothing is destroyed.
+    Restore an item to bring it back exactly as it was, or use <strong>Delete Permanently</strong> to run the real,
+    irreversible delete (which also removes everything attached to it — submissions, progress, payments, and more).
+  </p>
+
+  <div class="arc-tabs">
+    <button type="button" class="arc-tab active" data-tab="users">Users (<%= users.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="schools">Schools (<%= schools.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="courses">Courses (<%= courses.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="modules">Modules (<%= modules.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="lessons">Lessons (<%= lessons.length %>)</button>
+  </div>
+
+  <!-- USERS -->
+  <div id="arc-tab-users" class="arc-tab-panel">
+    <form class="arc-toolbar" method="GET" action="/admin/archive">
+      <input type="text" name="search" placeholder="Search by name or email…" value="<%= search %>" />
+      <select name="role">
+        <option value="">All roles</option>
+        <% ["student","parent","teacher","instructor","school_admin","admin","user"].forEach(r => { %>
+          <option value="<%= r %>" <%= role === r ? "selected" : "" %>><%= r %></option>
+        <% }) %>
+      </select>
+      <button type="submit">Filter</button>
+    </form>
+    <table class="arc-table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Role</th><th>School</th><th>Archived</th><th>By</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% if (!users.length) { %>
+          <tr><td colspan="7" class="arc-empty">No archived users.</td></tr>
+        <% } %>
+        <% users.forEach(u => { %>
+          <tr data-entity="user" data-id="<%= u.id %>" data-label="<%= u.label %>">
+            <td><%= u.label %></td>
+            <td><%= u.extra || '—' %></td>
+            <td><%= u.context || '—' %></td>
+            <td><%= u.parent_label || '—' %></td>
+            <td><%= new Date(u.archived_at).toLocaleDateString() %></td>
+            <td><%= u.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SCHOOLS -->
+  <div id="arc-tab-schools" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!schools.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived schools.</td></tr>
+        <% } %>
+        <% schools.forEach(s => { %>
+          <tr data-entity="school" data-id="<%= s.id %>" data-label="<%= s.label %>">
+            <td><%= s.label %></td>
+            <td><%= s.extra || '—' %></td>
+            <td><%= new Date(s.archived_at).toLocaleDateString() %></td>
+            <td><%= s.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- COURSES -->
+  <div id="arc-tab-courses" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Title</th><th>Pathway</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!courses.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived courses.</td></tr>
+        <% } %>
+        <% courses.forEach(c => { %>
+          <tr data-entity="course" data-id="<%= c.id %>" data-label="<%= c.label %>">
+            <td><%= c.label %></td>
+            <td><%= c.parent_label || '—' %></td>
+            <td><%= new Date(c.archived_at).toLocaleDateString() %></td>
+            <td><%= c.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODULES -->
+  <div id="arc-tab-modules" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Title</th><th>Course</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!modules.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived modules.</td></tr>
+        <% } %>
+        <% modules.forEach(m => { %>
+          <tr data-entity="module" data-id="<%= m.id %>" data-label="<%= m.label %>">
+            <td><%= m.label %></td>
+            <td><%= m.parent_label || '—' %></td>
+            <td><%= new Date(m.archived_at).toLocaleDateString() %></td>
+            <td><%= m.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LESSONS -->
+  <div id="arc-tab-lessons" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Title</th><th>Course</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!lessons.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived lessons.</td></tr>
+        <% } %>
+        <% lessons.forEach(l => { %>
+          <tr data-entity="lesson" data-id="<%= l.id %>" data-label="<%= l.label %>">
+            <td><%= l.label %></td>
+            <td><%= l.parent_label || '—' %></td>
+            <td><%= new Date(l.archived_at).toLocaleDateString() %></td>
+            <td><%= l.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .arc-page { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+  .arc-sub { color: #666; font-size: 13px; margin-top: -8px; margin-bottom: 20px; max-width: 800px; }
+  .arc-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .arc-tab {
+    padding: 8px 16px; border: 1px solid #ccc; border-radius: 999px;
+    background: #fff; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .arc-tab.active { background: #333; color: #fff; border-color: #333; }
+  .arc-toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .arc-toolbar input, .arc-toolbar select {
+    padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px;
+  }
+  .arc-toolbar button { padding: 8px 14px; border-radius: 8px; border: 1px solid #333; background: #333; color: #fff; cursor: pointer; }
+  .arc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .arc-table th, .arc-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eee; }
+  .arc-table th { background: #fafafa; font-weight: 700; color: #444; }
+  .arc-empty { text-align: center; color: #999; padding: 24px; }
+  .arc-actions { display: flex; gap: 8px; white-space: nowrap; }
+  .arc-actions button {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;
+  }
+  .arc-restore-btn { border-color: #1f9d55; color: #1f9d55; }
+  .arc-restore-btn:hover { background: #1f9d55; color: #fff; }
+  .arc-delete-btn { border-color: #d64545; color: #d64545; }
+  .arc-delete-btn:hover { background: #d64545; color: #fff; }
+</style>
+
+<script>
+  document.querySelectorAll(".arc-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".arc-tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.querySelectorAll(".arc-tab-panel").forEach((p) => (p.style.display = "none"));
+      document.getElementById("arc-tab-" + tab.dataset.tab).style.display = "block";
+    });
+  });
+
+  document.querySelectorAll(".arc-page").forEach((page) => {
+    page.addEventListener("click", async (e) => {
+      const row = e.target.closest("tr[data-entity]");
+      if (!row) return;
+      const entity = row.dataset.entity;
+      const id = row.dataset.id;
+      const label = row.dataset.label;
+
+      if (e.target.classList.contains("arc-restore-btn")) {
+        const ok = await window.showConfirm(`Restore "${label}"? It will reappear everywhere it was hidden from.`, { confirmText: "Restore" });
+        if (!ok) return;
+        try {
+          const res = await fetch(`/admin/archive/${entity}/${id}/restore`, { method: "POST" });
+          const data = await res.json();
+          if (data.success) {
+            row.remove();
+          } else {
+            await window.showAlert(data.message || "Could not restore.", "error");
+          }
+        } catch (err) {
+          console.error("Restore error:", err);
+          await window.showAlert("Server error while restoring.", "error");
+        }
+      }
+
+      if (e.target.classList.contains("arc-delete-btn")) {
+        let counts = {};
+        try {
+          const impactRes = await fetch(`/admin/archive/${entity}/${id}/impact`);
+          const impactData = await impactRes.json();
+          counts = impactData.counts || {};
+        } catch (err) {
+          console.error("Impact fetch error:", err);
+        }
+        const countsLine = Object.entries(counts)
+          .filter(([, v]) => Number(v) > 0)
+          .map(([k, v]) => `${v} ${k.replace(/_/g, " ")}`)
+          .join(", ");
+
+        const ok = await window.showConfirm(
+          `Permanently delete "${label}"? This cannot be undone.` +
+            (countsLine ? ` It will also delete: ${countsLine}.` : ""),
+          { type: "danger", confirmText: "Continue" }
+        );
+        if (!ok) return;
+
+        const typed = prompt(`Type the exact name to confirm permanent deletion:\n\n${label}`);
+        if (typed !== label) {
+          if (typed !== null) await window.showAlert("That didn't match — nothing was deleted.", "warning");
+          return;
+        }
+
+        try {
+          const res = await fetch(`/admin/archive/${entity}/${id}/delete-permanent`, { method: "POST" });
+          const data = await res.json();
+          if (data.success) {
+            row.remove();
+          } else {
+            await window.showAlert(data.message || "Could not delete.", "error");
+          }
+        } catch (err) {
+          console.error("Permanent delete error:", err);
+          await window.showAlert("Server error while deleting.", "error");
+        }
+      }
+    });
+  });
+</script>

@@ -84,7 +84,8 @@ GROUP BY c.id, c.name, c.arcade_enabled;`,
     `SELECT u.id, u.fullname, u.email, us.role_in_school, us.joined_at
      FROM users2 u
      JOIN user_school us ON u.id = us.user_id
-     WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true`,
+     WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true
+       AND u.archived_at IS NULL`,
     [schoolDbId]
   );
 
@@ -95,8 +96,9 @@ GROUP BY c.id, c.name, c.arcade_enabled;`,
     JOIN user_school us ON u.id = us.user_id
     LEFT JOIN classrooms c ON us.classroom_id = c.id
     WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+      AND u.archived_at IS NULL
     ORDER BY u.fullname`,
-    [schoolDbId]  
+    [schoolDbId]
   );
 
   // ✅ Recent activities (limit 10 for dashboard)
@@ -146,6 +148,7 @@ LEFT JOIN activities a
 WHERE us.school_id = $1
   AND us.role_in_school = 'student'
   AND us.approved = true
+  AND u.archived_at IS NULL
 GROUP BY u.id, u.fullname, u.email
 ORDER BY engagement_rate DESC;
 
@@ -166,9 +169,9 @@ ORDER BY engagement_rate DESC;
       ON ct.classroom_id = us2.classroom_id
      AND us2.role_in_school = 'student'
      AND us2.approved = true
-    JOIN users2 u 
-      ON us2.user_id = u.id           -- ✅ proper student link
-    LEFT JOIN classroom_courses cc 
+    JOIN users2 u
+      ON us2.user_id = u.id AND u.archived_at IS NULL          -- ✅ proper student link
+    LEFT JOIN classroom_courses cc
       ON ct.classroom_id = cc.classroom_id
     LEFT JOIN courses cr 
       ON cc.course_id = cr.id
@@ -208,6 +211,7 @@ ORDER BY engagement_rate DESC;
   WHERE us.school_id = $1
     AND us.role_in_school = 'teacher'
     AND us.approved = true
+    AND t.archived_at IS NULL
   GROUP BY t.id, t.fullname, t.email
   ORDER BY total_students DESC;
 
@@ -254,7 +258,8 @@ exports.loadSection = async (req, res) => {
       `SELECT u.id, u.fullname, u.email, us.joined_at
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true`,
+       WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true
+         AND u.archived_at IS NULL`,
       [schoolId]
     );
     return res.render("partials/teachers", { teachers: teachers.rows });
@@ -294,6 +299,7 @@ exports.loadSection = async (req, res) => {
     // actually excluded.
     const students = await pool.query(
       `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at, us.is_active,
+              u.pin, u.classroom_login_enabled,
               COALESCE(c.name, 'Not assigned') AS classroom_name
       FROM users2 u
       JOIN user_school us ON u.id = us.user_id
@@ -301,6 +307,7 @@ exports.loadSection = async (req, res) => {
       WHERE us.school_id = $1
         AND us.role_in_school = 'student'
         AND us.approved = true
+        AND u.archived_at IS NULL
       ORDER BY u.fullname`,
       [schoolId]
     );
@@ -352,7 +359,8 @@ exports.loadSection = async (req, res) => {
        WHERE us.school_id = $1
          AND us.role_in_school = 'student'
          AND us.approved = true
-         AND us.is_active = true`,
+         AND us.is_active = true
+         AND u.archived_at IS NULL`,
       [schoolId]
     );
 
@@ -361,8 +369,9 @@ exports.loadSection = async (req, res) => {
         `SELECT u.id, u.fullname, u.email, us.joined_at
          FROM users2 u
          JOIN user_school us ON u.id = us.user_id
-         WHERE us.school_id = $1 AND us.classroom_id = $2 
-           AND us.role_in_school = 'student' AND us.approved = true`,
+         WHERE us.school_id = $1 AND us.classroom_id = $2
+           AND us.role_in_school = 'student' AND us.approved = true
+           AND u.archived_at IS NULL`,
         [schoolId, c.id]
       );
       c.students = studentRows.rows;
@@ -490,6 +499,7 @@ exports.loadSection = async (req, res) => {
        LEFT JOIN academic_terms at ON at.id = sc.term_id
        WHERE sc.school_id = $1
          AND (sc.term_id IS NULL OR sc.term_id = $2)
+         AND c.archived_at IS NULL
        GROUP BY c.id, c.title
        ORDER BY c.title`,
       [schoolId, activeTermId]
@@ -541,7 +551,8 @@ exports.loadSection = async (req, res) => {
       `SELECT u.id, u.fullname, u.email, us.joined_at
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true`,
+       WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND us.approved = true
+         AND u.archived_at IS NULL`,
       [schoolId]
     );
 
@@ -549,7 +560,8 @@ exports.loadSection = async (req, res) => {
       `SELECT u.id, u.fullname, u.email, us.joined_at
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
+       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+         AND u.archived_at IS NULL`,
       [schoolId]
     );
 
@@ -600,6 +612,7 @@ LEFT JOIN activities a
 WHERE us.school_id = $1
   AND us.role_in_school = 'student'
   AND us.approved = true
+  AND u.archived_at IS NULL
 GROUP BY u.id, u.fullname, u.email
 ORDER BY engagement_rate DESC;
 
@@ -619,8 +632,8 @@ ORDER BY engagement_rate DESC;
             ON ct.classroom_id = us2.classroom_id
           AND us2.role_in_school = 'student'
           AND us2.approved = true
-          JOIN users2 u 
-            ON us2.user_id = u.id           -- ✅ proper student link
+          JOIN users2 u
+            ON us2.user_id = u.id AND u.archived_at IS NULL          -- ✅ proper student link
           LEFT JOIN classroom_courses cc 
             ON ct.classroom_id = cc.classroom_id
           LEFT JOIN courses cr 
@@ -661,6 +674,7 @@ ORDER BY engagement_rate DESC;
         WHERE us.school_id = $1
           AND us.role_in_school = 'teacher'
           AND us.approved = true
+          AND t.archived_at IS NULL
         GROUP BY t.id, t.fullname, t.email
         ORDER BY total_students DESC;
 
@@ -1283,10 +1297,11 @@ exports.viewClassroom = async (req, res) => {
   ]);
 
   const students = await pool.query(
-    `SELECT u.* 
+    `SELECT u.*
      FROM users2 u
      JOIN user_school us ON u.id = us.user_id
-     WHERE us.classroom_id = $1 AND us.approved = true AND us.role_in_school = 'student'`,
+     WHERE us.classroom_id = $1 AND us.approved = true AND us.role_in_school = 'student'
+       AND u.archived_at IS NULL`,
     [id]
   );
 
@@ -1299,10 +1314,10 @@ exports.viewClassroom = async (req, res) => {
 //   );
 
     const teachers = await pool.query(
-      `SELECT u.* 
+      `SELECT u.*
         FROM users2 u
         JOIN classroom_teachers ct ON u.id = ct.teacher_id
-        WHERE ct.classroom_id = $1`,
+        WHERE ct.classroom_id = $1 AND u.archived_at IS NULL`,
       [id]
     );
   res.render("school-admin/classroom-detail", {
@@ -1396,9 +1411,10 @@ exports.addStudentToClassroom = async (req, res) => {
       `SELECT u.id, u.fullname, u.email, us.joined_at
        FROM users2 u
        JOIN user_school us ON u.id = us.user_id
-       WHERE u.id = $1 AND us.school_id = $2 
-         AND us.role_in_school = 'student' 
-         AND us.approved = true`,
+       WHERE u.id = $1 AND us.school_id = $2
+         AND us.role_in_school = 'student'
+         AND us.approved = true
+         AND u.archived_at IS NULL`,
       [student_id, schoolId]
     );
 
@@ -2385,6 +2401,7 @@ exports.getAttendanceStudents = async (req, res) => {
       WHERE us.classroom_id = $1
       AND us.role_in_school = 'student'
       AND us.approved = true
+      AND u.archived_at IS NULL
 
       ORDER BY u.fullname ASC
       `,
@@ -3108,7 +3125,7 @@ exports.downloadSchoolProgressReport = async (req, res) => {
        FROM user_school us
        JOIN users2 u ON us.user_id = u.id
        LEFT JOIN classrooms c ON us.classroom_id = c.id
-       WHERE us.role_in_school = 'student' AND us.school_id = $1
+       WHERE us.role_in_school = 'student' AND us.school_id = $1 AND u.archived_at IS NULL
        ORDER BY c.name, u.fullname`,
       [schoolId],
     );
@@ -3118,7 +3135,7 @@ exports.downloadSchoolProgressReport = async (req, res) => {
       `SELECT u.id, u.fullname AS full_name, u.email
        FROM user_school us
        JOIN users2 u ON us.user_id = u.id
-       WHERE us.role_in_school = 'teacher' AND us.school_id = $1
+       WHERE us.role_in_school = 'teacher' AND us.school_id = $1 AND u.archived_at IS NULL
        ORDER BY u.fullname`,
       [schoolId],
     );

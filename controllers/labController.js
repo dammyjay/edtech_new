@@ -694,7 +694,7 @@ exports.getReviewableProjects = async (req, res) => {
        JOIN users2 u ON u.id = lp.student_id
        JOIN user_school us ON us.user_id = lp.student_id
          AND us.classroom_id = $1 AND us.role_in_school = 'student' AND us.approved = true
-       WHERE lp.status = 'submitted' AND lp.student_id != $2
+       WHERE lp.status = 'submitted' AND lp.student_id != $2 AND u.archived_at IS NULL
        ORDER BY lp.updated_at DESC`,
       [classroomId, studentId]
     );
@@ -736,7 +736,7 @@ exports.getReviewableProjectDetail = async (req, res) => {
        JOIN users2 u ON u.id = lp.student_id
        JOIN user_school us ON us.user_id = lp.student_id
          AND us.classroom_id = $1 AND us.role_in_school = 'student' AND us.approved = true
-       WHERE lp.id = $2 AND lp.status = 'submitted' AND lp.student_id != $3`,
+       WHERE lp.id = $2 AND lp.status = 'submitted' AND lp.student_id != $3 AND u.archived_at IS NULL`,
       [classroomId, id, studentId]
     );
     const project = result.rows[0];
@@ -970,7 +970,7 @@ exports.getGalleryProjects = async (req, res) => {
        LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
        LEFT JOIN (SELECT project_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
        LEFT JOIN (SELECT remixed_from_id, COUNT(*) AS remix_count FROM lab_projects WHERE remixed_from_id IS NOT NULL GROUP BY remixed_from_id) rx ON rx.remixed_from_id = lp.id
-       WHERE lp.is_published = true ${labTypeFilter}
+       WHERE lp.is_published = true AND u.archived_at IS NULL ${labTypeFilter}
        ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
@@ -1000,7 +1000,7 @@ exports.getGalleryProjectDetail = async (req, res) => {
        JOIN users2 u ON u.id = lp.student_id
        LEFT JOIN lab_projects src ON src.id = lp.remixed_from_id
        LEFT JOIN users2 src_user ON src_user.id = src.student_id
-       WHERE lp.id = $1 AND (lp.is_published = true OR lp.student_id = $2)`,
+       WHERE lp.id = $1 AND (lp.is_published = true OR lp.student_id = $2) AND u.archived_at IS NULL`,
       [id, studentId]
     );
     const project = result.rows[0];

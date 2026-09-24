@@ -112,10 +112,10 @@
       <div id="deleteModal-<%= course.id %>" class="modal">
         <div class="modal-content">
           <span class="close" onclick="closeDeleteModal(<%= course.id %>)">&times;</span>
-          <h3>Are you sure you want to delete "<%= course.title %>"?</h3>
+          <h3>Are you sure you want to archive "<%= course.title %>"? It will be hidden everywhere but can be restored later from the Archive screen.</h3>
           <form action="/admin/courses/delete/<%= course.id %>" method="POST">
             <input type="hidden" name="redirect_to" value="/admin/pathways/<%= pathway.id %>/courses" />
-            <button type="submit">Yes, Delete</button>
+            <button type="submit">Yes, Archive</button>
           </form>
         </div>
       </div>

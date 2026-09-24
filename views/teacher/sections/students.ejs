@@ -6,6 +6,7 @@
         <th>Full Name</th>
         <th>Email</th>
         <th>Classroom</th>
+        <th>Login PIN</th>
         <th>Progress</th>
       </tr>
     </thead>
@@ -16,12 +17,13 @@
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
+            <td><%= stu.classroom_login_enabled && stu.pin ? stu.pin : '—' %></td>
             <td><button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="loadUrl('/teacher/student/<%= stu.id %>/progress', 'students')">📊 View Progress</button></td>
           </tr>
         <% }) %>
       <% } else { %>
         <tr>
-          <td colspan="4" class="tc-empty">No students found.</td>
+          <td colspan="5" class="tc-empty">No students found.</td>
         </tr>
       <% } %>
     </tbody>

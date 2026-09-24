@@ -125,7 +125,8 @@ exports.getDashboardData = async (req, res) => {
       `SELECT u.id, u.fullname, ROUND(AVG(qs.score::numeric),1) AS avg_score
        FROM users2 u
        JOIN quiz_submissions qs ON qs.student_id = u.id
-       WHERE u.id IN (
+       WHERE u.archived_at IS NULL
+         AND u.id IN (
          SELECT us.user_id
          FROM user_school us
          JOIN classroom_teachers ct ON ct.classroom_id = us.classroom_id
@@ -150,6 +151,7 @@ exports.getDashboardData = async (req, res) => {
          SELECT classroom_id FROM classroom_teachers ct WHERE teacher_id = $1 ${classFilter}
        )
        AND us.role_in_school = 'student'
+       AND u.archived_at IS NULL
        GROUP BY u.id
        ORDER BY lessons_done ASC NULLS FIRST
        LIMIT 3`,
@@ -380,12 +382,13 @@ exports.getStudentsSection = async (req, res) => {
   try {
     const teacherId = req.user.id;
     const studentsRes = await pool.query(
-      `SELECT u.id, u.fullname, u.email, c.name AS classroom_name
+      `SELECT u.id, u.fullname, u.email, u.pin, u.classroom_login_enabled, c.name AS classroom_name
        FROM user_school us
        JOIN users2 u ON u.id = us.user_id
        JOIN classrooms c ON c.id = us.classroom_id
        JOIN classroom_teachers ct ON ct.classroom_id = us.classroom_id
-       WHERE ct.teacher_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
+       WHERE ct.teacher_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+         AND u.archived_at IS NULL`,
       [teacherId]
     );
     res.render("teacher/sections/students", { students: studentsRes.rows });
@@ -405,7 +408,8 @@ exports.getReportsSection = async (req, res) => {
        JOIN users2 u ON u.id = us.user_id
        JOIN classrooms c ON c.id = us.classroom_id
        JOIN classroom_teachers ct ON ct.classroom_id = us.classroom_id
-       WHERE ct.teacher_id = $1 AND us.role_in_school = 'student' AND us.approved = true`,
+       WHERE ct.teacher_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+         AND u.archived_at IS NULL`,
       [teacherId]
     );
     res.render("teacher/sections/reports", { students: reportsRes.rows });
@@ -699,6 +703,7 @@ exports.viewClassroomStudents = async (req, res) => {
        WHERE us.classroom_id = $1
          AND us.role_in_school = 'student'
          AND us.approved = true
+         AND u.archived_at IS NULL
        GROUP BY u.id, u.fullname, u.email, u.gender, la.last_login
        ORDER BY u.fullname`,
       [id]
@@ -1326,6 +1331,7 @@ exports.getAttendanceStudents = async (req, res) => {
        FROM user_school us
        JOIN users2 u ON u.id = us.user_id
        WHERE us.classroom_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+         AND u.archived_at IS NULL
        ORDER BY u.fullname ASC`,
       [classroom_id]
     );
@@ -1684,6 +1690,7 @@ exports.renderClassChat = async (req, res) => {
        FROM users2 u
        JOIN user_school us ON us.user_id = u.id
        WHERE us.classroom_id = $1 AND us.role_in_school = 'student'
+         AND u.archived_at IS NULL
        ORDER BY u.fullname`,
       [classroomId]
     );

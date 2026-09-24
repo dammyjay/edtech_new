@@ -115,7 +115,7 @@ exports.signup = async (req, res) => {
 
       // check school exists
       const schoolCheck = await pool.query(
-        "SELECT * FROM schools WHERE school_id = $1",
+        "SELECT * FROM schools WHERE school_id = $1 AND archived_at IS NULL",
         [schoolId]
       );
       if (schoolCheck.rowCount === 0) {
@@ -218,7 +218,7 @@ exports.signup = async (req, res) => {
       
       // check school exists
       const schoolCheck = await pool.query(
-        "SELECT * FROM schools WHERE school_id = $1",
+        "SELECT * FROM schools WHERE school_id = $1 AND archived_at IS NULL",
         [schoolId]
       );
       if (schoolCheck.rowCount === 0) {
@@ -1143,6 +1143,7 @@ exports.addChild = async (req, res) => {
       `SELECT u.id, u.fullname, u.email
        FROM users2 u
        WHERE u.email = $1
+         AND u.archived_at IS NULL
          AND (
            u.role = 'user'
            OR EXISTS (

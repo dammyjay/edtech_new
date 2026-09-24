@@ -26,6 +26,7 @@
         <th>Email</th>
         <th>Classroom</th>
         <th>Coins</th>
+        <th>Login PIN</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -37,6 +38,7 @@
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
             <td><span class="student-coin-badge">🪙 <%= stu.coins || 0 %></span></td>
+            <td><%= stu.classroom_login_enabled && stu.pin ? stu.pin : '—' %></td>
             <td class="multi-btn">
               <button class="btn-award" onclick="openAwardModal(<%= stu.id %>, <%= stu.classroom_id %>, '<%= stu.fullname.replace(/'/g, "\\'") %>')">
                 <i class="fa-solid fa-star"></i> Award Points
@@ -46,7 +48,7 @@
           </tr>
         <% }) %>
       <% } else { %>
-        <tr><td colspan="5" style="text-align:center;">No students found.</td></tr>
+        <tr><td colspan="6" style="text-align:center;">No students found.</td></tr>
       <% } %>
     </tbody>
   </table>

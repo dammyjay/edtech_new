@@ -67,7 +67,7 @@ async function computeClassroomTermAnalytics(schoolId, classroomId, requestedTer
     `SELECT u.id, u.fullname
      FROM student_term_enrollments ste
      JOIN users2 u ON u.id = ste.student_id
-     WHERE ste.term_id = $1 AND ste.classroom_id = $2
+     WHERE ste.term_id = $1 AND ste.classroom_id = $2 AND u.archived_at IS NULL
      ORDER BY u.fullname`,
     [selectedTerm.id, classroomId]
   );

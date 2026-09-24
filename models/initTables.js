@@ -2211,6 +2211,28 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );
     }
 
+    // Archive-before-delete: "Delete" on a school, a user, a course, a
+    // module or a lesson now archives it first (archived_at IS NULL means
+    // live/normal) instead of immediately running the cascading DELETE
+    // these tables' many ON DELETE CASCADE foreign keys would otherwise
+    // trigger. Permanent delete is a separate, later, admin-only action
+    // from the Archive screen (services/archiveService.js). Deliberately
+    // NOT the same mechanism as user_school.is_active, which is a
+    // lighter-weight "left this specific school" flag that never blocks
+    // login — see services/archiveService.js for the full distinction.
+    await pool.query(`
+      ALTER TABLE users2  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE users2  ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE schools ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE schools ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE lessons ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE lessons ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

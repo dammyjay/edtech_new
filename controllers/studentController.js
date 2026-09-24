@@ -224,7 +224,7 @@ exports.getDashboard = async (req, res) => {
            FROM classroom_courses cc
            JOIN courses cr ON cc.course_id = cr.id
            LEFT JOIN career_pathways p ON cr.career_pathway_id = p.id
-           WHERE cc.classroom_id = $1
+           WHERE cc.classroom_id = $1 AND cr.archived_at IS NULL
            ORDER BY cr.title`,
           [classroom.id]
         );
@@ -277,7 +277,7 @@ exports.getDashboard = async (req, res) => {
          FROM course_enrollments e
          JOIN courses c ON c.id = e.course_id
          JOIN career_pathways p ON c.career_pathway_id = p.id
-         WHERE e.user_id = $1
+         WHERE e.user_id = $1 AND c.archived_at IS NULL
          ORDER BY p.title, c.title`,
         [studentId]
       );
@@ -1591,7 +1591,7 @@ exports.getEnrolledCourses = async (req, res) => {
           FROM course_enrollments e
           JOIN courses c ON c.id = e.course_id
           JOIN career_pathways p ON c.career_pathway_id = p.id
-          WHERE e.user_id = $1
+          WHERE e.user_id = $1 AND c.archived_at IS NULL
           ORDER BY p.title, c.title
           `,
           [studentId]
@@ -3264,7 +3264,7 @@ exports.viewLesson = async (req, res) => {
        FROM lessons l
        JOIN modules m ON l.module_id = m.id
        JOIN courses c ON m.course_id = c.id
-       WHERE l.id = $1`,
+       WHERE l.id = $1 AND l.archived_at IS NULL AND m.archived_at IS NULL AND c.archived_at IS NULL`,
       [lessonId],
     );
 
@@ -3344,7 +3344,7 @@ exports.getModuleDetails = async (req, res) => {
       [studentId]
     );
     const walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
-    const moduleRes = await pool.query("SELECT * FROM modules WHERE id = $1", [
+    const moduleRes = await pool.query("SELECT * FROM modules WHERE id = $1 AND archived_at IS NULL", [
       moduleId,
     ]);
     const module = moduleRes.rows[0];
@@ -3362,7 +3362,7 @@ exports.getModuleDetails = async (req, res) => {
        WHERE ul.student_id=$2 AND ul.lesson_id=l.id
      ) AS unlocked
    FROM lessons l
-   WHERE l.module_id=$1
+   WHERE l.module_id=$1 AND l.archived_at IS NULL
    ORDER BY l.id ASC`,
       [moduleId, studentId]
     );

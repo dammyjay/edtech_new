@@ -81,9 +81,26 @@
         <% }) %>
       </select>
       <button class="btn-pri" onclick="downloadLoginCards()">📥Student Login Cards</button>
+      <button class="btn-delete" onclick="archiveSchool()">🗄️ Archive School</button>
     </div>
 
     <hr>
+
+    <script>
+      async function archiveSchool() {
+        if (!(await showConfirm("Archive this school? It will be hidden from listings and its School ID won't be usable for new signups, but nothing is deleted — restore it later from the Archive screen."))) return;
+        const res = await fetch(`/admin/schools/<%= school.id %>/archive`, {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          showAlert("School archived.").then(() => { window.location.href = "/admin/schools"; });
+        } else {
+          showAlert(data.message || "Could not archive this school.");
+        }
+      }
+    </script>
 
     <h3>Classrooms</h3>
     <p>Click on the classroom name to view its details:</p>
@@ -488,11 +505,22 @@
     </button>
   </div>
 
+  <div class="multi-btn" id="selectedStudentActions">
+    <button class="btn-blue" onclick="bulkGenerateAvatarsSelected()">
+      🎭 Generate Avatars (Selected)
+    </button>
+    <button class="btn-sec" onclick="bulkEnableAvatarLoginSelected()">
+      🚀 Enable Avatar Login (Selected)
+    </button>
+    <span id="selectedStudentCount" style="align-self:center; color:#666; font-size:13px;">0 selected</span>
+  </div>
+
   <!-- tabe for students -->
   <div class="table-responsive">
     <table id="studentsTable" class="user-table sortable-table">
       <thead>
         <tr>
+          <th><input type="checkbox" id="selectAllStudents" onchange="toggleSelectAllStudents(this)" title="Select all"></th>
           <th>Name</th>
           <th>Email</th>
           <th>Classroom</th>
@@ -509,6 +537,7 @@
         <% if (school.students.length > 0) { %>
           <% school.students.forEach(student => { %>
             <tr id="student-row-<%= student.id %>">
+              <td><input type="checkbox" class="student-select-cb" value="<%= student.id %>" onchange="updateSelectedStudentCount()"></td>
               <td><%= student.full_name %></td>
               <td><%= student.email %></td>
               <td><%= student.classroom_name || '—' %></td>
@@ -537,7 +566,7 @@
                 <a href="#" class="no-bg" onclick="openAssignModal('<%= student.id %>', 'student', '<%= student.classroom_id || '' %>'); return false;">
                   <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
                 </a>
-                <a href="#" class="no-bg" onclick="deleteUser('<%= student.id %>'); return false;">
+                <a href="#" class="no-bg" title="Archive" onclick="deleteUser('<%= student.id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
                 </a>
                 <a href="#" class="no-bg" onclick="toggleActiveStatus('<%= student.id %>', <%= student.is_active !== false %>); return false;" title="<%= student.is_active === false ? 'Reactivate student' : 'Mark inactive (graduated/left)' %>">
@@ -1259,6 +1288,76 @@
     }
   }
 
+  // Checkbox selection for the Students table — the "(Selected)" actions
+  // below act only on whichever rows are checked, unlike the "(All
+  // Students)" buttons above which always act on the whole school.
+  function getSelectedStudentIds() {
+    return Array.from(document.querySelectorAll(".student-select-cb:checked")).map((cb) => cb.value);
+  }
+
+  function toggleSelectAllStudents(checkbox) {
+    document.querySelectorAll(".student-select-cb").forEach((cb) => { cb.checked = checkbox.checked; });
+    updateSelectedStudentCount();
+  }
+
+  function updateSelectedStudentCount() {
+    const count = getSelectedStudentIds().length;
+    const label = document.getElementById("selectedStudentCount");
+    if (label) label.textContent = `${count} selected`;
+
+    const total = document.querySelectorAll(".student-select-cb").length;
+    const selectAll = document.getElementById("selectAllStudents");
+    if (selectAll) selectAll.checked = total > 0 && count === total;
+  }
+
+  async function bulkGenerateAvatarsSelected() {
+    const studentIds = getSelectedStudentIds();
+    if (!studentIds.length) return showAlert("Select at least one student first.");
+    if (!(await showConfirm(`Generate avatars for ${studentIds.length} selected student(s)?`))) return;
+
+    try {
+      const schoolId = "<%= school.id %>";
+      const res = await fetch(`/admin/schools/${schoolId}/generate-avatars-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentIds })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert(data.message).then(() => location.reload());
+      } else {
+        showAlert(data.message || "Failed");
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert("Something went wrong");
+    }
+  }
+
+  async function bulkEnableAvatarLoginSelected() {
+    const studentIds = getSelectedStudentIds();
+    if (!studentIds.length) return showAlert("Select at least one student first.");
+    if (!(await showConfirm(`Enable avatar login for ${studentIds.length} selected student(s)?`))) return;
+
+    try {
+      const schoolId = "<%= school.id %>";
+      const res = await fetch(`/admin/schools/${schoolId}/bulk-enable-avatar-login-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentIds })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert(data.message).then(() => location.reload());
+      } else {
+        showAlert(data.message || "Failed");
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert("Something went wrong");
+    }
+  }
+
   async function runMigration() {
     if (!(await showConfirm("Run migration for all students?"))) return;
 
@@ -1820,15 +1919,15 @@ function exportExcel() {
 
 <script>
   async function deleteUser(userId) {
-    if (!(await showConfirm("Are you sure?"))) return;
+    if (!(await showConfirm("Archive this user? Their account will be hidden and they won't be able to log in, but nothing is deleted — restore it later from the Archive screen."))) return;
     const schoolId = "<%= school.id %>";
     const res = await fetch(`/admin/schools/${schoolId}/users/${userId}`, { method: "DELETE" });
     if (res.ok) {
-      showAlert("Deleted successfully!").then(() => {
+      showAlert("Archived successfully!").then(() => {
         location.reload();
       });
     } else {
-      showAlert("Delete failed");
+      showAlert("Archive failed");
     }
   }
   
@@ -1967,7 +2066,12 @@ function exportExcel() {
     const trs = table.getElementsByTagName("tr");
 
     for (let i = 1; i < trs.length; i++) { // skip header
-      const tds = trs[i].getElementsByTagName("td");
+      // Filter out a leading row-selection checkbox cell (only the
+      // Students table has one) so the name/email/classroom column
+      // positions below stay correct for both tables either way.
+      const tds = Array.from(trs[i].getElementsByTagName("td")).filter(
+        (td) => !td.querySelector('input[type="checkbox"]')
+      );
       if (tds.length > 0) {
         const nameText = tds[0].innerText.toLowerCase();
         const emailText = tds[1].innerText.toLowerCase();

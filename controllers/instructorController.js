@@ -279,6 +279,7 @@ exports.searchStudent = async (req, res) => {
       FROM users2 u
       JOIN user_school us ON u.id = us.user_id
       WHERE us.role_in_school = 'student'
+        AND u.archived_at IS NULL
         AND us.school_id = COALESCE(
           (SELECT school_id FROM user_school WHERE user_id = $2 LIMIT 1),
           us.school_id
@@ -384,6 +385,7 @@ exports.renderClassChat = async (req, res) => {
     LEFT JOIN muted_students ms ON ms.classroom_id = us.classroom_id AND ms.student_id = u.id
     WHERE us.classroom_id = $1
     AND us.role_in_school = 'student'
+    AND u.archived_at IS NULL
     ORDER BY u.fullname
     `,
     [classroomId]
@@ -867,6 +869,7 @@ exports.ajaxCourses = async (req, res) => {
     JOIN classrooms cl ON cl.course_id = c.id
     WHERE c.instructor_id = $1
       AND cl.school_id = $2
+      AND c.archived_at IS NULL
     GROUP BY c.id
   `,
     [instructorId, schoolId],
@@ -1052,6 +1055,7 @@ exports.loadSection = async (req, res) => {
         const studentsQuery = `
           SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
                  COALESCE(u.coins, 0) AS coins,
+                 u.pin, u.classroom_login_enabled,
                  c.id AS classroom_id, c.name AS classroom_name
           FROM user_school us
           JOIN users2 u ON u.id = us.user_id
@@ -1061,6 +1065,7 @@ exports.loadSection = async (req, res) => {
             AND c.school_id = $2
             AND us.role_in_school = 'student'
             AND us.approved = true
+            AND u.archived_at IS NULL
             ${classroomId ? "AND c.id = $3" : ""}
           ORDER BY u.fullname
         `;
@@ -1178,6 +1183,7 @@ exports.loadSection = async (req, res) => {
                AND ci.instructor_id = $2
                AND us.role_in_school = 'student'
                AND us.approved = true
+               AND u.archived_at IS NULL
              GROUP BY u.id, u.fullname, u.email, u.gender, la.last_login
              ORDER BY u.fullname`,
             [analyticsClassroomId, instructorId]
@@ -1191,6 +1197,7 @@ exports.loadSection = async (req, res) => {
              JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
              WHERE us.classroom_id = $1 AND ci.instructor_id = $2
                AND us.role_in_school = 'student' AND us.approved = true
+               AND u.archived_at IS NULL
              GROUP BY u.gender`,
             [analyticsClassroomId, instructorId]
           );
@@ -1463,6 +1470,7 @@ exports.getInstructorStudentsSection = async (req, res) => {
       `
       SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
              COALESCE(u.coins, 0) AS coins,
+             u.pin, u.classroom_login_enabled,
              c.id AS classroom_id, c.name AS classroom_name
       FROM user_school us
       JOIN users2 u ON u.id = us.user_id
@@ -1472,6 +1480,7 @@ exports.getInstructorStudentsSection = async (req, res) => {
         AND c.school_id = $2
         AND us.role_in_school = 'student'
         AND us.approved = true
+        AND u.archived_at IS NULL
       ORDER BY u.fullname
       `,
       [instructorId, schoolId]
@@ -1521,6 +1530,7 @@ exports.getInstructorReportsSection = async (req, res) => {
         AND c.school_id = $2
         AND us.role_in_school = 'student'
         AND us.approved = true
+        AND u.archived_at IS NULL
       ORDER BY u.fullname
       `,
       [instructorId, schoolId]
@@ -2188,7 +2198,7 @@ exports.viewCourseAsStudent = async (req, res) => {
 
   // Fetch modules
   const modules = await pool.query(
-    "SELECT * FROM modules WHERE course_id = $1 ORDER BY order_number ASC",
+    "SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL ORDER BY order_number ASC",
     [courseId]
   );
 
@@ -2196,7 +2206,7 @@ exports.viewCourseAsStudent = async (req, res) => {
   const lessons = await pool.query(
     `SELECT l.* FROM lessons l
      JOIN modules m ON m.id = l.module_id
-     WHERE m.course_id = $1
+     WHERE m.course_id = $1 AND l.archived_at IS NULL AND m.archived_at IS NULL
      ORDER BY l.order_number ASC`,
     [courseId]
   );
@@ -2406,8 +2416,9 @@ exports.getAttendanceStudents = async (req, res) => {
       FROM student_term_enrollments ts
       JOIN users2 u ON ts.student_id = u.id
       JOIN user_school us ON us.user_id = u.id
-      WHERE ts.term_id = $1 
+      WHERE ts.term_id = $1
       AND us.classroom_id = $2
+      AND u.archived_at IS NULL
       ORDER BY u.fullname ASC
     `,
       [term_id, classroom_id],
