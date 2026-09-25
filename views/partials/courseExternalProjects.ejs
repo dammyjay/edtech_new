@@ -19,7 +19,7 @@
       <p><strong>Points:</strong> <%= ep.points %></p>
       <div class="article-buttons">
         <button class="btn-edit" type="button" onclick='openEditExternalProjectModal(<%- JSON.stringify(ep) %>)'>Edit</button>
-        <button class="btn-delete" type="button" onclick="deleteExternalProject(<%= ep.id %>)">Delete</button>
+        <button class="btn-delete" type="button" onclick="deleteExternalProject(<%= ep.id %>)">Archive</button>
       </div>
     </div>
   <% }) %>
@@ -327,12 +327,12 @@
   });
 
   window.deleteExternalProject = async function (id) {
-    if (!(await showConfirm("Delete this external project? Existing student submissions stay on record."))) return;
+    if (!(await showConfirm("Archive this external project task? Existing student submissions stay on record, and it can be restored later from the Archive screen."))) return;
     const res = await fetch(`/admin/external-projects/${id}/delete`, { method: "POST" });
     if (res.ok) {
       window.location.reload();
     } else {
-      showAlert("Error deleting external project.");
+      showAlert("Error archiving external project.");
     }
   };
 })();

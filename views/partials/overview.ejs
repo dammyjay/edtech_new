@@ -497,9 +497,9 @@ async function approveUser(userId) {
 
 
                     
-                    <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete" 
-                        onsubmit="return handleConfirmSubmit(event, 'Delete this classroom?')">
-                        <button type="submit" class="btn-delete">🗑 Delete</button>
+                    <form method="POST" action="/school-admin/classrooms/<%= c.id %>/delete"
+                        onsubmit="return handleConfirmSubmit(event, 'Archive this classroom? It will be hidden everywhere but can be restored later by an admin.')">
+                        <button type="submit" class="btn-delete">🗄️ Archive</button>
                     </form>
 
 

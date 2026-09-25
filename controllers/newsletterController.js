@@ -186,7 +186,7 @@ exports.getClassrooms = async (req, res) => {
     `
 SELECT id,name
 FROM classrooms
-WHERE school_id=$1
+WHERE school_id=$1 AND archived_at IS NULL
 ORDER BY name
 `,
     [req.params.schoolId],

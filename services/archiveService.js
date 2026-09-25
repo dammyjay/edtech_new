@@ -26,6 +26,11 @@ const ENTITY_CONFIG = {
   course: { table: "courses", label: "course" },
   module: { table: "modules", label: "module" },
   lesson: { table: "lessons", label: "lesson" },
+  classroom: { table: "classrooms", label: "classroom" },
+  term: { table: "academic_terms", label: "academic term" },
+  external_project: { table: "external_projects", label: "external project" },
+  event: { table: "events", label: "event" },
+  quote: { table: "quotes", label: "quote" },
 };
 
 function assertEntity(entity) {
@@ -58,9 +63,17 @@ async function restore(entity, id) {
 
 // The literal DELETE FROM ... that used to run directly from the "Delete"
 // button — behavior unchanged (same cascade as always), just relocated
-// behind the Archive screen's confirm step.
+// behind the Archive screen's confirm step. Most of these tables' real,
+// FK-enforced ON DELETE CASCADE relationships (confirmed in
+// models/initTables.js) already clean up everything a plain DELETE needs
+// to, but quotes.term_id is a bare INT column with no FK at all — the
+// old deleteTerm handlers deleted quotes manually first for exactly that
+// reason, so "term" keeps doing the same thing here to match.
 async function permanentlyDelete(entity, id) {
   const { table } = assertEntity(entity);
+  if (entity === "term") {
+    await pool.query(`DELETE FROM quotes WHERE term_id = $1`, [id]);
+  }
   const result = await pool.query(`DELETE FROM ${table} WHERE id = $1 RETURNING id`, [id]);
   return result.rowCount > 0;
 }
@@ -135,6 +148,79 @@ const LIST_QUERIES = {
     `,
     params: [search || null],
   }),
+  classroom: (search) => ({
+    text: `
+      SELECT c.id, c.name AS label, NULL::text AS extra, NULL::text AS context,
+             s.name AS parent_label, c.archived_at, ab.fullname AS archived_by_name
+      FROM classrooms c
+      LEFT JOIN schools s ON s.id = c.school_id
+      LEFT JOIN users2 ab ON ab.id = c.archived_by
+      WHERE c.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR c.name ILIKE '%' || $1 || '%')
+      ORDER BY c.archived_at DESC
+    `,
+    params: [search || null],
+  }),
+  term: (search) => ({
+    text: `
+      SELECT t.id, t.name AS label, NULL::text AS extra, NULL::text AS context,
+             s.name AS parent_label, t.archived_at, ab.fullname AS archived_by_name
+      FROM academic_terms t
+      LEFT JOIN schools s ON s.id = t.school_id
+      LEFT JOIN users2 ab ON ab.id = t.archived_by
+      WHERE t.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR t.name ILIKE '%' || $1 || '%')
+      ORDER BY t.archived_at DESC
+    `,
+    params: [search || null],
+  }),
+  external_project: (search) => ({
+    text: `
+      SELECT ep.id, ep.title AS label, NULL::text AS extra,
+             CASE WHEN ep.lesson_id IS NOT NULL THEN 'lesson'
+                  WHEN ep.module_id IS NOT NULL THEN 'module'
+                  ELSE 'course' END AS context,
+             co.title AS parent_label, ep.archived_at, ab.fullname AS archived_by_name
+      FROM external_projects ep
+      LEFT JOIN modules m ON m.id = ep.module_id
+      LEFT JOIN lessons l ON l.id = ep.lesson_id
+      LEFT JOIN modules lm ON lm.id = l.module_id
+      LEFT JOIN courses co ON co.id = COALESCE(ep.course_id, m.course_id, lm.course_id)
+      LEFT JOIN users2 ab ON ab.id = ep.archived_by
+      WHERE ep.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR ep.title ILIKE '%' || $1 || '%')
+      ORDER BY ep.archived_at DESC
+    `,
+    params: [search || null],
+  }),
+  event: (search) => ({
+    text: `
+      SELECT e.id, e.title AS label, TO_CHAR(e.event_date, 'YYYY-MM-DD') AS extra,
+             NULL::text AS context, NULL::text AS parent_label,
+             e.archived_at, ab.fullname AS archived_by_name
+      FROM events e
+      LEFT JOIN users2 ab ON ab.id = e.archived_by
+      WHERE e.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR e.title ILIKE '%' || $1 || '%')
+      ORDER BY e.archived_at DESC
+    `,
+    params: [search || null],
+  }),
+  quote: (search) => ({
+    text: `
+      SELECT q.id, ('Quote #' || q.id || ' — ' || COALESCE(t.name, 'no term')) AS label,
+             q.status AS extra, NULL::text AS context,
+             s.name AS parent_label, q.archived_at, ab.fullname AS archived_by_name
+      FROM quotes q
+      LEFT JOIN schools s ON s.id = q.school_id
+      LEFT JOIN academic_terms t ON t.id = q.term_id
+      LEFT JOIN users2 ab ON ab.id = q.archived_by
+      WHERE q.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR s.name ILIKE '%' || $1 || '%' OR t.name ILIKE '%' || $1 || '%')
+      ORDER BY q.archived_at DESC
+    `,
+    params: [search || null],
+  }),
 };
 
 async function listArchived(entity, { search = null, role = null } = {}) {
@@ -203,6 +289,51 @@ async function getDependencyCounts(entity, id) {
           (SELECT COUNT(*) FROM quiz_questions qq JOIN quizzes q ON q.id = qq.quiz_id WHERE q.lesson_id = $1) AS quiz_questions,
           (SELECT COUNT(*) FROM lesson_assignments WHERE lesson_id = $1) AS assignments
         `,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "classroom": {
+      const result = await pool.query(
+        `SELECT
+          (SELECT COUNT(*) FROM user_school WHERE classroom_id = $1) AS student_memberships,
+          (SELECT COUNT(*) FROM classroom_teachers WHERE classroom_id = $1) AS teachers,
+          (SELECT COUNT(*) FROM classroom_instructors WHERE classroom_id = $1) AS instructors,
+          (SELECT COUNT(*) FROM classroom_courses WHERE classroom_id = $1) AS assigned_courses,
+          (SELECT COUNT(*) FROM attendance_sessions WHERE classroom_id = $1) AS attendance_sessions
+        `,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "term": {
+      const result = await pool.query(
+        `SELECT
+          (SELECT COUNT(*) FROM student_term_enrollments WHERE term_id = $1) AS student_enrollments,
+          (SELECT COUNT(*) FROM quotes WHERE term_id = $1) AS quotes,
+          (SELECT COUNT(*) FROM attendance_sessions WHERE term_id = $1) AS attendance_sessions
+        `,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "external_project": {
+      const result = await pool.query(
+        `SELECT (SELECT COUNT(*) FROM external_project_submissions WHERE external_project_id = $1) AS submissions`,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "event": {
+      const result = await pool.query(
+        `SELECT (SELECT COUNT(*) FROM event_registrations WHERE event_id = $1) AS registrations`,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "quote": {
+      const result = await pool.query(
+        `SELECT (SELECT COUNT(*) FROM school_payments WHERE quote_id = $1) AS payments`,
         [id]
       );
       return result.rows[0];

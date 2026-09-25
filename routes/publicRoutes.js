@@ -301,10 +301,11 @@ router.get("/", async (req, res) => {
         SELECT courses.*, cp.title AS pathway_name
         FROM courses
         LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
+        WHERE courses.archived_at IS NULL
         ORDER BY cp.title ASC, courses.level ASC, sort_order ASC LIMIT 10
       `),
       pool.query(
-        "SELECT * FROM events WHERE show_on_homepage = true ORDER BY event_date ASC LIMIT 5"
+        "SELECT * FROM events WHERE show_on_homepage = true AND archived_at IS NULL ORDER BY event_date ASC LIMIT 5"
       ),
       pool.query("SELECT COUNT(*) FROM schools"),
       pool.query(`

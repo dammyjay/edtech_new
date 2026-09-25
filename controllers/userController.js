@@ -536,7 +536,7 @@ exports.showEvent = async (req, res) => {
 
 
   try {
-    const result = await pool.query("SELECT * FROM events WHERE id = $1", [id]);
+    const result = await pool.query("SELECT * FROM events WHERE id = $1 AND archived_at IS NULL", [id]);
     const event = result.rows[0];
 
     const infoResult = await pool.query(

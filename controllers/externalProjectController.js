@@ -16,6 +16,7 @@
 const pool = require("../models/db");
 const { notifyUser } = require("../utils/notify");
 const { gradeSubmission } = require("../services/externalProjectGradingService");
+const archiveService = require("../services/archiveService");
 
 // Resolves an external_projects row to the course it ultimately belongs to,
 // regardless of which of the three levels it's actually attached at —
@@ -139,9 +140,12 @@ exports.editExternalProject = async (req, res) => {
   }
 };
 
+// Archives the task instead of an immediate, cascading delete — see
+// services/archiveService.js. Permanent deletion is a separate, later,
+// admin-only action from /admin/archive.
 exports.deleteExternalProject = async (req, res) => {
   try {
-    await pool.query(`DELETE FROM external_projects WHERE id = $1`, [req.params.id]);
+    await archiveService.archive("external_project", req.params.id, req.session?.user?.id);
     res.json({ success: true });
   } catch (err) {
     console.error("deleteExternalProject error:", err.message);
@@ -166,9 +170,10 @@ exports.getExternalProjectsForCourse = async (req, res) => {
        LEFT JOIN lessons l ON l.id = ep.lesson_id
        LEFT JOIN modules lm2 ON lm2.id = l.module_id
        LEFT JOIN modules m ON m.id = ep.module_id
-       WHERE ep.course_id = $1
+       WHERE (ep.course_id = $1
           OR m.course_id = $1
-          OR lm2.course_id = $1
+          OR lm2.course_id = $1)
+         AND ep.archived_at IS NULL
        ORDER BY ep.created_at DESC`,
       [courseId]
     );

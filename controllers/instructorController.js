@@ -153,7 +153,7 @@ exports.getInstructorChats = async (req, res) => {
       FROM classrooms c
       JOIN user_school us ON us.classroom_id = c.id
       JOIN schools s ON s.id = us.school_id
-      WHERE us.role_in_school = 'student'
+      WHERE us.role_in_school = 'student' AND c.archived_at IS NULL
       ORDER BY s.name, c.name
     `);
 
@@ -670,7 +670,7 @@ exports.getInstructorClasses = async (req,res)=>{
   SELECT DISTINCT c.id,c.name
   FROM classrooms c
   JOIN user_school us ON us.classroom_id = c.id
-  WHERE us.role_in_school = 'student'
+  WHERE us.role_in_school = 'student' AND c.archived_at IS NULL
   `
   )
 
@@ -948,7 +948,7 @@ exports.loadSection = async (req, res) => {
       const termsRes = await pool.query(`
         SELECT id AS term_id, name AS term_name
         FROM academic_terms
-        WHERE school_id = $1
+        WHERE school_id = $1 AND archived_at IS NULL
         ORDER BY id DESC
       `, [activeSchoolId]);
       terms = termsRes.rows;
@@ -966,6 +966,7 @@ exports.loadSection = async (req, res) => {
         JOIN classrooms c ON ci.classroom_id = c.id
         WHERE ci.instructor_id = $1
           AND c.school_id = $2
+          AND c.archived_at IS NULL
         ORDER BY c.name
       `, [instructorId, activeSchoolId]);
       classes = classesRes.rows;
@@ -1085,12 +1086,13 @@ exports.loadSection = async (req, res) => {
           SELECT c.id, COUNT(us.user_id) AS student_count
           FROM classrooms c
           JOIN classroom_instructors ci ON ci.classroom_id = c.id
-          LEFT JOIN user_school us 
-            ON us.classroom_id = c.id 
-            AND us.role_in_school = 'student' 
+          LEFT JOIN user_school us
+            ON us.classroom_id = c.id
+            AND us.role_in_school = 'student'
             AND us.approved = true
           WHERE ci.instructor_id = $1
           AND c.school_id = $2
+          AND c.archived_at IS NULL
           GROUP BY c.id
         `,
           [instructorId, activeSchoolId],
@@ -1106,6 +1108,7 @@ exports.loadSection = async (req, res) => {
           LEFT JOIN lessons l ON l.module_id = m.id
           WHERE ci.instructor_id = $1
             AND c.school_id = $2
+            AND c.archived_at IS NULL
           GROUP BY c.id
         `, [instructorId, activeSchoolId]);
 
@@ -1393,7 +1396,7 @@ exports.getInstructorClassesSection = async (req, res) => {
       `SELECT c.id, c.name
        FROM classrooms c
        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       WHERE ci.instructor_id = $1 AND c.school_id = $2`,
+       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL`,
       [instructorId, schoolId]
     );
     const classes = classesRes.rows;
@@ -1403,11 +1406,11 @@ exports.getInstructorClassesSection = async (req, res) => {
       `SELECT c.id, COUNT(us.user_id) AS student_count
        FROM classrooms c
        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       LEFT JOIN user_school us 
-         ON us.classroom_id = c.id 
-        AND us.role_in_school = 'student' 
+       LEFT JOIN user_school us
+         ON us.classroom_id = c.id
+        AND us.role_in_school = 'student'
         AND us.approved = true
-       WHERE ci.instructor_id = $1 AND c.school_id = $2
+       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
        GROUP BY c.id`,
       [instructorId, schoolId]
     );
@@ -1421,7 +1424,7 @@ exports.getInstructorClassesSection = async (req, res) => {
        LEFT JOIN courses co ON co.id = cc.course_id
        LEFT JOIN modules m ON m.course_id = co.id
        LEFT JOIN lessons l ON l.module_id = m.id
-       WHERE ci.instructor_id = $1 AND c.school_id = $2
+       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
        GROUP BY c.id`,
       [instructorId, schoolId]
     );
@@ -2355,6 +2358,7 @@ exports.assignedCoursesSection = async (req, res) => {
       JOIN classrooms c ON ci.classroom_id = c.id
       WHERE ci.instructor_id = $1
         AND c.school_id = $2
+        AND c.archived_at IS NULL
     `, [instructorId, schoolId]);
 
     if (classroomsResult.rows.length === 0) {

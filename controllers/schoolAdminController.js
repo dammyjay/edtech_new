@@ -13,6 +13,7 @@ const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = requir
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const archiveService = require("../services/archiveService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
 exports.getDashboard = async (req, res) => {
@@ -74,7 +75,7 @@ const schoolDbId = schoolRes.rows[0].id;
 FROM classrooms c
 LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
 LEFT JOIN users2 u ON u.id = ct.teacher_id
-WHERE c.school_id = $1
+WHERE c.school_id = $1 AND c.archived_at IS NULL
 GROUP BY c.id, c.name, c.arcade_enabled;`,
     [schoolDbId]
   );
@@ -319,13 +320,13 @@ exports.loadSection = async (req, res) => {
       FROM classrooms c
       LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
       LEFT JOIN users2 u ON u.id = ct.teacher_id
-      WHERE c.school_id = $1
+      WHERE c.school_id = $1 AND c.archived_at IS NULL
       GROUP BY c.id, c.name
       ORDER BY c.name`,
       [schoolId]
     );
 
-    return res.render("partials/students", { 
+    return res.render("partials/students", {
       students: students.rows,
       classrooms: classrooms.rows   // ✅ FIXED
     });
@@ -344,7 +345,7 @@ exports.loadSection = async (req, res) => {
        FROM classrooms c
        LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
        LEFT JOIN users2 u ON u.id = ct.teacher_id
-       WHERE c.school_id = $1
+       WHERE c.school_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id, c.name, c.arcade_enabled;`,
       [schoolId]
     );
@@ -435,7 +436,7 @@ exports.loadSection = async (req, res) => {
         FROM school_payments
         GROUP BY quote_id
       ) p ON p.quote_id = q.id
-      WHERE q.school_id = $1
+      WHERE q.school_id = $1 AND q.archived_at IS NULL
       ORDER BY t.start_date DESC
       `,
       [schoolId]
@@ -474,7 +475,7 @@ exports.loadSection = async (req, res) => {
 
   if (section === "classroom-courses") {
     const classrooms = await pool.query(
-      "SELECT id, name FROM classrooms WHERE school_id=$1",
+      "SELECT id, name FROM classrooms WHERE school_id=$1 AND archived_at IS NULL",
       [schoolId]
     );
 
@@ -486,7 +487,7 @@ exports.loadSection = async (req, res) => {
     // "/section/classroom-courses" route, so that one never actually
     // gets hit and getClassroomCourses is dead code. TODO: consolidate.
     const activeTermRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
       [schoolId]
     );
     const activeTermId = activeTermRes.rows[0]?.id || null;
@@ -542,7 +543,7 @@ exports.loadSection = async (req, res) => {
        FROM classrooms c
        LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
        LEFT JOIN users2 u ON u.id = ct.teacher_id
-       WHERE c.school_id = $1
+       WHERE c.school_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id, c.name, c.arcade_enabled;`,
       [schoolId]
     );
@@ -709,14 +710,14 @@ ORDER BY engagement_rate DESC;
       FROM academic_terms t
       LEFT JOIN student_term_enrollments ste
           ON ste.term_id = t.id
-      WHERE t.school_id = $1
+      WHERE t.school_id = $1 AND t.archived_at IS NULL
       GROUP BY t.id
       ORDER BY t.created_at DESC`,
       [schoolId]
     );
 
     const classroomsForReports = await pool.query(
-      `SELECT id, name FROM classrooms WHERE school_id = $1 ORDER BY name`,
+      `SELECT id, name FROM classrooms WHERE school_id = $1 AND archived_at IS NULL ORDER BY name`,
       [schoolId]
     );
 
@@ -812,14 +813,14 @@ ORDER BY engagement_rate DESC;
     const terms = await pool.query(
       `SELECT id AS term_id, name AS term_name
      FROM academic_terms
-     WHERE school_id = $1`,
+     WHERE school_id = $1 AND archived_at IS NULL`,
       [schoolId],
     );
 
     const classrooms = await pool.query(
       `SELECT id, name
      FROM classrooms
-     WHERE school_id = $1`,
+     WHERE school_id = $1 AND archived_at IS NULL`,
       [schoolId],
     );
 
@@ -1381,11 +1382,13 @@ exports.updateClassroom = async (req, res) => {
   }
 };
 
-// Delete classroom
+// Archives the classroom instead of an immediate, cascading delete — see
+// services/archiveService.js. Permanent deletion is a separate, later,
+// admin-only action from /admin/archive.
 exports.deleteClassroom = async (req, res) => {
   const { id } = req.params;
-  await pool.query("DELETE FROM classrooms WHERE id = $1", [id]);
-  await logActivityForUser(req, "Classroom deleted", `Classroom ID: ${id}`);
+  await archiveService.archive("classroom", id, req.session?.user?.id);
+  await logActivityForUser(req, "Classroom archived", `Classroom ID: ${id}`);
   res.redirect("/school-admin/dashboard");
 };
 
@@ -1598,13 +1601,15 @@ exports.addQuote = async (req, res) => {
   }
 };
 
+// Archives the quote instead of an immediate delete — see
+// services/archiveService.js. Permanent deletion is a separate, later,
+// admin-only action from /admin/archive.
 exports.deleteQuote = async (req, res) => {
   try {
-    await pool.query("DELETE FROM quotes WHERE id=$1", [req.params.id]);
-    
+    await archiveService.archive("quote", req.params.id, req.session?.user?.id);
     res.redirect("/school-admin/dashboard");
   } catch (err) {
-    console.error("Error deleting quote:", err);
+    console.error("Error archiving quote:", err);
     res.status(500).send("Server Error");
   }
 };
@@ -1673,7 +1678,7 @@ const schoolId = schoolRes.rows[0].id;
     // whose authorization only ever covered a since-ended term can't be
     // assigned by directly posting its id either.
     const activeTermRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
       [schoolId]
     );
     const activeTermId = activeTermRes.rows[0]?.id || null;
@@ -1740,7 +1745,7 @@ exports.updateClassroomCourse = async (req, res) => {
     // assignCourseToClassroom — a course only ever authorized for a
     // since-ended term shouldn't be assignable here either.
     const activeTermRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true LIMIT 1",
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
       [schoolId]
     );
     const activeTermId = activeTermRes.rows[0]?.id || null;
@@ -2177,39 +2182,29 @@ exports.updateTerm = async (req, res) => {
 // =============================
 // DELETE TERM
 // =============================
+// Archives the term instead of the old manual cascade (student_term_
+// enrollments/quotes/attendance_sessions all left untouched, unlike
+// before) — see services/archiveService.js. Permanent deletion is a
+// separate, later, admin-only action from /admin/archive, which still
+// replicates that manual quotes cleanup (quotes.term_id has no real FK).
 exports.deleteTerm = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await pool.query(
-      `DELETE FROM student_term_enrollments WHERE term_id = $1`,
-      [id],
-    );
-
-    await pool.query(
-      `DELETE FROM quotes WHERE term_id = $1`,
-      [id],
-    );
-
-    await pool.query(
-      `DELETE FROM attendance_sessions WHERE term_id = $1`,
-      [id],
-    );
-
-    await pool.query(
-      `DELETE FROM academic_terms WHERE id = $1`,
-      [id],
-    );
+    const item = await archiveService.archive("term", id, req.session?.user?.id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Term not found or already archived." });
+    }
 
     res.json({
       success: true,
-      message: "Term deleted",
+      message: "Term archived",
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({
       success: false,
-      message: "Error deleting term",
+      message: "Error archiving term",
     });
   }
 };
@@ -3115,7 +3110,7 @@ exports.downloadSchoolProgressReport = async (req, res) => {
     if (!school) return res.status(404).send("School not found");
 
     const classRes = await pool.query(
-      `SELECT id, name FROM classrooms WHERE school_id = $1 ORDER BY name`,
+      `SELECT id, name FROM classrooms WHERE school_id = $1 AND archived_at IS NULL ORDER BY name`,
       [schoolId],
     );
     const classrooms = classRes.rows;

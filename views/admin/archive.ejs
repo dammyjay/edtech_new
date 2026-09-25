@@ -3,7 +3,8 @@
 <div class="arc-page">
   <h2>🗄️ Archive</h2>
   <p class="arc-sub">
-    "Delete" on a school, a user, a course, a module, or a lesson archives it here first — nothing is destroyed.
+    "Delete" on a school, a user, a course, a module, a lesson, a classroom, a term, an external project task,
+    an event, or a quote archives it here first — nothing is destroyed.
     Restore an item to bring it back exactly as it was, or use <strong>Delete Permanently</strong> to run the real,
     irreversible delete (which also removes everything attached to it — submissions, progress, payments, and more).
   </p>
@@ -14,6 +15,11 @@
     <button type="button" class="arc-tab" data-tab="courses">Courses (<%= courses.length %>)</button>
     <button type="button" class="arc-tab" data-tab="modules">Modules (<%= modules.length %>)</button>
     <button type="button" class="arc-tab" data-tab="lessons">Lessons (<%= lessons.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="classrooms">Classrooms (<%= classrooms.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="terms">Terms (<%= terms.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="externalProjects">External Projects (<%= externalProjects.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="events">Events (<%= events.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="quotes">Quotes (<%= quotes.length %>)</button>
   </div>
 
   <!-- USERS -->
@@ -140,6 +146,128 @@
             <td><%= l.parent_label || '—' %></td>
             <td><%= new Date(l.archived_at).toLocaleDateString() %></td>
             <td><%= l.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CLASSROOMS -->
+  <div id="arc-tab-classrooms" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Name</th><th>School</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!classrooms.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived classrooms.</td></tr>
+        <% } %>
+        <% classrooms.forEach(c => { %>
+          <tr data-entity="classroom" data-id="<%= c.id %>" data-label="<%= c.label %>">
+            <td><%= c.label %></td>
+            <td><%= c.parent_label || '—' %></td>
+            <td><%= new Date(c.archived_at).toLocaleDateString() %></td>
+            <td><%= c.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TERMS -->
+  <div id="arc-tab-terms" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Name</th><th>School</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!terms.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived terms.</td></tr>
+        <% } %>
+        <% terms.forEach(t => { %>
+          <tr data-entity="term" data-id="<%= t.id %>" data-label="<%= t.label %>">
+            <td><%= t.label %></td>
+            <td><%= t.parent_label || '—' %></td>
+            <td><%= new Date(t.archived_at).toLocaleDateString() %></td>
+            <td><%= t.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- EXTERNAL PROJECTS -->
+  <div id="arc-tab-externalProjects" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Title</th><th>Level</th><th>Course</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!externalProjects.length) { %>
+          <tr><td colspan="6" class="arc-empty">No archived external project tasks.</td></tr>
+        <% } %>
+        <% externalProjects.forEach(ep => { %>
+          <tr data-entity="external_project" data-id="<%= ep.id %>" data-label="<%= ep.label %>">
+            <td><%= ep.label %></td>
+            <td><%= ep.context || '—' %></td>
+            <td><%= ep.parent_label || '—' %></td>
+            <td><%= new Date(ep.archived_at).toLocaleDateString() %></td>
+            <td><%= ep.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- EVENTS -->
+  <div id="arc-tab-events" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Title</th><th>Date</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!events.length) { %>
+          <tr><td colspan="5" class="arc-empty">No archived events.</td></tr>
+        <% } %>
+        <% events.forEach(e => { %>
+          <tr data-entity="event" data-id="<%= e.id %>" data-label="<%= e.label %>">
+            <td><%= e.label %></td>
+            <td><%= e.extra || '—' %></td>
+            <td><%= new Date(e.archived_at).toLocaleDateString() %></td>
+            <td><%= e.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- QUOTES -->
+  <div id="arc-tab-quotes" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Quote</th><th>School</th><th>Status</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!quotes.length) { %>
+          <tr><td colspan="6" class="arc-empty">No archived quotes.</td></tr>
+        <% } %>
+        <% quotes.forEach(q => { %>
+          <tr data-entity="quote" data-id="<%= q.id %>" data-label="<%= q.label %>">
+            <td><%= q.label %></td>
+            <td><%= q.parent_label || '—' %></td>
+            <td><%= q.extra || '—' %></td>
+            <td><%= new Date(q.archived_at).toLocaleDateString() %></td>
+            <td><%= q.archived_by_name || '—' %></td>
             <td class="arc-actions">
               <button type="button" class="arc-restore-btn">Restore</button>
               <button type="button" class="arc-delete-btn">Delete Permanently</button>

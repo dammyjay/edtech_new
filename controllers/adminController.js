@@ -2306,7 +2306,7 @@ exports.instructorDashboard = async (req, res) => {
   SELECT c.id, c.name
   FROM classrooms c
   JOIN classroom_instructors ci ON ci.classroom_id = c.id
-  WHERE ci.instructor_id = $1
+  WHERE ci.instructor_id = $1 AND c.archived_at IS NULL
 `;
 
     let params = [instructorId];
@@ -3475,7 +3475,7 @@ exports.showEvents = async (req, res) => {
       "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
     );
     const eventsResult = await pool.query(
-      "SELECT * FROM events ORDER BY event_date DESC"
+      "SELECT * FROM events WHERE archived_at IS NULL ORDER BY event_date DESC"
     );
 
     res.render("admin/events", {
@@ -3583,14 +3583,16 @@ exports.updateEvent = async (req, res) => {
   }
 };
 
-// DELETE EVENT
+// Archives the event instead of an immediate, cascading delete — see
+// services/archiveService.js. Permanent deletion is a separate, later,
+// admin-only action from /admin/archive.
 exports.deleteEvent = async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM events WHERE id = $1", [id]);
+    await archiveService.archive("event", id, req.session?.user?.id);
     res.redirect("/admin/events");
   } catch (err) {
-    console.error("❌ Error deleting event:", err.message);
+    console.error("❌ Error archiving event:", err.message);
     res.status(500).send("Server error");
   }
 };
@@ -5430,7 +5432,7 @@ exports.getSchoolClassrooms = async (req, res) => {
         id,
         name
       FROM classrooms
-      WHERE school_id = $1
+      WHERE school_id = $1 AND archived_at IS NULL
       ORDER BY name ASC
     `,
       [schoolId],
@@ -5733,14 +5735,17 @@ exports.getSchoolDetails = async (req, res) => {
   LEFT JOIN user_school us ON c.id = us.classroom_id
   LEFT JOIN users2 u ON us.user_id = u.id
   LEFT JOIN classroom_instructors ci ON ci.classroom_id = c.id
-  WHERE c.school_id = $1
+  WHERE c.school_id = $1 AND c.archived_at IS NULL
   GROUP BY c.id, c.name
   ORDER BY c.created_at DESC
   `,
       [id]
     );
 
-    // Fetch terms with students
+    // Fetch terms with students. Filtered to non-archived terms — this
+    // list also drives the "ensure every term has a quote" loop below, so
+    // an archived term correctly never gets a fresh quote auto-created
+    // for it (it's just not in this list at all).
     const termsResult = await pool.query(`
       SELECT
         t.id AS term_id,
@@ -5755,7 +5760,7 @@ exports.getSchoolDetails = async (req, res) => {
         COUNT(ts.student_id) AS student_count
       FROM academic_terms t
       LEFT JOIN student_term_enrollments ts ON ts.term_id = t.id
-      WHERE t.school_id = $1
+      WHERE t.school_id = $1 AND t.archived_at IS NULL
       GROUP BY t.id
       ORDER BY t.created_at DESC
     `, [id]);
@@ -5787,25 +5792,27 @@ exports.getSchoolDetails = async (req, res) => {
     });
 
     const quotesResult = await pool.query(
-      `SELECT 
-        q.*, 
+      `SELECT
+        q.*,
         t.name AS term_name
       FROM quotes q
       JOIN academic_terms t ON q.term_id = t.id
-      WHERE q.school_id = $1
+      WHERE q.school_id = $1 AND q.archived_at IS NULL
       ORDER BY q.created_at DESC`,
       [id]
     );
 
     const quotes = quotesResult.rows;
 
-    // ✅ Ensure every term has a quote
+    // ✅ Ensure every (non-archived) term has a (non-archived) quote —
+    // school.terms above already excludes archived terms, so this loop
+    // naturally never creates one for an archived term.
     for (const term of school.terms) {
       const existingQuote = quotes.find(q => q.term_id === term.term_id);
 
       if (!existingQuote) {
         await pool.query(
-          `INSERT INTO quotes 
+          `INSERT INTO quotes
           (school_id, term_id, price_per_student, total_students, total_amount, status)
           VALUES ($1, $2, $3, $4, $5, 'unpaid')`,
           [id, term.term_id, 0, 0, 0],
@@ -5815,12 +5822,12 @@ exports.getSchoolDetails = async (req, res) => {
 
     // 🔁 Re-fetch updated quotes
     const updatedQuotesResult = await pool.query(
-      `SELECT 
-        q.*, 
+      `SELECT
+        q.*,
         t.name AS term_name
       FROM quotes q
       JOIN academic_terms t ON q.term_id = t.id
-      WHERE q.school_id = $1`,
+      WHERE q.school_id = $1 AND q.archived_at IS NULL`,
       [id]
     );
 
@@ -6510,27 +6517,25 @@ exports.updateClassroom = async (req, res) => {
   }
 };
 
-// 🗑️ DELETE CLASSROOM
+// Archives the classroom instead of an immediate, cascading delete — see
+// services/archiveService.js. classroom_teachers/classroom_instructors
+// are left untouched (both real ON DELETE CASCADE FKs to classrooms,
+// so the old manual pre-deletes here were redundant even for a real
+// delete — and archiving must never touch them anyway, so a restore
+// brings the classroom back with its assignments intact). Permanent
+// deletion is a separate, later, admin-only action from /admin/archive.
 exports.deleteClassroom = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Clear related records
-    await pool.query(`DELETE FROM classroom_teachers WHERE classroom_id = $1`, [
-      id,
-    ]);
-    await pool.query(
-      `DELETE FROM classroom_instructors WHERE classroom_id = $1`,
-      [id]
-    );
-    // await pool.query(`DELETE FROM classroom_students WHERE classroom_id = $1`, [id]);
-
-    // Delete classroom
-    await pool.query(`DELETE FROM classrooms WHERE id = $1`, [id]);
+    const item = await archiveService.archive("classroom", id, req.session?.user?.id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Classroom not found or already archived." });
+    }
 
     return res.json({
       success: true,
-      message: "Classroom deleted successfully",
+      message: "Classroom archived successfully",
     });
   } catch (err) {
     console.error("Error deleting classroom:", err);
@@ -6794,6 +6799,8 @@ exports.getQuotes = async (req, res) => {
       FROM school_payments
       GROUP BY quote_id
     ) p ON p.quote_id = q.id
+
+    WHERE q.archived_at IS NULL
 
     ORDER BY q.created_at DESC;
       `);
@@ -9060,7 +9067,7 @@ exports.getSchoolCourses = async (req, res) => {
     // Every school's terms, so each school's section can offer its own
     // term selector (schools don't share a term calendar).
     const termsResult = await pool.query(
-      `SELECT id, school_id, name, is_active FROM academic_terms ORDER BY start_date DESC`
+      `SELECT id, school_id, name, is_active FROM academic_terms WHERE archived_at IS NULL ORDER BY start_date DESC`
     );
     const schoolTermsMap = {};
     termsResult.rows.forEach((t) => {
@@ -10208,10 +10215,13 @@ exports.createTerm = async (req, res) => {
   }
 };
 
+// Archives the term instead of an immediate delete — see
+// services/archiveService.js. Permanent deletion is a separate, later,
+// admin-only action from /admin/archive.
 exports.deleteTerm = async (req, res) => {
   const { id } = req.params;
 
-  await pool.query("DELETE FROM academic_terms WHERE id=$1", [id]);
+  await archiveService.archive("term", id, req.session?.user?.id);
 
   res.sendStatus(200);
 };

@@ -578,7 +578,7 @@ exports.getDashboard = async (req, res) => {
                      ELSE 'course' END AS level
          FROM external_projects ep
          LEFT JOIN lessons l ON l.id = ep.lesson_id
-         WHERE ep.module_id = ANY($1) OR l.module_id = ANY($1)`,
+         WHERE (ep.module_id = ANY($1) OR l.module_id = ANY($1)) AND ep.archived_at IS NULL`,
         [moduleIds]
       );
       epRes.rows.forEach((ep) => {
@@ -732,7 +732,7 @@ exports.getDashboard = async (req, res) => {
       // courses (as opposed to a specific module/lesson within it —
       // grouped separately above).
       const courseEpRes = await pool.query(
-        `SELECT * FROM external_projects WHERE course_id = ANY($1)`,
+        `SELECT * FROM external_projects WHERE course_id = ANY($1) AND archived_at IS NULL`,
         [courseIds]
       );
       courseEpRes.rows.forEach((ep) => {

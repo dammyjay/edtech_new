@@ -113,7 +113,7 @@ exports.getDashboardData = async (req, res) => {
        LEFT JOIN user_lesson_progress ulp ON ulp.user_id = u.id AND ulp.lesson_id = l.id
        LEFT JOIN quiz_submissions qs ON qs.student_id = u.id
        LEFT JOIN assignment_submissions asub ON asub.student_id = u.id
-       WHERE ct.teacher_id = $1 ${classFilter}
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL ${classFilter}
        GROUP BY c.id, c.name
        ORDER BY c.name`,
       params
@@ -253,7 +253,7 @@ exports.getClassesSection = async (req, res) => {
       `SELECT c.id, c.name
        FROM classrooms c
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       WHERE ct.teacher_id = $1`,
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL`,
       [teacherId]
     );
     const classes = classesRes.rows;
@@ -263,11 +263,11 @@ exports.getClassesSection = async (req, res) => {
       `SELECT c.id, c.name, COUNT(us.user_id) AS student_count
        FROM classrooms c
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       LEFT JOIN user_school us 
-         ON us.classroom_id = c.id 
-        AND us.role_in_school = 'student' 
+       LEFT JOIN user_school us
+         ON us.classroom_id = c.id
+        AND us.role_in_school = 'student'
         AND us.approved = true
-       WHERE ct.teacher_id = $1
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id, c.name
        ORDER BY c.name`,
       [teacherId]
@@ -278,12 +278,12 @@ exports.getClassesSection = async (req, res) => {
       `SELECT c.id, c.name, ROUND(AVG(qs.score::numeric),1) AS avg_quiz_score
        FROM classrooms c
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       LEFT JOIN user_school us 
-         ON us.classroom_id = c.id 
-        AND us.role_in_school = 'student' 
+       LEFT JOIN user_school us
+         ON us.classroom_id = c.id
+        AND us.role_in_school = 'student'
         AND us.approved = true
        LEFT JOIN quiz_submissions qs ON qs.student_id = us.user_id
-       WHERE ct.teacher_id = $1
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id, c.name
        ORDER BY c.name`,
       [teacherId]
@@ -294,11 +294,11 @@ exports.getClassesSection = async (req, res) => {
       `SELECT u.gender, COUNT(*) AS count
        FROM classrooms c
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       JOIN user_school us ON us.classroom_id = c.id 
-                          AND us.role_in_school = 'student' 
+       JOIN user_school us ON us.classroom_id = c.id
+                          AND us.role_in_school = 'student'
                           AND us.approved = true
        JOIN users2 u ON u.id = us.user_id
-       WHERE ct.teacher_id = $1
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL
        GROUP BY u.gender`,
       [teacherId]
     );
@@ -312,7 +312,7 @@ exports.getClassesSection = async (req, res) => {
        JOIN classroom_courses cc ON cc.course_id = co.id
        JOIN classrooms c ON c.id = cc.classroom_id
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       WHERE ct.teacher_id = $1`,
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL`,
       [teacherId]
     );
 
@@ -325,7 +325,7 @@ exports.getClassesSection = async (req, res) => {
        LEFT JOIN courses co ON co.id = cc.course_id
        LEFT JOIN modules m ON m.course_id = co.id
        LEFT JOIN lessons l ON l.module_id = m.id
-       WHERE ct.teacher_id = $1
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id, c.name
        ORDER BY c.name`,
       [teacherId]
@@ -1275,7 +1275,7 @@ exports.getAttendanceSection = async (req, res) => {
     const classesRes = await pool.query(
       `SELECT c.id, c.name FROM classrooms c
        JOIN classroom_teachers ct ON ct.classroom_id = c.id
-       WHERE ct.teacher_id = $1 ORDER BY c.name`,
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL ORDER BY c.name`,
       [teacherId]
     );
 
@@ -1295,7 +1295,7 @@ exports.getAttendanceSection = async (req, res) => {
       // like "my new attendance isn't showing" if the active term isn't
       // the newest-created one.
       const termsRes = await pool.query(
-        `SELECT id AS term_id, name AS term_name, is_active, is_ended FROM academic_terms WHERE school_id = $1 ORDER BY id DESC`,
+        `SELECT id AS term_id, name AS term_name, is_active, is_ended FROM academic_terms WHERE school_id = $1 AND archived_at IS NULL ORDER BY id DESC`,
         [schoolId]
       );
       terms = termsRes.rows;

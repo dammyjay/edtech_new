@@ -56,7 +56,7 @@ router.get("/register/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query("SELECT * FROM events WHERE id = $1", [id]);
+    const result = await pool.query("SELECT * FROM events WHERE id = $1 AND archived_at IS NULL", [id]);
     const event = result.rows[0];
 
     // Add this line to pass login status to EJS
@@ -102,7 +102,7 @@ router.post("/register/:id", async (req, res) => {
     req.body;
 
   try {
-    const eventRes = await pool.query("SELECT * FROM events WHERE id = $1", [
+    const eventRes = await pool.query("SELECT * FROM events WHERE id = $1 AND archived_at IS NULL", [
       id,
     ]);
     const event = eventRes.rows[0];

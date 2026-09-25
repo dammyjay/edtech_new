@@ -2233,6 +2233,26 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE lessons ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
     `);
 
+    // Archive-before-delete, round 2 — same mechanism, extended to the
+    // next tier of entities with real dependent data at stake:
+    // classrooms (teacher/instructor/course assignments, every student's
+    // placement), academic terms (enrollments, quotes, attendance),
+    // external project task definitions (real graded submissions),
+    // events (registrations + payments), and school billing quotes
+    // (payment records). See services/archiveService.js.
+    await pool.query(`
+      ALTER TABLE classrooms        ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE classrooms        ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE academic_terms    ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE academic_terms    ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE external_projects ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE external_projects ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE events            ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE events            ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE quotes            ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE quotes            ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

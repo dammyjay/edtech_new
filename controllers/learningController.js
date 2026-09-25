@@ -1328,7 +1328,8 @@ exports.viewSingleCourse = async (req, res) => {
        LEFT JOIN lessons l ON l.id = ep.lesson_id
        LEFT JOIN modules lm2 ON lm2.id = l.module_id
        LEFT JOIN modules m ON m.id = ep.module_id
-       WHERE ep.course_id = $1 OR m.course_id = $1 OR lm2.course_id = $1
+       WHERE (ep.course_id = $1 OR m.course_id = $1 OR lm2.course_id = $1)
+         AND ep.archived_at IS NULL
        ORDER BY ep.created_at DESC`,
       [id]
     );

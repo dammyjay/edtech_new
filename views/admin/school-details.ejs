@@ -265,7 +265,7 @@
                 </a>
 
                
-                <a href="#" class="no-bg" onclick="deleteTerm('<%= term.term_id %>'); return false;">
+                <a href="#" class="no-bg" title="Archive" onclick="deleteTerm('<%= term.term_id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
                 </a>
 
@@ -678,7 +678,7 @@
                 <a href="#" class="no-bg" onclick="updateClassroom('<%= c.id %>', { name: prompt('New name?') }); return false;">
                   <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
                 </a>
-                <a href="#" class="no-bg" onclick="deleteClassroom('<%= c.id %>'); return false;">
+                <a href="#" class="no-bg" title="Archive" onclick="deleteClassroom('<%= c.id %>'); return false;">
                   <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
                 </a>
               </td>
@@ -2627,9 +2627,9 @@ async function updateClassroom(id) {
   }
 }
 
-// 🗑️ Delete Classroom
+// 🗑️ Archive Classroom
 async function deleteClassroom(id) {
-  if (!(await showConfirm("Are you sure you want to delete this classroom?"))) return;
+  if (!(await showConfirm("Archive this classroom? It will be hidden everywhere but can be restored later from the Archive screen."))) return;
 
   try {
     const res = await fetch(`/admin/classrooms/${id}`, {
@@ -2637,7 +2637,7 @@ async function deleteClassroom(id) {
     });
 
     if (res.ok) {
-      showAlert("🗑 Classroom deleted successfully!").then(() => {
+      showAlert("🗄️ Classroom archived successfully!").then(() => {
         location.reload();
       });
     } else {
@@ -2646,7 +2646,7 @@ async function deleteClassroom(id) {
     }
   } catch (err) {
     console.error(err);
-    showAlert("⚠️ Error deleting classroom.");
+    showAlert("⚠️ Error archiving classroom.");
   }
 }
 
@@ -2872,14 +2872,14 @@ document.addEventListener("DOMContentLoaded", () => {
 <!-- Script for deleting term -->
 <script>
   async function deleteTerm(termId) {
-    if (!(await showConfirm("Delete this term?"))) return;
+    if (!(await showConfirm("Archive this term? It will be hidden everywhere but can be restored later from the Archive screen."))) return;
 
     const res = await fetch(`/admin/terms/${termId}`, {
       method: "DELETE"
     });
 
     if (res.ok) {
-      showAlert("🗑 Deleted").then(() => {
+      showAlert("🗄️ Term archived").then(() => {
         location.reload();
       });
     } else {
