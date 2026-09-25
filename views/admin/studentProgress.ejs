@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <script src="/js/csrf.js"></script>
   <script src="/js/uiAlerts.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -463,14 +465,18 @@
       <% if (certificates.length) { %>
         <div class="sp-cert-grid">
           <% certificates.forEach(c => { %>
-            <div class="sp-cert-card">
-              <% if (c.certificate_url) { %><img src="<%= c.certificate_url %>" alt="Certificate" /><% } %>
+            <div class="sp-cert-card" id="cert-card-<%= c.id %>">
+              <img id="cert-img-<%= c.id %>" src="<%= c.certificate_url || '' %>" alt="Certificate" style="<%= c.certificate_url ? '' : 'display:none;' %>" />
               <div class="cert-title"><%= c.course_title %></div>
               <div class="cert-date">Issued <%= c.issued_at ? new Date(c.issued_at).toLocaleDateString() : '' %></div>
+              <button type="button" class="cert-regen-btn" onclick="regenerateCertificate(<%= c.id %>, '<%= student.id %>', '<%= c.course_id %>')"
+                      style="margin-top:6px; font-size:11px; font-weight:700; color:var(--brand-pri,#A17807); background:none; border:1px solid var(--brand-pri,#A17807); border-radius:6px; padding:4px 10px; cursor:pointer;">
+                🔄 Regenerate
+              </button>
               <% if (canManagePublicProfile) { %>
                 <a class="pub-share-link" data-kind="certificate" data-item-id="<%= c.id %>"
                    href="<%= publicProfileSlug ? '/achievements/' + publicProfileSlug + '/certificate/' + c.id : '#' %>" target="_blank" rel="noopener"
-                   style="display:<%= publicProfileEnabled ? 'inline-block' : 'none' %>; margin-top:6px; font-size:11px; font-weight:700; color:var(--brand-pri,#A17807); text-decoration:none;">Share</a>
+                   style="display:<%= publicProfileEnabled ? 'inline-block' : 'none' %>; margin-top:6px; margin-left:6px; font-size:11px; font-weight:700; color:var(--brand-pri,#A17807); text-decoration:none;">Share</a>
               <% } %>
             </div>
           <% }) %>
@@ -718,6 +724,36 @@
       document.querySelectorAll('.sp-panel').forEach(panel => panel.classList.remove('active'));
       document.querySelector(`.sp-tab[onclick="openTab('${tabId}')"]`).classList.add('active');
       document.getElementById(tabId).classList.add('active');
+    }
+
+    // Re-renders this certificate against the current template/company
+    // settings and swaps the card's image to the fresh Cloudinary URL —
+    // see adminController.js's regenerateStudentCertificate.
+    async function regenerateCertificate(certId, userId, courseId) {
+      const btn = document.querySelector(`#cert-card-${certId} .cert-regen-btn`);
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Regenerating…';
+      try {
+        const res = await fetch(`/admin/students/${userId}/certificates/${courseId}/regenerate`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (data.success) {
+          const img = document.getElementById(`cert-img-${certId}`);
+          img.src = data.certificateUrl + '?t=' + Date.now(); // cache-bust
+          img.style.display = '';
+          showAlert('Certificate regenerated.', 'success');
+        } else {
+          showAlert(data.message || 'Failed to regenerate certificate.', 'error');
+        }
+      } catch (err) {
+        console.error('regenerateCertificate error:', err);
+        showAlert('Something went wrong regenerating the certificate.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
     }
 
     // ---------- Public achievement page toggle (parent/admin only) ----------

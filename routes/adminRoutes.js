@@ -318,6 +318,7 @@ router.get(
 );
 
 router.get("/courses/:id/certificate-preview", adminController.previewCertificate);
+router.post("/students/:userId/certificates/:courseId/regenerate", adminController.regenerateStudentCertificate);
 
 // 📘 View Course Curriculum (with proxy streaming support)
 router.get("/courses/:id/curriculum", async (req, res) => {

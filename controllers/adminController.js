@@ -2676,6 +2676,13 @@ exports.showCourses = async (req, res) => {
   });
 };
 
+// Renders the exact same template + placeholder set issueCertificate.js
+// uses for the real thing (services/issueCertificate.js), with a sample
+// name/date/code standing in for a real student — so what's shown here
+// is what a student's actual certificate will look like, not a
+// best-guess mockup. Previously left BACKGROUND_URL/SIGNATURE_URL/
+// SIGNEE_NAME/TITLE unreplaced entirely, so the preview rendered with a
+// broken background image and literal "{{SIGNEE_NAME}}" text.
 exports.previewCertificate = async (req, res) => {
   const courseId = req.params.id;
 
@@ -2688,6 +2695,11 @@ exports.previewCertificate = async (req, res) => {
     const course = courseResult.rows[0];
     if (!course) return res.status(404).send("Course not found");
 
+    const infoRes = await pool.query(
+      "SELECT certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title FROM company_info ORDER BY id DESC LIMIT 1"
+    );
+    const info = infoRes.rows[0] || {};
+
     const fs = require("fs");
     const path = require("path");
 
@@ -2699,16 +2711,53 @@ exports.previewCertificate = async (req, res) => {
     let html = fs.readFileSync(templatePath, "utf8");
 
     html = html
-      .replace(/{{STUDENT_NAME}}/g, "Student Name")
-      .replace(/{{COURSE_TITLE}}/g, course.title)
-      .replace(/{{DATE}}/g, new Date().toDateString())
-      .replace(/{{CERT_CODE}}/g, "PREVIEW-12345");
+      .replace(/{{\s*STUDENT_NAME\s*}}/g, "Student Name")
+      .replace(/{{\s*COURSE_TITLE\s*}}/g, course.title)
+      .replace(/{{\s*DATE\s*}}/g, new Date().toDateString())
+      .replace(/{{\s*CERT_CODE\s*}}/g, "PREVIEW-12345")
+      .replace(/{{\s*BACKGROUND_URL\s*}}/g, info.certificate_background_url || "https://acad.jkthub.com/images/Certificate.png")
+      .replace(/{{\s*SIGNATURE_URL\s*}}/g, info.certificate_signature_url || "https://acad.jkthub.com/images/Signature.jpg")
+      .replace(/{{\s*SIGNEE_NAME\s*}}/g, info.certificate_signee_name || "Jimoh Damilola")
+      .replace(/{{\s*TITLE\s*}}/g, info.certificate_title || "CERTIFICATE OF COMPLETION");
 
     res.send(html); // 👈 display certificate in browser
 
   } catch (err) {
     console.error(err);
     res.status(500).send("Error generating preview");
+  }
+};
+
+// Re-renders one student's certificate for one course against whatever
+// the certificate template/company settings look like right now, and
+// overwrites the stored Cloudinary URL — see
+// services/issueCertificate.js's regenerateCertificate. Surfaced as a
+// "Regenerate" button on the admin student-progress page's certificate
+// cards (views/admin/studentProgress.ejs).
+exports.regenerateStudentCertificate = async (req, res) => {
+  const { userId, courseId } = req.params;
+
+  try {
+    const studentRes = await pool.query("SELECT fullname FROM users2 WHERE id = $1", [userId]);
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+
+    const courseRes = await pool.query("SELECT title FROM courses WHERE id = $1", [courseId]);
+    const course = courseRes.rows[0];
+    if (!course) return res.status(404).json({ success: false, message: "Course not found." });
+
+    const { regenerateCertificate } = require("../services/issueCertificate");
+    const result = await regenerateCertificate({
+      userId,
+      courseId,
+      studentName: student.fullname,
+      courseTitle: course.title,
+    });
+
+    res.json({ success: true, certificateUrl: result.url, created: result.created });
+  } catch (err) {
+    console.error("regenerateStudentCertificate error:", err.message);
+    res.status(500).json({ success: false, message: "Server error while regenerating the certificate." });
   }
 };
 
@@ -3084,89 +3133,207 @@ exports.downloadCurriculum = async (req, res) => {
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
   const company = infoResult.rows[0] || {};
+  const brandName = (company.company_name || "JKT Hub").trim();
 
+  // Styled purely as a wrapper + a set of rules for whatever HTML
+  // elements the admin's curriculum_content (a CKEditor field — see the
+  // comment above this function) already naturally produces: h2 section
+  // headings ("COURSE DESCRIPTION", "COURSE OVERVIEW", ...), h3 for a
+  // module header, table for the overview grid, and ul/ol for objective/
+  // skill/lesson lists (a bold lead-in is just <strong>, which CKEditor's
+  // bold button already outputs). No new schema/authoring UI — an admin
+  // writing curriculum_content with that structure gets this exact
+  // branded look automatically; one written as plain paragraphs still
+  // renders correctly, just without the section styling.
   const html = `
   <html>
     <head>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          padding: 40px;
-          line-height: 1.6;
+        * { box-sizing: border-box; }
+
+        html, body {
+          background: #ffffff;
         }
-        h1 {
+
+        body {
+          /* Carlito is a metric-compatible open-source substitute for
+             Calibri, commonly present on Linux/headless-Chromium hosts
+             where the real (Microsoft-licensed) Calibri usually isn't —
+             falls through to it first so this doesn't silently render as
+             plain Arial in production if Calibri itself isn't installed. */
+          font-family: "Calibri", "Carlito", Arial, sans-serif;
+          margin: 0;
+          padding: 70px 65px 100px;
+          line-height: 1.8;
+          color: #2b2b2b;
+          font-size: 14px;
+          font-weight: normal;
+          /* Without an explicit white background, this rendered on a dark
+             default background in headless Chromium (confirmed visually —
+             all the dark body text was nearly invisible). print-color-
+             adjust is what makes generatePdf.js's printBackground:true
+             actually keep the gold/dark accent colors below instead of
+             stripping them the way browsers strip background colors from
+             a real print job by default. */
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        /* Explicit, not relied-on-by-default: every heading bold, every
+           block of running text normal weight — a <strong> bold lead-in
+           inside a paragraph/list item is the one deliberate exception. */
+        h1, h2, h3, h4 { font-weight: bold; }
+        p, li, td { font-weight: normal; }
+
+        /* ---------- Header ---------- */
+        .doc-header {
           text-align: center;
           margin-bottom: 30px;
         }
-        .watermark {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          opacity: 0.06;
-          z-index: 0;
-          text-align: center;
+        .doc-header img {
+          height: 48px;
+          width: 48px;
+          object-fit: contain;
+          border-radius: 50%;
+          margin-bottom: 8px;
         }
-        .watermark h2 {
-          font-size: 48px;
+        .doc-header .brand-name {
+          font-size: 15px;
+          font-weight: bold;
+          letter-spacing: 2px;
+          color: #1a1a1a;
         }
-        .content {
-          position: relative;
-          z-index: 2;
+        .doc-header .guide-badge {
+          display: inline-block;
+          margin-top: 6px;
+          padding: 3px 14px;
+          font-size: 10px;
+          font-weight: bold;
+          letter-spacing: 1.5px;
+          color: #ffffff;
+          background: #A17807;
+          border-radius: 999px;
         }
-        .footer {
-          margin-top: 80px;
+        .doc-header h1 {
+          margin: 16px 0 4px;
+          font-size: 24px;
+          font-weight: bold;
+          color: #1a1a1a;
+        }
+        .doc-header .divider {
+          width: 70px;
+          height: 3px;
+          background: #A17807;
+          margin: 14px auto 0;
+        }
+
+        /* ---------- Section headings the admin's content produces ---------- */
+        h2 {
+          margin: 30px 0 12px;
+          font-size: 14px;
+          font-weight: bold;
+          letter-spacing: 1px;
+          color: #1a1a1a;
+          padding-bottom: 6px;
+          border-bottom: 2px solid #A17807;
+          break-after: avoid;
+          page-break-after: avoid;
+        }
+
+        /* Module header — a full-width dark bar, matching a real
+           curriculum guide's "MODULE N: Title" divider. */
+        h3 {
+          margin: 22px 0 10px;
+          padding: 8px 14px;
           font-size: 13px;
+          font-weight: bold;
+          color: #ffffff;
+          background: #1a1a1a;
+          border-radius: 4px;
+          break-after: avoid;
+          page-break-after: avoid;
+        }
+
+        p { margin: 0 0 14px; }
+
+        ul, ol {
+          margin: 0 0 20px;
+          padding-left: 24px;
+        }
+        li { margin-bottom: 11px; }
+        ul li::marker { color: #A17807; }
+        ol li::marker { color: #A17807; font-weight: bold; }
+        strong { color: #1a1a1a; font-weight: bold; }
+
+        /* ---------- Course Overview table — solid black fill, matching
+           the module bars' black/gold language, with the label column in
+           gold and the value column in white so both stay readable
+           against it. ---------- */
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 4px 0 20px;
+          background: #1a1a1a;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        table td, table th {
+          padding: 11px 16px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          text-align: left;
+          font-size: 13px;
+          color: #ffffff;
+          font-weight: normal;
+        }
+        table tr:last-child td, table tr:last-child th {
+          border-bottom: none;
+        }
+        table td:first-child, table th:first-child {
+          font-weight: bold;
+          color: #A17807;
+          width: 35%;
+        }
+
+        /* ---------- Footer (repeats on every printed page) ---------- */
+        .doc-footer {
+          position: fixed;
+          bottom: 20px;
+          left: 0;
+          right: 0;
           text-align: center;
-          color: #555;
+          font-size: 10px;
+          color: #888;
+          border-top: 1px solid #eee;
+          padding-top: 8px;
+        }
+        .doc-footer img {
+          height: 16px;
+          width: 16px;
+          object-fit: contain;
+          vertical-align: middle;
+          margin-right: 4px;
+          border-radius: 50%;
         }
       </style>
     </head>
 
     <body>
-      <div class="watermark">
-        <img
-          src="${company.logo_url || ""}"
-          alt="${company.company_name || ""} Logo"
-        />
-        <h2>${company.company_name || ""}</h2>
+      <div class="doc-header">
+        ${company.logo_url ? `<img src="${company.logo_url}" alt="${brandName} Logo" />` : ""}
+        <div class="brand-name">${brandName.toUpperCase()}</div>
+        <div class="guide-badge">CURRICULUM GUIDE</div>
+        <h1>${course.title}</h1>
+        <div class="divider"></div>
       </div>
 
+      ${course.curriculum_content}
 
-      <div class="content">
-        <h1>${course.title} – Course Curriculum</h1>
-
-        ${course.curriculum_content}
-
-        <div class="footer">
-          <hr />
-          <p>Generated from JKT Academy</p>
-        </div>
+      <div class="doc-footer">
+        ${company.logo_url ? `<img src="${company.logo_url}" alt="" />` : ""}${brandName} &bull; Curriculum Guide
       </div>
     </body>
   </html>
   `;
-
-  // const browser = await puppeteer.launch({
-  //   headless: true,
-  //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  // });
-
-  // const page = await browser.newPage();
-  // await page.setContent(html, { waitUntil: "networkidle0" });
-
-  // const pdf = await page.pdf({
-  //   format: "A4",
-  //   printBackground: true,
-  //   margin: {
-  //     top: "1cm",
-  //     bottom: "1cm",
-  //     left: "1cm",
-  //     right: "1cm",
-  //   },
-  // });
-
-  // await browser.close();
 
   const pdf = await generatePdf(html);
 
@@ -4356,7 +4523,7 @@ exports.viewStudentProgress = async (req, res) => {
     const badges = progBadgesRes.rows;
 
     const certificatesRes = await pool.query(
-      `SELECT uc.id, uc.certificate_url, uc.issued_at, c.title AS course_title
+      `SELECT uc.id, uc.certificate_url, uc.issued_at, uc.course_id, c.title AS course_title
        FROM user_certificates uc
        JOIN courses c ON uc.course_id = c.id
        WHERE uc.user_id = $1

@@ -20,37 +20,24 @@ html, body {
   print-color-adjust: exact;
 }
 
-
-p {
-  margin: 5px 0;
-}
-
 body {
   display: flex;
 }
 
-.content {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  padding: 30mm 30mm 30mm 30mm;
-  box-sizing: border-box;
-  text-align: center;
-}
-
+/* .certificate is always ~100% of whatever the real viewport is — the
+   Puppeteer-controlled 3504px canvas for a real issued certificate
+   (utils/generateCertificate.js), but also a normal browser window for
+   the admin's live HTML preview (adminController.js's
+   previewCertificate), and the @page box when actually printed. Those
+   three are wildly different pixel widths, so every size below is in vw
+   (relative to that same viewport), NOT px — a fixed px size that looks
+   right at 3504px wide is either invisible or this design's own
+   font-size in a ~900px browser preview. 1vw here is proportioned
+   against the 3504px canvas (100vw = 3504px, so e.g. 100px there = 2.85vw). */
 .certificate {
   position: relative;
-
-  /* Fills the render viewport (set to A4-landscape-at-300dpi pixel
-     dimensions in utils/generateCertificate.js) — this used to be capped
-     at max-width:1100px, so on that much bigger viewport the artwork
-     rendered as a small box floating in a mostly-blank canvas, saved
-     small and needing to be zoomed in to read. */
   width: 100%;
   aspect-ratio: 1.414;
-
   margin: auto;
 
   background-image: url('{{BACKGROUND_URL}}');
@@ -59,75 +46,104 @@ body {
   background-repeat: no-repeat;
 }
 
+/* A single positioning context for every text line below — each line is
+   independently absolutely-positioned by "top" (not stacked via normal
+   flow + <br> spacers, which drifts unpredictably whenever font sizes or
+   line-heights change). */
 .content {
   position: absolute;
-  top: 65%;
-  left: 50%;
-  transform: translate(-50%, -50%); 
-  text-align: center;
+  inset: 0;
 }
 
 h1 {
   position: absolute;
-  top: 15%;
+  top: 14%;
   left: 0;
   right: 0;
-  font-size: 36px;
+  margin: 0;
+  font-size: 2.85vw;
+  letter-spacing: 0.14vw;
+  font-weight: bold;
+  text-align: center;
 }
+
+.intro-line,
+.complete-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 1.31vw;
+  text-align: center;
+  color: #2b2b2b;
+}
+
+.intro-line { top: 27%; }
+.complete-line { top: 50%; }
 
 .name {
   position: absolute;
-  top: 28%;
+  top: 35%;
   left: 0;
   right: 0;
-  font-size: 32px;
+  font-size: 2.63vw;
+  font-weight: bold;
+  text-align: center;
 }
 
 .course {
   position: absolute;
-  top: 38%;
+  top: 58%;
   left: 0;
   right: 0;
-  font-size: 28px;
+  font-size: 1.88vw;
   font-style: italic;
+  text-align: center;
 }
-
 
 .bottom-section {
   position: absolute;
-  bottom: 180px; 
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 12%;
+  left: 10%;
+  right: 10%;
   display: flex;
-  justify-content: space-around;
-  width: 80%; 
+  justify-content: space-between;
+  align-items: flex-end;
 }
 
+.date-block,
 .signature {
   text-align: center;
+  font-size: 1.14vw;
+}
+
+.date-block div:first-child {
+  font-size: 0.97vw;
+  color: #4a4a4a;
+  margin-bottom: 0.17vw;
 }
 
 .signature img {
-  width: 60px;
+  width: 5.42vw;
+  height: auto;
+  object-fit: contain;
 }
 
 .signature-line {
-  border-top: 1px solid #000;
-  width: 200px;
-  margin-top: 5px;
-  margin-bottom: 5px;
+  border-top: 0.06vw solid #000;
+  width: 9.13vw;
+  margin: 0.4vw auto 0.29vw;
 }
 
-.date-block {
-  text-align: center;
-}
-
- .cert-id {
+.cert-id {
   position: absolute;
-  bottom: 5%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 14px;
+  bottom: 4%;
+  left: 0;
+  right: 0;
+  font-size: 0.91vw;
+  letter-spacing: 0.03vw;
+  color: #555;
+  text-align: center;
 }
 </style>
 </head>
@@ -139,12 +155,11 @@ h1 {
   <div class="content">
     <h1>{{TITLE}}</h1>
 
-    <p>This certifies that</p>
-    <br><br><br><br><br><br><br>
+    <p class="intro-line">This certifies that</p>
 
     <div class="name">{{STUDENT_NAME}}</div>
 
-    <p>has successfully completed the course</p>
+    <p class="complete-line">has successfully completed the course</p>
 
     <div class="course">{{COURSE_TITLE}}</div>
   </div>
@@ -157,7 +172,7 @@ h1 {
     </div>
 
     <div class="signature">
-       <img src="{{SIGNATURE_URL}}">
+      <img src="{{SIGNATURE_URL}}">
       <div class="signature-line"></div>
       <div style="font-weight: bold;">{{SIGNEE_NAME}}</div>
     </div>
@@ -172,161 +187,3 @@ h1 {
 
 </body>
 </html>
-
-<!-- 
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8" />
-
-<style>
-
-@page {
-  size: A4 landscape;
-  margin: 0;
-}
-
-html, body{
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  font-family:"Georgia", serif;
-  -webkit-print-color-adjust:exact;
-  print-color-adjust:exact;
-}
-
-/* Main certificate */
-.certificate{
-  position:relative;
-
-  width:100%;
-  max-width:1100px;
-  aspect-ratio:1.414;
-
-  margin:auto;
-
-  background-image:url("https://acad.jkthub.com/images/Certificate.png");
-  background-size:cover;
-  background-position:center;
-  background-repeat:no-repeat;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-}
-
-/* Puppeteer export mode */
-.export .certificate{
-  width:3508px;
-  height:2480px;
-  max-width:none;
-}
-
-/* Title */
-.title{
-  font-size:30px;
-  font-weight:bold;
-  letter-spacing:3px;
-  margin-bottom:30px;
-}
-
-/* Sub text */
-.subtitle{
-  font-size:24px;
-  margin-bottom:20px;
-}
-
-/* Student Name */
-.name{
-  font-size:35px;
-  font-weight:bold;
-  margin:20px 0;
-}
-
-/* Course Title */
-.course{
-  font-size:32px;
-  font-style:italic;
-  margin-top:15px;
-}
-
-/* Bottom section */
-.bottom-section{
-  position:absolute;
-  bottom:120px;
-  width:70%;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-/* Date */
-.date-block{
-  font-size:22px;
-}
-
-/* Signature */
-.signature{
-  text-align:center;
-}
-
-.signature img{
-  width:80px;
-}
-
-.signature-line{
-  border-top:2px solid black;
-  width:250px;
-  margin-top:5px;
-}
-
-/* Certificate code */
-.cert-id{
-  position:absolute;
-  bottom:80px;
-  font-size:18px;
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="certificate">
-
-  <div class="title">CERTIFICATE OF COMPLETION</div>
-
-  <div class="subtitle">This certifies that</div>
-
-  <div class="name">{{STUDENT_NAME}}</div>
-
-  <div class="subtitle">has successfully completed the course</div>
-
-  <div class="course">{{COURSE_TITLE}}</div>
-
-  <div class="bottom-section">
-
-    <div class="date-block">
-      Date<br>
-      <strong>{{DATE}}</strong>
-    </div>
-
-    <div class="signature">
-      <img src="https://acad.jkthub.com/images/Signature.jpg">
-      <div class="signature-line"></div>
-      <strong>Jimoh Damilola</strong>
-    </div>
-
-  </div>
-
-  <div class="cert-id">
-    Certificate ID: {{CERT_CODE}}
-  </div>
-
-</div>
-
-</body>
-</html> -->
