@@ -11198,6 +11198,14 @@ exports.updateAttendanceRecord = async (req, res) => {
 exports.getWeeklyAttendanceStats = async (req, res) => {
   const { term_id, classroom_id } = req.query;
 
+  // A blank/missing term_id (e.g. a school with no terms yet) used to hit
+  // Postgres with "" for an int column and 500, which the client's
+  // res.json() call then choked on trying to parse as JSON — silently
+  // breaking the whole Attendance tab. Return an empty result instead.
+  if (!term_id) {
+    return res.json([]);
+  }
+
   try {
     const result = await pool.query(
       `
@@ -11233,10 +11241,15 @@ exports.getWeeklyAttendanceStats = async (req, res) => {
 exports.getAttendanceHistory = async (req, res) => {
   const { term_id, classroom_id } = req.query;
 
+  // Same blank-term_id guard as getWeeklyAttendanceStats above.
+  if (!term_id) {
+    return res.json([]);
+  }
+
   try {
     const result = await pool.query(
       `
-      SELECT 
+      SELECT
         s.id,
         s.date,
         s.session_status,

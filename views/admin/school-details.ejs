@@ -1,5 +1,11 @@
 <%- include('../partials/adminHeader', { title: school.name }) %>
 
+<!-- Chart.js — used by the Attendance tab's weekly bar chart
+     (loadAttendanceStats()). Was missing entirely, so that chart threw
+     "Chart is not defined" the moment it ran and the whole Attendance
+     tab silently never rendered anything past the static placeholder. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 .nav-tabs {
   display: flex;
@@ -319,7 +325,7 @@
   <div class="multi-btn">
     <button class="btn-blue" onclick="openAttendanceModal()">➕ Take Attendance</button>
 
-    <button class="btn-green" onclick="loadAttendanceHistory()">
+    <button class="btn-green" onclick="refreshAttendanceTab()">
       📊 View History
     </button>
   </div>
@@ -341,7 +347,7 @@
       <% }) %>
     </select>
 
-    <button class="btn-blue" onclick="loadAttendanceHistory()">Filter</button>
+    <button class="btn-blue" onclick="refreshAttendanceTab()">Filter</button>
   </div>
 
   <!-- Attendance Table -->
@@ -1410,18 +1416,40 @@
       });
     }
 
+    let attendanceChartInstance = null;
+
     async function loadAttendanceStats() {
       const termId = document.getElementById("attendanceFilterTerm").value;
+      if (!termId) {
+        document.getElementById("attendanceSummary").innerHTML =
+          "<p>No term selected yet — create a term for this school to see attendance stats.</p>";
+        return;
+      }
 
-      const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
-      const data = await res.json();
+      let data;
+      try {
+        const res = await fetch(`/admin/attendance/stats/weekly?term_id=${termId}`);
+        if (!res.ok) throw new Error("Request failed");
+        data = await res.json();
+      } catch (err) {
+        document.getElementById("attendanceSummary").innerHTML =
+          "<p style='color:#c00;'>Couldn't load attendance stats — please try again.</p>";
+        return;
+      }
 
       const labels = data.map(d => `Week ${d.week_number}`);
       const present = data.map(d => d.present);
       const absent = data.map(d => d.absent);
-      const percent = data.map(d => d.attendance_percent);
+      const percent = data.map(d => Number(d.attendance_percent) || 0);
 
-      new Chart(document.getElementById("attendanceChart"), {
+      // Chart.js throws "Canvas is already in use" if a new Chart is created
+      // on a canvas that already has one — destroy the previous instance
+      // first (this function can now be called repeatedly: tab reopen,
+      // Filter button, View History button).
+      if (attendanceChartInstance) {
+        attendanceChartInstance.destroy();
+      }
+      attendanceChartInstance = new Chart(document.getElementById("attendanceChart"), {
         type: "bar",
         data: {
           labels,
@@ -1431,6 +1459,12 @@
           ]
         }
       });
+
+      if (!percent.length) {
+        document.getElementById("attendanceSummary").innerHTML =
+          "<h3>No attendance sessions recorded for this term yet.</h3>";
+        return;
+      }
 
       let avg = percent.reduce((a,b)=>a+b,0)/percent.length;
 
@@ -1530,15 +1564,27 @@ async function toggleAttendanceDetails(sessionId) {
 async function loadAttendanceHistory() {
     const termId = document.getElementById("attendanceFilterTerm").value;
     const classroomId = document.getElementById("attendanceFilterClassroom").value;
-
-    const res = await fetch(`/admin/attendance/history?term_id=${termId}&classroom_id=${classroomId}`);
-    const data = await res.json();
-
     const tbody = document.getElementById("attendanceTableBody");
+
+    if (!termId) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No terms yet — create a term for this school to record attendance.</td></tr>`;
+      return;
+    }
+
+    let data;
+    try {
+      const res = await fetch(`/admin/attendance/history?term_id=${termId}&classroom_id=${classroomId}`);
+      if (!res.ok) throw new Error("Request failed");
+      data = await res.json();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#c00;">Couldn't load attendance history — please try again.</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = "";
 
     if (data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No attendance found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No attendance found</td></tr>`;
       return;
     }
 
@@ -1812,6 +1858,8 @@ function exportExcel() {
 
 <!-- script for nav tab  -->
 <script>
+  let attendanceTabLoaded = false;
+
   function openTab(sectionId, btn) {
     // Hide all sections
     const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section', 'attendance-section'];
@@ -1827,6 +1875,20 @@ function exportExcel() {
     // document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.login-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+
+    // Unlike every other tab (pre-populated server-side via EJS), Attendance
+    // starts empty and needs its own fetches — load it the first time it's
+    // opened so it doesn't just sit blank until someone finds the "View
+    // History" button.
+    if (sectionId === "attendance-section" && !attendanceTabLoaded) {
+      attendanceTabLoaded = true;
+      refreshAttendanceTab();
+    }
+  }
+
+  function refreshAttendanceTab() {
+    loadAttendanceHistory();
+    loadAttendanceStats();
   }
 </script>
 
