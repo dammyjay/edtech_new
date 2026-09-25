@@ -16,6 +16,37 @@ const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
 const archiveService = require("../services/archiveService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
+// Resolves which term the school admin currently has the whole-panel
+// term filter set to — mirrors the req.session.activeSchoolId pattern
+// already used elsewhere (instructorController.js, adminController.js):
+// an explicit ?term_id= query param wins and is persisted to session,
+// otherwise whatever's already in session, otherwise the school's
+// active term (also persisted, so it's only resolved once). Returns
+// null for "All Terms" — an explicit, keepable state, not just "nothing
+// chosen yet" — which every term-scoped query below treats as "don't
+// filter, show everything" so this feature is purely additive.
+async function resolveSelectedTermId(req, schoolId) {
+  if (req.query.term_id !== undefined) {
+    req.session.selectedTermId = req.query.term_id || null;
+  }
+  if (req.session.selectedTermId === undefined) {
+    const activeTermRes = await pool.query(
+      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
+      [schoolId]
+    );
+    req.session.selectedTermId = activeTermRes.rows[0]?.id || null;
+  }
+  return req.session.selectedTermId;
+}
+
+// GET /school-admin/select-term?term_id=<id|''> — the global term
+// selector's onchange handler (views/school-admin/dashboard.ejs) calls
+// this, then reloads whichever section is currently open.
+exports.selectTerm = async (req, res) => {
+  req.session.selectedTermId = req.query.term_id || null;
+  res.json({ success: true, selectedTermId: req.session.selectedTermId });
+};
+
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
 
@@ -46,6 +77,14 @@ const schoolDbId = schoolRes.rows[0].id;
 
   const schoolName = schoolRow.rows[0].name;
 
+  // Whole-panel term filter — see resolveSelectedTermId above.
+  const selectedTermId = await resolveSelectedTermId(req, schoolDbId);
+  const termsRes = await pool.query(
+    `SELECT id AS term_id, name AS term_name FROM academic_terms WHERE school_id = $1 AND archived_at IS NULL ORDER BY created_at DESC`,
+    [schoolDbId]
+  );
+  const terms = termsRes.rows;
+
   // Company info
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
@@ -53,7 +92,8 @@ const schoolDbId = schoolRes.rows[0].id;
   const info = infoResult.rows[0] || {};
   const profilePic = req.session.user?.profile_picture || null;
 
-  // Pending teachers/students
+  // Pending teachers/students — school-wide, deliberately not term-scoped
+  // (an approval queue is an onboarding concern, not "which term").
   const pendingUsers = await pool.query(
     `SELECT u.id, u.fullname, u.email, us.role_in_school, us.joined_at
      FROM users2 u
@@ -62,22 +102,36 @@ const schoolDbId = schoolRes.rows[0].id;
     [schoolDbId]
   );
 
-  // Classrooms
+  // Classrooms — student_count reflects the selected term's actual
+  // enrollment (student_term_enrollments, a historical per-term
+  // snapshot) rather than today's live user_school.classroom_id when a
+  // term is selected, since "how many were in this class in term X" and
+  // "how many are in it right now" can genuinely differ.
   const classrooms = await pool.query(
-    `SELECT c.id, c.name, c.arcade_enabled,
-       COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
-       COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-       (SELECT COUNT(*)
-          FROM user_school us2
-         WHERE us2.classroom_id = c.id
-           AND us2.role_in_school = 'student'
-           AND us2.approved = true) AS student_count
-FROM classrooms c
-LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
-LEFT JOIN users2 u ON u.id = ct.teacher_id
-WHERE c.school_id = $1 AND c.archived_at IS NULL
-GROUP BY c.id, c.name, c.arcade_enabled;`,
-    [schoolDbId]
+    selectedTermId
+      ? `SELECT c.id, c.name, c.arcade_enabled,
+           COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+           COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+           (SELECT COUNT(*) FROM student_term_enrollments ste WHERE ste.classroom_id = c.id AND ste.term_id = $2) AS student_count
+         FROM classrooms c
+         LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+         LEFT JOIN users2 u ON u.id = ct.teacher_id
+         WHERE c.school_id = $1 AND c.archived_at IS NULL
+         GROUP BY c.id, c.name, c.arcade_enabled;`
+      : `SELECT c.id, c.name, c.arcade_enabled,
+           COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+           COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+           (SELECT COUNT(*)
+              FROM user_school us2
+             WHERE us2.classroom_id = c.id
+               AND us2.role_in_school = 'student'
+               AND us2.approved = true) AS student_count
+         FROM classrooms c
+         LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+         LEFT JOIN users2 u ON u.id = ct.teacher_id
+         WHERE c.school_id = $1 AND c.archived_at IS NULL
+         GROUP BY c.id, c.name, c.arcade_enabled;`,
+    selectedTermId ? [schoolDbId, selectedTermId] : [schoolDbId]
   );
 
   // Teachers
@@ -90,16 +144,29 @@ GROUP BY c.id, c.name, c.arcade_enabled;`,
     [schoolDbId]
   );
 
+  // Students — when a term is selected, only students actually enrolled
+  // that term show up (via student_term_enrollments), and the classroom
+  // shown is that term's classroom, not wherever they sit today.
   const students = await pool.query(
-    `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
-            COALESCE(c.name, 'Not assigned') AS classroom_name
-    FROM users2 u
-    JOIN user_school us ON u.id = us.user_id
-    LEFT JOIN classrooms c ON us.classroom_id = c.id
-    WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
-      AND u.archived_at IS NULL
-    ORDER BY u.fullname`,
-    [schoolDbId]
+    selectedTermId
+      ? `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+                COALESCE(c.name, 'Not assigned') AS classroom_name
+         FROM users2 u
+         JOIN user_school us ON u.id = us.user_id
+         JOIN student_term_enrollments ste ON ste.student_id = u.id AND ste.term_id = $2
+         LEFT JOIN classrooms c ON ste.classroom_id = c.id
+         WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+           AND u.archived_at IS NULL
+         ORDER BY u.fullname`
+      : `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at,
+                COALESCE(c.name, 'Not assigned') AS classroom_name
+        FROM users2 u
+        JOIN user_school us ON u.id = us.user_id
+        LEFT JOIN classrooms c ON us.classroom_id = c.id
+        WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+          AND u.archived_at IS NULL
+        ORDER BY u.fullname`,
+    selectedTermId ? [schoolDbId, selectedTermId] : [schoolDbId]
   );
 
   // ✅ Recent activities (limit 10 for dashboard)
@@ -222,7 +289,8 @@ ORDER BY engagement_rate DESC;
 
   res.render("school-admin/dashboard", {
     schoolAdmin: req.session.user,
-    school: { id: schoolDbId, name: schoolName },
+    school: { id: schoolDbId, name: schoolName, terms },
+    selectedTermId,
     pendingUsers: pendingUsers.rows,
     classrooms: classrooms.rows,
     teachers: teachers.rows,
@@ -253,6 +321,10 @@ exports.loadSection = async (req, res) => {
   const schoolName = schoolRes.rows[0].name;
 
   const schoolId = schoolRes.rows[0].id;
+
+  // Whole-panel term filter — see resolveSelectedTermId above. Resolved
+  // once here so every section branch below can read it.
+  const termId = await resolveSelectedTermId(req, schoolId);
 
   if (section === "teachers") {
     const teachers = await pool.query(
@@ -285,8 +357,9 @@ exports.loadSection = async (req, res) => {
        JOIN users2 u ON u.id = cr.instructor_id
        LEFT JOIN academic_terms t ON t.id = cr.term_id
        WHERE cr.school_id = $1
+         AND ($2::int IS NULL OR cr.term_id = $2)
        ORDER BY cr.report_date DESC, cr.created_at DESC`,
-      [schoolId]
+      [schoolId, termId]
     );
     return res.render("school-admin/classroomReports", { reports: reports.rows, schoolName });
   }
@@ -298,19 +371,37 @@ exports.loadSection = async (req, res) => {
     // just marked with a status badge (partials/students.ejs); the
     // classroom-assignment picker below is where inactive students are
     // actually excluded.
+    //
+    // When the global term filter (termId) is set, only students
+    // actually enrolled that term show up (via student_term_enrollments,
+    // the historical per-term snapshot), and the classroom shown is that
+    // term's classroom rather than wherever they sit today.
     const students = await pool.query(
-      `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at, us.is_active,
-              u.pin, u.classroom_login_enabled,
-              COALESCE(c.name, 'Not assigned') AS classroom_name
-      FROM users2 u
-      JOIN user_school us ON u.id = us.user_id
-      LEFT JOIN classrooms c ON us.classroom_id = c.id
-      WHERE us.school_id = $1
-        AND us.role_in_school = 'student'
-        AND us.approved = true
-        AND u.archived_at IS NULL
-      ORDER BY u.fullname`,
-      [schoolId]
+      termId
+        ? `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at, us.is_active,
+                  u.pin, u.classroom_login_enabled,
+                  COALESCE(c.name, 'Not assigned') AS classroom_name
+           FROM users2 u
+           JOIN user_school us ON u.id = us.user_id
+           JOIN student_term_enrollments ste ON ste.student_id = u.id AND ste.term_id = $2
+           LEFT JOIN classrooms c ON ste.classroom_id = c.id
+           WHERE us.school_id = $1
+             AND us.role_in_school = 'student'
+             AND us.approved = true
+             AND u.archived_at IS NULL
+           ORDER BY u.fullname`
+        : `SELECT u.id, u.fullname, u.email, u.gender, us.joined_at, us.is_active,
+                  u.pin, u.classroom_login_enabled,
+                  COALESCE(c.name, 'Not assigned') AS classroom_name
+          FROM users2 u
+          JOIN user_school us ON u.id = us.user_id
+          LEFT JOIN classrooms c ON us.classroom_id = c.id
+          WHERE us.school_id = $1
+            AND us.role_in_school = 'student'
+            AND us.approved = true
+            AND u.archived_at IS NULL
+          ORDER BY u.fullname`,
+      termId ? [schoolId, termId] : [schoolId]
     );
 
     // ✅ ADD THIS: fetch classrooms
@@ -333,26 +424,42 @@ exports.loadSection = async (req, res) => {
   }
 
   if (section === "classrooms") {
+    // student_count reflects the selected term's actual enrollment
+    // (student_term_enrollments) rather than today's live assignment
+    // when a term is selected — see resolveSelectedTermId above.
     const classrooms = await pool.query(
-      `SELECT c.id, c.name, c.arcade_enabled,
-         COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
-         COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-         (SELECT COUNT(*)
-            FROM user_school us2
-           WHERE us2.classroom_id = c.id
-             AND us2.role_in_school = 'student'
-             AND us2.approved = true) AS student_count
-       FROM classrooms c
-       LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
-       LEFT JOIN users2 u ON u.id = ct.teacher_id
-       WHERE c.school_id = $1 AND c.archived_at IS NULL
-       GROUP BY c.id, c.name, c.arcade_enabled;`,
-      [schoolId]
+      termId
+        ? `SELECT c.id, c.name, c.arcade_enabled,
+             COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+             COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+             (SELECT COUNT(*) FROM student_term_enrollments ste WHERE ste.classroom_id = c.id AND ste.term_id = $2) AS student_count
+           FROM classrooms c
+           LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+           LEFT JOIN users2 u ON u.id = ct.teacher_id
+           WHERE c.school_id = $1 AND c.archived_at IS NULL
+           GROUP BY c.id, c.name, c.arcade_enabled;`
+        : `SELECT c.id, c.name, c.arcade_enabled,
+             COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+             COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+             (SELECT COUNT(*)
+                FROM user_school us2
+               WHERE us2.classroom_id = c.id
+                 AND us2.role_in_school = 'student'
+                 AND us2.approved = true) AS student_count
+           FROM classrooms c
+           LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+           LEFT JOIN users2 u ON u.id = ct.teacher_id
+           WHERE c.school_id = $1 AND c.archived_at IS NULL
+           GROUP BY c.id, c.name, c.arcade_enabled;`,
+      termId ? [schoolId, termId] : [schoolId]
     );
 
-    // Feeds the classroom-assignment picker below — inactive/graduated
-    // students are excluded here (unlike the main students list above,
-    // which shows everyone with a status badge for visibility).
+    // Feeds the classroom-assignment picker below — always based on the
+    // LIVE roster (assigning a student to a classroom is a current
+    // action, never a historical one), independent of the term filter.
+    // Inactive/graduated students are excluded here (unlike the main
+    // students list above, which shows everyone with a status badge for
+    // visibility).
     const availableStudents = await pool.query(
       `SELECT u.id, u.fullname, u.email
        FROM users2 u
@@ -366,25 +473,38 @@ exports.loadSection = async (req, res) => {
     );
 
     for (let c of classrooms.rows) {
+      // DISPLAY roster — term-scoped when a term is selected.
       const studentRows = await pool.query(
-        `SELECT u.id, u.fullname, u.email, us.joined_at
-         FROM users2 u
-         JOIN user_school us ON u.id = us.user_id
-         WHERE us.school_id = $1 AND us.classroom_id = $2
-           AND us.role_in_school = 'student' AND us.approved = true
-           AND u.archived_at IS NULL`,
-        [schoolId, c.id]
+        termId
+          ? `SELECT u.id, u.fullname, u.email, ste.enrolled_at AS joined_at
+             FROM users2 u
+             JOIN student_term_enrollments ste ON ste.student_id = u.id AND ste.term_id = $1 AND ste.classroom_id = $2
+             WHERE u.archived_at IS NULL`
+          : `SELECT u.id, u.fullname, u.email, us.joined_at
+             FROM users2 u
+             JOIN user_school us ON u.id = us.user_id
+             WHERE us.school_id = $1 AND us.classroom_id = $2
+               AND us.role_in_school = 'student' AND us.approved = true
+               AND u.archived_at IS NULL`,
+        termId ? [termId, c.id] : [schoolId, c.id]
       );
       c.students = studentRows.rows;
-      c.availableStudents = availableStudents.rows.filter(
-        (stu) => !studentRows.rows.some((s) => s.id === stu.id)
+
+      // "Available to add" always excludes whoever's LIVE-assigned here
+      // right now, regardless of what the term view above is showing.
+      const liveRosterRes = await pool.query(
+        `SELECT user_id FROM user_school WHERE school_id = $1 AND classroom_id = $2 AND role_in_school = 'student' AND approved = true`,
+        [schoolId, c.id]
       );
+      const liveRosterIds = new Set(liveRosterRes.rows.map((r) => r.user_id));
+      c.availableStudents = availableStudents.rows.filter((stu) => !liveRosterIds.has(stu.id));
     }
 
     const openClassroom = req.query.openClassroom || null;
     return res.render("partials/classrooms", {
       classrooms: classrooms.rows,
       openClassroom,
+      selectedTermId: termId,
     });
   }
 
@@ -479,18 +599,23 @@ exports.loadSection = async (req, res) => {
       [schoolId]
     );
 
-    // Only courses authorized for the school's CURRENTLY ACTIVE term (or
-    // general/term-less authorizations, term_id IS NULL) — see
-    // exports.getClassroomCourses (same fix, duplicated here because
-    // this is the actual live code path: routes/schoolAdmin.js registers
-    // "/section/:section" (this function) BEFORE the more specific
-    // "/section/classroom-courses" route, so that one never actually
-    // gets hit and getClassroomCourses is dead code. TODO: consolidate.
-    const activeTermRes = await pool.query(
-      "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
-      [schoolId]
-    );
-    const activeTermId = activeTermRes.rows[0]?.id || null;
+    // Only courses authorized for the selected term (or general/term-less
+    // authorizations, term_id IS NULL) — falls back to the school's
+    // currently active term when no term is selected (global filter unset
+    // or explicitly "All Terms"), matching the section's original
+    // behavior. See exports.getClassroomCourses (same fix, duplicated
+    // here because this is the actual live code path: routes/schoolAdmin.js
+    // registers "/section/:section" (this function) BEFORE the more
+    // specific "/section/classroom-courses" route, so that one never
+    // actually gets hit and getClassroomCourses is dead code. TODO: consolidate.
+    let activeTermId = termId;
+    if (!activeTermId) {
+      const activeTermRes = await pool.query(
+        "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
+        [schoolId]
+      );
+      activeTermId = activeTermRes.rows[0]?.id || null;
+    }
 
     const courses = await pool.query(
       `SELECT c.id, c.title,
@@ -532,20 +657,30 @@ exports.loadSection = async (req, res) => {
     );
 
     const classrooms = await pool.query(
-      `SELECT c.id, c.name, c.arcade_enabled,
-         COALESCE(STRING_AGG(u.fullname, ', '), 'Unassigned') AS teacher_names,
-         COALESCE(ARRAY_AGG(u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
-         (SELECT COUNT(*)
-            FROM user_school us2
-           WHERE us2.classroom_id = c.id
-             AND us2.role_in_school = 'student'
-             AND us2.approved = true) AS student_count
-       FROM classrooms c
-       LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
-       LEFT JOIN users2 u ON u.id = ct.teacher_id
-       WHERE c.school_id = $1 AND c.archived_at IS NULL
-       GROUP BY c.id, c.name, c.arcade_enabled;`,
-      [schoolId]
+      termId
+        ? `SELECT c.id, c.name, c.arcade_enabled,
+             COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+             COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+             (SELECT COUNT(*) FROM student_term_enrollments ste WHERE ste.classroom_id = c.id AND ste.term_id = $2) AS student_count
+           FROM classrooms c
+           LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+           LEFT JOIN users2 u ON u.id = ct.teacher_id
+           WHERE c.school_id = $1 AND c.archived_at IS NULL
+           GROUP BY c.id, c.name, c.arcade_enabled;`
+        : `SELECT c.id, c.name, c.arcade_enabled,
+             COALESCE(STRING_AGG(DISTINCT u.fullname, ', '), 'Unassigned') AS teacher_names,
+             COALESCE(ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL), '{}') AS teacher_ids,
+             (SELECT COUNT(*)
+                FROM user_school us2
+               WHERE us2.classroom_id = c.id
+                 AND us2.role_in_school = 'student'
+                 AND us2.approved = true) AS student_count
+           FROM classrooms c
+           LEFT JOIN classroom_teachers ct ON c.id = ct.classroom_id
+           LEFT JOIN users2 u ON u.id = ct.teacher_id
+           WHERE c.school_id = $1 AND c.archived_at IS NULL
+           GROUP BY c.id, c.name, c.arcade_enabled;`,
+      termId ? [schoolId, termId] : [schoolId]
     );
 
     const teachers = await pool.query(
@@ -557,13 +692,22 @@ exports.loadSection = async (req, res) => {
       [schoolId]
     );
 
+    // Term-scoped when a term is selected — matches the getDashboard/
+    // loadSection "students" branch's use of student_term_enrollments.
     const students = await pool.query(
-      `SELECT u.id, u.fullname, u.email, us.joined_at
-       FROM users2 u
-       JOIN user_school us ON u.id = us.user_id
-       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
-         AND u.archived_at IS NULL`,
-      [schoolId]
+      termId
+        ? `SELECT u.id, u.fullname, u.email, us.joined_at
+           FROM users2 u
+           JOIN user_school us ON u.id = us.user_id
+           JOIN student_term_enrollments ste ON ste.student_id = u.id AND ste.term_id = $2
+           WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+             AND u.archived_at IS NULL`
+        : `SELECT u.id, u.fullname, u.email, us.joined_at
+           FROM users2 u
+           JOIN user_school us ON u.id = us.user_id
+           WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.approved = true
+             AND u.archived_at IS NULL`,
+      termId ? [schoolId, termId] : [schoolId]
     );
 
     // ✅ Recent activities
@@ -829,6 +973,7 @@ ORDER BY engagement_rate DESC;
         terms: terms.rows,
         classrooms: classrooms.rows,
       },
+      selectedTermId: termId,
     });
   }
 
@@ -2309,12 +2454,16 @@ exports.exportTermStudentsExcel = async (req, res) => {
     const schoolId = req.session.user.school_id;
 
     const termCheck = await pool.query(
-      "SELECT id FROM academic_terms WHERE id = $1 AND school_id = $2",
+      `SELECT t.id, t.name AS term_name, s.name AS school_name
+       FROM academic_terms t
+       JOIN schools s ON s.id = t.school_id
+       WHERE t.id = $1 AND t.school_id = $2`,
       [termId, schoolId],
     );
     if (!termCheck.rows.length) {
       return res.status(404).send("Term not found");
     }
+    const { term_name: termName, school_name: schoolName } = termCheck.rows[0];
 
     const result = await pool.query(
       `
@@ -2342,28 +2491,121 @@ exports.exportTermStudentsExcel = async (req, res) => {
       [termId],
     );
 
+    // Branded to match the rest of the platform (curriculum PDF, certificate):
+    // gold #A17807 / dark #1a1a1a, black-filled header row with gold text —
+    // the exact palette the user already confirmed for the curriculum PDF.
+    const GOLD = "FFA17807";
+    const DARK = "FF1A1A1A";
+    const LIGHT_ROW = "FFF7F3E8";
+
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Students");
-
-    sheet.columns = [
-      { header: "Full Name", key: "fullname", width: 30 },
-      { header: "Email", key: "email", width: 30 },
-      { header: "Gender", key: "gender", width: 15 },
-      { header: "Classroom", key: "classroom", width: 25 },
-    ];
-
-    result.rows.forEach((row) => {
-      sheet.addRow(row);
+    const sheet = workbook.addWorksheet("Students", {
+      views: [{ state: "frozen", ySplit: 6 }],
     });
+
+    const columns = [
+      { header: "Full Name", key: "fullname", width: 30 },
+      { header: "Email", key: "email", width: 32 },
+      { header: "Gender", key: "gender", width: 14 },
+      { header: "Classroom", key: "classroom", width: 26 },
+    ];
+    sheet.columns = columns.map((c) => ({ ...c, header: undefined })); // widths only — headers are hand-drawn below
+
+    // Logo, top-left — same company_info.logo_url source as the curriculum
+    // PDF/certificate branding. Best-effort: a fetch failure just skips it.
+    let info = {};
+    try {
+      const infoRes = await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1");
+      info = infoRes.rows[0] || {};
+      if (info.logo_url) {
+        const logoRes = await axios.get(info.logo_url, { responseType: "arraybuffer" });
+        const imageId = workbook.addImage({ buffer: logoRes.data, extension: "png" });
+        sheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 54, height: 54 } });
+      }
+    } catch (logoErr) {
+      // non-fatal — export continues without the logo
+    }
+
+    sheet.getRow(1).height = 20;
+    sheet.getRow(2).height = 24;
+    sheet.getRow(3).height = 18;
+    sheet.getRow(4).height = 10;
+
+    sheet.mergeCells("B1:D1");
+    sheet.getCell("B1").value = (info.company_name || "JKT Hub").toUpperCase();
+    sheet.getCell("B1").font = { bold: true, size: 11, color: { argb: DARK } };
+    sheet.getCell("B1").alignment = { vertical: "middle" };
+
+    sheet.mergeCells("B2:D2");
+    sheet.getCell("B2").value = `${schoolName} — Student Term Report`;
+    sheet.getCell("B2").font = { bold: true, size: 16, color: { argb: GOLD } };
+    sheet.getCell("B2").alignment = { vertical: "middle" };
+
+    sheet.mergeCells("B3:D3");
+    sheet.getCell("B3").value = `Term: ${termName}  •  Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}  •  ${result.rows.length} student${result.rows.length === 1 ? "" : "s"}`;
+    sheet.getCell("B3").font = { italic: true, size: 10, color: { argb: "FF555555" } };
+    sheet.getCell("B3").alignment = { vertical: "middle" };
+
+    // Header row (row 6) — black fill, gold bold text, matching the
+    // curriculum PDF's table styling.
+    const headerRowIndex = 6;
+    const headerRow = sheet.getRow(headerRowIndex);
+    columns.forEach((col, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = col.header;
+      cell.font = { bold: true, color: { argb: GOLD }, size: 12 };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+      cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      cell.border = {
+        top: { style: "thin", color: { argb: DARK } },
+        bottom: { style: "thin", color: { argb: DARK } },
+      };
+    });
+    headerRow.height = 24;
+
+    // Data rows — zebra striping + thin borders.
+    result.rows.forEach((row, i) => {
+      const dataRow = sheet.addRow({
+        fullname: row.fullname,
+        email: row.email,
+        gender: row.gender || "—",
+        classroom: row.classroom || "Not assigned",
+      });
+      dataRow.eachCell((cell) => {
+        cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE0E0E0" } },
+          bottom: { style: "thin", color: { argb: "FFE0E0E0" } },
+        };
+        if (i % 2 === 1) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT_ROW } };
+        }
+      });
+      dataRow.height = 20;
+    });
+
+    if (!result.rows.length) {
+      sheet.mergeCells(`A${headerRowIndex + 1}:D${headerRowIndex + 1}`);
+      const emptyCell = sheet.getCell(`A${headerRowIndex + 1}`);
+      emptyCell.value = "No students enrolled for this term.";
+      emptyCell.font = { italic: true, color: { argb: "FF888888" } };
+      emptyCell.alignment = { horizontal: "center", vertical: "middle" };
+    }
+
+    sheet.autoFilter = {
+      from: { row: headerRowIndex, column: 1 },
+      to: { row: headerRowIndex, column: columns.length },
+    };
 
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
+    const safeTermName = termName.replace(/[^a-z0-9]+/gi, "_");
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=term_students.xlsx",
+      `attachment; filename=${safeTermName}_students.xlsx`,
     );
 
     await workbook.xlsx.write(res);

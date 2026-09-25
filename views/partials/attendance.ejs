@@ -13,7 +13,7 @@
 
           <select id="attendanceFilterTerm">
             <% school.terms.forEach(t => { %>
-            <option value="<%= t.term_id %>"><%= t.term_name %></option>
+            <option value="<%= t.term_id %>"<%= typeof selectedTermId !== 'undefined' && String(selectedTermId) === String(t.term_id) ? ' selected' : '' %>><%= t.term_name %></option>
             <% }) %>
           </select>
 

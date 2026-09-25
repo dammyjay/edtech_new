@@ -50,6 +50,9 @@ const upload = multer({
 // Dashboard
 router.get("/dashboard", schoolAdminController.getDashboard);
 
+// Global term filter (persists to session; scopes courses/classes/students/reports)
+router.get("/select-term", schoolAdminController.selectTerm);
+
 // Approvals
 router.post(
   "/approve/:id",
