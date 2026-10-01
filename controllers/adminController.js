@@ -311,11 +311,22 @@ exports.login = async (req, res) => {
     if (user.role === "school_admin") return res.redirect("/school-admin/dashboard");
     if (user.role === "teacher") return res.redirect("/teacher/dashboard");
     if (user.role === "parent") return res.redirect("/parent/dashboard");
-    if (user.role === "student" || user.role === "user")
+    if (
+      user.role === "student" ||
+      user.role === "user" ||
+      user.role === "individual_student"
+    )
       return res.redirect("/student/dashboard");
     if (user.role === "instructor")
       return res.redirect("/instructor/dashboard");
 
+    // Any other/unrecognized role: fall through here used to mean the
+    // request handler returned without ever calling a res.* method —
+    // Express never sends a response, so the request just hangs until the
+    // client gives up (this is exactly what broke login for the
+    // "individual_student" role before it was added above). A safe
+    // fallback keeps that from ever happening again for any future role.
+    return res.redirect("/student/dashboard");
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).send("Server error");

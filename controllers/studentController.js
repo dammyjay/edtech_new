@@ -273,10 +273,14 @@ exports.getDashboard = async (req, res) => {
     // ✅ Independent students (user / individual_student)
     else if (role === "user" || role === "individual_student") {
       const enrolledCoursesRes = await pool.query(
+        // LEFT JOIN — career_pathway_id is nullable on courses, and an
+        // INNER JOIN here silently dropped any enrolled course with no
+        // pathway assigned from the whole dashboard, with no error or
+        // indication why it was "missing".
         `SELECT c.*, p.title AS pathway_name, e.progress
          FROM course_enrollments e
          JOIN courses c ON c.id = e.course_id
-         JOIN career_pathways p ON c.career_pathway_id = p.id
+         LEFT JOIN career_pathways p ON c.career_pathway_id = p.id
          WHERE e.user_id = $1 AND c.archived_at IS NULL
          ORDER BY p.title, c.title`,
         [studentId]
@@ -304,26 +308,46 @@ exports.getDashboard = async (req, res) => {
 
     const issueCertificate = require("../services/issueCertificate");
 
+    // Batched into 2 queries total (GROUP BY course_id) instead of 2
+    // sequential awaited queries PER enrolled course — the old loop below
+    // ran 2 SELECTs (and then an UPDATE) for every single course on every
+    // dashboard load, which for a student with several courses meant
+    // several extra full network round-trips to a remote Postgres
+    // instance before this, the main dashboard, could even start
+    // rendering. See the identical fix in getEnrolledCourses above.
+    const enrolledCourseIdsForProgress = enrolledCourses.map((c) => c.id);
+    const totalLessonsByCourse = {};
+    const completedLessonsByCourse = {};
+    if (enrolledCourseIdsForProgress.length > 0) {
+      const totalLessonsByCourseRes = await pool.query(
+        `SELECT m.course_id, COUNT(*) AS total
+         FROM lessons l
+         JOIN modules m ON l.module_id = m.id
+         WHERE m.course_id = ANY($1)
+         GROUP BY m.course_id`,
+        [enrolledCourseIdsForProgress]
+      );
+      totalLessonsByCourseRes.rows.forEach((r) => {
+        totalLessonsByCourse[r.course_id] = parseInt(r.total) || 1;
+      });
+
+      const completedLessonsByCourseRes = await pool.query(
+        `SELECT m.course_id, COUNT(DISTINCT ul.lesson_id) AS completed
+         FROM user_lesson_progress ul
+         JOIN lessons l ON ul.lesson_id = l.id
+         JOIN modules m ON l.module_id = m.id
+         WHERE ul.user_id = $1 AND m.course_id = ANY($2)
+         GROUP BY m.course_id`,
+        [studentId, enrolledCourseIdsForProgress]
+      );
+      completedLessonsByCourseRes.rows.forEach((r) => {
+        completedLessonsByCourse[r.course_id] = parseInt(r.completed) || 0;
+      });
+    }
+
     for (let course of enrolledCourses) {
-      const totalLessonsRes = await pool.query(
-        `SELECT COUNT(*) FROM lessons l
-        JOIN modules m ON l.module_id = m.id
-        WHERE m.course_id = $1`,
-        [course.id],
-      );
-
-      const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
-
-      const completedLessonsRes = await pool.query(
-        `SELECT COUNT(DISTINCT ul.lesson_id)
-        FROM user_lesson_progress ul
-        JOIN lessons l ON ul.lesson_id = l.id
-        JOIN modules m ON l.module_id = m.id
-        WHERE ul.user_id = $1 AND m.course_id = $2`,
-        [studentId, course.id],
-      );
-
-      const completedLessons = parseInt(completedLessonsRes.rows[0].count);
+      const totalLessons = totalLessonsByCourse[course.id] || 1;
+      const completedLessons = completedLessonsByCourse[course.id] || 0;
 
       course.progress = Math.round((completedLessons / totalLessons) * 100);
       await pool.query(
@@ -1586,11 +1610,14 @@ exports.getEnrolledCourses = async (req, res) => {
       await Promise.all([
         pool.query("SELECT * FROM users2 WHERE id = $1", [studentId]),
         pool.query(
+          // LEFT JOIN — same reason as getDashboard's equivalent query:
+          // career_pathway_id is nullable, and an INNER JOIN here silently
+          // dropped any enrolled course with no pathway from "My Courses".
           `
           SELECT c.*, p.title AS pathway_name, e.progress
           FROM course_enrollments e
           JOIN courses c ON c.id = e.course_id
-          JOIN career_pathways p ON c.career_pathway_id = p.id
+          LEFT JOIN career_pathways p ON c.career_pathway_id = p.id
           WHERE e.user_id = $1 AND c.archived_at IS NULL
           ORDER BY p.title, c.title
           `,
@@ -1857,29 +1884,47 @@ exports.getEnrolledCourses = async (req, res) => {
 
     // const courses = enrolledCoursesRes.rows;
 
-    // ✅ Calculate progress for each enrolled course
-    for (let course of courses) {
-      const totalLessonsRes = await pool.query(
-        `SELECT COUNT(*) FROM lessons l
+    // ✅ Calculate progress for each enrolled course — batched into 2
+    // queries total (GROUP BY course_id) instead of 2 sequential awaited
+    // queries PER course. The old per-course loop meant every additional
+    // enrolled course added 2 more full network round-trips to a remote
+    // Postgres instance before this page could render — with enough
+    // courses (or under any latency), that compounds into a very slow or
+    // seemingly-stuck "My Courses" load right after enrolling.
+    if (courseIds.length > 0) {
+      const totalLessonsByCourseRes = await pool.query(
+        `SELECT m.course_id, COUNT(*) AS total
+         FROM lessons l
          JOIN modules m ON l.module_id = m.id
-         WHERE m.course_id = $1`,
-        [course.id]
+         WHERE m.course_id = ANY($1)
+         GROUP BY m.course_id`,
+        [courseIds]
       );
-      const totalLessons = parseInt(totalLessonsRes.rows[0].count) || 1;
+      const totalLessonsByCourse = {};
+      totalLessonsByCourseRes.rows.forEach((r) => {
+        totalLessonsByCourse[r.course_id] = parseInt(r.total) || 1;
+      });
 
-      const completedLessonsRes = await pool.query(
-        `SELECT COUNT(DISTINCT ul.lesson_id)
+      const completedLessonsByCourseRes = await pool.query(
+        `SELECT m.course_id, COUNT(DISTINCT ul.lesson_id) AS completed
          FROM user_lesson_progress ul
          JOIN lessons l ON ul.lesson_id = l.id
          JOIN modules m ON l.module_id = m.id
-         WHERE ul.user_id = $1 AND m.course_id = $2`,
-        [studentId, course.id]
+         WHERE ul.user_id = $1 AND m.course_id = ANY($2)
+         GROUP BY m.course_id`,
+        [studentId, courseIds]
       );
-      const completedLessons = parseInt(completedLessonsRes.rows[0].count);
+      const completedLessonsByCourse = {};
+      completedLessonsByCourseRes.rows.forEach((r) => {
+        completedLessonsByCourse[r.course_id] = parseInt(r.completed) || 0;
+      });
 
-      course.progress = Math.round((completedLessons / totalLessons) * 100);
+      courses.forEach((course) => {
+        const totalLessons = totalLessonsByCourse[course.id] || 1;
+        const completedLessons = completedLessonsByCourse[course.id] || 0;
+        course.progress = Math.round((completedLessons / totalLessons) * 100);
+      });
     }
-
 
     // Render
     res.render("student/dashboard", {

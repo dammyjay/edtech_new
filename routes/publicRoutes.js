@@ -929,7 +929,11 @@ router.post("/verify-payment", verifyCsrfToken, async (req, res) => {
   }
 });
 
-router.get("/courses", async (req, res) => {
+// ensureCsrfToken: this page's "Enroll" form posts to /student/courses/enroll/:id,
+// which verifyCsrfToken guards. Without this, the page's <meta csrf-token>
+// tag rendered blank (res.locals.csrfToken defaults to null for any route
+// that doesn't call this) and every enroll attempt 403'd unconditionally.
+router.get("/courses", ensureCsrfToken, async (req, res) => {
   const infoResult = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
@@ -1239,7 +1243,9 @@ router.get("/pathways/:id", async (req, res) => {
    }
 });
 
-router.get("/courses/:id", async (req, res) => {
+// ensureCsrfToken: same reason as the "/courses" listing above — this
+// page's "Enroll" form needs a real token or the POST always 403s.
+router.get("/courses/:id", ensureCsrfToken, async (req, res) => {
   const { id } = req.params;
 
   try {
