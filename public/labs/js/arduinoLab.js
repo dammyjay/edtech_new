@@ -14,6 +14,27 @@
 // clicks driving an input pin. A Serial Monitor panel shows Serial.print
 // output the same way, via avr8js's USART peripheral.
 
+// Set when this editor was opened from a lesson's "Lab Task" tab via
+// ?labId=&lessonId= — scopes the project to that specific task instead of
+// the student's freeform playground project, and changes what Submit does
+// on success. Same convention as webLab.js/blocklyLab.js's own
+// LESSON_LAB_ID/LESSON_ID_FOR_LAB constants.
+const LESSON_LAB_ID = new URLSearchParams(window.location.search).get("labId");
+const LESSON_ID_FOR_LAB = new URLSearchParams(window.location.search).get("lessonId");
+// Set when switching to/opening a specific one of the student's own
+// (possibly several — see public/labs/js/labProjectBar.js) freeform
+// projects via ?projectId=, instead of just loading whichever one was
+// most recently worked on (initArduinoProject's default).
+const PROJECT_ID_FROM_URL = new URLSearchParams(window.location.search).get("projectId");
+// Read-only "open someone else's published project to actually run it"
+// mode — set by the gallery/admin-moderation "Open in Simulator" link
+// (?viewProjectId=<id>, no ownership required, see GET /labs/project/
+// view/:id). currentProjectId stays null the whole time this is set, which
+// is what actually disables save/submit/publish (both saveProject() and
+// the submit handler already bail out when it's falsy) — hiding those
+// buttons in the DOM (views/labs/arduino/editor.ejs) is the other half.
+const VIEW_PROJECT_ID = new URLSearchParams(window.location.search).get("viewProjectId");
+
 const canvas = document.getElementById("circuitCanvas");
 
 // ---------------------------------------------------------------------
@@ -137,7 +158,13 @@ async function onPaletteDragEnd(e) {
   // elements custom element (see "Breadboard" below), so it's exempt
   // from the "is the CDN bundle actually loaded" check every other tag
   // needs.
-  if (tag !== "custom-breadboard" && !customElements.get(tag)) return;
+  // A synthetic catalog tag (e.g. "wokwi-lcd1602-i2c") isn't itself a
+  // registered custom element — SYNTHETIC_COMPONENT_VARIANTS maps it to
+  // the real one placeComponent() actually creates — so this has to
+  // check THAT tag's registration, not the synthetic one, or every drop
+  // of a synthetic-tag part silently no-ops right here.
+  const realTagForCheck = SYNTHETIC_COMPONENT_VARIANTS[tag]?.realTag || tag;
+  if (tag !== "custom-breadboard" && !customElements.get(realTagForCheck)) return;
 
   // Convert the drop's screen position into #canvasViewport's own local
   // (pre-transform) coordinate space — undo the pan, then undo the zoom.
@@ -270,13 +297,34 @@ function createBreadboardElement() {
   return el;
 }
 
+// Catalog tags that aren't real @wokwi/elements custom element names —
+// each maps to a real element tag plus an attribute that switches it to
+// a different pinout the element itself already supports (confirmed in
+// its own source: LCD1602Element/LCD2004Element's `pins` property
+// accepts 'full' (the default 16-pin parallel header) or 'i2c' (the
+// 4-pin GND/VCC/SDA/SCL backpack) — same physical screen, same overall
+// footprint, just a different header). Kept distinct from the real tag
+// in comp.tag (not just an attribute toggled after placement) so every
+// other tag-keyed thing in this file — bindComponentsToSimulation's
+// dispatch, the admin catalog, save/restore, duplicateComponent — can
+// treat "I2C LCD" as the clearly different thing it electrically is
+// (4 wires instead of 6-10, a different library, a different protocol)
+// without needing its own parallel set of special cases everywhere.
+const SYNTHETIC_COMPONENT_VARIANTS = {
+  "wokwi-lcd1602-i2c": { realTag: "wokwi-lcd1602", pins: "i2c" },
+  "wokwi-lcd2004-i2c": { realTag: "wokwi-lcd2004", pins: "i2c" },
+};
+
 // `explicitId` is only passed when rebuilding a circuit from a saved
 // snapshot (restoreCircuit, below — used by both project load and
 // undo/redo) — keeping the same ids across a rebuild is what lets the
 // snapshot's wires (which reference componentId) still resolve
 // correctly, instead of needing an old-id -> new-id remap step.
 async function placeComponent(tag, x, y, explicitId) {
-  const el = tag === "custom-breadboard" ? createBreadboardElement() : document.createElement(tag);
+  const variant = SYNTHETIC_COMPONENT_VARIANTS[tag];
+  const realTag = variant ? variant.realTag : tag;
+  const el = tag === "custom-breadboard" ? createBreadboardElement() : document.createElement(realTag);
+  if (variant) el.pins = variant.pins;
   el.classList.add("placed-component");
   el.style.position = "absolute";
   el.style.left = x + "px";
@@ -323,22 +371,34 @@ async function placeComponent(tag, x, y, explicitId) {
 // part's own *pre-scale* native units, so they need scaling by the
 // current zoom to land at the right on-screen offset within that
 // (now bigger-or-smaller) rendered box.
-// A flipped and/or 180°-turned part's pins mirror within its own
-// (unchanged) bounding box — flip mirrors x, turn mirrors both x and y.
-// Both are deliberately restricted to operations that leave the box's
-// reported width/height untouched (unlike an arbitrary 90°/270° turn,
-// which would swap them and break this math — why "turn" here is a
-// clean 180°, not free rotation), so this stays exact against
-// getBoundingClientRect()'s already zoom-scaled width/height.
+// A flipped and/or rotated part's pins move within its own bounding
+// box — flip mirrors x (in the part's own unrotated space, applied
+// before rotation, matching applyComponentOrientation's transform
+// order), rotation turns the whole thing in 90° steps around its
+// center. Unlike the old 180°-only "turn", a 90°/270° rotation DOES
+// swap the rendered box's width/height (confirmed: getBoundingClientRect()
+// on a transformed element reports its post-transform axis-aligned
+// box) — boxWidth/boxHeight here are already that POST-rotation size,
+// so the part's PRE-rotation ("native") box has to be recovered by
+// swapping them back before un-rotating pin.x/pin.y into it.
 function orientedPinOffset(comp, pin, boxWidth, boxHeight) {
-  let x = pin.x * viewZoom;
-  let y = pin.y * viewZoom;
-  if (comp.flipped) x = boxWidth - x;
-  if (comp.rotated180) {
-    x = boxWidth - x;
-    y = boxHeight - y;
+  const rotation = comp.rotation || 0; // 0, 90, 180, 270 — clockwise, matching CSS rotate(deg)
+  const swapped = rotation === 90 || rotation === 270;
+  const nativeW = swapped ? boxHeight : boxWidth;
+  const nativeH = swapped ? boxWidth : boxHeight;
+
+  let x = pin.x * viewZoom - nativeW / 2;
+  let y = pin.y * viewZoom - nativeH / 2;
+  if (comp.flipped) x = -x;
+
+  let rx, ry;
+  switch (rotation) {
+    case 90: rx = -y; ry = x; break;
+    case 180: rx = -x; ry = -y; break;
+    case 270: rx = y; ry = -x; break;
+    default: rx = x; ry = y;
   }
-  return { x, y };
+  return { x: rx + boxWidth / 2, y: ry + boxHeight / 2 };
 }
 
 function getPinCanvasPos(componentId, pinName) {
@@ -608,15 +668,18 @@ function renderSelectionToolbar() {
   toolbar.style.top = (fitsAbove ? minTop : maxBottom) + "px";
 }
 
-// Applies a component's current flip/turn state as a CSS transform.
-// Deliberately just these two (see orientedPinOffset's comment for why
-// "turn" is a clean 180° rather than free rotation) — both are
-// involutions around the element's own center, so neither changes its
-// reported bounding box, which is what keeps the pin math exact.
+// Applies a component's current flip/rotation state as a CSS transform.
+// Order matters and must match orientedPinOffset's math exactly: flip
+// (scaleX) is written AFTER rotate() here, which — since CSS applies
+// the rightmost function to the element's local coordinates first —
+// means flip happens first (in the part's own unrotated space), then
+// the result is rotated. rotate(deg) on a non-square element DOES
+// change its rendered (post-transform) bounding box for 90°/270° — see
+// orientedPinOffset's comment for how that's accounted for.
 function applyComponentOrientation(comp) {
   const parts = [];
+  if (comp.rotation) parts.push(`rotate(${comp.rotation}deg)`);
   if (comp.flipped) parts.push("scaleX(-1)");
-  if (comp.rotated180) parts.push("rotate(180deg)");
   comp.el.style.transform = parts.join(" ");
 }
 
@@ -629,10 +692,13 @@ function flipComponent(id) {
   redrawWires();
 }
 
-function turnComponent(id) {
+// Steps through 0° -> 90° -> 180° -> 270° -> 0° clockwise, one click at a
+// time — matches the single-button "rotate" convention most circuit
+// tools (Tinkercad included) use, rather than separate CW/CCW buttons.
+function rotateComponent(id) {
   const comp = placedComponents.get(id);
   if (!comp) return;
-  comp.rotated180 = !comp.rotated180;
+  comp.rotation = ((comp.rotation || 0) + 90) % 360;
   applyComponentOrientation(comp);
   renderPins(id);
   redrawWires();
@@ -645,8 +711,8 @@ async function duplicateComponent(id) {
   const y = (parseFloat(source.el.style.top) || 0) + 24;
   const clone = await placeComponent(source.tag, x, y);
   clone.flipped = !!source.flipped;
-  clone.rotated180 = !!source.rotated180;
-  if (clone.flipped || clone.rotated180) {
+  clone.rotation = source.rotation || 0;
+  if (clone.flipped || clone.rotation) {
     applyComponentOrientation(clone);
     renderPins(clone.id);
   }
@@ -760,7 +826,7 @@ document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
   recordHistory(); // one undo step for the whole batch, not one per part
   const ids = [...selectedComponentIds]; // snapshot — the set mutates as each action runs
   if (btn.dataset.action === "flip") ids.forEach(flipComponent);
-  else if (btn.dataset.action === "turn") ids.forEach(turnComponent);
+  else if (btn.dataset.action === "turn") ids.forEach(rotateComponent);
   else if (btn.dataset.action === "duplicate") ids.forEach(duplicateComponent);
   else if (btn.dataset.action === "delete") ids.forEach(deleteComponent);
   renderSelectionToolbar();
@@ -1273,6 +1339,85 @@ function removeWireWaypoint(wire, index) {
   scheduleAutoSave();
 }
 
+// Screen-space position (matching getPinCanvasPos's coordinate space) of
+// whatever sits just before/after a given waypoint on its wire — either
+// the wire's own from/to pin, or the neighboring waypoint. Used by the
+// drag-snap below to find what a moved node could straighten against.
+function wireNodeNeighborsScreen(wire, index) {
+  const prev =
+    index === 0
+      ? getPinCanvasPos(wire.from.componentId, wire.from.pin)
+      : canvasLocalToScreen(wire.waypoints[index - 1].x, wire.waypoints[index - 1].y);
+  const next =
+    index === wire.waypoints.length - 1
+      ? getPinCanvasPos(wire.to.componentId, wire.to.pin)
+      : canvasLocalToScreen(wire.waypoints[index + 1].x, wire.waypoints[index + 1].y);
+  return { prev, next };
+}
+
+// Figma/Tinkercad-style axis snapping: while dragging a wire node, if
+// it's within WIRE_SNAP_PX of sharing an x or y coordinate with either
+// neighboring point, snap to exactly that coordinate — independently per
+// axis, so e.g. x can lock to one neighbor while y stays free — so the
+// resulting segment(s) land perfectly horizontal/vertical instead of a
+// few pixels off. Returns which neighbor (if any) each axis snapped to,
+// so the caller can draw a guide line through it.
+const WIRE_SNAP_PX = 8;
+function snapWireNodeScreenPos(point, neighbors) {
+  const candidates = [neighbors.prev, neighbors.next].filter(Boolean);
+  let x = point.x, y = point.y, snapXTo = null, snapYTo = null, bestDx = WIRE_SNAP_PX, bestDy = WIRE_SNAP_PX;
+  for (const n of candidates) {
+    const dx = Math.abs(point.x - n.x);
+    if (dx <= bestDx) { bestDx = dx; x = n.x; snapXTo = n; }
+    const dy = Math.abs(point.y - n.y);
+    if (dy <= bestDy) { bestDy = dy; y = n.y; snapYTo = n; }
+  }
+  return { x, y, snapXTo, snapYTo };
+}
+
+// One shared pair of dashed guide lines (vertical + horizontal), created
+// once per drag gesture and just repositioned/shown-or-hidden on every
+// move — cheaper than creating/destroying SVG elements every frame, and
+// kept out of redrawWires()'s own wire-path/node cleanup so a redraw
+// mid-drag doesn't wipe them.
+function createWireSnapGuides() {
+  const makeLine = () => {
+    const line = document.createElementNS(SVG_NS, "line");
+    line.setAttribute("class", "wire-snap-guide");
+    line.style.display = "none";
+    wireOverlay.appendChild(line);
+    return line;
+  };
+  const vLine = makeLine();
+  const hLine = makeLine();
+  return {
+    update(point, snap) {
+      if (snap.snapXTo) {
+        vLine.setAttribute("x1", snap.x);
+        vLine.setAttribute("y1", snap.snapXTo.y);
+        vLine.setAttribute("x2", snap.x);
+        vLine.setAttribute("y2", point.y);
+        vLine.style.display = "";
+      } else {
+        vLine.style.display = "none";
+      }
+      if (snap.snapYTo) {
+        hLine.setAttribute("x1", snap.snapYTo.x);
+        hLine.setAttribute("y1", snap.y);
+        hLine.setAttribute("x2", point.x);
+        hLine.setAttribute("y2", snap.y);
+        hLine.style.display = "";
+      } else {
+        hLine.style.display = "none";
+      }
+    },
+    remove() {
+      vLine.remove();
+      hLine.remove();
+    },
+  };
+}
+
 // A small draggable handle circle at one waypoint — single-drag to
 // reroute, double-click to remove. Not reusing the pin-circle machinery
 // (renderPins/pinCircles) since these aren't electrical connection
@@ -1294,21 +1439,27 @@ function createWireNodeHandle(wire, index) {
     e.preventDefault();
     e.stopPropagation();
     let dragged = false;
+    let guides = null;
     const onMove = (moveEvent) => {
       // recordHistory() lazily on the first real move only — same
       // convention as attachComponentDrag: one undo step per whole drag
       // gesture, capturing the state as it was BEFORE this move started.
       if (!dragged) recordHistory();
       dragged = true;
+      if (!guides) guides = createWireSnapGuides();
       const canvasRect = canvas.getBoundingClientRect();
-      const local = screenToCanvasLocal(moveEvent.clientX - canvasRect.left, moveEvent.clientY - canvasRect.top);
-      wire.waypoints[index] = local;
+      const rawScreen = { x: moveEvent.clientX - canvasRect.left, y: moveEvent.clientY - canvasRect.top };
+      const neighbors = wireNodeNeighborsScreen(wire, index);
+      const snap = snapWireNodeScreenPos(rawScreen, neighbors);
+      guides.update(rawScreen, snap);
+      wire.waypoints[index] = screenToCanvasLocal(snap.x, snap.y);
       redrawWires();
       renderWireToolbar();
     };
     const onUp = (upEvent) => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
+      if (guides) guides.remove();
       if (dragged) scheduleAutoSave();
       else detectWireNodeDoubleTap(upEvent, wire, index);
     };
@@ -1652,6 +1803,58 @@ function findArduinoConnections(comp, uno, find) {
 // actually structures a show() call's output. `applyPixel(index, r, g, b)`
 // is the one part-specific piece (a single pixel just sets r/g/b; the
 // matrix/ring call their own setPixel(row,col,...)/setPixel(index,...)).
+// Shared HD44780 character-grid interpreter (confirmed against the real
+// LiquidCrystal.cpp AND LiquidCrystal_I2C.cpp — both libraries drive the
+// exact same underlying HD44780 controller and instruction set, just
+// getting bytes to it over different wires). Both LCD bindings below
+// (parallel 4-bit GPIO, and I2C/PCF8574) decode their own different wire
+// protocol down to the same (rs, byte) pairs and feed them here — the
+// controller itself doesn't know or care how a byte arrived.
+function createHD44780CharGrid(comp, numCols, numRows) {
+  // Same row-start-address formula LiquidCrystal.cpp's begin() itself
+  // uses (setRowOffsets(0x00, 0x40, cols, 0x40+cols)) — a real,
+  // well-known HD44780 controller quirk, not something to compute
+  // from scratch.
+  const ROW_OFFSETS = [0x00, 0x40, numCols, 0x40 + numCols];
+  const characters = comp.el.characters.slice();
+  let cursorAddr = 0;
+  let incrementCursor = true;
+
+  const addrToIndex = (addr) => {
+    let row = 0;
+    for (let r = numRows - 1; r >= 0; r--) {
+      if (addr >= ROW_OFFSETS[r]) {
+        row = r;
+        break;
+      }
+    }
+    const col = addr - ROW_OFFSETS[row];
+    return row < numRows && col >= 0 && col < numCols ? row * numCols + col : null;
+  };
+
+  return {
+    handleByte(rs, byte) {
+      if (rs) {
+        const index = addrToIndex(cursorAddr);
+        if (index !== null) characters[index] = byte;
+        cursorAddr += incrementCursor ? 1 : -1;
+        comp.el.characters = characters.slice();
+      } else if (byte === 0x01) {
+        characters.fill(0x20);
+        cursorAddr = 0;
+        comp.el.characters = characters.slice();
+      } else if ((byte & 0xfe) === 0x02) {
+        cursorAddr = 0;
+      } else if ((byte & 0xfc) === 0x04) {
+        incrementCursor = !!(byte & 0x02);
+      } else if (byte & 0x80) {
+        cursorAddr = byte & 0x7f;
+      } // else: function set / display control / CGRAM addr / cursor
+      // shift — setup/cosmetic, no character-grid state to update.
+    },
+  };
+}
+
 function bindWS2812Strip(cpu, ports, PinState, connections, applyPixel) {
   const dinConn = connections.find((c) => c.ownPin === "DIN");
   if (!dinConn) return;
@@ -2460,11 +2663,7 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
       // recognized command below and are harmlessly ignored.
       const numCols = comp.tag === "wokwi-lcd1602" ? 16 : 20;
       const numRows = comp.tag === "wokwi-lcd1602" ? 2 : 4;
-      // Same row-start-address formula LiquidCrystal.cpp's begin() itself
-      // uses (setRowOffsets(0x00, 0x40, cols, 0x40+cols)) — a real,
-      // well-known HD44780 controller quirk, not something to compute
-      // from scratch.
-      const ROW_OFFSETS = [0x00, 0x40, numCols, 0x40 + numCols];
+      const grid = createHD44780CharGrid(comp, numCols, numRows);
 
       const pinLocs = {};
       for (const { ownPin, arduinoPin } of connections) {
@@ -2476,42 +2675,7 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
 
       if (pinLocs.RS && pinLocs.E && dataPins.every((p) => pinLocs[p])) {
         const readBit = (loc) => ports[loc.port].pinState(loc.bit) === PinState.High;
-        const characters = comp.el.characters.slice();
-        let cursorAddr = 0;
-        let incrementCursor = true;
         let pendingNibble = null; // holds the high nibble while waiting for the low nibble (4-bit mode)
-
-        const addrToIndex = (addr) => {
-          let row = 0;
-          for (let r = numRows - 1; r >= 0; r--) {
-            if (addr >= ROW_OFFSETS[r]) {
-              row = r;
-              break;
-            }
-          }
-          const col = addr - ROW_OFFSETS[row];
-          return row < numRows && col >= 0 && col < numCols ? row * numCols + col : null;
-        };
-
-        const handleByte = (rs, byte) => {
-          if (rs) {
-            const index = addrToIndex(cursorAddr);
-            if (index !== null) characters[index] = byte;
-            cursorAddr += incrementCursor ? 1 : -1;
-            comp.el.characters = characters.slice();
-          } else if (byte === 0x01) {
-            characters.fill(0x20);
-            cursorAddr = 0;
-            comp.el.characters = characters.slice();
-          } else if ((byte & 0xfe) === 0x02) {
-            cursorAddr = 0;
-          } else if ((byte & 0xfc) === 0x04) {
-            incrementCursor = !!(byte & 0x02);
-          } else if (byte & 0x80) {
-            cursorAddr = byte & 0x7f;
-          } // else: function set / display control / CGRAM addr / cursor
-          // shift — setup/cosmetic, no character-grid state to update.
-        };
 
         let wasEnHigh = false;
         const listener = () => {
@@ -2523,7 +2687,7 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
               dataPins.forEach((p, i) => {
                 if (readBit(pinLocs[p])) byte |= 1 << i;
               });
-              handleByte(rs, byte);
+              grid.handleByte(rs, byte);
             } else {
               let nibble = 0;
               ["D4", "D5", "D6", "D7"].forEach((p, i) => {
@@ -2532,7 +2696,7 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
               if (pendingNibble === null) {
                 pendingNibble = nibble;
               } else {
-                handleByte(rs, (pendingNibble << 4) | nibble);
+                grid.handleByte(rs, (pendingNibble << 4) | nibble);
                 pendingNibble = null;
               }
             }
@@ -2542,6 +2706,66 @@ function bindComponentsToSimulation(cpu, ports, PinState, adc, i2cDevices, spiDe
         const relevantPorts = new Set([pinLocs.E.port, pinLocs.RS.port, ...dataPins.map((p) => pinLocs[p].port)]);
         for (const portKey of relevantPorts) ports[portKey].addListener(listener);
         boundVisuals.push({ el: comp.el, prop: "characters", resetValue: new Uint8Array(numCols * numRows).fill(0x20) });
+      }
+    } else if ((comp.tag === "wokwi-lcd1602-i2c" || comp.tag === "wokwi-lcd2004-i2c") && i2cDevices) {
+      // Real PCF8574-backpack protocol — confirmed against the actual
+      // installed "LiquidCrystal_I2C" library source (LiquidCrystal_I2C.cpp,
+      // already in BUILTIN_LIBRARIES as "LiquidCrystal I2C"): every
+      // command/data byte is split into two nibbles (high then low, same
+      // as the parallel library above), but each nibble here is sent as
+      // its OWN single I2C byte write — RS (bit0)/RW (bit1)/backlight
+      // (bit3) packed in alongside the nibble itself (bits 4-7) — latched
+      // on the Enable bit's (bit2) HIGH->LOW transition (expanderWrite
+      // then pulseEnable's two more expanderWrite calls, confirmed in the
+      // library's write4bits()). Same falling-edge latch the real HD44780
+      // uses either way; once nibbles are paired here they feed the exact
+      // same createHD44780CharGrid as the parallel binding above — the
+      // controller's own instruction set doesn't change based on how a
+      // byte reached it. Address is fixed at the standard 0x27 (used by
+      // the overwhelming majority of these backpacks, and what this lab's
+      // own lcd1602I2c/lcd2004I2c block extensions generate in the
+      // constructor call) — a sketch hand-edited to use a different
+      // address (0x3F is the other common one) won't be picked up by this
+      // simulation, the same category of limitation as SSD1306's
+      // write-only I2C support above.
+      // Same "did the student wire this correctly" gate every other I2C
+      // binding has (DS1307/MPU6050/SSD1306 above) — an unwired I2C part
+      // shouldn't answer on the bus.
+      const wired =
+        connections.some((c) => c.ownPin === "SDA" && c.arduinoPin === "A4") &&
+        connections.some((c) => c.ownPin === "SCL" && c.arduinoPin === "A5");
+      if (wired) {
+        const numCols = comp.tag === "wokwi-lcd1602-i2c" ? 16 : 20;
+        const numRows = comp.tag === "wokwi-lcd1602-i2c" ? 2 : 4;
+        const grid = createHD44780CharGrid(comp, numCols, numRows);
+        const EN_BIT = 0x04, RS_BIT = 0x01, BACKLIGHT_BIT = 0x08;
+        let wasEnHigh = false;
+        let pendingNibble = null;
+        i2cDevices.push({
+          address: 0x27,
+          onConnect() {}, // no transaction-start state to reset — each byte write is self-contained
+          onWrite(byte) {
+            comp.el.backlight = !!(byte & BACKLIGHT_BIT);
+            const isEnHigh = !!(byte & EN_BIT);
+            if (wasEnHigh && !isEnHigh) {
+              const rs = !!(byte & RS_BIT);
+              const nibble = (byte >> 4) & 0x0f;
+              if (pendingNibble === null) {
+                pendingNibble = nibble;
+              } else {
+                grid.handleByte(rs, (pendingNibble << 4) | nibble);
+                pendingNibble = null;
+              }
+            }
+            wasEnHigh = isEnHigh;
+            return true;
+          },
+          onRead() {
+            return 0; // write-only, same as SSD1306 above — status/busy-flag read-back isn't modeled
+          },
+        });
+        boundVisuals.push({ el: comp.el, prop: "characters", resetValue: new Uint8Array(numCols * numRows).fill(0x20) });
+        boundVisuals.push({ el: comp.el, prop: "backlight", resetValue: true });
       }
     } else if (comp.tag === "wokwi-hx711") {
       // Real bit-banged protocol, confirmed against the actual installed
@@ -3114,13 +3338,13 @@ function appendSerialLine(text) {
 // ---------------------------------------------------------------------
 
 let toastTimer = null;
-function showToast(message) {
+function showToast(message, durationMs) {
   const toast = document.getElementById("labToast");
   if (!toast) return;
   toast.textContent = message;
   toast.classList.add("visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("visible"), 2200);
+  toastTimer = setTimeout(() => toast.classList.remove("visible"), durationMs || 2200);
 }
 
 // ---------------------------------------------------------------------
@@ -3140,7 +3364,7 @@ function serializeCircuit() {
       x: parseFloat(c.el.style.left) || 0,
       y: parseFloat(c.el.style.top) || 0,
       flipped: !!c.flipped,
-      rotated180: !!c.rotated180,
+      rotation: c.rotation || 0,
       // Only ever meaningful for an LED, but harmless (just unused) to
       // write for anything else — keeps this one line instead of a
       // per-tag branch, and restoreCircuit already guards on tag anyway.
@@ -3195,8 +3419,11 @@ async function restoreCircuit(snapshot) {
       for (const c of snapshot.components) {
         const comp = await placeComponent(c.tag, c.x, c.y, c.id);
         comp.flipped = !!c.flipped;
-        comp.rotated180 = !!c.rotated180;
-        if (comp.flipped || comp.rotated180) {
+        // c.rotation is the current format; c.rotated180 is read as a
+        // fallback for projects saved before 90°-step rotation existed
+        // (when "turn" was a single 180°-only boolean).
+        comp.rotation = c.rotation || (c.rotated180 ? 180 : 0);
+        if (comp.flipped || comp.rotation) {
           applyComponentOrientation(comp);
           renderPins(comp.id);
         }
@@ -3272,6 +3499,13 @@ async function saveProject(manual) {
     projectData: {
       code: codeEditor ? codeEditor.getValue() : STARTER_SKETCH,
       circuit: serializeCircuit(),
+      // Blocks-mode state — purely additive (older saved projects simply
+      // lack these keys). window.ArduinoBlocksLab is defined by
+      // arduinoBlocksLab.js, loaded after this file; arduinoLab.js stays
+      // ignorant of Blockly internals beyond this one small bridge.
+      mode: window.ArduinoBlocksLab ? window.ArduinoBlocksLab.getCurrentMode() : "text",
+      blockExtensions: window.ArduinoBlocksLab ? window.ArduinoBlocksLab.getActiveExtensionIds() : [],
+      blocksWorkspace: window.ArduinoBlocksLab ? window.ArduinoBlocksLab.getWorkspaceJson() : null,
     },
   };
 
@@ -3309,20 +3543,62 @@ async function saveProject(manual) {
 // Arduino project and rebuilds both the code editor and the canvas from
 // it — the reload half of "don't lose progress": whatever was last
 // autosaved (at most ~2s of edits behind) is exactly what comes back.
+// How many times the current project's been AI-graded (lesson-linked
+// projects only — see submitProject's own cap) and its submit/publish
+// state, for the Submit confirm message and the Publish button's
+// visibility/label. Same convention as webLab.js's window.labSubmissionCount
+// etc., just bare module-level identifiers instead of window.* properties,
+// matching this file's own established style (currentProjectId above).
+let labSubmissionCount = 0;
+let currentProjectStatus = "draft";
+let currentProjectPublished = false;
+
 async function initArduinoProject() {
+  if (VIEW_PROJECT_ID) {
+    try {
+      const res = await fetch(`/labs/project/view/${VIEW_PROJECT_ID}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Project not found");
+
+      const saved = data.project.project_data || {};
+      if (codeEditor) codeEditor.setValue(saved.code || STARTER_SKETCH);
+      await restoreCircuit(saved.circuit || null);
+      if (window.ArduinoBlocksLab) {
+        await window.ArduinoBlocksLab.restoreFromProject(saved.blockExtensions || [], saved.blocksWorkspace || null, saved.mode || "blocks");
+      }
+      setSaveStatus("👁️ Read-only preview");
+    } catch (err) {
+      console.error("ARDUINO PROJECT VIEW ERROR:", err);
+      showToast("Couldn't load this project.");
+    }
+    // currentProjectId / autoSaveEnabled deliberately stay at their
+    // never-initialized defaults (null / false) — this is what actually
+    // disables save/submit/publish, not just the hidden buttons.
+    return;
+  }
+
   try {
     const res = await fetch("/labs/project/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ labType: "arduino" }),
+      body: JSON.stringify({ labType: "arduino", labId: LESSON_LAB_ID || undefined, projectId: PROJECT_ID_FROM_URL || undefined }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.message || "init failed");
 
     currentProjectId = data.project.id;
+    labSubmissionCount = data.submissionCount || 0;
+    currentProjectStatus = data.project.status;
+    currentProjectPublished = !!data.project.is_published;
+    updatePublishButtonState();
+    window.LabProjectBar?.setProject(data.project.id, data.project.project_name);
+
     const saved = data.project.project_data || {};
     if (codeEditor) codeEditor.setValue(saved.code || STARTER_SKETCH);
     await restoreCircuit(saved.circuit || null);
+    if (window.ArduinoBlocksLab) {
+      await window.ArduinoBlocksLab.restoreFromProject(saved.blockExtensions || [], saved.blocksWorkspace || null, saved.mode || "blocks");
+    }
     setSaveStatus(saved.circuit ? "Loaded" : "Ready");
   } catch (err) {
     console.error("ARDUINO PROJECT INIT ERROR:", err);
@@ -3350,6 +3626,163 @@ window.addEventListener("beforeunload", (e) => {
   e.preventDefault();
   e.returnValue = "";
 });
+
+// ---------------------------------------------------------------------
+// Submit / Publish — same two endpoints and flow as webLab.js/
+// blocklyLab.js (POST /labs/project/submit, POST /labs/gallery/publish),
+// adapted to this file's bare-module-level-identifier convention
+// (currentProjectId etc.) instead of window.* properties. Submit works
+// for both freeform and lesson-linked projects (the server decides what
+// that means from project.lab_id); Publish only ever renders for
+// freeform ones (views/labs/arduino/editor.ejs omits the button entirely
+// when lessonLab is set) and requires a prior submit server-side.
+// ---------------------------------------------------------------------
+
+function updatePublishButtonState() {
+  const btn = document.getElementById("publishBtn");
+  if (!btn) return;
+
+  if (currentProjectPublished) {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg> View in Gallery';
+  } else if (currentProjectStatus === "submitted") {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg> Publish to Gallery';
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+const MAX_LAB_SUBMISSIONS = 3; // must match controllers/labController.js
+
+document.getElementById("submitBtn")?.addEventListener("click", async () => {
+  if (!currentProjectId) return;
+
+  if (LESSON_LAB_ID && labSubmissionCount >= MAX_LAB_SUBMISSIONS) {
+    (window.showAlert || alert)(`You've used all ${MAX_LAB_SUBMISSIONS} submissions for this task.`);
+    return;
+  }
+
+  const confirmMessage = LESSON_LAB_ID && labSubmissionCount > 0
+    ? `You've already submitted this task and it was graded. Submit again for updated feedback? (attempt ${labSubmissionCount + 1} of ${MAX_LAB_SUBMISSIONS})`
+    : LESSON_LAB_ID
+      ? "Submit this lab task? This will complete it and get you AI feedback."
+      : "Submit this project? Your teacher/classmates may review it.";
+  const confirmed = window.showConfirm
+    ? await window.showConfirm(confirmMessage, { confirmText: "Submit" })
+    : confirm(confirmMessage);
+  if (!confirmed) return;
+
+  await saveProject(false);
+
+  const submitBtnEl = document.getElementById("submitBtn");
+  window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
+  try {
+    const res = await fetch("/labs/project/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: currentProjectId }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      showToast(data.message || "Couldn't submit — try again.");
+      return;
+    }
+
+    if (typeof data.submissionCount === "number") labSubmissionCount = data.submissionCount;
+    if (data.isFirstSubmission && data.coinsGained) {
+      window.LabProjectBar?.addCoins(data.coinsGained);
+    }
+
+    if (LESSON_LAB_ID) {
+      if (data.isFirstSubmission) {
+        if (data.lessonComplete) {
+          showToast(`🎉 Lesson complete! +${data.xpGained} XP, +${data.coinsGained} coins`, 4500);
+        } else {
+          showToast(`✅ Lab task submitted! +${data.xpGained} XP, +${data.coinsGained} coins`, 4500);
+        }
+        if (data.levelUp) setTimeout(() => showToast("🎊 Level up!"), 1300);
+      } else {
+        showToast("Task re-submitted!", 4500);
+      }
+      if (data.labFeedback && window.showActionDialog) {
+        const scoreLine = data.labFeedback.score !== null ? `Score: ${data.labFeedback.score}/100\n\n` : "";
+        const masteryLine = data.labFeedback.masterySignal
+          ? `\n\n${data.labFeedback.masterySignal.signalType === "bonus" ? "🌟" : "📘"} ${data.labFeedback.masterySignal.message}`
+          : "";
+        setTimeout(async () => {
+          const buttons = [{ label: "⬅ Back to Lesson", value: "lesson", className: "ui-alert-btn-secondary" }];
+          if (data.lessonComplete && data.nextLessonId) {
+            buttons.push({ label: "➡️ Proceed to Next Lesson", value: "next", className: "ui-alert-btn-primary" });
+          }
+          const dialogType = data.labFeedback.score !== null && data.labFeedback.score >= 50 ? "success" : "info";
+          const choice = await window.showActionDialog(`${scoreLine}${data.labFeedback.feedback}${masteryLine}`, dialogType, buttons);
+          if (choice === "lesson" && LESSON_ID_FOR_LAB) {
+            window.location.href = `/student/dashboard?section=module&moduleId=${window.LESSON_MODULE_ID}&openLesson=${LESSON_ID_FOR_LAB}`;
+          } else if (choice === "next" && data.nextLessonId) {
+            window.location.href = `/student/dashboard?section=module&moduleId=${data.nextLessonModuleId}&openLesson=${data.nextLessonId}`;
+          }
+        }, 600);
+      }
+    } else if (data.isFirstSubmission) {
+      showToast(`🎉 Project submitted! +${data.xpGained} XP, +${data.coinsGained} coins`, 4500);
+      if (data.levelUp) setTimeout(() => showToast("🎊 Level up!"), 1300);
+    } else {
+      showToast("✅ Project re-submitted!", 4500);
+    }
+
+    currentProjectStatus = "submitted";
+    updatePublishButtonState();
+  } catch (err) {
+    console.error("ARDUINO SUBMIT ERROR:", err);
+    showToast("Couldn't submit — try again.");
+  } finally {
+    window.LabProjectBar?.setButtonLoading(submitBtnEl, false);
+  }
+});
+
+const publishBtnEl = document.getElementById("publishBtn");
+if (publishBtnEl) {
+  publishBtnEl.addEventListener("click", async () => {
+    if (currentProjectPublished) {
+      window.location.href = "/labs/gallery";
+      return;
+    }
+
+    const confirmed = window.showConfirm
+      ? await window.showConfirm(
+          "Publish this project to the public Project Gallery? Any student on the platform will be able to view, like, and remix it.",
+          { confirmText: "Publish" }
+        )
+      : confirm("Publish this project to the public Project Gallery?");
+    if (!confirmed) return;
+
+    publishBtnEl.disabled = true;
+    try {
+      const res = await fetch("/labs/gallery/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: currentProjectId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentProjectPublished = true;
+        updatePublishButtonState();
+        showToast("🖼️ Published to the gallery!");
+      } else {
+        showToast(data.message || "Couldn't publish — try again.");
+      }
+    } catch (err) {
+      console.error("ARDUINO PUBLISH ERROR:", err);
+      showToast("Couldn't publish — try again.");
+    } finally {
+      publishBtnEl.disabled = false;
+    }
+  });
+}
 
 // ---------------------------------------------------------------------
 // Undo / redo — the circuit (canvas) side. The code editor has its own,
@@ -3479,8 +3912,53 @@ function exportIno() {
   showToast("sketch.ino downloaded");
 }
 
+// The counterpart to downloadCircuit() above — mirrors arduinoBlocksLab.js's
+// importBlocksProject() exactly (confirm-before-overwrite via
+// window.showConfirm, try/catch around JSON.parse, a minimal shape check
+// before trusting the file), since restoring a circuit is the same kind
+// of destructive "replace the whole canvas" operation importing a block
+// project already handles that way — not the no-confirm plain-text path
+// importInoFile() uses, since there's a real visual workspace to lose here.
+// readFileAsText is defined in arduinoBlocksLab.js (loaded after this
+// file) but not called until a user picks a file well after both scripts
+// have finished loading, so referencing it here is safe.
+async function importCircuit(file) {
+  let data;
+  try {
+    data = JSON.parse(await readFileAsText(file));
+  } catch (err) {
+    showToast("That file isn't a valid circuit (couldn't parse JSON).");
+    return;
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.components) || !Array.isArray(data.wires)) {
+    showToast("That file doesn't look like a circuit export.");
+    return;
+  }
+  const ok = window.showConfirm
+    ? await window.showConfirm("Import this circuit? It will replace everything currently on the canvas.", { confirmText: "Import" })
+    : confirm("Import this circuit? It will replace everything currently on the canvas.");
+  if (!ok) return;
+
+  recordHistory();
+  try {
+    await restoreCircuit(data);
+  } catch (err) {
+    console.error("Circuit import failed:", err);
+    showToast("Couldn't load that circuit — it may be corrupted or from an incompatible version.");
+    return;
+  }
+  scheduleAutoSave();
+  showToast("Circuit imported");
+}
+
 document.getElementById("copyCircuitBtn")?.addEventListener("click", copyCircuit);
 document.getElementById("downloadCircuitBtn")?.addEventListener("click", downloadCircuit);
+document.getElementById("importCircuitBtn")?.addEventListener("click", () => document.getElementById("importCircuitInput")?.click());
+document.getElementById("importCircuitInput")?.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) importCircuit(file);
+  e.target.value = "";
+});
 document.getElementById("exportInoBtn")?.addEventListener("click", exportIno);
 
 // ---------------------------------------------------------------------

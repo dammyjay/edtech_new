@@ -12,6 +12,14 @@
 
 <script src="/js/uiAlerts.js"></script>
 <link rel="stylesheet" href="/labs/css/blockly.css" />
+<link rel="stylesheet" href="/labs/css/labProjectBar.css" />
+
+<script>
+  // Read by public/labs/js/labProjectBar.js — same contract all 4 lab
+  // editors set up before that shared script runs.
+  window.LAB_TYPE = "blockly";
+  window.LAB_NEW_PROJECT_COIN_COST = <%- JSON.stringify(labNewProjectCoinCost) %>;
+</script>
 <link
   rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -41,6 +49,7 @@
 <script src="/labs/js/blockly/engine.js"></script>
 <script src="/labs/js/offlineSync.js"></script>
 <script src="/labs/js/blocklyLab.js"></script>
+<script src="/labs/js/labProjectBar.js"></script>
 
 <script>
   // AI tutor context provider (public/labs/js/labAiTutor.js) — hands over
@@ -75,6 +84,26 @@
     </a>
   <% } %>
 
+  <span class="lab-coins-badge" title="Your coin balance">💰 <span id="labCoinsValue"><%= student.coins || 0 %></span></span>
+
+  <% if (!lessonLab && !viewProject) { %>
+    <input type="text" id="projectNameInput" class="lab-project-name-input" placeholder="Project name" maxlength="100" title="Rename this project">
+    <button id="newProjectBtn" class="lab-project-bar-btn" title="Start a new, separate project">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New
+    </button>
+    <div class="lab-project-bar-wrap">
+      <button id="myProjectsBtn" class="lab-project-bar-btn" title="Switch between your projects">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>
+        My Projects
+      </button>
+      <div id="myProjectsMenu" class="lab-projects-menu" style="display:none;"></div>
+    </div>
+  <% } %>
+  <% if (viewProject) { %>
+    <span class="lab-coins-badge" title="Read-only preview" style="background:#fff8e8;">👁️ Viewing "<%= viewProject.project_name %>" by <%= viewProject.student_name %></span>
+  <% } %>
+
   <div class="toolbar-group">
     <button id="runBtn" class="tb-primary"><i class="fas fa-play"></i> Run</button>
     <button id="stopBtn" class="tb-danger" style="display: none">
@@ -82,17 +111,21 @@
     </button>
   </div>
 
+  <% if (!viewProject) { %>
   <div class="toolbar-group">
     <button id="submitBtn" class="tb-primary"><i class="fas fa-flag-checkered"></i> Submit</button>
     <% if (!lessonLab) { %>
       <button id="publishBtn" class="tb-primary" style="display:none; background:var(--brand-pri, #A17807);"><i class="fas fa-image"></i> Publish to Gallery</button>
     <% } %>
   </div>
+  <% } %>
 
+  <% if (!viewProject) { %>
   <div class="toolbar-group">
     <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
     <button id="resetBtn"><i class="fas fa-rotate-right"></i> Reset</button>
   </div>
+  <% } %>
 
   <div class="toolbar-group">
     <button id="screenshotBtn"><i class="fas fa-camera"></i> Screenshot</button>

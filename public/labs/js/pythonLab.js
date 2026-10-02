@@ -11,6 +11,10 @@ require.config({
 // Same pattern as public/labs/js/webLab.js.
 const LESSON_LAB_ID = new URLSearchParams(window.location.search).get("labId");
 const LESSON_ID_FOR_LAB = new URLSearchParams(window.location.search).get("lessonId");
+// Which of the student's (possibly several) freeform Python Lab projects
+// to load — set by labProjectBar.js's "My Projects" switcher via a full
+// ?projectId= reload (see public/labs/js/labProjectBar.js's contract).
+const PROJECT_ID_FROM_URL = new URLSearchParams(window.location.search).get("projectId");
 
 // Mirrors LAB_TEMPLATES.python.starter in controllers/labController.js —
 // used by Reset and as the fallback for an empty/legacy project.
@@ -36,6 +40,26 @@ function showToast(message, type = "info") {
   requestAnimationFrame(() => toast.classList.add("show"));
   setTimeout(() => toast.classList.remove("show"), 2200);
   setTimeout(() => toast.remove(), 2600);
+}
+
+// Same markup/states as Web Lab's publishBtn (webLab.js) — only visible
+// once a project has been submitted at least once, server-side-gated the
+// same way (POST /labs/gallery/publish requires status='submitted').
+function updatePublishButtonState() {
+  const btn = document.getElementById("publishBtn");
+  if (!btn) return;
+
+  if (window.currentProjectPublished) {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-image"></i> View in Gallery';
+  } else if (window.currentProjectStatus === "submitted") {
+    btn.style.display = "inline-flex";
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-image"></i> Publish to Gallery';
+  } else {
+    btn.style.display = "none";
+  }
 }
 
 function appendConsoleEntry(text, level) {
@@ -177,7 +201,7 @@ async function initLab() {
     const res = await fetch("/labs/project/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ labType: "python", labId: LESSON_LAB_ID || undefined }),
+      body: JSON.stringify({ labType: "python", labId: LESSON_LAB_ID || undefined, projectId: PROJECT_ID_FROM_URL || undefined }),
     });
     const data = await res.json();
 
@@ -187,8 +211,11 @@ async function initLab() {
     }
 
     window.currentProjectId = data.project.id;
+    window.LabProjectBar?.setProject(data.project.id, data.project.project_name);
     window.labSubmissionCount = data.submissionCount || 0;
     window.currentProjectStatus = data.project.status;
+    window.currentProjectPublished = data.project.is_published;
+    updatePublishButtonState();
 
     const projectData = data.project.project_data || {};
     window.codeEditor.setValue(projectData.code || STARTER_TEMPLATE.code);
@@ -276,6 +303,8 @@ require(["vs/editor/editor.main"], function () {
 
     await saveProject(false);
 
+    const submitBtnEl = document.getElementById("submitBtn");
+    window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
     try {
       const res = await fetch("/labs/project/submit", {
         method: "POST",
@@ -291,6 +320,9 @@ require(["vs/editor/editor.main"], function () {
 
       if (typeof data.submissionCount === "number") {
         window.labSubmissionCount = data.submissionCount;
+      }
+      if (data.isFirstSubmission && data.coinsGained) {
+        window.LabProjectBar?.addCoins(data.coinsGained);
       }
 
       if (LESSON_LAB_ID) {
@@ -335,11 +367,52 @@ require(["vs/editor/editor.main"], function () {
       }
 
       window.currentProjectStatus = "submitted";
+      updatePublishButtonState();
     } catch (err) {
       console.error("SUBMIT ERROR:", err);
       showToast("Couldn't submit — try again.", "error");
+    } finally {
+      window.LabProjectBar?.setButtonLoading(submitBtnEl, false);
     }
   });
+
+  const publishBtn = document.getElementById("publishBtn");
+  if (publishBtn) {
+    publishBtn.addEventListener("click", async () => {
+      if (window.currentProjectPublished) {
+        window.location.href = "/labs/gallery";
+        return;
+      }
+
+      const confirmed = await showConfirm(
+        "Publish this project to the public Project Gallery? Any student on the platform will be able to view, run, and remix it.",
+        { confirmText: "Publish" }
+      );
+      if (!confirmed) return;
+
+      window.LabProjectBar?.setButtonLoading(publishBtn, true, "Publishing…");
+      try {
+        const res = await fetch("/labs/gallery/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: window.currentProjectId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.currentProjectPublished = true;
+          updatePublishButtonState();
+          showToast("🖼️ Published to the gallery!", "success");
+        } else {
+          showToast(data.message || "Couldn't publish — try again.", "error");
+        }
+      } catch (err) {
+        console.error("PUBLISH ERROR:", err);
+        showToast("Couldn't publish — try again.", "error");
+      } finally {
+        window.LabProjectBar?.setButtonLoading(publishBtn, false);
+      }
+    });
+  }
 
   window.codeEditor.onDidChangeModelContent(() => {
     autoSave();

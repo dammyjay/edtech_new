@@ -9,6 +9,13 @@ const LESSON_LAB_ID = new URLSearchParams(window.location.search).get("labId");
 // "Back to Lesson" deep link (window.LESSON_MODULE_ID, the other half of
 // that link, comes from views/labs/blockly/editor.ejs's inline script).
 const LESSON_ID_FOR_LAB = new URLSearchParams(window.location.search).get("lessonId");
+// Which of the student's (possibly several) freeform Blockly Lab projects
+// to load — set by labProjectBar.js's "My Projects" switcher via a full
+// ?projectId= reload (see public/labs/js/labProjectBar.js's contract).
+const PROJECT_ID_FROM_URL = new URLSearchParams(window.location.search).get("projectId");
+// Read-only "open someone else's published project to actually run it"
+// mode — see the matching constant/comment in public/labs/js/arduinoLab.js.
+const VIEW_PROJECT_ID = new URLSearchParams(window.location.search).get("viewProjectId");
 
 let workspace;
 let saveTimeout;
@@ -563,15 +570,19 @@ async function initBlocklyLab() {
 
 
     // Buttons
-    document.getElementById("saveBtn").addEventListener("click", () => saveProject(true));
+    // saveBtn/resetBtn/submitBtn don't exist in the read-only "view
+    // someone else's project" mode (views/labs/blockly/editor.ejs omits
+    // them when viewProject is set) — optional-chained so init doesn't
+    // throw and stop the rest of this function from running.
+    document.getElementById("saveBtn")?.addEventListener("click", () => saveProject(true));
 
     document.getElementById("runBtn").addEventListener("click", runCode);
 
-    document.getElementById("resetBtn").addEventListener("click", resetStage);
+    document.getElementById("resetBtn")?.addEventListener("click", resetStage);
 
     const MAX_LAB_SUBMISSIONS = 3; // must match controllers/labController.js
 
-    document.getElementById("submitBtn").addEventListener("click", async () => {
+    document.getElementById("submitBtn")?.addEventListener("click", async () => {
       if (!window.currentProjectId) return;
 
       if (LESSON_LAB_ID && (window.labSubmissionCount || 0) >= MAX_LAB_SUBMISSIONS) {
@@ -589,6 +600,8 @@ async function initBlocklyLab() {
 
       await saveProject(false);
 
+      const submitBtnEl = document.getElementById("submitBtn");
+      window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
       try {
         const res = await fetch("/labs/project/submit", {
           method: "POST",
@@ -604,6 +617,9 @@ async function initBlocklyLab() {
 
         if (typeof data.submissionCount === "number") {
           window.labSubmissionCount = data.submissionCount;
+        }
+        if (data.isFirstSubmission && data.coinsGained) {
+          window.LabProjectBar?.addCoins(data.coinsGained);
         }
 
         if (LESSON_LAB_ID) {
@@ -667,6 +683,8 @@ async function initBlocklyLab() {
       } catch (err) {
         console.error("SUBMIT ERROR:", err);
         showToast("Couldn't submit — try again.", "error");
+      } finally {
+        window.LabProjectBar?.setButtonLoading(submitBtnEl, false);
       }
     });
 
@@ -684,7 +702,7 @@ async function initBlocklyLab() {
         );
         if (!confirmed) return;
 
-        publishBtn.disabled = true;
+        window.LabProjectBar?.setButtonLoading(publishBtn, true, "Publishing…");
         try {
           const res = await fetch("/labs/gallery/publish", {
             method: "POST",
@@ -703,7 +721,7 @@ async function initBlocklyLab() {
           console.error("PUBLISH ERROR:", err);
           showToast("Couldn't publish — try again.", "error");
         } finally {
-          publishBtn.disabled = false;
+          window.LabProjectBar?.setButtonLoading(publishBtn, false);
         }
       });
     }
@@ -1244,16 +1262,26 @@ window.addEventListener("click", (e) => {
 
 async function initLab(labType) {
   try {
-    const res = await fetch("/labs/project/init", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        labType,
-        labId: LESSON_LAB_ID || undefined,
-      }),
-    });
+    // Read-only "open someone else's published project to actually run
+    // it" mode (?viewProjectId=, set by the gallery/admin "Open in
+    // Simulator" link) — same restore logic below, but window.
+    // currentProjectId deliberately never gets set, which is what
+    // actually disables save/submit/publish (saveProject() already bails
+    // out when it's falsy), not just the hidden buttons.
+    const res = await fetch(
+      VIEW_PROJECT_ID ? `/labs/project/view/${VIEW_PROJECT_ID}` : "/labs/project/init",
+      VIEW_PROJECT_ID
+        ? undefined
+        : {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              labType,
+              labId: LESSON_LAB_ID || undefined,
+              projectId: PROJECT_ID_FROM_URL || undefined,
+            }),
+          }
+    );
 
     const data = await res.json();
 
@@ -1262,14 +1290,17 @@ async function initLab(labType) {
       return;
     }
 
-    window.currentProjectId = data.project.id;
-    // Only meaningful for a lesson-attached task (LESSON_LAB_ID set) — how
-    // many times it's already been AI-graded, for the resubmit confirm
-    // message and the MAX_LAB_SUBMISSIONS cap below.
-    window.labSubmissionCount = data.submissionCount || 0;
-    window.currentProjectStatus = data.project.status;
-    window.currentProjectPublished = data.project.is_published;
-    updatePublishButtonState();
+    if (!VIEW_PROJECT_ID) {
+      window.currentProjectId = data.project.id;
+      window.LabProjectBar?.setProject(data.project.id, data.project.project_name);
+      // Only meaningful for a lesson-attached task (LESSON_LAB_ID set) —
+      // how many times it's already been AI-graded, for the resubmit
+      // confirm message and the MAX_LAB_SUBMISSIONS cap below.
+      window.labSubmissionCount = data.submissionCount || 0;
+      window.currentProjectStatus = data.project.status;
+      window.currentProjectPublished = data.project.is_published;
+      updatePublishButtonState();
+    }
 
     const project = data.project.project_data || {};
 

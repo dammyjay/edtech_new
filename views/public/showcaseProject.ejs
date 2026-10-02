@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/styles2.css" />
     <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="stylesheet" href="/labs/css/labRunPreview.css" />
     <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -69,7 +70,7 @@
 
       <div class="scp-card">
         <div class="scp-top">
-          <span class="scp-icon"><%= project.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+          <span class="scp-icon"><%= project.lab_type === 'blockly' ? '🧩' : project.lab_type === 'arduino' ? '🔌' : project.lab_type === 'python' ? '🐍' : '🌐' %></span>
           <div>
             <p class="scp-title"><%= project.project_name || 'Untitled project' %></p>
             <p class="scp-author">by <%= project.displayName %></p>
@@ -84,8 +85,23 @@
         <% if (project.lab_type === 'web') { %>
           <iframe class="scp-frame" id="scpFrame" sandbox="allow-scripts"></iframe>
         <% } else if (project.lab_type === 'blockly') { %>
-          <pre class="scp-code"><%= (project.project_data && project.project_data.generatedCode) || '(No blocks were placed.)' %></pre>
-          <p class="scp-note">Blockly projects show their generated code — log in and remix it to see the actual blocks.</p>
+          <% if (isLoggedIn) { %>
+            <a class="lrp-open-sim-btn" href="/labs/blockly?viewProjectId=<%= project.id %>" target="_blank" rel="noopener">🧩 Open in Blocks Editor — Run it</a>
+          <% } else { %>
+            <pre class="scp-code"><%= (project.project_data && project.project_data.generatedCode) || '(No blocks were placed.)' %></pre>
+            <p class="lrp-login-note">🔒 <a href="/admin/login">Log in</a> to open the real blocks and run them.</p>
+          <% } %>
+        <% } else if (project.lab_type === 'arduino') { %>
+          <% const pd = project.project_data || {}; const ccount = (pd.circuit && Array.isArray(pd.circuit.components)) ? pd.circuit.components.length : 0; %>
+          <pre class="scp-code"><%= (pd.code && pd.code.trim()) || '(No code was written.)' %></pre>
+          <p class="scp-note"><%= ccount %> component<%= ccount === 1 ? '' : 's' %> wired on the circuit.</p>
+          <% if (isLoggedIn) { %>
+            <a class="lrp-open-sim-btn" href="/labs/arduino?viewProjectId=<%= project.id %>" target="_blank" rel="noopener">🔌 Open in Simulator — Run it</a>
+          <% } else { %>
+            <p class="lrp-login-note">🔒 <a href="/admin/login">Log in</a> to run the real circuit simulation.</p>
+          <% } %>
+        <% } else if (project.lab_type === 'python') { %>
+          <div id="scpPythonRunner"></div>
         <% } %>
 
         <button type="button" id="scpRemixBtn" class="scp-remix-btn">
@@ -139,7 +155,7 @@
         }
 
         async function doRemix() {
-          if (!confirm("Remix this into your own Web Lab / Blockly Lab project? This replaces your current project there.")) return;
+          if (!confirm("Remix this into a new project of your own? This may cost coins, and the original creator earns coins when you do.")) return;
           remixBtn.disabled = true;
           try {
             const res = await fetch("/labs/gallery/remix", {
@@ -149,7 +165,7 @@
             });
             const data = await res.json();
             if (data.success) {
-              window.location.href = "/labs/" + data.labType;
+              window.location.href = "/labs/" + data.labType + "?projectId=" + data.projectId;
             } else {
               alert(data.message || "Couldn't remix this project.");
               remixBtn.disabled = false;
@@ -215,6 +231,16 @@
         if (frame) {
           frame.srcdoc = "<!DOCTYPE html><html><head><style>" + css + "</style></head><body>" + html + "<script>" + js + "<\/script></body></html>";
         }
+      })();
+    </script>
+    <% } %>
+
+    <% if (project.lab_type === 'python') { %>
+    <script src="/labs/js/labRunPython.js"></script>
+    <script>
+      (function () {
+        var code = <%- JSON.stringify((project.project_data && project.project_data.code) || "").replace(/</g, "\\u003c") %>;
+        window.LabRunPython.render(document.getElementById("scpPythonRunner"), code);
       })();
     </script>
     <% } %>

@@ -1,0 +1,95 @@
+/* Shared styling for the "run/preview a gallery project" widgets —
+   LabRunPython's embedded Python runner (public/labs/js/labRunPython.js)
+   and the "Open in Simulator" read-only links for Arduino/Blockly. Used
+   by the in-app gallery (labGallery.js/gallery.ejs), the admin moderation
+   page (projectGalleryModeration.ejs), and the public showcase
+   (showcaseProject.ejs) — kept separate from labProjectBar.css since
+   those are two different audiences (inside a lab editor vs. previewing
+   one from outside it). */
+
+.lrp-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.lrp-run-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #34C77B, #1F9D55);
+    cursor: pointer;
+}
+
+.lrp-run-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.lrp-status {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+}
+
+.lrp-code {
+    background: #272822;
+    color: #f8f8f2;
+    padding: 14px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    max-height: 280px;
+    margin: 0 0 10px;
+}
+
+.lrp-console {
+    background: #1e1e1e;
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+}
+
+.lrp-console-line {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ddd;
+}
+
+.lrp-console-line.lrp-stderr {
+    color: #ff6b6b;
+}
+
+/* "Open in Simulator" link — Arduino/Blockly real-run, logged-in only */
+.lrp-open-sim-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.lrp-open-sim-btn:hover {
+    opacity: 0.92;
+}
+
+.lrp-login-note {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    margin-top: 6px;
+}

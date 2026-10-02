@@ -11923,7 +11923,7 @@ exports.getAdminGalleryProjects = async (req, res) => {
   }
 
   try {
-    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const labType = ["web", "blockly", "arduino", "python"].includes(req.query.labType) ? req.query.labType : null;
     const flaggedOnly = req.query.flagged === "true";
     const search = (req.query.search || "").trim();
 

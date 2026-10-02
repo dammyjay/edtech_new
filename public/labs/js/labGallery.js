@@ -40,6 +40,8 @@
   const labMeta = {
     web: { icon: "🌐", label: "Web Lab" },
     blockly: { icon: "🧩", label: "Blockly Lab" },
+    arduino: { icon: "🔌", label: "Arduino Lab" },
+    python: { icon: "🐍", label: "Python Lab" },
   };
 
   function cardHtml(p) {
@@ -193,8 +195,19 @@
       const code = (project.project_data && project.project_data.generatedCode) || "(No blocks were placed.)";
       previewHtml = `
         <pre class="gallery-preview-code">${escapeHtml(code)}</pre>
-        <p style="font-size:12px; color:var(--text-secondary,#666);">Blockly projects show their generated code here — remix it to open the actual blocks in the editor.</p>
+        <a class="lrp-open-sim-btn" href="/labs/blockly?viewProjectId=${project.id}" target="_blank" rel="noopener">🧩 Open in Blocks Editor — Run it</a>
       `;
+    } else if (project.lab_type === "arduino") {
+      const pd = project.project_data || {};
+      const code = (pd.code && pd.code.trim()) || "(No code was written.)";
+      const componentCount = (pd.circuit && Array.isArray(pd.circuit.components)) ? pd.circuit.components.length : 0;
+      previewHtml = `
+        <pre class="gallery-preview-code">${escapeHtml(code)}</pre>
+        <p style="font-size:12px; color:var(--text-secondary,#666);">${componentCount} component${componentCount === 1 ? "" : "s"} wired on the circuit.</p>
+        <a class="lrp-open-sim-btn" href="/labs/arduino?viewProjectId=${project.id}" target="_blank" rel="noopener">🔌 Open in Simulator — Run it</a>
+      `;
+    } else if (project.lab_type === "python") {
+      previewHtml = `<div id="galleryPythonRunner"></div>`;
     } else {
       previewHtml = `<p class="gallery-empty">No preview available for this lab type yet.</p>`;
     }
@@ -245,6 +258,11 @@
       previewFrame.srcdoc = buildWebPreviewSrcdoc(project.project_data);
     }
 
+    const pythonRunner = document.getElementById("galleryPythonRunner");
+    if (pythonRunner && window.LabRunPython) {
+      window.LabRunPython.render(pythonRunner, (project.project_data && project.project_data.code) || "");
+    }
+
     const likeBtn = document.getElementById("galleryLikeBtn");
     if (likeBtn) {
       likeBtn.addEventListener("click", async () => {
@@ -274,9 +292,8 @@
     if (remixBtn) {
       remixBtn.addEventListener("click", async () => {
         const confirmed = await window.showConfirm(
-          `Remixing will REPLACE your current ${meta.label} project with a copy of this one. ` +
-          `This can't be undone. Continue?`,
-          { type: "danger", confirmText: "Remix it" }
+          `Remix this ${meta.label} project into a new project of your own? It'll cost coins — see your balance on the dashboard.`,
+          { confirmText: "Remix it" }
         );
         if (!confirmed) return;
 
@@ -289,7 +306,10 @@
           });
           const result = await res.json();
           if (result.success) {
-            window.location.href = `/labs/${result.labType}`;
+            window.location.href = `/labs/${result.labType}?projectId=${result.projectId}`;
+          } else if (result.notEnoughCoins) {
+            (window.showAlert || alert)(result.message || `You need more coins to remix this project.`);
+            remixBtn.disabled = false;
           } else {
             showToast(result.message || "Couldn't remix this project.");
             remixBtn.disabled = false;

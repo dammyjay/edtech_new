@@ -1,4 +1,5 @@
 <%- include('../partials/header', { title: 'Project Gallery' }) %>
+<link rel="stylesheet" href="/labs/css/labRunPreview.css" />
 
 <div class="labs-page gallery-page">
 
@@ -39,6 +40,8 @@
       <button type="button" class="gallery-filter-btn active" data-type="">All</button>
       <button type="button" class="gallery-filter-btn" data-type="web">🌐 Web Lab</button>
       <button type="button" class="gallery-filter-btn" data-type="blockly">🧩 Blockly Lab</button>
+      <button type="button" class="gallery-filter-btn" data-type="arduino">🔌 Arduino Lab</button>
+      <button type="button" class="gallery-filter-btn" data-type="python">🐍 Python Lab</button>
     </div>
     <div class="gallery-filter-group" id="gallerySortFilter">
       <button type="button" class="gallery-filter-btn active" data-sort="new">🆕 Newest</button>
@@ -274,4 +277,5 @@
   }
 </style>
 
+<script src="/labs/js/labRunPython.js"></script>
 <script src="/labs/js/labGallery.js"></script>

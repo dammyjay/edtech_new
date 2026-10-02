@@ -575,11 +575,17 @@ body {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .editor-toolbar {
     height: auto;
     flex-wrap: wrap;
     padding: 10px;
+    overflow-x: visible;
+  }
+
+  .editor-toolbar #projectNameInput {
+    flex: 1 1 140px;
+    max-width: none;
   }
 
   .weblab-stats {

@@ -57,6 +57,20 @@ async function createTables() {
       ALTER TABLE company_info ADD COLUMN IF NOT EXISTS certificate_title TEXT;
     `);
 
+    // Admin-configurable lab economy knobs (controllers/labController.js's
+    // createLabProject/remixProject) — how many coins a student spends to
+    // start an additional freeform lab project (their first one, created
+    // automatically by initProject, is always free) or to remix someone
+    // else's published gallery project, and how many coins the ORIGINAL
+    // project's owner is paid when someone remixes it (a reward for
+    // making something worth reusing). Defaults are a starting point, not
+    // a fixed rule — that's the whole point of these being columns here
+    // instead of hardcoded constants.
+    await pool.query(`
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS lab_new_project_coin_cost INTEGER DEFAULT 50;
+      ALTER TABLE company_info ADD COLUMN IF NOT EXISTS lab_remix_owner_coin_reward INTEGER DEFAULT 20;
+    `);
+
     // table for pending users
     await pool.query(
       `CREATE TABLE IF NOT EXISTS pending_users(

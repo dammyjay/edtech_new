@@ -34,10 +34,22 @@ const ARDUINO_DATA_DIR = process.env.ARDUINO_DIRECTORIES_DATA || path.join(os.tm
 const ARDUINO_USER_DIR = process.env.ARDUINO_DIRECTORIES_USER || path.join(os.tmpdir(), "arduino-cli-user");
 const FQBN = "arduino:avr:uno";
 
-const COMPILE_TIMEOUT_MS = 15000;
-// Generous for a student sketch (a real Blink+Serial example is ~250
-// chars) — this exists to reject something absurd before it ever reaches
-// the compiler, not to constrain normal use.
+const COMPILE_TIMEOUT_MS = 90000;
+// A single-extension student sketch compiles in ~2-5s, but a sketch
+// combining many heavy libraries at once (SD + GFX/ILI9341 + NeoPixel +
+// RTClib + HX711 + MPU6050 + IRremote + SSD1306 + Stepper + Keypad +
+// LiquidCrystal, all 16 Tier 2/3 extensions together — an intentional
+// stress-test combination far beyond realistic single-extension student
+// use) measured anywhere from ~22s to ~49s to compile depending on
+// concurrent system load, confirmed by timing real `arduino-cli compile`
+// runs of that exact sketch. 15s was far too tight, and even 45s wasn't
+// reliably enough margin under load. Also worth noting: on Windows,
+// killing arduino-cli.exe via execFile's `timeout` doesn't reliably kill
+// its grandchild avr-gcc/linker processes, so a killed compile's
+// stdout/stderr pipes can stay open and the exec callback never fire —
+// hanging well past the kill instead of returning a clean "took too
+// long" error. 90s gives real sketches, including this worst-case stress
+// combination, comfortable margin while still bounding the worst case.
 const MAX_CODE_LENGTH = 20000;
 
 function arduinoEnv() {
@@ -98,6 +110,15 @@ const BUILTIN_LIBRARIES = [
   "Adafruit GFX Library", // Adafruit_SPITFT (the ILI9341 library's SPI base class) lives here
   "Adafruit BusIO", // Adafruit_GFX_Library's own dependency for SPI/I2C transaction helpers
   "SD", // Arduino/SparkFun's SD library (wraps SdFat) — exact match for "SD" in the Library Manager index, verified not guessed
+  "Adafruit SSD1306", // wokwi-ssd1306 — depends on Adafruit GFX Library + Adafruit BusIO, both already above
+  "RTClib", // Adafruit's — wokwi-ds1307
+  "Adafruit MPU6050", // depends on Adafruit Unified Sensor + Adafruit BusIO, both already above
+  // Arduino's own official "Stepper" library — NOT bundled with the
+  // arduino:avr core itself (confirmed by listing the core's actual
+  // libraries/ folder: only EEPROM/HID/SPI/SoftwareSerial/Wire are there)
+  // despite an earlier assumption that it was; a real compile caught
+  // this ("Stepper.h: No such file or directory") before it shipped.
+  "Stepper",
 ];
 
 async function ensureAvrCoreInstalled() {

@@ -21,6 +21,7 @@ exports.saveInfo = async (req, res) => {
   const {
     vision, mission, history, company, marquee_message,
     certificate_signee_name, certificate_title,
+    lab_new_project_coin_cost, lab_remix_owner_coin_reward,
   } = req.body;
   let logo_url = null;
   let hero_image_url = null;
@@ -67,16 +68,25 @@ exports.saveInfo = async (req, res) => {
   const result = await pool.query(
     "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
   );
+  // Blank/non-numeric input falls back to the existing value (new row:
+  // the column's own DEFAULT) rather than writing NULL/NaN and silently
+  // making every lab project free — same "keep old value if new one
+  // wasn't really provided" spirit as the logo/hero URL fallbacks below.
+  const parsedNewProjectCost = parseInt(lab_new_project_coin_cost, 10);
+  const parsedRemixReward = parseInt(lab_remix_owner_coin_reward, 10);
   if (result.rows.length === 0) {
     // Insert
     await pool.query(
       `INSERT INTO company_info
         (logo_url, vision, mission, history, hero_image_url, company_name, marquee_message,
-         certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title,
+         lab_new_project_coin_cost, lab_remix_owner_coin_reward)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12, 50), COALESCE($13, 20))`,
       [
         logo_url, vision, mission, history, hero_image_url, company, marquee_message,
         certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title,
+        isNaN(parsedNewProjectCost) ? null : parsedNewProjectCost,
+        isNaN(parsedRemixReward) ? null : parsedRemixReward,
       ]
     );
   } else {
@@ -85,8 +95,9 @@ exports.saveInfo = async (req, res) => {
     await pool.query(
       `UPDATE company_info
        SET logo_url = $1, vision = $2, mission = $3, history = $4, hero_image_url = $5, company_name = $6, marquee_message = $7,
-           certificate_background_url = $8, certificate_signature_url = $9, certificate_signee_name = $10, certificate_title = $11
-       WHERE id = $12`,
+           certificate_background_url = $8, certificate_signature_url = $9, certificate_signee_name = $10, certificate_title = $11,
+           lab_new_project_coin_cost = $12, lab_remix_owner_coin_reward = $13
+       WHERE id = $14`,
       [
         logo_url || current.logo_url,
         vision,
@@ -99,6 +110,8 @@ exports.saveInfo = async (req, res) => {
         certificate_signature_url || current.certificate_signature_url,
         certificate_signee_name || current.certificate_signee_name,
         certificate_title || current.certificate_title,
+        isNaN(parsedNewProjectCost) ? current.lab_new_project_coin_cost : parsedNewProjectCost,
+        isNaN(parsedRemixReward) ? current.lab_remix_owner_coin_reward : parsedRemixReward,
         current.id,
       ]
     );

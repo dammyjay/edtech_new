@@ -157,6 +157,29 @@ const KNOWN_GOOD_COMPONENTS = [
     simulated: true,
     note: "Real parallel HD44780 protocol — shows actual text a sketch writes via the standard LiquidCrystal library (4-bit wiring: RS/E/D4-D7).",
   },
+  // Not a separate @wokwi/elements custom element — wokwi-lcd1602/2004
+  // ship an `pins` attribute that switches the SAME part between its
+  // default 16-pin parallel header and a 4-pin (GND/VCC/SDA/SCL) I2C
+  // backpack (confirmed in the element's own source). "-i2c" is a
+  // synthetic tag this app's placeComponent() maps to the real element +
+  // that attribute (see SYNTHETIC_COMPONENT_VARIANTS in arduinoLab.js) —
+  // kept as its own catalog entry/tag rather than a toggle on the
+  // existing one since it's electrically a different part (4 wires, a
+  // different library, a different protocol), not a display setting.
+  {
+    tag: "wokwi-lcd1602-i2c",
+    label: "LCD Display (16x2, I2C)",
+    category: "Modules",
+    simulated: true,
+    note: "Real PCF8574-backpack HD44780 protocol over I2C — shows actual text a sketch writes via the LiquidCrystal_I2C library (4-pin wiring: GND/VCC/SDA/SCL, fixed address 0x27).",
+  },
+  {
+    tag: "wokwi-lcd2004-i2c",
+    label: "LCD Display (20x4, I2C)",
+    category: "Modules",
+    simulated: true,
+    note: "Real PCF8574-backpack HD44780 protocol over I2C — shows actual text a sketch writes via the LiquidCrystal_I2C library (4-pin wiring: GND/VCC/SDA/SCL, fixed address 0x27).",
+  },
   {
     tag: "wokwi-ssd1306",
     label: "OLED Display (SSD1306)",

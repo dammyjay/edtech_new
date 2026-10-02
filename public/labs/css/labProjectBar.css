@@ -1,0 +1,157 @@
+/* Shared "project bar" styling for all four lab editors (public/labs/js/
+   labProjectBar.js) — deliberately self-contained/neutral (light pill
+   controls with their own shadow) rather than themed per lab, since the
+   four topbars have different background colors (Arduino's gold
+   gradient, Web/Blockly/Python's own palettes) and this needs to read
+   fine on any of them without four separate copies. */
+
+.lab-coins-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4C3802;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.lab-project-name-input {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #222;
+    min-width: 120px;
+    max-width: 220px;
+}
+
+.lab-project-name-input:focus {
+    outline: none;
+    border-color: #A17807;
+    background: #fff;
+}
+
+.lab-project-bar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    border-radius: 7px;
+    padding: 6px 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+}
+
+.lab-project-bar-btn:hover {
+    background: #fff;
+}
+
+.lab-project-bar-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.lab-project-bar-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+/* position: fixed (not absolute) and top/left set in JS from the
+   button's getBoundingClientRect() — Web/Blockly/Python's
+   .editor-toolbar is `position: sticky` with `overflow-x: auto`, and per
+   the CSS overflow spec a non-"visible" value on one axis forces the
+   other axis to "auto" too, so an absolutely-positioned child would be
+   clipped/squashed inside the ~60px-tall toolbar instead of floating
+   below it. Fixed positioning escapes that ancestor clipping entirely,
+   same escape hatch already used by this codebase's toasts. */
+.lab-projects-menu {
+    position: fixed;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    min-width: 220px;
+    max-width: 320px;
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 100000;
+    padding: 6px;
+}
+
+.lab-projects-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.lab-projects-menu-item:hover {
+    background: #f5f0e0;
+}
+
+.lab-projects-menu-item.active {
+    background: #fff8e8;
+}
+
+.lab-projects-menu-name {
+    font-weight: 600;
+    color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.lab-projects-menu-meta {
+    font-size: 11px;
+    color: #888;
+}
+
+.lab-projects-menu-loading,
+.lab-projects-menu-empty {
+    padding: 14px 10px;
+    font-size: 12.5px;
+    color: #888;
+    text-align: center;
+}
+
+/* Small inline spinner for an in-flight action button (Submit, etc.) —
+   loaded on all 4 lab editors via this one shared stylesheet, so one
+   definition covers all of them instead of duplicating it per lab. A
+   distinct keyframe name (not `spin`) on purpose: 3 of the 4 labs
+   (Web/Blockly/Python, via partials/header.ejs's styles2.css) already
+   define their own `@keyframes spin` for an unrelated full-section
+   loading indicator — redefining the same name here could quietly change
+   that other animation's timing if browsers ever resolved it to
+   whichever rule happened to load last. */
+.lab-btn-spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    opacity: 0.85;
+    animation: lab-btn-spin 0.7s linear infinite;
+}
+
+@keyframes lab-btn-spin {
+    to { transform: rotate(360deg); }
+}

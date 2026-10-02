@@ -1,7 +1,15 @@
 <%- include('../../partials/header', { title: 'Python Playground' }) %>
 
 <link rel="stylesheet" href="/labs/css/python.css" />
+<link rel="stylesheet" href="/labs/css/labProjectBar.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+
+<script>
+  // Read by public/labs/js/labProjectBar.js — same contract all 4 lab
+  // editors set up before that shared script runs.
+  window.LAB_TYPE = "python";
+  window.LAB_NEW_PROJECT_COIN_COST = <%- JSON.stringify(labNewProjectCoinCost) %>;
+</script>
 
 <% if (lessonLab) { %>
   <script>
@@ -16,6 +24,21 @@
     <a href="/student/dashboard?section=module&moduleId=<%= lessonLab.module_id %>&openLesson=<%= lessonLab.lesson_id %>" class="editor-back-link" title="Back to your lesson"><i class="fas fa-arrow-left"></i> Back to Lesson</a>
   <% } else { %>
     <a href="/labs" class="editor-back-link" title="Back to Learning Labs"><i class="fas fa-arrow-left"></i> Labs</a>
+  <% } %>
+
+  <% if (!lessonLab) { %>
+    <input type="text" id="projectNameInput" class="lab-project-name-input" placeholder="Project name" maxlength="100" title="Rename this project">
+    <button id="newProjectBtn" class="lab-project-bar-btn" title="Start a new, separate project">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New
+    </button>
+    <div class="lab-project-bar-wrap">
+      <button id="myProjectsBtn" class="lab-project-bar-btn" title="Switch between your projects">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>
+        My Projects
+      </button>
+      <div id="myProjectsMenu" class="lab-projects-menu" style="display:none;"></div>
+    </div>
   <% } %>
 
   <div class="toolbar-group">
@@ -68,12 +91,15 @@
   <div class="weblab-stat">
     <span class="weblab-stat-icon">💰</span>
     <div>
-      <strong><%= student.coins || 0 %></strong>
+      <strong id="labCoinsValue"><%= student.coins || 0 %></strong>
       <small>Coins</small>
     </div>
   </div>
 
   <button id="submitBtn" class="weblab-submit-btn"><i class="fas fa-flag-checkered"></i> Submit Project</button>
+  <% if (!lessonLab) { %>
+    <button id="publishBtn" class="weblab-submit-btn" style="display:none; background:var(--brand-pri, #A17807);"><i class="fas fa-image"></i> Publish to Gallery</button>
+  <% } %>
 </div>
 
 <div class="pylab-container">
@@ -102,6 +128,7 @@
 
 <script src="/labs/js/offlineSync.js"></script>
 <script src="/labs/js/pythonLab.js"></script>
+<script src="/labs/js/labProjectBar.js"></script>
 
 <script>
   // AI tutor context provider (public/labs/js/labAiTutor.js) — hands over

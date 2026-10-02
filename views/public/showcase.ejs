@@ -117,10 +117,13 @@
         <p>Coding projects our students chose to share publicly — built in the Web Lab and Blockly Lab.</p>
       </div>
 
+      <% const scIcon = (t) => t === 'blockly' ? '🧩' : t === 'arduino' ? '🔌' : t === 'python' ? '🐍' : '🌐'; %>
       <div class="sc-filter">
         <a href="/showcase" class="<%= labType === '' ? 'active' : '' %>">All</a>
         <a href="/showcase?labType=web" class="<%= labType === 'web' ? 'active' : '' %>">🌐 Web Lab</a>
         <a href="/showcase?labType=blockly" class="<%= labType === 'blockly' ? 'active' : '' %>">🧩 Blockly Lab</a>
+        <a href="/showcase?labType=arduino" class="<%= labType === 'arduino' ? 'active' : '' %>">🔌 Arduino Lab</a>
+        <a href="/showcase?labType=python" class="<%= labType === 'python' ? 'active' : '' %>">🐍 Python Lab</a>
       </div>
 
       <% if (!projects.length) { %>
@@ -131,7 +134,7 @@
           <% freeProjects.forEach(p => { %>
             <a class="sc-card" href="/showcase/<%= p.id %>">
               <div class="sc-card-top">
-                <span class="sc-card-icon"><%= p.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+                <span class="sc-card-icon"><%= scIcon(p.lab_type) %></span>
                 <div>
                   <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
                   <p class="sc-card-author">by <%= p.displayName %></p>
@@ -149,7 +152,7 @@
             <% lockedProjects.slice(0, 3).forEach(p => { %>
               <div class="sc-card sc-card--locked" aria-hidden="true">
                 <div class="sc-card-top">
-                  <span class="sc-card-icon"><%= p.lab_type === 'blockly' ? '🧩' : '🌐' %></span>
+                  <span class="sc-card-icon"><%= scIcon(p.lab_type) %></span>
                   <div>
                     <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
                     <p class="sc-card-author">by <%= p.displayName %></p>

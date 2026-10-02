@@ -943,7 +943,7 @@ body.blockly-fullscreen .stage-panel {
    MOBILE
 ========================== */
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
 
     .editor-toolbar {
         flex-wrap: wrap;
@@ -952,6 +952,11 @@ body.blockly-fullscreen .stage-panel {
         padding: 10px;
         overflow-x: visible;
         row-gap: 8px;
+    }
+
+    .editor-toolbar #projectNameInput {
+        flex: 1 1 140px;
+        max-width: none;
     }
 
     .toolbar-group {

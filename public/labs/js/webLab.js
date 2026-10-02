@@ -13,6 +13,10 @@ const LESSON_LAB_ID = new URLSearchParams(window.location.search).get("labId");
 // "Back to Lesson" deep link (window.LESSON_MODULE_ID, the other half of
 // that link, comes from views/labs/web/editor.ejs's inline script).
 const LESSON_ID_FOR_LAB = new URLSearchParams(window.location.search).get("lessonId");
+// Which of the student's (possibly several) freeform Web Lab projects to
+// load — set by labProjectBar.js's "My Projects" switcher via a full
+// ?projectId= reload (see public/labs/js/labProjectBar.js's contract).
+const PROJECT_ID_FROM_URL = new URLSearchParams(window.location.search).get("projectId");
 
 // Fallback shape used by Reset and as the base for legacy-project
 // migration — mirrors LAB_TEMPLATES.web.starter in labController.js.
@@ -362,7 +366,7 @@ async function initLab(labType) {
     const res = await fetch("/labs/project/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ labType, labId: LESSON_LAB_ID || undefined }),
+      body: JSON.stringify({ labType, labId: LESSON_LAB_ID || undefined, projectId: PROJECT_ID_FROM_URL || undefined }),
     });
     const data = await res.json();
 
@@ -372,6 +376,7 @@ async function initLab(labType) {
     }
 
     window.currentProjectId = data.project.id;
+    window.LabProjectBar?.setProject(data.project.id, data.project.project_name);
     // Only meaningful for a lesson-attached task (LESSON_LAB_ID set) — how
     // many times it's already been AI-graded, for the resubmit confirm
     // message and the MAX_LAB_SUBMISSIONS cap below.
@@ -567,6 +572,8 @@ require(["vs/editor/editor.main"], function () {
 
     await saveProject(false);
 
+    const submitBtnEl = document.getElementById("submitBtn");
+    window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
     try {
       const res = await fetch("/labs/project/submit", {
         method: "POST",
@@ -582,6 +589,9 @@ require(["vs/editor/editor.main"], function () {
 
       if (typeof data.submissionCount === "number") {
         window.labSubmissionCount = data.submissionCount;
+      }
+      if (data.isFirstSubmission && data.coinsGained) {
+        window.LabProjectBar?.addCoins(data.coinsGained);
       }
 
       if (LESSON_LAB_ID) {
@@ -645,6 +655,8 @@ require(["vs/editor/editor.main"], function () {
     } catch (err) {
       console.error("SUBMIT ERROR:", err);
       showToast("Couldn't submit — try again.", "error");
+    } finally {
+      window.LabProjectBar?.setButtonLoading(submitBtnEl, false);
     }
   });
 
@@ -662,7 +674,7 @@ require(["vs/editor/editor.main"], function () {
       );
       if (!confirmed) return;
 
-      publishBtn.disabled = true;
+      window.LabProjectBar?.setButtonLoading(publishBtn, true, "Publishing…");
       try {
         const res = await fetch("/labs/gallery/publish", {
           method: "POST",
@@ -681,7 +693,7 @@ require(["vs/editor/editor.main"], function () {
         console.error("PUBLISH ERROR:", err);
         showToast("Couldn't publish — try again.", "error");
       } finally {
-        publishBtn.disabled = false;
+        window.LabProjectBar?.setButtonLoading(publishBtn, false);
       }
     });
   }

@@ -385,3 +385,65 @@ body {
   background: var(--bg-secondary, #f4f1ea);
   padding: 16px;
 }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .editor-toolbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 10px;
+    overflow-x: visible;
+  }
+
+  .editor-toolbar #projectNameInput {
+    flex: 1 1 140px;
+    max-width: none;
+  }
+
+  .weblab-stats {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .weblab-submit-btn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 760px) {
+  html, body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .pylab-container {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .editor-card,
+  .pylab-output-panel {
+    flex: none;
+  }
+
+  #codeEditor {
+    height: 320px;
+  }
+
+  .pylab-stdin-panel {
+    flex: none;
+  }
+
+  #stdinInput {
+    min-height: 60px;
+  }
+
+  .console-panel {
+    height: 220px;
+    flex: none;
+  }
+}

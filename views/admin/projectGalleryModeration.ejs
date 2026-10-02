@@ -1,4 +1,6 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'project-gallery' }) %>
+<link rel="stylesheet" href="/labs/css/labRunPreview.css" />
+<script src="/labs/js/labRunPython.js"></script>
 
 <div class="pgm-page">
   <h2>🖼️ Project Gallery Moderation</h2>
@@ -17,6 +19,8 @@
         <option value="">All lab types</option>
         <option value="web">🌐 Web Lab</option>
         <option value="blockly">🧩 Blockly Lab</option>
+        <option value="arduino">🔌 Arduino Lab</option>
+        <option value="python">🐍 Python Lab</option>
       </select>
       <label class="pgm-flag-toggle">
         <input type="checkbox" id="pgmFlaggedOnly" /> Flagged only 🚩
@@ -42,6 +46,14 @@
           <tr><td colspan="8" class="pgm-empty">Loading…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <div id="pgmPreviewModal" class="pgm-modal" style="display:none;">
+    <div class="pgm-modal-overlay" id="pgmPreviewOverlay"></div>
+    <div class="pgm-modal-card">
+      <button type="button" class="pgm-modal-close" id="pgmPreviewClose">✕</button>
+      <div id="pgmPreviewBody"></div>
     </div>
   </div>
 
@@ -151,6 +163,23 @@
   }
   .pgm-feature-btn.featured { background: #fff3cd; color: #856404; }
   .pgm-feature-btn:hover { opacity: 0.85; }
+
+  .pgm-view-btn {
+    border: none; background: #eef4ff; color: #2c5fa8; padding: 6px 12px;
+    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 6px;
+  }
+  .pgm-view-btn:hover { background: #dce8ff; }
+
+  .pgm-modal { position: fixed; inset: 0; z-index: 100000; }
+  .pgm-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+  .pgm-modal-card {
+    position: relative; max-width: 700px; margin: 40px auto; max-height: 85vh; overflow-y: auto;
+    background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .pgm-modal-close {
+    position: absolute; top: 14px; right: 14px; border: none; background: #f1f1f1;
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px;
+  }
 </style>
 
 <script>
@@ -165,6 +194,23 @@
     const div = document.createElement("div");
     div.textContent = str == null ? "" : String(str);
     return div.innerHTML;
+  }
+
+  // Same normalize/build pair as public/labs/js/labGallery.js — kept as
+  // its own copy rather than a shared module (matching how each lab page
+  // already keeps its own showToast/escapeHtml copy).
+  function normalizeWebProjectData(raw) {
+    if (raw && Array.isArray(raw.pages) && raw.pages.length) {
+      const activePage = raw.pages.some((p) => p.name === raw.activePage) ? raw.activePage : raw.pages[0].name;
+      const page = raw.pages.find((p) => p.name === activePage) || raw.pages[0];
+      return { html: page.html || "", css: raw.css || "", js: raw.js || "" };
+    }
+    return { html: (raw && raw.html) || "", css: (raw && raw.css) || "", js: (raw && raw.js) || "" };
+  }
+
+  function buildWebPreviewSrcdoc(projectData) {
+    const { html, css, js } = normalizeWebProjectData(projectData || {});
+    return `<!DOCTYPE html><html><head><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
   }
 
   async function load() {
@@ -191,12 +237,15 @@
           <tr class="${p.flag_count > 0 ? "flagged" : ""}" data-id="${p.id}">
             <td>${escapeHtml(p.project_name || "Untitled project")}</td>
             <td>${escapeHtml(p.student_name)}</td>
-            <td>${p.lab_type === "blockly" ? "🧩 Blockly" : "🌐 Web"}</td>
+            <td>${p.lab_type === "blockly" ? "🧩 Blockly" : p.lab_type === "arduino" ? "🔌 Arduino" : p.lab_type === "python" ? "🐍 Python" : "🌐 Web"}</td>
             <td>${published}</td>
             <td>${p.like_count}</td>
             <td>${rating ? `${rating.toFixed(1)} (${p.review_count})` : "—"}</td>
             <td>${p.flag_count > 0 ? `🚩 ${p.flag_count}` : "—"}</td>
-            <td><button type="button" class="pgm-unpublish-btn" data-id="${p.id}">Unpublish</button></td>
+            <td>
+              <button type="button" class="pgm-view-btn" data-id="${p.id}">👁️ View</button>
+              <button type="button" class="pgm-unpublish-btn" data-id="${p.id}">Unpublish</button>
+            </td>
           </tr>
         `;
       }).join("");
@@ -207,6 +256,12 @@
   }
 
   tbody.addEventListener("click", async (e) => {
+    const viewBtn = e.target.closest(".pgm-view-btn");
+    if (viewBtn) {
+      openPreview(viewBtn.dataset.id);
+      return;
+    }
+
     const btn = e.target.closest(".pgm-unpublish-btn");
     if (!btn) return;
     const confirmed = window.showConfirm
@@ -228,6 +283,99 @@
       btn.disabled = false;
     }
   });
+
+  // ---------------- Preview modal (👁️ View) ----------------
+  // Admin is a logged-in session too (req.user is set for any role —
+  // see app.js), so the exact same student-facing detail endpoint works
+  // here without a separate admin-only route. isOwner is always false for
+  // admin, which is fine — this modal never renders like/remix/report,
+  // only a read-only preview + the existing Unpublish action.
+  const previewModal = document.getElementById("pgmPreviewModal");
+  const previewBody = document.getElementById("pgmPreviewBody");
+
+  function closePreview() {
+    previewModal.style.display = "none";
+    previewBody.innerHTML = "";
+  }
+  document.getElementById("pgmPreviewOverlay").addEventListener("click", closePreview);
+  document.getElementById("pgmPreviewClose").addEventListener("click", closePreview);
+
+  async function openPreview(id) {
+    previewModal.style.display = "block";
+    previewBody.innerHTML = `<p class="pgm-empty">Loading…</p>`;
+    try {
+      const res = await fetch(`/labs/gallery/projects/${id}`);
+      const data = await res.json();
+      if (!data.success) {
+        previewBody.innerHTML = `<p class="pgm-empty">Couldn't load this project.</p>`;
+        return;
+      }
+      renderPreview(data.project, id);
+    } catch (err) {
+      console.error("Preview load error:", err);
+      previewBody.innerHTML = `<p class="pgm-empty">Couldn't load this project.</p>`;
+    }
+  }
+
+  function renderPreview(project, id) {
+    const icon = project.lab_type === "blockly" ? "🧩" : project.lab_type === "arduino" ? "🔌" : project.lab_type === "python" ? "🐍" : "🌐";
+    let body;
+    if (project.lab_type === "web") {
+      body = `<iframe id="pgmPreviewFrame" style="width:100%; height:380px; border:1px solid #eee; border-radius:10px;" sandbox="allow-scripts"></iframe>`;
+    } else if (project.lab_type === "blockly") {
+      const code = (project.project_data && project.project_data.generatedCode) || "(No blocks were placed.)";
+      body = `<pre class="lrp-code">${escapeHtml(code)}</pre>
+        <a class="lrp-open-sim-btn" href="/labs/blockly?viewProjectId=${id}" target="_blank" rel="noopener">🧩 Open in Blocks Editor — Run it</a>`;
+    } else if (project.lab_type === "arduino") {
+      const pd = project.project_data || {};
+      const code = (pd.code && pd.code.trim()) || "(No code was written.)";
+      const ccount = (pd.circuit && Array.isArray(pd.circuit.components)) ? pd.circuit.components.length : 0;
+      body = `<pre class="lrp-code">${escapeHtml(code)}</pre>
+        <p style="font-size:12px; color:#666;">${ccount} component${ccount === 1 ? "" : "s"} wired on the circuit.</p>
+        <a class="lrp-open-sim-btn" href="/labs/arduino?viewProjectId=${id}" target="_blank" rel="noopener">🔌 Open in Simulator — Run it</a>`;
+    } else if (project.lab_type === "python") {
+      body = `<div id="pgmPythonRunner"></div>`;
+    } else {
+      body = `<p class="pgm-empty">No preview available for this lab type.</p>`;
+    }
+
+    previewBody.innerHTML = `
+      <h3 style="margin:0 0 4px;">${icon} ${escapeHtml(project.project_name || "Untitled project")}</h3>
+      <p style="font-size:13px; color:#666; margin:0 0 16px;">by ${escapeHtml(project.student_name)}</p>
+      ${body}
+      <button type="button" class="pgm-unpublish-btn" style="margin-top:16px;" data-id="${id}">Unpublish</button>
+    `;
+
+    const frame = document.getElementById("pgmPreviewFrame");
+    if (frame) {
+      frame.srcdoc = buildWebPreviewSrcdoc(project.project_data);
+    }
+    const pyRunner = document.getElementById("pgmPythonRunner");
+    if (pyRunner && window.LabRunPython) {
+      window.LabRunPython.render(pyRunner, (project.project_data && project.project_data.code) || "");
+    }
+
+    previewBody.querySelector(".pgm-unpublish-btn")?.addEventListener("click", async (e) => {
+      const confirmed = window.showConfirm
+        ? await window.showConfirm("Remove this project from the public gallery?", { confirmText: "Unpublish" })
+        : confirm("Remove this project from the public gallery?");
+      if (!confirmed) return;
+      e.target.disabled = true;
+      try {
+        const res = await fetch(`/admin/project-gallery/${id}/unpublish`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          closePreview();
+          load();
+        } else {
+          e.target.disabled = false;
+        }
+      } catch (err) {
+        console.error("Unpublish error:", err);
+        e.target.disabled = false;
+      }
+    });
+  }
 
   search.addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
   labType.addEventListener("change", load);

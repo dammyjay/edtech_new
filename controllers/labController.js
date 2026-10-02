@@ -2,7 +2,7 @@ const pool = require("../models/db");
 const { notifyUser } = require("../utils/notify");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
-const { awardCoins } = require("../services/coinService");
+const { awardCoins, spendCoins } = require("../services/coinService");
 const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
 const { generateMasterySignal } = require("../services/masteryPathService");
 const { compileSketch } = require("../services/arduinoCompileService");
@@ -114,6 +114,32 @@ async function getLessonLabContext(labId) {
   return res.rows[0] || null;
 }
 
+// Shared by all 4 getXLab controllers — the coin cost public/labs/js/
+// labProjectBar.js shows in its "+ New Project" confirm dialog (the
+// server, not this number, is the actual source of truth enforced in
+// createLabProject/remixProject above; this is purely so the student
+// sees the real cost before confirming instead of finding out after).
+async function getLabNewProjectCoinCost() {
+  const res = await pool.query("SELECT lab_new_project_coin_cost FROM company_info ORDER BY id DESC LIMIT 1");
+  return res.rows[0]?.lab_new_project_coin_cost ?? 50;
+}
+
+// Shared by getArduinoLab/getBlocklyLab — just the name/author for the
+// read-only "Viewing X's project" banner when ?viewProjectId= is set (the
+// actual code/circuit/blocks load client-side via GET /labs/project/
+// view/:id, which independently re-validates is_published — this is only
+// ever used for what the banner text says, never for access control).
+async function getViewProjectMeta(viewProjectId) {
+  if (!viewProjectId) return null;
+  const res = await pool.query(
+    `SELECT lp.id, lp.project_name, u.fullname AS student_name
+     FROM lab_projects lp JOIN users2 u ON u.id = lp.student_id
+     WHERE lp.id = $1 AND lp.is_published = true`,
+    [viewProjectId]
+  );
+  return res.rows[0] || null;
+}
+
 exports.getWebLab = async (req, res) => {
   const studentId = req.session.user.id;
 
@@ -125,6 +151,7 @@ exports.getWebLab = async (req, res) => {
   const levelInfo = getLevelForXp(student.xp);
   const streak = await getStudentStreak(studentId);
   const lessonLab = await getLessonLabContext(req.query.labId);
+  const labNewProjectCoinCost = await getLabNewProjectCoinCost();
 
   res.render("labs/web/editor", {
     title: "Web Playground",
@@ -133,6 +160,7 @@ exports.getWebLab = async (req, res) => {
     levelInfo,
     streak,
     lessonLab,
+    labNewProjectCoinCost,
   });
 };
 
@@ -147,6 +175,7 @@ exports.getPythonLab = async (req, res) => {
   const levelInfo = getLevelForXp(student.xp);
   const streak = await getStudentStreak(studentId);
   const lessonLab = await getLessonLabContext(req.query.labId);
+  const labNewProjectCoinCost = await getLabNewProjectCoinCost();
 
   res.render("labs/python/editor", {
     title: "Python Playground",
@@ -155,10 +184,15 @@ exports.getPythonLab = async (req, res) => {
     levelInfo,
     streak,
     lessonLab,
+    labNewProjectCoinCost,
   });
 };
 
 exports.getBlocklyLab = async (req, res) => {
+  const studentId = req.session.user.id;
+  const studentRes = await pool.query("SELECT id, xp, coins FROM users2 WHERE id = $1", [studentId]);
+  const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+
   const categoriesRes = await pool.query(
     `SELECT * FROM lab_asset_categories WHERE lab_type = 'blockly' ORDER BY name ASC`
   );
@@ -181,17 +215,44 @@ exports.getBlocklyLab = async (req, res) => {
     }));
 
   const lessonLab = await getLessonLabContext(req.query.labId);
+  const labNewProjectCoinCost = await getLabNewProjectCoinCost();
+  const viewProject = await getViewProjectMeta(req.query.viewProjectId);
 
   res.render("labs/blockly/editor", {
     title: "Blockly Playground",
     users: req.session.user,
+    student,
     spriteCategories,
     backgroundCategories,
     lessonLab,
+    labNewProjectCoinCost,
+    viewProject,
   });
 };
 
+// Catalog tags that aren't themselves real @wokwi/elements custom element
+// names — kept in sync by hand with public/labs/js/arduinoLab.js's own
+// SYNTHETIC_COMPONENT_VARIANTS (that file's comment explains why these
+// exist at all: same physical part, a different `pins` attribute). This
+// server-side copy exists only so the palette's preview markup
+// (`<tag></tag>`, rendered below) can self-render as something real
+// instead of an unknown element with no shadow DOM — placeComponent()'s
+// own copy is what actually matters for placing the part on the canvas.
+const SYNTHETIC_COMPONENT_PREVIEW_TAGS = {
+  "wokwi-lcd1602-i2c": { realTag: "wokwi-lcd1602", attrs: ' pins="i2c"' },
+  "wokwi-lcd2004-i2c": { realTag: "wokwi-lcd2004", attrs: ' pins="i2c"' },
+};
+
 exports.getArduinoLab = async (req, res) => {
+  const studentId = req.session.user.id;
+  const studentRes = await pool.query("SELECT id, xp, coins FROM users2 WHERE id = $1", [studentId]);
+  const student = studentRes.rows[0] || { xp: 0, coins: 0 };
+  const levelInfo = getLevelForXp(student.xp);
+  const streak = await getStudentStreak(studentId);
+  const lessonLab = await getLessonLabContext(req.query.labId);
+  const labNewProjectCoinCost = await getLabNewProjectCoinCost();
+  const viewProject = await getViewProjectMeta(req.query.viewProjectId);
+
   // Component palette is admin-curated data now (lab_assets/
   // lab_asset_categories, lab_type='arduino' — same generic tables the
   // Blockly sprite/background picker already uses), not a hardcoded list
@@ -204,16 +265,29 @@ exports.getArduinoLab = async (req, res) => {
      WHERE lab_type = 'arduino' AND asset_type = 'component' AND enabled = true
      ORDER BY sort_order ASC, name ASC`
   );
+  // previewTag/previewAttrs are ONLY for the self-rendering `<tag>` markup
+  // in the palette card — asset_url (used for drag/drop and placement)
+  // stays the real catalog tag untouched.
+  const withPreviewTag = (c) => {
+    const variant = SYNTHETIC_COMPONENT_PREVIEW_TAGS[c.asset_url];
+    return { ...c, previewTag: variant ? variant.realTag : c.asset_url, previewAttrs: variant ? variant.attrs : "" };
+  };
   const componentCategories = categoriesRes.rows
-    .map((cat) => ({ ...cat, components: componentsRes.rows.filter((c) => c.category_id === cat.id) }))
+    .map((cat) => ({ ...cat, components: componentsRes.rows.filter((c) => c.category_id === cat.id).map(withPreviewTag) }))
     .filter((cat) => cat.components.length > 0);
-  const uncategorizedComponents = componentsRes.rows.filter((c) => !c.category_id);
+  const uncategorizedComponents = componentsRes.rows.filter((c) => !c.category_id).map(withPreviewTag);
 
   res.render("labs/arduino/editor", {
     title: "Arduino Playground",
     layout: "layout",
     componentCategories,
     uncategorizedComponents,
+    student,
+    levelInfo,
+    streak,
+    lessonLab,
+    labNewProjectCoinCost,
+    viewProject,
   });
 };
 
@@ -263,7 +337,7 @@ exports.getAiLab = async (req, res) => {
 exports.initProject = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const { labType, labId } = req.body;
+    const { labType, labId, projectId } = req.body;
 
     if (!studentId) {
       return res.status(401).json({
@@ -324,11 +398,31 @@ exports.initProject = async (req, res) => {
       return res.json({ success: true, project: newLessonProject.rows[0], submissionCount: 0 });
     }
 
-    // check existing freeform project — lab_id IS NULL so a lesson-linked
-    // project for the same lab type never gets returned here by mistake.
+    // A student can now have MULTIPLE freeform projects per lab_type (see
+    // createLabProject below) — projectId picks a specific one (switching
+    // via the editor's "My Projects" list); falling through to the
+    // most-recently-updated one otherwise is the "resume where I left
+    // off" default every editor loads with when it doesn't ask for a
+    // specific project. lab_id IS NULL either way, so a lesson-linked
+    // project for the same lab type is never returned here by mistake.
+    if (projectId) {
+      const specific = await pool.query(
+        `SELECT * FROM lab_projects WHERE id = $1 AND student_id = $2 AND lab_type = $3 AND lab_id IS NULL`,
+        [projectId, studentId, labType]
+      );
+      if (specific.rows.length > 0) {
+        return res.json({ success: true, project: specific.rows[0] });
+      }
+      // An invalid/not-theirs projectId falls through to the default
+      // below rather than erroring — same forgiving behavior as a stale
+      // bookmarked link.
+    }
+
     let project = await pool.query(
       `SELECT * FROM lab_projects
-       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL`,
+       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL
+       ORDER BY updated_at DESC NULLS LAST, id DESC
+       LIMIT 1`,
       [labType, studentId],
     );
 
@@ -355,6 +449,117 @@ exports.initProject = async (req, res) => {
 
   } catch (err) {
     console.log("INIT ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/project/create — explicitly starts an ADDITIONAL freeform
+// project (a student's very first one for a given lab_type is always free,
+// auto-created by initProject above the first time they open the editor;
+// this is only ever reached from a "+ New Project" action once one already
+// exists). Costs company_info.lab_new_project_coin_cost coins, charged
+// atomically via spendCoins — same overspend-proof pattern used for every
+// other coin-spending action on this platform (services/coinService.js).
+exports.createLabProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { labType } = req.body;
+    const template = LAB_TEMPLATES[labType];
+    if (!template) return res.status(400).json({ success: false, message: "Invalid lab type" });
+
+    const settingsRes = await pool.query("SELECT lab_new_project_coin_cost FROM company_info ORDER BY id DESC LIMIT 1");
+    const cost = settingsRes.rows[0]?.lab_new_project_coin_cost ?? 50;
+
+    if (cost > 0) {
+      const newBalance = await spendCoins(studentId, cost, `Started a new ${labType} lab project`);
+      if (newBalance === null) {
+        return res.status(402).json({
+          success: false,
+          notEnoughCoins: true,
+          coinsNeeded: cost,
+          message: `You need ${cost} coins to start a new project.`,
+        });
+      }
+    }
+
+    const newProject = await pool.query(
+      `INSERT INTO lab_projects (lab_type, student_id, project_name, project_data) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [labType, studentId, template.title, template.starter]
+    );
+    res.json({ success: true, project: newProject.rows[0] });
+  } catch (err) {
+    console.error("CREATE LAB PROJECT ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /labs/project/list?labType= — every one of the student's own
+// freeform projects for that lab type (newest-worked-on first), for the
+// editor's "My Projects" switcher. Deliberately excludes project_data
+// (could be large — a whole circuit/sketch/site — and this list only ever
+// needs to show names/status, not content).
+exports.listLabProjects = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { labType } = req.query;
+    const rows = await pool.query(
+      `SELECT id, project_name, status, is_published, updated_at FROM lab_projects
+       WHERE student_id = $1 AND lab_type = $2 AND lab_id IS NULL
+       ORDER BY updated_at DESC NULLS LAST, id DESC`,
+      [studentId, labType]
+    );
+    res.json({ success: true, projects: rows.rows });
+  } catch (err) {
+    console.error("LIST LAB PROJECTS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /labs/project/view/:id — read-only load of ANY published project
+// (deliberately NOT owner-gated, unlike every other per-project endpoint
+// above) so admin/other students can open the real editor against someone
+// else's gallery project to actually run/simulate it, without remixing
+// (copying) it into their own account first. The editor-side (arduinoLab.js/
+// blocklyLab.js) only ever calls this when ?viewProjectId= is present, and
+// renders it read-only (no save/submit/publish/rename) — this endpoint is
+// the server-side half of that: even a direct API call can't load an
+// unpublished project this way.
+exports.viewLabProject = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT lp.id, lp.lab_type, lp.project_name, lp.project_data, lp.student_id,
+              u.fullname AS student_name
+       FROM lab_projects lp JOIN users2 u ON u.id = lp.student_id
+       WHERE lp.id = $1 AND lp.is_published = true`,
+      [req.params.id]
+    );
+    const project = result.rows[0];
+    if (!project) return res.status(404).json({ success: false, message: "Project not found or not published" });
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("VIEW LAB PROJECT ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/project/rename { projectId, name } — the topbar name field
+// every lab editor now has. Owner-only (WHERE student_id = $3), same gate
+// every other per-project mutation here uses.
+exports.renameLabProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { projectId, name } = req.body;
+    const trimmed = (name || "").trim().slice(0, 100);
+    if (!trimmed) return res.status(400).json({ success: false, message: "Project name can't be empty." });
+
+    const result = await pool.query(
+      `UPDATE lab_projects SET project_name = $1 WHERE id = $2 AND student_id = $3 RETURNING id, project_name`,
+      [trimmed, projectId, studentId]
+    );
+    if (!result.rows.length) return res.status(404).json({ success: false, message: "Project not found" });
+    res.json({ success: true, project_name: result.rows[0].project_name });
+  } catch (err) {
+    console.error("RENAME LAB PROJECT ERROR:", err);
     res.status(500).json({ success: false });
   }
 };
@@ -586,6 +791,20 @@ async function gradeLessonLabSubmission(project, lessonLab, projectId, studentId
     submissionText = data.code?.trim()
       ? data.code
       : "(No code was written — the editor is empty.)";
+  } else if (project.lab_type === "arduino") {
+    // Unlike the pure-code labs above, an Arduino task is graded on BOTH
+    // the sketch AND how the circuit was wired — a correct sketch driving
+    // nothing (or the wrong pins) is still an incomplete submission. The
+    // circuit is summarized as plain text (component tags + pin-to-pin
+    // wiring), not the raw serializeCircuit() JSON (x/y coordinates, wire
+    // colors, waypoints) — none of that geometry is gradable content.
+    const components = (data.circuit?.components || [])
+      .map((c) => `- ${c.tag}`)
+      .join("\n") || "(none placed)";
+    const wires = (data.circuit?.wires || [])
+      .map((w) => `- ${w.from.componentId}.${w.from.pin} -> ${w.to.componentId}.${w.to.pin}`)
+      .join("\n") || "(none)";
+    submissionText = `--- sketch.ino ---\n${data.code?.trim() || "(No code was written.)"}\n\n--- Components placed ---\n${components}\n\n--- Wiring ---\n${wires}`;
   } else {
     submissionText = (data.pages || [])
       .map((p) => `--- ${p.name} ---\n${p.html || ""}`)
@@ -941,7 +1160,7 @@ exports.unpublishProject = async (req, res) => {
 exports.getGalleryProjects = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const labType = ["web", "blockly", "arduino", "python"].includes(req.query.labType) ? req.query.labType : null;
     const sort = req.query.sort === "popular" ? "popular" : "new";
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageSize = 24;
@@ -1081,13 +1300,20 @@ exports.toggleLike = async (req, res) => {
   }
 };
 
-// POST /labs/gallery/remix — clones a published project's code into the
-// caller's OWN single freeform slot for that lab type. The labs system
-// has no multi-project model (loadProject/initProject above always fetch
-// or create exactly one row per (student, lab_type, lab_id IS NULL)), so
-// this deliberately, destructively overwrites whatever the student
-// already had there — the client is expected to confirm with the student
-// before calling this endpoint.
+// POST /labs/gallery/remix — clones a published project's code into a NEW
+// project of the caller's own (lab_type, lab_id IS NULL unchanged — a
+// remix is always a freeform project, same as createLabProject above).
+// Used to destructively overwrite the student's single existing freeform
+// project back when the labs system had no multi-project model; now that
+// it does (see createLabProject/listLabProjects above), remixing always
+// adds a new project instead — overwriting one of the student's OTHER
+// projects just because they happened to remix something would be a real
+// data-loss bug now, not the simplification it used to be. Costs the same
+// company_info.lab_new_project_coin_cost coins as starting a blank new
+// project (the two are the same action — "start one more project" — just
+// with different starting content), and pays the ORIGINAL project's owner
+// company_info.lab_remix_owner_coin_reward coins as a reward for making
+// something worth reusing.
 exports.remixProject = async (req, res) => {
   try {
     const studentId = req.user.id;
@@ -1106,36 +1332,43 @@ exports.remixProject = async (req, res) => {
       return res.status(400).json({ success: false, message: "That's already your own project." });
     }
 
-    const remixName = `${source.project_name || "Untitled"} (Remix)`;
-
-    const existing = await pool.query(
-      `SELECT id FROM lab_projects WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL`,
-      [source.lab_type, studentId]
+    const settingsRes = await pool.query(
+      "SELECT lab_new_project_coin_cost, lab_remix_owner_coin_reward FROM company_info ORDER BY id DESC LIMIT 1"
     );
+    const cost = settingsRes.rows[0]?.lab_new_project_coin_cost ?? 50;
+    const ownerReward = settingsRes.rows[0]?.lab_remix_owner_coin_reward ?? 20;
 
-    if (existing.rows.length) {
-      // is_published/published_at reset here too — the row being
-      // overwritten may have been a published gallery entry, and the
-      // freshly swapped-in remixed content hasn't been through
-      // publishProject's own checks (banned-word rename, etc.), so it
-      // must not keep showing as published under the new owner's name.
-      await pool.query(
-        `UPDATE lab_projects
-         SET project_data = $1, project_name = $2, status = 'draft',
-             remixed_from_id = $3, updated_at = NOW(),
-             is_published = false, published_at = NULL
-         WHERE id = $4`,
-        [source.project_data, remixName, source.id, existing.rows[0].id]
-      );
-    } else {
-      await pool.query(
-        `INSERT INTO lab_projects (lab_type, student_id, project_name, project_data, status, remixed_from_id)
-         VALUES ($1, $2, $3, $4, 'draft', $5)`,
-        [source.lab_type, studentId, remixName, source.project_data, source.id]
-      );
+    if (cost > 0) {
+      const newBalance = await spendCoins(studentId, cost, `Remixed "${source.project_name || "Untitled"}"`);
+      if (newBalance === null) {
+        return res.status(402).json({
+          success: false,
+          notEnoughCoins: true,
+          coinsNeeded: cost,
+          message: `You need ${cost} coins to remix this project.`,
+        });
+      }
     }
 
-    res.json({ success: true, labType: source.lab_type });
+    const remixName = `${source.project_name || "Untitled"} (Remix)`;
+    const newProjectRes = await pool.query(
+      `INSERT INTO lab_projects (lab_type, student_id, project_name, project_data, status, remixed_from_id)
+       VALUES ($1, $2, $3, $4, 'draft', $5)
+       RETURNING id`,
+      [source.lab_type, studentId, remixName, source.project_data, source.id]
+    );
+
+    if (ownerReward > 0) {
+      await awardCoins(source.student_id, ownerReward, `Your project "${source.project_name || "Untitled"}" was remixed`);
+      notifyUser(source.student_id, {
+        type: "project_remixed",
+        title: "Your project was remixed!",
+        message: `Someone remixed "${source.project_name || "Untitled"}" — you earned ${ownerReward} coins.`,
+        url: "/labs/gallery",
+      }).catch((err) => console.error("Remix notification failed:", err.message));
+    }
+
+    res.json({ success: true, labType: source.lab_type, projectId: newProjectRes.rows[0].id });
   } catch (err) {
     console.error("remixProject error:", err);
     res.status(500).json({ success: false });

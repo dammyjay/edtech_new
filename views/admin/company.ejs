@@ -70,6 +70,12 @@
       <label>Certificate Title:</label><br />
       <input type="text" name="certificate_title" value="<%= info?.certificate_title || 'CERTIFICATE OF COMPLETION' %>" /><br /><br />
 
+      <label>Coins to start an additional lab project, or to remix someone else's (Web/Blockly/Arduino/Python Labs — a student's first project is always free):</label><br />
+      <input type="number" min="0" name="lab_new_project_coin_cost" value="<%= info?.lab_new_project_coin_cost ?? 50 %>" /><br /><br />
+
+      <label>Coins awarded to a project's owner when someone remixes it:</label><br />
+      <input type="number" min="0" name="lab_remix_owner_coin_reward" value="<%= info?.lab_remix_owner_coin_reward ?? 20 %>" /><br /><br />
+
       <button type="submit">Save</button>
     </form>
 

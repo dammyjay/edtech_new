@@ -26,9 +26,13 @@ router.get("/gallery", labController.getGalleryPage);
 
 router.post("/project/init", labController.initProject);
 
-// Must come before /project/:labType — otherwise "lesson" would be
-// captured as :labType and this route would never be reached.
+// Must come before /project/:labType — otherwise "lesson"/"list" would be
+// captured as :labType and these routes would never be reached.
 router.get("/project/lesson/:labId", labController.loadLessonLabProject);
+router.post("/project/create", labController.createLabProject);
+router.get("/project/list", labController.listLabProjects);
+router.get("/project/view/:id", labController.viewLabProject);
+router.post("/project/rename", labController.renameLabProject);
 
 router.get("/project/:labType", labController.loadProject);
 

@@ -160,7 +160,7 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
 // name, for the same reason.
 router.get("/showcase", async (req, res) => {
   try {
-    const labType = ["web", "blockly"].includes(req.query.labType) ? req.query.labType : null;
+    const labType = ["web", "blockly", "arduino", "python"].includes(req.query.labType) ? req.query.labType : null;
     const params = [];
     let labTypeFilter = "";
     if (labType) {
