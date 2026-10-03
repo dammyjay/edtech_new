@@ -84,6 +84,7 @@
 
         <% if (project.lab_type === 'web') { %>
           <iframe class="scp-frame" id="scpFrame" sandbox="allow-scripts"></iframe>
+          <a class="lrp-open-sim-btn" href="/labs/web-preview/<%= project.id %>" target="_blank" rel="noopener" style="margin:10px 0; display:inline-block;">🖥️ Open Full Preview (desktop/tablet/mobile)</a>
         <% } else if (project.lab_type === 'blockly') { %>
           <% if (isLoggedIn) { %>
             <a class="lrp-open-sim-btn" href="/labs/blockly?viewProjectId=<%= project.id %>" target="_blank" rel="noopener">🧩 Open in Blocks Editor — Run it</a>

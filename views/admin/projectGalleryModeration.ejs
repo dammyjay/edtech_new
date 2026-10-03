@@ -180,6 +180,17 @@
     position: absolute; top: 14px; right: 14px; border: none; background: #f1f1f1;
     width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px;
   }
+
+  .pgm-pubprofile-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 8px 12px;
+    font-size: 13px;
+  }
+  .pgm-pubprofile-btn {
+    border: 1px solid #333; background: #fff; color: #333; padding: 5px 12px;
+    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pgm-pubprofile-btn:hover { background: #333; color: #fff; }
 </style>
 
 <script>
@@ -321,7 +332,8 @@
     const icon = project.lab_type === "blockly" ? "🧩" : project.lab_type === "arduino" ? "🔌" : project.lab_type === "python" ? "🐍" : "🌐";
     let body;
     if (project.lab_type === "web") {
-      body = `<iframe id="pgmPreviewFrame" style="width:100%; height:380px; border:1px solid #eee; border-radius:10px;" sandbox="allow-scripts"></iframe>`;
+      body = `<iframe id="pgmPreviewFrame" style="width:100%; height:380px; border:1px solid #eee; border-radius:10px;" sandbox="allow-scripts"></iframe>
+        <a class="lrp-open-sim-btn" href="/labs/web-preview/${id}" target="_blank" rel="noopener" style="margin-top:10px; display:inline-block;">🖥️ Open Full Preview (desktop/tablet/mobile)</a>`;
     } else if (project.lab_type === "blockly") {
       const code = (project.project_data && project.project_data.generatedCode) || "(No blocks were placed.)";
       body = `<pre class="lrp-code">${escapeHtml(code)}</pre>
@@ -341,7 +353,14 @@
 
     previewBody.innerHTML = `
       <h3 style="margin:0 0 4px;">${icon} ${escapeHtml(project.project_name || "Untitled project")}</h3>
-      <p style="font-size:13px; color:#666; margin:0 0 16px;">by ${escapeHtml(project.student_name)}</p>
+      <p style="font-size:13px; color:#666; margin:0 0 10px;">by ${escapeHtml(project.student_name)}</p>
+      <div class="pgm-pubprofile-row">
+        <span>Showcase (public, no-login page): <strong>${project.public_profile_enabled ? "✅ On" : "🔒 Off"}</strong></span>
+        <button type="button" class="pgm-pubprofile-btn" data-student-id="${project.student_id}" data-enabled="${project.public_profile_enabled ? "1" : "0"}">
+          ${project.public_profile_enabled ? "Turn off" : "Turn on"}
+        </button>
+      </div>
+      <p style="font-size:11px; color:#888; margin:4px 0 16px;">This affects every published project this student has — it's a per-student setting, not per-project.</p>
       ${body}
       <button type="button" class="pgm-unpublish-btn" style="margin-top:16px;" data-id="${id}">Unpublish</button>
     `;
@@ -354,6 +373,32 @@
     if (pyRunner && window.LabRunPython) {
       window.LabRunPython.render(pyRunner, (project.project_data && project.project_data.code) || "");
     }
+
+    previewBody.querySelector(".pgm-pubprofile-btn")?.addEventListener("click", async (e) => {
+      const btn = e.target;
+      const studentId = btn.dataset.studentId;
+      const currentlyEnabled = btn.dataset.enabled === "1";
+      const nextEnabled = !currentlyEnabled;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/parent/child/${studentId}/public-profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: nextEnabled }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          openPreview(id); // simplest way to re-render this same panel with the new state reflected
+        } else {
+          await window.showAlert(data.message || "Couldn't update showcase visibility.", "error");
+          btn.disabled = false;
+        }
+      } catch (err) {
+        console.error("Public profile toggle error:", err);
+        await window.showAlert("Couldn't update showcase visibility.", "error");
+        btn.disabled = false;
+      }
+    });
 
     previewBody.querySelector(".pgm-unpublish-btn")?.addEventListener("click", async (e) => {
       const confirmed = window.showConfirm

@@ -190,7 +190,10 @@
       // here as an HTML attribute string — the student's HTML/CSS/JS is
       // full of double quotes (class="...", "use strict", ...) that would
       // otherwise break out of a quoted srcdoc="..." attribute.
-      previewHtml = `<iframe class="gallery-preview-frame" id="galleryPreviewFrame" sandbox="allow-scripts"></iframe>`;
+      previewHtml = `
+        <iframe class="gallery-preview-frame" id="galleryPreviewFrame" sandbox="allow-scripts"></iframe>
+        <a class="lrp-open-sim-btn" href="/labs/web-preview/${project.id}" target="_blank" rel="noopener" style="margin-top:10px; display:inline-block;">🖥️ Open Full Preview (desktop/tablet/mobile)</a>
+      `;
     } else if (project.lab_type === "blockly") {
       const code = (project.project_data && project.project_data.generatedCode) || "(No blocks were placed.)";
       previewHtml = `

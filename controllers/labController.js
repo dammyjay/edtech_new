@@ -650,6 +650,7 @@ exports.getWebPreviewPage = async (req, res) => {
 
     res.render("labs/webPreview", {
       mode: "static",
+      channel: null, // unused in static mode, but the template's inline <script> references it unconditionally (EJS evaluates <%- %> regardless of the surrounding client-side if/else)
       projectName: project.project_name || "Untitled project",
       studentName: project.student_name,
       projectData: project.project_data || {},

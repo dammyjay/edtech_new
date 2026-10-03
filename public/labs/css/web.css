@@ -392,6 +392,27 @@ body {
   color: var(--brand-pri-dark, #4C3802);
 }
 
+.preview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-newtab-btn {
+  border: 1px solid var(--border-light, #e0e0e0);
+  background: #fff;
+  color: var(--brand-pri-dark, #4C3802);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-newtab-btn:hover {
+  background: var(--brand-tint, #FBF3DD);
+}
+
 .preview-viewport-toggle {
   display: flex;
   gap: 4px;

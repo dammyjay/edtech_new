@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= projectName %><%= studentName ? " by " + studentName : "" %> — Preview</title>
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <style>
+      :root { --preview-width: 100%; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f1ea; }
+
+      .wp-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 10px 18px;
+        background: linear-gradient(135deg, #A17807, #4C3802);
+        color: #fff;
+      }
+      .wp-title { display: flex; flex-direction: column; min-width: 0; }
+      .wp-title strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .wp-title small { font-size: 11px; opacity: 0.85; }
+
+      .wp-toggle { display: flex; gap: 4px; background: rgba(255,255,255,0.15); border-radius: 8px; padding: 3px; }
+      .wp-toggle button {
+        border: none;
+        background: none;
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        color: #fff;
+        opacity: 0.75;
+        font-size: 13px;
+      }
+      .wp-toggle button.active { background: rgba(255,255,255,0.25); opacity: 1; font-weight: 700; }
+
+      .wp-live-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.18);
+      }
+
+      .wp-frame-wrap {
+        height: calc(100% - 54px);
+        display: flex;
+        justify-content: center;
+        overflow: auto;
+        padding: 20px;
+      }
+      #wpFrame {
+        width: var(--preview-width);
+        height: 100%;
+        min-height: 100%;
+        max-width: 100%;
+        border: none;
+        background: #fff;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wp-bar">
+      <div class="wp-title">
+        <strong><%= projectName %></strong>
+        <% if (studentName) { %><small>by <%= studentName %></small><% } %>
+        <% if (mode === "live") { %><small>👁️ Live preview — updates as the editor changes</small><% } %>
+      </div>
+      <div class="wp-toggle">
+        <button type="button" data-width="100%" class="active" title="Desktop">🖥️ Desktop</button>
+        <button type="button" data-width="768px" title="Tablet">📱 Tablet</button>
+        <button type="button" data-width="375px" title="Mobile">📱 Mobile</button>
+      </div>
+      <% if (mode === "live") { %><span class="wp-live-badge" id="wpLiveStatus">Connecting…</span><% } %>
+    </div>
+
+    <div class="wp-frame-wrap">
+      <iframe id="wpFrame" sandbox="allow-scripts allow-modals allow-forms"></iframe>
+    </div>
+
+    <script>
+      (function () {
+        document.querySelectorAll(".wp-toggle button").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            document.querySelectorAll(".wp-toggle button").forEach(function (b) { b.classList.remove("active"); });
+            btn.classList.add("active");
+            document.documentElement.style.setProperty("--preview-width", btn.dataset.width);
+          });
+        });
+
+        function normalize(raw) {
+          if (raw && Array.isArray(raw.pages) && raw.pages.length) {
+            var activeName = raw.pages.some(function (p) { return p.name === raw.activePage; }) ? raw.activePage : raw.pages[0].name;
+            var page = raw.pages.find(function (p) { return p.name === activeName; }) || raw.pages[0];
+            return { html: page.html || "", css: raw.css || "", js: raw.js || "" };
+          }
+          return { html: (raw && raw.html) || "", css: (raw && raw.css) || "", js: (raw && raw.js) || "" };
+        }
+
+        function buildSrcdoc(raw) {
+          var n = normalize(raw);
+          return "<!DOCTYPE html><html><head><style>" + n.css + "</style></head><body>" + n.html + "<script>" + n.js + "<\/script></body></html>";
+        }
+
+        var frame = document.getElementById("wpFrame");
+        var mode = <%- JSON.stringify(mode) %>;
+
+        if (mode === "static") {
+          // Same unescape-angle-brackets precaution as showcaseProject.ejs/
+          // labGallery.js — the student's own HTML/CSS/JS could contain a
+          // literal closing script-tag sequence, which would otherwise end
+          // this very block early (the HTML parser scans for that raw byte
+          // sequence regardless of JS string/comment syntax around it).
+          var projectData = <%- JSON.stringify(projectData || {}).replace(/</g, "\\u003c") %>;
+          frame.srcdoc = buildSrcdoc(projectData);
+        } else {
+          // Live mode: public/labs/js/webLab.js on the OTHER tab owns the
+          // same-named BroadcastChannel and is the sole source of content
+          // — this page never fetches anything itself. "request-sync" lets
+          // this page get an immediate first paint even if it was opened
+          // well after the editor tab's last keystroke (BroadcastChannel
+          // has no replay/history — a message sent before this page
+          // existed is simply gone).
+          var channel = new BroadcastChannel(<%- JSON.stringify(channel) %>);
+          var statusEl = document.getElementById("wpLiveStatus");
+          channel.onmessage = function (event) {
+            var msg = event.data || {};
+            if (msg.type === "update") {
+              frame.srcdoc = buildSrcdoc(msg.project);
+              if (statusEl) statusEl.textContent = "🟢 Live";
+            }
+          };
+          channel.postMessage({ type: "request-sync" });
+          window.addEventListener("beforeunload", function () { channel.close(); });
+        }
+      })();
+    </script>
+  </body>
+</html>

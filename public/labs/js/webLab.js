@@ -207,6 +207,41 @@ function runCode() {
   document.getElementById("consoleOutput").innerHTML = "";
   const iframe = document.getElementById("preview");
   iframe.srcdoc = buildPreviewHtml(window.activePageName);
+  broadcastLivePreview();
+}
+
+// "🖥️ Live Preview (new tab)" — a same-origin BroadcastChannel, not a
+// kept window handle: the preview tab can be refreshed or reopened
+// independently and still re-sync (a direct window reference would be
+// lost the moment the tab navigates away or reloads). Lazily created on
+// first use, not at page load, since most editing sessions never open
+// it. Scoped by project id, so switching projects (?projectId=) never
+// cross-talks with a still-open preview tab for a DIFFERENT project.
+let livePreviewChannel = null;
+
+function ensureLivePreviewChannel() {
+  if (livePreviewChannel) return livePreviewChannel;
+  livePreviewChannel = new BroadcastChannel(`weblab-live-${window.currentProjectId}`);
+  livePreviewChannel.onmessage = (event) => {
+    if (event.data?.type === "request-sync") broadcastLivePreview();
+  };
+  return livePreviewChannel;
+}
+
+function broadcastLivePreview() {
+  if (!livePreviewChannel) return; // no preview tab has ever been opened this session — nothing to send
+  // window.pages[activeIndex].html is only synced on save, not on every
+  // keystroke (getPageHtml() above reads the active page straight from
+  // htmlEditor.getValue() for exactly this reason) — patch the live value
+  // in here too, or the preview tab would show whatever was last saved
+  // instead of what's actually on screen right now.
+  const livePages = (window.pages || []).map((p) =>
+    p.name === window.activePageName ? { ...p, html: htmlEditor.getValue() } : p
+  );
+  livePreviewChannel.postMessage({
+    type: "update",
+    project: { pages: livePages, activePage: window.activePageName, css: cssEditor.getValue(), js: jsEditor.getValue() },
+  });
 }
 
 function appendConsoleEntry(level, args) {
@@ -704,6 +739,18 @@ require(["vs/editor/editor.main"], function () {
       btn.classList.add("active");
       document.querySelector(".preview-frame-wrap").style.setProperty("--preview-width", btn.dataset.width);
     });
+  });
+
+  document.getElementById("livePreviewBtn")?.addEventListener("click", () => {
+    if (!window.currentProjectId) return;
+    ensureLivePreviewChannel();
+    const name = encodeURIComponent(window.pages?.length ? "Web Lab Preview" : "Web Lab Preview");
+    window.open(`/labs/live-preview?channel=weblab-live-${window.currentProjectId}&name=${name}`, "_blank");
+    // The new tab's first "request-sync" arrives slightly after it
+    // finishes loading — broadcasting once right away too means a tab
+    // that's slow to attach its listener still gets the current state
+    // the moment it's ready, instead of only on the NEXT edit.
+    broadcastLivePreview();
   });
 
   // Thin sidebar toggles for which editor pane(s) are visible — hiding
