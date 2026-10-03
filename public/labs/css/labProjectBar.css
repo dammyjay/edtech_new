@@ -132,6 +132,22 @@
     text-align: center;
 }
 
+.lab-projects-menu-manage-link {
+    display: block;
+    text-align: center;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--brand-pri, #A17807);
+    text-decoration: none;
+}
+
+.lab-projects-menu-manage-link:hover {
+    background: #f5f0e0;
+}
+
 /* Small inline spinner for an in-flight action button (Submit, etc.) —
    loaded on all 4 lab editors via this one shared stylesheet, so one
    definition covers all of them instead of duplicating it per lab. A

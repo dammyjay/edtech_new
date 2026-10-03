@@ -139,8 +139,13 @@
     try {
       const res = await fetch(`/labs/project/list?labType=${encodeURIComponent(labType())}`);
       const data = await res.json();
+      // Shown under the list either way — this quick-switch menu is for
+      // fast in-editor switching; the full card view (open/rename/delete,
+      // views/labs/myProjects.ejs) is a separate, fuller "manage all of
+      // them" page it links out to.
+      const manageLink = `<a class="lab-projects-menu-manage-link" href="/labs/my-projects/${encodeURIComponent(labType())}">🗂️ Manage all projects</a>`;
       if (!data.success || !data.projects.length) {
-        menu.innerHTML = `<div class="lab-projects-menu-empty">No other projects yet.</div>`;
+        menu.innerHTML = `<div class="lab-projects-menu-empty">No other projects yet.</div>${manageLink}`;
         positionMyProjectsMenu();
         return;
       }
@@ -155,11 +160,11 @@
             </button>
           `;
         })
-        .join("");
+        .join("") + manageLink;
       positionMyProjectsMenu();
     } catch (err) {
       console.error("List projects failed:", err);
-      menu.innerHTML = `<div class="lab-projects-menu-empty">Couldn't load your projects.</div>`;
+      menu.innerHTML = `<div class="lab-projects-menu-empty">Couldn't load your projects.</div><a class="lab-projects-menu-manage-link" href="/labs/my-projects/${encodeURIComponent(labType())}">🗂️ Manage all projects</a>`;
       positionMyProjectsMenu();
     }
   }

@@ -2265,6 +2265,8 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE events            ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
       ALTER TABLE quotes            ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
       ALTER TABLE quotes            ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
+      ALTER TABLE lab_projects      ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
+      ALTER TABLE lab_projects      ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
     `);
 
     console.log("✅ All tables are updated and ready.");

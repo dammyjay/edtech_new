@@ -11944,7 +11944,7 @@ exports.getAdminGalleryProjects = async (req, res) => {
 
     const result = await pool.query(
       `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
-              u.id AS student_id, u.fullname AS student_name,
+              u.id AS student_id, u.fullname AS student_name, u.public_profile_enabled,
               COALESCE(lk.like_count, 0) AS like_count,
               COALESCE(rv.avg_rating, 0) AS avg_rating,
               COALESCE(rv.review_count, 0) AS review_count,

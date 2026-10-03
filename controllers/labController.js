@@ -7,6 +7,7 @@ const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletion
 const { generateMasterySignal } = require("../services/masteryPathService");
 const { compileSketch } = require("../services/arduinoCompileService");
 const { askTutor } = require("../utils/ai");
+const archiveService = require("../services/archiveService");
 
 /**
  * LAB TEMPLATES (your real system now)
@@ -68,7 +69,7 @@ exports.getLabDashboard = async (req, res) => {
 
     const projectsRes = await pool.query(
       `SELECT lab_type, COUNT(*) AS count, MAX(updated_at) AS last_updated
-       FROM lab_projects WHERE student_id = $1 GROUP BY lab_type`,
+       FROM lab_projects WHERE student_id = $1 AND archived_at IS NULL GROUP BY lab_type`,
       [studentId]
     );
     const projectsByType = {};
@@ -91,6 +92,43 @@ exports.getLabDashboard = async (req, res) => {
     console.error("getLabDashboard error:", err.message);
     res.status(500).send("Server error");
   }
+};
+
+// GET /labs/my-projects/:labType — the full card-grid browser for every
+// one of the student's own freeform projects of one lab type (the
+// topbar's "My Projects" dropdown is a quick-switch menu for the SAME
+// data; this is the fuller "manage all of them" view it links out to —
+// open, rename, or delete any one of them). Lesson-linked tasks never
+// appear here (lab_id IS NULL), same scoping every other freeform-project
+// query in this file already uses.
+const LAB_META = {
+  web: { icon: "🌐", label: "Web Lab" },
+  blockly: { icon: "🧩", label: "Blockly Lab" },
+  arduino: { icon: "🔌", label: "Arduino Lab" },
+  python: { icon: "🐍", label: "Python Lab" },
+};
+
+exports.getMyProjectsPage = async (req, res) => {
+  const { labType } = req.params;
+  if (!LAB_META[labType]) return res.status(404).send("Unknown lab type");
+
+  const studentId = req.session.user.id;
+  const projectsRes = await pool.query(
+    `SELECT id, project_name, status, is_published, updated_at, created_at
+     FROM lab_projects
+     WHERE student_id = $1 AND lab_type = $2 AND lab_id IS NULL AND archived_at IS NULL
+     ORDER BY updated_at DESC NULLS LAST, id DESC`,
+    [studentId, labType]
+  );
+  const labNewProjectCoinCost = await getLabNewProjectCoinCost();
+
+  res.render("labs/myProjects", {
+    title: `My ${LAB_META[labType].label} Projects`,
+    labType,
+    labMeta: LAB_META[labType],
+    projects: projectsRes.rows,
+    labNewProjectCoinCost,
+  });
 };
 
 // Shared by getWebLab/getBlocklyLab — looks up the lesson_labs row for
@@ -407,20 +445,20 @@ exports.initProject = async (req, res) => {
     // project for the same lab type is never returned here by mistake.
     if (projectId) {
       const specific = await pool.query(
-        `SELECT * FROM lab_projects WHERE id = $1 AND student_id = $2 AND lab_type = $3 AND lab_id IS NULL`,
+        `SELECT * FROM lab_projects WHERE id = $1 AND student_id = $2 AND lab_type = $3 AND lab_id IS NULL AND archived_at IS NULL`,
         [projectId, studentId, labType]
       );
       if (specific.rows.length > 0) {
         return res.json({ success: true, project: specific.rows[0] });
       }
-      // An invalid/not-theirs projectId falls through to the default
-      // below rather than erroring — same forgiving behavior as a stale
-      // bookmarked link.
+      // An invalid/not-theirs/deleted projectId falls through to the
+      // default below rather than erroring — same forgiving behavior as a
+      // stale bookmarked link.
     }
 
     let project = await pool.query(
       `SELECT * FROM lab_projects
-       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL
+       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL AND archived_at IS NULL
        ORDER BY updated_at DESC NULLS LAST, id DESC
        LIMIT 1`,
       [labType, studentId],
@@ -503,14 +541,52 @@ exports.listLabProjects = async (req, res) => {
     const studentId = req.user.id;
     const { labType } = req.query;
     const rows = await pool.query(
-      `SELECT id, project_name, status, is_published, updated_at FROM lab_projects
-       WHERE student_id = $1 AND lab_type = $2 AND lab_id IS NULL
+      `SELECT id, project_name, status, is_published, updated_at, created_at FROM lab_projects
+       WHERE student_id = $1 AND lab_type = $2 AND lab_id IS NULL AND archived_at IS NULL
        ORDER BY updated_at DESC NULLS LAST, id DESC`,
       [studentId, labType]
     );
     res.json({ success: true, projects: rows.rows });
   } catch (err) {
     console.error("LIST LAB PROJECTS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+};
+
+// POST /labs/project/:id/delete — a student deleting their own freeform
+// project. "Delete" archives it (archived_at set, same convention as
+// services/archiveService.js uses for every other entity) rather than
+// really destroying it — it just disappears from the student's own My
+// Projects view; an admin can still restore or permanently delete it from
+// /admin/archive. Owner-gated the same way renameLabProject is, and
+// refuses a lesson-linked task (lab_id set) — those aren't the student's
+// to delete, they belong to the lesson.
+exports.deleteLabProject = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const projectId = req.params.id;
+
+    const check = await pool.query(
+      `SELECT id, lab_id FROM lab_projects WHERE id = $1 AND student_id = $2`,
+      [projectId, studentId]
+    );
+    const project = check.rows[0];
+    if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+    if (project.lab_id) {
+      return res.status(400).json({ success: false, message: "Lesson lab tasks can't be deleted this way." });
+    }
+
+    // A deleted project disappears from the student's own My Projects —
+    // it must stop appearing in the public gallery/showcase too, since
+    // they'd otherwise have no UI path left to unpublish it themselves.
+    await pool.query(`UPDATE lab_projects SET is_published = false WHERE id = $1`, [projectId]);
+
+    const archived = await archiveService.archive("lab_project", projectId, studentId);
+    if (!archived) return res.status(404).json({ success: false, message: "Project not found or already deleted" });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE LAB PROJECT ERROR:", err);
     res.status(500).json({ success: false });
   }
 };
@@ -540,6 +616,70 @@ exports.viewLabProject = async (req, res) => {
     console.error("VIEW LAB PROJECT ERROR:", err);
     res.status(500).json({ success: false });
   }
+};
+
+// GET /labs/web-preview/:id — the full-page, device-frame (desktop/
+// tablet/mobile) preview a Web Lab project opens in a new tab from
+// anywhere it's shown (admin moderation, in-app gallery, public
+// showcase) instead of a cramped iframe in a modal. Deliberately placed
+// BEFORE router.use(ensureAuthenticated) in routes/labRoutes.js so an
+// anonymous showcase visitor can reach it too — this handler does its
+// own access check instead: logged in, is_published alone is enough
+// (same rule the in-app gallery/admin already use); logged out, the
+// owner's public_profile_enabled consent is ALSO required, matching the
+// public showcase's own privacy gate exactly (is_published alone was
+// never meant to expose a project to the open internet).
+exports.getWebPreviewPage = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT lp.id, lp.project_name, lp.lab_type, lp.project_data, lp.is_published,
+              u.public_profile_enabled, u.fullname AS student_name
+       FROM lab_projects lp JOIN users2 u ON u.id = lp.student_id
+       WHERE lp.id = $1`,
+      [req.params.id]
+    );
+    const project = result.rows[0];
+    if (!project || project.lab_type !== "web" || !project.is_published) {
+      return res.status(404).send("This project isn't available.");
+    }
+
+    const isLoggedIn = !!(req.session && req.session.user);
+    if (!isLoggedIn && !project.public_profile_enabled) {
+      return res.status(403).send("This project isn't publicly available.");
+    }
+
+    res.render("labs/webPreview", {
+      mode: "static",
+      projectName: project.project_name || "Untitled project",
+      studentName: project.student_name,
+      projectData: project.project_data || {},
+    });
+  } catch (err) {
+    console.error("getWebPreviewPage error:", err);
+    res.status(500).send("Server error");
+  }
+};
+
+// GET /labs/live-preview?channel=&name= — the SAME device-frame page as
+// getWebPreviewPage above, but for a student's own IN-PROGRESS Web Lab
+// project while they're actively editing it (unsaved keystrokes included)
+// instead of whatever was last autosaved to the DB. No project lookup at
+// all: public/labs/js/webLab.js broadcasts the live html/css/js over a
+// same-origin BroadcastChannel (named by ?channel=, scoped to one
+// project/tab-session) every time the student's code changes, and this
+// page just renders whatever arrives — see webLab.js's own comment for
+// the two-way "request-sync" handshake that fills the first paint before
+// any edit has happened yet to broadcast.
+exports.getLivePreviewPage = (req, res) => {
+  const channel = (req.query.channel || "").trim();
+  if (!channel) return res.status(400).send("Missing preview channel.");
+  res.render("labs/webPreview", {
+    mode: "live",
+    channel,
+    projectName: req.query.name || "Live Preview",
+    studentName: null,
+    projectData: null,
+  });
 };
 
 // POST /labs/project/rename { projectId, name } — the topbar name field
@@ -624,7 +764,7 @@ exports.loadProject = async (req, res) => {
 
     const project = await pool.query(
       `SELECT * FROM lab_projects
-       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL`,
+       WHERE lab_type = $1 AND student_id = $2 AND lab_id IS NULL AND archived_at IS NULL`,
       [labType, studentId],
     );
 
@@ -1212,7 +1352,7 @@ exports.getGalleryProjectDetail = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT lp.*, u.fullname AS student_name,
+      `SELECT lp.*, u.fullname AS student_name, u.public_profile_enabled,
               src.project_name AS remixed_from_name, src.student_id AS remixed_from_student_id,
               src_user.fullname AS remixed_from_student_name
        FROM lab_projects lp

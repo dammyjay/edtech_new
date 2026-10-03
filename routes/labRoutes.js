@@ -5,9 +5,20 @@ const labController = require("../controllers/labController");
 const externalProjectController = require("../controllers/externalProjectController");
 const { ensureAuthenticated } = require("../middlewares/auth");
 
+// Deliberately BEFORE router.use(ensureAuthenticated) below — the one
+// lab route an anonymous visitor can reach, for the public showcase's
+// "Open Full Preview" link. getWebPreviewPage does its own, stricter
+// access check (is_published + public_profile_enabled when logged out)
+// instead of relying on this router's blanket auth gate.
+router.get("/web-preview/:id", labController.getWebPreviewPage);
+
 router.use(ensureAuthenticated);
 
 router.get("/", labController.getLabDashboard);
+
+router.get("/live-preview", labController.getLivePreviewPage);
+
+router.get("/my-projects/:labType", labController.getMyProjectsPage);
 
 router.get("/web", labController.getWebLab);
 
@@ -33,6 +44,7 @@ router.post("/project/create", labController.createLabProject);
 router.get("/project/list", labController.listLabProjects);
 router.get("/project/view/:id", labController.viewLabProject);
 router.post("/project/rename", labController.renameLabProject);
+router.post("/project/:id/delete", labController.deleteLabProject);
 
 router.get("/project/:labType", labController.loadProject);
 

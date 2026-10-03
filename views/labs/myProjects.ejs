@@ -1,0 +1,266 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="labs-page">
+
+  <div class="labs-hero">
+    <div class="labs-hero-text">
+      <a href="/labs/<%= labType %>" class="gallery-back-link">← Back to <%= labMeta.label %></a>
+      <h1><%= labMeta.icon %> My <%= labMeta.label %> Projects</h1>
+      <p>Every freeform project you've started in this lab. Open one to keep working, rename it, or delete it.</p>
+    </div>
+    <button type="button" id="newProjectBtn" class="mp-new-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New Project
+    </button>
+  </div>
+
+  <% if (!projects.length) { %>
+    <p class="gallery-empty">No projects yet — click "New Project" to start your first one.</p>
+  <% } else { %>
+    <div class="mp-grid" id="mpGrid">
+      <% projects.forEach(p => { %>
+        <div class="mp-card" data-id="<%= p.id %>">
+          <div class="mp-card-body" data-action="open">
+            <div class="mp-card-top">
+              <span class="mp-card-icon"><%= labMeta.icon %></span>
+              <p class="mp-card-title" data-name-display><%= p.project_name || "Untitled project" %></p>
+            </div>
+            <div class="mp-card-badges">
+              <% if (p.is_published) { %><span class="mp-badge mp-badge--published">🖼️ Published</span><% } %>
+              <% if (p.status === "submitted") { %><span class="mp-badge">✅ Submitted</span><% } %>
+              <span class="mp-card-date">Updated <%= p.updated_at ? new Date(p.updated_at).toLocaleDateString() : "—" %></span>
+            </div>
+          </div>
+          <div class="mp-card-actions">
+            <button type="button" class="mp-action-btn" data-action="rename">✏️ Rename</button>
+            <button type="button" class="mp-action-btn mp-action-btn--danger" data-action="delete">🗑️ Delete</button>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<style>
+  /* Same base layout tokens as views/labs/dashboard.ejs/gallery.ejs —
+     each lab page redefines these itself rather than sharing a stylesheet
+     (matching this app's existing per-page-<style> convention). */
+  .labs-page { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+  .labs-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: linear-gradient(135deg, var(--brand-pri, #A17807), var(--brand-pri-dark, #4C3802));
+    color: #fff;
+    border-radius: var(--radius-lg, 16px);
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .labs-hero-text h1 { margin: 0 0 6px; font-size: 28px; }
+  .labs-hero-text p { margin: 0; opacity: 0.9; font-size: 14px; }
+  .gallery-back-link {
+    display: inline-block;
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .gallery-back-link:hover { text-decoration: underline; }
+  .gallery-empty { text-align: center; color: var(--text-secondary, #666); padding: 40px 10px; font-size: 14px; }
+
+  .mp-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    cursor: pointer;
+    align-self: flex-start;
+  }
+  .mp-new-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .mp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+  }
+
+  .mp-card {
+    background: #fff;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: var(--radius-lg, 16px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .mp-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0,0,0,0.1); }
+
+  .mp-card-body { padding: 18px; cursor: pointer; flex: 1; }
+  .mp-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .mp-card-icon { font-size: 24px; }
+  .mp-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary, #222);
+    margin: 0;
+    word-break: break-word;
+  }
+  .mp-card-title[contenteditable="true"] {
+    outline: 2px solid var(--brand-pri, #A17807);
+    border-radius: 4px;
+    padding: 2px 4px;
+  }
+
+  .mp-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .mp-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1F9D55;
+    background: #eafaf0;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .mp-badge--published { color: var(--brand-pri-dark, #4C3802); background: var(--brand-tint, #FBF3DD); }
+  .mp-card-date { font-size: 11px; color: var(--text-secondary, #888); }
+
+  .mp-card-actions {
+    display: flex;
+    border-top: 1px solid var(--border-light, #e0e0e0);
+  }
+  .mp-action-btn {
+    flex: 1;
+    border: none;
+    background: #fafafa;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #444;
+  }
+  .mp-action-btn:hover { background: #f0f0f0; }
+  .mp-action-btn--danger { color: #D64545; }
+  .mp-action-btn--danger:hover { background: #fdecea; }
+
+  @media (max-width: 520px) {
+    .mp-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  (function () {
+    const LAB_TYPE = <%- JSON.stringify(labType) %>;
+    const NEW_PROJECT_COST = <%- JSON.stringify(labNewProjectCoinCost) %>;
+    const grid = document.getElementById("mpGrid");
+    const newBtn = document.getElementById("newProjectBtn");
+
+    newBtn.addEventListener("click", async () => {
+      const costLine = NEW_PROJECT_COST > 0 ? ` This costs ${NEW_PROJECT_COST} coins.` : "";
+      const confirmed = await window.showConfirm(`Start a new, separate ${LAB_TYPE} project?${costLine}`, { confirmText: "Start New Project" });
+      if (!confirmed) return;
+
+      newBtn.disabled = true;
+      try {
+        const res = await fetch("/labs/project/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ labType: LAB_TYPE }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = `/labs/${LAB_TYPE}?projectId=${data.project.id}`;
+        } else if (data.notEnoughCoins) {
+          await window.showAlert(data.message || "You don't have enough coins for a new project.");
+        } else {
+          await window.showAlert(data.message || "Couldn't start a new project — try again.");
+        }
+      } catch (err) {
+        console.error("Create project failed:", err);
+        await window.showAlert("Couldn't start a new project — try again.");
+      } finally {
+        newBtn.disabled = false;
+      }
+    });
+
+    if (!grid) return;
+
+    grid.addEventListener("click", async (e) => {
+      const card = e.target.closest(".mp-card");
+      if (!card) return;
+      const projectId = card.dataset.id;
+      const titleEl = card.querySelector("[data-name-display]");
+
+      const actionEl = e.target.closest("[data-action]");
+      const action = actionEl ? actionEl.dataset.action : null;
+
+      if (action === "open") {
+        window.location.href = `/labs/${LAB_TYPE}?projectId=${projectId}`;
+        return;
+      }
+
+      if (action === "rename") {
+        titleEl.setAttribute("contenteditable", "true");
+        titleEl.focus();
+        document.execCommand("selectAll", false, null);
+
+        const commit = async () => {
+          titleEl.removeAttribute("contenteditable");
+          const newName = titleEl.textContent.trim();
+          if (!newName) {
+            titleEl.textContent = card.dataset.lastName || "Untitled project";
+            return;
+          }
+          try {
+            const res = await fetch("/labs/project/rename", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId, name: newName }),
+            });
+            const data = await res.json();
+            if (!data.success) await window.showAlert(data.message || "Couldn't rename — try again.");
+          } catch (err) {
+            console.error("Rename failed:", err);
+            await window.showAlert("Couldn't rename — try again.");
+          }
+        };
+
+        titleEl.addEventListener("blur", commit, { once: true });
+        titleEl.addEventListener("keydown", (ke) => {
+          if (ke.key === "Enter") { ke.preventDefault(); titleEl.blur(); }
+        }, { once: true });
+        return;
+      }
+
+      if (action === "delete") {
+        const name = titleEl.textContent.trim() || "this project";
+        const confirmed = await window.showConfirm(`Delete "${name}"? It will disappear from My Projects — an admin can still recover it if needed.`, { type: "danger", confirmText: "Delete" });
+        if (!confirmed) return;
+
+        try {
+          const res = await fetch(`/labs/project/${projectId}/delete`, { method: "POST" });
+          const data = await res.json();
+          if (data.success) {
+            card.remove();
+            if (!grid.children.length) {
+              grid.insertAdjacentHTML("afterend", '<p class="gallery-empty">No projects yet — click "New Project" to start your first one.</p>');
+              grid.remove();
+            }
+          } else {
+            await window.showAlert(data.message || "Couldn't delete — try again.");
+          }
+        } catch (err) {
+          console.error("Delete failed:", err);
+          await window.showAlert("Couldn't delete — try again.");
+        }
+      }
+    });
+  })();
+</script>

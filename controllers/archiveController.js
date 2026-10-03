@@ -19,7 +19,7 @@ exports.getArchivePage = async (req, res) => {
   const role = (req.query.role || "").trim() || null;
 
   try {
-    const [users, schools, courses, modules, lessons, classrooms, terms, externalProjects, events, quotes] = await Promise.all([
+    const [users, schools, courses, modules, lessons, classrooms, terms, externalProjects, events, quotes, labProjects] = await Promise.all([
       archiveService.listArchived("user", { search, role }),
       archiveService.listArchived("school", { search }),
       archiveService.listArchived("course", { search }),
@@ -30,6 +30,7 @@ exports.getArchivePage = async (req, res) => {
       archiveService.listArchived("external_project", { search }),
       archiveService.listArchived("event", { search }),
       archiveService.listArchived("quote", { search }),
+      archiveService.listArchived("lab_project", { search }),
     ]);
 
     res.render("admin/archive", {
@@ -43,6 +44,7 @@ exports.getArchivePage = async (req, res) => {
       externalProjects,
       events,
       quotes,
+      labProjects,
       search: search || "",
       role: role || "",
     });

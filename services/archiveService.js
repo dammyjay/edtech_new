@@ -31,6 +31,7 @@ const ENTITY_CONFIG = {
   external_project: { table: "external_projects", label: "external project" },
   event: { table: "events", label: "event" },
   quote: { table: "quotes", label: "quote" },
+  lab_project: { table: "lab_projects", label: "lab project" },
 };
 
 function assertEntity(entity) {
@@ -73,6 +74,12 @@ async function permanentlyDelete(entity, id) {
   const { table } = assertEntity(entity);
   if (entity === "term") {
     await pool.query(`DELETE FROM quotes WHERE term_id = $1`, [id]);
+  }
+  if (entity === "lab_project") {
+    // lab_submissions.project_id has no ON DELETE CASCADE (unlike
+    // project_likes/project_flags/project_reviews, which do) — same
+    // bare-FK gap "term" already works around for quotes.term_id above.
+    await pool.query(`DELETE FROM lab_submissions WHERE project_id = $1`, [id]);
   }
   const result = await pool.query(`DELETE FROM ${table} WHERE id = $1 RETURNING id`, [id]);
   return result.rowCount > 0;
@@ -221,6 +228,20 @@ const LIST_QUERIES = {
     `,
     params: [search || null],
   }),
+  lab_project: (search) => ({
+    text: `
+      SELECT lp.id, (lp.project_name || ' (' || lp.lab_type || ')') AS label,
+             lp.status AS extra, lp.lab_type AS context,
+             u.fullname AS parent_label, lp.archived_at, ab.fullname AS archived_by_name
+      FROM lab_projects lp
+      LEFT JOIN users2 u ON u.id = lp.student_id
+      LEFT JOIN users2 ab ON ab.id = lp.archived_by
+      WHERE lp.archived_at IS NOT NULL
+        AND ($1::text IS NULL OR lp.project_name ILIKE '%' || $1 || '%' OR u.fullname ILIKE '%' || $1 || '%')
+      ORDER BY lp.archived_at DESC
+    `,
+    params: [search || null],
+  }),
 };
 
 async function listArchived(entity, { search = null, role = null } = {}) {
@@ -334,6 +355,18 @@ async function getDependencyCounts(entity, id) {
     case "quote": {
       const result = await pool.query(
         `SELECT (SELECT COUNT(*) FROM school_payments WHERE quote_id = $1) AS payments`,
+        [id]
+      );
+      return result.rows[0];
+    }
+    case "lab_project": {
+      const result = await pool.query(
+        `SELECT
+          (SELECT COUNT(*) FROM lab_submissions WHERE project_id = $1) AS submissions,
+          (SELECT COUNT(*) FROM project_likes WHERE project_id = $1) AS likes,
+          (SELECT COUNT(*) FROM project_reviews WHERE project_id = $1) AS reviews,
+          (SELECT COUNT(*) FROM lab_projects WHERE remixed_from_id = $1) AS remixes
+        `,
         [id]
       );
       return result.rows[0];

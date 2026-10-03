@@ -20,6 +20,7 @@
     <button type="button" class="arc-tab" data-tab="externalProjects">External Projects (<%= externalProjects.length %>)</button>
     <button type="button" class="arc-tab" data-tab="events">Events (<%= events.length %>)</button>
     <button type="button" class="arc-tab" data-tab="quotes">Quotes (<%= quotes.length %>)</button>
+    <button type="button" class="arc-tab" data-tab="labProjects">Lab Projects (<%= labProjects.length %>)</button>
   </div>
 
   <!-- USERS -->
@@ -268,6 +269,31 @@
             <td><%= q.extra || '—' %></td>
             <td><%= new Date(q.archived_at).toLocaleDateString() %></td>
             <td><%= q.archived_by_name || '—' %></td>
+            <td class="arc-actions">
+              <button type="button" class="arc-restore-btn">Restore</button>
+              <button type="button" class="arc-delete-btn">Delete Permanently</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LAB PROJECTS -->
+  <div id="arc-tab-labProjects" class="arc-tab-panel" style="display:none;">
+    <table class="arc-table">
+      <thead><tr><th>Project</th><th>Student</th><th>Status</th><th>Archived</th><th>By</th><th></th></tr></thead>
+      <tbody>
+        <% if (!labProjects.length) { %>
+          <tr><td colspan="6" class="arc-empty">No archived lab projects.</td></tr>
+        <% } %>
+        <% labProjects.forEach(lp => { %>
+          <tr data-entity="lab_project" data-id="<%= lp.id %>" data-label="<%= lp.label %>">
+            <td><%= lp.label %></td>
+            <td><%= lp.parent_label || '—' %></td>
+            <td><%= lp.extra || '—' %></td>
+            <td><%= new Date(lp.archived_at).toLocaleDateString() %></td>
+            <td><%= lp.archived_by_name || '—' %></td>
             <td class="arc-actions">
               <button type="button" class="arc-restore-btn">Restore</button>
               <button type="button" class="arc-delete-btn">Delete Permanently</button>
