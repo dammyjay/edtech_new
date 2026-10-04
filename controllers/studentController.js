@@ -11,7 +11,7 @@ const { checkAndCompleteModule } = require("../services/moduleCompletionService"
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
-const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson } = require("../services/lessonCompletionService");
+const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
@@ -3370,17 +3370,19 @@ exports.viewLesson = async (req, res) => {
       [studentId],
     );
 
-    // Notes/video/slides stay locked until this lesson's quiz is done
-    // (same "any submission exists" definition used everywhere else —
-    // see isQuizDoneForLesson) — but the response still succeeds and
-    // still carries the lesson id/title either way, since the quiz tab
-    // itself loads through this same endpoint and must never be blocked
-    // by its own gate. Omitting the fields server-side (not just hiding
-    // them client-side) matters here: the raw lesson_file_url/video_url
-    // would otherwise be sitting in the JSON regardless of which tab the
-    // student clicked.
+    // Notes/video/slides are open while the student hasn't touched the
+    // quiz yet (study first), but lock the moment they answer its first
+    // question, and stay locked until a submission exists — see
+    // hasStudentStartedQuiz/isQuizDoneForLesson. The response still
+    // succeeds and still carries the lesson id/title either way, since
+    // the quiz tab itself loads through this same endpoint and must
+    // never be blocked by its own gate. Omitting the fields server-side
+    // (not just hiding them client-side) matters here: the raw
+    // lesson_file_url/video_url would otherwise be sitting in the JSON
+    // regardless of which tab the student clicked.
     const quizDone = await isQuizDoneForLesson(lessonId, studentId);
-    const resourcesLocked = !quizDone;
+    const quizStarted = quizDone ? false : await hasStudentStartedQuiz(lessonId, studentId);
+    const resourcesLocked = quizStarted;
 
     res.json({
       success: true,
@@ -3391,7 +3393,7 @@ exports.viewLesson = async (req, res) => {
       lesson_file_url: resourcesLocked ? null : lesson.lesson_file_url,
       resourcesLocked,
       resourcesLockedMessage: resourcesLocked
-        ? "Finish the quiz first to unlock the lesson notes, video, and slides."
+        ? "You've started the quiz — finish it to unlock the lesson notes, video, and slides."
         : null,
 
       hasPendingAssignment: pendingRes.rows.length > 0,

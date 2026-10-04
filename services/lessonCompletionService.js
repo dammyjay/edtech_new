@@ -106,6 +106,37 @@ async function isQuizDoneForLesson(lessonId, studentId) {
 }
 
 /**
+ * True once the student has answered at least one question of this
+ * lesson's quiz (a quiz_answer_checks row exists for one of its
+ * questions) — used by viewLesson's resource gate, which is meant to
+ * lock notes/video/slides only once the student is mid-quiz, not from
+ * the moment they open the lesson (they're expected to study the
+ * resources first, then take the quiz). Only ever consulted when
+ * isQuizDoneForLesson is false, so a prior attempt's checks (from
+ * before the student's one-and-only submission) never matter here.
+ *
+ * @param {number} lessonId
+ * @param {number} studentId
+ * @returns {Promise<boolean>}
+ */
+async function hasStudentStartedQuiz(lessonId, studentId) {
+  const quizRes = await pool.query(
+    "SELECT id FROM quizzes WHERE lesson_id = $1",
+    [lessonId]
+  );
+  const quiz = quizRes.rows[0];
+  if (!quiz) return false;
+  const r = await pool.query(
+    `SELECT 1 FROM quiz_answer_checks qac
+     JOIN quiz_questions qq ON qac.question_id = qq.id
+     WHERE qq.quiz_id = $1 AND qac.student_id = $2
+     LIMIT 1`,
+    [quiz.id, studentId]
+  );
+  return r.rows.length > 0;
+}
+
+/**
  * Checks whether every part a lesson actually has (quiz, lab) is done for
  * this student, and if so, unlocks the next lesson/module and runs every
  * downstream effect that used to run unconditionally: first-ever-completion
@@ -282,4 +313,4 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
   };
 }
 
-module.exports = { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson };
+module.exports = { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz };
