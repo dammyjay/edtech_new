@@ -11,7 +11,7 @@ const { checkAndCompleteModule } = require("../services/moduleCompletionService"
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
-const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
+const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson } = require("../services/lessonCompletionService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
@@ -2535,12 +2535,23 @@ exports.checkQuizAnswer = async (req, res) => {
     const sinceTime = lastSubmission.rows[0]?.created_at || new Date(0);
 
     const already = await pool.query(
-      `SELECT id FROM quiz_answer_checks
+      `SELECT answer, was_correct FROM quiz_answer_checks
        WHERE student_id = $1 AND question_id = $2 AND checked_at > $3`,
       [studentId, questionId, sinceTime]
     );
     if (already.rows.length > 0) {
-      return res.json({ success: false, message: "This question has already been checked for this attempt." });
+      // Was previously a silent, uninformative rejection — the client
+      // only ever hits this now as a defensive fallback (the normal path
+      // restores already-checked questions from getLessonQuiz before the
+      // student could try to re-answer one), but it still needs to hand
+      // back enough to resync instead of leaving the UI stuck.
+      return res.json({
+        success: false,
+        alreadyChecked: true,
+        message: "This question has already been checked for this attempt.",
+        answer: already.rows[0].answer,
+        isCorrect: already.rows[0].was_correct,
+      });
     }
 
     const isCorrect =
@@ -2548,8 +2559,8 @@ exports.checkQuizAnswer = async (req, res) => {
       (question.correct_option ?? "").toString().trim().toLowerCase();
 
     await pool.query(
-      `INSERT INTO quiz_answer_checks (student_id, question_id, was_correct) VALUES ($1, $2, $3)`,
-      [studentId, questionId, isCorrect]
+      `INSERT INTO quiz_answer_checks (student_id, question_id, was_correct, answer) VALUES ($1, $2, $3, $4)`,
+      [studentId, questionId, isCorrect, (answer ?? "").toString()]
     );
 
     // Trailing "N in a row" streak for this attempt — computed server-side
@@ -3314,6 +3325,9 @@ exports.viewLesson = async (req, res) => {
     );
 
     const lesson = lessonRes.rows[0];
+    if (!lesson) {
+      return res.status(404).json({ success: false, message: "Lesson not found" });
+    }
 
     // Classroom students: gate on BOTH this student's own progress
     // (unlocked_lessons — previously not checked at all here, only
@@ -3356,13 +3370,29 @@ exports.viewLesson = async (req, res) => {
       [studentId],
     );
 
+    // Notes/video/slides stay locked until this lesson's quiz is done
+    // (same "any submission exists" definition used everywhere else —
+    // see isQuizDoneForLesson) — but the response still succeeds and
+    // still carries the lesson id/title either way, since the quiz tab
+    // itself loads through this same endpoint and must never be blocked
+    // by its own gate. Omitting the fields server-side (not just hiding
+    // them client-side) matters here: the raw lesson_file_url/video_url
+    // would otherwise be sitting in the JSON regardless of which tab the
+    // student clicked.
+    const quizDone = await isQuizDoneForLesson(lessonId, studentId);
+    const resourcesLocked = !quizDone;
+
     res.json({
       success: true,
       id: lesson.id,
       title: lesson.title,
-      content: lesson.content,
-      video_url: lesson.video_url,
-      lesson_file_url: lesson.lesson_file_url,
+      content: resourcesLocked ? null : lesson.content,
+      video_url: resourcesLocked ? null : lesson.video_url,
+      lesson_file_url: resourcesLocked ? null : lesson.lesson_file_url,
+      resourcesLocked,
+      resourcesLockedMessage: resourcesLocked
+        ? "Finish the quiz first to unlock the lesson notes, video, and slides."
+        : null,
 
       hasPendingAssignment: pendingRes.rows.length > 0,
 
@@ -3370,6 +3400,7 @@ exports.viewLesson = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -3626,10 +3657,33 @@ exports.getLessonQuiz = async (req, res) => {
       return { ...q, options };
     });
 
+    // In-progress answers from BEFORE a reload — we've already returned
+    // above if a submission exists, so every quiz_answer_checks row for
+    // this student across this quiz's questions belongs to the single
+    // still-open attempt, no "since last submission" boundary needed.
+    // The client uses this to redraw each already-checked question
+    // exactly as it was (locked, correct/incorrect shown) and resume at
+    // the first still-unanswered one — previously this was lost on every
+    // refresh, and worse, re-submitting a restored-as-blank question that
+    // the server still considered checked failed with no explanation.
+    const progress = {};
+    if (studentId) {
+      const checksRes = await pool.query(
+        `SELECT question_id, answer, was_correct
+         FROM quiz_answer_checks
+         WHERE student_id = $1 AND question_id = ANY($2::int[])`,
+        [studentId, questions.map((q) => q.id)]
+      );
+      checksRes.rows.forEach((row) => {
+        progress[row.question_id] = { answer: row.answer, isCorrect: row.was_correct };
+      });
+    }
+
     return res.json({
       success: true,
       alreadySubmitted: false,
       questions,
+      progress,
     });
   } catch (err) {
     console.error("Error fetching quiz:", err);

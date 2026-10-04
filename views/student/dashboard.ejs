@@ -3475,9 +3475,10 @@ async function submitExchange() {
         }
 
         const lesson = data;
+
         // 🔴 VERY IMPORTANT: save previous lesson first
         if (lessonStartTime && window.currentLessonId) {
-          
+
           sendLessonDuration();
         }
 
@@ -3487,9 +3488,35 @@ async function submitExchange() {
           );
         }
 
-        // Start new lesson
+        // Start new lesson — this has to happen BEFORE the resource-lock
+        // check below (not after it, where it originally sat): the
+        // student IS on this lesson even while looking at a locked
+        // notice instead of its real content, and time-tracking/the
+        // "previous lesson" handoff above both key off currentLessonId
+        // being accurate. Returning early before this ran was a real bug
+        // introduced alongside the lock feature — it silently broke
+        // lesson-time tracking for every locked view.
         lessonStartTime = Date.now();
         window.currentLessonId = lessonId;
+
+        // Notes/video/slides stay locked until the lesson's quiz is done
+        // (viewLesson omits content/video_url/lesson_file_url server-side
+        // when locked — this is just rendering the message instead of a
+        // blank/broken view). Quiz and lab load through this same
+        // endpoint and are deliberately exempt from their own gate.
+        if (data.resourcesLocked && part !== "quiz" && part !== "lab") {
+          document.getElementById("lessonMainArea").innerHTML = `
+            <div style="padding:20px; background:#fff8e1; border:1px solid #f0d060; border-radius:8px;">
+              <h3 style="margin-top:0;">🔒 Finish the Quiz First</h3>
+              <p>${data.resourcesLockedMessage || "Finish the quiz first to unlock the lesson notes, video, and slides."}</p>
+              <button type="button" class="btn-view" style="margin-top:10px;" onclick="loadLessonPart(${lessonId}, 'quiz')">
+                📝 Go to Quiz
+              </button>
+            </div>
+          `;
+          hideLoading();
+          return;
+        }
 
         fetch("/student/lesson-start", {
           method: "POST",
@@ -3882,13 +3909,21 @@ async function submitExchange() {
       const endTime = Date.now();
       const duration = Math.max(1, Math.floor((endTime - lessonStartTime) / 1000));
 
-      const data = JSON.stringify({
-        activityId: currentActivityId,
-        duration,
-        endTime
-      });
-
-      navigator.sendBeacon("/student/lesson-time", data);
+      // Was navigator.sendBeacon — a confirmed pre-existing bug, not
+      // something introduced here: a beacon can't carry a custom header,
+      // so the CSRF check (middlewares/csrf.js, applied app-wide to this
+      // router) rejected every one of these with a 403, silently —
+      // lesson-time tracking has never actually recorded anything.
+      // fetch(..., {keepalive:true}) is the modern replacement for
+      // exactly this "fire during page unload" use case, and — unlike a
+      // beacon — goes through public/js/csrf.js's existing window.fetch
+      // patch, which attaches the token automatically.
+      fetch("/student/lesson-time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activityId: currentActivityId, duration, endTime }),
+        keepalive: true,
+      }).catch(() => {});
     }
 
   window.addEventListener("beforeunload", sendLessonDuration);
@@ -5155,8 +5190,23 @@ async function requestFiftyFifty(questionId) {
         quizAnswers = {};
         quizChecked = {};
         quizStreak = 0;
-        currentQuestionIndex = 0;
         currentQuizLessonId = lessonId;
+
+        // Resume after a refresh — data.progress (from getLessonQuiz) has
+        // every question already checked earlier THIS attempt. Without
+        // this, the quiz used to silently restart at question 1 looking
+        // blank, and re-submitting a question the server still
+        // remembered as checked failed with no explanation (the server
+        // rejects a second check per question per attempt).
+        const progress = data.progress || {};
+        quizQuestions.forEach((q) => {
+          if (progress[q.id]) {
+            quizAnswers[q.id] = progress[q.id].answer;
+            quizChecked[q.id] = { isCorrect: !!progress[q.id].isCorrect, answer: progress[q.id].answer };
+          }
+        });
+        const firstUnanswered = quizQuestions.findIndex((q) => !quizChecked[q.id]);
+        currentQuestionIndex = firstUnanswered === -1 ? quizQuestions.length - 1 : firstUnanswered;
 
         hideLoading();
 
@@ -5533,7 +5583,22 @@ function checkAnswerLive(lessonId, questionId, answer) {
   })
     .then(res => res.json())
     .then(data => {
-      if (!data.success) return;
+      if (!data.success) {
+        if (data.alreadyChecked) {
+          // The resume-on-load path above should make this rare now, but
+          // stay defensive (e.g. the question was already checked in
+          // another tab): resync from what the server actually has
+          // instead of leaving the student stuck on a question that will
+          // never let them proceed.
+          quizChecked[questionId] = { isCorrect: !!data.isCorrect, answer: data.answer };
+          quizAnswers[questionId] = data.answer;
+          const current = quizQuestions[currentQuestionIndex];
+          if (current && current.id === questionId) renderQuestion();
+        } else {
+          showToast(data.message || "Couldn't submit — try again.");
+        }
+        return;
+      }
       quizChecked[questionId] = { isCorrect: !!data.isCorrect, answer };
       quizStreak = typeof data.streak === "number" ? data.streak : (data.isCorrect ? quizStreak + 1 : 0);
 

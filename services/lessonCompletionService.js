@@ -80,6 +80,32 @@ async function awardXp(studentId, xpAmount, activityLabel) {
 }
 
 /**
+ * "Done" means a submission exists — pass/fail doesn't matter. A lesson
+ * with no quiz counts as done (nothing to finish). This is THE definition
+ * used everywhere a feature needs to know if a student has finished a
+ * lesson's quiz — getLessonQuiz's own alreadySubmitted check and
+ * viewLesson's resource-gate both call this rather than re-deriving it,
+ * so a future change to what "done" means only has to happen once.
+ *
+ * @param {number} lessonId
+ * @param {number} studentId
+ * @returns {Promise<boolean>}
+ */
+async function isQuizDoneForLesson(lessonId, studentId) {
+  const quizRes = await pool.query(
+    "SELECT id FROM quizzes WHERE lesson_id = $1",
+    [lessonId]
+  );
+  const quiz = quizRes.rows[0];
+  if (!quiz) return true;
+  const r = await pool.query(
+    "SELECT 1 FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2 LIMIT 1",
+    [quiz.id, studentId]
+  );
+  return r.rows.length > 0;
+}
+
+/**
  * Checks whether every part a lesson actually has (quiz, lab) is done for
  * this student, and if so, unlocks the next lesson/module and runs every
  * downstream effect that used to run unconditionally: first-ever-completion
@@ -92,19 +118,7 @@ async function awardXp(studentId, xpAmount, activityLabel) {
  * @param {number} lessonId
  */
 async function maybeUnlockNextLesson(studentId, lessonId) {
-  const quizRes = await pool.query(
-    "SELECT id FROM quizzes WHERE lesson_id = $1",
-    [lessonId]
-  );
-  const quiz = quizRes.rows[0];
-  let quizDone = true;
-  if (quiz) {
-    const r = await pool.query(
-      "SELECT 1 FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2 LIMIT 1",
-      [quiz.id, studentId]
-    );
-    quizDone = r.rows.length > 0;
-  }
+  const quizDone = await isQuizDoneForLesson(lessonId, studentId);
 
   const labRes = await pool.query(
     "SELECT id, title, lab_type FROM lesson_labs WHERE lesson_id = $1 ORDER BY id DESC LIMIT 1",
@@ -268,4 +282,4 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
   };
 }
 
-module.exports = { awardXp, maybeUnlockNextLesson };
+module.exports = { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson };

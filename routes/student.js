@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const pool = require("../models/db");
 const multer = require("multer");
 // const upload = multer({ dest: 'uploads/' }); // temp local storage
 // const upload = require("../middlewares/upload");

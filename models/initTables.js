@@ -663,6 +663,15 @@ async function createTables() {
     await pool.query(`
       ALTER TABLE quiz_answer_checks ADD COLUMN IF NOT EXISTS was_correct BOOLEAN;
     `);
+    // Lets getLessonQuiz restore a reloaded quiz's in-progress answers —
+    // the option text itself, not just whether it was right, so a
+    // refreshed page can redraw each already-checked question exactly as
+    // the student left it instead of showing it as blank/unanswered
+    // (which previously made resubmitting it fail silently — see
+    // checkQuizAnswer's duplicate-check guard below).
+    await pool.query(`
+      ALTER TABLE quiz_answer_checks ADD COLUMN IF NOT EXISTS answer TEXT;
+    `);
 
     // junction table for unlocked lessons
     await pool.query(
