@@ -73,7 +73,7 @@
           <span class="scp-icon"><%= project.lab_type === 'blockly' ? '🧩' : project.lab_type === 'arduino' ? '🔌' : project.lab_type === 'python' ? '🐍' : '🌐' %></span>
           <div>
             <p class="scp-title"><%= project.project_name || 'Untitled project' %></p>
-            <p class="scp-author">by <%= project.displayName %></p>
+            <p class="scp-author">by <% if (project.public_profile_slug) { %><a href="/achievements/<%= project.public_profile_slug %>" style="color:inherit; text-decoration:underline;"><%= project.displayName %></a><% } else { %><%= project.displayName %><% } %></p>
           </div>
         </div>
 

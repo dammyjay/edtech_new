@@ -599,6 +599,7 @@ router.get(
   adminController.getParentChildrenJSON,
 );
 router.get("/search-users", adminController.searchUsers);
+router.get("/search/suggest", adminController.globalSearchSuggest);
 
 // Download student course summary
 router.get(

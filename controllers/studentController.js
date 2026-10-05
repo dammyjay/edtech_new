@@ -1,5 +1,6 @@
 const pool = require("../models/db");
 // controllers/studentController.js
+const crypto = require("crypto");
 const { askTutor } = require("../utils/ai");
 const sendEmail = require("../utils/sendEmail");
 const PDFDocument = require("pdfkit");
@@ -72,6 +73,18 @@ exports.getDashboard = async (req, res) => {
       studentId,
     ]);
     const student = studentRes.rows[0];
+
+    // Whether this student can self-manage their own public portfolio
+    // (public_profile_enabled/slug, already on `student` from the SELECT *
+    // above) — only independent students (no linked parent) get a
+    // self-service toggle; a school-linked/parent-linked student stays
+    // gated behind their parent or an admin (setChildPublicProfile in
+    // userController.js), unchanged.
+    const parentLinkRes = await pool.query(
+      "SELECT 1 FROM parent_children WHERE child_id = $1 LIMIT 1",
+      [studentId]
+    );
+    const isIndependentStudent = parentLinkRes.rows.length === 0;
 
     // Derived, not stored: level is just a named milestone view over the
     // existing raw XP total; streak is computed live off
@@ -1225,6 +1238,7 @@ exports.getDashboard = async (req, res) => {
       instructors,
       subscribed: req.query.subscribed,
       enrolledCourses,
+      isIndependentStudent,
       pastCourses,
       lockedTerms,
       pathwayCourses,
@@ -3218,6 +3232,62 @@ exports.payTermReactivation = async (req, res) => {
   } catch (err) {
     console.error("Error reactivating term:", err.message);
     res.status(500).send("Server error");
+  }
+};
+
+// POST /student/public-profile/toggle — self-service equivalent of
+// userController.js's setChildPublicProfile, but only for independent
+// students (no parent_children row). A school-linked/parent-linked
+// student is rejected here and stays on the existing parent/admin-only
+// path — this endpoint must never let a minor flip their own public
+// exposure on. Mirrors that function's slug logic exactly: generate once,
+// reuse on every later toggle, so a student's share link never changes.
+exports.setOwnPublicProfile = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  const enabled = !!req.body.enabled;
+
+  try {
+    const parentLinkRes = await pool.query(
+      "SELECT 1 FROM parent_children WHERE child_id = $1 LIMIT 1",
+      [studentId]
+    );
+    if (parentLinkRes.rows.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message: "Your parent or school admin manages this for your account.",
+      });
+    }
+
+    const studentRes = await pool.query(
+      "SELECT public_profile_slug FROM users2 WHERE id = $1",
+      [studentId]
+    );
+    const student = studentRes.rows[0];
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
+    let slug = student.public_profile_slug;
+    if (enabled && !slug) {
+      slug = crypto.randomBytes(8).toString("hex");
+      await pool.query(
+        "UPDATE users2 SET public_profile_enabled = true, public_profile_slug = $1 WHERE id = $2",
+        [slug, studentId]
+      );
+    } else {
+      await pool.query(
+        "UPDATE users2 SET public_profile_enabled = $1 WHERE id = $2",
+        [enabled, studentId]
+      );
+    }
+
+    return res.json({ success: true, enabled, slug: enabled ? slug : null });
+  } catch (err) {
+    console.error("setOwnPublicProfile error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

@@ -4797,6 +4797,72 @@ exports.searchUsers = async (req, res) => {
   }
 };
 
+// GET /admin/search/suggest — the global header search's live-suggestion
+// endpoint. Already gated admin-only by routes/adminRoutes.js's router-wide
+// `router.use(ensureAdmin)`, so no extra auth check is needed here.
+// Scoped to the three entities that have a real, clickable admin detail
+// page today (students, courses, schools) — teachers/parents/lessons/
+// assignments have no dedicated URL to deep-link to and are deliberately
+// left out rather than linking somewhere confusing.
+exports.globalSearchSuggest = async (req, res) => {
+  const q = (req.query.q || "").trim().slice(0, 100);
+  if (q.length < 2) {
+    return res.json({ success: true, results: { students: [], courses: [], schools: [] } });
+  }
+
+  try {
+    const like = `%${q}%`;
+    const [studentsRes, coursesRes, schoolsRes] = await Promise.all([
+      pool.query(
+        `SELECT id, fullname, email, role FROM users2
+         WHERE role IN ('student', 'user') AND archived_at IS NULL
+           AND (fullname ILIKE $1 OR email ILIKE $1)
+         ORDER BY fullname ASC LIMIT 5`,
+        [like]
+      ),
+      pool.query(
+        `SELECT id, title, amount FROM courses
+         WHERE archived_at IS NULL AND title ILIKE $1
+         ORDER BY title ASC LIMIT 5`,
+        [like]
+      ),
+      pool.query(
+        `SELECT id, name, email FROM schools
+         WHERE archived_at IS NULL AND name ILIKE $1
+         ORDER BY name ASC LIMIT 5`,
+        [like]
+      ),
+    ]);
+
+    res.json({
+      success: true,
+      results: {
+        // NOT /admin/students/:id — that route (viewStudentDetails) renders
+        // a view file (admin/studentDetails.ejs) that doesn't exist in this
+        // codebase; nothing in the real admin UI ever links to it either
+        // (views/admin/students.ejs uses an in-page modal fed by data it
+        // already has, instead). /admin/students/:id/progress is the real,
+        // working, actually-linked-to student detail page.
+        students: studentsRes.rows.map((s) => ({
+          id: s.id, fullname: s.fullname, email: s.email,
+          url: `/admin/students/${s.id}/progress?from=admin`,
+        })),
+        courses: coursesRes.rows.map((c) => ({
+          id: c.id, title: c.title, amount: c.amount,
+          url: `/admin/courses/${c.id}`,
+        })),
+        schools: schoolsRes.rows.map((s) => ({
+          id: s.id, name: s.name, email: s.email,
+          url: `/admin/schools/${s.id}`,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("globalSearchSuggest error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
 function calculateGrade(score) {
   if (score >= 85) return "A (Excellent)";
   if (score >= 75) return "B (Very Good)";

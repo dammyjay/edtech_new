@@ -22,7 +22,7 @@
 
   if (!grid) return; // not on the gallery page
 
-  const state = { labType: "", sort: "new", page: 1, loading: false, exhausted: false };
+  const state = { labType: "", sort: "new", q: "", page: 1, loading: false, exhausted: false };
 
   function showToast(message) {
     const toast = document.createElement("div");
@@ -44,6 +44,19 @@
     python: { icon: "🐍", label: "Python Lab" },
   };
 
+  // Links the author's name to their public portfolio page only when
+  // they've opted into public sharing (public_profile_enabled +
+  // public_profile_slug, same consent gate the achievements page and
+  // public showcase already use) — most students won't have this on,
+  // so plain text stays the default, not a broken/empty link.
+  function authorHtml(name, publicProfileEnabled, publicProfileSlug) {
+    const safeName = escapeHtml(name || "a student");
+    if (publicProfileEnabled && publicProfileSlug) {
+      return `<a href="/achievements/${encodeURIComponent(publicProfileSlug)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${safeName}</a>`;
+    }
+    return safeName;
+  }
+
   function cardHtml(p) {
     const meta = labMeta[p.lab_type] || { icon: "🛠️", label: p.lab_type };
     const rating = Number(p.avg_rating) || 0;
@@ -54,7 +67,7 @@
           <span class="gallery-card-icon">${meta.icon}</span>
           <div>
             <p class="gallery-card-title">${escapeHtml(p.project_name || "Untitled project")}</p>
-            <p class="gallery-card-author">by ${escapeHtml(p.student_name || "a student")}</p>
+            <p class="gallery-card-author">by ${authorHtml(p.student_name, p.public_profile_enabled, p.public_profile_slug)}</p>
           </div>
         </div>
         <div class="gallery-card-badges">
@@ -86,6 +99,7 @@
     try {
       const params = new URLSearchParams({ page: state.page, sort: state.sort });
       if (state.labType) params.set("labType", state.labType);
+      if (state.q) params.set("q", state.q);
 
       const res = await fetch(`/labs/gallery/projects?${params.toString()}`);
       const data = await res.json();
@@ -138,6 +152,18 @@
   });
 
   loadMoreBtn.addEventListener("click", () => loadProjects(false));
+
+  const searchInput = document.getElementById("gallerySearchInput");
+  if (searchInput) {
+    let searchDebounce = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        state.q = searchInput.value.trim();
+        loadProjects(true);
+      }, 300);
+    });
+  }
 
   // ---- Detail modal ----------------------------------------------------
 
@@ -244,7 +270,7 @@
         <span class="gallery-card-icon">${meta.icon}</span>
         <div>
           <p class="gallery-card-title" style="font-size:19px;">${escapeHtml(project.project_name || "Untitled project")}</p>
-          <p class="gallery-card-author">by ${escapeHtml(project.student_name)}${remixCount ? ` · 🍴 ${remixCount} remix${remixCount === 1 ? "" : "es"}` : ""}</p>
+          <p class="gallery-card-author">by ${authorHtml(project.student_name, project.public_profile_enabled, project.public_profile_slug)}${remixCount ? ` · 🍴 ${remixCount} remix${remixCount === 1 ? "" : "es"}` : ""}</p>
         </div>
       </div>
       ${remixAttribution}

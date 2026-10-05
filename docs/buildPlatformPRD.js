@@ -269,9 +269,11 @@ const FEATURE_MODULES = [
         "Each lesson can carry a video, notes, a slide deck, a quiz, a lab task, and attached external projects.",
         "Full-screen mode, Focus Mode (distraction-free), click-to-enlarge images, adjustable font size and dark mode on slides, and text-to-speech on quiz questions/options.",
         "Lesson time-on-task is tracked automatically for analytics.",
+        "Notes, video and slides stay open for studying beforehand, but lock the moment the student answers the quiz's first question — a prompt points them back to the quiz, which stays accessible throughout — and unlock again once the quiz is finished.",
       ]},
       { category: "Quizzes", items: [
         "Take a quiz, get an immediate score plus a question-by-question review with an AI explanation on every answer.",
+        "A refreshed or reopened in-progress quiz resumes exactly where the student left off — already-answered questions are restored showing their checked/locked state — instead of restarting from question one.",
         "Retake freely, but XP (and a pass bonus) is only awarded on the first attempt; one answer-check per question per attempt.",
         "Correct-answer streak bonuses (3 or 5 in a row); an optional 'Boss Battle' game-style replay of a past quiz.",
         "Post-quiz reflection prompt ('what clicked / what's still fuzzy') that feeds the AI Tutor's context for that student.",
@@ -329,8 +331,9 @@ const FEATURE_MODULES = [
     groups: [
       { category: "Publishing & Browsing", items: [
         "Publish a submitted free-play project (Web or Blockly) to the gallery, or unpublish it; lesson-task work can never be published; unfriendly project names are blocked.",
-        "Browse the gallery filtered by lab type, sorted Newest/Popular, with incremental loading.",
+        "Browse the gallery filtered by lab type or searched by project name, sorted Newest/Popular, with incremental loading.",
         "Like other students' projects (not your own); remix a published project into your own free-play slot (with an overwrite warning), tracked with a remix count.",
+        "A project's author name links to their public portfolio page when that student has public sharing enabled (same consent gate as §3.10).",
         "Report an inappropriate project for admin review.",
         "A separate 'Featured External Projects' section shows real-world projects admins have chosen to highlight.",
       ]},
@@ -419,16 +422,17 @@ const FEATURE_MODULES = [
   {
     id: "3.10",
     title: "Public Showcase & Achievement Sharing",
-    roles: "Student (subject), Parent (sole consent authority), Public Visitor (viewer)",
-    intro: "A deliberate two-tier visibility model: the in-app Gallery only needs login; the public Showcase additionally requires parental consent, since it exposes a minor's work to the open internet.",
+    roles: "Student (subject or self-service for independent students), Parent (consent authority for linked students), Public Visitor (viewer)",
+    intro: "A deliberate two-tier visibility model: the in-app Gallery only needs login; the public Showcase additionally requires explicit consent, since it exposes a minor's work to the open internet. The achievement page doubles as a public portfolio, combining badges/certificates with published gallery projects on one page.",
     groups: [
       { category: "Consent Model", items: [
-        "A student's project only appears on the public /showcase if a parent (or Admin) has explicitly enabled the child's public profile — the student cannot self-enable this.",
+        "A student's project only appears on the public /showcase if their public profile is enabled.",
+        "An independent student (no linked parent) can self-enable/disable their own public profile from their dashboard settings; a school-linked or parent-linked student still requires a parent or Admin to enable it on their behalf.",
         "Teasers show the first 9 items to anonymous visitors; the rest require login (a marketing hook, not a real access boundary).",
       ]},
       { category: "What's Shown", items: [
-        "Public Showcase: published Web/Blockly gallery projects plus admin-featured External Projects, shortened to 'First L.' names, with like counts and star ratings.",
-        "Public achievement page (/achievements/:slug, unguessable link): level, streak, badges, certificates under a cartoon avatar and shortened name.",
+        "Public Showcase: published Web/Blockly gallery projects plus admin-featured External Projects, shortened to 'First L.' names, with like counts and star ratings; filters live as you type/click, by project name and lab type, with no page reload, and links back to the author's portfolio page.",
+        "Public achievement/portfolio page (/achievements/:slug, unguessable link): level, streak, badges, certificates under a cartoon avatar and shortened name, plus a grid of that student's own published gallery projects.",
         "Individual badge/certificate share cards, redacted so a real full name is never exposed even though the underlying certificate image carries it.",
       ]},
     ],
@@ -545,7 +549,8 @@ const FEATURE_MODULES = [
     groups: [
       { category: "Pages (no login)", items: [
         "Homepage: branding, daily-rotating carousel, featured pathways, up to 10 courses and 5 upcoming events, platform stats, benefits, FAQs, randomised testimonials, announcements.",
-        "Course catalogue grouped by pathway; individual course/pathway detail pages with downloadable curriculum.",
+        "Course catalogue: a sidebar lets visitors filter by career pathway and level simultaneously (e.g. 'Coding Pathway' + 'Beginner'), live client-side with no page reload; each course card shows a thumbnail, level badge, price and a short blurb; individual course/pathway detail pages with downloadable curriculum.",
+        "Site header course search (every public page): live-as-you-type suggestions (title + price + pathway) that jump straight to a course, or press Enter/the search icon with nothing highlighted to see the full filtered catalogue.",
         "Public Showcase and achievement pages (§3.10); About/Gallery/FAQ company pages, with visitor-submitted questions.",
         "Testimonial and feedback submission forms (feedback triggers a thank-you email to the sender and a notification to Admin).",
         "Event pages: view, register (name/email/phone/group size) and pay via Paystack.",
@@ -561,6 +566,9 @@ const FEATURE_MODULES = [
     title: "Platform Administration & Site Configuration",
     roles: "Admin",
     groups: [
+      { category: "Global Search", items: [
+        "Admin-only header search box, live-as-you-type suggestions (2+ characters) across Students, Courses and Schools, each result showing a key detail (e.g. a course's price) and deep-linking straight to its detail page; not shown to Instructors.",
+      ]},
       { category: "Site Content", items: [
         "Company details: logo, hero image, certificate background/signature.",
         "About Us page sections, benefits list, photo gallery (with categories), articles/blog (creation only — see §5), homepage announcements with view/click/dismiss tracking.",
@@ -829,7 +837,7 @@ children.push(
   bodyPara([new TextRun({ text: "Out of scope: ", bold: true, size: 21 }), new TextRun({ text: "future/proposed features not yet built (e.g. App Inventor Lab, AI Lab — currently just placeholder cards, see §5 of Part II), and infrastructure-level detail (exact schema, line-level code) better suited to engineering design docs than a PRD/BRD.", size: 21 })]),
 
   heading("6. Key Business Rules"),
-  bullet("A student's public visibility (Showcase, achievement page) requires explicit parent (or Admin) consent — never student self-service and never automatic on publish-to-gallery."),
+  bullet("A student's public visibility (Showcase, achievement/portfolio page) requires explicit consent and is never automatic on publish-to-gallery — a parent or Admin grants it for a school-linked/parent-linked student, while an independent student (no linked parent) may grant it to themselves."),
   bullet("Coins can be bought with wallet money, but never converted back — a one-way economy that protects the real-money wallet from being drained by in-app currency manipulation."),
   bullet("AI grading is always a first pass; a Teacher can always override the score and feedback on assignments and External Projects."),
   bullet("A school's classroom only gets access to courses the platform has explicitly authorised for that school's current term — course access is never open-ended."),

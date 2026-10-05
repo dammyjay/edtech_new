@@ -46,6 +46,12 @@ router.post(
   studentController.editProfile
 );
 
+router.post(
+  "/public-profile/toggle",
+  express.json(),
+  studentController.setOwnPublicProfile
+);
+
 router.get(
   "/lessons/:lessonId",
   ensureAuthenticated,

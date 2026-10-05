@@ -16,6 +16,9 @@
     <!-- Shared "View Overview" modal (course/module descriptions) — see
          public/js/overviewModal.js. -->
     <script src="/js/overviewModal.js"></script>
+    <!-- Admin-only global search (no-ops on instructor pages, where its
+         markup isn't rendered — see public/js/adminGlobalSearch.js). -->
+    <script src="/js/adminGlobalSearch.js"></script>
 </head>
 <body>
         <!-- Header -->
@@ -134,6 +137,13 @@
               <a href="/admin/newsletters">Newsletters</a>
               <a href="/admin/announcements">Announcements</a>
             </div>
+          </div>
+        <% } %>
+
+        <% if (role === 'admin') { %>
+          <div class="admin-search-wrap">
+            <input type="search" id="adminGlobalSearchInput" class="admin-search-input" placeholder="Search students, courses, schools…" autocomplete="off">
+            <div id="adminGlobalSearchResults" class="admin-search-dropdown" hidden></div>
           </div>
         <% } %>
 
@@ -361,6 +371,60 @@ document.addEventListener("DOMContentLoaded", () => {
     opacity: 0.85;
   }
   #admin-toast button:hover { opacity: 1; }
+
+  /* flex: 1 1 140px + min-width keeps this from being squeezed down to an
+     unreadable sliver when the nav runs out of row space (it was shrinking
+     to ~15 visible characters before wrapping) — it now shrinks down to a
+     usable 120px before the surrounding flex-wrap nav takes over instead. */
+  .admin-search-wrap { position: relative; margin: 0 6px; flex: 1 1 140px; min-width: 120px; max-width: 220px; }
+  .admin-search-input {
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: inherit;
+    font-size: 13px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .admin-search-input::placeholder { color: inherit; opacity: 0.7; }
+  .admin-search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: max(280px, 100%);
+    max-width: 90vw;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #fff;
+    color: #222;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    z-index: 5000;
+    padding: 6px 0;
+  }
+  .admin-search-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #888;
+    padding: 8px 14px 4px;
+  }
+  .admin-search-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    text-decoration: none;
+    color: #222;
+    font-size: 13.5px;
+  }
+  .admin-search-row:hover, .admin-search-row.active { background: #f1f1f1; }
+  .admin-search-row-title { font-weight: 600; }
+  .admin-search-row-detail { font-size: 12px; color: #777; white-space: nowrap; }
+  .admin-search-empty { padding: 12px 14px; font-size: 13px; color: #888; margin: 0; }
 </style>
 <div id="admin-toast" role="status" aria-live="polite">
   <span id="admin-toast-message"></span>

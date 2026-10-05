@@ -36,6 +36,7 @@
   </div>
 
   <div class="gallery-toolbar">
+    <input type="search" id="gallerySearchInput" class="gallery-search-input" placeholder="Search project names…">
     <div class="gallery-filter-group" id="galleryTypeFilter">
       <button type="button" class="gallery-filter-btn active" data-type="">All</button>
       <button type="button" class="gallery-filter-btn" data-type="web">🌐 Web Lab</button>
@@ -89,6 +90,13 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 22px;
+  }
+  .gallery-search-input {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #e0e0e0;
+    font-size: 13px;
+    min-width: 200px;
   }
   .gallery-filter-group {
     display: flex;

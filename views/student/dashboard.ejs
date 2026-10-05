@@ -681,6 +681,27 @@
 
         </form>
 
+        <hr>
+
+        <h3>🌐 Public Portfolio</h3>
+        <% if (typeof isIndependentStudent !== 'undefined' && isIndependentStudent) { %>
+          <p style="font-size:12px; color:#888; margin:0 0 8px;">
+            A public page showing your badges, certificates, and published gallery projects — safe to share, never shows your full name.
+          </p>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="publicPortfolioToggle" onchange="togglePublicPortfolio(this.checked)" <%= student.public_profile_enabled ? 'checked' : '' %>>
+            <span>Make my public portfolio visible</span>
+          </label>
+          <div id="publicPortfolioLinkRow" style="margin-top:8px; <%= (student.public_profile_enabled && student.public_profile_slug) ? '' : 'display:none;' %>">
+            <input type="text" id="publicPortfolioLink" readonly style="width:65%;" value="<%= student.public_profile_slug ? '/achievements/' + student.public_profile_slug : '' %>">
+            <button type="button" onclick="copyPublicPortfolioLink()">Copy link</button>
+          </div>
+        <% } else { %>
+          <p style="font-size:12px; color:#888;">
+            Your parent or school admin controls whether your achievements/projects page is public.
+          </p>
+        <% } %>
+
       </div>
     </div>
 
@@ -3060,6 +3081,47 @@ async function unlockAvatarFrame(frameKey) {
   } catch (err) {
     console.error("Failed to unlock avatar frame:", err);
   }
+}
+
+async function togglePublicPortfolio(enabled) {
+  const checkbox = document.getElementById("publicPortfolioToggle");
+  try {
+    const res = await fetch("/student/public-profile/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      if (checkbox) checkbox.checked = !enabled; // revert on rejection
+      showToast(data.message || "Couldn't update your portfolio visibility.");
+      return;
+    }
+    const linkRow = document.getElementById("publicPortfolioLinkRow");
+    const linkInput = document.getElementById("publicPortfolioLink");
+    if (data.enabled && data.slug) {
+      if (linkInput) linkInput.value = "/achievements/" + data.slug;
+      if (linkRow) linkRow.style.display = "";
+      showToast("🌐 Your public portfolio is now visible.");
+    } else {
+      if (linkRow) linkRow.style.display = "none";
+      showToast("Your public portfolio is now hidden.");
+    }
+  } catch (err) {
+    console.error("Failed to update public portfolio visibility:", err);
+    if (checkbox) checkbox.checked = !enabled;
+    showToast("Couldn't update your portfolio visibility.");
+  }
+}
+
+function copyPublicPortfolioLink() {
+  const linkInput = document.getElementById("publicPortfolioLink");
+  if (!linkInput || !linkInput.value) return;
+  const fullUrl = window.location.origin + linkInput.value;
+  navigator.clipboard.writeText(fullUrl).then(
+    () => showToast("Link copied!"),
+    () => showToast(fullUrl)
+  );
 }
 
 // Applied to every avatar <img> currently on the page (sidebar,

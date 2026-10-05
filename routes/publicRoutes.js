@@ -54,7 +54,7 @@ router.get("/achievements/:slug", async (req, res) => {
       return res.status(404).send("This page isn't available.");
     }
 
-    const [streak, xpTotalRes, badgesRes, certificatesRes, coursesCompletedRes, company] = await Promise.all([
+    const [streak, xpTotalRes, badgesRes, certificatesRes, coursesCompletedRes, projectsRes, company] = await Promise.all([
       getStudentStreak(student.id),
       pool.query(`SELECT COALESCE(SUM(xp), 0) AS total FROM xp_history WHERE user_id = $1`, [student.id]),
       pool.query(
@@ -68,6 +68,22 @@ router.get("/achievements/:slug", async (req, res) => {
         [student.id]
       ),
       pool.query(`SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND progress >= 100`, [student.id]),
+      // This student's own published gallery projects — same
+      // is_published gate and like/review join pattern as /showcase
+      // below, just scoped to one student instead of the whole
+      // platform, so this page doubles as a portfolio, not just an
+      // achievements page.
+      pool.query(
+        `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
+                COALESCE(lk.like_count, 0) AS like_count,
+                COALESCE(rv.avg_rating, 0) AS avg_rating
+         FROM lab_projects lp
+         LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
+         LEFT JOIN (SELECT project_id, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
+         WHERE lp.student_id = $1 AND lp.is_published = true
+         ORDER BY lp.published_at DESC`,
+        [student.id]
+      ),
       getCompanyInfo(),
     ]);
 
@@ -80,6 +96,7 @@ router.get("/achievements/:slug", async (req, res) => {
       badges: badgesRes.rows,
       certificates: certificatesRes.rows,
       coursesCompleted: parseInt(coursesCompletedRes.rows[0].count, 10) || 0,
+      projects: projectsRes.rows,
       company,
     });
   } catch (err) {
@@ -147,6 +164,56 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
   }
 });
 
+// Shared by the server-rendered /showcase page (first paint) and the
+// live-search JSON endpoint below (/showcase/api/search) — one query, so
+// the two can never drift out of sync. Returns rows already shaped with
+// displayName/public_profile_slug, same as the page has always rendered.
+async function fetchShowcaseProjects({ labType, q }) {
+  const params = [];
+  let labTypeFilter = "";
+  if (labType) {
+    params.push(labType);
+    labTypeFilter = `AND lp.lab_type = $${params.length}`;
+  }
+  let searchFilter = "";
+  if (q) {
+    params.push(`%${q}%`);
+    searchFilter = `AND lp.project_name ILIKE $${params.length}`;
+  }
+
+  const result = await pool.query(
+    `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
+            u.fullname, u.public_profile_slug,
+            COALESCE(lk.like_count, 0) AS like_count,
+            COALESCE(rv.avg_rating, 0) AS avg_rating
+     FROM lab_projects lp
+     JOIN users2 u ON u.id = lp.student_id
+     LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
+     LEFT JOIN (SELECT project_id, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
+     WHERE lp.is_published = true AND u.public_profile_enabled = true AND u.archived_at IS NULL ${labTypeFilter} ${searchFilter}
+     ORDER BY lp.published_at DESC
+     LIMIT 60`,
+    params
+  );
+
+  return result.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) }));
+}
+
+// JSON used by public/js/showcaseSearch.js for live, as-you-type
+// filtering — same gate/query as the page route via fetchShowcaseProjects,
+// just returned as JSON instead of rendered into the page.
+router.get("/showcase/api/search", async (req, res) => {
+  try {
+    const labType = ["web", "blockly", "arduino", "python"].includes(req.query.labType) ? req.query.labType : null;
+    const q = (req.query.q || "").trim().slice(0, 100);
+    const projects = await fetchShowcaseProjects({ labType, q });
+    res.json({ success: true, projects });
+  } catch (err) {
+    console.error("Showcase live search error:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
 // Public, no-login project showcase — a project only appears here if
 // BOTH the student published it to the in-app gallery (lab_projects.
 // is_published, controllers/labController.js) AND their parent/admin has
@@ -161,27 +228,8 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
 router.get("/showcase", async (req, res) => {
   try {
     const labType = ["web", "blockly", "arduino", "python"].includes(req.query.labType) ? req.query.labType : null;
-    const params = [];
-    let labTypeFilter = "";
-    if (labType) {
-      params.push(labType);
-      labTypeFilter = `AND lp.lab_type = $${params.length}`;
-    }
-
-    const result = await pool.query(
-      `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at,
-              u.fullname,
-              COALESCE(lk.like_count, 0) AS like_count,
-              COALESCE(rv.avg_rating, 0) AS avg_rating
-       FROM lab_projects lp
-       JOIN users2 u ON u.id = lp.student_id
-       LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
-       LEFT JOIN (SELECT project_id, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
-       WHERE lp.is_published = true AND u.public_profile_enabled = true AND u.archived_at IS NULL ${labTypeFilter}
-       ORDER BY lp.published_at DESC
-       LIMIT 60`,
-      params
-    );
+    const q = (req.query.q || "").trim().slice(0, 100);
+    const projects = await fetchShowcaseProjects({ labType, q });
 
     const info = await getCompanyInfo();
     let walletBalance = 0;
@@ -213,6 +261,7 @@ router.get("/showcase", async (req, res) => {
       walletBalance,
       activePage: "showcase",
       labType: labType || "",
+      q,
       // Logged-in visitors get the same free-teaser cutoff as everyone
       // else here (this is a marketing/conversion device, not real access
       // control — the underlying data was never gated) rather than special-
@@ -220,7 +269,7 @@ router.get("/showcase", async (req, res) => {
       // browsing the PUBLIC page needs to see past the teaser here when
       // the full, unlocked in-app gallery (/labs/gallery) is one click away.
       FREE_COUNT: 9,
-      projects: result.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) })),
+      projects,
       externalProjects: externalProjectsRes.rows.map((p) => ({ ...p, displayName: toDisplayName(p.fullname) })),
     });
   } catch (err) {
@@ -233,7 +282,7 @@ router.get("/showcase/:id", async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at, lp.project_data,
-              u.fullname
+              u.fullname, u.public_profile_slug
        FROM lab_projects lp
        JOIN users2 u ON u.id = lp.student_id
        WHERE lp.id = $1 AND lp.is_published = true AND u.public_profile_enabled = true AND u.archived_at IS NULL`,
@@ -929,6 +978,33 @@ router.post("/verify-payment", verifyCsrfToken, async (req, res) => {
   }
 });
 
+// Live-suggestion endpoint for the course search box in
+// views/partials/userHeader.ejs (every public page) — public/js/
+// courseSearchSuggest.js. Separate from /courses' own `q` filtering below:
+// this is for a fast "jump straight to a course" dropdown, not the full
+// filtered-catalog page.
+router.get("/courses/api/suggest", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim().slice(0, 100);
+    if (q.length < 2) {
+      return res.json({ success: true, courses: [] });
+    }
+    const result = await pool.query(
+      `SELECT courses.id, courses.title, courses.amount, cp.title AS pathway_name
+       FROM courses
+       LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
+       WHERE courses.archived_at IS NULL AND courses.title ILIKE $1
+       ORDER BY courses.title ASC
+       LIMIT 6`,
+      [`%${q}%`]
+    );
+    res.json({ success: true, courses: result.rows });
+  } catch (err) {
+    console.error("Course suggest error:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
 // ensureCsrfToken: this page's "Enroll" form posts to /student/courses/enroll/:id,
 // which verifyCsrfToken guards. Without this, the page's <meta csrf-token>
 // tag rendered blank (res.locals.csrfToken defaults to null for any route
@@ -942,13 +1018,21 @@ router.get("/courses", ensureCsrfToken, async (req, res) => {
   const careerPathwaysResult = await pool.query(
     "SELECT * FROM career_pathways ORDER BY title"
   );
-  const coursesResult = await pool.query(`
-    SELECT courses.*, cp.title AS pathway_name
-    FROM courses
-    LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
-    WHERE courses.archived_at IS NULL
-    ORDER BY cp.title ASC, courses.level ASC, sort_order ASC
-  `);
+  const q = (req.query.q || "").trim().slice(0, 100);
+  const courseSearchParams = [];
+  let courseSearchFilter = "";
+  if (q) {
+    courseSearchParams.push(`%${q}%`);
+    courseSearchFilter = `AND courses.title ILIKE $${courseSearchParams.length}`;
+  }
+  const coursesResult = await pool.query(
+    `SELECT courses.*, cp.title AS pathway_name
+     FROM courses
+     LEFT JOIN career_pathways cp ON cp.id = courses.career_pathway_id
+     WHERE courses.archived_at IS NULL ${courseSearchFilter}
+     ORDER BY cp.title ASC, courses.level ASC, sort_order ASC`,
+    courseSearchParams
+  );
 
   const enrolledCoursesRes = await pool.query(
     `SELECT course_id FROM course_enrollments WHERE user_id = $1`,
@@ -998,6 +1082,7 @@ router.get("/courses", ensureCsrfToken, async (req, res) => {
     walletBalance,
     enrolledCourseIds,
     groupedCourses,
+    q,
     careerPathways: careerPathwaysResult.rows,
     subscribed: req.query.subscribed,
     activePage: "courses", // 👈 Pass active page

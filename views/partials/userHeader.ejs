@@ -22,6 +22,13 @@
           <a class="<%= activePage === 'faq' ? 'active' : '' %>" href="/faq">FAQ</a>
           <a class="<%= activePage === 'testimony' ? 'active' : '' %>" href="/testimony">Testimony</a>
           <!-- <a href="#faq">FAQ</a> -->
+          <div class="header-course-search-wrap">
+            <form class="header-course-search" method="GET" action="/courses" id="headerCourseSearchForm">
+              <input type="search" name="q" id="headerCourseSearchInput" placeholder="Search courses…" aria-label="Search courses" autocomplete="off">
+              <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
+            </form>
+            <div id="headerCourseSearchResults" class="header-course-search-dropdown" hidden></div>
+          </div>
         </nav>
         
         <div class="user-actions">
@@ -67,6 +74,8 @@
         </div>
       </div>
 </header>
+
+<script src="/js/courseSearchSuggest.js"></script>
 
 <script>
   // Profile dropdown — previously only opened via CSS :hover, so

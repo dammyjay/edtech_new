@@ -30,8 +30,26 @@
       .sc-hero h1 { margin: 0 0 8px; font-size: 26px; }
       .sc-hero p { margin: 0; opacity: 0.92; font-size: 14px; }
 
-      .sc-filter { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; }
-      .sc-filter a {
+      .sc-search { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+      .sc-search input {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border-light, #e0e0e0);
+        font-size: 13px;
+        width: 220px;
+      }
+      .sc-search button {
+        padding: 7px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        background: var(--brand-pri, #A17807);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+      }
+      .sc-filter { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; flex-wrap: wrap; }
+      .sc-filter button {
         text-decoration: none;
         padding: 7px 16px;
         border-radius: 999px;
@@ -40,8 +58,9 @@
         background: #fff;
         color: var(--text-secondary, #666);
         border: 1px solid var(--border-light, #e0e0e0);
+        cursor: pointer;
       }
-      .sc-filter a.active { background: var(--brand-pri, #A17807); color: #fff; border-color: transparent; }
+      .sc-filter button.active { background: var(--brand-pri, #A17807); color: #fff; border-color: transparent; }
 
       .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
       .sc-card {
@@ -55,6 +74,8 @@
         transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
       .sc-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+      .sc-card--clickable { cursor: pointer; }
+      .sc-card-author-link { color: inherit; text-decoration: underline; }
       .sc-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
       .sc-card-icon { font-size: 24px; }
       .sc-card-title { font-size: 15px; font-weight: 700; margin: 0; }
@@ -117,62 +138,20 @@
         <p>Coding projects our students chose to share publicly — built in the Web Lab and Blockly Lab.</p>
       </div>
 
-      <% const scIcon = (t) => t === 'blockly' ? '🧩' : t === 'arduino' ? '🔌' : t === 'python' ? '🐍' : '🌐'; %>
-      <div class="sc-filter">
-        <a href="/showcase" class="<%= labType === '' ? 'active' : '' %>">All</a>
-        <a href="/showcase?labType=web" class="<%= labType === 'web' ? 'active' : '' %>">🌐 Web Lab</a>
-        <a href="/showcase?labType=blockly" class="<%= labType === 'blockly' ? 'active' : '' %>">🧩 Blockly Lab</a>
-        <a href="/showcase?labType=arduino" class="<%= labType === 'arduino' ? 'active' : '' %>">🔌 Arduino Lab</a>
-        <a href="/showcase?labType=python" class="<%= labType === 'python' ? 'active' : '' %>">🐍 Python Lab</a>
+      <form class="sc-search" id="scSearchForm">
+        <input type="search" id="scSearchInput" value="<%= q || '' %>" placeholder="Search project names…">
+        <button type="submit">Search</button>
+      </form>
+      <div class="sc-filter" id="scTypeFilter">
+        <button type="button" data-type="" class="<%= labType === '' ? 'active' : '' %>">All</button>
+        <button type="button" data-type="web" class="<%= labType === 'web' ? 'active' : '' %>">🌐 Web Lab</button>
+        <button type="button" data-type="blockly" class="<%= labType === 'blockly' ? 'active' : '' %>">🧩 Blockly Lab</button>
+        <button type="button" data-type="arduino" class="<%= labType === 'arduino' ? 'active' : '' %>">🔌 Arduino Lab</button>
+        <button type="button" data-type="python" class="<%= labType === 'python' ? 'active' : '' %>">🐍 Python Lab</button>
       </div>
 
-      <% if (!projects.length) { %>
-        <p class="sc-empty">No projects are publicly shared yet — check back soon!</p>
-      <% } else { %>
-        <% const freeProjects = projects.slice(0, FREE_COUNT); const lockedProjects = projects.slice(FREE_COUNT); %>
-        <div class="sc-grid">
-          <% freeProjects.forEach(p => { %>
-            <a class="sc-card" href="/showcase/<%= p.id %>">
-              <div class="sc-card-top">
-                <span class="sc-card-icon"><%= scIcon(p.lab_type) %></span>
-                <div>
-                  <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
-                  <p class="sc-card-author">by <%= p.displayName %></p>
-                </div>
-              </div>
-              <div class="sc-card-badges">
-                <span>❤️ <%= p.like_count %></span>
-                <% const rating = Number(p.avg_rating) || 0; %>
-                <span><%= rating ? `★ ${rating.toFixed(1)}` : '☆ No ratings yet' %></span>
-              </div>
-            </a>
-          <% }) %>
-
-          <% if (lockedProjects.length) { %>
-            <% lockedProjects.slice(0, 3).forEach(p => { %>
-              <div class="sc-card sc-card--locked" aria-hidden="true">
-                <div class="sc-card-top">
-                  <span class="sc-card-icon"><%= scIcon(p.lab_type) %></span>
-                  <div>
-                    <p class="sc-card-title"><%= p.project_name || 'Untitled project' %></p>
-                    <p class="sc-card-author">by <%= p.displayName %></p>
-                  </div>
-                </div>
-                <div class="sc-card-badges">
-                  <span>❤️ <%= p.like_count %></span>
-                </div>
-                <div class="sc-lock-overlay">🔒</div>
-              </div>
-            <% }) %>
-
-            <a class="sc-card sc-card--unlock" href="/signup?role=user&redirect=<%= encodeURIComponent('/showcase') %>">
-              <div class="sc-unlock-count">+<%= lockedProjects.length %></div>
-              <p class="sc-unlock-text">more project<%= lockedProjects.length === 1 ? '' : 's' %> to see</p>
-              <span class="sc-unlock-btn">Sign up free →</span>
-            </a>
-          <% } %>
-        </div>
-      <% } %>
+      <p class="sc-empty" id="scEmpty" style="display:none;">No projects match — try a different search or filter.</p>
+      <div class="sc-grid" id="scGrid"></div>
 
       <% if (externalProjects && externalProjects.length) { %>
         <div class="sc-hero" style="margin-top:40px;">
@@ -222,5 +201,17 @@
     </div>
 
     <%- include('../partials/userFooter') %>
+
+    <script>
+      // .replace guards against q containing "</script>" and breaking out
+      // of this inline tag — JSON.stringify alone doesn't escape "<".
+      window.SHOWCASE_CONTEXT = {
+        isLoggedIn: <%- JSON.stringify(isLoggedIn) %>,
+        freeCount: <%- JSON.stringify(FREE_COUNT) %>,
+        labType: <%- JSON.stringify(labType || "").replace(/</g, "\\u003c") %>,
+        q: <%- JSON.stringify(q || "").replace(/</g, "\\u003c") %>,
+      };
+    </script>
+    <script src="/js/showcaseSearch.js"></script>
   </body>
 </html>

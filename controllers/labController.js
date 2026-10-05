@@ -1307,11 +1307,18 @@ exports.getGalleryProjects = async (req, res) => {
     const pageSize = 24;
     const offset = (page - 1) * pageSize;
 
+    const q = (req.query.q || "").trim().slice(0, 100);
+
     const params = [studentId];
     let labTypeFilter = "";
     if (labType) {
       params.push(labType);
       labTypeFilter = `AND lp.lab_type = $${params.length}`;
+    }
+    let searchFilter = "";
+    if (q) {
+      params.push(`%${q}%`);
+      searchFilter = `AND lp.project_name ILIKE $${params.length}`;
     }
 
     const orderBy = sort === "popular" ? "like_count DESC, lp.published_at DESC" : "lp.published_at DESC";
@@ -1320,6 +1327,7 @@ exports.getGalleryProjects = async (req, res) => {
     const result = await pool.query(
       `SELECT lp.id, lp.project_name, lp.lab_type, lp.published_at, lp.remixed_from_id,
               u.id AS student_id, u.fullname AS student_name,
+              u.public_profile_enabled, u.public_profile_slug,
               COALESCE(lk.like_count, 0) AS like_count,
               COALESCE(rv.avg_rating, 0) AS avg_rating,
               COALESCE(rv.review_count, 0) AS review_count,
@@ -1330,7 +1338,7 @@ exports.getGalleryProjects = async (req, res) => {
        LEFT JOIN (SELECT project_id, COUNT(*) AS like_count FROM project_likes GROUP BY project_id) lk ON lk.project_id = lp.id
        LEFT JOIN (SELECT project_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating FROM project_reviews GROUP BY project_id) rv ON rv.project_id = lp.id
        LEFT JOIN (SELECT remixed_from_id, COUNT(*) AS remix_count FROM lab_projects WHERE remixed_from_id IS NOT NULL GROUP BY remixed_from_id) rx ON rx.remixed_from_id = lp.id
-       WHERE lp.is_published = true AND u.archived_at IS NULL ${labTypeFilter}
+       WHERE lp.is_published = true AND u.archived_at IS NULL ${labTypeFilter} ${searchFilter}
        ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
@@ -1353,7 +1361,7 @@ exports.getGalleryProjectDetail = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT lp.*, u.fullname AS student_name, u.public_profile_enabled,
+      `SELECT lp.*, u.fullname AS student_name, u.public_profile_enabled, u.public_profile_slug,
               src.project_name AS remixed_from_name, src.student_id AS remixed_from_student_id,
               src_user.fullname AS remixed_from_student_name
        FROM lab_projects lp

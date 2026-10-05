@@ -77,6 +77,16 @@
       padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap;
     }
 
+    .pa-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .pa-project-card {
+      display: block; text-decoration: none; color: inherit;
+      background: #fff; border-radius: var(--radius, 10px); padding: 12px;
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-project-icon { font-size: 22px; }
+    .pa-project-title { font-size: 12.5px; font-weight: 700; margin: 6px 0 2px; }
+    .pa-project-meta { font-size: 10.5px; color: var(--text-secondary, #666); }
+
     .pa-cta {
       margin-top: 36px; text-align: center; background: #fff; border-radius: var(--radius-lg, 16px);
       padding: 24px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
@@ -146,6 +156,24 @@
       </div>
     <% } else { %>
       <p class="pa-empty">No certificates earned yet — check back soon!</p>
+    <% } %>
+
+    <% if (projects && projects.length) { %>
+      <% const paIcon = (t) => t === 'blockly' ? '🧩' : t === 'arduino' ? '🔌' : t === 'python' ? '🐍' : '🌐'; %>
+      <h2 class="pa-section-title">🚀 Published Projects</h2>
+      <div class="pa-project-grid">
+        <% projects.forEach(p => { %>
+          <a class="pa-project-card" href="/showcase/<%= p.id %>">
+            <div class="pa-project-icon"><%= paIcon(p.lab_type) %></div>
+            <div class="pa-project-title"><%= p.project_name || 'Untitled project' %></div>
+            <div class="pa-project-meta">
+              ❤️ <%= p.like_count %>
+              <% const paRating = Number(p.avg_rating) || 0; %>
+              <%= paRating ? ` · ★ ${paRating.toFixed(1)}` : '' %>
+            </div>
+          </a>
+        <% }) %>
+      </div>
     <% } %>
 
     <div class="pa-cta">
