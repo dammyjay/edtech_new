@@ -1,0 +1,343 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'pricing-plans' }) %>
+
+<%
+  // Gamified tier-badge system — rank is purely visual, computed from each
+  // plan's position within its own rendered list (lower price/sort_order
+  // first), not stored. Capped at 4 tiers; a 5th+ plan in one list just
+  // repeats Diamond rather than erroring.
+  const TIERS = [
+    { icon: "🥉", label: "Bronze", cls: "tier-bronze" },
+    { icon: "🥈", label: "Silver", cls: "tier-silver" },
+    { icon: "🥇", label: "Gold", cls: "tier-gold" },
+    { icon: "💎", label: "Diamond", cls: "tier-diamond" },
+  ];
+  const getTier = (i) => TIERS[Math.min(i, TIERS.length - 1)];
+%>
+
+<div class="container2" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+
+  <h2>💲 Pricing Plans</h2>
+  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -8px;">
+    A standard rate card for both segments. Defining a plan here doesn't charge or gate anything by itself —
+    it's a reusable reference other admin screens can pick from (e.g. pre-filling a school quote).
+  </p>
+
+  <!-- ============ Instructor-Led Plans ============ -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 28px;">
+    <h3 style="margin:0;">Instructor-Led Plans</h3>
+    <button type="button" class="btn-black" onclick="openModal('createIndividual')">+ Create Instructor-Led Plan</button>
+  </div>
+  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -4px;">
+    Live classes with an instructor (Group, Private, Flexible Private, etc.) — distinct from self-paced course pricing and the school rate card.
+  </p>
+
+  <div class="plan-grid">
+    <% if (!instructorLedPlans.length) { %>
+      <p style="color: var(--text-secondary, #666);">No instructor-led plans yet.</p>
+    <% } %>
+    <% instructorLedPlans.forEach((plan, i) => { const tier = getTier(i); %>
+      <div class="plan-card <%= tier.cls %> <%= plan.is_active ? '' : 'plan-card--inactive' %> <%= plan.is_featured ? 'plan-card--featured' : '' %>">
+        <% if (plan.is_featured) { %><div class="plan-ribbon">✨ Most Popular</div><% } %>
+        <div class="plan-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+        <h4 class="plan-card-name"><%= plan.name %></h4>
+        <div class="plan-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %><%= plan.price_usd ? ' / $' + Number(plan.price_usd).toLocaleString() : '' %></div>
+        <div class="plan-card-price-unit"><%= plan.billing_cycle ? 'per ' + plan.billing_cycle : 'one-time' %></div>
+        <% if (plan.schedule_text) { %><div class="plan-card-schedule">🗓️ <%= plan.schedule_text %></div><% } %>
+        <% if (plan.description) { %><p class="plan-card-desc"><%= plan.description %></p><% } %>
+        <% const features = Array.isArray(plan.features) ? plan.features : []; %>
+        <% if (features.length) { %>
+          <ul class="plan-card-features">
+            <% features.forEach(f => { %><li><span class="plan-check">✓</span><%= f %></li><% }) %>
+          </ul>
+        <% } %>
+        <% if (!plan.is_active) { %><p class="plan-card-inactive-tag">Inactive</p><% } %>
+        <div class="article-buttons" style="margin-top: 10px;">
+          <button type="button" class="btn-edit" onclick="openEditModal('<%= plan.id %>')">Edit</button>
+          <button type="button" class="btn-red" onclick="confirmDeletePlan('<%= plan.id %>', '<%= plan.name %>')">Delete</button>
+          <form id="deleteForm-<%= plan.id %>" action="/admin/pricing-plans/delete/<%= plan.id %>" method="POST" style="display:none;"></form>
+        </div>
+      </div>
+
+      <%- include('../partials/pricingPlanEditModal', { plan }) %>
+    <% }) %>
+  </div>
+
+  <!-- ============ School Rate Card ============ -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 36px;">
+    <h3 style="margin:0;">School Rate Card</h3>
+    <button type="button" class="btn-black" onclick="openModal('createSchool')">+ Create School Plan</button>
+  </div>
+
+  <div class="plan-grid">
+    <% if (!schoolBasePlans.length) { %>
+      <p style="color: var(--text-secondary, #666);">No school plans yet.</p>
+    <% } %>
+    <% schoolBasePlans.forEach((plan, i) => { const tier = getTier(i); %>
+      <div class="plan-card <%= tier.cls %> <%= plan.is_active ? '' : 'plan-card--inactive' %> <%= plan.is_featured ? 'plan-card--featured' : '' %>">
+        <% if (plan.is_featured) { %><div class="plan-ribbon">✨ Most Popular</div><% } %>
+        <div class="plan-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+        <h4 class="plan-card-name"><%= plan.name %></h4>
+        <div class="plan-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %></div>
+        <div class="plan-card-price-unit">per student / term</div>
+        <% if (plan.description) { %><p class="plan-card-desc"><%= plan.description %></p><% } %>
+        <% const sFeatures = Array.isArray(plan.features) ? plan.features : []; %>
+        <% if (sFeatures.length) { %>
+          <ul class="plan-card-features">
+            <% sFeatures.forEach(f => { %><li><span class="plan-check">✓</span><%= f %></li><% }) %>
+          </ul>
+        <% } %>
+        <% if (!plan.is_active) { %><p class="plan-card-inactive-tag">Inactive</p><% } %>
+        <div class="article-buttons" style="margin-top: 10px;">
+          <button type="button" class="btn-edit" onclick="openEditModal('<%= plan.id %>')">Edit</button>
+          <button type="button" class="btn-red" onclick="confirmDeletePlan('<%= plan.id %>', '<%= plan.name %>')">Delete</button>
+          <form id="deleteForm-<%= plan.id %>" action="/admin/pricing-plans/delete/<%= plan.id %>" method="POST" style="display:none;"></form>
+        </div>
+      </div>
+
+      <%- include('../partials/pricingPlanEditModal', { plan }) %>
+    <% }) %>
+  </div>
+
+  <!-- ============ Add-on Modules ============ -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 36px;">
+    <h3 style="margin:0;">Add-on Modules</h3>
+    <button type="button" class="btn-black" onclick="openModal('createAddon')">+ Create Add-on Module</button>
+  </div>
+  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -4px;">
+    Flat fee per school per term (not per-student) — gadgets, internet support, robotics kits. A school can stack more than one on top of its base rate.
+  </p>
+
+  <div class="plan-grid">
+    <% if (!schoolAddonPlans.length) { %>
+      <p style="color: var(--text-secondary, #666);">No add-on modules yet.</p>
+    <% } %>
+    <% schoolAddonPlans.forEach((plan, i) => { const tier = getTier(i); %>
+      <div class="plan-card <%= tier.cls %> <%= plan.is_active ? '' : 'plan-card--inactive' %> <%= plan.is_featured ? 'plan-card--featured' : '' %>">
+        <% if (plan.is_featured) { %><div class="plan-ribbon">✨ Most Popular</div><% } %>
+        <div class="plan-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+        <h4 class="plan-card-name"><%= plan.name %></h4>
+        <div class="plan-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %></div>
+        <div class="plan-card-price-unit">per term (flat)</div>
+        <% if (plan.description) { %><p class="plan-card-desc"><%= plan.description %></p><% } %>
+        <% const aFeatures = Array.isArray(plan.features) ? plan.features : []; %>
+        <% if (aFeatures.length) { %>
+          <ul class="plan-card-features">
+            <% aFeatures.forEach(f => { %><li><span class="plan-check">✓</span><%= f %></li><% }) %>
+          </ul>
+        <% } %>
+        <% if (plan.show_publicly) { %><p style="font-size:11px; color:#1f9d55; font-weight:700; margin:4px 0 0;">🌍 Shown on /for-schools (no price)</p><% } %>
+        <% if (!plan.is_active) { %><p class="plan-card-inactive-tag">Inactive</p><% } %>
+        <div class="article-buttons" style="margin-top: 10px;">
+          <button type="button" class="btn-edit" onclick="openEditModal('<%= plan.id %>')">Edit</button>
+          <button type="button" class="btn-red" onclick="confirmDeletePlan('<%= plan.id %>', '<%= plan.name %>')">Delete</button>
+          <form id="deleteForm-<%= plan.id %>" action="/admin/pricing-plans/delete/<%= plan.id %>" method="POST" style="display:none;"></form>
+        </div>
+      </div>
+
+      <%- include('../partials/pricingPlanEditModal', { plan }) %>
+    <% }) %>
+  </div>
+
+</div>
+
+<!-- Create modals -->
+<div id="createIndividual" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('createIndividual')">&times;</span>
+    <h2>Create Instructor-Led Plan</h2>
+    <form method="POST" action="/admin/pricing-plans">
+      <input type="hidden" name="segment" value="instructor_led">
+      <input type="text" name="name" placeholder="Plan name (e.g. Group Classes)" required />
+      <input type="number" name="price_amount" placeholder="Price (₦)" min="0" required />
+      <input type="number" name="price_usd" placeholder="Price ($, optional)" min="0" step="0.01" />
+      <input type="text" name="schedule_text" placeholder="Schedule (e.g. Saturdays, 1 hour)" maxlength="150" />
+      <select name="billing_cycle">
+        <option value="">No recurring cycle</option>
+        <option value="monthly">Monthly</option>
+        <option value="annual">Annual</option>
+      </select>
+      <textarea name="description" placeholder="Short description"></textarea>
+      <textarea name="features" placeholder="One feature per line"></textarea>
+      <input type="number" name="sort_order" placeholder="Sort order (lower shows first)" value="0" />
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px;">
+        <input type="checkbox" name="is_featured" /> ✨ Mark as "Most Popular"
+      </label>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+</div>
+
+<div id="createSchool" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('createSchool')">&times;</span>
+    <h2>Create School Plan</h2>
+    <form method="POST" action="/admin/pricing-plans">
+      <input type="hidden" name="segment" value="school">
+      <input type="text" name="name" placeholder="Plan name (e.g. Standard)" required />
+      <input type="number" name="price_amount" placeholder="Price per student per term (₦)" min="0" required />
+      <textarea name="description" placeholder="Short description"></textarea>
+      <textarea name="features" placeholder="One feature per line"></textarea>
+      <input type="number" name="sort_order" placeholder="Sort order (lower shows first)" value="0" />
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px;">
+        <input type="checkbox" name="is_featured" /> ✨ Mark as "Most Popular"
+      </label>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+</div>
+
+<div id="createAddon" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal('createAddon')">&times;</span>
+    <h2>Create Add-on Module</h2>
+    <form method="POST" action="/admin/pricing-plans">
+      <input type="hidden" name="segment" value="school">
+      <input type="hidden" name="is_addon" value="on">
+      <input type="text" name="name" placeholder="Add-on name (e.g. Internet Support)" required />
+      <input type="number" name="price_amount" placeholder="Flat price per term (₦)" min="0" required />
+      <textarea name="description" placeholder="Short description"></textarea>
+      <textarea name="features" placeholder="One feature per line"></textarea>
+      <input type="number" name="sort_order" placeholder="Sort order (lower shows first)" value="0" />
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px;">
+        <input type="checkbox" name="is_featured" /> ✨ Mark as "Most Popular"
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px;">
+        <input type="checkbox" name="show_publicly" /> 🌍 Show on /for-schools (name &amp; description only — price is never shown publicly for add-ons)
+      </label>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 22px;
+    margin-top: 18px;
+    /* .container2 (shared global class) sets text-align:right — without
+       resetting it here, the tier badge (inline-flex) gets pushed to the
+       right edge of the card, colliding with the "Most Popular" ribbon,
+       even though block-level elements like the price/description aren't
+       visibly affected by the same inherited rule. */
+    text-align: left;
+  }
+
+  .plan-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 14px;
+    padding: 22px 18px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+  .plan-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 32px rgba(0,0,0,0.16);
+  }
+  .plan-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 7px;
+  }
+  .plan-card--inactive { opacity: 0.55; }
+  .plan-card--inactive:hover { transform: none; }
+
+  /* Tier color system */
+  .tier-bronze::before { background: linear-gradient(90deg, #CD7F32, #E8A868); }
+  .tier-bronze .plan-tier-badge { background: linear-gradient(135deg, #CD7F32, #8B5A2B); }
+  .tier-silver::before { background: linear-gradient(90deg, #B8B8B8, #E8E8E8); }
+  .tier-silver .plan-tier-badge { background: linear-gradient(135deg, #A8A8A8, #D8D8D8); color: #333; }
+  .tier-gold::before { background: linear-gradient(90deg, #FFD700, #FFA500); }
+  .tier-gold .plan-tier-badge { background: linear-gradient(135deg, #FFD700, #FFA500); color: #4C3802; }
+  .tier-diamond::before { background: linear-gradient(90deg, #67E8F9, #3B82F6); }
+  .tier-diamond .plan-tier-badge { background: linear-gradient(135deg, #67E8F9, #3B82F6); }
+
+  .plan-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 10px;
+  }
+
+  .plan-card--featured {
+    border: 2px solid #FFA500;
+    box-shadow: 0 4px 20px rgba(255, 165, 0, 0.25);
+  }
+  .plan-ribbon {
+    position: absolute;
+    top: 14px;
+    right: -32px;
+    background: linear-gradient(135deg, #FF6B6B, #EE4D4D);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 5px 38px;
+    transform: rotate(40deg);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    animation: ribbonPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes ribbonPulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.18); }
+  }
+
+  .plan-card-name { margin: 0 0 4px; font-size: 17px; }
+  .plan-card-price-big { font-size: 30px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); line-height: 1.1; }
+  .plan-card-price-unit { font-size: 11.5px; color: var(--text-secondary, #888); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .plan-card-schedule { font-size: 12.5px; color: var(--brand-pri-dark, #4C3802); font-weight: 600; margin-bottom: 8px; }
+  .plan-card-desc { font-size: 13px; color: var(--text-secondary, #666); }
+
+  .plan-card-features { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; }
+  .plan-card-features li { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 6px; }
+  .plan-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #1f9d55;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .plan-card-inactive-tag { color: #d64545; font-weight: 700; font-size: 11px; text-transform: uppercase; margin: 6px 0 0; }
+</style>
+
+<script>
+  function openModal(id) { document.getElementById(id).style.display = "block"; }
+  function closeModal(id) { document.getElementById(id).style.display = "none"; }
+  function openEditModal(id) { document.getElementById("editModal-" + id).style.display = "block"; }
+  function closeEditModal(id) { document.getElementById("editModal-" + id).style.display = "none"; }
+
+  async function confirmDeletePlan(id, name) {
+    const ok = window.showConfirm
+      ? await window.showConfirm(`Delete the "${name}" plan? This can't be undone.`, { confirmText: "Delete", type: "danger" })
+      : confirm(`Delete the "${name}" plan?`);
+    // requestSubmit(), not submit() — plain .submit() does NOT fire the
+    // form's "submit" event, which is exactly what public/js/csrf.js
+    // listens for to auto-inject the _csrf field. Using .submit() here
+    // silently skipped CSRF injection and got every delete rejected 403.
+    if (ok) document.getElementById("deleteForm-" + id).requestSubmit();
+  }
+
+  // Close any modal when clicking its backdrop.
+  window.addEventListener("click", (event) => {
+    if (event.target.classList.contains("modal")) {
+      event.target.style.display = "none";
+    }
+  });
+</script>

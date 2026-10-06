@@ -1089,6 +1089,151 @@ router.get("/courses", ensureCsrfToken, async (req, res) => {
   });
 });
 
+// Public pricing page — three paths visitors can pay through: self-paced
+// (per-course, already on /courses), instructor-led (live classes —
+// segment='instructor_led', the former "Individual" placeholder,
+// repurposed since nothing real ever existed under that name), and
+// school (the per-student-per-term rate card, segment='school'). Add-on
+// modules (is_addon=true) are deliberately NOT shown here — those are a
+// case-by-case sales conversation, not a standard listed offering.
+router.get("/pricing", async (req, res) => {
+  try {
+    const info = await getCompanyInfo();
+    let walletBalance = 0;
+    if (req.session.user) {
+      const walletResult = await pool.query("SELECT wallet_balance2 FROM users2 WHERE email = $1", [req.session.user.email]);
+      walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+    }
+
+    const plansResult = await pool.query(
+      `SELECT * FROM pricing_plans
+       WHERE is_active = true AND (segment = 'instructor_led' OR (segment = 'school' AND is_addon = false))
+       ORDER BY segment ASC, sort_order ASC, created_at ASC`
+    );
+    const instructorLedPlans = plansResult.rows.filter((p) => p.segment === "instructor_led");
+    const schoolPlans = plansResult.rows.filter((p) => p.segment === "school");
+
+    const courseRangeResult = await pool.query(
+      `SELECT MIN(amount) AS min_price, MAX(amount) AS max_price,
+              COUNT(*) FILTER (WHERE amount = 0) AS free_count
+       FROM courses WHERE archived_at IS NULL AND amount > 0`
+    );
+    const courseRange = courseRangeResult.rows[0];
+
+    res.render("public/pricing", {
+      info,
+      isLoggedIn: !!req.session.user,
+      users: req.session.user,
+      walletBalance,
+      activePage: "pricing",
+      instructorLedPlans,
+      schoolPlans,
+      courseRange,
+    });
+  } catch (err) {
+    console.error("Public pricing page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+// Shared by /for-schools and /for-learners — the real pathway catalog with
+// a live course count per pathway, used as the "what's in stock" section
+// on both audience-specific landing pages.
+async function getPathwaysWithCourseCounts() {
+  const result = await pool.query(
+    `SELECT cp.id, cp.title, cp.description, cp.thumbnail_url,
+            COUNT(c.id) FILTER (WHERE c.archived_at IS NULL) AS course_count
+     FROM career_pathways cp
+     LEFT JOIN courses c ON c.career_pathway_id = cp.id
+     GROUP BY cp.id, cp.title, cp.description, cp.thumbnail_url
+     ORDER BY cp.title ASC`
+  );
+  return result.rows;
+}
+
+// Audience landing page for school owners — reachable from the "Pricing ▾"
+// nav dropdown. Shows real school pricing plans, the real pathway catalog,
+// and a static feature summary (no admin-manageable "features" table exists
+// yet for this — same static-copy approach as the Self-Paced teaser on
+// /pricing).
+router.get("/for-schools", async (req, res) => {
+  try {
+    const info = await getCompanyInfo();
+    let walletBalance = 0;
+    if (req.session.user) {
+      const walletResult = await pool.query("SELECT wallet_balance2 FROM users2 WHERE email = $1", [req.session.user.email]);
+      walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+    }
+
+    const schoolPlansResult = await pool.query(
+      `SELECT * FROM pricing_plans WHERE is_active = true AND segment = 'school' AND is_addon = false
+       ORDER BY sort_order ASC, created_at ASC`
+    );
+    // Add-ons whose cost varies too much per school to quote as a flat
+    // public number (internet facility, projector, device rentals) — shown
+    // by name/description only, deliberately with no price (see
+    // show_publicly on models/initTables.js).
+    const publicAddonsResult = await pool.query(
+      `SELECT * FROM pricing_plans WHERE is_active = true AND segment = 'school' AND is_addon = true AND show_publicly = true
+       ORDER BY sort_order ASC, created_at ASC`
+    );
+    const pathways = await getPathwaysWithCourseCounts();
+
+    res.render("public/forSchools", {
+      info,
+      isLoggedIn: !!req.session.user,
+      users: req.session.user,
+      walletBalance,
+      activePage: "for-schools",
+      schoolPlans: schoolPlansResult.rows,
+      publicAddons: publicAddonsResult.rows,
+      pathways,
+    });
+  } catch (err) {
+    console.error("For Schools page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
+// Audience landing page for individual learners — same nav dropdown.
+// Shows both self-paced (live course price range) and instructor-led
+// pricing, plus the same pathway catalog as /for-schools.
+router.get("/for-learners", async (req, res) => {
+  try {
+    const info = await getCompanyInfo();
+    let walletBalance = 0;
+    if (req.session.user) {
+      const walletResult = await pool.query("SELECT wallet_balance2 FROM users2 WHERE email = $1", [req.session.user.email]);
+      walletBalance = walletResult.rows[0]?.wallet_balance2 || 0;
+    }
+
+    const instructorLedResult = await pool.query(
+      `SELECT * FROM pricing_plans WHERE is_active = true AND segment = 'instructor_led'
+       ORDER BY sort_order ASC, created_at ASC`
+    );
+    const courseRangeResult = await pool.query(
+      `SELECT MIN(amount) AS min_price, MAX(amount) AS max_price,
+              COUNT(*) FILTER (WHERE amount = 0) AS free_count
+       FROM courses WHERE archived_at IS NULL AND amount > 0`
+    );
+    const pathways = await getPathwaysWithCourseCounts();
+
+    res.render("public/forLearners", {
+      info,
+      isLoggedIn: !!req.session.user,
+      users: req.session.user,
+      walletBalance,
+      activePage: "for-learners",
+      instructorLedPlans: instructorLedResult.rows,
+      courseRange: courseRangeResult.rows[0],
+      pathways,
+    });
+  } catch (err) {
+    console.error("For Learners page error:", err.message);
+    res.status(500).send("Something went wrong loading this page.");
+  }
+});
+
 router.get("/pay-event/:regId", async (req, res) => {
   const { regId } = req.params;
 

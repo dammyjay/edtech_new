@@ -560,6 +560,11 @@ router.post(
 );
 router.post("/benefits/delete/:id", adminController.deleteBenefit);
 
+router.get("/pricing-plans", adminController.showPricingPlans);
+router.post("/pricing-plans", adminController.createPricingPlan);
+router.post("/pricing-plans/edit/:id", adminController.updatePricingPlan);
+router.post("/pricing-plans/delete/:id", adminController.deletePricingPlan);
+
 router.post(
   "/events/create",
   upload.single("image"),

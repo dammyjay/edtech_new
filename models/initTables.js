@@ -818,6 +818,83 @@ async function createTables() {
         ADD COLUMN IF NOT EXISTS arcade_enabled BOOLEAN DEFAULT true;
       `);
 
+      // Standardized pricing tiers — a rate card admins can define and
+      // reuse instead of typing a fresh number every time (previously
+      // every course/school/term price was ad hoc, no shared concept of
+      // a "plan" anywhere). Deliberately schema-only for now: nothing
+      // reads this table to gate a feature or charge anyone yet — see
+      // quotes.plan_id below for the one soft, optional reference.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS pricing_plans (
+          id SERIAL PRIMARY KEY,
+          segment VARCHAR(20) NOT NULL CHECK (segment IN ('individual', 'school')),
+          name VARCHAR(100) NOT NULL,
+          price_amount INTEGER NOT NULL DEFAULT 0,
+          billing_cycle VARCHAR(20),
+          description TEXT,
+          features JSONB DEFAULT '[]',
+          is_active BOOLEAN DEFAULT true,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+
+      // is_addon=false: a base tier, price_amount is per-student (Legacy
+      // Partner, Standard). is_addon=true: a stackable flat per-school-
+      // per-term extra (Gadget Support, Internet Support) — confirmed via
+      // real school pricing review that these don't scale with student
+      // count the way the base rate does, so they get their own flag
+      // rather than overloading price_amount's meaning.
+      await pool.query(`
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS is_addon BOOLEAN DEFAULT false;
+      `);
+
+      // Admin-controlled "✨ Most Popular" ribbon for the gamified plan-card
+      // UI — deliberately a manual flag, not computed from any usage data
+      // (nothing tracks how many schools/students picked a given plan),
+      // so the admin decides which plan to spotlight.
+      await pool.query(`
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false;
+      `);
+
+      // The "individual" segment was a vague, never-used placeholder —
+      // confirmed zero real rows before this rename. Repurposed as
+      // "instructor_led" to match the real business: live classes with
+      // an instructor (Group/Private/Flexible Private), distinct from
+      // both self-paced course pricing and the school rate card. The
+      // UPDATE is defensive (no-op today) in case this ever runs against
+      // a database where a stray row exists.
+      await pool.query(`
+        UPDATE pricing_plans SET segment = 'instructor_led' WHERE segment = 'individual';
+        ALTER TABLE pricing_plans DROP CONSTRAINT IF EXISTS pricing_plans_segment_check;
+        ALTER TABLE pricing_plans ADD CONSTRAINT pricing_plans_segment_check
+          CHECK (segment IN ('instructor_led', 'school'));
+      `);
+
+      // Only meaningful for instructor_led plans — a real WhatsApp price
+      // list (the source of truth before this feature existed) quotes
+      // both currencies and a plain-language class schedule per plan
+      // (e.g. "Saturdays, 1 hour"), neither of which fits the existing
+      // billing_cycle dropdown (monthly/annual billing FREQUENCY is a
+      // different dimension from session CADENCE).
+      await pool.query(`
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS price_usd NUMERIC;
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS schedule_text VARCHAR(150);
+      `);
+
+      // Only meaningful for add-on modules (is_addon = true) — some add-ons
+      // (internet facility, projector, device rentals) have a cost that
+      // varies too much per school/duration to quote as a flat public
+      // number, but the school owner should still see that the add-on is
+      // available. When true, the public /for-schools page lists the
+      // add-on's name/description/features with no price shown at all,
+      // rather than either hiding it entirely or showing a stored number
+      // that isn't actually what a given school would pay.
+      await pool.query(`
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS show_publicly BOOLEAN DEFAULT false;
+      `);
+
       // junction table for quotes
     await pool.query(`
       CREATE TABLE IF NOT EXISTS quotes (
@@ -835,6 +912,41 @@ async function createTables() {
       ALTER TABLE quotes
       ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0,
       ADD COLUMN IF NOT EXISTS balance NUMERIC DEFAULT 0;
+      -- Soft, optional bookkeeping only — which rate-card tier (if any) a
+      -- quote started from. Never enforced, never read to gate anything;
+      -- the price_per_student field above stays the real, freely-editable
+      -- source of truth for what the school is actually charged.
+      ALTER TABLE quotes
+      ADD COLUMN IF NOT EXISTS plan_id INT REFERENCES pricing_plans(id) ON DELETE SET NULL;
+      -- A discount layered on top of price_per_student + any stacked
+      -- add-ons — separate from price_per_student itself, which already
+      -- covers a negotiated custom per-student rate. Defaults mean every
+      -- existing quote is unaffected until an admin explicitly sets one
+      -- (see services/quoteCalcService.js, the single place this is
+      -- computed and applied).
+      ALTER TABLE quotes
+      ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'none',
+      ADD COLUMN IF NOT EXISTS discount_value NUMERIC DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS discount_reason TEXT;
+      -- Widened from VARCHAR(10) — 'addons_included' (the "modules bundled
+      -- into the per-student rate at no extra charge" discount type) is
+      -- 15 characters.
+      ALTER TABLE quotes ALTER COLUMN discount_type TYPE VARCHAR(20);
+    `);
+
+    // One row per add-on actually attached to a quote. price_amount is a
+    // SNAPSHOT of the plan's price at attach time (same reasoning
+    // quotes.price_per_student already snapshots the base rate instead of
+    // live-joining pricing_plans) — editing an add-on's price later must
+    // not retroactively change an already-created quote's total.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS quote_addons (
+        id SERIAL PRIMARY KEY,
+        quote_id INT REFERENCES quotes(id) ON DELETE CASCADE,
+        plan_id INT REFERENCES pricing_plans(id) ON DELETE SET NULL,
+        price_amount INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
 
     // table for school payments

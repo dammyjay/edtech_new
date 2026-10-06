@@ -16,6 +16,14 @@
           <a class="<%= activePage === 'home' ? 'active' : '' %>" href="/">Home</a>
           <!-- <a href="/pathways">Pathways</a> -->
           <a class="<%= activePage === 'courses' ? 'active' : '' %>" href="/courses">Courses</a>
+          <div class="dropdown">
+            <a href="javascript:void(0)" class="dropbtn <%= ['pricing', 'for-schools', 'for-learners'].includes(activePage) ? 'active' : '' %>" onclick="toggleDropdown('pricingNavMenu')">Pricing ▾</a>
+            <div class="dropdown-content" id="pricingNavMenu">
+              <a href="/for-schools">For Schools</a>
+              <a href="/for-learners">For Individual Learners</a>
+              <a href="/pricing">All Pricing &amp; Plans</a>
+            </div>
+          </div>
           <a class="<%= activePage === 'about' ? 'active' : '' %>" href="/about">About</a>
           <a class="<%= activePage === 'gallery' ? 'active' : '' %>" href="/gallery">Gallery</a>
           <a class="<%= activePage === 'showcase' ? 'active' : '' %>" href="/showcase">Showcase</a>

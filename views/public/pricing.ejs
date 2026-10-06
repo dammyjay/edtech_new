@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pricing — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'Pricing — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Self-paced courses, instructor-led classes, and school plans — see all our pricing in one place.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/pricing';
+       const ogType = 'website'; %>
+    <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <style>
+      /* Gamified tier-badge card system — ported from views/admin/pricingPlans.ejs
+         so the public page visually matches the admin rate card. */
+      .pr-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+      .pr-hero {
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        color: #fff;
+        border-radius: var(--radius-lg, 16px);
+        padding: 30px 26px;
+        text-align: center;
+        box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+        margin: 24px 0 36px;
+      }
+      .pr-hero h1 { margin: 0 0 8px; font-size: 26px; }
+      .pr-hero p { margin: 0; opacity: 0.92; font-size: 14px; }
+
+      .pr-section { margin-bottom: 44px; }
+      .pr-section-title { font-size: 20px; font-weight: 800; margin: 0 0 6px; }
+      .pr-section-sub { font-size: 13.5px; color: var(--text-secondary, #666); margin: 0 0 18px; }
+
+      .pr-selfpaced {
+        background: #fff;
+        border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 14px;
+        padding: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .pr-selfpaced-price { font-size: 26px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); }
+      .pr-selfpaced-sub { font-size: 12.5px; color: var(--text-secondary, #888); }
+      .pr-btn {
+        display: inline-block;
+        background: var(--brand-pri, #A17807);
+        color: #fff;
+        text-decoration: none;
+        padding: 11px 22px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13.5px;
+        white-space: nowrap;
+      }
+
+      .pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; }
+
+      .pr-card {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 14px;
+        padding: 22px 18px 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+        display: flex;
+        flex-direction: column;
+      }
+      .pr-card:hover { transform: translateY(-8px); box-shadow: 0 16px 32px rgba(0,0,0,0.16); }
+      .pr-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 7px; }
+
+      .tier-bronze::before { background: linear-gradient(90deg, #CD7F32, #E8A868); }
+      .tier-bronze .pr-tier-badge { background: linear-gradient(135deg, #CD7F32, #8B5A2B); }
+      .tier-silver::before { background: linear-gradient(90deg, #B8B8B8, #E8E8E8); }
+      .tier-silver .pr-tier-badge { background: linear-gradient(135deg, #A8A8A8, #D8D8D8); color: #333; }
+      .tier-gold::before { background: linear-gradient(90deg, #FFD700, #FFA500); }
+      .tier-gold .pr-tier-badge { background: linear-gradient(135deg, #FFD700, #FFA500); color: #4C3802; }
+      .tier-diamond::before { background: linear-gradient(90deg, #67E8F9, #3B82F6); }
+      .tier-diamond .pr-tier-badge { background: linear-gradient(135deg, #67E8F9, #3B82F6); }
+
+      .pr-tier-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 11px; border-radius: 999px;
+        font-size: 11px; font-weight: 800; color: #fff;
+        text-transform: uppercase; letter-spacing: 0.03em;
+        margin-bottom: 10px; align-self: flex-start;
+      }
+
+      .pr-card--featured { border: 2px solid #FFA500; box-shadow: 0 4px 20px rgba(255, 165, 0, 0.25); }
+      .pr-ribbon {
+        position: absolute; top: 14px; right: -32px;
+        background: linear-gradient(135deg, #FF6B6B, #EE4D4D);
+        color: #fff; font-size: 10.5px; font-weight: 800;
+        padding: 5px 38px; transform: rotate(40deg);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        animation: prRibbonPulse 2.2s ease-in-out infinite;
+      }
+      @keyframes prRibbonPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+
+      .pr-card-name { margin: 0 0 4px; font-size: 17px; }
+      .pr-card-price-big { font-size: 28px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); line-height: 1.1; }
+      .pr-card-price-unit { font-size: 11.5px; color: var(--text-secondary, #888); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.02em; }
+      .pr-card-schedule { font-size: 12.5px; color: var(--brand-pri-dark, #4C3802); font-weight: 600; margin-bottom: 8px; }
+      .pr-card-desc { font-size: 13px; color: var(--text-secondary, #666); }
+
+      .pr-card-features { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; flex: 1; }
+      .pr-card-features li { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 6px; }
+      .pr-check {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #1f9d55; color: #fff; font-size: 10px; font-weight: 800;
+        flex-shrink: 0; margin-top: 1px;
+      }
+
+      .pr-card .pr-btn { margin-top: 16px; text-align: center; }
+      .pr-empty { color: var(--text-secondary, #666); font-size: 13.5px; }
+    </style>
+  </head>
+  <body>
+    <%- include('../partials/userHeader', { title: 'Pricing', activePage: 'pricing' }) %>
+
+    <div class="pr-wrap">
+      <div class="pr-hero">
+        <h1>💲 Pricing</h1>
+        <p>Three ways to learn with us — self-paced, instructor-led, or as a school. Pick what fits.</p>
+      </div>
+
+      <%
+        const TIERS = [
+          { icon: "🥉", label: "Bronze", cls: "tier-bronze" },
+          { icon: "🥈", label: "Silver", cls: "tier-silver" },
+          { icon: "🥇", label: "Gold", cls: "tier-gold" },
+          { icon: "💎", label: "Diamond", cls: "tier-diamond" },
+        ];
+        const getTier = (i) => TIERS[Math.min(i, TIERS.length - 1)];
+      %>
+
+      <!-- ============ Self-Paced ============ -->
+      <div class="pr-section">
+        <h2 class="pr-section-title">📘 Self-Paced</h2>
+        <p class="pr-section-sub">Learn at your own pace — pay per course, keep access as long as you need it.</p>
+        <div class="pr-selfpaced">
+          <div>
+            <% if (courseRange.min_price) { %>
+              <div class="pr-selfpaced-price">From ₦<%= Number(courseRange.min_price).toLocaleString() %></div>
+              <div class="pr-selfpaced-sub">per course · up to ₦<%= Number(courseRange.max_price).toLocaleString() %> for advanced tracks<%= courseRange.free_count > 0 ? ' · some courses are free' : '' %></div>
+            <% } else { %>
+              <div class="pr-selfpaced-sub">Browse our full course catalog for pricing.</div>
+            <% } %>
+          </div>
+          <a class="pr-btn" href="/courses">Browse Courses</a>
+        </div>
+      </div>
+
+      <!-- ============ Instructor-Led ============ -->
+      <div class="pr-section">
+        <h2 class="pr-section-title">🧑‍🏫 Instructor-Led</h2>
+        <p class="pr-section-sub">Live classes with an instructor — group or private sessions, on a schedule.</p>
+        <% if (!instructorLedPlans.length) { %>
+          <p class="pr-empty">No instructor-led plans published yet — check back soon.</p>
+        <% } else { %>
+          <div class="pr-grid">
+            <% instructorLedPlans.forEach((plan, i) => { const tier = getTier(i); %>
+              <div class="pr-card <%= tier.cls %> <%= plan.is_featured ? 'pr-card--featured' : '' %>">
+                <% if (plan.is_featured) { %><div class="pr-ribbon">✨ Most Popular</div><% } %>
+                <div class="pr-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+                <h3 class="pr-card-name"><%= plan.name %></h3>
+                <div class="pr-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %><%= plan.price_usd ? ' / $' + Number(plan.price_usd).toLocaleString() : '' %></div>
+                <div class="pr-card-price-unit"><%= plan.billing_cycle ? 'per ' + plan.billing_cycle : 'one-time' %></div>
+                <% if (plan.schedule_text) { %><div class="pr-card-schedule">🗓️ <%= plan.schedule_text %></div><% } %>
+                <% if (plan.description) { %><p class="pr-card-desc"><%= plan.description %></p><% } %>
+                <% const features = Array.isArray(plan.features) ? plan.features : []; %>
+                <% if (features.length) { %>
+                  <ul class="pr-card-features">
+                    <% features.forEach(f => { %><li><span class="pr-check">✓</span><%= f %></li><% }) %>
+                  </ul>
+                <% } %>
+                <a class="pr-btn" href="/signup">Sign Up</a>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- ============ School Plans ============ -->
+      <div class="pr-section">
+        <h2 class="pr-section-title">🏫 School Plans</h2>
+        <p class="pr-section-sub">Bring our platform and curriculum into your school, priced per student per term.</p>
+        <% if (!schoolPlans.length) { %>
+          <p class="pr-empty">No school plans published yet — contact us to discuss pricing.</p>
+        <% } else { %>
+          <div class="pr-grid">
+            <% schoolPlans.forEach((plan, i) => { const tier = getTier(i); %>
+              <div class="pr-card <%= tier.cls %> <%= plan.is_featured ? 'pr-card--featured' : '' %>">
+                <% if (plan.is_featured) { %><div class="pr-ribbon">✨ Most Popular</div><% } %>
+                <div class="pr-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+                <h3 class="pr-card-name"><%= plan.name %></h3>
+                <div class="pr-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %></div>
+                <div class="pr-card-price-unit">per student / term</div>
+                <% if (plan.description) { %><p class="pr-card-desc"><%= plan.description %></p><% } %>
+                <% const sFeatures = Array.isArray(plan.features) ? plan.features : []; %>
+                <% if (sFeatures.length) { %>
+                  <ul class="pr-card-features">
+                    <% sFeatures.forEach(f => { %><li><span class="pr-check">✓</span><%= f %></li><% }) %>
+                  </ul>
+                <% } %>
+                <a class="pr-btn" href="/signup?role=school_admin">Sign Up</a>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <%- include('../partials/userFooter') %>
+  </body>
+</html>

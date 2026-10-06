@@ -25,9 +25,22 @@
         <% quotes.forEach(q => { %>
             <tr>
             <td><%= q.term_name %></td>
-            <td>₦<%= q.price_per_student %></td>
+            <td>
+              ₦<%= q.price_per_student %>
+              <% if (q.addon_names && q.addon_names.length) { %>
+                <br><small style="color:#888;">+ <%= q.addon_names.join(' + ') %></small>
+              <% } %>
+            </td>
             <td><%= q.total_students %></td>
-            <td>₦<%= q.total_amount %></td>
+            <td>
+              ₦<%= q.total_amount %>
+              <% if (q.discount_amount > 0) { %>
+                <br><small style="color:#1f9d55;">
+                  <%= q.discount_type === 'addons_included' ? 'Modules included — no extra charge' : 'Discount applied' %>:
+                  −₦<%= q.discount_amount %><%= q.discount_reason ? ' (' + q.discount_reason + ')' : '' %>
+                </small>
+              <% } %>
+            </td>
             <td>₦<%= q.total_paid %></td>
             <td>₦<%= q.balance %></td>
             <td><%= q.status %></td>

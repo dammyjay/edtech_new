@@ -13,6 +13,7 @@ const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = requir
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const { calculateQuoteTotal } = require("../services/quoteCalcService");
 const archiveService = require("../services/archiveService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
@@ -534,34 +535,46 @@ exports.loadSection = async (req, res) => {
         q.id,
         t.name AS term_name,
         q.price_per_student,
-        COALESCE(st.total_students, 0) AS total_students,
-        (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) AS total_amount,
-        COALESCE(p.total_paid, 0) AS total_paid,
-        (
-          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0))
-          - COALESCE(p.total_paid, 0)
-        ) AS balance,
         q.status,
         t.start_date,
         t.end_date
       FROM quotes q
       JOIN academic_terms t ON t.id = q.term_id
-      LEFT JOIN (
-        SELECT term_id, COUNT(*) AS total_students
-        FROM student_term_enrollments
-        GROUP BY term_id
-      ) st ON st.term_id = q.term_id
-      LEFT JOIN (
-        SELECT quote_id, SUM(amount) AS total_paid
-        FROM school_payments
-        GROUP BY quote_id
-      ) p ON p.quote_id = q.id
       WHERE q.school_id = $1 AND q.archived_at IS NULL
       ORDER BY t.start_date DESC
       `,
       [schoolId]
     );
-    return res.render("partials/quotes", { quotes: quotes.rows });
+
+    // Live total (tuition + add-ons − discount), via the same shared
+    // calculator admin's own school-details page and the invoice/receipt
+    // use (services/quoteCalcService.js) — this used to be a tuition-only
+    // recompute here that silently dropped any add-on/discount.
+    const paidRes = await pool.query(
+      `SELECT quote_id, COALESCE(SUM(amount), 0) AS total_paid FROM school_payments GROUP BY quote_id`
+    );
+    const paidByQuote = {};
+    paidRes.rows.forEach((r) => { paidByQuote[r.quote_id] = Number(r.total_paid); });
+
+    const enrichedQuotes = await Promise.all(
+      quotes.rows.map(async (q) => {
+        const calc = await calculateQuoteTotal(q.id);
+        const totalPaid = paidByQuote[q.id] || 0;
+        return {
+          ...q,
+          total_students: calc ? calc.totalStudents : 0,
+          total_amount: calc ? calc.totalAmount : 0,
+          total_paid: totalPaid,
+          balance: calc ? calc.totalAmount - totalPaid : 0,
+          addon_names: calc ? calc.addons.map((a) => a.plan_name).filter(Boolean) : [],
+          discount_amount: calc?.discountAmount || 0,
+          discount_type: calc?.discountType || "none",
+          discount_reason: calc?.discountReason || "",
+        };
+      })
+    );
+
+    return res.render("partials/quotes", { quotes: enrichedQuotes });
   }
 
   // === Payments (with adjustments) ===

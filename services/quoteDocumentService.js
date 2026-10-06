@@ -21,8 +21,9 @@ const pool = require("../models/db");
 const generatePdf = require("../utils/generatePdf");
 const sendEmailWithAttachment = require("../utils/sendEmailWithAttachment");
 const numberToWords = require("number-to-words");
+const { calculateQuoteTotal } = require("./quoteCalcService");
 
-function buildInvoiceHtml({ q, students, company, total, totalPaid, balance, words, today, firstPayment, secondPayment, midTermDate, examDate }) {
+function buildInvoiceHtml({ q, students, company, total, totalPaid, balance, words, today, firstPayment, secondPayment, midTermDate, examDate, addons = [], discountAmount = 0, discountReason = "", discountLabel = "Discount" }) {
   return `
     <html>
     <head>
@@ -277,8 +278,28 @@ function buildInvoiceHtml({ q, students, company, total, totalPaid, balance, wor
           <td>CODING</td>
           <td>${q.total_students}</td>
           <td>₦${Number(q.price_per_student).toLocaleString()}</td>
-          <td>₦${total.toLocaleString()}</td>
+          <td>₦${(q.total_students * Number(q.price_per_student)).toLocaleString()}</td>
         </tr>
+
+        ${addons
+          .map(
+            (addon, index) => `
+        <tr>
+          <td>${index + 2}</td>
+          <td>${addon.plan_name || "Add-on"}</td>
+          <td colspan="2">Add-on (flat fee per term)</td>
+          <td>₦${Number(addon.price_amount).toLocaleString()}</td>
+        </tr>`
+          )
+          .join("")}
+
+        ${discountAmount > 0
+          ? `
+        <tr>
+          <td colspan="4">${discountLabel}${discountReason ? " — " + discountReason : ""}</td>
+          <td>−₦${discountAmount.toLocaleString()}</td>
+        </tr>`
+          : ""}
 
         <tr class="total-row">
           <td colspan="4">TOTAL</td>
@@ -526,7 +547,7 @@ function buildInvoiceEmailHtml({ q, company, total, totalPaid, balance }) {
         `;
 }
 
-function buildReceiptHtml({ quote, students, company, totalAmount, totalPaid, balance, paymentDate, paymentMethod, receiptNumber, invoiceNumber, amountWords }) {
+function buildReceiptHtml({ quote, students, company, totalAmount, totalPaid, balance, paymentDate, paymentMethod, receiptNumber, invoiceNumber, amountWords, addons = [], discountAmount = 0, discountReason = "", discountLabel = "Discount Applied" }) {
   const studentRows = students.length
     ? students
         .map(
@@ -754,6 +775,18 @@ ${quote.address || ""}
 <td>Number of Students</td>
 <td>${quote.total_students}</td>
 </tr>
+${addons.length
+  ? `<tr>
+<td>Add-ons Included</td>
+<td>${addons.map((a) => a.plan_name || "Add-on").join(", ")}</td>
+</tr>`
+  : ""}
+${discountAmount > 0
+  ? `<tr>
+<td>${discountLabel}</td>
+<td>−₦${discountAmount.toLocaleString()}${discountReason ? " (" + discountReason + ")" : ""}</td>
+</tr>`
+  : ""}
 <tr>
 <td>Total Invoice</td>
 <td>₦${totalAmount.toLocaleString()}</td>
@@ -1064,6 +1097,21 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
   const q = result.rows[0];
   if (!q) return null;
 
+  // Authoritative total — tuition + stacked add-ons − discount, via the
+  // shared calculator (see services/quoteCalcService.js). The SQL above
+  // only computes a tuition-only total_students/total_amount; q.total_amount
+  // is overridden below so every downstream reference to it (including the
+  // invoice/receipt HTML builders) reflects add-ons and discount too.
+  const calc = await calculateQuoteTotal(q.id);
+  const addons = calc?.addons || [];
+  const discountAmount = calc?.discountAmount || 0;
+  const discountReason = calc?.discountReason || "";
+  const discountLabel = calc?.discountType === "addons_included" ? "Modules included — no extra charge" : "Discount";
+  if (calc) {
+    q.total_students = calc.totalStudents;
+    q.total_amount = calc.totalAmount;
+  }
+
   const totalPaid = Number(q.total_paid || 0);
   const balance = Number(q.balance || 0);
 
@@ -1119,6 +1167,7 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
     html = buildReceiptHtml({
       quote: q, students, company, totalAmount, totalPaid, balance,
       paymentDate, paymentMethod, receiptNumber, invoiceNumber, amountWords,
+      addons, discountAmount, discountReason, discountLabel,
     });
     emailSubject = `Payment Receipt - ${receiptNumber}`;
     emailHtml = buildReceiptEmailHtml({ quote: q, company, receiptNumber, totalAmount, totalPaid, balance, paymentDate });
@@ -1138,6 +1187,7 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
     html = buildInvoiceHtml({
       q, students, company, total, totalPaid, balance, words, today,
       firstPayment, secondPayment, midTermDate, examDate,
+      addons, discountAmount, discountReason, discountLabel,
     });
     emailSubject = `Coding Class Invoice - ${q.term_name}`;
     emailHtml = buildInvoiceEmailHtml({ q, company, total, totalPaid, balance });

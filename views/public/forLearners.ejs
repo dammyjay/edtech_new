@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>For Individual Learners — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'For Individual Learners — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Learn your way — self-paced courses or live instructor-led classes, with an AI tutor, certificates, and a project showcase.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/for-learners';
+       const ogType = 'website'; %>
+    <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <style>
+      /* Gamified tier-badge card system — same block as views/public/pricing.ejs
+         and views/public/forSchools.ejs, kept as a per-view copy per this
+         session's established convention. */
+      .fl-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+      .fl-hero {
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        color: #fff;
+        border-radius: var(--radius-lg, 16px);
+        padding: 36px 26px;
+        text-align: center;
+        box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+        margin: 24px 0 36px;
+      }
+      .fl-hero h1 { margin: 0 0 10px; font-size: 28px; }
+      .fl-hero p { margin: 0 0 18px; opacity: 0.92; font-size: 14.5px; max-width: 560px; margin-left: auto; margin-right: auto; }
+
+      .fl-section { margin-bottom: 44px; }
+      .fl-section-title { font-size: 20px; font-weight: 800; margin: 0 0 6px; }
+      .fl-section-sub { font-size: 13.5px; color: var(--text-secondary, #666); margin: 0 0 18px; }
+
+      .fl-btn {
+        display: inline-block;
+        background: #fff;
+        color: var(--brand-pri-dark, #4C3802);
+        text-decoration: none;
+        padding: 12px 26px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+      .fl-btn-outline {
+        display: inline-block;
+        background: var(--brand-pri, #A17807);
+        color: #fff;
+        text-decoration: none;
+        padding: 11px 22px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13.5px;
+        white-space: nowrap;
+      }
+
+      .fl-feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+      .fl-feature-card {
+        background: #fff; border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 12px; padding: 18px; text-align: left;
+      }
+      .fl-feature-icon { font-size: 26px; margin-bottom: 8px; display: block; }
+      .fl-feature-card h4 { margin: 0 0 6px; font-size: 14.5px; }
+      .fl-feature-card p { margin: 0; font-size: 12.5px; color: var(--text-secondary, #666); }
+
+      .fl-pathway-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+      .fl-pathway-card {
+        background: #fff; border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit;
+        display: flex; flex-direction: column; transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .fl-pathway-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+      .fl-pathway-thumb { width: 100%; height: 110px; object-fit: cover; background: #f0f0f0; }
+      .fl-pathway-body { padding: 14px; flex: 1; }
+      .fl-pathway-body h4 { margin: 0 0 4px; font-size: 14.5px; }
+      .fl-pathway-body p { margin: 0 0 8px; font-size: 12px; color: var(--text-secondary, #666); }
+      .fl-pathway-count { font-size: 11.5px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); }
+      .fl-courses-line { text-align: center; font-size: 13.5px; color: var(--text-secondary, #666); margin-top: 16px; }
+
+      .fl-selfpaced {
+        background: #fff;
+        border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 14px;
+        padding: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+      .fl-selfpaced-price { font-size: 26px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); }
+      .fl-selfpaced-sub { font-size: 12.5px; color: var(--text-secondary, #888); }
+
+      .fl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; }
+
+      .fl-card {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 14px;
+        padding: 22px 18px 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+      }
+      .fl-card:hover { transform: translateY(-8px); box-shadow: 0 16px 32px rgba(0,0,0,0.16); }
+      .fl-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 7px; }
+
+      .tier-bronze::before { background: linear-gradient(90deg, #CD7F32, #E8A868); }
+      .tier-bronze .fl-tier-badge { background: linear-gradient(135deg, #CD7F32, #8B5A2B); }
+      .tier-silver::before { background: linear-gradient(90deg, #B8B8B8, #E8E8E8); }
+      .tier-silver .fl-tier-badge { background: linear-gradient(135deg, #A8A8A8, #D8D8D8); color: #333; }
+      .tier-gold::before { background: linear-gradient(90deg, #FFD700, #FFA500); }
+      .tier-gold .fl-tier-badge { background: linear-gradient(135deg, #FFD700, #FFA500); color: #4C3802; }
+      .tier-diamond::before { background: linear-gradient(90deg, #67E8F9, #3B82F6); }
+      .tier-diamond .fl-tier-badge { background: linear-gradient(135deg, #67E8F9, #3B82F6); }
+
+      .fl-tier-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 11px; border-radius: 999px;
+        font-size: 11px; font-weight: 800; color: #fff;
+        text-transform: uppercase; letter-spacing: 0.03em;
+        margin-bottom: 10px; align-self: flex-start;
+      }
+
+      .fl-card--featured { border: 2px solid #FFA500; box-shadow: 0 4px 20px rgba(255, 165, 0, 0.25); }
+      .fl-ribbon {
+        position: absolute; top: 14px; right: -32px;
+        background: linear-gradient(135deg, #FF6B6B, #EE4D4D);
+        color: #fff; font-size: 10.5px; font-weight: 800;
+        padding: 5px 38px; transform: rotate(40deg);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        animation: flRibbonPulse 2.2s ease-in-out infinite;
+      }
+      @keyframes flRibbonPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+
+      .fl-card-name { margin: 0 0 4px; font-size: 17px; }
+      .fl-card-price-big { font-size: 28px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); line-height: 1.1; }
+      .fl-card-price-unit { font-size: 11.5px; color: var(--text-secondary, #888); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.02em; }
+      .fl-card-schedule { font-size: 12.5px; color: var(--brand-pri-dark, #4C3802); font-weight: 600; margin-bottom: 8px; }
+      .fl-card-desc { font-size: 13px; color: var(--text-secondary, #666); }
+
+      .fl-card-features { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; flex: 1; }
+      .fl-card-features li { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 6px; }
+      .fl-check {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #1f9d55; color: #fff; font-size: 10px; font-weight: 800;
+        flex-shrink: 0; margin-top: 1px;
+      }
+
+      .fl-card .fl-btn-outline { margin-top: 16px; text-align: center; }
+      .fl-empty { color: var(--text-secondary, #666); font-size: 13.5px; }
+      .fl-more-link { display: block; text-align: center; margin-top: 18px; font-size: 13px; font-weight: 600; }
+
+      .fl-final-cta {
+        background: var(--bg-secondary, #f7f3ea);
+        border-radius: 14px;
+        padding: 30px 24px;
+        text-align: center;
+      }
+      .fl-final-cta h2 { margin: 0 0 8px; font-size: 20px; }
+      .fl-final-cta p { margin: 0 0 16px; font-size: 13.5px; color: var(--text-secondary, #666); }
+    </style>
+  </head>
+  <body>
+    <%- include('../partials/userHeader', { title: 'For Individual Learners', activePage: 'for-learners' }) %>
+
+    <div class="fl-wrap">
+      <%
+        const TIERS = [
+          { icon: "🥉", label: "Bronze", cls: "tier-bronze" },
+          { icon: "🥈", label: "Silver", cls: "tier-silver" },
+          { icon: "🥇", label: "Gold", cls: "tier-gold" },
+          { icon: "💎", label: "Diamond", cls: "tier-diamond" },
+        ];
+        const getTier = (i) => TIERS[Math.min(i, TIERS.length - 1)];
+      %>
+
+      <div class="fl-hero">
+        <h1>🚀 Learn Your Way</h1>
+        <p>Go self-paced on your own schedule, or learn live with an instructor. An AI tutor, gamified progress, and real certificates come either way.</p>
+        <a class="fl-btn" href="/signup">Sign Up</a>
+      </div>
+
+      <!-- ============ What you get ============ -->
+      <div class="fl-section">
+        <h2 class="fl-section-title">🎯 What You Get</h2>
+        <p class="fl-section-sub">A learning experience built to keep you motivated and moving forward.</p>
+        <div class="fl-feature-grid">
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🧠</span>
+            <h4>AI Tutor Chat</h4>
+            <p>Lesson-aware, code-aware AI help whenever you're stuck — plus quiz hints and explanations.</p>
+          </div>
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🏅</span>
+            <h4>Gamified Progress</h4>
+            <p>Earn XP, badges and streaks as you learn — progress that actually feels like progress.</p>
+          </div>
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🎓</span>
+            <h4>Real Certificates</h4>
+            <p>Auto-issued the moment you finish a course and its assignments — yours to keep and share.</p>
+          </div>
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🤖</span>
+            <h4>Build Real Projects</h4>
+            <p>Hands-on Arduino/Blockly hardware labs plus Python and web coding labs — build, don't just watch.</p>
+          </div>
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🏆</span>
+            <h4>Project Showcase</h4>
+            <p>Publish your finished projects to a public gallery — a portfolio you can show off.</p>
+          </div>
+          <div class="fl-feature-card">
+            <span class="fl-feature-icon">🗺️</span>
+            <h4>Mastery-Path Suggestions</h4>
+            <p>Get pointed to the next course that fits where you are, not just a fixed curriculum.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ What's in stock ============ -->
+      <div class="fl-section">
+        <h2 class="fl-section-title">📚 What's In Stock</h2>
+        <p class="fl-section-sub">Real courses across real career pathways.</p>
+        <% if (!pathways.length) { %>
+          <p class="fl-empty">No pathways published yet.</p>
+        <% } else { %>
+          <div class="fl-pathway-grid">
+            <% pathways.forEach(pw => { %>
+              <a class="fl-pathway-card" href="/pathways/<%= pw.id %>">
+                <% if (pw.thumbnail_url) { %><img class="fl-pathway-thumb" src="<%= pw.thumbnail_url %>" alt="<%= pw.title %>" /><% } %>
+                <div class="fl-pathway-body">
+                  <h4><%= pw.title %></h4>
+                  <% if (pw.description) { %><p><%= pw.description.length > 90 ? pw.description.slice(0, 90) + '…' : pw.description %></p><% } %>
+                  <div class="fl-pathway-count"><%= pw.course_count %> course<%= Number(pw.course_count) === 1 ? '' : 's' %></div>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+        <p class="fl-courses-line">Browse the full catalog on <a href="/courses">Courses</a>.</p>
+      </div>
+
+      <!-- ============ Pricing for individuals ============ -->
+      <div class="fl-section">
+        <h2 class="fl-section-title">💲 Pricing For You</h2>
+        <p class="fl-section-sub">Go self-paced per course, or join a live class with an instructor.</p>
+
+        <div class="fl-selfpaced">
+          <div>
+            <% if (courseRange.min_price) { %>
+              <div class="fl-selfpaced-price">📘 Self-Paced — From ₦<%= Number(courseRange.min_price).toLocaleString() %></div>
+              <div class="fl-selfpaced-sub">per course · up to ₦<%= Number(courseRange.max_price).toLocaleString() %> for advanced tracks<%= courseRange.free_count > 0 ? ' · some courses are free' : '' %></div>
+            <% } else { %>
+              <div class="fl-selfpaced-sub">Browse our full course catalog for pricing.</div>
+            <% } %>
+          </div>
+          <a class="fl-btn-outline" href="/courses">Browse Courses</a>
+        </div>
+
+        <% if (!instructorLedPlans.length) { %>
+          <p class="fl-empty">No instructor-led plans published yet — check back soon.</p>
+        <% } else { %>
+          <div class="fl-grid">
+            <% instructorLedPlans.forEach((plan, i) => { const tier = getTier(i); %>
+              <div class="fl-card <%= tier.cls %> <%= plan.is_featured ? 'fl-card--featured' : '' %>">
+                <% if (plan.is_featured) { %><div class="fl-ribbon">✨ Most Popular</div><% } %>
+                <div class="fl-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+                <h3 class="fl-card-name"><%= plan.name %></h3>
+                <div class="fl-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %><%= plan.price_usd ? ' / $' + Number(plan.price_usd).toLocaleString() : '' %></div>
+                <div class="fl-card-price-unit"><%= plan.billing_cycle ? 'per ' + plan.billing_cycle : 'one-time' %></div>
+                <% if (plan.schedule_text) { %><div class="fl-card-schedule">🗓️ <%= plan.schedule_text %></div><% } %>
+                <% if (plan.description) { %><p class="fl-card-desc"><%= plan.description %></p><% } %>
+                <% const features = Array.isArray(plan.features) ? plan.features : []; %>
+                <% if (features.length) { %>
+                  <ul class="fl-card-features">
+                    <% features.forEach(f => { %><li><span class="fl-check">✓</span><%= f %></li><% }) %>
+                  </ul>
+                <% } %>
+                <a class="fl-btn-outline" href="/signup">Sign Up</a>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+        <a class="fl-more-link" href="/pricing">See full pricing comparison →</a>
+      </div>
+
+      <div class="fl-final-cta">
+        <h2>Ready to start learning?</h2>
+        <p>Create your account and pick a course or class today.</p>
+        <a class="fl-btn-outline" href="/signup">Sign Up</a>
+      </div>
+    </div>
+
+    <%- include('../partials/userFooter') %>
+  </body>
+</html>

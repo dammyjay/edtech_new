@@ -231,10 +231,28 @@
               </td>
               <td>
                 ₦<%= term.quote?.price_per_student || 0 %>
+                <% if (term.quote?.plan_name) { %>
+                  <br><small style="color:#888;">(<%= term.quote.plan_name %> plan)</small>
+                <% } %>
+                <% if (term.quote?.addon_names && term.quote.addon_names.length) { %>
+                  <br><small style="color:#888;">+ <%= term.quote.addon_names.join(' + ') %></small>
+                <% } %>
               </td>
 
               <td>
                 ₦<%= term.quote?.total_amount || 0 %>
+                <% if (term.quote?.discount_amount > 0) { %>
+                  <br><small style="color:#1f9d55; font-weight:600;">
+                    <% if (term.quote.discount_type === 'addons_included') { %>
+                      Modules included — no extra charge
+                    <% } else { %>
+                      Discount: <%= term.quote.discount_type === 'percent' ? Number(term.quote.discount_value) + '%' : '₦' + Number(term.quote.discount_value).toLocaleString() + ' flat' %>
+                    <% } %>
+                    (−₦<%= Number(term.quote.discount_amount).toLocaleString() %>)
+                    <% if (term.quote.discount_reason) { %><br><%= term.quote.discount_reason %><% } %>
+                  </small>
+                  <br><small style="color:#888;">Before discount: ₦<%= Number(term.quote.subtotal).toLocaleString() %></small>
+                <% } %>
               </td>
 
               <td>
@@ -264,8 +282,13 @@
                 <a href="#" class="no-bg" onclick="openEditTermModal(
                   '<%= term.term_id %>',
                   '<%= term.term_name %>',
-                  '<%= term.start_date %>',
-                  '<%= term.end_date %>'
+                  '<%= term.start_date ? new Date(term.start_date).toISOString().slice(0,10) : "" %>',
+                  '<%= term.end_date ? new Date(term.end_date).toISOString().slice(0,10) : "" %>',
+                  <%= term.quote?.price_per_student || 0 %>,
+                  <%- JSON.stringify(term.quote?.addon_plan_ids || []) %>,
+                  '<%= term.quote?.discount_type || "none" %>',
+                  <%= term.quote?.discount_value || 0 %>,
+                  '<%= (term.quote?.discount_reason || "").replace(/'/g, "\\'") %>'
                 ); return false;">
                   <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
                 </a>
@@ -950,7 +973,41 @@
       <input type="text" name="name" placeholder="2024/2025 - Term 1" required />
       <input type="date" name="start_date" required />
       <input type="date" name="end_date" required />
-      <input type="number" name="price_per_student" placeholder="Price per student" required />
+
+      <% if (typeof schoolPlans !== 'undefined' && schoolPlans.length) { %>
+        <select id="createTermPlanPicker" onchange="applyTermPlanPrice(this)">
+          <option value="">Rate card: custom / negotiated price</option>
+          <% schoolPlans.forEach(plan => { %>
+            <option value="<%= plan.id %>" data-price="<%= plan.price_amount %>"><%= plan.name %> — ₦<%= Number(plan.price_amount).toLocaleString() %>/student</option>
+          <% }) %>
+        </select>
+        <input type="hidden" name="plan_id" id="createTermPlanId" />
+      <% } %>
+      <input type="number" name="price_per_student" id="createTermPrice" placeholder="Price per student" required />
+
+      <% if (typeof schoolAddonPlans !== 'undefined' && schoolAddonPlans.length) { %>
+        <div style="margin: 8px 0; font-size: 13px;">
+          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (flat fee per term, stack as many as apply):</div>
+          <% schoolAddonPlans.forEach(addon => { %>
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <input type="checkbox" name="addon_plan_ids" value="<%= addon.id %>" />
+              <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
+            </label>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <div style="margin: 8px 0; font-size: 13px;">
+        <div style="color:#888; font-size:11px; margin-bottom:4px;">Discount (optional — applied on top of price + add-ons):</div>
+        <select name="discount_type">
+          <option value="none">No discount</option>
+          <option value="percent">Percentage (%)</option>
+          <option value="flat">Flat amount (₦)</option>
+          <option value="addons_included">Modules included — no extra charge (auto)</option>
+        </select>
+        <input type="number" name="discount_value" placeholder="Discount value (not needed for Modules Included)" min="0" step="0.01" />
+        <input type="text" name="discount_reason" placeholder="Reason (e.g. Loyalty partner discount)" maxlength="150" />
+      </div>
 
       <button class="btn-sec" type="submit">Create</button>
     </form>
@@ -1016,6 +1073,32 @@
       <input type="date" id="edit_start_date" required>
       <input type="date" id="edit_end_date" required>
       <input type="number" id="edit_price_per_student" required min="0" step="0.01">
+
+      <% if (typeof schoolAddonPlans !== 'undefined' && schoolAddonPlans.length) { %>
+        <div style="margin: 8px 0; font-size: 13px;">
+          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (flat fee per term, stack as many as apply):</div>
+          <div id="editTermAddonsContainer">
+            <% schoolAddonPlans.forEach(addon => { %>
+              <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <input type="checkbox" class="edit-term-addon" value="<%= addon.id %>" />
+                <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <div style="margin: 8px 0; font-size: 13px;">
+        <div style="color:#888; font-size:11px; margin-bottom:4px;">Discount (optional — applied on top of price + add-ons):</div>
+        <select id="edit_discount_type">
+          <option value="none">No discount</option>
+          <option value="percent">Percentage (%)</option>
+          <option value="flat">Flat amount (₦)</option>
+          <option value="addons_included">Modules included — no extra charge (auto)</option>
+        </select>
+        <input type="number" id="edit_discount_value" placeholder="Discount value (not needed for Modules Included)" min="0" step="0.01">
+        <input type="text" id="edit_discount_reason" placeholder="Reason (e.g. Loyalty partner discount)" maxlength="150">
+      </div>
 
       <button class="btn-sec" type="submit">Update</button>
     </form>
@@ -2524,6 +2607,21 @@ function exportExcel() {
     document.getElementById(id).style.display = "none";
   }
 
+  // Picking a rate-card plan pre-fills the price field as a convenience —
+  // the field stays a normal, freely-editable number input either way,
+  // so a negotiated/custom price still works exactly as before.
+  function applyTermPlanPrice(select) {
+    const opt = select.options[select.selectedIndex];
+    const planIdField = document.getElementById("createTermPlanId");
+    const priceField = document.getElementById("createTermPrice");
+    if (opt.value) {
+      if (planIdField) planIdField.value = opt.value;
+      if (priceField) priceField.value = opt.dataset.price;
+    } else if (planIdField) {
+      planIdField.value = "";
+    }
+  }
+
   // 🔹 Open edit modal and prefill
   function openEditClassroom(id, name, teacherIds) {
     document.getElementById("edit_classroom_id").value = id;
@@ -2895,12 +2993,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- Script for editing term  -->
  <script>
-  function openEditTermModal(id, name, start, end, price) {
+  function openEditTermModal(id, name, start, end, price, addonPlanIds, discountType, discountValue, discountReason) {
     document.getElementById("edit_term_id").value = id;
     document.getElementById("edit_term_name").value = name;
     document.getElementById("edit_start_date").value = start;
     document.getElementById("edit_end_date").value = end;
-    document.getElementById("edit_price_per_student").value = price || 0; // ✅ ADD
+    document.getElementById("edit_price_per_student").value = price || 0;
+
+    const checkedIds = (addonPlanIds || []).map(String);
+    document.querySelectorAll("#editTermAddonsContainer .edit-term-addon").forEach((box) => {
+      box.checked = checkedIds.includes(box.value);
+    });
+
+    const discountTypeEl = document.getElementById("edit_discount_type");
+    if (discountTypeEl) discountTypeEl.value = discountType || "none";
+    const discountValueEl = document.getElementById("edit_discount_value");
+    if (discountValueEl) discountValueEl.value = discountValue || "";
+    const discountReasonEl = document.getElementById("edit_discount_reason");
+    if (discountReasonEl) discountReasonEl.value = discountReason || "";
 
     openModal("editTermModal");
   }
@@ -2910,6 +3020,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const id = document.getElementById("edit_term_id").value;
 
+    const addonPlanIds = Array.from(
+      document.querySelectorAll("#editTermAddonsContainer .edit-term-addon:checked")
+    ).map((box) => box.value);
+
+    const discountTypeEl = document.getElementById("edit_discount_type");
+    const discountValueEl = document.getElementById("edit_discount_value");
+    const discountReasonEl = document.getElementById("edit_discount_reason");
+
     const res = await fetch(`/admin/terms/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2917,7 +3035,11 @@ document.addEventListener("DOMContentLoaded", () => {
         name: document.getElementById("edit_term_name").value,
         start_date: document.getElementById("edit_start_date").value,
         end_date: document.getElementById("edit_end_date").value,
-        price_per_student: Number(document.getElementById("edit_price_per_student").value) // ✅ ADD THIS
+        price_per_student: Number(document.getElementById("edit_price_per_student").value),
+        addon_plan_ids: addonPlanIds,
+        discount_type: discountTypeEl ? discountTypeEl.value : "none",
+        discount_value: discountValueEl ? Number(discountValueEl.value) || 0 : 0,
+        discount_reason: discountReasonEl ? discountReasonEl.value : "",
       })
     });
 

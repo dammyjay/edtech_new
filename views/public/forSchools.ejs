@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>For Schools — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/styles2.css" />
+    <link rel="stylesheet" href="/css/styles3.css" />
+    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <% const ogTitle = 'For Schools — ' + (info?.company_name || 'JKT Hub').trim();
+       const ogDescription = 'Bring JKT Hub into your school — classroom analytics, STEM labs, certificates, and a school pricing plan built for partners.';
+       const ogImage = info?.hero_image_url || info?.logo_url;
+       const ogUrl = 'https://acad.jkthub.com/for-schools';
+       const ogType = 'website'; %>
+    <%- include('../partials/ogMeta', { ogTitle, ogDescription, ogImage, ogUrl, ogType }) %>
+    <style>
+      /* Gamified tier-badge card system — same block as views/public/pricing.ejs,
+         kept as a per-view copy per this session's established convention. */
+      .fs-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+      .fs-hero {
+        background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+        color: #fff;
+        border-radius: var(--radius-lg, 16px);
+        padding: 36px 26px;
+        text-align: center;
+        box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+        margin: 24px 0 36px;
+      }
+      .fs-hero h1 { margin: 0 0 10px; font-size: 28px; }
+      .fs-hero p { margin: 0 0 18px; opacity: 0.92; font-size: 14.5px; max-width: 560px; margin-left: auto; margin-right: auto; }
+
+      .fs-section { margin-bottom: 44px; }
+      .fs-section-title { font-size: 20px; font-weight: 800; margin: 0 0 6px; }
+      .fs-section-sub { font-size: 13.5px; color: var(--text-secondary, #666); margin: 0 0 18px; }
+
+      .fs-btn {
+        display: inline-block;
+        background: #fff;
+        color: var(--brand-pri-dark, #4C3802);
+        text-decoration: none;
+        padding: 12px 26px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+      .fs-btn-outline {
+        display: inline-block;
+        background: var(--brand-pri, #A17807);
+        color: #fff;
+        text-decoration: none;
+        padding: 11px 22px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13.5px;
+        white-space: nowrap;
+      }
+
+      .fs-feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+      .fs-feature-card {
+        background: #fff; border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 12px; padding: 18px; text-align: left;
+      }
+      .fs-feature-icon { font-size: 26px; margin-bottom: 8px; display: block; }
+      .fs-feature-card h4 { margin: 0 0 6px; font-size: 14.5px; }
+      .fs-feature-card p { margin: 0; font-size: 12.5px; color: var(--text-secondary, #666); }
+
+      .fs-pathway-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+      .fs-pathway-card {
+        background: #fff; border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit;
+        display: flex; flex-direction: column; transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .fs-pathway-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+      .fs-pathway-thumb { width: 100%; height: 110px; object-fit: cover; background: #f0f0f0; }
+      .fs-pathway-body { padding: 14px; flex: 1; }
+      .fs-pathway-body h4 { margin: 0 0 4px; font-size: 14.5px; }
+      .fs-pathway-body p { margin: 0 0 8px; font-size: 12px; color: var(--text-secondary, #666); }
+      .fs-pathway-count { font-size: 11.5px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); }
+      .fs-courses-line { text-align: center; font-size: 13.5px; color: var(--text-secondary, #666); margin-top: 16px; }
+
+      .fs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; }
+
+      .fs-card {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 14px;
+        padding: 22px 18px 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+      }
+      .fs-card:hover { transform: translateY(-8px); box-shadow: 0 16px 32px rgba(0,0,0,0.16); }
+      .fs-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 7px; }
+
+      .tier-bronze::before { background: linear-gradient(90deg, #CD7F32, #E8A868); }
+      .tier-bronze .fs-tier-badge { background: linear-gradient(135deg, #CD7F32, #8B5A2B); }
+      .tier-silver::before { background: linear-gradient(90deg, #B8B8B8, #E8E8E8); }
+      .tier-silver .fs-tier-badge { background: linear-gradient(135deg, #A8A8A8, #D8D8D8); color: #333; }
+      .tier-gold::before { background: linear-gradient(90deg, #FFD700, #FFA500); }
+      .tier-gold .fs-tier-badge { background: linear-gradient(135deg, #FFD700, #FFA500); color: #4C3802; }
+      .tier-diamond::before { background: linear-gradient(90deg, #67E8F9, #3B82F6); }
+      .tier-diamond .fs-tier-badge { background: linear-gradient(135deg, #67E8F9, #3B82F6); }
+
+      .fs-tier-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 11px; border-radius: 999px;
+        font-size: 11px; font-weight: 800; color: #fff;
+        text-transform: uppercase; letter-spacing: 0.03em;
+        margin-bottom: 10px; align-self: flex-start;
+      }
+
+      .fs-card--featured { border: 2px solid #FFA500; box-shadow: 0 4px 20px rgba(255, 165, 0, 0.25); }
+      .fs-ribbon {
+        position: absolute; top: 14px; right: -32px;
+        background: linear-gradient(135deg, #FF6B6B, #EE4D4D);
+        color: #fff; font-size: 10.5px; font-weight: 800;
+        padding: 5px 38px; transform: rotate(40deg);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        animation: fsRibbonPulse 2.2s ease-in-out infinite;
+      }
+      @keyframes fsRibbonPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+
+      .fs-card-name { margin: 0 0 4px; font-size: 17px; }
+      .fs-card-price-big { font-size: 28px; font-weight: 800; color: var(--brand-pri-dark, #4C3802); line-height: 1.1; }
+      .fs-card-price-unit { font-size: 11.5px; color: var(--text-secondary, #888); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.02em; }
+      .fs-card-desc { font-size: 13px; color: var(--text-secondary, #666); }
+
+      .fs-card-features { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; flex: 1; }
+      .fs-card-features li { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 6px; }
+      .fs-check {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #1f9d55; color: #fff; font-size: 10px; font-weight: 800;
+        flex-shrink: 0; margin-top: 1px;
+      }
+
+      .fs-card .fs-btn-outline { margin-top: 16px; text-align: center; }
+      .fs-empty { color: var(--text-secondary, #666); font-size: 13.5px; }
+      .fs-more-link { display: block; text-align: center; margin-top: 18px; font-size: 13px; font-weight: 600; }
+
+      .fs-extra-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+      .fs-extra-card {
+        background: #fff; border: 1px solid var(--border-light, #e0e0e0);
+        border-radius: 12px; padding: 18px; text-align: left;
+      }
+      .fs-extra-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+      .fs-extra-card h4 { margin: 0 0 6px; font-size: 14.5px; }
+      .fs-extra-card p { margin: 0 0 10px; font-size: 12.5px; color: var(--text-secondary, #666); }
+      .fs-extra-card ul { list-style: none; margin: 0 0 10px; padding: 0; font-size: 12px; }
+      .fs-extra-card li { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; color: var(--text-secondary, #666); }
+      .fs-extra-price-note { font-size: 11.5px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); }
+
+      .fs-final-cta {
+        background: var(--bg-secondary, #f7f3ea);
+        border-radius: 14px;
+        padding: 30px 24px;
+        text-align: center;
+      }
+      .fs-final-cta h2 { margin: 0 0 8px; font-size: 20px; }
+      .fs-final-cta p { margin: 0 0 16px; font-size: 13.5px; color: var(--text-secondary, #666); }
+    </style>
+  </head>
+  <body>
+    <%- include('../partials/userHeader', { title: 'For Schools', activePage: 'for-schools' }) %>
+
+    <div class="fs-wrap">
+      <%
+        const TIERS = [
+          { icon: "🥉", label: "Bronze", cls: "tier-bronze" },
+          { icon: "🥈", label: "Silver", cls: "tier-silver" },
+          { icon: "🥇", label: "Gold", cls: "tier-gold" },
+          { icon: "💎", label: "Diamond", cls: "tier-diamond" },
+        ];
+        const getTier = (i) => TIERS[Math.min(i, TIERS.length - 1)];
+      %>
+
+      <div class="fs-hero">
+        <h1>🏫 Bring JKT Hub Into Your School</h1>
+        <p>Classroom analytics, teacher tools, a real STEM lab, and certificates your students actually earn — on a pricing plan built for partner schools.</p>
+        <a class="fs-btn" href="/signup?role=school_admin">Partner With Us</a>
+      </div>
+
+      <!-- ============ What your school gets ============ -->
+      <div class="fs-section">
+        <h2 class="fs-section-title">🎯 What Your School Gets</h2>
+        <p class="fs-section-sub">Everything a school needs to run digital learning, already built in.</p>
+        <div class="fs-feature-grid">
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">📊</span>
+            <h4>Classroom & Student Analytics</h4>
+            <p>Per-class and per-student progress dashboards, term reports, and growth analytics for admins and teachers.</p>
+          </div>
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">👩‍🏫</span>
+            <h4>Teacher Accounts & Grading</h4>
+            <p>Dedicated teacher logins with assignment and quiz grading tools, AI-assisted as a first pass.</p>
+          </div>
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">🎓</span>
+            <h4>Auto-Issued Certificates</h4>
+            <p>Certificates generate automatically on course completion — no manual paperwork for your staff.</p>
+          </div>
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">🤖</span>
+            <h4>Real Arduino & Blockly STEM Lab</h4>
+            <p>An in-browser hardware lab with a real component catalog — servos, sensors, displays — plus Python and web code labs.</p>
+          </div>
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">🧠</span>
+            <h4>AI Tutor & Quiz Hints</h4>
+            <p>Students get lesson-aware AI help and hints; teachers stay in control with full override on every AI grade.</p>
+          </div>
+          <div class="fs-feature-card">
+            <span class="fs-feature-icon">🏆</span>
+            <h4>Project Showcase</h4>
+            <p>Students can publish real projects to a public gallery — a portfolio they can be proud of.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ What's in stock ============ -->
+      <div class="fs-section">
+        <h2 class="fs-section-title">📚 What's In Stock</h2>
+        <p class="fs-section-sub">Real courses across real career pathways — ready for your students today.</p>
+        <% if (!pathways.length) { %>
+          <p class="fs-empty">No pathways published yet.</p>
+        <% } else { %>
+          <div class="fs-pathway-grid">
+            <% pathways.forEach(pw => { %>
+              <a class="fs-pathway-card" href="/pathways/<%= pw.id %>">
+                <% if (pw.thumbnail_url) { %><img class="fs-pathway-thumb" src="<%= pw.thumbnail_url %>" alt="<%= pw.title %>" /><% } %>
+                <div class="fs-pathway-body">
+                  <h4><%= pw.title %></h4>
+                  <% if (pw.description) { %><p><%= pw.description.length > 90 ? pw.description.slice(0, 90) + '…' : pw.description %></p><% } %>
+                  <div class="fs-pathway-count"><%= pw.course_count %> course<%= Number(pw.course_count) === 1 ? '' : 's' %></div>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+        <p class="fs-courses-line">Browse the full catalog on <a href="/courses">Courses</a>.</p>
+      </div>
+
+      <!-- ============ Pricing for schools ============ -->
+      <div class="fs-section">
+        <h2 class="fs-section-title">💲 Pricing For Schools</h2>
+        <p class="fs-section-sub">A simple per-student, per-term rate — no hidden fees.</p>
+        <% if (!schoolPlans.length) { %>
+          <p class="fs-empty">No school plans published yet — contact us to discuss pricing.</p>
+        <% } else { %>
+          <div class="fs-grid">
+            <% schoolPlans.forEach((plan, i) => { const tier = getTier(i); %>
+              <div class="fs-card <%= tier.cls %> <%= plan.is_featured ? 'fs-card--featured' : '' %>">
+                <% if (plan.is_featured) { %><div class="fs-ribbon">✨ Most Popular</div><% } %>
+                <div class="fs-tier-badge"><%= tier.icon %> <%= tier.label %></div>
+                <h3 class="fs-card-name"><%= plan.name %></h3>
+                <div class="fs-card-price-big">₦<%= Number(plan.price_amount).toLocaleString() %></div>
+                <div class="fs-card-price-unit">per student / term</div>
+                <% if (plan.description) { %><p class="fs-card-desc"><%= plan.description %></p><% } %>
+                <% const features = Array.isArray(plan.features) ? plan.features : []; %>
+                <% if (features.length) { %>
+                  <ul class="fs-card-features">
+                    <% features.forEach(f => { %><li><span class="fs-check">✓</span><%= f %></li><% }) %>
+                  </ul>
+                <% } %>
+                <a class="fs-btn-outline" href="/signup?role=school_admin">Get Started</a>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+        <a class="fs-more-link" href="/pricing">See full pricing &amp; add-ons →</a>
+      </div>
+
+      <!-- ============ Optional extras (no public price) ============ -->
+      <% if (publicAddons && publicAddons.length) { %>
+        <%
+          const extraIcon = (name) => {
+            const n = (name || "").toLowerCase();
+            if (n.includes("internet")) return "📶";
+            if (n.includes("projector")) return "📽️";
+            if (n.includes("laptop")) return "💻";
+            if (n.includes("tablet")) return "📱";
+            return "🧰";
+          };
+        %>
+        <div class="fs-section">
+          <h2 class="fs-section-title">🧰 Optional Extras</h2>
+          <p class="fs-section-sub">Available add-ons for your school — pricing depends on scale and duration, so we quote these when you sign up.</p>
+          <div class="fs-extra-grid">
+            <% publicAddons.forEach(addon => { %>
+              <div class="fs-extra-card">
+                <span class="fs-extra-icon"><%= extraIcon(addon.name) %></span>
+                <h4><%= addon.name %></h4>
+                <% if (addon.description) { %><p><%= addon.description %></p><% } %>
+                <% const extraFeatures = Array.isArray(addon.features) ? addon.features : []; %>
+                <% if (extraFeatures.length) { %>
+                  <ul>
+                    <% extraFeatures.forEach(f => { %><li><span class="fs-check">✓</span><%= f %></li><% }) %>
+                  </ul>
+                <% } %>
+                <div class="fs-extra-price-note">Price on request</div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="fs-final-cta">
+        <h2>Ready to bring JKT Hub to your school?</h2>
+        <p>Set up your school account and start onboarding students in minutes.</p>
+        <a class="fs-btn-outline" href="/signup?role=school_admin">Get Started</a>
+      </div>
+    </div>
+
+    <%- include('../partials/userFooter') %>
+  </body>
+</html>

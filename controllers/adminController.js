@@ -16,6 +16,7 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const { calculateQuoteTotal, recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
 const { getAllSchoolsWithPaymentSummary } = require("../services/schoolsAdminListService");
 const archiveService = require("../services/archiveService");
 const { escapeHtml, formatNaira } = require("../services/platformReportSections/sectionHelpers");
@@ -3532,6 +3533,93 @@ exports.deleteBenefit = async (req, res) => {
   res.redirect("/admin/benefits");
 };
 
+// Standardized pricing tiers (pricing_plans) — a rate card admins define
+// once and reuse, replacing the old "type a fresh number every time"
+// pattern for both individual subscriptions and school quotes. Schema-
+// only for now: nothing elsewhere reads these rows to gate a feature or
+// charge anyone — see the quotes.plan_id comment in models/initTables.js.
+exports.showPricingPlans = async (req, res) => {
+  const infoResult = await pool.query(
+    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+  );
+  const info = infoResult.rows[0] || {};
+  const plansResult = await pool.query(
+    "SELECT * FROM pricing_plans ORDER BY segment ASC, sort_order ASC, created_at ASC"
+  );
+  res.render("admin/pricingPlans", {
+    info,
+    instructorLedPlans: plansResult.rows.filter((p) => p.segment === "instructor_led"),
+    schoolBasePlans: plansResult.rows.filter((p) => p.segment === "school" && !p.is_addon),
+    schoolAddonPlans: plansResult.rows.filter((p) => p.segment === "school" && p.is_addon),
+    role: "admin",
+    users: req.session.user,
+  });
+};
+
+// Plain newline-separated textarea -> a JSON array of short feature
+// strings, the shape the UI renders as a bullet list.
+function parseFeaturesInput(raw) {
+  return (raw || "")
+    .split("\n")
+    .map((f) => f.trim())
+    .filter(Boolean);
+}
+
+exports.createPricingPlan = async (req, res) => {
+  const { segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured, price_usd, schedule_text, show_publicly } = req.body;
+  await pool.query(
+    `INSERT INTO pricing_plans (segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured, price_usd, schedule_text, show_publicly)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [
+      segment,
+      name,
+      Number(price_amount) || 0,
+      billing_cycle || null,
+      description || null,
+      JSON.stringify(parseFeaturesInput(features)),
+      Number(sort_order) || 0,
+      is_addon === "on",
+      is_featured === "on",
+      price_usd ? Number(price_usd) : null,
+      schedule_text || null,
+      show_publicly === "on",
+    ]
+  );
+  res.redirect("/admin/pricing-plans");
+};
+
+exports.updatePricingPlan = async (req, res) => {
+  const id = req.params.id;
+  const { name, price_amount, billing_cycle, description, features, sort_order, is_active, is_featured, price_usd, schedule_text, show_publicly } = req.body;
+  await pool.query(
+    `UPDATE pricing_plans
+     SET name = $1, price_amount = $2, billing_cycle = $3, description = $4,
+         features = $5, sort_order = $6, is_active = $7, is_featured = $8,
+         price_usd = $9, schedule_text = $10, show_publicly = $11, updated_at = NOW()
+     WHERE id = $12`,
+    [
+      name,
+      Number(price_amount) || 0,
+      billing_cycle || null,
+      description || null,
+      JSON.stringify(parseFeaturesInput(features)),
+      Number(sort_order) || 0,
+      is_active === "on",
+      is_featured === "on",
+      price_usd ? Number(price_usd) : null,
+      schedule_text || null,
+      show_publicly === "on",
+      id,
+    ]
+  );
+  res.redirect("/admin/pricing-plans");
+};
+
+exports.deletePricingPlan = async (req, res) => {
+  await pool.query("DELETE FROM pricing_plans WHERE id = $1", [req.params.id]);
+  res.redirect("/admin/pricing-plans");
+};
+
 exports.createEvent = async (req, res) => {
   try {
     const show_on_homepage = req.body.show_on_homepage === "on";
@@ -6038,9 +6126,11 @@ exports.getSchoolDetails = async (req, res) => {
     const quotesResult = await pool.query(
       `SELECT
         q.*,
-        t.name AS term_name
+        t.name AS term_name,
+        pp.name AS plan_name
       FROM quotes q
       JOIN academic_terms t ON q.term_id = t.id
+      LEFT JOIN pricing_plans pp ON pp.id = q.plan_id
       WHERE q.school_id = $1 AND q.archived_at IS NULL
       ORDER BY q.created_at DESC`,
       [id]
@@ -6068,27 +6158,42 @@ exports.getSchoolDetails = async (req, res) => {
     const updatedQuotesResult = await pool.query(
       `SELECT
         q.*,
-        t.name AS term_name
+        t.name AS term_name,
+        pp.name AS plan_name
       FROM quotes q
       JOIN academic_terms t ON q.term_id = t.id
+      LEFT JOIN pricing_plans pp ON pp.id = q.plan_id
       WHERE q.school_id = $1 AND q.archived_at IS NULL`,
       [id]
     );
 
     const updatedQuotes = updatedQuotesResult.rows;
 
+    // Live total (tuition + add-ons − discount) per quote, via the same
+    // shared calculator used everywhere else this is computed (see
+    // services/quoteCalcService.js) — addon_plan_ids is exposed too, so
+    // the Edit Term modal can pre-check the right boxes.
+    const calcsByQuoteId = {};
+    await Promise.all(
+      updatedQuotes.map(async (q) => {
+        calcsByQuoteId[q.id] = await calculateQuoteTotal(q.id);
+      })
+    );
+
     school.terms = school.terms.map((term) => {
       const quote = updatedQuotes.find((q) => q.term_id === term.term_id);
-
-      const totalStudents = term.student_count || 0;
-      const price = quote?.price_per_student || 0;
+      const calc = quote ? calcsByQuoteId[quote.id] : null;
 
       return {
         ...term,
         quote: quote
           ? {
               ...quote,
-              total_amount: totalStudents * price,
+              total_amount: calc ? calc.totalAmount : quote.total_amount,
+              subtotal: calc?.subtotal ?? null,
+              addon_names: calc ? calc.addons.map((a) => a.plan_name).filter(Boolean) : [],
+              addon_plan_ids: calc ? calc.addons.map((a) => a.plan_id) : [],
+              discount_amount: calc?.discountAmount ?? 0,
             }
           : null,
       };
@@ -6118,10 +6223,16 @@ exports.getSchoolDetails = async (req, res) => {
     school.classrooms = classroomsResult.rows;
     school.totals = totalsResult.rows[0];
 
+    const schoolPlansResult = await pool.query(
+      "SELECT id, name, price_amount, is_addon FROM pricing_plans WHERE segment = 'school' AND is_active = true ORDER BY sort_order ASC, name ASC"
+    );
+
     res.render("admin/school-details", {
       info: req.companyInfo || {},
       school,
       quotes: quotesResult.rows,
+      schoolPlans: schoolPlansResult.rows.filter((p) => !p.is_addon),
+      schoolAddonPlans: schoolPlansResult.rows.filter((p) => p.is_addon),
       currentPage: "schools",
       role: "admin",
       // Set when redirected here right after assigning students to a
@@ -6980,7 +7091,7 @@ exports.getQuotes = async (req, res) => {
   try {
 
     const result = await pool.query(`
-     SELECT 
+     SELECT
       q.id,
       q.school_id,
       s.name AS school_name,
@@ -6989,37 +7100,37 @@ exports.getQuotes = async (req, res) => {
 
       COALESCE(st.total_students, 0) AS total_students,
 
-      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) AS total_amount,
+      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0)) AS total_amount,
 
       COALESCE(p.total_paid, 0) AS total_paid,
 
-      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+      (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
         - COALESCE(p.total_paid, 0) AS balance,
 
-     CASE 
+     CASE
       -- FULLY PAID
-      WHEN COALESCE(p.total_paid, 0) >= 
-          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+      WHEN COALESCE(p.total_paid, 0) >=
+          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
         THEN 'paid'
 
       -- OVERDUE (IMPORTANT FIX 🔥)
-      WHEN COALESCE(p.total_paid, 0) < 
-          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0))
+      WHEN COALESCE(p.total_paid, 0) <
+          (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
           AND t.end_date < CURRENT_DATE
         THEN 'overdue'
 
       -- PARTIAL (ONLY IF TERM STILL ONGOING)
-      WHEN COALESCE(p.total_paid, 0) > 0 
+      WHEN COALESCE(p.total_paid, 0) > 0
           AND t.end_date >= CURRENT_DATE
         THEN 'partial'
 
       -- UPCOMING
-      WHEN t.start_date > CURRENT_DATE 
+      WHEN t.start_date > CURRENT_DATE
         THEN 'upcoming'
 
       -- ONGOING BUT NO PAYMENT
-      WHEN t.start_date <= CURRENT_DATE 
-          AND t.end_date >= CURRENT_DATE 
+      WHEN t.start_date <= CURRENT_DATE
+          AND t.end_date >= CURRENT_DATE
           AND COALESCE(p.total_paid, 0) = 0
         THEN 'pending'
 
@@ -7043,6 +7154,14 @@ exports.getQuotes = async (req, res) => {
       FROM school_payments
       GROUP BY quote_id
     ) p ON p.quote_id = q.id
+
+    -- ✅ stacked flat-fee add-ons (Gadget/Internet Support, etc.) summed
+    -- separately, same shape as the two subqueries above
+    LEFT JOIN (
+      SELECT quote_id, SUM(price_amount) AS addon_total
+      FROM quote_addons
+      GROUP BY quote_id
+    ) qa ON qa.quote_id = q.id
 
     WHERE q.archived_at IS NULL
 
@@ -7068,40 +7187,40 @@ exports.getQuotes = async (req, res) => {
             COUNT(*) FILTER (WHERE status = 'upcoming') AS upcoming_quotes
 
           FROM (
-            SELECT 
+            SELECT
               q.id,
 
               -- reuse SAME calculation
-              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) AS total_amount,
+              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0)) AS total_amount,
               COALESCE(p.total_paid, 0) AS total_paid,
 
-              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+              (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
                 - COALESCE(p.total_paid, 0) AS balance,
 
-              CASE 
+              CASE
                 -- FULLY PAID
-                WHEN COALESCE(p.total_paid, 0) >= 
-                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0)) 
+                WHEN COALESCE(p.total_paid, 0) >=
+                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
                   THEN 'paid'
 
                 -- OVERDUE (🔥 FIX)
-                WHEN COALESCE(p.total_paid, 0) < 
-                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0))
+                WHEN COALESCE(p.total_paid, 0) <
+                    (COALESCE(st.total_students, 0) * COALESCE(q.price_per_student, 0) + COALESCE(qa.addon_total, 0))
                     AND t.end_date < CURRENT_DATE
                   THEN 'overdue'
 
                 -- PARTIAL (ONLY IF STILL ACTIVE)
-                WHEN COALESCE(p.total_paid, 0) > 0 
+                WHEN COALESCE(p.total_paid, 0) > 0
                     AND t.end_date >= CURRENT_DATE
                   THEN 'partial'
 
                 -- UPCOMING
-                WHEN t.start_date > CURRENT_DATE 
+                WHEN t.start_date > CURRENT_DATE
                   THEN 'upcoming'
 
                 -- ONGOING NO PAYMENT
-                WHEN t.start_date <= CURRENT_DATE 
-                    AND t.end_date >= CURRENT_DATE 
+                WHEN t.start_date <= CURRENT_DATE
+                    AND t.end_date >= CURRENT_DATE
                     AND COALESCE(p.total_paid, 0) = 0
                   THEN 'pending'
 
@@ -7122,6 +7241,12 @@ exports.getQuotes = async (req, res) => {
               FROM school_payments
               GROUP BY quote_id
             ) p ON p.quote_id = q.id
+
+            LEFT JOIN (
+              SELECT quote_id, SUM(price_amount) AS addon_total
+              FROM quote_addons
+              GROUP BY quote_id
+            ) qa ON qa.quote_id = q.id
 
           ) sub;
     `);
@@ -10419,8 +10544,10 @@ exports.getTermCandidates = async (req, res) => {
 
 exports.createTerm = async (req, res) => {
   try {
-    const { school_id, name, start_date, end_date, price_per_student } =
-      req.body;
+    const {
+      school_id, name, start_date, end_date, price_per_student, plan_id, addon_plan_ids,
+      discount_type, discount_value, discount_reason,
+    } = req.body;
 
     // deactivate old terms
     await pool.query(
@@ -10430,7 +10557,7 @@ exports.createTerm = async (req, res) => {
 
     // create term
     const termResult = await pool.query(
-      `INSERT INTO academic_terms 
+      `INSERT INTO academic_terms
        (school_id, name, start_date, end_date, is_active)
        VALUES ($1, $2, $3, $4, true)
        RETURNING id`,
@@ -10445,12 +10572,52 @@ exports.createTerm = async (req, res) => {
     const totalAmount = studentCount * price_per_student;
 
     // ✅ create quote automatically
-    await pool.query(
-      `INSERT INTO quotes 
-       (school_id, term_id, price_per_student, total_students, total_amount, status)
-       VALUES ($1, $2, $3, $4, $5, 'unpaid')`,
-      [school_id, termId, price_per_student, studentCount, totalAmount],
+    // plan_id is a soft, optional reference to which rate-card tier (if
+    // any) this quote started from — pure bookkeeping, never enforced;
+    // price_per_student above (not the plan) is still the real charge.
+    // discount_type/value/reason let a school be onboarded with a
+    // negotiated discount from day one (see services/quoteCalcService.js).
+    const normalizedDiscountType = ["percent", "flat", "addons_included"].includes(discount_type) ? discount_type : "none";
+    // Stored value is irrelevant for "addons_included" — the discount is
+    // always the live add-on total, never a fixed number — so zero it to
+    // avoid storing a stray figure that doesn't mean anything.
+    const normalizedDiscountValue = normalizedDiscountType === "addons_included" ? 0 : Number(discount_value) || 0;
+    const quoteResult = await pool.query(
+      `INSERT INTO quotes
+       (school_id, term_id, price_per_student, total_students, total_amount, status, plan_id,
+        discount_type, discount_value, discount_reason)
+       VALUES ($1, $2, $3, $4, $5, 'unpaid', $6, $7, $8, $9)
+       RETURNING id`,
+      [
+        school_id, termId, price_per_student, studentCount, totalAmount, plan_id || null,
+        normalizedDiscountType, normalizedDiscountValue, discount_reason || null,
+      ],
     );
+    const quoteId = quoteResult.rows[0].id;
+
+    // Stack any selected flat-fee add-ons (Gadget Support, Internet
+    // Support, etc.) onto this quote. addon_plan_ids arrives as an array
+    // when 2+ checkboxes are checked, or a bare string when only one is —
+    // Express doesn't normalize that for same-name checkboxes.
+    const addonIds = Array.isArray(addon_plan_ids)
+      ? addon_plan_ids
+      : addon_plan_ids
+      ? [addon_plan_ids]
+      : [];
+    for (const addonId of addonIds) {
+      const addonPlan = await pool.query(
+        "SELECT price_amount FROM pricing_plans WHERE id = $1 AND is_addon = true",
+        [addonId]
+      );
+      if (addonPlan.rows.length) {
+        await pool.query(
+          "INSERT INTO quote_addons (quote_id, plan_id, price_amount) VALUES ($1, $2, $3)",
+          [quoteId, addonId, addonPlan.rows[0].price_amount]
+        );
+      }
+    }
+
+    await recalcAndPersistQuoteTotal(quoteId);
 
     res.redirect(`/admin/schools/${school_id}`);
   } catch (err) {
@@ -10472,9 +10639,14 @@ exports.deleteTerm = async (req, res) => {
 
 exports.updateTerm = async (req, res) => {
   const { id } = req.params;
-  const { name, start_date, end_date, price_per_student } = req.body;
+  const {
+    name, start_date, end_date, price_per_student,
+    discount_type, discount_value, discount_reason, addon_plan_ids,
+  } = req.body;
 
   const price = parseFloat(price_per_student) || 0;
+  const normalizedDiscountType = ["percent", "flat", "addons_included"].includes(discount_type) ? discount_type : "none";
+  const normalizedDiscountValue = normalizedDiscountType === "addons_included" ? 0 : Number(discount_value) || 0;
 
   await pool.query(
     `UPDATE academic_terms
@@ -10483,13 +10655,41 @@ exports.updateTerm = async (req, res) => {
     [name, start_date, end_date, id],
   );
 
-  await pool.query(
-    `UPDATE quotes 
+  const quoteRes = await pool.query(
+    `UPDATE quotes
      SET price_per_student = $1::numeric,
-         total_amount = total_students * $1::numeric
-     WHERE term_id = $2`,
-    [price, id],
+         discount_type = $2,
+         discount_value = $3,
+         discount_reason = $4
+     WHERE term_id = $5
+     RETURNING id`,
+    [price, normalizedDiscountType, normalizedDiscountValue, discount_reason || null, id],
   );
+  const quoteId = quoteRes.rows[0]?.id;
+
+  if (quoteId) {
+    // Re-sync add-ons to exactly the selected set — delete-all-then-
+    // reinsert-selected, snapshotting the add-on's CURRENT price_amount
+    // (same semantics as createTerm; simplest correct approach for a
+    // low-frequency admin action). addon_plan_ids arrives as a JSON
+    // array from the edit form's fetch body.
+    await pool.query("DELETE FROM quote_addons WHERE quote_id = $1", [quoteId]);
+    const addonIds = Array.isArray(addon_plan_ids) ? addon_plan_ids : [];
+    for (const addonId of addonIds) {
+      const addonPlan = await pool.query(
+        "SELECT price_amount FROM pricing_plans WHERE id = $1 AND is_addon = true",
+        [addonId]
+      );
+      if (addonPlan.rows.length) {
+        await pool.query(
+          "INSERT INTO quote_addons (quote_id, plan_id, price_amount) VALUES ($1, $2, $3)",
+          [quoteId, addonId, addonPlan.rows[0].price_amount]
+        );
+      }
+    }
+
+    await recalcAndPersistQuoteTotal(quoteId);
+  }
 
   res.sendStatus(200);
 };
@@ -10752,30 +10952,17 @@ exports.assignStudentsToTerm = async (req, res) => {
       params,
     );
 
-    // count students in this term
-    const countRes = await pool.query(
-      `SELECT COUNT(*) FROM student_term_enrollments WHERE term_id = $1`,
+    // Recompute total_students/total_amount/balance via the shared
+    // calculator — includes any stacked add-ons and discount, not just
+    // students × price (see services/quoteCalcService.js).
+    const quoteIdRes = await pool.query(
+      `SELECT id FROM quotes WHERE term_id = $1`,
       [term_id]
     );
-
-    const studentCount = Number(countRes.rows[0].count);
-
-    // get price
-    const quoteRes = await pool.query(
-      `SELECT price_per_student FROM quotes WHERE term_id = $1`,
-      [term_id]
-    );
-
-    const price = quoteRes.rows[0].price_per_student;
-    const total = studentCount * price;
-
-    // update quote
-    await pool.query(
-      `UPDATE quotes 
-      SET total_students = $1, total_amount = $2
-      WHERE term_id = $3`,
-      [studentCount, total, term_id]
-    );
+    const quoteId = quoteIdRes.rows[0]?.id;
+    if (quoteId) {
+      await recalcAndPersistQuoteTotal(quoteId);
+    }
 
     // Carries the just-used term through the redirect so the Classroom
     // tab's term selector (school-details.ejs) defaults to it instead of
