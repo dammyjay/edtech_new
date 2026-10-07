@@ -567,6 +567,7 @@ exports.loadSection = async (req, res) => {
           total_paid: totalPaid,
           balance: calc ? calc.totalAmount - totalPaid : 0,
           addon_names: calc ? calc.addons.map((a) => a.plan_name).filter(Boolean) : [],
+          addon_labels: calc ? calc.addons.map((a) => a.label).filter(Boolean) : [],
           discount_amount: calc?.discountAmount || 0,
           discount_type: calc?.discountType || "none",
           discount_reason: calc?.discountReason || "",

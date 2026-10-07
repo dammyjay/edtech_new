@@ -27,8 +27,8 @@
             <td><%= q.term_name %></td>
             <td>
               ₦<%= q.price_per_student %>
-              <% if (q.addon_names && q.addon_names.length) { %>
-                <br><small style="color:#888;">+ <%= q.addon_names.join(' + ') %></small>
+              <% if (q.addon_labels && q.addon_labels.length) { %>
+                <% q.addon_labels.forEach(label => { %><br><small style="color:#888;">+ <%= label %></small><% }) %>
               <% } %>
             </td>
             <td><%= q.total_students %></td>

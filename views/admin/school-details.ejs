@@ -234,8 +234,8 @@
                 <% if (term.quote?.plan_name) { %>
                   <br><small style="color:#888;">(<%= term.quote.plan_name %> plan)</small>
                 <% } %>
-                <% if (term.quote?.addon_names && term.quote.addon_names.length) { %>
-                  <br><small style="color:#888;">+ <%= term.quote.addon_names.join(' + ') %></small>
+                <% if (term.quote?.addon_labels && term.quote.addon_labels.length) { %>
+                  <% term.quote.addon_labels.forEach(label => { %><br><small style="color:#888;">+ <%= label %></small><% }) %>
                 <% } %>
               </td>
 
@@ -285,7 +285,8 @@
                   '<%= term.start_date ? new Date(term.start_date).toISOString().slice(0,10) : "" %>',
                   '<%= term.end_date ? new Date(term.end_date).toISOString().slice(0,10) : "" %>',
                   <%= term.quote?.price_per_student || 0 %>,
-                  <%- JSON.stringify(term.quote?.addon_plan_ids || []) %>,
+                  <%- JSON.stringify(term.quote?.addon_plan_ids || []).replace(/"/g, '&quot;') %>,
+                  <%- JSON.stringify(term.quote?.addon_quantities || {}).replace(/"/g, '&quot;') %>,
                   '<%= term.quote?.discount_type || "none" %>',
                   <%= term.quote?.discount_value || 0 %>,
                   '<%= (term.quote?.discount_reason || "").replace(/'/g, "\\'") %>'
@@ -987,12 +988,19 @@
 
       <% if (typeof schoolAddonPlans !== 'undefined' && schoolAddonPlans.length) { %>
         <div style="margin: 8px 0; font-size: 13px;">
-          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (flat fee per term, stack as many as apply):</div>
+          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (stack as many as apply):</div>
           <% schoolAddonPlans.forEach(addon => { %>
-            <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-              <input type="checkbox" name="addon_plan_ids" value="<%= addon.id %>" />
-              <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
-            </label>
+            <% if (addon.is_quantity_based) { %>
+              <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <%= addon.name %> — <%= addon.free_quantity %> free, then ₦<%= Number(addon.price_per_extra_unit).toLocaleString() %>/extra:
+                <input type="number" name="addon_qty_<%= addon.id %>" placeholder="0 = none" min="0" style="width:70px;" />
+              </label>
+            <% } else { %>
+              <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <input type="checkbox" name="addon_plan_ids" value="<%= addon.id %>" />
+                <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
+              </label>
+            <% } %>
           <% }) %>
         </div>
       <% } %>
@@ -1076,13 +1084,20 @@
 
       <% if (typeof schoolAddonPlans !== 'undefined' && schoolAddonPlans.length) { %>
         <div style="margin: 8px 0; font-size: 13px;">
-          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (flat fee per term, stack as many as apply):</div>
+          <div style="color:#888; font-size:11px; margin-bottom:4px;">Add-ons (stack as many as apply):</div>
           <div id="editTermAddonsContainer">
             <% schoolAddonPlans.forEach(addon => { %>
-              <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <input type="checkbox" class="edit-term-addon" value="<%= addon.id %>" />
-                <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
-              </label>
+              <% if (addon.is_quantity_based) { %>
+                <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                  <%= addon.name %> — <%= addon.free_quantity %> free, then ₦<%= Number(addon.price_per_extra_unit).toLocaleString() %>/extra:
+                  <input type="number" class="edit-term-addon-qty" data-plan-id="<%= addon.id %>" placeholder="0 = none" min="0" style="width:70px;" />
+                </label>
+              <% } else { %>
+                <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                  <input type="checkbox" class="edit-term-addon" value="<%= addon.id %>" />
+                  <%= addon.name %> — ₦<%= Number(addon.price_amount).toLocaleString() %>
+                </label>
+              <% } %>
             <% }) %>
           </div>
         </div>
@@ -2993,7 +3008,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- Script for editing term  -->
  <script>
-  function openEditTermModal(id, name, start, end, price, addonPlanIds, discountType, discountValue, discountReason) {
+  function openEditTermModal(id, name, start, end, price, addonPlanIds, addonQuantities, discountType, discountValue, discountReason) {
     document.getElementById("edit_term_id").value = id;
     document.getElementById("edit_term_name").value = name;
     document.getElementById("edit_start_date").value = start;
@@ -3003,6 +3018,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const checkedIds = (addonPlanIds || []).map(String);
     document.querySelectorAll("#editTermAddonsContainer .edit-term-addon").forEach((box) => {
       box.checked = checkedIds.includes(box.value);
+    });
+
+    const quantities = addonQuantities || {};
+    document.querySelectorAll("#editTermAddonsContainer .edit-term-addon-qty").forEach((input) => {
+      const planId = input.dataset.planId;
+      input.value = quantities[planId] || "";
     });
 
     const discountTypeEl = document.getElementById("edit_discount_type");
@@ -3024,6 +3045,15 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll("#editTermAddonsContainer .edit-term-addon:checked")
     ).map((box) => box.value);
 
+    const addonQuantities = {};
+    document.querySelectorAll("#editTermAddonsContainer .edit-term-addon-qty").forEach((input) => {
+      const qty = Number(input.value) || 0;
+      if (qty > 0) {
+        addonPlanIds.push(input.dataset.planId);
+        addonQuantities[input.dataset.planId] = qty;
+      }
+    });
+
     const discountTypeEl = document.getElementById("edit_discount_type");
     const discountValueEl = document.getElementById("edit_discount_value");
     const discountReasonEl = document.getElementById("edit_discount_reason");
@@ -3037,6 +3067,7 @@ document.addEventListener("DOMContentLoaded", () => {
         end_date: document.getElementById("edit_end_date").value,
         price_per_student: Number(document.getElementById("edit_price_per_student").value),
         addon_plan_ids: addonPlanIds,
+        addon_quantities: addonQuantities,
         discount_type: discountTypeEl ? discountTypeEl.value : "none",
         discount_value: discountValueEl ? Number(discountValueEl.value) || 0 : 0,
         discount_reason: discountReasonEl ? discountReasonEl.value : "",

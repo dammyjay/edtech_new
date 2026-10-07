@@ -16,7 +16,7 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 // const puppeteer = require("puppeteer");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
-const { calculateQuoteTotal, recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
+const { calculateQuoteTotal, recalcAndPersistQuoteTotal, attachAddonToQuote } = require("../services/quoteCalcService");
 const { getAllSchoolsWithPaymentSummary } = require("../services/schoolsAdminListService");
 const archiveService = require("../services/archiveService");
 const { escapeHtml, formatNaira } = require("../services/platformReportSections/sectionHelpers");
@@ -3566,10 +3566,13 @@ function parseFeaturesInput(raw) {
 }
 
 exports.createPricingPlan = async (req, res) => {
-  const { segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured, price_usd, schedule_text, show_publicly } = req.body;
+  const {
+    segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured,
+    price_usd, schedule_text, show_publicly, is_quantity_based, free_quantity, price_per_extra_unit,
+  } = req.body;
   await pool.query(
-    `INSERT INTO pricing_plans (segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured, price_usd, schedule_text, show_publicly)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    `INSERT INTO pricing_plans (segment, name, price_amount, billing_cycle, description, features, sort_order, is_addon, is_featured, price_usd, schedule_text, show_publicly, is_quantity_based, free_quantity, price_per_extra_unit)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       segment,
       name,
@@ -3583,6 +3586,9 @@ exports.createPricingPlan = async (req, res) => {
       price_usd ? Number(price_usd) : null,
       schedule_text || null,
       show_publicly === "on",
+      is_quantity_based === "on",
+      Number(free_quantity) || 0,
+      Number(price_per_extra_unit) || 0,
     ]
   );
   res.redirect("/admin/pricing-plans");
@@ -3590,13 +3596,18 @@ exports.createPricingPlan = async (req, res) => {
 
 exports.updatePricingPlan = async (req, res) => {
   const id = req.params.id;
-  const { name, price_amount, billing_cycle, description, features, sort_order, is_active, is_featured, price_usd, schedule_text, show_publicly } = req.body;
+  const {
+    name, price_amount, billing_cycle, description, features, sort_order, is_active, is_featured,
+    price_usd, schedule_text, show_publicly, is_quantity_based, free_quantity, price_per_extra_unit,
+  } = req.body;
   await pool.query(
     `UPDATE pricing_plans
      SET name = $1, price_amount = $2, billing_cycle = $3, description = $4,
          features = $5, sort_order = $6, is_active = $7, is_featured = $8,
-         price_usd = $9, schedule_text = $10, show_publicly = $11, updated_at = NOW()
-     WHERE id = $12`,
+         price_usd = $9, schedule_text = $10, show_publicly = $11,
+         is_quantity_based = $12, free_quantity = $13, price_per_extra_unit = $14,
+         updated_at = NOW()
+     WHERE id = $15`,
     [
       name,
       Number(price_amount) || 0,
@@ -3609,6 +3620,9 @@ exports.updatePricingPlan = async (req, res) => {
       price_usd ? Number(price_usd) : null,
       schedule_text || null,
       show_publicly === "on",
+      is_quantity_based === "on",
+      Number(free_quantity) || 0,
+      Number(price_per_extra_unit) || 0,
       id,
     ]
   );
@@ -6192,7 +6206,9 @@ exports.getSchoolDetails = async (req, res) => {
               total_amount: calc ? calc.totalAmount : quote.total_amount,
               subtotal: calc?.subtotal ?? null,
               addon_names: calc ? calc.addons.map((a) => a.plan_name).filter(Boolean) : [],
+              addon_labels: calc ? calc.addons.map((a) => a.label).filter(Boolean) : [],
               addon_plan_ids: calc ? calc.addons.map((a) => a.plan_id) : [],
+              addon_quantities: calc ? Object.fromEntries(calc.addons.filter((a) => a.quantity != null).map((a) => [a.plan_id, a.quantity])) : {},
               discount_amount: calc?.discountAmount ?? 0,
             }
           : null,
@@ -6224,7 +6240,7 @@ exports.getSchoolDetails = async (req, res) => {
     school.totals = totalsResult.rows[0];
 
     const schoolPlansResult = await pool.query(
-      "SELECT id, name, price_amount, is_addon FROM pricing_plans WHERE segment = 'school' AND is_active = true ORDER BY sort_order ASC, name ASC"
+      "SELECT id, name, price_amount, is_addon, is_quantity_based, free_quantity, price_per_extra_unit FROM pricing_plans WHERE segment = 'school' AND is_active = true ORDER BY sort_order ASC, name ASC"
     );
 
     res.render("admin/school-details", {
@@ -10595,26 +10611,24 @@ exports.createTerm = async (req, res) => {
     );
     const quoteId = quoteResult.rows[0].id;
 
-    // Stack any selected flat-fee add-ons (Gadget Support, Internet
-    // Support, etc.) onto this quote. addon_plan_ids arrives as an array
-    // when 2+ checkboxes are checked, or a bare string when only one is —
-    // Express doesn't normalize that for same-name checkboxes.
-    const addonIds = Array.isArray(addon_plan_ids)
+    // Stack any selected add-ons (Gadget Support, Internet Support, Laptop
+    // Rental, etc.) onto this quote. Flat add-ons arrive via checked
+    // addon_plan_ids (an array when 2+ are checked, a bare string when
+    // only one is — Express doesn't normalize that for same-name
+    // checkboxes). Quantity-based add-ons have no checkbox at all — the
+    // view renders a number input named `addon_qty_<planId>` directly, so
+    // any such field with a value > 0 means that add-on is selected.
+    const flatAddonIds = Array.isArray(addon_plan_ids)
       ? addon_plan_ids
       : addon_plan_ids
       ? [addon_plan_ids]
       : [];
+    const quantityAddonIds = Object.keys(req.body)
+      .filter((key) => key.startsWith("addon_qty_") && Number(req.body[key]) > 0)
+      .map((key) => key.replace("addon_qty_", ""));
+    const addonIds = [...new Set([...flatAddonIds, ...quantityAddonIds])];
     for (const addonId of addonIds) {
-      const addonPlan = await pool.query(
-        "SELECT price_amount FROM pricing_plans WHERE id = $1 AND is_addon = true",
-        [addonId]
-      );
-      if (addonPlan.rows.length) {
-        await pool.query(
-          "INSERT INTO quote_addons (quote_id, plan_id, price_amount) VALUES ($1, $2, $3)",
-          [quoteId, addonId, addonPlan.rows[0].price_amount]
-        );
-      }
+      await attachAddonToQuote(quoteId, addonId, req.body[`addon_qty_${addonId}`]);
     }
 
     await recalcAndPersistQuoteTotal(quoteId);
@@ -10641,7 +10655,7 @@ exports.updateTerm = async (req, res) => {
   const { id } = req.params;
   const {
     name, start_date, end_date, price_per_student,
-    discount_type, discount_value, discount_reason, addon_plan_ids,
+    discount_type, discount_value, discount_reason, addon_plan_ids, addon_quantities,
   } = req.body;
 
   const price = parseFloat(price_per_student) || 0;
@@ -10669,23 +10683,16 @@ exports.updateTerm = async (req, res) => {
 
   if (quoteId) {
     // Re-sync add-ons to exactly the selected set — delete-all-then-
-    // reinsert-selected, snapshotting the add-on's CURRENT price_amount
-    // (same semantics as createTerm; simplest correct approach for a
-    // low-frequency admin action). addon_plan_ids arrives as a JSON
-    // array from the edit form's fetch body.
+    // reinsert-selected, snapshotting the add-on's CURRENT price/free
+    // allowance/per-extra-unit price (same semantics as createTerm;
+    // simplest correct approach for a low-frequency admin action).
+    // addon_plan_ids/addon_quantities arrive as JSON from the edit
+    // form's fetch body — addon_quantities keyed by plan id, only
+    // present for quantity-based add-ons.
     await pool.query("DELETE FROM quote_addons WHERE quote_id = $1", [quoteId]);
     const addonIds = Array.isArray(addon_plan_ids) ? addon_plan_ids : [];
     for (const addonId of addonIds) {
-      const addonPlan = await pool.query(
-        "SELECT price_amount FROM pricing_plans WHERE id = $1 AND is_addon = true",
-        [addonId]
-      );
-      if (addonPlan.rows.length) {
-        await pool.query(
-          "INSERT INTO quote_addons (quote_id, plan_id, price_amount) VALUES ($1, $2, $3)",
-          [quoteId, addonId, addonPlan.rows[0].price_amount]
-        );
-      }
+      await attachAddonToQuote(quoteId, addonId, addon_quantities?.[addonId]);
     }
 
     await recalcAndPersistQuoteTotal(quoteId);

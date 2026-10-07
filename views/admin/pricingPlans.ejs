@@ -126,6 +126,7 @@
           </ul>
         <% } %>
         <% if (plan.show_publicly) { %><p style="font-size:11px; color:#1f9d55; font-weight:700; margin:4px 0 0;">🌍 Shown on /for-schools (no price)</p><% } %>
+        <% if (plan.is_quantity_based) { %><p style="font-size:11px; color:#4C3802; font-weight:700; margin:4px 0 0;">🔢 <%= plan.free_quantity %> free, then ₦<%= Number(plan.price_per_extra_unit).toLocaleString() %>/extra</p><% } %>
         <% if (!plan.is_active) { %><p class="plan-card-inactive-tag">Inactive</p><% } %>
         <div class="article-buttons" style="margin-top: 10px;">
           <button type="button" class="btn-edit" onclick="openEditModal('<%= plan.id %>')">Edit</button>
@@ -204,6 +205,11 @@
       <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px;">
         <input type="checkbox" name="show_publicly" /> 🌍 Show on /for-schools (name &amp; description only — price is never shown publicly for add-ons)
       </label>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px;">
+        <input type="checkbox" name="is_quantity_based" /> 🔢 Quantity-based (e.g. Laptop/Tablet Rental — a free allowance, then a price per extra unit requested)
+      </label>
+      <input type="number" name="free_quantity" placeholder="Free quantity per term (only used if quantity-based)" min="0" />
+      <input type="number" name="price_per_extra_unit" placeholder="Price per extra unit (₦, only used if quantity-based)" min="0" />
       <button type="submit">Save</button>
     </form>
   </div>

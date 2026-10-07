@@ -282,12 +282,19 @@ function buildInvoiceHtml({ q, students, company, total, totalPaid, balance, wor
         </tr>
 
         ${addons
+          // An add-on fully covered by its free allowance (e.g. 2 laptops
+          // requested, 2 free) adds nothing to what the school owes — it
+          // shouldn't appear as a priced line at all, so the invoice reads
+          // as exactly "amount meant to pay," not as if a ₦0 charge was
+          // tacked on. A flat add-on always has a real price_amount, so
+          // this only ever filters out zero-cost quantity-based ones.
+          .filter((addon) => Number(addon.price_amount) > 0)
           .map(
             (addon, index) => `
         <tr>
           <td>${index + 2}</td>
           <td>${addon.plan_name || "Add-on"}</td>
-          <td colspan="2">Add-on (flat fee per term)</td>
+          <td colspan="2">${addon.quantity != null ? (addon.label || "").replace(/^[^—]*—\s*/, "") : "Add-on (flat fee per term)"}</td>
           <td>₦${Number(addon.price_amount).toLocaleString()}</td>
         </tr>`
           )
@@ -778,7 +785,7 @@ ${quote.address || ""}
 ${addons.length
   ? `<tr>
 <td>Add-ons Included</td>
-<td>${addons.map((a) => a.plan_name || "Add-on").join(", ")}</td>
+<td>${addons.map((a) => a.label || a.plan_name || "Add-on").join("; ")}</td>
 </tr>`
   : ""}
 ${discountAmount > 0

@@ -306,7 +306,11 @@
                     <% extraFeatures.forEach(f => { %><li><span class="fs-check">✓</span><%= f %></li><% }) %>
                   </ul>
                 <% } %>
-                <div class="fs-extra-price-note">Price on request</div>
+                <% if (addon.is_quantity_based && addon.free_quantity > 0) { %>
+                  <div class="fs-extra-price-note"><%= addon.free_quantity %> included free per term — request more as needed</div>
+                <% } else { %>
+                  <div class="fs-extra-price-note">Price on request</div>
+                <% } %>
               </div>
             <% }) %>
           </div>

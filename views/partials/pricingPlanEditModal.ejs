@@ -38,6 +38,14 @@
           <input type="checkbox" name="show_publicly" <%= plan.show_publicly ? 'checked' : '' %> />
           🌍 Show on /for-schools (name &amp; description only — no price)
         </label>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+          <input type="checkbox" name="is_quantity_based" <%= plan.is_quantity_based ? 'checked' : '' %> />
+          🔢 Quantity-based (a free allowance, then a price per extra unit requested)
+        </label>
+        <label style="font-size:11px; color:#888; display:block; margin:4px 0 2px;">Free quantity per term</label>
+        <input type="number" name="free_quantity" value="<%= plan.free_quantity || 0 %>" min="0" />
+        <label style="font-size:11px; color:#888; display:block; margin:4px 0 2px;">Price per extra unit (₦)</label>
+        <input type="number" name="price_per_extra_unit" value="<%= plan.price_per_extra_unit || 0 %>" min="0" />
       <% } %>
       <button type="submit">Update</button>
     </form>

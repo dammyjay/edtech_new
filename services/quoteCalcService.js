@@ -33,14 +33,15 @@ async function calculateQuoteTotal(quoteId) {
   const totalStudents = Number(countRes.rows[0].count);
 
   const addonsRes = await pool.query(
-    `SELECT qa.id, qa.plan_id, qa.price_amount, pp.name AS plan_name
+    `SELECT qa.id, qa.plan_id, qa.price_amount, qa.quantity, qa.free_quantity_snapshot,
+            qa.price_per_extra_unit_snapshot, pp.name AS plan_name
      FROM quote_addons qa
      LEFT JOIN pricing_plans pp ON pp.id = qa.plan_id
      WHERE qa.quote_id = $1
      ORDER BY qa.id ASC`,
     [quoteId]
   );
-  const addons = addonsRes.rows;
+  const addons = addonsRes.rows.map((a) => ({ ...a, label: formatAddonLabel(a) }));
   const addonTotal = addons.reduce((sum, a) => sum + Number(a.price_amount), 0);
 
   const pricePerStudent = Number(quote.price_per_student) || 0;
@@ -102,4 +103,58 @@ async function recalcAndPersistQuoteTotal(quoteId) {
   return { ...calc, totalPaid, balance };
 }
 
-module.exports = { calculateQuoteTotal, recalcAndPersistQuoteTotal };
+// Human-readable breakdown for a quote_addons row — plain "Internet
+// support" for a flat add-on, or e.g. "Laptop Rental — 5 requested, 2
+// free + 3 × ₦15,000" for a quantity-based one, so admin/schools never
+// have to guess why a line costs what it does.
+function formatAddonLabel(addon) {
+  const name = addon.plan_name || "Add-on";
+  if (addon.quantity == null) return name;
+
+  const quantity = Number(addon.quantity);
+  const freeQty = Number(addon.free_quantity_snapshot) || 0;
+  const perUnit = Number(addon.price_per_extra_unit_snapshot) || 0;
+  const extraUnits = Math.max(0, quantity - freeQty);
+
+  if (extraUnits === 0) return `${name} — ${quantity} requested (all free, up to ${freeQty})`;
+  return `${name} — ${quantity} requested, ${freeQty} free + ${extraUnits} × ₦${perUnit.toLocaleString()}`;
+}
+
+// Attaches one add-on to a quote, used by both createTerm and updateTerm
+// (controllers/adminController.js). For a quantity-based add-on (e.g.
+// Laptop Rental), `requestedQuantity` is how many the school is asking
+// for this term — defaulting to the plan's free allowance when omitted,
+// since just ticking the box with no number means "give the free
+// amount." Snapshots the plan's current free_quantity/
+// price_per_extra_unit so a later edit to the add-on itself never
+// retroactively changes this quote's price (same principle as
+// price_amount already follows for flat add-ons).
+async function attachAddonToQuote(quoteId, planId, requestedQuantity) {
+  const planRes = await pool.query(
+    `SELECT price_amount, is_quantity_based, free_quantity, price_per_extra_unit
+     FROM pricing_plans WHERE id = $1 AND is_addon = true`,
+    [planId]
+  );
+  const plan = planRes.rows[0];
+  if (!plan) return;
+
+  if (plan.is_quantity_based) {
+    const freeQty = Number(plan.free_quantity) || 0;
+    const perUnit = Number(plan.price_per_extra_unit) || 0;
+    const quantity = Number(requestedQuantity) || freeQty;
+    const extraUnits = Math.max(0, quantity - freeQty);
+    const priceAmount = extraUnits * perUnit;
+    await pool.query(
+      `INSERT INTO quote_addons (quote_id, plan_id, price_amount, quantity, free_quantity_snapshot, price_per_extra_unit_snapshot)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [quoteId, planId, priceAmount, quantity, freeQty, perUnit]
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO quote_addons (quote_id, plan_id, price_amount) VALUES ($1, $2, $3)`,
+      [quoteId, planId, plan.price_amount]
+    );
+  }
+}
+
+module.exports = { calculateQuoteTotal, recalcAndPersistQuoteTotal, attachAddonToQuote, formatAddonLabel };

@@ -895,6 +895,17 @@ async function createTables() {
         ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS show_publicly BOOLEAN DEFAULT false;
       `);
 
+      // A reusable capability for add-ons that don't make sense as one flat
+      // fee — e.g. Laptop/Tablet Rental: a school gets `free_quantity` free
+      // per term, and only units requested beyond that are charged, at
+      // `price_per_extra_unit` each. Any add-on can opt into this; it's not
+      // special-cased to specific add-on names.
+      await pool.query(`
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS is_quantity_based BOOLEAN DEFAULT false;
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS free_quantity INTEGER DEFAULT 0;
+        ALTER TABLE pricing_plans ADD COLUMN IF NOT EXISTS price_per_extra_unit NUMERIC DEFAULT 0;
+      `);
+
       // junction table for quotes
     await pool.query(`
       CREATE TABLE IF NOT EXISTS quotes (
@@ -947,6 +958,15 @@ async function createTables() {
         price_amount INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      -- For a quantity-based add-on: how many units were requested, and a
+      -- snapshot of the plan's free allowance/per-extra-unit price at the
+      -- moment the quantity was set — same "never retroactively change an
+      -- already-created quote" reasoning as price_amount above. NULL for a
+      -- plain flat-fee add-on.
+      ALTER TABLE quote_addons
+      ADD COLUMN IF NOT EXISTS quantity INTEGER,
+      ADD COLUMN IF NOT EXISTS free_quantity_snapshot INTEGER,
+      ADD COLUMN IF NOT EXISTS price_per_extra_unit_snapshot NUMERIC;
     `);
 
     // table for school payments
