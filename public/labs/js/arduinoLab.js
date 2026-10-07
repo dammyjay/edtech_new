@@ -3492,8 +3492,12 @@ function scheduleAutoSave() {
   saveTimer = setTimeout(() => saveProject(false), 2000);
 }
 
+// Returns { saved: boolean } — saved is only true when the project data
+// actually reached the server. A queued-offline save returns
+// `success: true` even though nothing was persisted server-side yet, so
+// the Submit flow must check `saved`, not just whether this threw.
 async function saveProject(manual) {
-  if (!currentProjectId) return;
+  if (!currentProjectId) return { saved: false };
   const payload = {
     projectId: currentProjectId,
     projectData: {
@@ -3532,10 +3536,12 @@ async function saveProject(manual) {
       else if (data.success) showToast("💾 Project saved!");
       else showToast("Couldn't save — try again.");
     }
+    return { saved: !data.queued && !!data.success };
   } catch (err) {
     console.error("ARDUINO SAVE ERROR:", err);
     setSaveStatus("Save failed");
     if (manual) showToast("Couldn't save — try again.");
+    return { saved: false };
   }
 }
 
@@ -3675,7 +3681,15 @@ document.getElementById("submitBtn")?.addEventListener("click", async () => {
     : confirm(confirmMessage);
   if (!confirmed) return;
 
-  await saveProject(false);
+  const { saved } = await saveProject(false);
+  if (!saved) {
+    (window.showAlert || alert)(
+      "Your latest changes haven't reached the server yet (connection issue). " +
+      "Please check your internet connection and try submitting again once it's back — " +
+      "submitting now would grade an old or empty version of your work."
+    );
+    return;
+  }
 
   const submitBtnEl = document.getElementById("submitBtn");
   window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");

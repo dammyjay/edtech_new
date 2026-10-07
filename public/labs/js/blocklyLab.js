@@ -598,7 +598,19 @@ async function initBlocklyLab() {
       const confirmed = await showConfirm(confirmMessage, { confirmText: "Submit" });
       if (!confirmed) return;
 
-      await saveProject(false);
+      const { saved } = await saveProject(false);
+      if (!saved) {
+        // The workspace was queued offline or failed to save — the
+        // server does NOT have the student's current blocks yet.
+        // Submitting now would grade stale/empty project_data (exactly
+        // how a real submission once scored 0 despite correct work).
+        showAlert(
+          "Your latest changes haven't reached the server yet (connection issue). " +
+          "Please check your internet connection and try submitting again once it's back — " +
+          "submitting now would grade an old or empty version of your work."
+        );
+        return;
+      }
 
       const submitBtnEl = document.getElementById("submitBtn");
       window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
@@ -1368,8 +1380,15 @@ async function initLab(labType) {
   }
 }
 
+// Returns { saved: boolean } — saved is only true when the project data
+// actually reached the server. A queued-offline save (data.queued, see
+// offlineSync.js) returns `success: true` even though nothing was
+// persisted server-side yet, and a thrown error here previously just
+// logged to console — both cases used to let the Submit flow sail
+// straight through and grade whatever stale/empty project_data was
+// already on the server, scoring real, just-written work as 0.
 async function saveProject(manual = false) {
-  if (!window.currentProjectId || !workspace) return;
+  if (!window.currentProjectId || !workspace) return { saved: false };
 
   try {
     // Save whatever's currently in the visible workspace back onto the
@@ -1429,9 +1448,11 @@ async function saveProject(manual = false) {
       if (data.queued) showToast("📡 Offline — saved locally, will sync when back online", "info");
       else showToast("💾 Project saved!", "success");
     }
+    return { saved: !data.queued };
   } catch (err) {
     console.error("Save Error:", err);
     if (manual) showToast("Couldn't save — try again.", "error");
+    return { saved: false };
   }
 }
 
@@ -1451,6 +1472,14 @@ async function runCode() {
   if (window.currentSprite) {
     window.currentSprite.workspaceXml = Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace));
   }
+
+  // Event handlers (When Key Pressed, When Sprite Clicked, ...) are
+  // normally kept in sync by the workspace's change listener, but that's
+  // a side effect of editing — it's not guaranteed to have fired with
+  // the final state before Run is clicked (e.g. right after switching
+  // sprites, or a block change that didn't register as a content event).
+  // Run should always test the workspace exactly as it stands now.
+  compileEvents();
 
   isRunning = true;
   stopRequested = false;

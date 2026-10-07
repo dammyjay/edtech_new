@@ -5110,7 +5110,7 @@ async function requestFiftyFifty(questionId) {
         }
 
         const lab = data.lab;
-        const LAB_EDITOR_PATHS = { blockly: "/labs/blockly", python: "/labs/python", web: "/labs/web" };
+        const LAB_EDITOR_PATHS = { blockly: "/labs/blockly", python: "/labs/python", web: "/labs/web", arduino: "/labs/arduino" };
         const editorPath = LAB_EDITOR_PATHS[lab.lab_type] || "/labs/web";
         const openUrl = `${editorPath}?labId=${lab.id}&lessonId=${lessonId}`;
 

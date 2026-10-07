@@ -72,6 +72,14 @@ window.registerKeyEvent = function (key, callback) {
   window.keyEvents[key].push({ sprite: window.currentRuntimeSprite, callback });
 };
 
+// Capture phase (the `true` 3rd argument), not bubble — Blockly itself
+// binds its own per-widget/per-block keydown handlers (e.g. for its
+// keyboard-navigation and field-editor features) directly on focusable
+// elements inside the workspace SVG, and a block left focused after the
+// student just placed it is a completely normal state. A bubble-phase
+// listener on document only ever sees what those handlers let through;
+// capture phase runs top-down before any of them, so a "When Space
+// Pressed" block fires regardless of what element currently has focus.
 document.addEventListener("keydown", async (e) => {
   const list = window.keyEvents[e.key];
 
@@ -83,7 +91,7 @@ document.addEventListener("keydown", async (e) => {
   }
 
   window.currentRuntimeSprite = null;
-});
+}, true);
 
 // compileEvents() re-registers every sprite's event blocks on every
 // workspace change — remove each sprite's previous click handler first

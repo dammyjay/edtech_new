@@ -155,8 +155,12 @@ function runCode() {
   }, RUN_TIMEOUT_MS);
 }
 
+// Returns { saved: boolean } — saved is only true when the project data
+// actually reached the server. A queued-offline save returns
+// `success: true` even though nothing was persisted server-side yet, so
+// the Submit flow must check `saved`, not just whether this threw.
 async function saveProject(manual) {
-  if (!window.currentProjectId) return;
+  if (!window.currentProjectId) return { saved: false };
 
   const payload = {
     projectId: window.currentProjectId,
@@ -181,10 +185,12 @@ async function saveProject(manual) {
       else if (data.success) showToast("💾 Project saved!", "success");
       else showToast("Couldn't save — try again.", "error");
     }
+    return { saved: !data.queued && !!data.success };
   } catch (err) {
     console.error("SAVE ERROR:", err);
     document.getElementById("saveStatus").textContent = "Save failed";
     if (manual) showToast("Couldn't save — try again.", "error");
+    return { saved: false };
   }
 }
 
@@ -301,7 +307,15 @@ require(["vs/editor/editor.main"], function () {
     const confirmed = await showConfirm(confirmMessage, { confirmText: "Submit" });
     if (!confirmed) return;
 
-    await saveProject(false);
+    const { saved } = await saveProject(false);
+    if (!saved) {
+      showAlert(
+        "Your latest changes haven't reached the server yet (connection issue). " +
+        "Please check your internet connection and try submitting again once it's back — " +
+        "submitting now would grade an old or empty version of your work."
+      );
+      return;
+    }
 
     const submitBtnEl = document.getElementById("submitBtn");
     window.LabProjectBar?.setButtonLoading(submitBtnEl, true, "Submitting…");
