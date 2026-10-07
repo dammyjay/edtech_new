@@ -1479,7 +1479,7 @@ async function runCode() {
   // the final state before Run is clicked (e.g. right after switching
   // sprites, or a block change that didn't register as a content event).
   // Run should always test the workspace exactly as it stands now.
-  compileEvents();
+  await compileEvents();
 
   isRunning = true;
   stopRequested = false;
@@ -1557,12 +1557,24 @@ async function runGeneratedCode(sprite, code) {
 // XML, or the live workspace for whichever sprite is currently open),
 // with currentRuntimeSprite set to the owning sprite while its
 // event-setup code runs, so the handlers it registers stay bound to it.
-function compileEvents() {
+//
+// async + a plain for-of (not .forEach, which never awaits its callback)
+// — generator.STATEMENT_PREFIX is set globally (blocklyLab.js init) to
+// prepend `await highlightBlock(id);` before every block's generated
+// code, including the top-level when_key_pressed/when_sprite_clicked
+// block itself here (not just blocks inside its DO stack). That makes
+// `eventCode` start with a bare top-level `await`, which a plain
+// `new Function(eventCode)()` can't parse at all ("await is only valid
+// in async functions") — it must run inside an async wrapper, and that
+// wrapper must be awaited before currentRuntimeSprite is cleared so
+// registerKeyEvent/registerSpriteClick (called after that leading
+// await resolves) still see the right owning sprite.
+async function compileEvents() {
   clearEvents();
 
   const generator = javascript.javascriptGenerator;
 
-  window.sprites.forEach((sprite) => {
+  for (const sprite of window.sprites) {
     const isOpenInEditor = window.currentSprite && window.currentSprite.id === sprite.id;
 
     let sourceWorkspace = null;
@@ -1577,7 +1589,7 @@ function compileEvents() {
       sourceWorkspace = tempWorkspace;
     }
 
-    if (!sourceWorkspace) return;
+    if (!sourceWorkspace) continue;
 
     generator.init(sourceWorkspace);
 
@@ -1597,12 +1609,17 @@ function compileEvents() {
 
     if (eventCode) {
       window.currentRuntimeSprite = sprite;
-      new Function(eventCode)();
+      try {
+        const fn = new Function(`return (async () => {\n${eventCode}\n})();`);
+        await fn();
+      } catch (err) {
+        console.error("compileEvents: failed to register events for sprite", sprite.name, err);
+      }
       window.currentRuntimeSprite = null;
     }
 
     if (tempWorkspace) tempWorkspace.dispose();
-  });
+  }
 }
 
 function clearEvents() {
