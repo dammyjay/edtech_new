@@ -3622,6 +3622,7 @@ exports.getLessonQuiz = async (req, res) => {
   const studentId = req.session?.student?.id || req.user?.id;
   const isRetake = req.query.retake === "true" || req.query.retake === "1";
   let attemptCount = 0;
+  let lastSubmissionTime = null;
 
   try {
     // 1️⃣ Get quiz for this lesson
@@ -3649,8 +3650,30 @@ exports.getLessonQuiz = async (req, res) => {
         [quizId, studentId]
       );
       attemptCount = subRes.rows[0] ? parseInt(subRes.rows[0].attempt_count, 10) : 0;
+      lastSubmissionTime = subRes.rows[0]?.created_at || null;
 
-      if (subRes.rows.length > 0 && !isRetake) {
+      // A retake the student already started (answered at least one
+      // question live) but hasn't resubmitted yet — e.g. they clicked
+      // Retake, answered a few questions, then refreshed the page. A
+      // plain reload (isRetake false) must resume THAT in-progress
+      // attempt, not show the old summary again or charge coins a
+      // second time — both branches below are skipped for it, falling
+      // straight through to the "fetch fresh questions" code, which
+      // restores its answers via the same since-last-submission-scoped
+      // progress query used for a first-ever attempt.
+      let hasInProgressRetake = false;
+      if (subRes.rows.length > 0 && lastSubmissionTime) {
+        const inProgressRes = await pool.query(
+          `SELECT 1 FROM quiz_answer_checks qac
+           JOIN quiz_questions qq ON qac.question_id = qq.id
+           WHERE qac.student_id = $1 AND qq.quiz_id = $2 AND qac.checked_at > $3
+           LIMIT 1`,
+          [studentId, quizId, lastSubmissionTime]
+        );
+        hasInProgressRetake = inProgressRes.rows.length > 0;
+      }
+
+      if (subRes.rows.length > 0 && !isRetake && !hasInProgressRetake) {
         const sub = subRes.rows[0];
         let reviewData = sub.review_data;
 
@@ -3692,7 +3715,7 @@ exports.getLessonQuiz = async (req, res) => {
       // mirroring the lab task's MAX_LAB_SUBMISSIONS — checked BEFORE
       // charging coins so a student can never pay for a retake they're
       // not allowed to take.
-      if (subRes.rows.length > 0 && isRetake) {
+      if (subRes.rows.length > 0 && isRetake && !hasInProgressRetake) {
         if (attemptCount >= MAX_QUIZ_ATTEMPTS) {
           return res.json({
             success: false,
@@ -3780,22 +3803,29 @@ exports.getLessonQuiz = async (req, res) => {
       return { ...q, options };
     });
 
-    // In-progress answers from BEFORE a reload — we've already returned
-    // above if a submission exists, so every quiz_answer_checks row for
-    // this student across this quiz's questions belongs to the single
-    // still-open attempt, no "since last submission" boundary needed.
-    // The client uses this to redraw each already-checked question
-    // exactly as it was (locked, correct/incorrect shown) and resume at
-    // the first still-unanswered one — previously this was lost on every
-    // refresh, and worse, re-submitting a restored-as-blank question that
-    // the server still considered checked failed with no explanation.
+    // In-progress answers from BEFORE a reload — scoped to checks made
+    // AFTER the student's last submission (same "since last submission"
+    // boundary checkQuizAnswer uses), not just "ever for this question".
+    // Without this, a retake restored the PREVIOUS attempt's answers as
+    // already-checked/locked instead of starting blank — quiz_questions
+    // rows are reused across attempts, so an unscoped query here can't
+    // tell a fresh retake's empty progress apart from the old attempt's
+    // finished one. For a genuinely first-ever attempt (no submission
+    // yet), lastSubmissionTime is null and every check ever made counts,
+    // same as before. The client uses this to redraw each already-checked
+    // question exactly as it was (locked, correct/incorrect shown) and
+    // resume at the first still-unanswered one — previously this was lost
+    // on every refresh, and worse, re-submitting a restored-as-blank
+    // question that the server still considered checked failed with no
+    // explanation.
     const progress = {};
     if (studentId) {
+      const progressSinceTime = lastSubmissionTime || new Date(0);
       const checksRes = await pool.query(
         `SELECT question_id, answer, was_correct
          FROM quiz_answer_checks
-         WHERE student_id = $1 AND question_id = ANY($2::int[])`,
-        [studentId, questions.map((q) => q.id)]
+         WHERE student_id = $1 AND question_id = ANY($2::int[]) AND checked_at > $3`,
+        [studentId, questions.map((q) => q.id), progressSinceTime]
       );
       checksRes.rows.forEach((row) => {
         progress[row.question_id] = { answer: row.answer, isCorrect: row.was_correct };
