@@ -3611,11 +3611,17 @@ exports.getLessonLab = async (req, res) => {
   }
 };
 
+// Mirrors MAX_LAB_SUBMISSIONS in controllers/labController.js — same
+// "first attempt + 2 retakes" cap, kept separate since quizzes and lab
+// tasks are unrelated features that happen to agree on the number.
+const MAX_QUIZ_ATTEMPTS = 3;
+
 exports.getLessonQuiz = async (req, res) => {
   const lessonId = req.params.id;
   // const lessonId = req.params.lessonId;
   const studentId = req.session?.student?.id || req.user?.id;
   const isRetake = req.query.retake === "true" || req.query.retake === "1";
+  let attemptCount = 0;
 
   try {
     // 1️⃣ Get quiz for this lesson
@@ -3634,13 +3640,15 @@ exports.getLessonQuiz = async (req, res) => {
     // 2️⃣ Check if student already submitted
     if (studentId) {
       const subRes = await pool.query(
-        `SELECT score, passed, review_data, created_at
+        `SELECT score, passed, review_data, created_at,
+                (SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2) AS attempt_count
          FROM quiz_submissions
          WHERE quiz_id = $1 AND student_id = $2
          ORDER BY created_at DESC
          LIMIT 1`,
         [quizId, studentId]
       );
+      attemptCount = subRes.rows[0] ? parseInt(subRes.rows[0].attempt_count, 10) : 0;
 
       if (subRes.rows.length > 0 && !isRetake) {
         const sub = subRes.rows[0];
@@ -3662,6 +3670,8 @@ exports.getLessonQuiz = async (req, res) => {
           score: sub.score,
           passed: sub.passed,
           reviewData, // ✅ always array now
+          submissionCount: attemptCount,
+          maxAttempts: MAX_QUIZ_ATTEMPTS,
           feedback:
             sub.score >= 80
               ? "🌟 Excellent work! You clearly understood this lesson."
@@ -3678,7 +3688,20 @@ exports.getLessonQuiz = async (req, res) => {
       // checkQuizAnswer's answer-check already scopes "this attempt" to
       // everything checked AFTER the last quiz_submissions row, so no
       // separate attempt counter is needed once a new submission lands.
+      // Capped at MAX_QUIZ_ATTEMPTS total (first attempt + retakes),
+      // mirroring the lab task's MAX_LAB_SUBMISSIONS — checked BEFORE
+      // charging coins so a student can never pay for a retake they're
+      // not allowed to take.
       if (subRes.rows.length > 0 && isRetake) {
+        if (attemptCount >= MAX_QUIZ_ATTEMPTS) {
+          return res.json({
+            success: false,
+            maxAttemptsReached: true,
+            submissionCount: attemptCount,
+            maxAttempts: MAX_QUIZ_ATTEMPTS,
+            message: `You've used all ${MAX_QUIZ_ATTEMPTS} attempts for this quiz.`,
+          });
+        }
         const newBalance = await spendCoins(studentId, QUIZ_RETAKE_COST, "Quiz retake");
         if (newBalance === null) {
           return res.json({ success: false, notEnoughCoins: true, message: "Not enough coins." });
@@ -3784,6 +3807,8 @@ exports.getLessonQuiz = async (req, res) => {
       alreadySubmitted: false,
       questions,
       progress,
+      submissionCount: attemptCount,
+      maxAttempts: MAX_QUIZ_ATTEMPTS,
     });
   } catch (err) {
     console.error("Error fetching quiz:", err);
@@ -3872,6 +3897,25 @@ exports.submitLessonQuiz = async (req, res) => {
       });
     }
     const quizId = quizRes.rows[0].id;
+
+    // Hard cap at MAX_QUIZ_ATTEMPTS total (first attempt + retakes) —
+    // checked here, before any scoring/AI-feedback work runs, so a
+    // direct repeated POST to this endpoint (skipping the coin-gated
+    // getLessonQuiz?retake=true step entirely) can't rack up unlimited
+    // free attempts. Mirrors labController.js's submitProject check.
+    const attemptCountRes = await pool.query(
+      "SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2",
+      [quizId, studentId]
+    );
+    const attemptCountSoFar = parseInt(attemptCountRes.rows[0].count, 10);
+    if (attemptCountSoFar >= MAX_QUIZ_ATTEMPTS) {
+      return res.status(403).json({
+        success: false,
+        maxAttemptsReached: true,
+        submissionCount: attemptCountSoFar,
+        message: `You've used all ${MAX_QUIZ_ATTEMPTS} attempts for this quiz.`,
+      });
+    }
 
     // ✅ Fetch quiz questions
     const qRes = await pool.query(
@@ -3986,16 +4030,13 @@ ${JSON.stringify(reviewData, null, 2)}
           : "❌ Incorrect. Review the lesson content.";
     });
     
-    // Quiz XP is only ever awarded once per (quiz, student) — checked
-    // BEFORE inserting the new quiz_submissions row below, since that
-    // insert always succeeds (retakes are allowed) unlike the old
-    // user_lesson_progress gate this replaces. Same pattern already used
-    // for the lab's own isFirstSubmission (controllers/labController.js).
-    const priorQuizAttemptsRes = await pool.query(
-      "SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = $1 AND student_id = $2",
-      [quizId, studentId]
-    );
-    const isFirstQuizAttempt = parseInt(priorQuizAttemptsRes.rows[0].count, 10) === 0;
+    // Quiz XP is only ever awarded once per (quiz, student) — reuses the
+    // attemptCountSoFar computed above (before the cap check), since
+    // that insert always succeeds (retakes are allowed up to the cap)
+    // unlike the old user_lesson_progress gate this replaces. Same
+    // pattern already used for the lab's own isFirstSubmission
+    // (controllers/labController.js).
+    const isFirstQuizAttempt = attemptCountSoFar === 0;
 
     const submissionRes = await pool.query(
     `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
@@ -4201,6 +4242,8 @@ ${JSON.stringify(reviewData, null, 2)}
       // instead of "Next Lesson" (views/student/dashboard.ejs's
       // renderQuizSummary), since nextLessonId is null in that case.
       pendingLab,
+      submissionCount: attemptCountSoFar + 1,
+      maxAttempts: MAX_QUIZ_ATTEMPTS,
     });
   } catch (err) {
     console.error("Quiz submit error:", err.message);

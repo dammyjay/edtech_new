@@ -5211,6 +5211,17 @@ async function requestFiftyFifty(questionId) {
           return;
         }
 
+        if (data.maxAttemptsReached) {
+          hideLoading();
+          window.quizSubmissionCount = data.submissionCount;
+          showToast(data.message || "You've used all your attempts for this quiz.");
+          return;
+        }
+
+        if (typeof data.submissionCount === "number") {
+          window.quizSubmissionCount = data.submissionCount;
+        }
+
         if (!data.success) {
           if (data.locked) {
             renderQuizLockNotice(container, data);
@@ -5469,14 +5480,22 @@ function toggleGamifySound() {
 // here (the server is the real gate, same convention as
 // MAX_LAB_SUBMISSIONS in loadLabTaskInline above).
 const QUIZ_RETAKE_COST = 15;
+// Mirrors MAX_QUIZ_ATTEMPTS in controllers/studentController.js — the
+// server is the real gate; this just lets the client skip straight to
+// the "no attempts left" toast instead of a round-trip.
+const MAX_QUIZ_ATTEMPTS = 3;
 
 async function retakeQuiz(lessonId) {
+  const usedSoFar = window.quizSubmissionCount || 0;
+  if (usedSoFar >= MAX_QUIZ_ATTEMPTS) {
+    showToast(`You've used all ${MAX_QUIZ_ATTEMPTS} attempts for this quiz.`);
+    return;
+  }
+
+  const confirmMessage = `Retaking this quiz costs ${QUIZ_RETAKE_COST} coins. This will be attempt ${usedSoFar + 1} of ${MAX_QUIZ_ATTEMPTS}. Continue?`;
   const confirmed = window.showConfirm
-    ? await window.showConfirm(
-        `Retaking this quiz costs ${QUIZ_RETAKE_COST} coins. Continue?`,
-        { confirmText: "Retake" }
-      )
-    : confirm(`Retaking this quiz costs ${QUIZ_RETAKE_COST} coins. Continue?`);
+    ? await window.showConfirm(confirmMessage, { confirmText: "Retake" })
+    : confirm(confirmMessage);
   if (!confirmed) return;
   loadQuizInline(lessonId, true);
 }
@@ -5615,12 +5634,14 @@ function renderQuizSummary() {
 
       ${nextActionButton}
 
-      <button
+      ${(window.quizSubmissionCount || 0) >= MAX_QUIZ_ATTEMPTS
+        ? `<span class="quiz-btn quiz-btn-secondary" style="opacity:0.6; cursor:default;" title="No attempts left">🔄 No Retakes Left (${MAX_QUIZ_ATTEMPTS}/${MAX_QUIZ_ATTEMPTS} used)</span>`
+        : `<button
         class="quiz-btn quiz-btn-secondary"
         onclick="retakeQuiz(${currentQuizLessonId})"
       >
-        🔄 Retake Quiz (${QUIZ_RETAKE_COST} coins)
-      </button>
+        🔄 Retake Quiz (${QUIZ_RETAKE_COST} coins) — Attempt ${(window.quizSubmissionCount || 0) + 1} of ${MAX_QUIZ_ATTEMPTS}
+      </button>`}
 
       <button
         class="quiz-btn quiz-btn-secondary"
@@ -5967,6 +5988,9 @@ function submitQuizAnswers(lessonId){
           nextModuleId: result.nextModuleId || null,
           pendingLab: result.pendingLab || null,
         };
+        if (typeof result.submissionCount === "number") {
+          window.quizSubmissionCount = result.submissionCount;
+        }
         if (result.nextLessonId) {
           unlockSidebarLesson(result.nextLessonId);
         }
@@ -6388,6 +6412,9 @@ function submitQuizInline(e, lessonId) {
           nextModuleId: result.nextModuleId || null,
           pendingLab: result.pendingLab || null,
         };
+        if (typeof result.submissionCount === "number") {
+          window.quizSubmissionCount = result.submissionCount;
+        }
         if (result.nextLessonId) {
           unlockSidebarLesson(result.nextLessonId);
         }

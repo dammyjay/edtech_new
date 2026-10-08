@@ -410,7 +410,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Quiz Aids & Streak Protection", items: [
         "AI hint (10 coins) and 50/50 (20 coins) during a quiz attempt.",
-        "Retaking an already-submitted quiz costs 15 coins, confirmed via a pop-up before it proceeds; unlimited retakes, but only the first attempt ever earns XP or the boss-battle coin bonus.",
+        "Retaking an already-submitted quiz costs 15 coins, confirmed via a pop-up (which states the attempt number) before it proceeds; capped at 3 attempts total, same cap as a lesson-attached lab task, and only the first attempt ever earns XP or the boss-battle coin bonus.",
         "Streak freeze (10 coins) protects the daily streak on a day the student can't study.",
       ]},
       { category: "Arcade", items: [
@@ -730,7 +730,7 @@ const USER_STORY_BLOCKS = [
       { want: "see my XP, level, streak and coin balance at a glance", benefit: "I stay motivated and know where I stand" },
       { want: "move through a course's modules and lessons in a guided sequence", benefit: "I build skills in the right order without getting lost or overwhelmed" },
       { want: "take a quiz, see my score, and get an AI explanation on every answer", benefit: "I understand not just what I got wrong but why" },
-      { want: "retake a quiz as many times as I want, with a clear coin-cost warning before I commit", benefit: "I can keep practicing until I've really mastered it, even though only my first attempt earns XP, and I'm never surprised by a coin charge" },
+      { want: "retake a quiz up to 3 times, with a clear coin-cost and attempt-number warning before each retry", benefit: "I can keep practicing within a fair limit, even though only my first attempt earns XP, and I always know exactly which attempt I'm paying for" },
       { want: "ask an AI Tutor questions grounded in my current lesson or my own code", benefit: "I get help exactly when I'm stuck, without waiting for a teacher" },
       { want: "see 'Recommended for you' suggestions when I score low on something", benefit: "I know exactly what to review next instead of guessing" },
       { want: "reflect on what clicked and what's still fuzzy after a quiz", benefit: "the AI Tutor has better context to help me later" },
