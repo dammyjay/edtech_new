@@ -317,6 +317,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Shared Across Labs", items: [
         "Auto-save with offline queueing (saves sent once the connection returns) — Submit now checks the save actually reached the server (not just locally queued) before grading, so a connection hiccup can never cause a student's real work to be graded as empty. The Arduino lab's Blocks mode also force-syncs its generated sketch into the saved code before every save, instead of trusting a 300ms background timer to have already run — submitting right after placing a block could otherwise save stale (even blank) code despite a complete, correct circuit.",
+        "A lesson-linked lab project's type now self-heals against its lesson_labs parent on every load — found (and fixed, platform-wide) real submissions saved under the wrong lab type, which made grading read the wrong field entirely (e.g. an Arduino submission graded via the Blockly branch always looks like \"no code,\" since the two store work under different fields) regardless of what the student actually built. Previously nothing re-checked a project's stored type against its lesson once created.",
         "'Back to Lesson' link when opened from lesson context; coin-metered AI Tutor in every lab.",
         "Lesson-attached lab tasks (Web/Blockly/Python/Arduino): AI grades on submit (score + feedback), up to 3 attempts, first submission pays XP and can unlock the next lesson.",
         "Free-play projects (not tied to a lesson) pay a one-time +15 XP/+10 coins on first submission.",

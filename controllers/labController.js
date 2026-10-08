@@ -404,16 +404,42 @@ exports.initProject = async (req, res) => {
         [labId, studentId]
       );
       if (lessonProject.rows.length > 0) {
+        let project = lessonProject.rows[0];
+        // Self-heal: a project's lab_type must always match its
+        // lesson_labs parent's type — a mismatch here is leftover bad
+        // data (e.g. an Arduino task's project row that somehow ended up
+        // tagged "blockly" from before that lab type's wiring was
+        // complete). Left uncorrected, grading reads the WRONG branch
+        // forever — an Arduino submission graded as Blockly always looks
+        // like "no code was written," regardless of what was actually
+        // built, since the two store their work under different fields.
+        // Correct it in place rather than silently mis-grading the
+        // student's real work every time; their saved project_data is
+        // untouched.
+        if (project.lab_type !== labType) {
+          const lessonLabRes = await pool.query(
+            `SELECT lab_type FROM lesson_labs WHERE id = $1`,
+            [labId]
+          );
+          if (lessonLabRes.rows[0]?.lab_type === labType) {
+            const fixed = await pool.query(
+              `UPDATE lab_projects SET lab_type = $1 WHERE id = $2 RETURNING *`,
+              [labType, project.id]
+            );
+            project = fixed.rows[0];
+          }
+        }
+
         // Lets the editor show the right confirm message/attempt count
         // before the student even hits Submit (see MAX_LAB_SUBMISSIONS
         // below and public/labs/js/{web,blockly}Lab.js's submit handlers).
         const subCountRes = await pool.query(
           "SELECT COUNT(*) FROM lab_submissions WHERE project_id = $1",
-          [lessonProject.rows[0].id]
+          [project.id]
         );
         return res.json({
           success: true,
-          project: lessonProject.rows[0],
+          project,
           submissionCount: parseInt(subCountRes.rows[0].count, 10),
         });
       }
