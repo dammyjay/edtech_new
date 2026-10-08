@@ -401,6 +401,19 @@ window.ArduinoBlocksLab = {
   getCurrentMode: () => currentMode,
   getActiveExtensionIds: () => activeExtensionIds.slice(),
   getWorkspaceJson: () => (blocksWorkspace ? Blockly.serialization.workspaces.save(blocksWorkspace) : null),
+  // regenerateCodeFromBlocks() normally only runs 300ms after the last
+  // block edit (onWorkspaceChanged's debounce) — if a student edits a
+  // block and saves/submits within that window, codeEditor can still
+  // hold the PREVIOUS generated code, not what the blocks currently show.
+  // arduinoLab.js's saveProject() calls this first, forcing codeEditor
+  // in sync with the live workspace before every save, not just whenever
+  // the debounce happens to have already fired.
+  syncCodeFromBlocks: () => {
+    if (currentMode === "blocks" && blocksWorkspace) {
+      clearTimeout(regenTimer);
+      regenerateCodeFromBlocks();
+    }
+  },
   restoreFromProject: async (extensions, workspaceJson, mode) => {
     if (!blocksWorkspace) return;
     activeExtensionIds = [];

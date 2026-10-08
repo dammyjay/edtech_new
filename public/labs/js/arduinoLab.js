@@ -3498,6 +3498,12 @@ function scheduleAutoSave() {
 // the Submit flow must check `saved`, not just whether this threw.
 async function saveProject(manual) {
   if (!currentProjectId) return { saved: false };
+  // Force codeEditor in sync with the live blocks workspace before
+  // reading it — regenerateCodeFromBlocks() otherwise only runs 300ms
+  // after the last block edit (see arduinoBlocksLab.js), so a save/submit
+  // right after placing the final block could otherwise capture stale
+  // (even empty-starter) code despite the workspace being complete.
+  window.ArduinoBlocksLab?.syncCodeFromBlocks();
   const payload = {
     projectId: currentProjectId,
     projectData: {

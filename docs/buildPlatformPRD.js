@@ -316,7 +316,7 @@ const FEATURE_MODULES = [
         "No Submit or Publish button — this lab is a design/simulation sandbox only, not a gradeable-submission surface.",
       ]},
       { category: "Shared Across Labs", items: [
-        "Auto-save with offline queueing (saves sent once the connection returns) — Submit now checks the save actually reached the server (not just locally queued) before grading, so a connection hiccup can never cause a student's real work to be graded as empty.",
+        "Auto-save with offline queueing (saves sent once the connection returns) — Submit now checks the save actually reached the server (not just locally queued) before grading, so a connection hiccup can never cause a student's real work to be graded as empty. The Arduino lab's Blocks mode also force-syncs its generated sketch into the saved code before every save, instead of trusting a 300ms background timer to have already run — submitting right after placing a block could otherwise save stale (even blank) code despite a complete, correct circuit.",
         "'Back to Lesson' link when opened from lesson context; coin-metered AI Tutor in every lab.",
         "Lesson-attached lab tasks (Web/Blockly/Python/Arduino): AI grades on submit (score + feedback), up to 3 attempts, first submission pays XP and can unlock the next lesson.",
         "Free-play projects (not tied to a lesson) pay a one-time +15 XP/+10 coins on first submission.",
