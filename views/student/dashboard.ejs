@@ -5128,13 +5128,24 @@ async function requestFiftyFifty(questionId) {
           ? `<span style="margin-left:8px; font-size:12px; color:#888;">Attempt ${data.submissionCount} of ${MAX_LAB_SUBMISSIONS}${data.submissionCount >= MAX_LAB_SUBMISSIONS ? " — no submissions left" : ""}</span>`
           : "";
 
-        // AI-graded feedback from the last submission — controllers/labController.js's
+        // AI-graded feedback — controllers/labController.js's
         // gradeLessonLabSubmission, surfaced here via getLessonLab so it's
         // still visible on a later visit, not just right after submitting.
+        // The headline score is the AVERAGE across every attempt (getLessonLab
+        // computes this), with each attempt's own score listed below it —
+        // only called "Average" once there's more than one to average.
+        const attempts = Array.isArray(data.attempts) ? data.attempts : [];
+        const scoreLabel = attempts.length > 1 ? "Average Score" : "Score";
+        const attemptsBreakdownHTML = attempts.length > 1
+          ? `<p style="font-size:13px; color:#666; margin:4px 0 0;">${attempts
+              .map((a, i) => `Attempt ${i + 1}: ${a.score !== null ? `${a.score}/100` : "Pending"}`)
+              .join(" · ")}</p>`
+          : "";
         const gradeHTML = data.grade
           ? `
             <div style="margin:14px 0;">
-              <p><strong>Score:</strong> ${data.grade.score !== null ? `${data.grade.score}/100` : "Pending"}</p>
+              <p><strong>${scoreLabel}:</strong> ${data.grade.score !== null ? `${data.grade.score}/100` : "Pending"}</p>
+              ${attemptsBreakdownHTML}
               <div class="ai-feedback-box"><strong>Feedback:</strong> ${escapeHtml(data.grade.feedback || "")}</div>
             </div>
           `
@@ -5185,14 +5196,20 @@ async function requestFiftyFifty(questionId) {
     quizAutoCollapsedSidebar = false;
   }
 
-  function loadQuizInline(lessonId) {
+  function loadQuizInline(lessonId, retake) {
     showLoading();
     autoCollapseQuizSidebar();
     reviewedMissedIds = new Set(); // fresh quiz/review load — nothing reviewed yet
-    fetch(`/student/lessons/${lessonId}/quiz`)
+    fetch(`/student/lessons/${lessonId}/quiz${retake ? "?retake=true" : ""}`)
       .then(res => res.json())
       .then(data => {
         const container = document.getElementById("lessonMainArea");
+
+        if (data.notEnoughCoins) {
+          hideLoading();
+          showToast(data.message || "Not enough coins to retake this quiz.");
+          return;
+        }
 
         if (!data.success) {
           if (data.locked) {
@@ -5446,6 +5463,24 @@ function toggleGamifySound() {
   }
 }
 
+// Coins are spent server-side (controllers/studentController.js's
+// getLessonQuiz retake branch) — this constant is display-only, kept in
+// sync by hand since it's just shown in the confirm text, not enforced
+// here (the server is the real gate, same convention as
+// MAX_LAB_SUBMISSIONS in loadLabTaskInline above).
+const QUIZ_RETAKE_COST = 15;
+
+async function retakeQuiz(lessonId) {
+  const confirmed = window.showConfirm
+    ? await window.showConfirm(
+        `Retaking this quiz costs ${QUIZ_RETAKE_COST} coins. Continue?`,
+        { confirmText: "Retake" }
+      )
+    : confirm(`Retaking this quiz costs ${QUIZ_RETAKE_COST} coins. Continue?`);
+  if (!confirmed) return;
+  loadQuizInline(lessonId, true);
+}
+
 function renderQuizSummary() {
 
   const totalQuestions = reviewQuestions.length;
@@ -5579,6 +5614,13 @@ function renderQuizSummary() {
       </button>
 
       ${nextActionButton}
+
+      <button
+        class="quiz-btn quiz-btn-secondary"
+        onclick="retakeQuiz(${currentQuizLessonId})"
+      >
+        🔄 Retake Quiz (${QUIZ_RETAKE_COST} coins)
+      </button>
 
       <button
         class="quiz-btn quiz-btn-secondary"

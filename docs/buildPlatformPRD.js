@@ -319,7 +319,7 @@ const FEATURE_MODULES = [
         "Auto-save with offline queueing (saves sent once the connection returns) — Submit now checks the save actually reached the server (not just locally queued) before grading, so a connection hiccup can never cause a student's real work to be graded as empty. The Arduino lab's Blocks mode also force-syncs its generated sketch into the saved code before every save, instead of trusting a 300ms background timer to have already run — submitting right after placing a block could otherwise save stale (even blank) code despite a complete, correct circuit.",
         "A lesson-linked lab project's type now self-heals against its lesson_labs parent on every load — found (and fixed, platform-wide) real submissions saved under the wrong lab type, which made grading read the wrong field entirely (e.g. an Arduino submission graded via the Blockly branch always looks like \"no code,\" since the two store work under different fields) regardless of what the student actually built. Previously nothing re-checked a project's stored type against its lesson once created.",
         "'Back to Lesson' link when opened from lesson context; coin-metered AI Tutor in every lab.",
-        "Lesson-attached lab tasks (Web/Blockly/Python/Arduino): AI grades on submit (score + feedback), up to 3 attempts, first submission pays XP and can unlock the next lesson.",
+        "Lesson-attached lab tasks (Web/Blockly/Python/Arduino): AI grades on submit (score + feedback), up to 3 attempts, first submission pays XP and can unlock the next lesson. The displayed score is the average across every graded attempt (not just the latest), with each attempt's own score also listed so the student can see the full breakdown.",
         "Free-play projects (not tied to a lesson) pay a one-time +15 XP/+10 coins on first submission.",
       ]},
     ],
@@ -401,7 +401,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Coins", items: [
         "Earned via: daily streak bonus (grows with streak length), quiz correct-answer streaks, first-attempt quiz passes, first lab/project submissions.",
-        "Spent in the Shop (banners, title tags, XP Boost), on avatar frames, quiz lifelines (hint/fifty-fifty), streak freezes, and Arcade games.",
+        "Spent in the Shop (banners, title tags, XP Boost), on avatar frames, quiz lifelines (hint/fifty-fifty), quiz retakes, streak freezes, and Arcade games.",
         "Wallet money can buy coins at ₦5/coin (one-way only).",
       ]},
       { category: "Shop & Cosmetics", items: [
@@ -410,6 +410,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Quiz Aids & Streak Protection", items: [
         "AI hint (10 coins) and 50/50 (20 coins) during a quiz attempt.",
+        "Retaking an already-submitted quiz costs 15 coins, confirmed via a pop-up before it proceeds; unlimited retakes, but only the first attempt ever earns XP or the boss-battle coin bonus.",
         "Streak freeze (10 coins) protects the daily streak on a day the student can't study.",
       ]},
       { category: "Arcade", items: [
@@ -729,7 +730,7 @@ const USER_STORY_BLOCKS = [
       { want: "see my XP, level, streak and coin balance at a glance", benefit: "I stay motivated and know where I stand" },
       { want: "move through a course's modules and lessons in a guided sequence", benefit: "I build skills in the right order without getting lost or overwhelmed" },
       { want: "take a quiz, see my score, and get an AI explanation on every answer", benefit: "I understand not just what I got wrong but why" },
-      { want: "retake a quiz as many times as I want", benefit: "I can keep practicing until I've really mastered it, even though only my first attempt earns XP" },
+      { want: "retake a quiz as many times as I want, with a clear coin-cost warning before I commit", benefit: "I can keep practicing until I've really mastered it, even though only my first attempt earns XP, and I'm never surprised by a coin charge" },
       { want: "ask an AI Tutor questions grounded in my current lesson or my own code", benefit: "I get help exactly when I'm stuck, without waiting for a teacher" },
       { want: "see 'Recommended for you' suggestions when I score low on something", benefit: "I know exactly what to review next instead of guessing" },
       { want: "reflect on what clicked and what's still fuzzy after a quiz", benefit: "the AI Tutor has better context to help me later" },
@@ -743,6 +744,7 @@ const USER_STORY_BLOCKS = [
       { want: "write and run real Python instantly in my browser", benefit: "I get immediate feedback without needing anything installed" },
       { want: "design a circuit and simulate an Arduino sketch without owning real hardware", benefit: "I can learn embedded electronics safely and for free" },
       { want: "submit a lab task attached to a lesson and get AI feedback", benefit: "I know if my work meets the lesson's goal before moving on" },
+      { want: "resubmit a lab task up to the attempt limit and see my average score plus every attempt's own score when I view the result", benefit: "I can see whether resubmitting actually improved my work, not just my latest grade" },
       { want: "publish a free-play project to the Gallery, and take it down again later", benefit: "I can share my best work with other students on my own terms" },
       { want: "like and remix other students' published projects", benefit: "I can learn from and build on what my peers made" },
       { want: "review a classmate's submitted lab project with a real working preview", benefit: "I can give meaningful feedback, not just guess from a project name" },

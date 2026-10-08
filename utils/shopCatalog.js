@@ -67,6 +67,12 @@ const FIFTY_FIFTY_COST = 20;
 // inside services/lessonCompletionService.js.
 const XP_BOOST = { cost: 40, uses: 3, multiplier: 2 };
 
+// Retaking an already-submitted quiz — unlike the per-question hint/50-50
+// lifelines above, this re-opens the whole quiz for a fresh attempt, so
+// it's priced above both (see controllers/studentController.js's
+// getLessonQuiz retake branch).
+const QUIZ_RETAKE_COST = 15;
+
 module.exports = {
   PROFILE_BANNERS,
   TITLE_TAGS,
@@ -76,4 +82,5 @@ module.exports = {
   HINT_TOKEN_COST,
   FIFTY_FIFTY_COST,
   XP_BOOST,
+  QUIZ_RETAKE_COST,
 };

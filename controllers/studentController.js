@@ -40,6 +40,7 @@ const {
   HINT_TOKEN_COST,
   FIFTY_FIFTY_COST,
   XP_BOOST,
+  QUIZ_RETAKE_COST,
 } = require("../utils/shopCatalog");
 const { ARCADE_GAMES, getArcadeGameById } = require("../utils/arcadeGames");
 const generatePdf = require("../utils/generatePdf");
@@ -3556,6 +3557,7 @@ exports.getLessonLab = async (req, res) => {
 
     let status = "not_started";
     let grade = null;
+    let attempts = [];
     let submissionCount = 0;
     if (studentId) {
       const projectRes = await pool.query(
@@ -3575,22 +3577,34 @@ exports.getLessonLab = async (req, res) => {
         submissionCount = parseInt(subCountRes.rows[0].count, 10);
 
         if (status === "submitted") {
-          // Most recent AI grading pass (controllers/labController.js's
+          // Every AI grading pass (controllers/labController.js's
           // gradeLessonLabSubmission inserts a new row per submission, so
-          // resubmitting keeps history — this is just the latest one).
-          const submissionRes = await pool.query(
-            `SELECT score, feedback FROM lab_submissions
-             WHERE project_id = $1 ORDER BY submitted_at DESC LIMIT 1`,
+          // resubmitting keeps full history) — the displayed "score" is
+          // the average across all of them, not just the latest, with
+          // the individual attempts also returned so the student can see
+          // the breakdown. Feedback stays the latest attempt's own text —
+          // averaging free-text feedback doesn't mean anything.
+          const submissionsRes = await pool.query(
+            `SELECT score, feedback, submitted_at FROM lab_submissions
+             WHERE project_id = $1 ORDER BY submitted_at ASC`,
             [project.id]
           );
-          if (submissionRes.rows[0]) {
-            grade = submissionRes.rows[0];
+          attempts = submissionsRes.rows;
+          if (attempts.length > 0) {
+            const scored = attempts.filter((a) => a.score !== null);
+            const averageScore = scored.length
+              ? Math.round(scored.reduce((sum, a) => sum + a.score, 0) / scored.length)
+              : null;
+            grade = {
+              score: averageScore,
+              feedback: attempts[attempts.length - 1].feedback,
+            };
           }
         }
       }
     }
 
-    res.json({ success: true, lab, status, grade, submissionCount });
+    res.json({ success: true, lab, status, grade, attempts, submissionCount });
   } catch (err) {
     console.error("getLessonLab error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -3601,6 +3615,7 @@ exports.getLessonQuiz = async (req, res) => {
   const lessonId = req.params.id;
   // const lessonId = req.params.lessonId;
   const studentId = req.session?.student?.id || req.user?.id;
+  const isRetake = req.query.retake === "true" || req.query.retake === "1";
 
   try {
     // 1️⃣ Get quiz for this lesson
@@ -3627,7 +3642,7 @@ exports.getLessonQuiz = async (req, res) => {
         [quizId, studentId]
       );
 
-      if (subRes.rows.length > 0) {
+      if (subRes.rows.length > 0 && !isRetake) {
         const sub = subRes.rows[0];
         let reviewData = sub.review_data;
 
@@ -3656,6 +3671,19 @@ exports.getLessonQuiz = async (req, res) => {
         });
       }
 
+      // A retake of an already-submitted quiz costs coins (hints/50-50
+      // follow the same spendCoins-then-{success:false} pattern — see
+      // useQuizHint above). Falls through to the "fetch fresh questions"
+      // branch below on success, exactly like a first-ever attempt —
+      // checkQuizAnswer's answer-check already scopes "this attempt" to
+      // everything checked AFTER the last quiz_submissions row, so no
+      // separate attempt counter is needed once a new submission lands.
+      if (subRes.rows.length > 0 && isRetake) {
+        const newBalance = await spendCoins(studentId, QUIZ_RETAKE_COST, "Quiz retake");
+        if (newBalance === null) {
+          return res.json({ success: false, notEnoughCoins: true, message: "Not enough coins." });
+        }
+      }
     }
 
     // 2️⃣.5 Not yet submitted — before handing out fresh questions,

@@ -1051,6 +1051,13 @@ Return ONLY valid JSON, matching this shape (the values below are just to show t
 
   return { score, feedback, masterySignal };
 }
+// Exported for direct reuse (e.g. re-grading a project whose lab_type was
+// corrected after a mismatch) without going through submitProject's full
+// HTTP flow, which would also consume one of the student's limited
+// MAX_LAB_SUBMISSIONS attempts and re-check first-submission XP/unlock
+// state — none of which should happen for a regrade that's fixing a
+// system bug, not a new student action.
+exports.gradeLessonLabSubmission = gradeLessonLabSubmission;
 
 /**
  * PEER REVIEW ON PROJECTS
