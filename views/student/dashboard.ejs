@@ -5814,7 +5814,20 @@ function showStreakMilestoneCard(streakCount, coinsAwarded) {
   setTimeout(() => { overlay.style.display = "none"; }, 2000);
 }
 
-function startReview(){
+// Warns before revealing correct answers, but never blocks review — the
+// student picked "Warn, don't block" as the policy: reviewing still
+// works either way, this just makes sure they know a retake afterward
+// won't really test their knowledge anymore. Skipped once all retake
+// attempts are used up (MAX_QUIZ_ATTEMPTS, see retakeQuiz above) since
+// the warning wouldn't apply to anything at that point.
+async function startReview(){
+  if ((window.quizSubmissionCount || 0) < MAX_QUIZ_ATTEMPTS) {
+    const reviewMessage = "Heads up: reviewing shows you the correct answers for each question. If you retake this quiz afterward, you'll already know them, so it won't really test what you've learned. Continue reviewing?";
+    const proceed = window.showConfirm
+      ? await window.showConfirm(reviewMessage, { confirmText: "Review Anyway" })
+      : confirm(reviewMessage);
+    if (!proceed) return;
+  }
 
   reviewIndex = 0;
 
