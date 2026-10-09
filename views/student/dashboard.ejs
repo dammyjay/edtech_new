@@ -5238,6 +5238,8 @@ async function requestFiftyFifty(questionId) {
         if (typeof data.submissionCount === "number") {
           window.quizSubmissionCount = data.submissionCount;
         }
+        window.quizAttempts = Array.isArray(data.attempts) ? data.attempts : [];
+        window.quizAverageScore = typeof data.averageScore === "number" ? data.averageScore : null;
 
         if (!data.success) {
           if (data.locked) {
@@ -5669,6 +5671,33 @@ function renderQuizSummary() {
 
     </div>
 
+    ${(() => {
+      // Attempt history — shown persistently (even on a first-ever
+      // submission, as "Attempt 1 of N") so the count is never a
+      // surprise, mirroring the lab task's always-visible "Attempt X
+      // of 3" badge (loadLabTaskInline). The average + per-attempt
+      // breakdown only appears once there's more than one attempt —
+      // an average of one score is just that score, so showing it for
+      // attempt 1 would be redundant noise.
+      const attempts = Array.isArray(window.quizAttempts) ? window.quizAttempts : [];
+      const attemptCount = window.quizSubmissionCount || attempts.length || 1;
+      const breakdown = attempts.length > 1
+        ? `<p style="font-size:13px; color:#666; margin:6px 0 0;">${attempts
+            .map((a, i) => `Attempt ${i + 1}: ${a.score}%`)
+            .join(" · ")}</p>`
+        : "";
+      const averageLine = attempts.length > 1 && typeof window.quizAverageScore === "number"
+        ? `<p style="margin:0;"><strong>Average Score:</strong> ${window.quizAverageScore}%</p>`
+        : "";
+      return `
+        <div style="margin-top:18px; padding-top:14px; border-top:1px solid #eee; text-align:center;">
+          <p style="margin:0;"><strong>Attempts:</strong> ${attemptCount} of ${MAX_QUIZ_ATTEMPTS}</p>
+          ${averageLine}
+          ${breakdown}
+        </div>
+      `;
+    })()}
+
   </div>
 
   `;
@@ -6024,6 +6053,8 @@ function submitQuizAnswers(lessonId){
         if (typeof result.submissionCount === "number") {
           window.quizSubmissionCount = result.submissionCount;
         }
+        window.quizAttempts = Array.isArray(result.attempts) ? result.attempts : [];
+        window.quizAverageScore = typeof result.averageScore === "number" ? result.averageScore : null;
         if (result.nextLessonId) {
           unlockSidebarLesson(result.nextLessonId);
         }

@@ -3687,6 +3687,22 @@ exports.getLessonQuiz = async (req, res) => {
           }
         }
 
+        // Every attempt's own score, oldest first — the summary shows
+        // the LATEST attempt's score/review up top (sub, above) but an
+        // average + per-attempt breakdown at the bottom once there's
+        // more than one, same convention as the lab task's attempts
+        // array (controllers/studentController.js's getLessonLab).
+        const allAttemptsRes = await pool.query(
+          `SELECT score, created_at FROM quiz_submissions
+           WHERE quiz_id = $1 AND student_id = $2
+           ORDER BY created_at ASC`,
+          [quizId, studentId]
+        );
+        const attempts = allAttemptsRes.rows;
+        const averageScore = attempts.length
+          ? Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / attempts.length)
+          : null;
+
         return res.json({
           success: true,
           alreadySubmitted: true,
@@ -3695,6 +3711,8 @@ exports.getLessonQuiz = async (req, res) => {
           reviewData, // ✅ always array now
           submissionCount: attemptCount,
           maxAttempts: MAX_QUIZ_ATTEMPTS,
+          attempts,
+          averageScore,
           feedback:
             sub.score >= 80
               ? "🌟 Excellent work! You clearly understood this lesson."
@@ -4075,6 +4093,22 @@ ${JSON.stringify(reviewData, null, 2)}
     [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
   );
 
+    // Every attempt's own score, oldest first, including the one just
+    // inserted above — same average + breakdown shown on a later
+    // getLessonQuiz reload, computed fresh here so the result screen
+    // right after submitting already has it (see "Every attempt's own
+    // score" above for why this mirrors the lab task's attempts array).
+    const allAttemptsRes = await pool.query(
+      `SELECT score, created_at FROM quiz_submissions
+       WHERE quiz_id = $1 AND student_id = $2
+       ORDER BY created_at ASC`,
+      [quizId, studentId]
+    );
+    const allQuizAttempts = allAttemptsRes.rows;
+    const quizAverageScore = allQuizAttempts.length
+      ? Math.round(allQuizAttempts.reduce((sum, a) => sum + a.score, 0) / allQuizAttempts.length)
+      : null;
+
     let xpGained = 0;
     let levelUp = false;
     let bossBattleCoins = 0;
@@ -4274,6 +4308,8 @@ ${JSON.stringify(reviewData, null, 2)}
       pendingLab,
       submissionCount: attemptCountSoFar + 1,
       maxAttempts: MAX_QUIZ_ATTEMPTS,
+      attempts: allQuizAttempts,
+      averageScore: quizAverageScore,
     });
   } catch (err) {
     console.error("Quiz submit error:", err.message);
