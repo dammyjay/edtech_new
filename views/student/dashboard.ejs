@@ -5005,6 +5005,15 @@ let reviewedMissedIds = new Set();
 let reviewQuestions = [];
 let reviewIndex = 0;
 
+// Guards submitQuizAnswers against a double-fire (double-click, a slow
+// network making an impatient second tap land, etc.) — the server has
+// no idempotency key for a quiz submit, so two in-flight requests both
+// insert their own quiz_submissions row, silently burning an extra
+// attempt out of MAX_QUIZ_ATTEMPTS and desyncing the client's tracked
+// window.quizSubmissionCount from the server's real count (seen live:
+// two submissions landing a few seconds apart with the same score).
+let quizSubmitInFlight = false;
+
   function toggleModule(moduleId) {
     const el = document.getElementById(`module-${moduleId}`);
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
@@ -5893,6 +5902,9 @@ function previousQuestion(){
 }
 
 function submitQuizAnswers(lessonId){
+  if (quizSubmitInFlight) return;
+  quizSubmitInFlight = true;
+
   sendLessonDuration(); // save previous
   showLoading(); // ⬅️ Start loading animation
   console.log("Submitting answers:", quizAnswers);
@@ -6049,6 +6061,9 @@ function submitQuizAnswers(lessonId){
 
       quizContainer.innerHTML =
         `<p class="error">Error submitting quiz. Please try again.</p>`;
+    })
+    .finally(() => {
+      quizSubmitInFlight = false;
     });
 
 
