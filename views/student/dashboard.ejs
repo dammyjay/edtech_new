@@ -447,7 +447,26 @@
 </div>
 
  <main class="main-content">
-  
+
+  <!-- BOSS BATTLE MODAL — opt-in reskin over an already-graded quiz's
+       reviewData (see startBossBattle, called from renderQuizSummary,
+       section === 'module'). Deliberately rendered here, OUTSIDE the
+       section===/else-if chain below, instead of alongside the other
+       quiz-related modals that used to live inside the section
+       === 'progress' block — this modal's trigger button only ever
+       exists while viewing section === 'module', a completely
+       different branch, so when it lived inside 'progress' the DOM
+       element simply didn't exist there and the button silently did
+       nothing (getElementById returned null). Purely a client-side
+       replay animation — no server data or grading logic involved
+       beyond the review array it's handed. -->
+  <div id="bossBattleModal" class="modal">
+    <div class="modal-content" style="max-width:480px; text-align:center;">
+      <span class="close" onclick="closeBossBattle()">&times;</span>
+      <div id="bossBattleBody"></div>
+    </div>
+  </div>
+
   <% if (section === 'profile') { %>
     <!-- 👤 PROFILE SECTION -->
     <div class="profile-container">
@@ -1004,17 +1023,6 @@
           <div id="quizResultBody">
             <p>Loading your result... ⏳</p>
           </div>
-        </div>
-      </div>
-
-      <!-- BOSS BATTLE MODAL — opt-in reskin over an already-graded quiz's
-           reviewData (see openQuizResultModal / renderQuizSummary), purely
-           a client-side replay animation. No server data or grading logic
-           involved beyond the review array it's handed. -->
-      <div id="bossBattleModal" class="modal">
-        <div class="modal-content" style="max-width:480px; text-align:center;">
-          <span class="close" onclick="closeBossBattle()">&times;</span>
-          <div id="bossBattleBody"></div>
         </div>
       </div>
 
