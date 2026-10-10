@@ -461,8 +461,8 @@
        replay animation — no server data or grading logic involved
        beyond the review array it's handed. -->
   <div id="bossBattleModal" class="modal">
-    <div class="modal-content" style="max-width:480px; text-align:center;">
-      <span class="close" onclick="closeBossBattle()">&times;</span>
+    <div class="modal-content bb-modal-content" style="text-align:center;">
+      <span class="close bb-modal-close" onclick="closeBossBattle()">&times;</span>
       <div id="bossBattleBody"></div>
     </div>
   </div>
@@ -2672,7 +2672,7 @@ if(classroomId){
 
             <div class="bb-combatant">
               <div class="bb-sprite-wrap ${opts.playerHit ? "bb-hit" : ""}">
-                <div class="celebration-mascot" data-mascot-slot="bossBattle" style="width:56px; height:56px; margin:0;"></div>
+                <div class="celebration-mascot" data-mascot-slot="bossBattle" style="width:84px; height:84px; margin:0;"></div>
                 ${opts.playerHit ? `<span class="bb-dmg-popup bb-dmg-player">-${step}</span>` : ""}
               </div>
               <div class="bb-name">YOU</div>
@@ -2684,6 +2684,14 @@ if(classroomId){
           ${resultBanner}
 
           <p class="bb-message">${opts.message || ""}</p>
+
+          ${opts.qa ? `
+            <div class="bb-qa-card ${opts.qa.isCorrect ? "bb-qa-correct" : "bb-qa-wrong"}">
+              <p class="bb-qa-question">${escapeHtml(opts.qa.question)}</p>
+              <p class="bb-qa-line bb-qa-your-answer ${opts.qa.isCorrect ? "bb-qa-is-right" : "bb-qa-is-wrong"}">Your answer: <strong>${escapeHtml(opts.qa.yourAnswer || "(no answer)")}</strong></p>
+              ${!opts.qa.isCorrect ? `<p class="bb-qa-line bb-qa-correct-answer">Correct answer: <strong>${escapeHtml(opts.qa.correctAnswer || "")}</strong></p>` : ""}
+            </div>
+          ` : ""}
 
           ${actionHtml}
         </div>
@@ -2704,20 +2712,30 @@ if(classroomId){
 
       setTimeout(() => {
         const q = review[i];
-        const hit = {};
+        const hit = {
+          // The actual question + both answers, shown in the bb-qa-card
+          // below the HP bars — the whole point of a REVIEW replay is
+          // seeing what was right/wrong, not just a hit/miss animation.
+          qa: {
+            question: q.question || "",
+            yourAnswer: q.yourAnswer,
+            correctAnswer: q.correctAnswer,
+            isCorrect: !!q.isCorrect,
+          },
+        };
         if (q.isCorrect) {
           bossHp = Math.max(bossHp - step, 0);
           combo++;
           hit.bossHit = true;
           hit.shake = true;
-          hit.message = `✅ Hit! "${(q.question || "").slice(0, 60)}"`;
+          hit.message = "✅ Hit!";
           if (window.Gamify) Gamify.playChime(combo >= 3 ? "streak" : "correct");
         } else {
           playerHp = Math.max(playerHp - step, 0);
           combo = 0;
           hit.playerHit = true;
           hit.shake = true;
-          hit.message = `❌ ${boss.name} strikes back! "${(q.question || "").slice(0, 60)}"`;
+          hit.message = `❌ ${boss.name} strikes back!`;
           if (window.Gamify) Gamify.playChime("wrong");
         }
         i++;

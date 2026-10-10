@@ -286,13 +286,36 @@
 }
 
 /* ---------- Boss Battle ---------- */
+/* The modal shell itself — overrides the site-wide white .modal-content
+   so the dark arena fills the whole dialog instead of sitting as a dark
+   box inside a white one, and sized well above the default 560px so the
+   fight reads as the main event, not a small popup. */
+.bb-modal-content {
+  max-width: 760px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(217, 168, 44, 0.25) !important;
+  border-radius: 22px !important;
+  overflow: visible !important;
+}
+
+.bb-modal-close {
+  color: #f3d98a !important;
+  z-index: 2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.bb-modal-close:hover {
+  color: #fff !important;
+}
+
 .bb-arena {
   position: relative;
-  border-radius: 18px;
-  padding: 18px 16px 20px;
+  border-radius: 22px;
+  padding: 26px 24px 28px;
   background:
-    radial-gradient(circle at 20% 10%, rgba(217, 168, 44, 0.18) 0, transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(220, 38, 38, 0.14) 0, transparent 45%),
+    radial-gradient(circle at 20% 10%, rgba(217, 168, 44, 0.2) 0, transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(220, 38, 38, 0.16) 0, transparent 45%),
     linear-gradient(160deg, #241703 0%, #1a1102 100%);
   color: #fdf6e3;
   overflow: hidden;
@@ -306,22 +329,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .bb-title {
   font-weight: 800;
-  font-size: 15px;
+  font-size: 22px;
   letter-spacing: 0.3px;
   color: #f3d98a;
+  text-shadow: 0 0 12px rgba(217, 168, 44, 0.4);
 }
 
 .bb-progress-label {
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: #cbb98a;
   background: rgba(255, 255, 255, 0.08);
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
 }
 
@@ -329,8 +353,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .bb-combatant {
@@ -339,20 +363,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .bb-sprite {
-  font-size: 46px;
+  font-size: 80px;
   line-height: 1;
   position: relative;
   transition: transform 0.18s ease;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4));
 }
 
 .bb-sprite-wrap {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
 }
 
 .bb-sprite.bb-hit,
@@ -369,16 +394,16 @@
 }
 
 .bb-name {
-  font-size: 10.5px;
+  font-size: 12.5px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   color: #cbb98a;
 }
 
 .bb-hp-track {
   width: 100%;
-  max-width: 130px;
-  height: 12px;
+  max-width: 190px;
+  height: 18px;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 999px;
   overflow: hidden;
@@ -408,31 +433,78 @@
 .bb-vs-badge {
   align-self: center;
   font-weight: 900;
-  font-size: 13px;
+  font-size: 16px;
   color: #241703;
   background: linear-gradient(135deg, #f3d98a, #D9A82C);
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 6px;
-  box-shadow: 0 0 10px rgba(217, 168, 44, 0.5);
+  margin-top: 16px;
+  box-shadow: 0 0 14px rgba(217, 168, 44, 0.55);
 }
 
 .bb-dmg-popup {
   position: absolute;
   left: 50%;
-  top: 12px;
+  top: 18px;
   transform: translateX(-50%);
   font-weight: 900;
-  font-size: 15px;
+  font-size: 22px;
   pointer-events: none;
   animation: bbFloatUp 0.9s ease-out forwards;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
+}
+
+/* ---------- Boss Battle: question/answer detail card ----------
+   Shown under the HP bars after each strike — the user asked for the
+   actual question and answers to be visible, not just a vague "hit/miss"
+   line, so the replay stays educational (you see what you got wrong and
+   why) instead of just a game animation. */
+.bb-qa-card {
+  text-align: left;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 4px 0 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 4px solid;
+  animation: bbPopIn 0.3s ease;
+}
+
+.bb-qa-card.bb-qa-correct { border-left-color: #22c55e; }
+.bb-qa-card.bb-qa-wrong { border-left-color: #ef4444; }
+
+.bb-qa-question {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: #fdf6e3;
+}
+
+.bb-qa-line {
+  margin: 0;
+  font-size: 13px;
+  color: #d8c9a3;
+}
+
+.bb-qa-line strong {
+  color: #fdf6e3;
+}
+
+.bb-qa-line.bb-qa-your-answer.bb-qa-is-wrong strong {
+  color: #fca5a5;
+}
+
+.bb-qa-line.bb-qa-your-answer.bb-qa-is-right strong {
+  color: #86efac;
+}
+
+.bb-qa-line.bb-qa-correct-answer strong {
+  color: #86efac;
 }
 
 .bb-dmg-boss { color: #fca5a5; }
@@ -441,26 +513,27 @@
 .bb-combo-banner {
   text-align: center;
   font-weight: 900;
-  font-size: 14px;
+  font-size: 19px;
   color: #fb923c;
-  margin: 2px 0 8px;
+  margin: 2px 0 10px;
   animation: bbPopIn 0.35s ease;
+  text-shadow: 0 0 10px rgba(251, 146, 60, 0.5);
 }
 
 .bb-message {
-  min-height: 22px;
+  min-height: 24px;
   text-align: center;
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 16px;
   color: #fdf6e3;
-  margin: 4px 0 16px;
+  margin: 4px 0 10px;
 }
 
 .bb-result-banner {
   text-align: center;
   font-weight: 900;
-  font-size: 20px;
-  margin: 2px 0 14px;
+  font-size: 32px;
+  margin: 2px 0 18px;
   animation: bbPopIn 0.45s ease;
 }
 
@@ -476,6 +549,11 @@
 .bb-arena-actions {
   display: flex;
   justify-content: center;
+}
+
+.bb-arena-actions .btn {
+  font-size: 16px;
+  padding: 12px 28px;
 }
 
 @keyframes bbShake {
