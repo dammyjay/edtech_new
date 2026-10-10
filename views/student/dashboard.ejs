@@ -2586,10 +2586,23 @@ if(classroomId){
     document.getElementById("quizResultModal").style.display = "none";
   }
 
+  // Flavor pool — a different boss each replay, purely cosmetic (picked
+  // once per startBossBattle call, has no bearing on scoring).
+  const BOSS_FLAVORS = [
+    { name: "Quiz Dragon", calm: "🐲", angry: "🐉" },
+    { name: "Professor Doubt", calm: "🧟", angry: "🧟‍♂️" },
+    { name: "The Confusion Beast", calm: "👹", angry: "👺" },
+    { name: "Captain Careless", calm: "🦹", angry: "🦹‍♂️" },
+    { name: "The Trivia Titan", calm: "👾", angry: "🛸" },
+  ];
+
   // Replays an already-graded quiz's per-question reviewData as a boss
   // fight: each correct answer lands a hit on the boss, each wrong answer
   // lets the boss hit back. Purely visual — reuses data the server already
-  // computed (submitLessonQuiz's reviewData), no new grading involved.
+  // computed (submitLessonQuiz's reviewData), no new grading involved. A
+  // run can now genuinely end in defeat (player HP hits 0 before the boss
+  // does) as well as victory or a survival, for real stakes rather than
+  // always playing out every question no matter what.
   function startBossBattle(review) {
     review = Array.isArray(review) ? review : [];
     const modal = document.getElementById("bossBattleModal");
@@ -2599,64 +2612,145 @@ if(classroomId){
       return;
     }
 
+    const boss = BOSS_FLAVORS[Math.floor(Math.random() * BOSS_FLAVORS.length)];
     let bossHp = 100;
     let playerHp = 100;
     const step = Math.ceil(100 / review.length);
     let i = 0;
+    let combo = 0;
+    let resolving = false;
+    let over = false;
 
-    function render(message) {
+    function hpTier(hp) {
+      return hp <= 0 ? "ko" : hp <= 25 ? "low" : hp <= 60 ? "mid" : "high";
+    }
+
+    function render(opts) {
+      opts = opts || {};
+      const bossTier = hpTier(bossHp);
+      const playerTier = hpTier(playerHp);
+      const bossEmoji = bossTier === "ko" ? "💀" : bossTier === "low" ? boss.angry : boss.calm;
+      const atQuestion = Math.min(i + 1, review.length);
+
+      const comboBanner = !over && combo >= 3
+        ? `<div class="bb-combo-banner">🔥 ${combo}-HIT COMBO!</div>`
+        : "";
+
+      let resultBanner = "";
+      let actionHtml = "";
+      if (over) {
+        if (bossHp <= 0) {
+          resultBanner = `<div class="bb-result-banner bb-result-victory">🏆 VICTORY!</div>`;
+        } else if (playerHp <= 0) {
+          resultBanner = `<div class="bb-result-banner bb-result-defeat">😵 KNOCKED OUT!</div>`;
+        } else {
+          resultBanner = `<div class="bb-result-banner bb-result-defeat">🛡️ ${boss.name} SURVIVES</div>`;
+        }
+        actionHtml = `<div class="bb-arena-actions"><button class="btn" onclick="closeBossBattle()">Close</button></div>`;
+      } else {
+        actionHtml = `<div class="bb-arena-actions"><button class="btn" ${resolving ? "disabled" : ""} onclick="bossBattleStrike()">${i === 0 ? "⚔️ Start" : "⚔️ Next Hit"}</button></div>`;
+      }
+
       body.innerHTML = `
-        <div class="celebration-mascot" data-mascot-slot="bossBattle" style="width:56px; height:56px; margin:0 auto 4px;"></div>
-        <h2 style="margin:6px 0;">⚔️ Boss Battle</h2>
-        <div style="font-size:56px; margin:8px 0;">${bossHp <= 0 ? "💀" : "👾"}</div>
-        <div style="margin:0 auto 6px; max-width:320px;">
-          <p style="margin:0 0 2px; font-size:12px; font-weight:600;">Boss HP</p>
-          <div style="background:#3f3f46; border-radius:8px; height:14px; overflow:hidden;">
-            <div style="height:100%; background:#dc2626; width:${Math.max(bossHp, 0)}%; transition:width .4s;"></div>
+        <div class="bb-arena ${opts.shake ? "bb-shake" : ""} ${opts.attacking ? "bb-attacking" : ""}">
+          <div class="bb-header">
+            <span class="bb-title">⚔️ ${boss.name}</span>
+            <span class="bb-progress-label">Question ${atQuestion} of ${review.length}</span>
           </div>
-        </div>
-        <div style="margin:0 auto 14px; max-width:320px;">
-          <p style="margin:0 0 2px; font-size:12px; font-weight:600;">Your HP</p>
-          <div style="background:#3f3f46; border-radius:8px; height:14px; overflow:hidden;">
-            <div style="height:100%; background:#16a34a; width:${Math.max(playerHp, 0)}%; transition:width .4s;"></div>
+
+          <div class="bb-vs-row">
+            <div class="bb-combatant ${bossTier === "low" ? "bb-enraged" : ""}">
+              <div class="bb-sprite ${opts.bossHit ? "bb-hit" : ""}">
+                ${bossEmoji}
+                ${opts.bossHit ? `<span class="bb-dmg-popup bb-dmg-boss">-${step}</span>` : ""}
+              </div>
+              <div class="bb-name">BOSS</div>
+              <div class="bb-hp-track"><div class="bb-hp-fill bb-hp-${bossTier}" style="width:${Math.max(bossHp, 0)}%;"></div></div>
+            </div>
+
+            <div class="bb-vs-badge">VS</div>
+
+            <div class="bb-combatant">
+              <div class="bb-sprite-wrap ${opts.playerHit ? "bb-hit" : ""}">
+                <div class="celebration-mascot" data-mascot-slot="bossBattle" style="width:56px; height:56px; margin:0;"></div>
+                ${opts.playerHit ? `<span class="bb-dmg-popup bb-dmg-player">-${step}</span>` : ""}
+              </div>
+              <div class="bb-name">YOU</div>
+              <div class="bb-hp-track"><div class="bb-hp-fill bb-hp-${playerTier}" style="width:${Math.max(playerHp, 0)}%;"></div></div>
+            </div>
           </div>
+
+          ${comboBanner}
+          ${resultBanner}
+
+          <p class="bb-message">${opts.message || ""}</p>
+
+          ${actionHtml}
         </div>
-        <p style="min-height:20px; font-weight:600;">${message || ""}</p>
-        ${i < review.length
-          ? `<button class="btn" onclick="bossBattleStrike()">${i === 0 ? "Start" : "Next"} ⚔️</button>`
-          : `<button class="btn" onclick="closeBossBattle()">Close</button>`}
       `;
       if (window.Gamify) {
         const mascotEl = body.querySelector('[data-mascot-slot="bossBattle"]');
-        Gamify.setMascot(mascotEl, bossHp <= 0 ? "cheer" : "idle");
+        Gamify.setMascot(mascotEl, playerTier === "ko" ? "sad" : opts.playerHit ? "sad" : bossHp <= 0 ? "cheer" : "idle");
       }
     }
 
     window.bossBattleStrike = function () {
-      if (i >= review.length) return;
-      const q = review[i];
-      if (q.isCorrect) {
-        bossHp -= step;
-        render(`✅ Hit! "${(q.question || "").slice(0, 60)}"`);
-        if (window.Gamify) Gamify.playChime("correct");
-      } else {
-        playerHp -= step;
-        render(`❌ The boss hits back! "${(q.question || "").slice(0, 60)}"`);
-        if (window.Gamify) Gamify.playChime("wrong");
-      }
-      i++;
-      if (i >= review.length) {
-        setTimeout(() => {
-          render(bossHp <= 0 ? "🎉 Boss defeated!" : "The boss survives — review and try again!");
-          if (window.Gamify && bossHp <= 0) {
-            Gamify.confetti(modal, 36);
-            Gamify.playChime("levelup");
-          }
-        }, 400);
-      }
+      if (over || resolving || i >= review.length) return;
+      resolving = true;
+
+      // A brief "clash" beat before the hit lands — makes each exchange
+      // feel like an actual attack instead of an instant stat change.
+      render({ message: "Clash!", attacking: true });
+
+      setTimeout(() => {
+        const q = review[i];
+        const hit = {};
+        if (q.isCorrect) {
+          bossHp = Math.max(bossHp - step, 0);
+          combo++;
+          hit.bossHit = true;
+          hit.shake = true;
+          hit.message = `✅ Hit! "${(q.question || "").slice(0, 60)}"`;
+          if (window.Gamify) Gamify.playChime(combo >= 3 ? "streak" : "correct");
+        } else {
+          playerHp = Math.max(playerHp - step, 0);
+          combo = 0;
+          hit.playerHit = true;
+          hit.shake = true;
+          hit.message = `❌ ${boss.name} strikes back! "${(q.question || "").slice(0, 60)}"`;
+          if (window.Gamify) Gamify.playChime("wrong");
+        }
+        i++;
+
+        // Reset BEFORE rendering — render() reads `resolving`/`over` to
+        // decide whether the action button is disabled and which button
+        // to show at all, so setting them after the render that reads
+        // them left the "Next Hit" button permanently disabled past the
+        // very first strike (resolving was still true at the moment
+        // render() built that button's HTML, and nothing re-rendered
+        // afterward to pick up the corrected value).
+        const finished = bossHp <= 0 || playerHp <= 0 || i >= review.length;
+        resolving = false;
+        if (finished) over = true;
+        render(hit);
+
+        if (finished) {
+          setTimeout(() => {
+            render({});
+            if (window.Gamify) {
+              if (bossHp <= 0) {
+                Gamify.confetti(modal, 36);
+                Gamify.playChime("levelup");
+              } else if (playerHp <= 0) {
+                Gamify.playChime("wrong");
+              }
+            }
+          }, 500);
+        }
+      }, 380);
     };
 
-    render("Tap Start to begin!");
+    render({ message: `${boss.name} appears! Tap Start to begin.` });
     modal.style.display = "block";
   }
 

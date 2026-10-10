@@ -285,6 +285,246 @@
   50% { transform: translateY(-5px); }
 }
 
+/* ---------- Boss Battle ---------- */
+.bb-arena {
+  position: relative;
+  border-radius: 18px;
+  padding: 18px 16px 20px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(217, 168, 44, 0.18) 0, transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(220, 38, 38, 0.14) 0, transparent 45%),
+    linear-gradient(160deg, #241703 0%, #1a1102 100%);
+  color: #fdf6e3;
+  overflow: hidden;
+}
+
+.bb-arena.bb-shake {
+  animation: bbShake 0.42s ease;
+}
+
+.bb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.bb-title {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  color: #f3d98a;
+}
+
+.bb-progress-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cbb98a;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.bb-vs-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bb-combatant {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-sprite {
+  font-size: 46px;
+  line-height: 1;
+  position: relative;
+  transition: transform 0.18s ease;
+}
+
+.bb-sprite-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+
+.bb-sprite.bb-hit,
+.bb-sprite-wrap.bb-hit {
+  animation: bbHitFlash 0.4s ease;
+}
+
+.bb-enraged .bb-sprite {
+  animation: bbPulseGlow 0.9s ease-in-out infinite;
+}
+
+.bb-attacking .bb-sprite {
+  animation: bbLunge 0.35s ease;
+}
+
+.bb-name {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #cbb98a;
+}
+
+.bb-hp-track {
+  width: 100%;
+  max-width: 130px;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.bb-hp-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22, 0.9, 0.35, 1);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.18) 0,
+    rgba(255, 255, 255, 0.18) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  background-size: 160% 100%;
+  animation: bbBarShimmer 1.2s linear infinite;
+}
+
+.bb-hp-high { background-color: #22c55e; }
+.bb-hp-mid { background-color: #f59e0b; }
+.bb-hp-low { background-color: #dc2626; animation: bbBarShimmer 1.2s linear infinite, bbPulseGlow 0.8s ease-in-out infinite; }
+.bb-hp-ko { background-color: #4b5563; }
+
+.bb-vs-badge {
+  align-self: center;
+  font-weight: 900;
+  font-size: 13px;
+  color: #241703;
+  background: linear-gradient(135deg, #f3d98a, #D9A82C);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 6px;
+  box-shadow: 0 0 10px rgba(217, 168, 44, 0.5);
+}
+
+.bb-dmg-popup {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  font-weight: 900;
+  font-size: 15px;
+  pointer-events: none;
+  animation: bbFloatUp 0.9s ease-out forwards;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.bb-dmg-boss { color: #fca5a5; }
+.bb-dmg-player { color: #fca5a5; }
+
+.bb-combo-banner {
+  text-align: center;
+  font-weight: 900;
+  font-size: 14px;
+  color: #fb923c;
+  margin: 2px 0 8px;
+  animation: bbPopIn 0.35s ease;
+}
+
+.bb-message {
+  min-height: 22px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #fdf6e3;
+  margin: 4px 0 16px;
+}
+
+.bb-result-banner {
+  text-align: center;
+  font-weight: 900;
+  font-size: 20px;
+  margin: 2px 0 14px;
+  animation: bbPopIn 0.45s ease;
+}
+
+.bb-result-victory {
+  color: #f3d98a;
+  animation: bbPopIn 0.45s ease, bbVictoryGlow 1.4s ease-in-out infinite;
+}
+
+.bb-result-defeat {
+  color: #fca5a5;
+}
+
+.bb-arena-actions {
+  display: flex;
+  justify-content: center;
+}
+
+@keyframes bbShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px) rotate(-1deg); }
+  40% { transform: translateX(8px) rotate(1deg); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(5px); }
+}
+
+@keyframes bbHitFlash {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(0.88) rotate(-4deg); filter: brightness(2) saturate(0); }
+  60% { transform: scale(1.06) rotate(3deg); filter: brightness(1.3); }
+  100% { transform: scale(1) rotate(0); filter: brightness(1); }
+}
+
+@keyframes bbLunge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(10px) scale(1.08); }
+}
+
+@keyframes bbPulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(220, 38, 38, 0.45)); }
+  50% { filter: drop-shadow(0 0 16px rgba(220, 38, 38, 0.9)); }
+}
+
+@keyframes bbFloatUp {
+  0% { transform: translate(-50%, 0) scale(0.75); opacity: 0; }
+  18% { transform: translate(-50%, -4px) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -26px) scale(1); opacity: 0; }
+}
+
+@keyframes bbPopIn {
+  0% { transform: scale(0.35); opacity: 0; }
+  65% { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bbBarShimmer {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 0; }
+}
+
+@keyframes bbVictoryGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(217, 168, 44, 0.55); }
+  50% { text-shadow: 0 0 24px rgba(217, 168, 44, 1); }
+}
+
 /* ---------- Lesson-note image zoom ---------- */
 .lesson-note img,
 .slide-body img {
