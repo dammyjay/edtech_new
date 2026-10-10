@@ -1449,6 +1449,29 @@ exports.downloadCourseSummary = async (req, res) => {
   }
 };
 
+// This page's own URL is emailed to the linked parent whenever a quiz/
+// assignment is submitted (see submitLessonQuiz's resultUrl), and used
+// to be reachable with zero auth check at all — anyone who got hold of
+// a link (forwarded, guessed via sequential submission ids, etc.) could
+// view ANY student's result. Now requires either the submitting student
+// themselves or a parent actually linked to that student via
+// parent_children — matching the known-issue register's "should be
+// scoped to the owning parent/student".
+async function isAuthorizedForStudentResult(req, studentId) {
+  const user = req.session && req.session.user;
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  if (user.id === studentId) return true;
+  if (user.role === "parent") {
+    const link = await pool.query(
+      "SELECT 1 FROM parent_children WHERE parent_id = $1 AND child_id = $2",
+      [user.id, studentId]
+    );
+    return link.rows.length > 0;
+  }
+  return false;
+}
+
 exports.viewQuizResult = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1467,6 +1490,10 @@ exports.viewQuizResult = async (req, res) => {
     }
 
     const data = result.rows[0];
+
+    if (!(await isAuthorizedForStudentResult(req, data.student_id))) {
+      return res.status(403).send("Access denied");
+    }
 
     let parsedReview = [];
 
@@ -1511,6 +1538,10 @@ exports.viewAssignmentResult = async (req, res) => {
     }
 
     const data = result.rows[0];
+
+    if (!(await isAuthorizedForStudentResult(req, data.student_id))) {
+      return res.status(403).send("Access denied");
+    }
 
     // parse criteria if needed
     let criteria = {};
