@@ -663,6 +663,22 @@ const KNOWN_ISSUES = [
   ["Cross-cutting", "Session cookie `secure` flag is false", "Should be enabled once the production domain is confirmed fully HTTPS end-to-end."],
 ];
 
+// Active fix queue — every row in KNOWN_ISSUES (§5) is now queued for
+// resolution; tracked here rather than duplicated so this table and
+// that register can't drift out of sync with each other.
+const PENDING_FIXES_STATUS =
+  "All items in the Known Issues & Technical Debt Register (§5) are now queued for resolution and are being worked through incrementally, starting with the highest-impact security/trust-boundary gaps (parent result-page ownership checks, badge-awarding trust boundary, inconsistent student-route auth gating) before cosmetic/dead-code items.";
+
+// New initiative, not yet started as of this revision — tracked here so
+// the BRD reflects what's actually been asked for, same honesty
+// standard as §5.
+const PENDING_INITIATIVES = [
+  ["Student — Arcade", "Difficulty levels", "Each arcade game gains selectable difficulty tiers (e.g. Easy/Medium/Hard) affecting question pool, time pressure, and/or scoring — currently games have no difficulty concept."],
+  ["Student — Arcade", "Deeper gamification", "Streak bonuses, per-game leaderboards, unlockable cosmetics/badges tied to arcade performance specifically (distinct from the existing quiz/lesson XP system) — scope to be finalized."],
+  ["Student — Arcade", "More educational games", "Expand beyond the current game roster with additional subject-aligned mini-games."],
+  ["Student — Arcade", "Multiplayer / classroom-activity mode", "Real-time, synchronous play so a teacher can run an arcade game live as a class activity (Kahoot-style) — the single biggest lift of this initiative, since no real-time/WebSocket infrastructure exists anywhere in the codebase today. Requires new server-side real-time plumbing, a classroom-session/room concept, and live-scoring UI, none of which currently exist."],
+];
+
 const USER_STORY_BLOCKS = [
   {
     role: "Platform Administration", subject: "a Platform Admin",
@@ -916,6 +932,16 @@ children.push(
     "Documented here in the interest of an honest PRD — these are gaps found while auditing the live codebase, not hypothetical risks. None of the features above are described as working if this register says otherwise."
   ),
   dataTable(["Area", "Issue", "Impact"], KNOWN_ISSUES, [1400, 3600, 4350]),
+
+  new Paragraph({ children: [new PageBreak()] }),
+  heading("6. Pending Work & Near-Term Roadmap"),
+  bodyPara(PENDING_FIXES_STATUS),
+  spacer(160),
+  h3("New Initiative: Arcade Gamification & Multiplayer"),
+  bodyPara(
+    "Requested next: turn the Arcade from a set of static solo mini-games into a more gamified, more varied, and optionally multiplayer experience usable as a live classroom activity. Below is the shape of the ask as of this revision — design and sequencing to be finalized before implementation."
+  ),
+  dataTable(["Area", "Item", "Notes"], PENDING_INITIATIVES, [1800, 2200, 5350]),
 
   new Paragraph({ children: [new PageBreak()] })
 );
