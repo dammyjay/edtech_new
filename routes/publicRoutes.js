@@ -830,6 +830,41 @@ router.post("/feedback", async (req, res) => {
   }
 });
 
+// Footer "Subscribe to our newsletter" form — a real <form method="POST">
+// (not fetch-driven), so this redirects back rather than returning JSON.
+// Previously posted to /subscribe, the BROWSER-PUSH opt-in endpoint (it
+// expects a push subscription's {endpoint, keys}, not an email) — every
+// email typed into this form was silently dropped, never stored anywhere.
+// newsletter_subscribers (models/initTables.js) is a dedicated list for
+// outside visitors who want to hear from us before ever having an account,
+// distinct from push_subscriptions (browser push) and newsletter_recipients
+// (delivery tracking for a campaign already sent to existing users).
+router.post("/newsletter-signup", async (req, res) => {
+  const email = (req.body.email || "").trim().toLowerCase();
+  const backTo = req.get("Referer") || "/";
+  const redirectWith = (status) => {
+    const sep = backTo.includes("?") ? "&" : "?";
+    res.redirect(`${backTo}${sep}newsletter=${status}`);
+  };
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return redirectWith("invalid");
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO newsletter_subscribers (email) VALUES ($1)
+       ON CONFLICT (email) DO NOTHING
+       RETURNING id`,
+      [email]
+    );
+    redirectWith(result.rows.length > 0 ? "success" : "already");
+  } catch (err) {
+    console.error("Newsletter signup error:", err.message);
+    redirectWith("error");
+  }
+});
+
 // Per-route (not router.use()) — this file is mounted at "/" (app root)
 // and registered before almost everything else, so a blanket router-wide
 // middleware here would run for nearly every request in the app (this is

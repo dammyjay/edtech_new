@@ -557,6 +557,7 @@ const FEATURE_MODULES = [
         "Pricing page: every visitor's single reference for all three ways to pay — Self-Paced (a from-price teaser pulled live from the course catalogue, linking to the catalogue), Instructor-Led live classes (one gamified card per active plan, ₦ and optional $ price, a schedule line, e.g. 'Saturdays, 1 hour'), and School Plans (the per-student-per-term rate card, §3.17); every card's call to action is 'Sign Up', pre-selecting the School Admin role for School Plans.",
         "Audience landing pages, reachable from a 'Pricing ▾' nav dropdown (alongside the main Pricing page): a 'For Schools' page (static feature summary — classroom analytics, teacher grading tools, certificates, the Arduino/Blockly/Python labs, AI tutor — plus the real School pricing cards, an 'Optional Extras' section of admin-flagged add-ons shown with no price, and the full pathway catalogue with live course counts) and a 'For Individual Learners' page (AI tutor, gamification, certificates, project showcase as static feature copy, plus the real Self-Paced price range and Instructor-Led pricing cards, and the same pathway catalogue). The feature summaries are static page copy for this pass, not an admin-manageable table.",
         "Testimonial and feedback submission forms (feedback triggers a thank-you email to the sender and a notification to Admin).",
+        "Footer newsletter sign-up: captures a visitor's email into a dedicated subscriber list, separate from browser push and from delivery-tracking for campaigns already sent to existing users.",
         "Event pages: view, register (name/email/phone/group size) and pay via Paystack.",
         "Sign-up flows for parents, independent students and school admins (email-code confirmed) and teachers (School-ID + Admin approval); referral codes captured at sign-up.",
       ]},
@@ -654,7 +655,6 @@ const KNOWN_ISSUES = [
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
   ["Student", "Final Course Project (the third, oldest submission system)", "Its submit handler is non-functional. Superseded by External Projects (§3.7); recommend removing the UI entry point rather than fixing dead code."],
   ["Parent", "No parent-teacher messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting a teacher."],
-  ["Public", "Footer newsletter sign-up is wired to the wrong endpoint", "It posts to /subscribe, which is actually the browser-push opt-in — there is no real email-list sign-up handler behind it."],
   ["Cross-cutting", "CSRF coverage is partial", "Being added router-by-router (per the project's own established pattern); some older routes remain unprotected."],
   ["Cross-cutting", "Session cookie `secure` flag is false", "Should be enabled once the production domain is confirmed fully HTTPS end-to-end."],
 ];

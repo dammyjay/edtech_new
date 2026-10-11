@@ -32,6 +32,22 @@ async function createTables() {
       );
     `);
 
+    // Public email-list sign-up (footer "Subscribe to our newsletter" form)
+    // — distinct from push_subscriptions (browser push) and
+    // newsletter_recipients (delivery tracking for a campaign already sent
+    // to existing platform users). This is the list of outside visitors who
+    // asked to hear from us before ever having an account; the footer form
+    // used to POST here with nowhere real to land (it pointed at the push
+    // endpoint, silently failing), so no email captured through it was ever
+    // actually stored anywhere.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        subscribed_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+
     // table for company info
     await pool.query(
       `CREATE TABLE IF NOT EXISTS company_info(

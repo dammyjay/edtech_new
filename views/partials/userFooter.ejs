@@ -40,7 +40,7 @@
 
       <div class="footer-subscribe">
         <h4>Subscribe to our newsletter</h4>
-        <form method="POST" action="/subscribe" class="subscribe-form">
+        <form method="POST" action="/newsletter-signup" class="subscribe-form">
           <input
             type="email"
             name="email"
@@ -49,5 +49,28 @@
           />
           <button type="submit">Subscribe</button>
         </form>
+        <p class="subscribe-msg" id="newsletterMsg" style="display:none; margin-top:8px; font-size:13px;"></p>
       </div>
     </footer>
+    <script>
+      (function () {
+        // Same redirect-driven success/failure pattern as partials/footer.ejs.
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get("newsletter");
+        if (!status) return;
+        const messages = {
+          success: "Subscribed — thanks for joining!",
+          already: "You're already subscribed.",
+          invalid: "That email doesn't look right — please try again.",
+          error: "Something went wrong. Please try again.",
+        };
+        const el = document.getElementById("newsletterMsg");
+        if (el && messages[status]) {
+          el.textContent = messages[status];
+          el.style.display = "block";
+        }
+        params.delete("newsletter");
+        const qs = params.toString();
+        window.history.replaceState({}, "", window.location.pathname + (qs ? "?" + qs : ""));
+      })();
+    </script>
