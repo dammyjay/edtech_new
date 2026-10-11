@@ -54,10 +54,15 @@
             </button>
             <div class="dropdown-content" id="studentsMenu">
               <a href="/admin/students">All Students</a>
-              <a href="/admin/students/progress">Progress & Performance</a>
-              <a href="/admin/students/enrollments">Enrollments</a>
               <a href="/admin/parent-invoices">Parent Invoice</a>
             </div>
+            <!-- "Progress & Performance" and "Enrollments" shortcuts here used
+                 to point at parameterless routes (/admin/students/progress,
+                 /admin/students/enrollments) that don't exist — Express
+                 matched them against /students/:id instead (id="progress" /
+                 "enrollments"), which 500'd. Removed: the real per-student
+                 Progress and Enrollments links on views/admin/students.ejs
+                 already cover this, with an actual student id. -->
           </div>
 
           <div class="dropdown">

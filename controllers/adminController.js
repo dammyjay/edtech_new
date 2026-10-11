@@ -3481,22 +3481,6 @@ exports.createBenefit = async (req, res) => {
   res.redirect("/admin/benefits");
 };
 
-exports.editBenefitForm = async (req, res) => {
-  const id = req.params.id;
-  const benefitResult = await pool.query(
-    "SELECT * FROM benefits WHERE id = $1",
-    [id]
-  );
-  const infoResult = await pool.query(
-    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-  );
-
-  res.render("admin/editBenefit", {
-    info: infoResult.rows[0] || {},
-    benefit: benefitResult.rows[0],
-  });
-};
-
 exports.updateBenefit = async (req, res) => {
   const id = req.params.id;
   const { title, description } = req.body;
@@ -3906,29 +3890,6 @@ exports.listStudents = async (req, res) => {
   } catch (err) {
     console.error("List students error:", err.message);
     res.status(500).send("Failed to fetch students");
-  }
-};
-
-exports.viewStudentDetails = async (req, res) => {
-  
-  try {
-    const infoResult = await pool.query(
-      "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
-    );
-    const info = infoResult.rows[0];
-    const { id } = req.params;
-    const studentRes = await pool.query(
-      `SELECT id, fullname, email, phone, gender, dob, wallet_balance2, profile_picture, created_at
-       FROM users2 WHERE id=$1`,
-      [id]
-    );
-    if (studentRes.rows.length === 0)
-      return res.status(404).send("Student not found");
-
-    res.render("admin/studentDetails", { student: studentRes.rows[0], info });
-  } catch (err) {
-    console.error("View student details error:", err.message);
-    res.status(500).send("Failed to fetch student");
   }
 };
 
@@ -4793,8 +4754,18 @@ exports.viewStudentEnrollments = async (req, res) => {
     );
     const info = infoResult.rows[0];
     const { id } = req.params;
+
+    const studentRes = await pool.query(
+      `SELECT id, fullname, email, profile_picture FROM users2 WHERE id = $1`,
+      [id]
+    );
+    if (!studentRes.rows.length) {
+      return res.status(404).send("Student not found");
+    }
+    const student = studentRes.rows[0];
+
     const courses = await pool.query(
-      `SELECT c.title, e.enrolled_at
+      `SELECT c.id, c.title, c.thumbnail_url, e.enrolled_at
        FROM course_enrollments e
        JOIN courses c ON e.course_id = c.id
        WHERE e.user_id = $1
@@ -4803,6 +4774,7 @@ exports.viewStudentEnrollments = async (req, res) => {
     );
 
     res.render("admin/studentEnrollments", {
+      student,
       courses: courses.rows,
       info,
       role: "admin",

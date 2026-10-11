@@ -11,26 +11,7 @@
     <script src="/js/csrf.js"></script>
   </head>
   <body>
-    <header class="header">
-      <div class="logo-title">
-       <a href="/"> <img src="/logo.png" alt="Logo" /></a>
-  
-        <p>C&S Church Online</p>
-      </div>
-      <button class="nav-toggle" onclick="toggleNav()">☰</button>
-      <nav id="main-nav">
-        <a href="/admin/dashboard">Dashboard</a>
-        <a href="/admin/articles">Articles</a>
-        <a href="/admin/videos">Videos</a>
-        <a href="/admin/ministry">About Us</a>
-        <a href="/profile">Profile</a>
-        
-        <!-- Assuming About refers to Mission & Vision -->
-        <a href="/admin/logout" class="logout-button">Logout</a>
-        <!-- Login remains a page link -->
-        
-      </nav>
-    </header>
+    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
     <h2>Edit FAQ</h2>
     <form action="/admin/faqs/update/<%= faq.id %>" method="POST">
       <p><strong>Question:</strong> <%- faq.question %></p>

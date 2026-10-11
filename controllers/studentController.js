@@ -5276,56 +5276,6 @@ exports.getClassroomAnnouncements = async (req, res) => {
   }
 };
 
-exports.submitProject = async (req, res) => {
-  try {
-    // Was req.session.studentId, a field never set anywhere in this app
-    // (login only ever sets req.session.user) — always undefined. Note:
-    // this function is still non-functional beyond that (it calls
-    // undefined `db.query` a few lines down and reads from an
-    // "enrollments" table that doesn't exist in this schema — this file
-    // only ever uses `pool`, and the real table is "course_enrollments").
-    // That's a pre-existing functional bug, not a security issue, and is
-    // out of scope for this pass; fixing the identifier here at least
-    // stops it from being wrong in a way that looks like an auth bug.
-    const studentId = req.session.user?.id;
-    const { courseId, projectId, notes } = req.body;
-
-    // Check if the course is completed
-    const courseCheck = await db.query(
-      "SELECT * FROM enrollments WHERE student_id=$1 AND course_id=$2 AND completed=true",
-      [studentId, courseId]
-    );
-
-    if (courseCheck.rowCount === 0) {
-      return res
-        .status(403)
-        .send("Complete all modules first to submit the project.");
-    }
-
-    // Handle file upload
-    const filePath = req.file ? req.file.path : null;
-    if (!filePath) {
-      return res.status(400).send("Please upload your project file.");
-    }
-
-    // Save submission to DB keyed by project_id
-    await db.query(
-      `INSERT INTO project_submissions (student_id, course_id, project_id, file_url, notes, submitted_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       ON CONFLICT (student_id, project_id) DO UPDATE
-       SET file_url = EXCLUDED.file_url,
-           notes = EXCLUDED.notes,
-           submitted_at = NOW()`,
-      [studentId, courseId, projectId, filePath, notes]
-    );
-
-    res.redirect(`/student/dashboard?section=projects&courseId=${courseId}`);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("An error occurred while submitting your project.");
-  }
-};
-
 
 
 

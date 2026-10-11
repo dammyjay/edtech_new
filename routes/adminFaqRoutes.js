@@ -80,10 +80,14 @@ router.get("/admin/faqs", async (req, res) => {
 
 // Show edit form
 router.get("/admin/faqs/edit/:id", async (req, res) => {
+  const infoResult = await pool.query(
+    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+  );
+  const info = infoResult.rows[0] || {};
   const result = await pool.query("SELECT * FROM faqs WHERE id = $1", [
     req.params.id,
   ]);
-  res.render("admin/editFaq", { faq: result.rows[0], title: "Edit FAQ" });
+  res.render("admin/editFaq", { faq: result.rows[0], info, role: "admin", title: "Edit FAQ" });
 });
 
 // Handle update

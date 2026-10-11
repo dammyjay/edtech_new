@@ -4,8 +4,11 @@ const webpush = require("../utils/webpushConfig");
 
 // Daily nudge for students who've gone quiet — the one real gap the
 // engagement audit found: push infrastructure existed (push_subscriptions)
-// but was only ever used for broadcast article alerts, and even that had
-// a bug (queried a different, empty table — see controllers/articleController.js).
+// but was only ever used for broadcast article alerts, and that whole
+// feature (controllers/articleController.js) turned out to be dead code
+// copy-pasted from an unrelated project (it referenced an "articles" table
+// that never existed in this app's schema, and a hardcoded
+// cschurchonline.org URL) — removed.
 // Only reaches subscriptions with a user_id (i.e. captured while the
 // student was logged in — see routes/userRoutes.js POST /subscribe);
 // anonymous subscriptions are skipped since there's no student to check

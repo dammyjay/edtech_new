@@ -1320,20 +1320,6 @@
       <% }) %>
     <% }) %>
 
-  <h3>🏁 Final Project</h3>
-  <% enrolledCourses.forEach(course => { %>
-    <% if (courseFinalUnlocked[course.id]) { %>
-      <% const projects = courseProjects[course.id] || []; %>
-      <% projects.forEach(project => { %>
-        <button onclick="loadProject(<%= project.id %>)">
-          🎯 <%= project.title %>
-        </button>
-      <% }) %>
-    <% } else { %>
-      <p style="opacity:0.5;">🔒 Complete all modules to unlock the final project for <%= course.title %></p>
-    <% } %>
-  <% }) %>
-
   <% const anyCourseExternalProjects = enrolledCourses.some(c => (courseExternalProjects[c.id] || []).length); %>
   <% if (anyCourseExternalProjects) { %>
     <h3>📤 External Projects</h3>
@@ -1358,54 +1344,6 @@
   <p>Select a lesson to start learning.</p>
 
   </div>
-<!-- Project Area (hidden by default) -->
-  <div id="projectArea" style="display:none; padding: 15px;">
-    <% enrolledCourses.forEach(course => { %>
-      <h3>🏁 Projects for <%= course.title %></h3>
-
-      <% const projects = courseProjects[course.id] || []; %>
-
-      <% if (projects.length > 0) { %>
-        <% projects.forEach(project => { %>
-          <div class="project-card" style="padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px;">
-            <h4>🎯 <%= project.title %></h4>
-            <p><%= project.description || "Complete this project after finishing all modules." %></p>
-            <% if (project.due_date) { %>
-              <p>⏰ Due: <%= new Date(project.due_date).toLocaleDateString() %></p>
-            <% } %>
-
-            <% 
-              // Check if student has submitted this project
-              const submission = projectSubmissions[project.id] || projectSubmissions[course.id];
-            %>
-
-            <% if (submission) { %>
-              <p>✅ You submitted this project on <%= new Date(submission.submitted_at).toLocaleDateString() %></p>
-              <a href="<%= submission.file_url %>" target="_blank">View Submission</a>
-            <% } else { %>
-              <form id="projectForm-<%= project.id %>" enctype="multipart/form-data" method="POST" action="/student/projects/submit">
-                <input type="hidden" name="courseId" value="<%= course.id %>">
-                <input type="hidden" name="projectId" value="<%= project.id %>">
-
-                <label>Upload Project File:</label>
-                <input type="file" name="projectFile" required />
-
-                <label>Notes (optional):</label>
-                <textarea name="notes" placeholder="Add any notes about your project"></textarea>
-
-                <button type="submit" class="btn-submit">Submit Project</button>
-              </form>
-            <% } %>
-          </div>
-        <% }) %>
-      <% } else { %>
-        <p>No projects available for this course yet.</p>
-      <% } %>
-
-    <% }) %>
-  </div>
-
-
 
   <!-- AI TUTOR BOX -->
   <div id="ai-tutor" class="ai-tutor" style="display:none;">

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Enrollments — <%= (info?.company_name || 'JKT Hub').trim() %></title>
+  <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
+  <link rel="stylesheet" href="/css/style.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-primary, #222);
+    margin: 0;
+    padding: 24px;
+  }
+
+  .se-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .se-header .logo-title { display: flex; align-items: center; gap: 10px; }
+  .se-header .logo-title img { height: 38px; }
+  .se-header .logo-title p { font-weight: 700; margin: 0; color: var(--brand-pri-dark, #4C3802); }
+  .se-back-link {
+    text-decoration: none;
+    color: var(--brand-pri-dark, #4C3802);
+    font-weight: 700;
+    background: var(--brand-tint, #FBF3DD);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+  }
+  .se-back-link:hover { background: var(--brand-pri-light, #D9A82C); color: #fff; }
+
+  .se-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    border-radius: var(--radius-lg, 16px);
+    padding: 26px 28px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+  }
+  .se-avatar {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; flex-shrink: 0;
+  }
+  .se-hero-info { flex: 1; min-width: 200px; }
+  .se-hero-info h1 { margin: 0; font-size: 21px; }
+  .se-hero-info p { margin: 4px 0 0; opacity: 0.92; font-size: 12.5px; }
+  .se-hero-stat {
+    background: rgba(255,255,255,0.16);
+    border-radius: var(--radius, 10px);
+    padding: 10px 18px;
+    text-align: center;
+    min-width: 92px;
+  }
+  .se-hero-stat .val { font-size: 20px; font-weight: 800; }
+  .se-hero-stat .lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.88; }
+
+  .se-panel {
+    background: #fff;
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--border-light, #e0e0e0);
+    overflow: hidden;
+  }
+  .se-panel h2 {
+    margin: 0;
+    padding: 16px 20px;
+    font-size: 15px;
+    border-bottom: 1px solid var(--border-light, #e0e0e0);
+  }
+  table.se-table { width: 100%; border-collapse: collapse; }
+  table.se-table th, table.se-table td {
+    text-align: left;
+    padding: 12px 20px;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--border-light, #eee);
+  }
+  table.se-table th { color: var(--text-secondary, #666); font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.se-table tbody tr:last-child td { border-bottom: none; }
+  table.se-table tbody tr:hover { background: var(--brand-tint, #FBF3DD); }
+  .se-course-cell { display: flex; align-items: center; gap: 10px; }
+  .se-course-cell img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+  .se-empty { padding: 40px 20px; text-align: center; color: var(--text-secondary, #666); }
+
+  @media (max-width: 560px) {
+    body { padding: 14px; }
+    .se-hero { padding: 18px; }
+    table.se-table th:nth-child(2), table.se-table td:nth-child(2) { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="se-header">
+    <div class="logo-title">
+      <% const _info = info || {}; %>
+      <% if (_info.logo_url) { %><img src="<%= _info.logo_url %>" alt="Logo" /><% } %>
+      <p><%= (_info.company_name || 'JKT Hub').trim() %></p>
+    </div>
+    <a class="se-back-link" href="/admin/students">⬅ Back to Students</a>
+  </header>
+
+  <div class="se-hero">
+    <div class="se-avatar"><%= (student.fullname || '?').trim().charAt(0).toUpperCase() %></div>
+    <div class="se-hero-info">
+      <h1><%= student.fullname %></h1>
+      <p><%= student.email %></p>
+    </div>
+    <div class="se-hero-stat">
+      <div class="val"><%= courses.length %></div>
+      <div class="lbl">Enrolled Course<%= courses.length === 1 ? '' : 's' %></div>
+    </div>
+  </div>
+
+  <div class="se-panel">
+    <h2>📚 Course Enrollments</h2>
+    <% if (courses.length === 0) { %>
+      <p class="se-empty">This student isn't directly enrolled in any course yet.</p>
+    <% } else { %>
+      <table class="se-table">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Enrolled</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% courses.forEach(function (c) { %>
+            <tr>
+              <td>
+                <div class="se-course-cell">
+                  <% if (c.thumbnail_url) { %><img src="<%= c.thumbnail_url %>" alt="" />
+                  <% } %>
+                  <span><%= c.title %></span>
+                </div>
+              </td>
+              <td><%= c.enrolled_at ? new Date(c.enrolled_at).toLocaleDateString() : '—' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</body>
+</html>

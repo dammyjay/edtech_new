@@ -12,7 +12,6 @@ const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 
 const adminController = require("../controllers/adminController");
 const companyController = require("../controllers/companyController");
-const articleController = require("../controllers/articleController");
 const learningController = require("../controllers/learningController");
 const lessonLabController = require("../controllers/lessonLabController");
 const externalProjectController = require("../controllers/externalProjectController");
@@ -258,19 +257,6 @@ router.post(
   ]),
   companyController.saveInfo
 );
-
-router.get("/articles", articleController.showArticles);
-router.get("/articles", articleController.showSearchArticles);
-router.post("/articles", upload.single("image"), articleController.saveArticle);
-// router.get('/articles/:id', articleController.showSingleArticle);
-
-router.get("/articles/edit/:id", articleController.showEditForm);
-router.post(
-  "/articles/edit/:id",
-  upload.single("image"),
-  articleController.updateArticle
-);
-router.post("/articles/delete/:id", articleController.deleteArticle);
 
 // Career Pathways
 router.get("/pathways", adminController.showPathways);
@@ -555,7 +541,6 @@ router.post("/external-projects/submission/:id/unfeature", externalProjectContro
 
 router.get("/benefits", adminController.showBenefits);
 router.post("/benefits", upload.single("icon"), adminController.createBenefit);
-router.get("/benefits/edit/:id", adminController.editBenefitForm);
 
 router.post(
   "/benefits/edit/:id",
@@ -590,7 +575,6 @@ router.delete("/events/:id", adminController.deleteEvent);
 
 // Student management
 router.get("/students", adminController.listStudents);
-router.get("/students/:id", adminController.viewStudentDetails);
 router.get("/students/:id/progress", adminController.viewStudentProgress);
 router.get("/students/:id/enrollments", adminController.viewStudentEnrollments);
 

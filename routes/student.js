@@ -22,9 +22,8 @@ router.use(ensureCsrfToken, verifyCsrfToken);
 // ensureAuthenticated was applied ad hoc per-route (about half the
 // routes below still call it individually, now redundant but harmless)
 // — real gaps that left unguarded: /chat/send and the other chat routes
-// (messaging with no auth at all), /projects/submit (file upload with
-// no auth), /lessons/:id/quiz /lessons/:lessonId/lab and their
-// submit/hint/check-answer siblings, /shop, /arcade, /classroom,
+// (messaging with no auth at all), /lessons/:id/quiz /lessons/:lessonId/lab
+// and their submit/hint/check-answer siblings, /shop, /arcade, /classroom,
 // /teacher, /parent-request/respond, and more. Matches the pattern
 // routes/adminRoutes.js and routes/instructor.js already use
 // (router.use(ensureAdmin) / ensureInstructorOrAdmin).
@@ -308,12 +307,5 @@ router.post("/chat/markRead/:receiverId", studentController.markMessagesAsRead);
 router.post("/class/send", ensureAuthenticated, studentController.sendClassMessage)
 router.get("/class/messages/:classroomId", ensureAuthenticated, studentController.getClassMessages)
 router.get("/classroom/:id/announcements", ensureAuthenticated, studentController.getClassroomAnnouncements)
-
-router.post(
-  "/projects/submit",
-  upload.single("projectFile"),
-  studentController.submitProject
-);
-
 
 module.exports = router;
