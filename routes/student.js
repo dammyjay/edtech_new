@@ -14,14 +14,21 @@ const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // CSRF protection — see the matching comment in routes/adminRoutes.js.
 // Mounted at "/student" (a specific prefix, not "/"), so a path-less
-// router.use() here is safe. Unlike the other role routers, this file has
-// no consistent router-wide auth gate of its own (ensureAuthenticated is
-// applied ad hoc per-route below, a separate pre-existing gap — see the
-// tracker) — but every view it renders either includes partials/header.ejs
-// directly (confirmed for all 8 views this controller renders) or has no
-// forms/fetch calls at all, so it's safe to add CSRF here regardless of
-// that inconsistency.
+// router.use() here is safe.
 router.use(ensureCsrfToken, verifyCsrfToken);
+
+// Router-wide auth gate — this whole router is student-only, so every
+// route here needs a logged-in session regardless. Previously
+// ensureAuthenticated was applied ad hoc per-route (about half the
+// routes below still call it individually, now redundant but harmless)
+// — real gaps that left unguarded: /chat/send and the other chat routes
+// (messaging with no auth at all), /projects/submit (file upload with
+// no auth), /lessons/:id/quiz /lessons/:lessonId/lab and their
+// submit/hint/check-answer siblings, /shop, /arcade, /classroom,
+// /teacher, /parent-request/respond, and more. Matches the pattern
+// routes/adminRoutes.js and routes/instructor.js already use
+// (router.use(ensureAdmin) / ensureInstructorOrAdmin).
+router.use(ensureAuthenticated);
 
 router.get("/dashboard", studentController.getDashboard);
 router.get("/courses", studentController.getEnrolledCourses);

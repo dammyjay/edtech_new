@@ -653,7 +653,6 @@ const KNOWN_ISSUES = [
   ["Admin", "/admin lands on Newsletters, not the dashboard", "The real dashboard lives at /admin/dashboard — a navigation surprise, not a bug, but worth fixing for first-open UX."],
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
   ["Student", "Final Course Project (the third, oldest submission system)", "Its submit handler is non-functional. Superseded by External Projects (§3.7); recommend removing the UI entry point rather than fixing dead code."],
-  ["Student", "Inconsistent auth gating", "Several /student routes don't require ensureAuthenticated even though the router has no blanket auth gate of its own — a pre-existing inconsistency, not something introduced recently."],
   ["Parent", "No parent-teacher messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting a teacher."],
   ["Public", "Footer newsletter sign-up is wired to the wrong endpoint", "It posts to /subscribe, which is actually the browser-push opt-in — there is no real email-list sign-up handler behind it."],
   ["Cross-cutting", "CSRF coverage is partial", "Being added router-by-router (per the project's own established pattern); some older routes remain unprotected."],
