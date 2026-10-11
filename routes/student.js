@@ -28,8 +28,6 @@ router.get("/courses", studentController.getEnrolledCourses);
 router.get("/past-courses/:courseId", ensureAuthenticated, studentController.viewPastCourse);
 router.get("/terms/:termId/reactivate", ensureAuthenticated, studentController.viewTermReactivation);
 router.post("/terms/:termId/reactivate", ensureAuthenticated, studentController.payTermReactivation);
-router.get("/analytics", studentController.getAnalytics);
-router.post("/award-badge", studentController.awardBadge);
 // Mark lesson complete
 router.post("/lessons/:lessonId/complete", studentController.completeLesson);
 // router.post("/courses/enroll/:courseId", studentController.enrollInCourse); 

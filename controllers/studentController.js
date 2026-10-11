@@ -2053,63 +2053,6 @@ exports.getPortfolio = async (req, res) => {
 };
 
 // GET: Learning Analytics
-exports.getAnalytics = async (req, res) => {
-  const studentId = req.user.id;
-
-  try {
-    const result = await pool.query(
-      `
-      SELECT m.title AS module, COUNT(l.id) AS lessons_completed
-      FROM lessons l
-      JOIN modules m ON l.module_id = m.id
-      JOIN user_lesson_progress p ON p.lesson_id = l.id
-      WHERE p.user_id = $1
-      GROUP BY m.title
-      ORDER BY m.title
-    `,
-      [studentId]
-    );
-
-    const labels = result.rows.map((row) => row.module);
-    const data = result.rows.map((row) => Number(row.lessons_completed));
-
-    res.render("student/dashboard", {
-      chart: { labels, data },
-    });
-  } catch (err) {
-    console.error("Error loading analytics:", err.message);
-    res.status(500).send("Server Error");
-  }
-};
-
-exports.awardBadge = async (req, res) => {
-  const userId = req.user.id;
-  const { badge_name, module_id } = req.body; // pass module_id from frontend
-
-  try {
-    // ✅ Get badge image from module
-    const moduleRes = await pool.query(
-      `SELECT badge_image FROM modules WHERE id=$1`,
-      [module_id]
-    );
-    const badgeImage = moduleRes.rows[0]?.badge_image || null;
-
-    await pool.query(
-      `
-      INSERT INTO user_badges (user_id, badge_name, module_id, badge_image, awarded_at)
-      VALUES ($1, $2, $3, $4, NOW())
-      ON CONFLICT DO NOTHING
-      `,
-      [userId, badge_name, module_id, badgeImage]
-    );
-
-    res.json({ message: "Badge awarded successfully" });
-  } catch (err) {
-    console.error("Badge awarding error:", err.message);
-    res.status(500).json({ error: "Server error awarding badge" });
-  }
-};
-
 const STREAK_FREEZE_COST = 10;
 
 // Spend coins to protect today's streak gap — only when there's actually
