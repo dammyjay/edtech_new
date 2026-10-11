@@ -17,7 +17,6 @@ const learningController = require("../controllers/learningController");
 const lessonLabController = require("../controllers/lessonLabController");
 const externalProjectController = require("../controllers/externalProjectController");
 const userController = require("../controllers/userController")
-const newsletterController = require("../controllers/newsletterController");
 const reportController = require("../controllers/reportController");
 const reportsAdminController = require("../controllers/reportsAdminController");
 const archiveController = require("../controllers/archiveController");
@@ -125,8 +124,13 @@ router.get("/archive/:entity/:id/impact", archiveController.getImpact);
 router.post("/archive/:entity/:id/restore", archiveController.restoreEntity);
 router.post("/archive/:entity/:id/delete-permanent", archiveController.deleteEntityPermanently);
 
-  // Newsletter Dashboard
-router.get("/", newsletterController.getNewslettersPage);
+  // /admin (bare root) used to render the Newsletters page directly — a
+  // leftover duplicate of the newsletters page's own real route at
+  // /admin/newsletters (routes/newsletterRoutes.js), which already works
+  // fine on its own. Landing on Newsletters instead of the actual
+  // dashboard on first open was a navigation surprise, not an intended
+  // shortcut — redirect to the real dashboard instead.
+router.get("/", (req, res) => res.redirect("/admin/dashboard"));
 
 router.get(
     "/dashboard/charts/users",

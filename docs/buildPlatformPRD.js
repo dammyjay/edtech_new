@@ -651,7 +651,6 @@ const KNOWN_ISSUES = [
   ["Admin", "Several admin pages point at view templates that don't exist", "Student Details, Student Enrollments, Edit Benefit and Edit Article all 404/error — their controller logic exists but has no page to render."],
   ["Admin", "Broken menu links", "'Progress & Performance' / 'Enrollments' under Students, and 'Modules'/'Lessons' shortcuts, point at routes that don't exist."],
   ["Admin", "Assorted dead code", "A bulk avatar-login route registered at a typo'd path (/schooxls/... instead of /schools/...); a duplicate, unreachable article-search route; an unmounted ministry page; PDF student-export left commented out; two redundant course-edit endpoints."],
-  ["Admin", "/admin lands on Newsletters, not the dashboard", "The real dashboard lives at /admin/dashboard — a navigation surprise, not a bug, but worth fixing for first-open UX."],
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
   ["Student", "Final Course Project (the third, oldest submission system)", "Its submit handler is non-functional. Superseded by External Projects (§3.7); recommend removing the UI entry point rather than fixing dead code."],
   ["Parent", "No parent-teacher messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting a teacher."],
