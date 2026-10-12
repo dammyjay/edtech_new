@@ -102,7 +102,6 @@ router.post(
   adminController.createCourseUnderPathway
 );
 router.get("/courses/:id", learningController.viewSingleCourse);
-router.post("/admin/courses/:id/edit", learningController.updateCourse);
 
 router.post(
   "/modules/create",

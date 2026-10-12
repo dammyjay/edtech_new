@@ -649,7 +649,6 @@ const NFR_ITEMS = [
 
 const KNOWN_ISSUES = [
   ["Admin", "Instructor/Admin share one access check (ensureInstructorOrAdmin)", "Was previously a real auth bug (since fixed); the shared check still means instructor-scoped pages rely entirely on query-level scoping, not the route guard, to keep instructors out of other instructors' data."],
-  ["Admin", "Assorted dead code", "Two redundant course-edit endpoints still need auditing. (A typo'd avatar-login route, a duplicate article-search route, and an unmounted ministry page were already resolved — see below.)"],
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
   ["Parent", "No parent-teacher messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting a teacher."],
   ["Cross-cutting", "CSRF coverage is partial", "Being added router-by-router (per the project's own established pattern); some older routes remain unprotected."],

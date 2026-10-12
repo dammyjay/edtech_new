@@ -2778,100 +2778,6 @@ exports.createCourse = async (req, res) => {
   const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
     req.body;
 
-  let thumbnail_url = null;
-  let curriculum_url = null;
-  let curriculum_mime = null;
-  let curriculum_name = null;
-  let certificate_url = null;
-  let certificate_mime = null;
-  let certificate_name = null;
-
-  try {
-    // ✅ Upload thumbnail (image)
-    if (req.files?.thumbnail?.[0]) {
-      const thumbPath = req.files.thumbnail[0].path;
-      const thumbResult = await cloudinary.uploader.upload(thumbPath, {
-        folder: "courses/thumbnails",
-        resource_type: "image",
-        use_filename: true,
-        unique_filename: false,
-      });
-      thumbnail_url = thumbResult.secure_url;
-      if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
-    }
-
-    // ✅ Upload curriculum (PDF/DOC/DOCX)
-    if (req.files?.curriculum?.[0]) {
-      const file = req.files.curriculum[0];
-      const filePath = file.path;
-      const fileResult = await cloudinary.uploader.upload(filePath, {
-        folder: "courses/curriculums",
-        resource_type: "raw",
-        use_filename: true,
-        unique_filename: false,
-      });
-      curriculum_url = fileResult.secure_url;
-      curriculum_mime = file.mimetype;
-      curriculum_name = file.originalname;
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
-
-    // ✅ Upload certificate (PDF or Image)
-    if (req.files?.certificate?.[0]) {
-      const cert = req.files.certificate[0];
-      const certPath = cert.path;
-      const certResult = await cloudinary.uploader.upload(certPath, {
-        folder: "courses/certificates",
-        resource_type: "auto",
-        use_filename: true,
-        unique_filename: false,
-      });
-      certificate_url = certResult.secure_url;
-      certificate_mime = cert.mimetype;
-      certificate_name = cert.originalname;
-      if (fs.existsSync(certPath)) fs.unlinkSync(certPath);
-    }
-
-    await pool.query(
-      `INSERT INTO courses (
-        title, description, level, career_pathway_id,
-        thumbnail_url, sort_order, amount,
-        created_by, instructor_id,
-        curriculum_content
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [
-        title,
-        description,
-        level,
-        career_pathway_id || null,
-        thumbnail_url,
-        sort_order || 0,
-        amount || 0,
-        req.user.role === "instructor" ? "instructor" : "admin",
-        req.user.role === "instructor" ? req.user.id : null,
-        curriculum_content
-      ]
-    );
-
-
-    await logActivityForUser(req, "Course Created", `Course title: ${title}`);
-    console.log("✅ Course created successfully.");
-
-    res.redirect(`/admin/pathways/${career_pathway_id}/courses`);
-  } catch (err) {
-    console.error("❌ Error creating course:", err);
-    res
-      .status(500)
-      .send("Error creating course: " + (err.message || "unknown"));
-  }
-};
-
-exports.createCourse = async (req, res) => {
-  console.log("📘 Creating course with:", req.body);
-  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
-    req.body;
-
   // multer-storage-cloudinary has already uploaded this to Cloudinary by
   // this point — req.files.thumbnail[0].path is the Cloudinary URL, not a
   // local path, so no re-upload through cloudinary.uploader.upload() is
@@ -3115,10 +3021,9 @@ exports.deleteCourse = async (req, res) => {
 // Admin-only (see the role check below) — the course Curriculum (the
 // courses.curriculum_content CKEditor field, a real, separately-edited
 // field distinct from the shorter courses.description blurb — written
-// via views/admin/pathwayCourses.ejs's edit form, which posts to
-// learningController.updateCourse, and also via
-// views/admin/courses.ejs's create/edit forms once those gained their
-// own curriculum_content field too) rendered to a branded PDF.
+// via both views/admin/pathwayCourses.ejs's and views/admin/courses.ejs's
+// edit forms, which both post here through editCourse above) rendered to
+// a branded PDF.
 exports.downloadCurriculum = async (req, res) => {
   if (!req.session.user || req.session.user.role !== "admin") {
     return res.status(403).send("Only an admin can download the course curriculum.");

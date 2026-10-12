@@ -389,17 +389,6 @@ router.post(
   adminController.createCourseUnderPathway
 );
 router.get("/courses/:id", learningController.viewSingleCourse);
-// router.post("/admin/courses/:id/edit", learningController.updateCourse);
-
-router.post(
-  "/courses/:id/edit",
-  upload.fields([
-    { name: "thumbnail", maxCount: 1 },
-    { name: "curriculum", maxCount: 1 },
-    { name: "certificate", maxCount: 1 },
-  ]),
-  learningController.updateCourse
-);
 
 // For multiple files (thumbnail + badge)
 router.post(
