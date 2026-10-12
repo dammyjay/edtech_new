@@ -105,7 +105,11 @@
       const messages = { X: ["🎉", "You win!"], O: ["🤖", "Computer wins"], draw: ["🤝", "Draw!"] };
       const [emoji, title] = messages[w];
       if (w === "X") ArcadeEngine.confetti(container);
-      overlayEl = ArcadeEngine.overlay(container, { emoji, title, buttonLabel: "Play Again", onRestart: reset });
+      // The computer plays minimax (effectively unbeatable), so a win is
+      // genuinely rare and scores highest; a draw is the realistic best
+      // outcome and still scores well; a loss means a real mistake.
+      const score = { X: 100, draw: 50, O: 10 }[w];
+      overlayEl = ArcadeEngine.overlay(container, { emoji, title, buttonLabel: "Play Again", onRestart: reset, score });
     }
 
     function reset() {

@@ -83,7 +83,7 @@
       holes.forEach((h) => { h.up = false; h.mole.style.height = "0%"; if (h.timeoutId) clearTimeout(h.timeoutId); });
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "🔨", title: "Time's up!", subtitle: `You whacked ${score} moles.`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

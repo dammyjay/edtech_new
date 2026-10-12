@@ -7,6 +7,16 @@
     "COMPASS", "DIAMOND", "JOURNEY", "FLAVOR", "BRIDGE", "GARDEN", "LANTERN", "CRYSTAL",
   ];
 
+  // hasDifficulty: true — easy/hard filter the word pool by length instead
+  // of swapping in a different list, so the vocabulary stays consistent;
+  // medium (the default) uses every word. Per-word time budget shifts too.
+  const WORD_TIME_BY_DIFFICULTY = { easy: 28, medium: 20, hard: 14 };
+  function wordPoolFor(difficulty) {
+    if (difficulty === "easy") return WORDS.filter((w) => w.length <= 6);
+    if (difficulty === "hard") return WORDS.filter((w) => w.length >= 7);
+    return WORDS;
+  }
+
   function shuffleLetters(word) {
     const letters = word.split("");
     for (let i = letters.length - 1; i > 0; i--) {
@@ -21,12 +31,14 @@
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#d97706");
+    const wordPool = wordPoolFor(container.dataset.difficulty);
+    const wordTime = WORD_TIME_BY_DIFFICULTY[container.dataset.difficulty] || 20;
     container.innerHTML = `
-      <p class="arcade-game-hint">Tap the letters in order to spell the word. 5 words, 20 seconds each.</p>
+      <p class="arcade-game-hint">Tap the letters in order to spell the word. 5 words, ${wordTime} seconds each.</p>
       <div class="arcade-scoreboard">
         <div class="arcade-score-pill"><span class="label">Word</span><span class="value" id="wsIndex">1 / 5</span></div>
         <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="wsScore">0</span></div>
-        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="wsTime">20</span></div>
+        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="wsTime">${wordTime}</span></div>
       </div>
       <div id="wsAnswer" style="min-height:46px; display:flex; justify-content:center; gap:6px; margin-bottom:18px; flex-wrap:wrap;"></div>
       <div id="wsTiles" style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; max-width:420px; margin:0 auto;"></div>
@@ -47,7 +59,7 @@
 
     function pickWord() {
       let w;
-      do { w = WORDS[Math.floor(Math.random() * WORDS.length)]; } while (usedWords.has(w));
+      do { w = wordPool[Math.floor(Math.random() * wordPool.length)]; } while (usedWords.has(w));
       usedWords.add(w);
       return w;
     }
@@ -105,8 +117,8 @@
       word = pickWord();
       letters = shuffleLetters(word);
       picked = [];
-      timeLeft = 20;
-      timeEl.textContent = "20";
+      timeLeft = wordTime;
+      timeEl.textContent = String(wordTime);
       renderTiles();
       renderAnswer();
     }
@@ -136,7 +148,7 @@
       if (score > 0) ArcadeEngine.confetti(container);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "🔤", title: "Nice work!", subtitle: `Final score: ${score}`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

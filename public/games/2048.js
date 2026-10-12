@@ -108,7 +108,7 @@
       localStorage.setItem("arcade_2048_best", String(best));
       bestEl.textContent = String(best);
       if (won) ArcadeEngine.confetti(container);
-      overlayEl = ArcadeEngine.overlay(container, { emoji, title: text, subtitle: `Score: ${score}`, buttonLabel: "Play Again", onRestart: reset });
+      overlayEl = ArcadeEngine.overlay(container, { emoji, title: text, subtitle: `Score: ${score}`, buttonLabel: "Play Again", onRestart: reset, score });
     }
 
     function move(direction) {

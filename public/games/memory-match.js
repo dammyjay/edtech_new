@@ -12,7 +12,14 @@
     { snippet: "let x = 5;", concept: "Stores a value in a variable" },
     { snippet: "arr.push(1)", concept: "Adds an item to a list" },
     { snippet: "// comment", concept: "A note the computer ignores" },
+    { snippet: "while (x < 10)", concept: "Repeats until a condition fails" },
+    { snippet: "return a + b;", concept: "Sends a value back to the caller" },
   ];
+
+  // hasDifficulty: true in utils/arcadeGames.js — fewer/more pairs to
+  // track, read from container.dataset.difficulty (see views/student/
+  // arcade.ejs's difficulty picker).
+  const PAIR_COUNT_BY_DIFFICULTY = { easy: 4, medium: 6, hard: 8 };
 
   function shuffle(arr) {
     const a = arr.slice();
@@ -37,11 +44,14 @@
     const grid = container.querySelector("#memGrid");
     const movesEl = container.querySelector("#memMoves");
 
+    const pairCount = PAIR_COUNT_BY_DIFFICULTY[container.dataset.difficulty] || PAIRS.length;
+    const activePairs = PAIRS.slice(0, pairCount);
+
     let cards, flipped, matched, moves, lock, overlayEl;
 
     function buildDeck() {
       const deck = [];
-      PAIRS.forEach((p, i) => {
+      activePairs.forEach((p, i) => {
         deck.push({ pairId: i, text: p.snippet, kind: "snippet" });
         deck.push({ pairId: i, text: p.concept, kind: "concept" });
       });
@@ -87,9 +97,14 @@
           render();
           if (matched.size === cards.length) {
             ArcadeEngine.confetti(container);
+            // Fewer moves relative to this deck's pair count scores higher
+            // — minimum possible moves is exactly activePairs.length (one
+            // correct guess per pair, no mismatches), so moves beyond that
+            // subtract from a baseline reward for the deck size.
+            const score = Math.max(10, activePairs.length * 60 - (moves - activePairs.length) * 15);
             overlayEl = ArcadeEngine.overlay(container, {
               emoji: "🎉", title: "Solved!", subtitle: `Finished in ${moves} moves.`,
-              buttonLabel: "Play Again", onRestart: reset,
+              buttonLabel: "Play Again", onRestart: reset, score,
             });
           }
         } else {

@@ -195,6 +195,8 @@ router.post("/quizzes/:lessonId/questions/:questionId/check-answer", express.jso
 
 router.get("/arcade", studentController.getArcade);
 router.post("/arcade/:gameId/play", express.json(), studentController.playArcadeGame);
+router.post("/arcade/:gameId/score", express.json(), studentController.reportArcadeScore);
+router.get("/arcade/:gameId/leaderboard", studentController.getArcadeLeaderboard);
 
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);

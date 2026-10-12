@@ -32,6 +32,32 @@ async function createTables() {
       );
     `);
 
+    // Arcade play history — one row per completed game, score self-reported
+    // by the client (the games are client-rendered canvas/DOM games with no
+    // server-side simulation, so there's no way to recompute a score
+    // server-side the way a quiz answer can be checked against the DB; the
+    // report endpoint applies only loose sanity bounds, not true anti-cheat —
+    // documented honestly rather than pretending this is tamper-proof).
+    // Backs both the per-game personal-best/leaderboard display and the XP
+    // awarded for playing, neither of which existed before this table.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_plays (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER REFERENCES users2(id) ON DELETE CASCADE,
+        game_id TEXT NOT NULL,
+        difficulty TEXT,
+        score INTEGER NOT NULL,
+        xp_awarded INTEGER NOT NULL DEFAULT 0,
+        played_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_arcade_plays_game_score ON arcade_plays(game_id, score DESC);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_arcade_plays_student_game ON arcade_plays(student_id, game_id);
+    `);
+
     // Public email-list sign-up (footer "Subscribe to our newsletter" form)
     // — distinct from push_subscriptions (browser push) and
     // newsletter_recipients (delivery tracking for a campaign already sent

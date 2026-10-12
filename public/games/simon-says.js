@@ -92,7 +92,7 @@
       bestEl.textContent = String(best);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "🔴", title: "Sequence broken!", subtitle: `You reached round ${round - 1 < 0 ? 0 : round - 1}.`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score: Math.max(0, round - 1) * 10,
       });
     }
 

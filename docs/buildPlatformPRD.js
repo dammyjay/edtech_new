@@ -415,6 +415,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Arcade", items: [
         "15 mini-games (Snake, 2048, Memory Match, etc.), 3-5 coins per play; a school can disable the Arcade for a classroom.",
+        "Every game reports its score on completion, earns real XP, and is tracked on a per-game leaderboard (top 10 by best score). 5 games (Math Blitz, Snake, Memory Match, Reaction Test, Word Scramble) have selectable Easy/Medium/Hard difficulty that changes real gameplay parameters (time limits, speed, pool size); the remaining 10 report score/XP but have no difficulty tiers yet.",
       ]},
       { category: "Badges", items: [
         "Awarded on module completion and when a referred student completes their first lesson.",
@@ -665,10 +666,10 @@ const PENDING_FIXES_STATUS =
 // the BRD reflects what's actually been asked for, same honesty
 // standard as §5.
 const PENDING_INITIATIVES = [
-  ["Student — Arcade", "Difficulty levels", "Each arcade game gains selectable difficulty tiers (e.g. Easy/Medium/Hard) affecting question pool, time pressure, and/or scoring — currently games have no difficulty concept."],
-  ["Student — Arcade", "Deeper gamification", "Streak bonuses, per-game leaderboards, unlockable cosmetics/badges tied to arcade performance specifically (distinct from the existing quiz/lesson XP system) — scope to be finalized."],
-  ["Student — Arcade", "More educational games", "Expand beyond the current game roster with additional subject-aligned mini-games."],
-  ["Student — Arcade", "Multiplayer / classroom-activity mode", "Real-time, synchronous play so a teacher can run an arcade game live as a class activity (Kahoot-style) — the single biggest lift of this initiative, since no real-time/WebSocket infrastructure exists anywhere in the codebase today. Requires new server-side real-time plumbing, a classroom-session/room concept, and live-scoring UI, none of which currently exist."],
+  ["Student — Arcade", "Difficulty levels (partial)", "DONE for 5 of 15 games (Math Blitz, Snake, Memory Match, Reaction Test, Word Scramble) — Easy/Medium/Hard tiers change real gameplay parameters. Remaining 10 games still have no difficulty concept."],
+  ["Student — Arcade", "Deeper gamification (partial)", "DONE: every game now reports its score, awards real XP, and has a per-game leaderboard (top 10 by best score). NOT DONE: streak bonuses and unlockable cosmetics/badges tied specifically to arcade performance."],
+  ["Student — Arcade", "More educational games", "Not started. Expand beyond the current 15-game roster with additional subject-aligned mini-games."],
+  ["Student — Arcade", "Multiplayer / classroom-activity mode", "Not started — the single biggest lift of this initiative, since no real-time/WebSocket infrastructure exists anywhere in the codebase today. Requires new server-side real-time plumbing, a classroom-session/room concept, and live-scoring UI, none of which currently exist."],
 ];
 
 const USER_STORY_BLOCKS = [

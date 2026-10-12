@@ -27,15 +27,25 @@
     return Array.from(choices).sort(() => Math.random() - 0.5);
   }
 
+  // hasDifficulty: true — time limit and a virtual starting streak (which
+  // op set genProblem reaches for) both shift with difficulty; "easy"
+  // gets more time AND starts simpler, "hard" gets less time and jumps
+  // straight to harder operations instead of ramping up from scratch.
+  const TIME_LIMIT_BY_DIFFICULTY = { easy: 90, medium: 60, hard: 45 };
+  const STREAK_OFFSET_BY_DIFFICULTY = { easy: -3, medium: 0, hard: 5 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#059669");
+    const difficulty = container.dataset.difficulty;
+    const timeLimit = TIME_LIMIT_BY_DIFFICULTY[difficulty] || 60;
+    const streakOffset = STREAK_OFFSET_BY_DIFFICULTY[difficulty] || 0;
     container.innerHTML = `
-      <p class="arcade-game-hint">Solve as many as you can in 60 seconds. Gets harder as your streak grows!</p>
+      <p class="arcade-game-hint">Solve as many as you can in ${timeLimit} seconds. Gets harder as your streak grows!</p>
       <div class="arcade-scoreboard">
         <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="mbScore">0</span></div>
         <div class="arcade-score-pill"><span class="label">Streak</span><span class="value" id="mbStreak">0</span></div>
-        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="mbTime">60</span></div>
+        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="mbTime">${timeLimit}</span></div>
       </div>
       <div id="mbProblem" style="font-size:clamp(34px,9vw,52px); font-weight:900; margin:22px 0;"></div>
       <div id="mbChoices" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; max-width:340px; margin:0 auto;"></div>
@@ -50,7 +60,7 @@
     let score, streak, timeLeft, running, current, timerId, overlayEl;
 
     function nextProblem() {
-      current = genProblem(streak);
+      current = genProblem(streak + streakOffset);
       const choices = genChoices(current.answer);
       problemEl.textContent = current.text + " = ?";
       choicesEl.innerHTML = "";
@@ -82,8 +92,8 @@
 
     function reset() {
       if (overlayEl) { overlayEl.remove(); overlayEl = null; }
-      score = 0; streak = 0; timeLeft = 60; running = true;
-      scoreEl.textContent = "0"; streakEl.textContent = "0"; timeEl.textContent = "60";
+      score = 0; streak = 0; timeLeft = timeLimit; running = true;
+      scoreEl.textContent = "0"; streakEl.textContent = "0"; timeEl.textContent = String(timeLimit);
       nextProblem();
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
@@ -98,7 +108,7 @@
       clearInterval(timerId);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "➗", title: "Time's up!", subtitle: `Final score: ${score}`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

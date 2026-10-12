@@ -10,6 +10,14 @@
 // brand color, since a colorful, varied arcade shelf reads better than a
 // wall of identical tiles; the page chrome around the cards still uses the
 // brand palette.
+//
+// `hasDifficulty: true` — the game's own public/games/<id>.js actually
+// reads container.dataset.difficulty and changes behavior (speed, problem
+// size, word length, pair count, etc.). Every game reports its score and
+// earns XP regardless of this flag (see arcadeEngine.js's overlay()); this
+// flag only controls whether arcade.ejs shows the Easy/Medium/Hard picker
+// before launch — showing it for a game that would silently ignore the
+// choice would be misleading, so it's opt-in per game rather than global.
 const ARCADE_GAMES = [
   {
     id: "snake",
@@ -20,6 +28,7 @@ const ARCADE_GAMES = [
     tag: "Classic",
     accent: "#16a34a",
     accentDark: "#14532d",
+    hasDifficulty: true,
   },
   {
     id: "2048",
@@ -40,6 +49,7 @@ const ARCADE_GAMES = [
     tag: "Memory",
     accent: "#4f46e5",
     accentDark: "#312e81",
+    hasDifficulty: true,
   },
   {
     id: "brick-breaker",
@@ -90,6 +100,7 @@ const ARCADE_GAMES = [
     tag: "Reflex",
     accent: "#eab308",
     accentDark: "#713f12",
+    hasDifficulty: true,
   },
   {
     id: "color-match",
@@ -140,6 +151,7 @@ const ARCADE_GAMES = [
     tag: "Math",
     accent: "#059669",
     accentDark: "#064e3b",
+    hasDifficulty: true,
   },
   {
     id: "typing-rush",
@@ -160,6 +172,7 @@ const ARCADE_GAMES = [
     tag: "Word",
     accent: "#d97706",
     accentDark: "#78350f",
+    hasDifficulty: true,
   },
 ];
 

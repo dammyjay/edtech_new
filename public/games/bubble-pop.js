@@ -106,7 +106,7 @@
       cancelAnimationFrame(rafId);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "🫧", title: "Time's up!", subtitle: `You popped for ${score} points.`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

@@ -3,10 +3,13 @@
 // window.ArcadeGames.snake.start(container).
 (function () {
   const GRID = 18; // cells per side
+  // hasDifficulty: true — tick interval in ms; lower is faster/harder.
+  const TICK_MS_BY_DIFFICULTY = { easy: 160, medium: 115, hard: 80 };
 
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#22c55e");
+    const tickMs = TICK_MS_BY_DIFFICULTY[container.dataset.difficulty] || 115;
     container.innerHTML = `
       <p class="arcade-game-hint">Swipe, use the D-pad, or arrow keys / WASD. Eat the dot, don't hit yourself or the wall.</p>
       <div class="arcade-scoreboard">
@@ -49,7 +52,7 @@
       food = randomFood();
       scoreEl.textContent = "0";
       if (loopId) clearInterval(loopId);
-      loopId = setInterval(tick, 115);
+      loopId = setInterval(tick, tickMs);
       layout();
     }
 
@@ -65,7 +68,7 @@
         bestEl.textContent = String(best);
         overlayEl = ArcadeEngine.overlay(container, {
           emoji: "🐍", title: "Game Over", subtitle: `You scored ${score}. ${score >= best ? "New best!" : "Best: " + best}`,
-          buttonLabel: "Play Again", onRestart: reset,
+          buttonLabel: "Play Again", onRestart: reset, score,
         });
         return;
       }

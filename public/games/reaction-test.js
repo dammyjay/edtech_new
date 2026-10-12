@@ -18,7 +18,11 @@
     const roundEl = container.querySelector("#rtRound");
     const bestEl = container.querySelector("#rtBest");
 
-    const TOTAL_ROUNDS = 5;
+    // hasDifficulty: true — more rounds to average across is the lever
+    // here (the per-round wait delay is already randomized regardless of
+    // difficulty, so it isn't a meaningful skill knob); more rounds makes
+    // a low average harder to hold onto.
+    const TOTAL_ROUNDS = { easy: 3, medium: 5, hard: 8 }[container.dataset.difficulty] || 5;
     let round, times, state, timeoutId, waitStart, overlayEl;
 
     function reset() {
@@ -77,9 +81,11 @@
       bestEl.textContent = String(best);
       state = "done";
       setPanel("#334155", "Done!");
+      // Lower average reaction time is better, so the score is inverted
+      // (a typical 200-400ms human reaction lands around 600-800 points).
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "⚡", title: "Average reaction", subtitle: `${avg} ms across ${TOTAL_ROUNDS} rounds`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score: Math.max(0, 1000 - avg),
       });
     }
 

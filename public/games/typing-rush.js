@@ -112,7 +112,7 @@
       if (rafId) cancelAnimationFrame(rafId);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "⌨️", title: "Out of lives!", subtitle: `Score: ${score} — ${wpmEl.textContent} WPM`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

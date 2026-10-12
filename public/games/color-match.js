@@ -82,7 +82,7 @@
       clearInterval(timerId);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "🎨", title: "Time's up!", subtitle: `Final score: ${score}`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

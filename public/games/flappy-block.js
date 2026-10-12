@@ -96,7 +96,7 @@
       cancelAnimationFrame(rafId);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "💥", title: "Crashed!", subtitle: `Score: ${score}${score >= best ? " — new best!" : ""}`,
-        buttonLabel: "Play Again", onRestart: reset,
+        buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

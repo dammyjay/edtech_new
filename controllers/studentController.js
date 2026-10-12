@@ -2638,6 +2638,117 @@ exports.playArcadeGame = async (req, res) => {
   }
 };
 
+const ARCADE_DIFFICULTIES = ["easy", "medium", "hard"];
+const ARCADE_XP_BY_DIFFICULTY = { easy: 5, medium: 8, hard: 12 };
+
+// POST /student/arcade/:gameId/score — called once a round ends (see
+// public/js/arcadeEngine.js's overlay(), which every game's game-over
+// moment already calls). Awards a small flat XP per play (more on a
+// harder difficulty) and records the score for the leaderboard/personal-
+// best shown back in the result. The score itself is self-reported by
+// the client — these games render entirely client-side with no
+// server-side simulation to check a score against (unlike a quiz
+// answer), so this is a loose sanity bound, not real anti-cheat; a
+// student motivated to fabricate a huge number via devtools still can.
+// Acceptable for a cosmetic leaderboard/small XP trickle, not something
+// that should ever gate anything of real value.
+exports.reportArcadeScore = async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) {
+    return res.status(401).json({ success: false, message: "Not logged in" });
+  }
+  try {
+    const { gameId } = req.params;
+    const game = getArcadeGameById(gameId);
+    if (!game) {
+      return res.status(400).json({ success: false, message: "Unknown game" });
+    }
+
+    const rawScore = Number(req.body.score);
+    if (!Number.isFinite(rawScore) || rawScore < 0 || rawScore > 1000000) {
+      return res.status(400).json({ success: false, message: "Invalid score" });
+    }
+    const score = Math.round(rawScore);
+
+    const difficulty = ARCADE_DIFFICULTIES.includes(req.body.difficulty) ? req.body.difficulty : null;
+    const xpGained = ARCADE_XP_BY_DIFFICULTY[difficulty] || ARCADE_XP_BY_DIFFICULTY.easy;
+
+    await pool.query(
+      `INSERT INTO arcade_plays (student_id, game_id, difficulty, score, xp_awarded)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [studentId, gameId, difficulty, score, xpGained]
+    );
+
+    const awarded = await awardXp(studentId, xpGained, `Arcade: ${game.name}`);
+
+    const bestRes = await pool.query(
+      `SELECT MAX(score) AS best FROM arcade_plays WHERE student_id = $1 AND game_id = $2`,
+      [studentId, gameId]
+    );
+    const bestScore = Number(bestRes.rows[0]?.best ?? score);
+    const isNewBest = bestScore === score;
+
+    // Rank among every student's own best score for this game — ties share
+    // the same rank (standard competition ranking), computed as 1 + the
+    // count of distinct students whose best score beats this one.
+    const rankRes = await pool.query(
+      `SELECT COUNT(*) + 1 AS rank
+       FROM (
+         SELECT student_id, MAX(score) AS best_score
+         FROM arcade_plays
+         WHERE game_id = $1
+         GROUP BY student_id
+       ) t
+       WHERE t.best_score > $2`,
+      [gameId, bestScore]
+    );
+    const rank = parseInt(rankRes.rows[0]?.rank, 10) || null;
+
+    res.json({
+      success: true,
+      xpGained,
+      levelUp: awarded.levelUp,
+      newLevelName: awarded.levelUp ? awarded.levelAfter?.name : undefined,
+      bestScore,
+      isNewBest,
+      rank,
+    });
+  } catch (err) {
+    console.error("reportArcadeScore error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /student/arcade/:gameId/leaderboard — top 10 by personal-best score.
+exports.getArcadeLeaderboard = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const game = getArcadeGameById(gameId);
+    if (!game) {
+      return res.status(400).json({ success: false, message: "Unknown game" });
+    }
+
+    const topRes = await pool.query(
+      `SELECT u.fullname, MAX(p.score) AS best_score
+       FROM arcade_plays p
+       JOIN users2 u ON u.id = p.student_id
+       WHERE p.game_id = $1
+       GROUP BY u.id, u.fullname
+       ORDER BY best_score DESC
+       LIMIT 10`,
+      [gameId]
+    );
+
+    res.json({
+      success: true,
+      leaderboard: topRes.rows.map((r) => ({ fullname: r.fullname, bestScore: Number(r.best_score) })),
+    });
+  } catch (err) {
+    console.error("getArcadeLeaderboard error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
 exports.exchangeXp = async (req, res) => {
   const studentId = req.session?.student?.id || req.user?.id;
   if (!studentId) {

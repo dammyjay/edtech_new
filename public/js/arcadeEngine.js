@@ -162,9 +162,39 @@
   }
 
   // ---------------------------------------------------------------
+  // Reports a finished round's score to the server — difficulty/XP/coin
+  // persistence layer backing the per-game leaderboard and personal best.
+  // gameId/difficulty come from data attributes arcade.ejs sets on the
+  // container before calling a game's start(), so individual games never
+  // need to know or pass their own id. Self-contained try/catch: a failed
+  // report should never break the player's local "Play Again" flow.
+  async function reportScore(container, score) {
+    const gameId = container && container.dataset && container.dataset.gameId;
+    if (!gameId) return null;
+    const difficulty = container.dataset.difficulty || null;
+    try {
+      const res = await fetch(`/student/arcade/${gameId}/score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score, difficulty }),
+      });
+      const data = await res.json();
+      return data && data.success ? data : null;
+    } catch (e) {
+      console.error("Arcade score report failed:", e);
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------
   // Standard game-over / win overlay markup+behavior, shared so every
-  // game's "Play Again" panel looks and animates the same way.
-  function overlay(container, { emoji, title, subtitle, buttonLabel, onRestart }) {
+  // game's "Play Again" panel looks and animates the same way. Passing
+  // `score` (a number) additionally reports the round to the server and
+  // fills in an XP/best-score/rank line once that resolves — every game
+  // already calls this exact function at its game-over moment, so adding
+  // `score` to that one call is the whole integration a game needs for
+  // XP + leaderboard participation.
+  function overlay(container, { emoji, title, subtitle, buttonLabel, onRestart, score }) {
     const el = document.createElement("div");
     el.className = "arcade-overlay";
     el.innerHTML = `
@@ -172,13 +202,32 @@
         <div class="arcade-overlay-emoji">${emoji || "🎮"}</div>
         <h3>${title || "Game Over"}</h3>
         ${subtitle ? `<p>${subtitle}</p>` : ""}
+        ${typeof score === "number" ? `<p class="arcade-score-result" data-arcade-score-result>Saving your score…</p>` : ""}
         <button type="button" class="arcade-btn-primary">${buttonLabel || "Play Again"}</button>
       </div>
     `;
     el.querySelector("button").addEventListener("click", onRestart);
     container.appendChild(el);
+
+    if (typeof score === "number") {
+      const resultEl = el.querySelector("[data-arcade-score-result]");
+      reportScore(container, score).then((result) => {
+        if (!resultEl || !resultEl.isConnected) return; // overlay already dismissed/replaced
+        if (!result) {
+          resultEl.remove();
+          return;
+        }
+        const bits = [`+${result.xpGained} XP`];
+        if (result.isNewBest) bits.push("🏆 New personal best!");
+        else if (typeof result.bestScore === "number") bits.push(`Best: ${result.bestScore}`);
+        if (result.rank) bits.push(`Rank #${result.rank}`);
+        resultEl.textContent = bits.join(" · ");
+        if (result.levelUp) vibrate(30);
+      });
+    }
+
     return el;
   }
 
-  window.ArcadeEngine = { fitCanvas, onResize, bindSwipe, dpad, vibrate, confetti, overlay };
+  window.ArcadeEngine = { fitCanvas, onResize, bindSwipe, dpad, vibrate, confetti, overlay, reportScore };
 })();

@@ -137,7 +137,7 @@
       if (won) ArcadeEngine.confetti(container);
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: won ? "🏆" : "💥", title: won ? "All bricks smashed!" : "Game Over",
-        subtitle: `Score: ${score}`, buttonLabel: "Play Again", onRestart: reset,
+        subtitle: `Score: ${score}`, buttonLabel: "Play Again", onRestart: reset, score,
       });
     }
 

@@ -330,6 +330,33 @@
 .arcade-overlay-emoji { font-size: 40px; margin-bottom: 6px; }
 .arcade-overlay-card h3 { margin: 0 0 6px; font-size: 19px; }
 .arcade-overlay-card p { margin: 0 0 14px; color: var(--arcade-text-dim); font-size: 13.5px; }
+.arcade-score-result {
+  color: var(--arcade-accent) !important;
+  font-weight: 700;
+  font-size: 13px !important;
+}
+
+/* ---------- Difficulty picker (shown before a hasDifficulty game starts) ---------- */
+.arcade-difficulty-pick {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--arcade-text);
+}
+.arcade-difficulty-pick h3 { margin: 0 0 20px; font-size: 18px; }
+.arcade-difficulty-options {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.arcade-difficulty-options .arcade-btn-primary {
+  background: var(--arcade-bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  min-width: 110px;
+}
+.arcade-difficulty-options .arcade-btn-primary:hover {
+  border-color: var(--arcade-accent);
+}
 
 @keyframes arcadeFadeIn { from { opacity: 0; } to { opacity: 1; } }
 

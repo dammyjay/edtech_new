@@ -164,7 +164,11 @@
       else if (w.winner === AI) { losses++; lossesEl.textContent = String(losses); }
       const messages = { [PLAYER]: ["🎉", "You win!"], [AI]: ["🤖", "Computer wins"], draw: ["🤝", "Draw!"] };
       const [emoji, title] = messages[w.winner];
-      overlayEl = ArcadeEngine.overlay(container, { emoji, title, buttonLabel: "Play Again", onRestart: reset });
+      // The AI only looks DEPTH moves ahead (not a perfect solver like
+      // tic-tac-toe's), so a win is realistically achievable and scores
+      // highest, draw second, a loss still earns a small amount for playing.
+      const scoreByResult = { [PLAYER]: 100, draw: 50, [AI]: 15 };
+      overlayEl = ArcadeEngine.overlay(container, { emoji, title, buttonLabel: "Play Again", onRestart: reset, score: scoreByResult[w.winner] });
     }
 
     function reset() {

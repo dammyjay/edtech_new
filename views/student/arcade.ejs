@@ -30,7 +30,7 @@
           <div class="icon"><%= g.icon %></div>
           <h3><%= g.name %></h3>
           <p><%= g.description %></p>
-          <button type="button" class="arcade-play-btn" onclick="playGame('<%= g.id %>', <%= g.playCost %>)">🪙 <%= g.playCost %> — Play</button>
+          <button type="button" class="arcade-play-btn" onclick="playGame('<%= g.id %>', <%= g.playCost %>, <%= g.hasDifficulty ? 'true' : 'false' %>)">🪙 <%= g.playCost %> — Play</button>
         </div>
       <% }) %>
     </div>
@@ -86,7 +86,40 @@
 
   let currentGameId = null;
 
-  async function playGame(gameId, cost) {
+  // Games marked hasDifficulty in utils/arcadeGames.js get an Easy/Medium/
+  // Hard pick before the coin spend — everything else skips straight to
+  // startActualGame (difficulty stays null, which every game + the score
+  // endpoint already treat as "unspecified").
+  function playGame(gameId, cost, hasDifficulty) {
+    if (!hasDifficulty) {
+      startActualGame(gameId, cost, null);
+      return;
+    }
+
+    const container = document.getElementById('arcadeGameContainer');
+    const grid = document.getElementById('arcadeGrid');
+    const filters = document.getElementById('arcadeFilters');
+    const stage = document.getElementById('arcadeStage');
+
+    grid.style.display = 'none';
+    if (filters) filters.style.display = 'none';
+    stage.style.display = 'block';
+    container.innerHTML = `
+      <div class="arcade-difficulty-pick">
+        <h3>Choose a difficulty</h3>
+        <div class="arcade-difficulty-options">
+          <button type="button" class="arcade-btn-primary" data-difficulty="easy">🟢 Easy</button>
+          <button type="button" class="arcade-btn-primary" data-difficulty="medium">🟡 Medium</button>
+          <button type="button" class="arcade-btn-primary" data-difficulty="hard">🔴 Hard</button>
+        </div>
+      </div>
+    `;
+    container.querySelectorAll('[data-difficulty]').forEach((btn) => {
+      btn.addEventListener('click', () => startActualGame(gameId, cost, btn.dataset.difficulty));
+    });
+  }
+
+  async function startActualGame(gameId, cost, difficulty) {
     const grid = document.getElementById('arcadeGrid');
     const filters = document.getElementById('arcadeFilters');
     const stage = document.getElementById('arcadeStage');
@@ -112,6 +145,14 @@
 
       currentGameId = gameId;
       container.innerHTML = '';
+      // Read by arcadeEngine.js's reportScore() when the game ends, and by
+      // a difficulty-aware game itself (e.g. public/games/math-blitz.js)
+      // to adjust its own behavior — see the hasDifficulty comment in
+      // utils/arcadeGames.js.
+      container.dataset.gameId = gameId;
+      if (difficulty) container.dataset.difficulty = difficulty;
+      else delete container.dataset.difficulty;
+
       const game = window.ArcadeGames && window.ArcadeGames[gameId];
       if (game && game.start) {
         game.start(container);
