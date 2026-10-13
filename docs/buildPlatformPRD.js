@@ -313,6 +313,7 @@ const FEATURE_MODULES = [
         "Circuit designer: admin-curated parts palette, snap-to-grid breadboard, multi-colour/style wiring, flip/rotate/duplicate/delete, undo/redo, pan/zoom.",
         "Example sketches, a Serial Monitor, and adjustable simulated sensor readings while testing.",
         "Export code as .ino, and the circuit as a file or image (PNG/JPG/SVG/PDF).",
+        "\"Upload to Board\": flashes the compiled sketch directly to a real Arduino Uno over USB, straight from the browser — no Arduino IDE or other external app needed. Uses the Web Serial API (Chrome/Edge on desktop only) and a from-scratch client-side implementation of the STK500v1 bootloader protocol (the same one avrdude uses), reusing the exact .hex the simulator already compiles server-side. Reads back and verifies every page after writing rather than assuming success. Chip signature is checked before writing anything, so it refuses to touch a board that isn't an ATmega328P (Uno/compatible).",
         "No Submit or Publish button — this lab is a design/simulation sandbox only, not a gradeable-submission surface.",
       ]},
       { category: "Shared Across Labs", items: [
@@ -750,6 +751,7 @@ const USER_STORY_BLOCKS = [
       { want: "program a sprite with drag-and-drop blocks in the Blockly Lab", benefit: "I can learn programming logic without fighting text-syntax errors" },
       { want: "write and run real Python instantly in my browser", benefit: "I get immediate feedback without needing anything installed" },
       { want: "design a circuit and simulate an Arduino sketch without owning real hardware", benefit: "I can learn embedded electronics safely and for free" },
+      { want: "upload my sketch straight to a real Arduino Uno plugged into my computer, without installing the Arduino IDE or any other app", benefit: "once I do own a board, I can take what I built in the simulator and actually run it for real" },
       { want: "submit a lab task attached to a lesson and get AI feedback", benefit: "I know if my work meets the lesson's goal before moving on" },
       { want: "resubmit a lab task up to the attempt limit and see my average score plus every attempt's own score when I view the result", benefit: "I can see whether resubmitting actually improved my work, not just my latest grade" },
       { want: "publish a free-play project to the Gallery, and take it down again later", benefit: "I can share my best work with other students on my own terms" },

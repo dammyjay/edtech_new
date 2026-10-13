@@ -154,6 +154,12 @@ html, body {
     border: 1.5px solid rgba(255,255,255,0.85);
 }
 
+.lab-btn--flash {
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
 .lab-btn--submit {
     background: #1f2430;
     color: #fff;

@@ -4606,6 +4606,14 @@ void loop() {
 
 let codeEditor = null;
 
+// Small bridge so arduinoFlash.js (loaded after this file, same pattern
+// as arduinoBlocksLab.js's own window.ArduinoBlocksLab bridge below) can
+// read the current sketch without reaching into this file's module-
+// scoped codeEditor variable directly.
+window.ArduinoLab = {
+  getCode: () => (codeEditor ? codeEditor.getValue() : null),
+};
+
 require(["vs/editor/editor.main"], function () {
   codeEditor = monaco.editor.create(document.getElementById("arduinoCodeEditor"), {
     value: STARTER_SKETCH,
