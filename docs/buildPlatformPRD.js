@@ -314,6 +314,7 @@ const FEATURE_MODULES = [
         "Example sketches, a Serial Monitor, and adjustable simulated sensor readings while testing.",
         "Export code as .ino, and the circuit as a file or image (PNG/JPG/SVG/PDF).",
         "\"Upload to Board\": flashes the compiled sketch directly to a real Arduino Uno over USB, straight from the browser — no Arduino IDE or other external app needed. Uses the Web Serial API (Chrome/Edge on desktop only) and a from-scratch client-side implementation of the STK500v1 bootloader protocol (the same one avrdude uses), reusing the exact .hex the simulator already compiles server-side. Reads back and verifies every page after writing rather than assuming success. Chip signature is checked before writing anything, so it refuses to touch a board that isn't an ATmega328P (Uno/compatible).",
+        "Toolbar is organized PictoBlox-style: a single \"File\" dropdown (grouped Project/Code/Circuit sections — New, My Projects, Save, Load Example, every Export/Import, Copy, Download) replaces what used to be ~15 separate buttons spread across the bar and wrapping onto a second row. Only what's actively used while testing — Run, Stop, Upload to Board, Submit/Publish — and Undo/Redo stay always visible outside the menu.",
         "No Submit or Publish button — this lab is a design/simulation sandbox only, not a gradeable-submission surface.",
       ]},
       { category: "Shared Across Labs", items: [

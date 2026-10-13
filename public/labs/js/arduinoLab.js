@@ -4465,6 +4465,32 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// The File menu — same toggle-attribute + click-outside-close pattern as
+// the Export Image popover just above, one level up (this one holds that
+// one, among everything else). Every button inside keeps its own
+// existing listener (wired by id, unaffected by which panel now
+// contains it) — this only opens/closes the panel around them.
+document.getElementById("fileMenuBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("fileMenu")?.toggleAttribute("hidden");
+});
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("fileMenu");
+  const btn = document.getElementById("fileMenuBtn");
+  if (menu && !menu.hidden && !menu.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+    menu.setAttribute("hidden", "");
+  }
+});
+// Picking anything that performs an immediate one-shot action (not one
+// of the nested menus/selects, which manage their own open state) closes
+// the File menu right after, instead of leaving it open over the canvas.
+document.getElementById("fileMenu")?.addEventListener("click", (e) => {
+  const item = e.target.closest(".lab-file-menu-item");
+  if (!item || item.id === "myProjectsBtn" || item.id === "exportImageBtn") return;
+  if (item.tagName === "LABEL") return; // the "Load an example" row — its own <select> handles itself
+  document.getElementById("fileMenu")?.setAttribute("hidden", "");
+});
+
 // ---------------------------------------------------------------------
 // Monaco editor
 // ---------------------------------------------------------------------
