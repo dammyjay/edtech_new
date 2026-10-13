@@ -498,7 +498,11 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/profile", async (req, res) => {
+// ensureCsrfToken: this page's edit form posts to /update-profile, which
+// verifyCsrfToken now guards (see below). Without this, the page's
+// <meta csrf-token> tag would render with no real token and every
+// profile update would be rejected.
+router.get("/profile", ensureCsrfToken, async (req, res) => {
   if (!req.session.user) {
     return res.redirect("/admin/login");
   }
@@ -528,7 +532,11 @@ router.get("/profile", async (req, res) => {
   }
 });
 
-router.post("/update-profile", upload.single("profile_picture"), async (req, res) => {
+// ensureCsrfToken/verifyCsrfToken: profile.ejs's edit form actually posts
+// here (not to userRoutes.js's own, unused /profile route) and is only
+// ever reached by an already-logged-in user (checked just below), so
+// protecting it costs nothing and closes a real gap.
+router.post("/update-profile", ensureCsrfToken, verifyCsrfToken, upload.single("profile_picture"), async (req, res) => {
 
   if (!req.session.user) {
     return res.redirect("/admin/login");

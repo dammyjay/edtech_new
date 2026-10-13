@@ -650,9 +650,8 @@ const NFR_ITEMS = [
 const KNOWN_ISSUES = [
   ["Admin", "Instructor/Admin share one access check (ensureInstructorOrAdmin)", "Was previously a real auth bug (since fixed); the shared check still means instructor-scoped pages rely entirely on query-level scoping, not the route guard, to keep instructors out of other instructors' data."],
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
-  ["Parent", "No parent-teacher messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting a teacher."],
-  ["Cross-cutting", "CSRF coverage is partial", "Being added router-by-router (per the project's own established pattern); some older routes remain unprotected."],
-  ["Cross-cutting", "Session cookie `secure` flag is false", "Should be enabled once the production domain is confirmed fully HTTPS end-to-end."],
+  ["Parent", "No parent-to-school-admin messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting the school admin (not a teacher — confirmed with the client this should go to the school admin, not individual teachers)."],
+  ["Cross-cutting", "CSRF coverage: two deliberate public exemptions remain", "publicAnnouncementRoutes.js (homepage view/dismiss tracking) and publicFaqRoutes.js (FAQ question + testimony submission) stay unprotected by design — both are reachable by anonymous visitors with no session yet, and the app deliberately avoids creating a session row just from an anonymous page view (saveUninitialized: false). Spam risk only, no privileged session to protect. Every authenticated-area router now has CSRF coverage."],
 ];
 
 // Active fix queue — every row in KNOWN_ISSUES (§5) is now queued for

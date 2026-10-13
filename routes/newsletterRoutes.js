@@ -32,6 +32,11 @@ const router = express.Router();
 
 const { upload } = require("../middlewares/upload");
 const newsletterController = require("../controllers/newsletterController");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// Mounted entirely at /admin/newsletters — admin-only throughout, so a
+// router-wide CSRF gate is safe.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 // ================= Dashboard =================
 

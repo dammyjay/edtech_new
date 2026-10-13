@@ -22,6 +22,14 @@ const pool = require("./models/db"); // adjust path based on your folder structu
 const methodOverride = require("method-override");
 
 const app = express();
+
+// Railway (and most PaaS hosts) terminate TLS at a reverse proxy and
+// forward plain HTTP internally — without this, Express can't tell a
+// real HTTPS visit from an internal HTTP hop, which is what the
+// session cookie's `secure: "auto"` below depends on to work correctly
+// in both production (behind the proxy) and local dev (no proxy).
+app.set("trust proxy", 1);
+
 const layout = require("express-ejs-layouts");
 const cookieParser = require("cookie-parser");
 app.use(cookieParser());
@@ -70,7 +78,12 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // Change to true only in HTTPS
+      // "auto" asks express-session to set Secure only when the request
+      // was actually HTTPS (via req.secure, which trust proxy above makes
+      // accurate behind Railway's proxy) — so production gets a Secure
+      // cookie automatically, while local/test servers over plain HTTP
+      // (e.g. the isolated port-3999 verification server) keep working.
+      secure: "auto",
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },

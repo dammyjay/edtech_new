@@ -4,6 +4,7 @@ const router = express.Router();
 const labController = require("../controllers/labController");
 const externalProjectController = require("../controllers/externalProjectController");
 const { ensureAuthenticated } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // Deliberately BEFORE router.use(ensureAuthenticated) below — the one
 // lab route an anonymous visitor can reach, for the public showcase's
@@ -12,7 +13,7 @@ const { ensureAuthenticated } = require("../middlewares/auth");
 // instead of relying on this router's blanket auth gate.
 router.get("/web-preview/:id", labController.getWebPreviewPage);
 
-router.use(ensureAuthenticated);
+router.use(ensureAuthenticated, ensureCsrfToken, verifyCsrfToken);
 
 router.get("/", labController.getLabDashboard);
 

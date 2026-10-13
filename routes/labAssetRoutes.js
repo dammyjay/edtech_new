@@ -2,6 +2,11 @@ const express = require("express");
 const router = express.Router();
 const { upload } = require("../middlewares/upload");
 const labAssetController = require("../controllers/labAssetController");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// Every route here is admin-only (controller checks req.session.user.role
+// internally), so a router-wide CSRF gate is safe.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 router.get("/", labAssetController.getAdminLabAssets);
 

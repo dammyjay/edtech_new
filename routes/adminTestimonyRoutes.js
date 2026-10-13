@@ -2,12 +2,17 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../models/db");
+const { ensureAdmin } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// Every route in this file is under /admin/testimonies — toggle and
+// delete below had NO auth check at all (anyone could publish/unpublish
+// or delete any testimony); this router-wide gate covers all three.
+router.use(ensureAdmin);
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 // Show All Testimonies
 router.get("/admin/testimonies", async (req, res) => {
-  if (!req.session.user || req.session.user.role !== "admin") {
-    return res.redirect("/admin/login");
-  }
   const info =
     (await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"))
       .rows[0] || {};

@@ -3,8 +3,13 @@ const router = express.Router();
 
 const { upload } = require("../middlewares/upload");
 const announcementController = require("../controllers/announcementController");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
-console.log(announcementController);
+// Mounted entirely at /admin/announcements — every route here is
+// admin-only (the create/update/delete/publish/archive handlers all
+// check req.session.user.role internally), so a router-wide CSRF gate
+// is safe.
+router.use(ensureCsrfToken, verifyCsrfToken);
 
 router.get("/", announcementController.getAnnouncementsPage);
 

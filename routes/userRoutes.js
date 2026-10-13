@@ -5,6 +5,14 @@ const userController = require("../controllers/userController");
 // const upload = require("../middlewares/upload");
 const { upload, lessonUpload } = require("../middlewares/upload");
 const { ensureParent } = require("../middlewares/auth");
+const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+
+// Scoped to /parent only — /signup, /verify-otp, /subscribe etc. below
+// are reachable by a genuinely anonymous visitor (before any session
+// exists), and ensureCsrfToken would force a session row to be created
+// just from loading those pages if applied blanket. /parent/* is only
+// ever reached by an already-logged-in user.
+router.use("/parent", ensureCsrfToken, verifyCsrfToken);
 
 // router.post("/signup", upload.single("profile_picture"), userController.signup);
 // Route
@@ -17,13 +25,6 @@ router.get("/signup", userController.showSignup);
 router.post("/verify-otp", userController.verifyOtp);
 router.post("/resend-otp", userController.resendOtp);
 
-
-router.get("/profile", userController.getUserProfile);
-router.post(
-  "/profile",
-  upload.single("profile_picture"),
-  userController.updateUserProfile
-);
 
 router.get("/parent/dashboard", userController.getParentDashboard);
 
