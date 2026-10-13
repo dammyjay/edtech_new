@@ -528,6 +528,24 @@ html, body {
     touch-action: none;
 }
 
+/* Blockly creates an internal off-screen <canvas class="blocklyComputeCanvas">
+   purely for measuring text metrics — meant to be invisible and inert.
+   It has no HTML width/height of its own, so the global `canvas { width:
+   100% !important; height: auto !important; }` rule in /css/styles2.css
+   (loaded via partials/header, pulled in by this page for its CSRF meta
+   tag) stretches it to the size of its nearest positioned ancestor —
+   covering most of the viewport and silently swallowing every pointer/
+   wheel event meant for the circuit canvas and the Blocks workspace
+   underneath it (confirmed via document.elementFromPoint() landing on
+   it instead). Same bug, same fix already shipped for the standalone
+   Blockly Lab — see labs/css/blockly.css's identical rule. */
+.blocklyComputeCanvas {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    pointer-events: none !important;
+}
+
 .circuit-canvas.panning {
     cursor: grabbing;
 }

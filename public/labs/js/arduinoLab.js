@@ -1550,12 +1550,47 @@ document.querySelectorAll("[data-pan]").forEach((btn) => {
 // starting one of those never also starts a pan underneath it.
 let panState = null; // { startClientX, startClientY, startPanX, startPanY }
 
+// Two-finger pinch-to-zoom (touch devices only — Pointer Events fire
+// mouse/pen/touch through the same handlers, differentiated by
+// e.pointerType, so this tracks every currently-down TOUCH pointer by
+// id alongside the single-pointer pan above). When a second finger
+// lands mid-pan, the single-finger drag is cancelled and this takes
+// over instead; lifting back down to one finger resumes it.
+const touchPointers = new Map(); // pointerId -> {x, y}
+let pinchState = null; // { startDist, startZoom, startMidX, startMidY, startPanX, startPanY }
+
 canvas.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch") {
+    touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPointers.size === 2) {
+      panState = null;
+      canvas.classList.remove("panning");
+      document.removeEventListener("pointermove", onCanvasPanMove);
+      document.removeEventListener("pointerup", onCanvasPanUp);
+      document.removeEventListener("pointercancel", onCanvasPanUp);
+
+      const pts = [...touchPointers.values()];
+      pinchState = {
+        startDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+        startZoom: viewZoom,
+        startMidX: (pts[0].x + pts[1].x) / 2,
+        startMidY: (pts[0].y + pts[1].y) / 2,
+        startPanX: viewPanX,
+        startPanY: viewPanY,
+      };
+      document.addEventListener("pointermove", onCanvasPinchMove);
+      document.addEventListener("pointerup", onCanvasPinchEnd);
+      document.addEventListener("pointercancel", onCanvasPinchEnd);
+      return;
+    }
+    if (touchPointers.size > 2) return; // a 3rd+ finger — ignore, keep whatever gesture is already active
+  }
   if (e.target !== canvas && e.target !== canvasViewport) return; // touched a component/pin, not empty space
   panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY, moved: false };
   canvas.classList.add("panning");
   document.addEventListener("pointermove", onCanvasPanMove);
   document.addEventListener("pointerup", onCanvasPanUp);
+  document.addEventListener("pointercancel", onCanvasPanUp);
 });
 
 function onCanvasPanMove(e) {
@@ -1568,7 +1603,8 @@ function onCanvasPanMove(e) {
   applyViewTransform();
 }
 
-function onCanvasPanUp() {
+function onCanvasPanUp(e) {
+  if (e && e.pointerType === "touch") touchPointers.delete(e.pointerId);
   // A pointerdown+pointerup on empty canvas with no real movement in
   // between is a plain click/tap — deselect, same as clicking empty
   // space in any other design tool, rather than leaving a toolbar stuck
@@ -1578,6 +1614,59 @@ function onCanvasPanUp() {
   canvas.classList.remove("panning");
   document.removeEventListener("pointermove", onCanvasPanMove);
   document.removeEventListener("pointerup", onCanvasPanUp);
+  document.removeEventListener("pointercancel", onCanvasPanUp);
+}
+
+function onCanvasPinchMove(e) {
+  if (!pinchState || !touchPointers.has(e.pointerId)) return;
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touchPointers.size !== 2) return;
+
+  const pts = [...touchPointers.values()];
+  const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  const midX = (pts[0].x + pts[1].x) / 2;
+  const midY = (pts[0].y + pts[1].y) / 2;
+  const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pinchState.startZoom * (dist / pinchState.startDist)));
+
+  // Anchor math: find the circuit-space point that was under the
+  // gesture's ORIGINAL midpoint (using the pan/zoom in effect when the
+  // pinch started), then solve the new pan so that same point stays
+  // under the CURRENT midpoint at the new zoom — without this the
+  // circuit would drift toward the canvas's corner as you zoom instead
+  // of staying anchored under your fingers.
+  const canvasRect = canvas.getBoundingClientRect();
+  const startMidRelX = pinchState.startMidX - canvasRect.left;
+  const startMidRelY = pinchState.startMidY - canvasRect.top;
+  const contentX = (startMidRelX - pinchState.startPanX) / pinchState.startZoom;
+  const contentY = (startMidRelY - pinchState.startPanY) / pinchState.startZoom;
+
+  const curMidRelX = midX - canvasRect.left;
+  const curMidRelY = midY - canvasRect.top;
+
+  viewZoom = newZoom;
+  viewPanX = curMidRelX - contentX * newZoom;
+  viewPanY = curMidRelY - contentY * newZoom;
+  applyViewTransform();
+}
+
+function onCanvasPinchEnd(e) {
+  touchPointers.delete(e.pointerId);
+  if (touchPointers.size >= 2) return; // still at least 2 down — keep pinching
+  pinchState = null;
+  document.removeEventListener("pointermove", onCanvasPinchMove);
+  document.removeEventListener("pointerup", onCanvasPinchEnd);
+  document.removeEventListener("pointercancel", onCanvasPinchEnd);
+
+  // Exactly one finger still down — resume it as a normal single-finger
+  // pan instead of requiring a full lift-and-retouch to keep dragging.
+  if (touchPointers.size === 1) {
+    const [[, pt]] = touchPointers;
+    panState = { startClientX: pt.x, startClientY: pt.y, startPanX: viewPanX, startPanY: viewPanY, moved: true };
+    canvas.classList.add("panning");
+    document.addEventListener("pointermove", onCanvasPanMove);
+    document.addEventListener("pointerup", onCanvasPanUp);
+    document.addEventListener("pointercancel", onCanvasPanUp);
+  }
 }
 
 // The above only covers a click/tap landing on EMPTY CANVAS background —

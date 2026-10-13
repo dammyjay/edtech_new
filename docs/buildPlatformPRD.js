@@ -310,7 +310,7 @@ const FEATURE_MODULES = [
         "Output console for prints/errors.",
       ]},
       { category: "Arduino Lab", items: [
-        "Circuit designer: admin-curated parts palette, snap-to-grid breadboard, multi-colour/style wiring, flip/rotate/duplicate/delete, undo/redo, pan/zoom.",
+        "Circuit designer: admin-curated parts palette, snap-to-grid breadboard, multi-colour/style wiring, flip/rotate/duplicate/delete, undo/redo, pan/zoom (mouse drag, scroll wheel, Ctrl/Cmd+scroll or trackpad pinch, and genuine two-finger touch pinch-to-zoom on mobile/tablet, anchored under your fingers).",
         "Example sketches, a Serial Monitor, and adjustable simulated sensor readings while testing.",
         "Export code as .ino, and the circuit as a file or image (PNG/JPG/SVG/PDF).",
         "\"Upload to Board\": flashes the compiled sketch directly to a real Arduino Uno over USB, straight from the browser — no Arduino IDE or other external app needed. Uses the Web Serial API (Chrome/Edge on desktop only) and a from-scratch client-side implementation of the STK500v1 bootloader protocol (the same one avrdude uses), reusing the exact .hex the simulator already compiles server-side. Reads back and verifies every page after writing rather than assuming success. Chip signature is checked before writing anything, so it refuses to touch a board that isn't an ATmega328P (Uno/compatible).",
