@@ -491,10 +491,7 @@ router.get("/", async (req, res) => {
       activePage: "home", // 👈 Pass active page
     });
   } catch (err) {
-    console.error("❌ Error fetching homepage data:", err.message);
-    res
-      .status(500)
-      .render("error", { message: "Server Error. Please try again later." });
+    renderErrorPage(req, res, err, { context: "Homepage error", message: "Server Error. Please try again later." });
   }
 });
 

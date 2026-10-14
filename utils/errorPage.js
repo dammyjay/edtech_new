@@ -27,6 +27,13 @@ function renderErrorPage(req, res, err, options = {}) {
     user: req.session?.user || null,
     users: req.session?.user || null,
     info: res.locals.info || {},
+    // partials/header.ejs (included by views/error.ejs) renders a bare
+    // <%= csrfToken %> for its <meta> tag — without this, an error that
+    // happens to occur before app.js's own blanket csrfToken-default
+    // middleware has run leaves it undefined, and EJS throws
+    // "csrfToken is not defined" rendering the error page ITSELF,
+    // masking whatever the real original error was.
+    csrfToken: res.locals.csrfToken || null,
   });
 }
 
