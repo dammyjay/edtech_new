@@ -285,6 +285,83 @@
     connectionListeners.forEach((fn) => fn(connected));
   }
 
+  // One full reset -> sync -> verify-signature -> program -> verify ->
+  // leave-progmode pass. Split out of uploadToBoard() so that function
+  // can retry a WHOLE fresh attempt (its own reset included) rather than
+  // just one failed step — a single glitchy sync or a few stray bytes
+  // left over from the board's previous sketch only ever affects one
+  // attempt, and a clean reset reliably clears it for the next one.
+  async function attemptUpload(port, writer, reader, bytes, onProgress) {
+    // Connect only opens the port — nothing reads it until this reader
+    // exists, so if the board has been sitting connected for a while
+    // running its last-flashed sketch (e.g. one that calls
+    // Serial.println in loop()), a backlog of stale application output
+    // can already be queued up by the OS/browser the moment this reader
+    // starts pumping. Give that backlog a moment to actually land in
+    // the buffer, then clear it — otherwise some of it can still be
+    // arriving (one _pump() read() at a time, across several event-loop
+    // ticks) right as the reset-triggered drain() below runs, leaving a
+    // few stale bytes sitting in front of the real STK500 response
+    // sync() expects next.
+    await sleep(150);
+    reader.drain();
+
+    // Reset-into-bootloader: toggling DTR/RTS low then high pulses the
+    // Uno's RESET line through its auto-reset capacitor — the exact
+    // sequence avrdude's "arduino" programmer uses.
+    onProgress("Resetting board...");
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await sleep(250);
+    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+    await sleep(50);
+    reader.drain();
+
+    onProgress("Connecting...");
+    const synced = await sync(writer, reader, 10);
+    if (!synced) {
+      throw new Error("Couldn't connect to the board. Make sure it's an Arduino Uno, the USB cable is a data cable (not charge-only), and nothing else has the port open.");
+    }
+
+    const sig = await readSignature(writer, reader);
+    const sigMatches = UNO_SIGNATURE.every((b, i) => sig[i] === b);
+    if (!sigMatches) {
+      const got = Array.from(sig).map((b) => "0x" + b.toString(16).padStart(2, "0")).join(" ");
+      const err = new Error(`This doesn't look like an Arduino Uno (got chip signature ${got}) — stopped before writing anything, to be safe.`);
+      err.notRetryable = true; // retrying a reset won't change what chip is actually plugged in
+      throw err;
+    }
+
+    await setDevice(writer, reader);
+    await enterProgMode(writer, reader);
+
+    const totalPages = Math.ceil(bytes.length / PAGE_SIZE);
+
+    onProgress("Uploading... 0%");
+    for (let page = 0; page < totalPages; page++) {
+      const byteOffset = page * PAGE_SIZE;
+      const pageBytes = padToPageSize(bytes.slice(byteOffset, byteOffset + PAGE_SIZE));
+      await loadAddress(writer, reader, byteOffset >> 1);
+      await progPage(writer, reader, pageBytes);
+      onProgress(`Uploading... ${Math.round(((page + 1) / totalPages) * 100)}%`);
+    }
+
+    onProgress("Verifying... 0%");
+    for (let page = 0; page < totalPages; page++) {
+      const byteOffset = page * PAGE_SIZE;
+      const expected = padToPageSize(bytes.slice(byteOffset, byteOffset + PAGE_SIZE));
+      await loadAddress(writer, reader, byteOffset >> 1);
+      const actual = await readPage(writer, reader, PAGE_SIZE);
+      for (let i = 0; i < PAGE_SIZE; i++) {
+        if (actual[i] !== expected[i]) {
+          throw new Error(`Verification failed partway through (byte ${byteOffset + i}) — the upload may not have completed correctly. Try again.`);
+        }
+      }
+      onProgress(`Verifying... ${Math.round(((page + 1) / totalPages) * 100)}%`);
+    }
+
+    await leaveProgMode(writer, reader);
+  }
+
   // The whole upload, start to finish. onProgress(message) is called at
   // each phase so the caller can show it in the lab's existing status
   // line — this file owns no UI of its own. Requires connectToBoard()
@@ -304,58 +381,29 @@
     const reader = new SerialByteSource(port);
 
     try {
-      // Reset-into-bootloader: toggling DTR/RTS low then high pulses the
-      // Uno's RESET line through its auto-reset capacitor — the exact
-      // sequence avrdude's "arduino" programmer uses.
-      onProgress("Resetting board...");
-      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-      await sleep(250);
-      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-      await sleep(50);
-      reader.drain();
-
-      onProgress("Connecting...");
-      const synced = await sync(writer, reader, 10);
-      if (!synced) {
-        throw new Error("Couldn't connect to the board. Make sure it's an Arduino Uno, the USB cable is a data cable (not charge-only), and nothing else has the port open.");
-      }
-
-      const sig = await readSignature(writer, reader);
-      const sigMatches = UNO_SIGNATURE.every((b, i) => sig[i] === b);
-      if (!sigMatches) {
-        const got = Array.from(sig).map((b) => "0x" + b.toString(16).padStart(2, "0")).join(" ");
-        throw new Error(`This doesn't look like an Arduino Uno (got chip signature ${got}) — stopped before writing anything, to be safe.`);
-      }
-
-      await setDevice(writer, reader);
-      await enterProgMode(writer, reader);
-
-      const totalPages = Math.ceil(bytes.length / PAGE_SIZE);
-
-      onProgress("Uploading... 0%");
-      for (let page = 0; page < totalPages; page++) {
-        const byteOffset = page * PAGE_SIZE;
-        const pageBytes = padToPageSize(bytes.slice(byteOffset, byteOffset + PAGE_SIZE));
-        await loadAddress(writer, reader, byteOffset >> 1);
-        await progPage(writer, reader, pageBytes);
-        onProgress(`Uploading... ${Math.round(((page + 1) / totalPages) * 100)}%`);
-      }
-
-      onProgress("Verifying... 0%");
-      for (let page = 0; page < totalPages; page++) {
-        const byteOffset = page * PAGE_SIZE;
-        const expected = padToPageSize(bytes.slice(byteOffset, byteOffset + PAGE_SIZE));
-        await loadAddress(writer, reader, byteOffset >> 1);
-        const actual = await readPage(writer, reader, PAGE_SIZE);
-        for (let i = 0; i < PAGE_SIZE; i++) {
-          if (actual[i] !== expected[i]) {
-            throw new Error(`Verification failed partway through (byte ${byteOffset + i}) — the upload may not have completed correctly. Try again.`);
-          }
+      // One retry (two attempts total), each with its own fresh reset —
+      // real-hardware testing found the handshake can fail once after
+      // sitting connected for a while (stray bytes left over from
+      // whatever the board was last running) and then succeed cleanly
+      // on an immediate second try, so this absorbs that automatically
+      // instead of making a student manually reconnect and click Upload
+      // again. Not retried: a confirmed wrong/no chip (notRetryable) —
+      // a fresh reset can't change what's actually plugged in.
+      const MAX_ATTEMPTS = 2;
+      let lastErr;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          await attemptUpload(port, writer, reader, bytes, onProgress);
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (err.notRetryable || attempt === MAX_ATTEMPTS) break;
+          onProgress("That attempt didn't sync — retrying...");
+          await sleep(300);
         }
-        onProgress(`Verifying... ${Math.round(((page + 1) / totalPages) * 100)}%`);
       }
-
-      await leaveProgMode(writer, reader);
+      if (lastErr) throw lastErr;
     } finally {
       // Deliberately NOT closing the port here — it stays open/connected
       // for the next upload, so a student iterating on their code isn't
