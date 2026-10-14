@@ -55,10 +55,8 @@
 
     <div class="lab-topbar-controls">
         <div class="lab-file-menu-wrap">
-          <button id="fileMenuBtn" class="lab-btn lab-btn--file" title="Project, code and circuit options">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
-            File
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="lab-file-menu-chevron"><path d="M6 9l6 6 6-6"/></svg>
+          <button id="fileMenuBtn" class="lab-icon-btn" title="Project, code and circuit options (File)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
           </button>
           <div id="fileMenu" class="lab-file-menu" hidden>
 
@@ -167,27 +165,26 @@
     <div class="lab-topbar-right">
       <span id="saveStatus" class="save-status">Ready</span>
       <span id="arduinoStatus" class="arduino-status">Idle</span>
-      <button id="runBtn" class="lab-btn lab-btn--run">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4 L20 12 L6 20 Z"/></svg>
-        Run
+      <button id="runBtn" class="lab-icon-btn lab-icon-btn--run" title="Run Simulation">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4 L20 12 L6 20 Z"/></svg>
       </button>
-      <button id="stopBtn" class="lab-btn lab-btn--stop" disabled>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>
-        Stop
+      <button id="stopBtn" class="lab-icon-btn" title="Stop" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>
       </button>
-      <button id="uploadBoardBtn" class="lab-btn lab-btn--flash" title="Upload this sketch to a real Arduino Uno over USB (Chrome/Edge only)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
-        Upload to Board
+      <div class="lab-topbar-divider"></div>
+      <button id="connectBoardBtn" class="lab-icon-btn" title="Connect to an Arduino Uno over USB">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9h16v6H4z"/><path d="M8 9V5a1 1 0 0 1 1-1h2v5M15 9V5a1 1 0 0 1-1-1h-2v5"/><path d="M9 15v3M15 15v3"/></svg>
+      </button>
+      <button id="uploadBoardBtn" class="lab-icon-btn lab-icon-btn--flash" title="Connect to a board first (Chrome/Edge only)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
       </button>
       <% if (!viewProject) { %>
-        <button id="submitBtn" class="lab-btn lab-btn--submit">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l6 6L20 5"/></svg>
-          Submit
+        <button id="submitBtn" class="lab-icon-btn lab-icon-btn--submit" title="Submit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 11l6 6L20 5"/></svg>
         </button>
         <% if (!lessonLab) { %>
-          <button id="publishBtn" class="lab-btn lab-btn--publish" style="display:none">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>
-            Publish to Gallery
+          <button id="publishBtn" class="lab-icon-btn" title="Publish to Gallery" style="display:none">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>
           </button>
         <% } %>
       <% } %>

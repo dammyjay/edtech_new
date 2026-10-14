@@ -378,6 +378,59 @@ html, body {
     margin: 4px 2px;
 }
 
+/* Colored variants of .lab-icon-btn for the primary, icon-only actions
+   on the right (Run/Upload/Submit) — keeps each one visually
+   identifiable at a glance even with no text label, same colors the
+   old text buttons used. */
+.lab-icon-btn--run {
+    background: #1a9c4b;
+    color: #fff;
+}
+
+.lab-icon-btn--run:hover {
+    background: #1a9c4b;
+    opacity: 0.88;
+}
+
+.lab-icon-btn--flash {
+    background: #2563eb;
+    color: #fff;
+}
+
+.lab-icon-btn--flash:hover {
+    background: #2563eb;
+    opacity: 0.88;
+}
+
+.lab-icon-btn--submit {
+    background: #1f2430;
+    color: #fff;
+}
+
+.lab-icon-btn--submit:hover {
+    background: #2c3242;
+}
+
+/* Connect toggles into this once a board is actually open — a small
+   green status dot layered over the plug icon, same "glanceable state"
+   idea as a Bluetooth/wifi icon's connected indicator. */
+.lab-icon-btn--connected {
+    position: relative;
+    color: #fff;
+}
+
+.lab-icon-btn--connected::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #34d058;
+    border: 1.5px solid #A17807;
+}
+
 /* Wraps the "Download image" icon button + its format-choice popover so
    the popover can position itself relative to just this button, not the
    whole (much wider) topbar-extra group. */

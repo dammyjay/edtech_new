@@ -217,18 +217,24 @@
     return padded;
   }
 
-  // The whole upload, start to finish. onProgress(message) is called at
-  // each phase so the caller can show it in the lab's existing status
-  // line — this file owns no UI of its own.
-  async function flashToUno(hexText, options) {
-    const onProgress = (options && options.onProgress) || function () {};
+  // The board picked via "Connect" stays open across multiple uploads —
+  // without this, every single upload re-triggered Chrome's port picker
+  // and paid the full USB open overhead again, which is also what was
+  // producing the occasional "out of sync" on a second attempt (a fresh
+  // open() can race the OS/driver settling from the previous one before
+  // it's fully torn down). connectToBoard()/disconnectFromBoard() below
+  // own this lifecycle; uploadToBoard() just uses whatever's here.
+  let connectedPort = null;
 
+  function isConnected() {
+    return !!connectedPort;
+  }
+
+  async function connectToBoard() {
     if (!navigator.serial) {
-      throw new Error("Uploading to a real board needs Chrome or Edge on desktop — this browser doesn't support Web Serial.");
+      throw new Error("Connecting to a real board needs Chrome or Edge on desktop — this browser doesn't support Web Serial.");
     }
-
-    const bytes = parseIntelHexBytes(hexText);
-    if (!bytes.length) throw new Error("Nothing to upload — the compiled sketch is empty.");
+    if (connectedPort) return; // already connected — Connect doubles as a no-op here, Disconnect is the explicit opposite
 
     let port;
     try {
@@ -243,6 +249,57 @@
       throw new Error("Couldn't open the USB connection — make sure nothing else (like the Arduino IDE's Serial Monitor) already has it open, then try again.");
     }
 
+    port.addEventListener("disconnect", () => {
+      // Fires on physical unplug (or the OS otherwise yanking the
+      // device) — navigator.serial's own event, not something this file
+      // has to poll for.
+      if (connectedPort === port) {
+        connectedPort = null;
+        notifyConnectionChange();
+      }
+    });
+
+    connectedPort = port;
+    notifyConnectionChange();
+  }
+
+  async function disconnectFromBoard() {
+    const port = connectedPort;
+    connectedPort = null;
+    notifyConnectionChange();
+    if (port) {
+      try {
+        await port.close();
+      } catch (err) {
+        /* already closed / disconnected */
+      }
+    }
+  }
+
+  let connectionListeners = [];
+  function onConnectionChange(fn) {
+    connectionListeners.push(fn);
+  }
+  function notifyConnectionChange() {
+    const connected = isConnected();
+    connectionListeners.forEach((fn) => fn(connected));
+  }
+
+  // The whole upload, start to finish. onProgress(message) is called at
+  // each phase so the caller can show it in the lab's existing status
+  // line — this file owns no UI of its own. Requires connectToBoard()
+  // to have already been called — doesn't prompt for a port itself.
+  async function uploadToBoard(hexText, options) {
+    const onProgress = (options && options.onProgress) || function () {};
+
+    if (!connectedPort) {
+      throw new Error("Connect to your board first.");
+    }
+
+    const bytes = parseIntelHexBytes(hexText);
+    if (!bytes.length) throw new Error("Nothing to upload — the compiled sketch is empty.");
+
+    const port = connectedPort;
     const writer = port.writable.getWriter();
     const reader = new SerialByteSource(port);
 
@@ -300,38 +357,78 @@
 
       await leaveProgMode(writer, reader);
     } finally {
+      // Deliberately NOT closing the port here — it stays open/connected
+      // for the next upload, so a student iterating on their code isn't
+      // re-prompted by Chrome's port picker (and doesn't pay the open()
+      // overhead again) every single time they click Upload.
       try {
         writer.releaseLock();
       } catch (err) {
         /* already released */
       }
       await reader.stop();
-      try {
-        await port.close();
-      } catch (err) {
-        /* already closed / disconnected */
-      }
     }
   }
 
   window.ArduinoFlash = {
     isSupported: !!navigator.serial,
-    flashToUno,
+    isConnected,
+    connectToBoard,
+    disconnectFromBoard,
+    onConnectionChange,
+    uploadToBoard,
   };
 
   // ---------- UI wiring ----------
 
   document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("uploadBoardBtn");
-    if (!btn) return;
+    const connectBtn = document.getElementById("connectBoardBtn");
+    const uploadBtn = document.getElementById("uploadBoardBtn");
+    if (!connectBtn || !uploadBtn) return;
 
     if (!navigator.serial) {
-      btn.disabled = true;
-      btn.title = "Needs Chrome or Edge on desktop — this browser doesn't support uploading to a real board.";
+      connectBtn.disabled = true;
+      connectBtn.title = "Needs Chrome or Edge on desktop — this browser doesn't support connecting to a real board.";
+      uploadBtn.disabled = true;
+      uploadBtn.title = "Needs Chrome or Edge on desktop — this browser doesn't support uploading to a real board.";
       return;
     }
 
-    btn.addEventListener("click", async () => {
+    // Upload starts disabled — there's nothing to upload to until a
+    // board is actually connected.
+    uploadBtn.disabled = true;
+
+    onConnectionChange((connected) => {
+      connectBtn.classList.toggle("lab-icon-btn--connected", connected);
+      connectBtn.title = connected ? "Connected — click to disconnect" : "Connect to an Arduino Uno over USB";
+      uploadBtn.disabled = !connected;
+      uploadBtn.title = connected
+        ? "Upload this sketch to your connected Arduino Uno"
+        : "Connect to a board first (Chrome/Edge only)";
+    });
+
+    connectBtn.addEventListener("click", async () => {
+      if (isConnected()) {
+        await disconnectFromBoard();
+        if (typeof showToast === "function") showToast("Disconnected from board");
+        return;
+      }
+      connectBtn.disabled = true;
+      const setStatusFn = typeof setStatus === "function" ? setStatus : function () {};
+      try {
+        await connectToBoard();
+        setStatusFn("Board connected", "running");
+        if (typeof showToast === "function") showToast("Connected to your Arduino Uno");
+      } catch (err) {
+        console.error("Connect to board failed:", err);
+        setStatusFn(err.message || "Couldn't connect.", "error");
+      } finally {
+        connectBtn.disabled = false;
+      }
+    });
+
+    uploadBtn.addEventListener("click", async () => {
+      if (!isConnected()) return; // disabled should already prevent this, but no-op defensively
       if (!window.ArduinoLab || typeof window.ArduinoLab.getCode !== "function") return;
       // In case a block was edited within the last 300ms (regenerateCodeFromBlocks's
       // own debounce window) and hasn't synced into codeEditor yet — same
@@ -343,7 +440,7 @@
       const code = window.ArduinoLab.getCode();
       if (!code) return;
 
-      btn.disabled = true;
+      uploadBtn.disabled = true;
       const setStatusFn = typeof setStatus === "function" ? setStatus : function () {};
       setStatusFn("Compiling...", "busy");
 
@@ -357,25 +454,25 @@
         compileResult = await res.json();
       } catch (err) {
         setStatusFn("Couldn't reach the compiler — check your connection and try again.", "error");
-        btn.disabled = false;
+        uploadBtn.disabled = false;
         return;
       }
 
       if (!compileResult.success) {
         setStatusFn(compileResult.error || "Compile failed.", "error");
-        btn.disabled = false;
+        uploadBtn.disabled = false;
         return;
       }
 
       try {
-        await flashToUno(compileResult.hex, { onProgress: (msg) => setStatusFn(msg, "busy") });
+        await uploadToBoard(compileResult.hex, { onProgress: (msg) => setStatusFn(msg, "busy") });
         setStatusFn("Uploaded to board!", "running");
         if (typeof showToast === "function") showToast("Sketch uploaded to your Arduino Uno");
       } catch (err) {
         console.error("Upload to board failed:", err);
         setStatusFn(err.message || "Upload failed.", "error");
       } finally {
-        btn.disabled = false;
+        uploadBtn.disabled = !isConnected();
       }
     });
   });
