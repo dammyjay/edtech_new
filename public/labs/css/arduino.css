@@ -281,7 +281,12 @@ button {
     position: absolute;
     top: calc(100% + 8px);
     left: 0;
-    z-index: 30;
+    /* Blockly injects its own toolbox/flyout (block categories) with a
+       z-index well above typical page UI (its default is 70) — this
+       menu needs to clear that, or the block category list renders on
+       top of it whenever the menu is open in Blocks mode. Stays below
+       true modals like .extension-modal (10000). */
+    z-index: 9000;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
