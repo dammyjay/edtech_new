@@ -1,11 +1,53 @@
-/* Fixed-viewport app shell — no page scroll on desktop. The lab has no
-   site header of its own (routes/labRoutes.js -> controllers/labController
-   .getArduinoLab renders through the bare layout.ejs), so it can safely
-   claim the whole viewport. */
+/* Fixed-viewport app shell — no page scroll on desktop. */
 html, body {
     height: 100%;
     margin: 0;
     overflow: hidden;
+}
+
+/* The shared site body { display:flex; align-items:center; padding:0 20px }
+   (style.css, loaded via partials/header.ejs — added here for its CSRF
+   meta tag) is built for centered, narrow marketing/auth pages — it's
+   what was squeezing this page into a centered column with big gaps on
+   both sides instead of using the full width, now that this page loads
+   the shared stylesheet for the first time (reported live: "not filling
+   the width of the screen"). Same fix, same reasoning already applied
+   to the other 3 labs' own stylesheets (web.css, blockly.css, python.css)
+   when each of them first gained this same header include — arduino.css
+   loads after style.css, so this wins at equal specificity, scoped to
+   this page only. */
+body {
+    padding: 0;
+    align-items: stretch;
+    gap: 0;
+}
+
+/* Same style.css-leak story as body above, for its global `button {
+   background-color: var(--brand-pri); color: #fff; padding: 10px 18px;
+   border-radius: var(--radius); font-size: 15px; ... }` fallback (meant
+   to make a plain, unclassed <button> elsewhere on the site look
+   intentional rather than browser-default-grey). Every custom button
+   class below this point (.lab-icon-btn, .ct-swatch, .vc-btn, etc.) was
+   written assuming a bare, unstyled <button> as its starting point, so
+   this leak was overriding backgrounds/padding/sizing those rules never
+   explicitly reset themselves (reported live: toolbar icons and the
+   wire-color popup's delete button not visible — only the inline-styled
+   colour swatches, whose own `style="background:..."` attribute is the
+   one thing inline styles always beat any stylesheet rule on, survived).
+   Deliberately a BARE `button` selector, not `.arduino-lab button` —
+   adding that class would raise this rule's own specificity (0,1,1)
+   above every single-class button rule below it (0,1,0), overriding
+   THEM instead of just style.css's. Equal specificity (0,0,1) to
+   style.css's own rule relies on this file loading after it to win,
+   which it always does (this stylesheet is only ever loaded on this one
+   page, so there's nothing else here for a bare selector to leak onto). */
+button {
+    background: none;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    font-weight: inherit;
 }
 
 .lab-toast {
