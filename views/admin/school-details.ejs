@@ -59,30 +59,104 @@
   color: #007bff;
   transform: scale(1.2);
 }
+
+/* ===== School Details redesign (stat cards, classroom cards, pills,
+   modals) — reuses the platform's existing --brand-pri tokens from
+   style.css rather than inventing a new palette. ===== */
+.jk-page { max-width: 1320px; margin: 0 auto; }
+.jk-header-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 20px 24px; margin-bottom: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.jk-header-card h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; color: #1A1510; }
+.jk-header-card p { margin: 0; color: #6E6350; font-size: 13.5px; }
+.jk-term-filter { display: flex; align-items: center; gap: 10px; background: #FAF8F2; border: 1px solid #E7E0CE; border-radius: 12px; padding: 8px 8px 8px 14px; }
+.jk-term-filter select { border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--brand-pri-dark); padding: 4px; }
+.jk-stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .jk-stat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.jk-stat-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.jk-stat-card .jk-stat-head { display: flex; align-items: center; justify-content: space-between; }
+.jk-stat-label { font-size: 11.5px; font-weight: 700; color: #8A7B55; text-transform: uppercase; letter-spacing: 0.04em; }
+.jk-stat-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.jk-stat-value { font-size: 25px; font-weight: 800; color: #1A1510; }
+.jk-stat-sub { font-size: 12px; color: #6E6350; }
+.jk-stat-card--warn { background: var(--brand-tint); border-color: #F0C98A; cursor: pointer; text-align: left; }
+.jk-stat-card--warn .jk-stat-label, .jk-stat-card--warn .jk-stat-sub { color: #9A6B1E; }
+.jk-stat-card--warn .jk-stat-value { color: #9A5B14; }
+.jk-completeness { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 14px 20px; margin-bottom: 26px; display: flex; align-items: center; gap: 16px; }
+.jk-ring { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.jk-ring-inner { width: 38px; height: 38px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800; color: var(--brand-pri-dark); }
+.jk-completeness p { margin: 0; }
+.jk-completeness .jk-ctitle { font-weight: 700; font-size: 13.5px; color: #1A1510; margin-bottom: 2px; }
+.jk-completeness .jk-csub { font-size: 12px; color: #6E6350; }
+.jk-btn-fix { background: var(--brand-tint); color: var(--brand-pri-dark); border: none; padding: 9px 16px; border-radius: 9px; font-weight: 700; font-size: 12.5px; cursor: pointer; white-space: nowrap; margin-left: auto; }
+
+.jk-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.jk-section-head h3 { margin: 0; font-size: 16px; font-weight: 800; color: #1A1510; }
+.jk-btn-dark { background: #201B12; color: #EDE6D6; border: none; padding: 9px 16px; border-radius: 9px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.jk-btn-gold { background: var(--brand-tint); color: var(--brand-pri-dark); border: none; padding: 9px 14px; border-radius: 9px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.jk-btn-outline { background: #fff; color: var(--brand-pri-dark); border: 1px solid #E7E0CE; padding: 9px 14px; border-radius: 9px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.jk-btn-outline-sm { background: #fff; color: var(--brand-pri-dark); border: 1px solid #E7E0CE; padding: 7px 10px; border-radius: 8px; font-weight: 700; font-size: 11.5px; cursor: pointer; }
+.jk-icon-btn { background: none; border: none; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #6E6350; }
+.jk-icon-btn:hover { background: #F6F4EF; }
+
+.jk-classroom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 30px; }
+.jk-classroom-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.jk-classroom-card .jk-cc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.jk-classroom-card .jk-cc-name { margin: 0 0 3px; font-weight: 800; font-size: 15px; color: #1A1510; }
+.jk-classroom-card .jk-cc-courses { margin: 0; font-size: 12px; color: #6E6350; }
+.jk-flag-pill { background: var(--brand-tint); color: #9A5B14; font-size: 10.5px; font-weight: 700; padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+.jk-stat-pills { display: flex; gap: 8px; }
+.jk-stat-pill { flex: 1; background: #FAF8F2; border-radius: 9px; padding: 8px 6px; text-align: center; }
+.jk-stat-pill b { display: block; font-size: 16px; font-weight: 800; color: #1A1510; }
+.jk-stat-pill span { font-size: 10px; color: #8A7B55; font-weight: 600; }
+.jk-cc-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.jk-cc-actions button { flex: 1 1 auto; }
+
+.jk-modal-overlay { position: fixed; inset: 0; background: rgba(26,21,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; }
+.jk-modal-overlay[hidden] { display: none; }
+.jk-modal { background: #fff; border-radius: 18px; width: 520px; max-width: 100%; max-height: 86vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.jk-modal-head { padding: 20px 22px; display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #F1ECDD; }
+.jk-modal-head h4 { margin: 0; font-weight: 800; font-size: 15.5px; color: #1A1510; }
+.jk-modal-head p { margin: 3px 0 0; font-size: 12px; color: #6E6350; }
+.jk-modal-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+.jk-modal-close { background: #F6F4EF; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--brand-pri-dark); flex: 0 0 auto; }
+.jk-roster-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
+.jk-roster-row:hover { background: #FAF8F2; }
+.jk-avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.jk-unassigned-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #F1ECDD; border-radius: 10px; margin-bottom: 8px; }
+.jk-select-multi { width: 100%; border: 1px solid #E7E0CE; border-radius: 9px; padding: 8px; font-family: inherit; font-size: 13px; }
+.jk-checklist { max-height: 220px; overflow-y: auto; border: 1px solid #E7E0CE; border-radius: 9px; padding: 6px; }
+.jk-checklist label { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.jk-checklist label:hover { background: #FAF8F2; }
+
+/* Pill-style tab bar, replacing the plain gray login-tabs look */
+.login-tabs { display: flex; gap: 4px; border-bottom: 1.5px solid #E7E0CE; margin: 22px 0; overflow-x: auto; }
+.login-tab { background: none; border: none; cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 13.5px; white-space: nowrap; color: #9A8C66; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; font-family: inherit; }
+.login-tab.active { color: var(--brand-pri-dark); border-bottom-color: var(--brand-pri); }
+.login-tab:hover:not(.active) { color: var(--brand-pri-dark); }
 </style>
 
 
-<section class="section">
-    <h2><%= school.name %> - Details</h2>
-    <p><strong>Email:</strong> <%= school.email %></p>
-    <p><strong>Phone:</strong> <%= school.phone %></p>
-    <p><strong>Address:</strong> <%= school.address %></p>
+<section class="section jk-page">
 
-    <hr>
-    <div class="multi-btn" style="margin-bottom:10px;">
-      <label for="globalTermFilter" style="align-self:center; font-weight:600;">📅 Term:</label>
-      <select id="globalTermFilter" onchange="changeGlobalTerm(this.value)">
-        <option value="" <%= !selectedTermId ? 'selected' : '' %>>All Terms</option>
-        <% school.terms.forEach(term => { %>
-          <option value="<%= term.term_id %>" <%= selectedTermId === term.term_id ? 'selected' : '' %>>
-            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
-          </option>
-        <% }) %>
-      </select>
-      <% if (selectedTermId) { %>
-        <span style="color:#666; font-size:13px;">Students, classrooms and counts below are scoped to this term.</span>
-      <% } %>
+    <div class="jk-header-card">
+      <div>
+        <h2><%= school.name %></h2>
+        <p><%= school.address || 'No address on file' %> · <%= school.email || 'No email' %> · <%= school.phone || 'No phone' %></p>
+      </div>
+      <div class="jk-term-filter">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A17807" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <select id="globalTermFilter" onchange="changeGlobalTerm(this.value)">
+          <option value="" <%= !selectedTermId ? 'selected' : '' %>>All Terms</option>
+          <% school.terms.forEach(term => { %>
+            <option value="<%= term.term_id %>" <%= selectedTermId === term.term_id ? 'selected' : '' %>>
+              <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
     </div>
+    <% if (selectedTermId) { %>
+      <p style="color:#6E6350; font-size:12.5px; margin:-10px 0 16px;">Students, classrooms and counts below are scoped to this term.</p>
+    <% } %>
     <script>
       // The page-wide selected term (null = "All Terms") — read by the
       // classroom "view students" modal below so it matches the term
@@ -115,28 +189,96 @@
         }
       });
     </script>
-    <div class="stats-summary">
-      <p>👨‍🎓 Total Students<%= selectedTermId ? ' (this term)' : '' %>: <%= school.totals.total_students %></p>
-      <p>👩‍🏫 Total Teachers: <%= school.totals.total_teachers %></p>
-      <p>📌 Total Instructors: <%= school.totals.total_instructors %></p>
+
+    <% const jkUnassignedTotal = (unassignedStudents ? unassignedStudents.length : 0) + (unassignedClassrooms ? unassignedClassrooms.length : 0); %>
+    <% const jkTermedStudents = school.totals.total_students - (unassignedStudents ? unassignedStudents.length : 0); %>
+    <% const jkCompletenessPct = school.totals.total_students > 0 ? Math.round((jkTermedStudents / school.totals.total_students) * 100) : 100; %>
+
+    <div class="jk-stat-grid">
+      <div class="jk-stat-card">
+        <div class="jk-stat-head">
+          <span class="jk-stat-label">Students</span>
+          <div class="jk-stat-icon" style="background:#FBF3DD;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A17807" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+        </div>
+        <span class="jk-stat-value"><%= school.totals.total_students %></span>
+        <span class="jk-stat-sub"><%= selectedTermId ? 'this term' : 'all time' %></span>
+      </div>
+
+      <div class="jk-stat-card">
+        <div class="jk-stat-head">
+          <span class="jk-stat-label">Teachers</span>
+          <div class="jk-stat-icon" style="background:#E9F3FB;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F7AC9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></svg>
+          </div>
+        </div>
+        <span class="jk-stat-value"><%= school.totals.total_teachers %></span>
+        <span class="jk-stat-sub"><%= school.classrooms.length %> classrooms</span>
+      </div>
+
+      <div class="jk-stat-card">
+        <div class="jk-stat-head">
+          <span class="jk-stat-label">Instructors</span>
+          <div class="jk-stat-icon" style="background:#F1EAFB;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7C4DCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+          </div>
+        </div>
+        <span class="jk-stat-value"><%= school.totals.total_instructors %></span>
+        <span class="jk-stat-sub">Platform-assigned</span>
+      </div>
+
+      <div class="jk-stat-card">
+        <div class="jk-stat-head">
+          <span class="jk-stat-label">Classrooms</span>
+          <div class="jk-stat-icon" style="background:#EAF7EE;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2A9D5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-7h6v7"/></svg>
+          </div>
+        </div>
+        <span class="jk-stat-value"><%= school.classrooms.length %></span>
+        <span class="jk-stat-sub"><%= school.terms.length %> terms on record</span>
+      </div>
+
+      <button class="jk-stat-card jk-stat-card--warn" onclick="openUnassignedPanel()" type="button">
+        <div class="jk-stat-head">
+          <span class="jk-stat-label">Needs a Term</span>
+          <div class="jk-stat-icon" style="background:#F7E2C0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5720F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          </div>
+        </div>
+        <span class="jk-stat-value"><%= jkUnassignedTotal %></span>
+        <span class="jk-stat-sub">students &amp; classrooms · view →</span>
+      </button>
     </div>
 
-    <div class="multi-btn">
-      <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= school.id %>/download-progress'">📄 Download School Summary</button>
-      <label for="loginCardsTermFilter" style="align-self:center;">Term:</label>
-      <select id="loginCardsTermFilter">
-        <option value="">All students</option>
-        <% school.terms.forEach(term => { %>
-          <option value="<%= term.term_id %>" <%= term.status === 'active' ? 'selected' : '' %>>
-            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
-          </option>
-        <% }) %>
-      </select>
-      <button class="btn-pri" onclick="downloadLoginCards()">📥Student Login Cards</button>
-      <button class="btn-delete" onclick="archiveSchool()">🗄️ Archive School</button>
+    <div class="jk-completeness">
+      <div class="jk-ring" style="background: conic-gradient(var(--brand-pri) 0% <%= jkCompletenessPct %>%, #EDE7D6 <%= jkCompletenessPct %>% 100%);">
+        <div class="jk-ring-inner"><%= jkCompletenessPct %>%</div>
+      </div>
+      <div>
+        <p class="jk-ctitle">Term enrollment completeness</p>
+        <p class="jk-csub"><%= jkTermedStudents %> of <%= school.totals.total_students %> students have a term on record.</p>
+      </div>
+      <button class="jk-btn-fix" onclick="openUnassignedPanel()" type="button">Fix this →</button>
     </div>
 
-    <hr>
+    <div class="jk-section-head">
+      <div>
+        <button class="jk-btn-outline" onclick="window.location.href='/admin/schools/<%= school.id %>/download-progress'">📄 Download School Summary</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <select id="loginCardsTermFilter" class="jk-select-multi" style="width:auto;">
+          <option value="">All students</option>
+          <% school.terms.forEach(term => { %>
+            <option value="<%= term.term_id %>" <%= term.status === 'active' ? 'selected' : '' %>>
+              <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+            </option>
+          <% }) %>
+        </select>
+        <button class="jk-btn-gold" onclick="downloadLoginCards()">📥 Login Cards</button>
+        <button class="jk-btn-outline-sm" style="color:#B23A2A;" onclick="archiveSchool()">🗄️ Archive School</button>
+      </div>
+    </div>
 
     <script>
       async function archiveSchool() {
@@ -154,27 +296,75 @@
       }
     </script>
 
-    <h3>Classrooms</h3>
-    <p>Click on the classroom name to view its details:</p>
-    <ul>
-      <% if (school.classrooms.length > 0) { %>
-        <% school.classrooms.forEach(classroom => { %>
-          <li>
-            <a href="/admin/classrooms/<%= classroom.id %>/dashboard" 
-              style="color:#3498db; font-weight:600; text-decoration:none;">
-              🏫 <%= classroom.name %>
-            </a>
-          </li>
-        <% }) %>
-      <% } else { %>
-        <p>No classrooms available.</p>
-      <% } %>
-    </ul>
-
-
-    <hr>
-    
 </section>
+
+<!-- ===== Unassigned-to-term panel (students/classrooms never linked to
+     a term at all) — real data from getSchoolDetails. ===== -->
+<div id="unassignedPanel" class="jk-modal-overlay" hidden>
+  <div class="jk-modal" style="width:620px;">
+    <div class="jk-modal-head">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="jk-stat-icon" style="background:#FDF4EC; width:34px; height:34px; border-radius:9px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B5720F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <div>
+          <h4>Never assigned to a term</h4>
+          <p>These won't show up in any term-filtered view, report, or classroom analytics until fixed.</p>
+        </div>
+      </div>
+      <button class="jk-modal-close" onclick="closeUnassignedPanel()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <div>
+        <p style="margin:0 0 10px; font-size:11.5px; font-weight:700; color:#8A7B55; text-transform:uppercase; letter-spacing:0.04em;">Students (<%= unassignedStudents.length %>)</p>
+        <% if (unassignedStudents.length === 0) { %>
+          <p style="margin:0; font-size:13px; color:#6E6350;">Every active student has been assigned to at least one term. ✅</p>
+        <% } else { %>
+          <% unassignedStudents.forEach(s => { %>
+            <div class="jk-unassigned-row">
+              <div class="jk-avatar" style="background:#A17807;"><%= (s.full_name || '?').split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() %></div>
+              <div style="flex:1;">
+                <p style="margin:0; font-weight:700; font-size:13px; color:#1A1510;"><%= s.full_name %></p>
+                <p style="margin:0; font-size:11.5px; color:#6E6350;"><%= s.email %> · <%= s.classroom_name ? ('in ' + s.classroom_name + ', no term') : 'no classroom, no term' %></p>
+              </div>
+              <button class="jk-btn-gold" style="padding:7px 12px; font-size:11.5px;" onclick="openAssignModal('<%= s.id %>', 'student', '<%= s.classroom_id || '' %>')">Assign →</button>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+      <div>
+        <p style="margin:0 0 10px; font-size:11.5px; font-weight:700; color:#8A7B55; text-transform:uppercase; letter-spacing:0.04em;">Classrooms never linked to a term (<%= unassignedClassrooms.length %>)</p>
+        <% if (unassignedClassrooms.length === 0) { %>
+          <p style="margin:0; font-size:13px; color:#6E6350;">Every classroom has had at least one term-enrolled student. ✅</p>
+        <% } else { %>
+          <% unassignedClassrooms.forEach(c => { %>
+            <div class="jk-unassigned-row">
+              <div class="jk-stat-icon" style="background:#FAF8F2; width:30px; height:30px; border-radius:8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A17807" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-7h6v7"/></svg>
+              </div>
+              <div style="flex:1;">
+                <p style="margin:0; font-weight:700; font-size:13px; color:#1A1510;"><%= c.name %></p>
+                <p style="margin:0; font-size:11.5px; color:#6E6350;">No student has ever been enrolled into it via a term.</p>
+              </div>
+              <button class="jk-btn-outline-sm" onclick="goToClassroomsTab()">View →</button>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function openUnassignedPanel() { document.getElementById("unassignedPanel").hidden = false; }
+  function closeUnassignedPanel() { document.getElementById("unassignedPanel").hidden = true; }
+  function goToClassroomsTab() {
+    closeUnassignedPanel();
+    const btn = document.querySelector('.login-tab[onclick*="classrooms-section"]');
+    if (btn) openTab("classrooms-section", btn);
+  }
+</script>
 
 <section class="section">
   <h3>🎓 Courses Assigned to This School</h3>
@@ -679,123 +869,232 @@
 
 <!-- classrooms section  -->
 <div id="classrooms-section" style="display:none;">
-  <button class="btn-blue" onclick="openModal('createClassroomModal')" style="margin-bottom:15px;">
-    ➕ Create Classroom
-  </button>
-
-  <!-- Which term's students are eligible for assignment below — a
-       student not enrolled in this term, already assigned to a
-       classroom, or marked inactive, won't appear in any of the
-       "Assign Multiple Students" pickers. Defaults to the school's
-       currently active term (same "active" definition already shown
-       in the Terms tab's status labels). -->
-  <div style="margin-bottom:15px;">
-    <label for="classroomAssignTermFilter"><strong>Assigning students from term:</strong></label>
-    <select id="classroomAssignTermFilter" onchange="loadClassroomCandidates()">
-      <% if (school.terms.length === 0) { %>
-        <option value="">No terms yet</option>
-      <% } else { %>
-        <% school.terms.forEach(term => { %>
-          <%
-            // Prefer the term just used to assign students (see
-            // preferredTermId in adminController.js's getSchoolDetails)
-            // over the date-computed "active" one — they're often the
-            // same, but not when an admin deliberately assigns students
-            // to a term other than whichever one's dates cover today.
-            const isSelected = typeof preferredTermId !== 'undefined' && preferredTermId
-              ? term.term_id === preferredTermId
-              : term.status === 'active';
-          %>
-          <option value="<%= term.term_id %>" <%= isSelected ? 'selected' : '' %>>
-            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
-          </option>
-        <% }) %>
-      <% } %>
-    </select>
-    <label style="margin-left:14px; font-weight:normal;">
-      <input type="checkbox" id="includeAssignedStudents" onchange="loadClassroomCandidates()">
-      Also show students already in another classroom (to move them)
-    </label>
+  <div class="jk-section-head">
+    <h3>Classrooms</h3>
+    <button class="jk-btn-dark" onclick="openModal('createClassroomModal')" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Create Classroom
+    </button>
   </div>
 
-  <div class="table-responsive">
-    <table class="user-table sortable-table" style="margin-top:20px;">
-      <thead>
-        <tr>
-          <th>Classroom Name</th>
-          <th>No. of Students</th>
-          <th>No. of Teachers</th>
-          <th>No. of Instructors</th>
-          <th>Course</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (school.classrooms.length > 0) { %>
-          <% school.classrooms.forEach(c => { %>
-            <tr>
-              <td><%= c.name %></td>
-              <td id="student-count-<%= c.id %>"><%= c.student_count %></td>
-              <td id="teacher-count-<%= c.id %>"><%= c.teacher_count %></td>
-              <td id="instructor-count-<%= c.id %>"><%= c.instructor_count %></td>
-              <td>
-                <div id="classroom-courses-<%= c.id %>" data-classroom-id="<%= c.id %>">
-                  <em>Loading courses...</em>
-                </div>
-              </td>
+  <div class="jk-classroom-grid">
+    <% if (school.classrooms.length > 0) { %>
+      <% school.classrooms.forEach(c => { %>
+        <div class="jk-classroom-card">
+          <div class="jk-cc-head">
+            <div>
+              <p class="jk-cc-name"><%= c.name %></p>
+              <p class="jk-cc-courses" id="classroom-courses-<%= c.id %>" data-classroom-id="<%= c.id %>"><em>Loading courses…</em></p>
+            </div>
+            <% if (c.flagged) { %>
+              <span class="jk-flag-pill">No term link</span>
+            <% } %>
+          </div>
 
-               <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
-                <a href="/admin/classrooms/<%= c.id %>/dashboard">
-                  <i class="fa-solid fa-chart-column" style="color: #9e06bd;"></i>
-                </a>
-                <a href="#" class="no-bg" onclick="toggleStudents('<%= c.id %>'); return false;">
-                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-                </a>
-                <a href="#" class="no-bg" onclick="updateClassroom('<%= c.id %>', { name: prompt('New name?') }); return false;">
-                  <i class="fa-solid fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
-                </a>
-                <a href="#" class="no-bg" title="Archive" onclick="deleteClassroom('<%= c.id %>'); return false;">
-                  <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
-                </a>
-              </td>
-            </tr>
+          <div class="jk-stat-pills">
+            <div class="jk-stat-pill"><b id="student-count-<%= c.id %>"><%= c.student_count %></b><span>Students</span></div>
+            <div class="jk-stat-pill"><b id="teacher-count-<%= c.id %>"><%= c.teacher_count %></b><span>Teachers</span></div>
+            <div class="jk-stat-pill"><b id="instructor-count-<%= c.id %>"><%= c.instructor_count %></b><span>Instructors</span></div>
+          </div>
 
-
-            <!-- Add under each classroom row -->
-            <tr id="assign-multi-row-<%= c.id %>">
-              <td colspan="5">
-                <form onsubmit="assignUsers(event, '<%= c.id %>', 'student')">
-                  <label><strong>Assign Multiple Students to <%= c.name %>:</strong></label>
-                  <!-- Populated by loadClassroomCandidates() from the term
-                       picker above — not server-rendered, since the
-                       eligible list depends on which term is selected. -->
-                  <select id="studentMultiSelect-<%= c.id %>" class="classroom-candidate-select" multiple size="5" style="width:100%; margin-top:8px;">
-                    <option disabled>Loading…</option>
-                  </select>
-                  <button type="submit" class="btn-sec">
-                    Assign Selected Students
-                  </button>
-                </form>
-              </td>
-            </tr>
-
-
-            <!-- Hidden expandable row -->
-            <tr id="students-row-<%= c.id %>" style="display:none;">
-              <td colspan="5">
-                <div id="students-container-<%= c.id %>">
-                  <em>Loading...</em>
-                </div>
-              </td>
-            </tr>
-          <% }) %>
-        <% } else { %>
-          <tr><td colspan="5" style="text-align:center;">No classrooms yet</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+          <div class="jk-cc-actions">
+            <button class="jk-btn-gold" onclick="openRosterModal('<%= c.id %>', '<%= c.name.replace(/'/g, "\\'") %>')" type="button">View Roster</button>
+            <button class="jk-btn-outline" onclick="openAssignStudentsModal('<%= c.id %>', '<%= c.name.replace(/'/g, "\\'") %>')" type="button">Assign Students</button>
+          </div>
+          <div class="jk-cc-actions">
+            <button class="jk-btn-outline" onclick="openAssignCourseModal('<%= c.id %>', '<%= c.name.replace(/'/g, "\\'") %>')" type="button">Assign Course</button>
+            <button class="jk-btn-outline" onclick="openAssignInstructorsModal('<%= c.id %>', '<%= c.name.replace(/'/g, "\\'") %>')" type="button">Assign Instructor</button>
+          </div>
+          <div class="jk-cc-actions">
+            <a href="/admin/classrooms/<%= c.id %>/dashboard" class="jk-icon-btn" title="Analytics">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9e06bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+            </a>
+            <button class="jk-icon-btn" title="Rename" onclick="updateClassroom('<%= c.id %>', { name: prompt('New name?') })" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2A9D5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+            <button class="jk-icon-btn" title="Archive" onclick="deleteClassroom('<%= c.id %>')" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B23A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+            </button>
+          </div>
+          <!-- Kept for refreshStudents()'s existing innerHTML write after
+               an Assign Students submit — no longer shown; the roster
+               modal is the real display surface now. -->
+          <div id="students-container-<%= c.id %>" style="display:none;"></div>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <p style="color:#6E6350;">No classrooms yet.</p>
+    <% } %>
   </div>
 </div>
+
+<!-- ===== Shared Roster modal ===== -->
+<div id="rosterModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="rosterModalTitle">Classroom Roster</h4>
+        <p id="rosterModalSubtitle"></p>
+      </div>
+      <button class="jk-modal-close" onclick="closeRosterModal()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body" id="rosterModalBody"></div>
+  </div>
+</div>
+
+<!-- ===== Shared "Assign Students" modal (term-filtered picker) ===== -->
+<div id="assignStudentsModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="assignStudentsModalTitle">Assign Students</h4>
+        <p>Pick from students enrolled in the chosen term who aren't already in this classroom.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeAssignStudentsModal()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <div>
+        <label style="font-size:12.5px; font-weight:700; color:#4C3802;">Assigning students from term:</label>
+        <select id="classroomAssignTermFilter" class="jk-select-multi" style="margin-top:6px;" onchange="loadClassroomCandidates()">
+          <% if (school.terms.length === 0) { %>
+            <option value="">No terms yet</option>
+          <% } else { %>
+            <% school.terms.forEach(term => { %>
+              <%
+                const isSelected = typeof preferredTermId !== 'undefined' && preferredTermId
+                  ? term.term_id === preferredTermId
+                  : term.status === 'active';
+              %>
+              <option value="<%= term.term_id %>" <%= isSelected ? 'selected' : '' %>>
+                <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+              </option>
+            <% }) %>
+          <% } %>
+        </select>
+        <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:#6E6350; margin-top:8px; font-weight:normal;">
+          <input type="checkbox" id="includeAssignedStudents" onchange="loadClassroomCandidates()">
+          Also show students already in another classroom (to move them)
+        </label>
+      </div>
+      <form id="assignStudentsForm">
+        <select id="assignStudentsSelect" class="classroom-candidate-select jk-select-multi" multiple size="8">
+          <option disabled>Loading…</option>
+        </select>
+        <button type="submit" class="jk-btn-dark" style="margin-top:10px; width:100%;">Assign Selected Students</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  function openAssignStudentsModal(classroomId, classroomName) {
+    const sel = document.getElementById("assignStudentsSelect");
+    sel.id = "studentMultiSelect-" + classroomId;
+    document.getElementById("assignStudentsModalTitle").textContent = "Assign Students — " + classroomName;
+    const form = document.getElementById("assignStudentsForm");
+    form.onsubmit = (e) => assignUsers(e, classroomId, "student");
+    document.getElementById("assignStudentsModal").hidden = false;
+    loadClassroomCandidates();
+  }
+  function closeAssignStudentsModal() { document.getElementById("assignStudentsModal").hidden = true; }
+</script>
+
+<!-- ===== Shared "Assign Instructor(s)" modal — one classroom, many
+     instructors in a single call (classroom_instructors supports it
+     natively); replaces the old one-instructor/many-classrooms flow
+     whose multi-select silently only saved the first pick. ===== -->
+<div id="assignInstructorsModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="assignInstructorsModalTitle">Assign Instructors</h4>
+        <p>Select one or more instructors to attach to this classroom.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeAssignInstructorsModal()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <form id="assignInstructorsForm">
+        <select id="assignInstructorsSelect" class="jk-select-multi" multiple size="8">
+          <% school.instructors.forEach(inst => { %>
+            <option value="<%= inst.id %>"><%= inst.full_name %> (<%= inst.email %>)</option>
+          <% }) %>
+        </select>
+        <button type="submit" class="jk-btn-dark" style="margin-top:10px; width:100%;">Assign Selected Instructors</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  function openAssignInstructorsModal(classroomId, classroomName) {
+    const sel = document.getElementById("assignInstructorsSelect");
+    sel.id = "instructorMultiSelect-" + classroomId;
+    document.getElementById("assignInstructorsModalTitle").textContent = "Assign Instructors — " + classroomName;
+    const form = document.getElementById("assignInstructorsForm");
+    form.onsubmit = (e) => assignUsers(e, classroomId, "instructor");
+    document.getElementById("assignInstructorsModal").hidden = false;
+  }
+  function closeAssignInstructorsModal() { document.getElementById("assignInstructorsModal").hidden = true; }
+</script>
+
+<!-- ===== Shared "Assign Course" modal (per classroom) — reuses the
+     same /admin/classrooms/:id/assign-courses endpoint as the Assign
+     Courses tab's school-wide form, scoped to one classroom. ===== -->
+<div id="assignCourseModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="assignCourseModalTitle">Assign Courses</h4>
+        <p>Replaces this classroom's current course list with your selection.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeAssignCourseModal()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <form id="assignCourseModalForm">
+        <select id="assignCourseModalSelect" class="jk-select-multi" multiple size="8">
+          <% school.courses.forEach(course => { %>
+            <option value="<%= course.id %>"><%= course.title %> - Level <%= course.level || '—' %></option>
+          <% }) %>
+        </select>
+        <button type="submit" class="jk-btn-dark" style="margin-top:10px; width:100%;">Save Courses</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  let assignCourseModalClassroomId = null;
+  function openAssignCourseModal(classroomId, classroomName) {
+    assignCourseModalClassroomId = classroomId;
+    document.getElementById("assignCourseModalTitle").textContent = "Assign Courses — " + classroomName;
+    document.getElementById("assignCourseModal").hidden = false;
+  }
+  function closeAssignCourseModal() { document.getElementById("assignCourseModal").hidden = true; }
+  document.getElementById("assignCourseModalForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const selected = Array.from(document.getElementById("assignCourseModalSelect").selectedOptions).map((o) => o.value);
+    if (selected.length === 0) return showAlert("⚠️ Select at least one course.");
+    try {
+      const res = await fetch(`/admin/classrooms/${assignCourseModalClassroomId}/assign-courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ course_ids: selected }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to assign courses.");
+      await loadClassroomCoursesById(assignCourseModalClassroomId);
+      closeAssignCourseModal();
+      showAlert("✅ Courses assigned!");
+    } catch (err) {
+      showAlert("❌ " + (err.message || "Request failed. Try again."));
+    }
+  };
+</script>
 
 <!-- assigning course section -->
 <div id="course-assignment-section" style="display:none;">
@@ -2138,116 +2437,50 @@ function exportExcel() {
   }
   
 
-  async function toggleStudents(classroomId) {
-    const row = document.getElementById(`students-row-${classroomId}`);
-    const container = document.getElementById(`students-container-${classroomId}`);
+  // Opens the shared roster modal instead of expanding an inline row —
+  // kept the function name/signature so every existing caller (the
+  // classroom cards below, and the legacy create/edit-classroom success
+  // templates) keeps working unchanged.
+  async function toggleStudents(classroomId, classroomName) {
+    openRosterModal(classroomId, classroomName || "");
+  }
 
-    if (row.style.display === "none") {
-      row.style.display = "table-row";
+  async function openRosterModal(classroomId, classroomName) {
+    document.getElementById("rosterModalTitle").textContent = classroomName ? `${classroomName} — Roster` : "Classroom Roster";
+    document.getElementById("rosterModalSubtitle").textContent = SELECTED_TERM_ID
+      ? "Showing this term's enrolled students"
+      : "Showing the live, all-time roster (All Terms)";
+    const container = document.getElementById("rosterModalBody");
+    container.innerHTML = "<p style='padding:4px 0; color:#6E6350;'>Loading…</p>";
+    document.getElementById("rosterModal").hidden = false;
 
-      if (!container.dataset.loaded) {
-        try {
-          const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
-          const students = await res.json();
+    try {
+      const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
+      const students = await res.json();
 
-          if (students.length === 0) {
-            container.innerHTML = "<p>No students in this classroom.</p>";
-          } else {
-            let html = `
-              <div class="table-responsive">
-                <table class="user-table sortable-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
-                  <thead>
-                    <tr>
-                      <th>Full Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Gender</th>
-                      <th>DOB</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-            `;
-            students.forEach(stu => {
-              html += `
-                <tr>
-                  <td>${stu.fullname}</td>
-                  <td>${stu.email || "—"}</td>
-                  <td>${stu.phone || "—"}</td>
-                  <td>${stu.gender || "—"}</td>
-                  <td>${stu.dob ? new Date(stu.dob).toLocaleDateString() : "—"}</td>
-                </tr>
-              `;
-            });
-            html += "</tbody></table></div>";
-            container.innerHTML = html;
-          }
-
-          container.dataset.loaded = "true";
-        } catch (err) {
-          container.innerHTML = "<p style='color:red;'>Failed to load students.</p>";
-        }
+      if (!Array.isArray(students) || students.length === 0) {
+        container.innerHTML = "<p style='padding:4px 0; color:#6E6350;'>No students in this classroom" + (SELECTED_TERM_ID ? " for this term." : ".") + "</p>";
+        return;
       }
-    } else {
-      row.style.display = "none";
+
+      const palette = ["#A17807", "#1F7AC9", "#7C4DCC", "#2A9D5C", "#C9574A", "#B5720F"];
+      const initialsOf = (name) => (name || "?").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+      container.innerHTML = students.map((stu) => `
+        <div class="jk-roster-row">
+          <div class="jk-avatar" style="background:${palette[(stu.fullname || "").length % palette.length]};">${initialsOf(stu.fullname)}</div>
+          <div style="flex:1;">
+            <p style="margin:0; font-weight:700; font-size:13.5px; color:#1A1510;">${stu.fullname}</p>
+            <p style="margin:0; font-size:12px; color:#6E6350;">${stu.email || "—"} · ${stu.gender || "—"} · ${stu.dob ? new Date(stu.dob).toLocaleDateString() : "DOB —"}</p>
+          </div>
+        </div>
+      `).join("");
+    } catch (err) {
+      container.innerHTML = "<p style='color:#B23A2A;'>Failed to load students.</p>";
     }
   }
-</script>
 
-<!-- script for getting classroom students -->
-<script>
-  async function toggleStudents(classroomId) {
-    const row = document.getElementById(`students-row-${classroomId}`);
-    const container = document.getElementById(`students-container-${classroomId}`);
-
-    if (row.style.display === "none") {
-      row.style.display = "table-row";
-
-      // If not loaded yet, fetch via AJAX
-      if (!container.dataset.loaded) {
-        try {
-          const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
-          const students = await res.json();
-
-          if (students.length === 0) {
-            container.innerHTML = "<p>No students in this classroom.</p>";
-          } else {
-            let html = `
-              <div class="table-responsive">
-                <table class="user-table sortable-table" style="width:100%; margin-top:10px; background:#f9f9f9;">
-                  <thead>
-                    <tr>
-                      <th>Full Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Gender</th>
-                      <th>DOB</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-            `;
-            students.forEach(stu => {
-              html += `
-                <tr>
-                  <td>${stu.fullname}</td>
-                  <td>${stu.email || "—"}</td>
-                  <td>${stu.phone || "—"}</td>
-                  <td>${stu.gender || "—"}</td>
-                  <td>${stu.dob ? new Date(stu.dob).toLocaleDateString() : "—"}</td>
-                </tr>
-              `;
-            });
-            html += "</tbody></table></div>";
-            container.innerHTML = html;
-          }
-          container.dataset.loaded = "true"; // avoid re-fetch
-        } catch (err) {
-          container.innerHTML = "<p style='color:red;'>Failed to load students.</p>";
-        }
-      }
-    } else {
-      row.style.display = "none"; // collapse
-    }
-  }
+  function closeRosterModal() { document.getElementById("rosterModal").hidden = true; }
 </script>
 
 <!-- script for toggle section  -->
@@ -2480,10 +2713,13 @@ function exportExcel() {
           // candidate list (a student just assigned to THIS classroom
           // needs to disappear from every OTHER classroom's picker too,
           // which data.unassigned alone can't do since it isn't
-          // term-aware). For other roles, fall back to the old per-select
-          // rebuild from data.unassigned.
+          // term-aware). Instructors aren't exclusive to one classroom
+          // (the same instructor can teach several), so "unassigned"
+          // isn't a meaningful concept here — just close the modal.
           if (role === "student") {
             await loadClassroomCandidates();
+          } else if (role === "instructor") {
+            closeAssignInstructorsModal();
           } else {
             select.innerHTML = "";
             if (data.unassigned && data.unassigned.length > 0) {
@@ -2728,32 +2964,13 @@ function exportExcel() {
 
     const data = await res.json();
     if (data.success) {
+      // Reload rather than patch the DOM by hand — the classroom grid
+      // (card-based, not the old table) needs the full set of fields
+      // (course tags, term-scoped counts, flagged state) a fresh render
+      // computes server-side anyway, and every other create/assign flow
+      // on this page already reloads on success the same way.
       showAlert("✅ Classroom created!").then(() => {
-        const classroom = data.classroom;
-
-        // 🔄 Add new row to classrooms table
-        const tbody = document.querySelector("table.user-table tbody");
-        const tr = document.createElement("tr");
-        tr.setAttribute("id", `classroom-row-${classroom.id}`);
-        tr.innerHTML = `
-          <td>${classroom.name}</td>
-          <td id="student-count-${classroom.id}">${classroom.student_count}</td>
-          <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
-          <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
-          <td>
-            <div class="multi-btn">
-              <button class="btn-blue" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
-              <button class="btn-green" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
-            </div>
-          </td>
-        `;
-        tbody.appendChild(tr);
-
-        // 🔄 Update dropdowns (teacher filter, student filter, assign modal)
-        addClassroomToDropdowns(classroom);
-
-        closeModal("createClassroomModal");
-        e.target.reset();
+        window.location.reload();
       });
     } else {
       showAlert("❌ " + data.message);
@@ -2781,27 +2998,7 @@ function exportExcel() {
     const data = await res.json();
     if (data.success) {
       showAlert("✏ Classroom updated!").then(() => {
-        const classroom = data.classroom;
-
-        // 🔄 Update the table row
-        const row = document.getElementById(`classroom-row-${classroom.id}`);
-        if (row) {
-          row.innerHTML = `
-            <td>${classroom.name}</td>
-            <td id="student-count-${classroom.id}">${classroom.student_count}</td>
-            <td id="teacher-count-${classroom.id}">${classroom.teacher_count}</td>
-            <td id="instructor-count-${classroom.id}">${classroom.instructor_count}</td>
-            <td>
-              <button class="btn-edit" onclick="toggleStudents('${classroom.id}')">👁 View Students</button>
-              <button class="btn-edit" onclick="openEditClassroom('${classroom.id}','${classroom.name}',[])">✏ Edit</button>
-            </td>
-          `;
-        }
-
-        // 🔄 Update classroom name in dropdowns
-        updateClassroomInDropdowns(classroom);
-
-        closeModal("editClassroomModal");
+        window.location.reload();
       });
     } else {
       showAlert("❌ " + data.message);

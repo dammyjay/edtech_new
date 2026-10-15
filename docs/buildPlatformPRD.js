@@ -203,12 +203,13 @@ const FEATURE_MODULES = [
     groups: [
       { category: "Schools (Admin)", items: [
         "View, edit and export (Excel/PDF) the full list of registered schools.",
-        "Open a school's detail page: students, teachers, classrooms, terms, attendance, assigned courses and analytics tabs.",
+        "Open a school's detail page: students, teachers, classrooms, terms, attendance, assigned courses and analytics tabs — redesigned with a stat-card dashboard (students/teachers/instructors/classrooms, plus a dedicated \"Needs a Term\" count), a term-enrollment completeness indicator, and a dedicated panel listing exactly which students and classrooms have never been linked to any academic term at all.",
         "Assign which courses a school gets, per term or with no term restriction.",
         "A global term filter on the school detail page (mirroring School Admin's own dashboard) re-scopes the Students tab and classroom roster counts to a chosen term's actual enrollment, or shows the live, all-time view with no term selected (\"All Terms\", the default).",
       ]},
       { category: "Classrooms", items: [
-        "Create/edit/delete classrooms; assign students and one or more teachers to each (School Admin); Admin can additionally place Instructors into classrooms across schools.",
+        "Create/edit/delete classrooms; assign students and one or more teachers to each (School Admin); Admin can additionally place Instructors into classrooms across schools — redesigned as a card grid (replacing the old plain table), with per-classroom quick actions to view the roster, assign students, assign courses and assign instructors, each in its own focused modal instead of inline page clutter.",
+        "Assigning one or more instructors to a classroom now supports selecting several at once in a single action — previously the picker allowed selecting multiple classrooms for one instructor, but the underlying handler silently only saved the first one picked.",
         "Assign, change or remove which courses a classroom gets, limited to courses the platform has authorised for that school's current term (School Admin).",
         "Reassigning a student's classroom now also updates their enrollment record for the specific term the admin is working in, keeping it in sync with the live assignment — previously that record was only ever written once (at term-assignment time) and went stale on any later classroom change, which is what made classroom analytics and term-filtered student lists keep showing a student's old classroom. The classroom roster's \"view students\" list is now also term-aware, matching the term-scoped student count shown next to it rather than always showing every student ever assigned to that classroom across every term.",
       ]},

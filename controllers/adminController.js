@@ -6017,6 +6017,45 @@ exports.getSchoolDetails = async (req, res) => {
       selectedTermId ? [id, selectedTermId] : [id]
     );
 
+    // Students never enrolled in ANY term at this school at all (no
+    // student_term_enrollments row, regardless of term) — these won't
+    // show up in any term-filtered view, term-scoped report, or
+    // classroom analytics no matter which term is selected, until
+    // someone runs them through "assign to term" at least once.
+    const unassignedStudentsResult = await pool.query(
+      `SELECT u.id, u.fullname AS full_name, u.email, us.classroom_id, c.name AS classroom_name
+       FROM user_school us
+       JOIN users2 u ON u.id = us.user_id
+       LEFT JOIN classrooms c ON c.id = us.classroom_id
+       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND us.is_active = true
+         AND u.archived_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM student_term_enrollments ste
+           WHERE ste.student_id = u.id AND ste.school_id = $1
+         )
+       ORDER BY u.fullname`,
+      [id]
+    );
+
+    // Classrooms that have never appeared in ANY term's enrollment
+    // snapshot — a real, if less common, data gap: a classroom created
+    // and even populated via live user_school.classroom_id, but never
+    // actually linked to a term through the assignment flow.
+    const unassignedClassroomsResult = await pool.query(
+      `SELECT c.id, c.name
+       FROM classrooms c
+       WHERE c.school_id = $1 AND c.archived_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM student_term_enrollments ste WHERE ste.classroom_id = c.id
+         )
+       ORDER BY c.name`,
+      [id]
+    );
+    const unassignedClassroomIds = new Set(unassignedClassroomsResult.rows.map((r) => r.id));
+    classroomsResult.rows.forEach((c) => {
+      c.flagged = unassignedClassroomIds.has(c.id);
+    });
+
     // Fetch terms with students. Filtered to non-archived terms — this
     // list also drives the "ensure every term has a quote" loop below, so
     // an archived term correctly never gets a fresh quote auto-created
@@ -6198,6 +6237,8 @@ exports.getSchoolDetails = async (req, res) => {
         ? parseInt(req.query.assigned_term_id, 10)
         : null,
       selectedTermId,
+      unassignedStudents: unassignedStudentsResult.rows,
+      unassignedClassrooms: unassignedClassroomsResult.rows,
     });
   } catch (err) {
     console.error("Error fetching school details:", err);
