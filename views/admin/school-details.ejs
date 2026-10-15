@@ -94,8 +94,14 @@
       // Overview view.
       function changeGlobalTerm(termId) {
         const url = new URL(window.location.href);
-        if (termId) url.searchParams.set("term_id", termId);
-        else url.searchParams.delete("term_id");
+        // Always keep term_id PRESENT in the URL, even as "" for "All
+        // Terms" — the server only clears its session-persisted filter
+        // when the query param is explicitly present (see
+        // getSchoolDetails's `req.query.term_id !== undefined` check).
+        // Deleting the param outright used to make the server fall back
+        // to whatever term was already in session, so picking "All
+        // Terms" silently did nothing.
+        url.searchParams.set("term_id", termId || "");
         const openSection = document.querySelector('[id$="-section"][style*="display: block"], [id$="-section"][style*="display:block"]');
         if (openSection) url.searchParams.set("tab", openSection.id);
         window.location.href = url.toString();
