@@ -205,10 +205,12 @@ const FEATURE_MODULES = [
         "View, edit and export (Excel/PDF) the full list of registered schools.",
         "Open a school's detail page: students, teachers, classrooms, terms, attendance, assigned courses and analytics tabs.",
         "Assign which courses a school gets, per term or with no term restriction.",
+        "A global term filter on the school detail page (mirroring School Admin's own dashboard) re-scopes the Students tab and classroom roster counts to a chosen term's actual enrollment, or shows the live, all-time view with no term selected (\"All Terms\", the default).",
       ]},
       { category: "Classrooms", items: [
         "Create/edit/delete classrooms; assign students and one or more teachers to each (School Admin); Admin can additionally place Instructors into classrooms across schools.",
         "Assign, change or remove which courses a classroom gets, limited to courses the platform has authorised for that school's current term (School Admin).",
+        "Reassigning a student's classroom now also updates their enrollment record for the school's active term, keeping it in sync with the live assignment — previously that record was only ever written once (at term-assignment time) and went stale on any later classroom change, which is what made classroom analytics and term-filtered student lists keep showing a student's old classroom.",
       ]},
       { category: "Terms", items: [
         "Create/edit/delete academic terms; creating a term auto-generates a billing quote (School Admin/Admin).",

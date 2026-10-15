@@ -5872,14 +5872,45 @@ exports.getSchoolDetails = async (req, res) => {
     const school = schoolResult.rows[0];
     if (!school) return res.status(404).send("School not found");
 
+    // Whole-page term filter — mirrors schoolAdminController.js's
+    // resolveSelectedTermId, but keyed per school in session (this admin
+    // page is reused across every school, unlike the school admin's own
+    // dashboard, which only ever has one). Explicit null ("All Terms")
+    // is the default and an intentional, keepable state — every query
+    // below treats it as "don't filter, show the live/all-time view",
+    // matching this page's existing behavior before the filter existed.
+    if (req.query.term_id !== undefined) {
+      req.session.schoolTermFilter = req.session.schoolTermFilter || {};
+      req.session.schoolTermFilter[id] = req.query.term_id ? Number(req.query.term_id) : null;
+    }
+    const selectedTermId = (req.session.schoolTermFilter && req.session.schoolTermFilter[id]) || null;
+
     // Fetch students
     // Was missing us.classroom_id (and us.is_active) entirely — the
     // school-details view's "only show unassigned students" filter and
     // the single-student assign modal's current-classroom pre-selection
     // both read student.classroom_id, so both were silently broken
     // (always undefined) with only c.name AS classroom_name here.
+    //
+    // When a term is selected, only students actually enrolled that term
+    // show up (via student_term_enrollments), and the classroom shown is
+    // that term's classroom snapshot, not wherever they sit today — same
+    // pattern as schoolAdminController.getDashboard.
     const studentsResult = await pool.query(
+      selectedTermId
+        ? `
+      SELECT u.id, u.fullname AS full_name, u.email, u.phone, u.dob, u.gender,
+             u.role, u.wallet_balance, u.pin, u.avatar_url, u.avatar_seed, u.classroom_login_enabled,
+             u.login_type, u.created_at,
+             ste.classroom_id, us.is_active,
+             c.name AS classroom_name
+      FROM user_school us
+      JOIN users2 u ON us.user_id = u.id
+      JOIN student_term_enrollments ste ON ste.student_id = u.id AND ste.term_id = $2
+      LEFT JOIN classrooms c ON ste.classroom_id = c.id
+      WHERE us.school_id = $1 AND us.role_in_school = 'student' AND u.archived_at IS NULL
       `
+        : `
       SELECT u.id, u.fullname AS full_name, u.email, u.phone, u.dob, u.gender,
              u.role, u.wallet_balance, u.pin, u.avatar_url, u.avatar_seed, u.classroom_login_enabled,
              u.login_type, u.created_at,
@@ -5890,7 +5921,7 @@ exports.getSchoolDetails = async (req, res) => {
       LEFT JOIN classrooms c ON us.classroom_id = c.id
       WHERE us.school_id = $1 AND us.role_in_school = 'student' AND u.archived_at IS NULL
       `,
-      [id]
+      selectedTermId ? [id, selectedTermId] : [id]
     );
 
     // fetch courses offered by the school
@@ -5945,10 +5976,31 @@ exports.getSchoolDetails = async (req, res) => {
       [id]
     );
 
-    // Fetch classrooms + counts
+    // Fetch classrooms + counts. student_count reflects the selected
+    // term's actual enrollment (student_term_enrollments) rather than
+    // today's live roster when a term is selected — "how many were in
+    // this class in term X" and "how many are in it right now" can
+    // genuinely differ. Teacher/instructor counts stay live either way
+    // (not term-scoped, same as schoolAdminController.getDashboard).
     const classroomsResult = await pool.query(
-      `
-  SELECT 
+      selectedTermId
+        ? `
+  SELECT
+    c.id,
+    c.name,
+    (SELECT COUNT(*) FROM student_term_enrollments ste WHERE ste.classroom_id = c.id AND ste.term_id = $2) AS student_count,
+    COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' THEN u.id END) AS teacher_count,
+    COUNT(DISTINCT ci.instructor_id) AS instructor_count
+  FROM classrooms c
+  LEFT JOIN user_school us ON c.id = us.classroom_id
+  LEFT JOIN users2 u ON us.user_id = u.id
+  LEFT JOIN classroom_instructors ci ON ci.classroom_id = c.id
+  WHERE c.school_id = $1 AND c.archived_at IS NULL
+  GROUP BY c.id, c.name
+  ORDER BY c.created_at DESC
+  `
+        : `
+  SELECT
     c.id,
     c.name,
     COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN u.id END) AS student_count,
@@ -5962,7 +6014,7 @@ exports.getSchoolDetails = async (req, res) => {
   GROUP BY c.id, c.name
   ORDER BY c.created_at DESC
   `,
-      [id]
+      selectedTermId ? [id, selectedTermId] : [id]
     );
 
     // Fetch terms with students. Filtered to non-archived terms — this
@@ -6115,6 +6167,11 @@ exports.getSchoolDetails = async (req, res) => {
     school.instructors = instructorsResult.rows;
     school.classrooms = classroomsResult.rows;
     school.totals = totalsResult.rows[0];
+    // Keep the headline count in sync with the (possibly term-scoped)
+    // list actually shown below, rather than a separate always-live
+    // query that would silently disagree with it once a term is
+    // selected.
+    school.totals.total_students = studentsResult.rows.length;
 
     const schoolPlansResult = await pool.query(
       "SELECT id, name, price_amount, is_addon, is_quantity_based, free_quantity, price_per_extra_unit FROM pricing_plans WHERE segment = 'school' AND is_active = true ORDER BY sort_order ASC, name ASC"
@@ -6140,6 +6197,7 @@ exports.getSchoolDetails = async (req, res) => {
       preferredTermId: req.query.assigned_term_id
         ? parseInt(req.query.assigned_term_id, 10)
         : null,
+      selectedTermId,
     });
   } catch (err) {
     console.error("Error fetching school details:", err);
@@ -10175,6 +10233,27 @@ exports.addStudentsToClassroom = async (req, res) => {
       [classroomId, student_ids, schoolId]
     );
 
+    // Keep student_term_enrollments.classroom_id (the term-scoped
+    // snapshot classroom analytics and term-filtered views actually
+    // read — see classroomTermAnalyticsService.js, getTermStudents)
+    // in sync with the live reassignment above, for the school's
+    // currently active term only. That snapshot is otherwise only ever
+    // written once, at assignStudentsToTerm time, so a later classroom
+    // change here would silently go stale there forever without this —
+    // a past/ended term's enrollment is deliberately left untouched,
+    // since it's meant to record where the student actually was then.
+    await pool.query(
+      `UPDATE student_term_enrollments ste
+       SET classroom_id = $1
+       FROM academic_terms t
+       WHERE ste.term_id = t.id
+         AND t.school_id = $2
+         AND t.is_active = true
+         AND t.archived_at IS NULL
+         AND ste.student_id = ANY($3::int[])`,
+      [classroomId, schoolId, student_ids]
+    );
+
     // ✅ fetch unassigned students after update
     const unassignedResult = await pool.query(
       `SELECT u.id, u.fullname, u.email
@@ -10298,6 +10377,24 @@ exports.assignUsersToClassroom = async (req, res) => {
            AND role_in_school = $4`,
         [classroomId, user_ids, schoolId, role]
       );
+
+      // Students only: keep student_term_enrollments.classroom_id (the
+      // snapshot classroom analytics and term-filtered views actually
+      // read) in sync for the active term — see the matching comment in
+      // addStudentsToClassroom above for why this is needed.
+      if (role === "student") {
+        await pool.query(
+          `UPDATE student_term_enrollments ste
+           SET classroom_id = $1
+           FROM academic_terms t
+           WHERE ste.term_id = t.id
+             AND t.school_id = $2
+             AND t.is_active = true
+             AND t.archived_at IS NULL
+             AND ste.student_id = ANY($3::int[])`,
+          [classroomId, schoolId, user_ids]
+        );
+      }
 
       // Fetch unassigned users of this role
       const unassignedResult = await pool.query(

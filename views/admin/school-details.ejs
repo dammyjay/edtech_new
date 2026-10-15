@@ -69,8 +69,44 @@
     <p><strong>Address:</strong> <%= school.address %></p>
 
     <hr>
+    <div class="multi-btn" style="margin-bottom:10px;">
+      <label for="globalTermFilter" style="align-self:center; font-weight:600;">📅 Term:</label>
+      <select id="globalTermFilter" onchange="changeGlobalTerm(this.value)">
+        <option value="" <%= !selectedTermId ? 'selected' : '' %>>All Terms</option>
+        <% school.terms.forEach(term => { %>
+          <option value="<%= term.term_id %>" <%= selectedTermId === term.term_id ? 'selected' : '' %>>
+            <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+          </option>
+        <% }) %>
+      </select>
+      <% if (selectedTermId) { %>
+        <span style="color:#666; font-size:13px;">Students, classrooms and counts below are scoped to this term.</span>
+      <% } %>
+    </div>
+    <script>
+      // Reloads the page with ?term_id= set, preserving whichever tab
+      // was open (openTab()'s sections aren't otherwise reflected in the
+      // URL) so switching terms doesn't bounce the admin back to the
+      // Overview view.
+      function changeGlobalTerm(termId) {
+        const url = new URL(window.location.href);
+        if (termId) url.searchParams.set("term_id", termId);
+        else url.searchParams.delete("term_id");
+        const openSection = document.querySelector('[id$="-section"][style*="display: block"], [id$="-section"][style*="display:block"]');
+        if (openSection) url.searchParams.set("tab", openSection.id);
+        window.location.href = url.toString();
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab");
+        if (tab) {
+          const btn = document.querySelector(`[onclick*="openTab('${tab}'"]`);
+          if (btn) openTab(tab, btn);
+        }
+      });
+    </script>
     <div class="stats-summary">
-      <p>👨‍🎓 Total Students: <%= school.totals.total_students %></p>
+      <p>👨‍🎓 Total Students<%= selectedTermId ? ' (this term)' : '' %>: <%= school.totals.total_students %></p>
       <p>👩‍🏫 Total Teachers: <%= school.totals.total_teachers %></p>
       <p>📌 Total Instructors: <%= school.totals.total_instructors %></p>
     </div>
