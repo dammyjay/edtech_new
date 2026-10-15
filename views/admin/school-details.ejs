@@ -663,58 +663,56 @@
 
 <!-- teachers section -->
 <div id="teachers-section" style="display:none;">
-  <button class="btn-blue" onclick="openUserForm('teacher')">➕ Add Teacher</button>
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A8C66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="teacherSearch" class="jk-search-input" placeholder="Search teachers by name or email…" onkeyup="filterUsers('teachersTable', 'teacherClassFilter', 'teacherSearch')">
+    </div>
+    <select id="teacherClassFilter" class="jk-select" onchange="filterUsers('teachersTable', 'teacherClassFilter', 'teacherSearch')">
+      <option value="">All classrooms</option>
+      <% school.classrooms.forEach(c => { %>
+        <option value="<%= c.name %>"><%= c.name %></option>
+      <% }) %>
+    </select>
+    <div class="jk-toolbar-spacer"></div>
+    <button class="jk-btn-dark" onclick="openUserForm('teacher')" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add Teacher
+    </button>
+  </div>
 
-  <!-- 🔽 Classroom filter -->
-  <label><strong>Filter by Classroom:</strong></label>
-  <select id="teacherClassFilter" onchange="filterUsers('teachersTable', 'teacherClassFilter', 'teacherSearch')" style="margin:10px 0; padding:5px;">
-    <option value="">All</option>
-    <% school.classrooms.forEach(c => { %>
-      <option value="<%= c.name %>"><%= c.name %></option>
-    <% }) %>
-  </select>
-
-  <!-- 🔎 Search box -->
-  <input 
-    type="text" 
-    id="teacherSearch" 
-    placeholder="Search teacher by name or email..." 
-    onkeyup="filterUsers('teachersTable', 'teacherClassFilter', 'teacherSearch')" 
-    style="margin-left:10px; padding:5px;"
-  />
-
-  <div class="table-responsive">
-    <table id="teachersTable" class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table id="teachersTable" class="jk-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Email</th>
+          <th>Teacher</th>
           <th>Classroom</th>
-          <th>Actions</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
       <% if (school.teachers.length > 0) { %>
           <% school.teachers.forEach(teacher => { %>
             <tr data-name="<%= teacher.full_name %>" data-email="<%= teacher.email %>" data-classroom="<%= teacher.classroom_name || '' %>">
-              <td><%= teacher.full_name %></td>
-              <td><%= teacher.email %></td>
-              <td><%= teacher.classroom_name || '—' %></td>
-            
-              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
-                
-                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(teacher) %>); return false;'>
-                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-                </a>
-                <a href="#" class="no-bg" onclick="openAssignModal('<%= teacher.id %>', 'teacher'); return false;">
-                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
-                </a>
+              <td>
+                <div class="jk-row-user">
+                  <div class="jk-avatar" style="background:#1F7AC9;"><%= (teacher.full_name || '?').split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() %></div>
+                  <div>
+                    <p class="jk-row-name"><%= teacher.full_name %></p>
+                    <p class="jk-row-sub"><%= teacher.email %></p>
+                  </div>
+                </div>
               </td>
-
+              <td><%= teacher.classroom_name || '—' %></td>
+              <td>
+                <button class="jk-icon-btn" title="View &amp; manage <%= teacher.full_name %>" onclick='openUserModal(<%- JSON.stringify(teacher) %>)' type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
+                </button>
+              </td>
             </tr>
           <% }) %>
         <% } else { %>
-          <tr><td colspan="4" style="text-align:center;">No teachers yet</td></tr>
+          <tr><td colspan="3" style="text-align:center; color:#6E6350;">No teachers yet</td></tr>
         <% } %>
       </tbody>
     </table>
@@ -724,37 +722,126 @@
 
 <!-- instructors section -->
 <div id="instructors-section" style="display:none;">
-  <div class="table-responsive">
-    <table id="instructorsTable" class="user-table sortable-table">
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A8C66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="instructorSearch" class="jk-search-input" placeholder="Search instructors by name or email…" onkeyup="filterInstructors()">
+    </div>
+  </div>
+
+  <div class="jk-table-wrap">
+    <table id="instructorsTable" class="jk-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Email</th>
+          <th>Instructor</th>
           <th>Classrooms</th>
-          <th>Actions</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         <% if (school.instructors.length > 0) { %>
           <% school.instructors.forEach(inst => { %>
-            <tr>
-              <td><%= inst.full_name %></td>
-              <td><%= inst.email %></td>
-              <td><%= inst.classrooms %></td>
-              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
-                <a href="#" class="no-bg" onclick="openAssignModal('<%= inst.id %>', 'instructor'); return false;">
-                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
-                </a>
+            <tr data-name="<%= inst.full_name %>" data-email="<%= inst.email %>">
+              <td>
+                <div class="jk-row-user">
+                  <div class="jk-avatar" style="background:#7C4DCC;"><%= (inst.full_name || '?').split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() %></div>
+                  <div>
+                    <p class="jk-row-name"><%= inst.full_name %></p>
+                    <p class="jk-row-sub"><%= inst.email %></p>
+                  </div>
+                </div>
+              </td>
+              <td style="max-width:360px;"><%= inst.classrooms %></td>
+              <td>
+                <button class="jk-btn-outline-sm" onclick="openManageInstructorClassrooms('<%= inst.id %>', '<%= inst.full_name.replace(/'/g, "\\'") %>', <%- JSON.stringify(inst.classroom_ids) %>)" type="button">Manage Classrooms</button>
               </td>
             </tr>
           <% }) %>
         <% } else { %>
-          <tr><td colspan="4" style="text-align:center;">No instructors yet</td></tr>
+          <tr><td colspan="3" style="text-align:center; color:#6E6350;">No instructors yet</td></tr>
         <% } %>
       </tbody>
     </table>
   </div>
 </div>
+
+<script>
+  function filterInstructors() {
+    const searchText = document.getElementById("instructorSearch").value.toLowerCase();
+    Array.from(document.querySelectorAll("#instructorsTable tbody tr")).forEach((tr) => {
+      if (!tr.dataset.name) return;
+      const match = tr.dataset.name.toLowerCase().includes(searchText) || (tr.dataset.email || "").toLowerCase().includes(searchText);
+      tr.style.display = match ? "" : "none";
+    });
+  }
+</script>
+
+<!-- ===== "Manage Classrooms" modal for an instructor — picks several
+     classrooms for ONE instructor, the inverse of the Classrooms tab's
+     "Assign Instructor(s)" (several instructors for one classroom).
+     Both correctly support multiple at once; classroom_instructors has
+     no "remove" endpoint yet, so unchecking an already-assigned
+     classroom here is a no-op, same as before this redesign. ===== -->
+<div id="manageInstructorModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="manageInstructorModalTitle">Manage Classrooms</h4>
+        <p>Check any classrooms to add this instructor to them.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeManageInstructorClassrooms()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <div class="jk-checklist" id="manageInstructorChecklist">
+        <% school.classrooms.forEach(c => { %>
+          <label>
+            <input type="checkbox" class="manage-instructor-classroom-cb" value="<%= c.id %>">
+            <%= c.name %>
+          </label>
+        <% }) %>
+      </div>
+      <button class="jk-btn-dark" style="width:100%; margin-top:12px;" onclick="submitManageInstructorClassrooms()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+<script>
+  let manageInstructorId = null;
+  let manageInstructorAlreadyIn = [];
+  function openManageInstructorClassrooms(instructorId, instructorName, classroomIds) {
+    manageInstructorId = instructorId;
+    manageInstructorAlreadyIn = (classroomIds || []).map((id) => String(id));
+    document.getElementById("manageInstructorModalTitle").textContent = "Manage Classrooms — " + instructorName;
+    document.querySelectorAll(".manage-instructor-classroom-cb").forEach((cb) => {
+      cb.checked = manageInstructorAlreadyIn.includes(cb.value);
+    });
+    document.getElementById("manageInstructorModal").hidden = false;
+  }
+  function closeManageInstructorClassrooms() { document.getElementById("manageInstructorModal").hidden = true; }
+
+  async function submitManageInstructorClassrooms() {
+    const checked = Array.from(document.querySelectorAll(".manage-instructor-classroom-cb:checked")).map((cb) => cb.value);
+    const newlyChecked = checked.filter((id) => !manageInstructorAlreadyIn.includes(id));
+    if (newlyChecked.length === 0) {
+      closeManageInstructorClassrooms();
+      return;
+    }
+    try {
+      await Promise.all(newlyChecked.map((classroomId) =>
+        fetch(`/admin/classrooms/${classroomId}/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_ids: [manageInstructorId], role: "instructor" }),
+        })
+      ));
+      showAlert(`✅ Added to ${newlyChecked.length} classroom(s)!`).then(() => location.reload());
+    } catch (err) {
+      console.error(err);
+      showAlert("❌ Something went wrong.");
+    }
+  }
+</script>
 
 
 <!-- students section  -->

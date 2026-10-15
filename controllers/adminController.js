@@ -5955,16 +5955,19 @@ exports.getSchoolDetails = async (req, res) => {
     // Fetch instructors (restricted to this school’s classrooms)
     const instructorsResult = await pool.query(
       `
-      SELECT 
+      SELECT
         u.id,
         u.fullname AS full_name,
         u.email,
         COALESCE(
-          string_agg(DISTINCT c.name, ', ' ORDER BY c.name), 
+          string_agg(DISTINCT c.name, ', ' ORDER BY c.name),
           'Not yet assigned'
-        ) AS classrooms
+        ) AS classrooms,
+        -- This school's classroom ids the instructor is already in, for
+        -- pre-checking them in the "Manage Classrooms" picker.
+        COALESCE(ARRAY_AGG(DISTINCT c.id) FILTER (WHERE c.id IS NOT NULL), '{}') AS classroom_ids
       FROM users2 u
-      LEFT JOIN classroom_instructors ci 
+      LEFT JOIN classroom_instructors ci
         ON ci.instructor_id = u.id
       LEFT JOIN classrooms c
         ON ci.classroom_id = c.id AND c.school_id = $1   -- ✅ only restrict classrooms, not instructors
