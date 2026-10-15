@@ -222,6 +222,7 @@ const FEATURE_MODULES = [
       { category: "Student Status", items: [
         "Mark a school-linked student active or inactive (e.g. graduated/withdrawn); inactive students drop out of assignment pickers and login-card exports while their history is preserved (Admin).",
         "School Admin sees active/inactive status read-only.",
+        "The admin School Details page's Students tab is redesigned (Phase 2): a clean, searchable/filterable list (one row per student, avatar + name/email together, classroom and status at a glance) replaces the old 11-column table, with every per-student action — assign to classroom, toggle avatar login, generate avatar, view progress, mark inactive/reactivate, archive, reset password — consolidated into one detail panel instead of six separate row icons. Bulk/whole-school actions (enable avatar login, generate avatars, migrate login fields) are tucked into a Bulk Tools menu to keep the main toolbar focused on what's used day to day.",
       ]},
       { category: "Attendance", items: [
         "Record attendance per session (present/absent/late per student; session marked held/cancelled/holiday/no-class) — Admin, School Admin, Teacher and Instructor, each scoped to their own classrooms.",

@@ -132,6 +132,35 @@
 .login-tab { background: none; border: none; cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 13.5px; white-space: nowrap; color: #9A8C66; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; font-family: inherit; }
 .login-tab.active { color: var(--brand-pri-dark); border-bottom-color: var(--brand-pri); }
 .login-tab:hover:not(.active) { color: var(--brand-pri-dark); }
+
+/* ===== Students/Teachers table toolbar + list (Phase 2) ===== */
+.jk-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.jk-toolbar-spacer { flex: 1 1 auto; }
+.jk-search-wrap { position: relative; flex: 1 1 240px; max-width: 320px; }
+.jk-search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.jk-search-input { width: 100%; padding: 9px 12px 9px 34px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; }
+.jk-select { padding: 9px 12px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; }
+.jk-dropdown { position: relative; display: inline-block; }
+.jk-dropdown-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; background: #fff; border: 1px solid #E7E0CE; border-radius: 11px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 6px; width: 240px; }
+.jk-dropdown-menu[hidden] { display: none; }
+.jk-dropdown-item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 9px 10px; border: none; border-radius: 8px; background: none; color: #332A18; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.jk-dropdown-item:hover { background: #FAF8F2; }
+.jk-selected-bar { display: flex; align-items: center; gap: 10px; background: var(--brand-tint); border: 1px solid #F0C98A; border-radius: 11px; padding: 10px 14px; margin-bottom: 14px; }
+.jk-selected-bar span { font-size: 12.5px; color: #8A5A0C; font-weight: 700; }
+
+.jk-table-wrap { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; overflow: hidden; overflow-x: auto; }
+.jk-table { width: 100%; border-collapse: collapse; }
+.jk-table thead th { text-align: left; padding: 12px 16px; background: #FAF8F2; font-size: 11px; font-weight: 700; color: #8A7B55; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+.jk-table tbody td { padding: 11px 16px; border-top: 1px solid #F1ECDD; font-size: 13px; color: #332A18; vertical-align: middle; }
+.jk-table tbody tr:hover { background: #FBFAF6; }
+.jk-row-user { display: flex; align-items: center; gap: 10px; }
+.jk-row-name { margin: 0; font-weight: 700; font-size: 13.5px; color: #1A1510; }
+.jk-row-sub { margin: 0; font-size: 12px; color: #6E6350; }
+.jk-pill { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.jk-pill--active { background: #EAF7EE; color: #1E7A42; }
+.jk-pill--inactive { background: #F1ECDD; color: #6E6350; }
+.jk-pill--on { background: #FBF3DD; color: var(--brand-pri-dark); }
+.jk-pill--off { background: #F1ECDD; color: #8A7B55; }
 </style>
 
 
@@ -667,7 +696,7 @@
       <tbody>
       <% if (school.teachers.length > 0) { %>
           <% school.teachers.forEach(teacher => { %>
-            <tr>
+            <tr data-name="<%= teacher.full_name %>" data-email="<%= teacher.email %>" data-classroom="<%= teacher.classroom_name || '' %>">
               <td><%= teacher.full_name %></td>
               <td><%= teacher.email %></td>
               <td><%= teacher.classroom_name || '—' %></td>
@@ -730,136 +759,92 @@
 
 <!-- students section  -->
 <div id="students-section" style="display:none;">
-  <div class="multi-btn">
-  <button class="btn-blue" onclick="openUserForm('student')">➕ Add Student</button>
-  <button class="btn-pri" onclick="openBulkStudentModal()">📂 Bulk Upload Students</button>
-  <button class="btn-green" onclick="window.location.href='/admin/schools/<%= school.id %>/export-students-excel'" target="_blank">📥 Export Students (Excel)</button>
-</div>
-  <div style="margin-bottom: 15px;">
-  </div>
-
-  <!-- 🔽 Classroom filter -->
-  <label><strong>Filter by Classroom:</strong></label>
-  <select id="studentClassFilter" onchange="filterUsers('studentsTable', 'studentClassFilter', 'studentSearch')" style="margin:10px 0; padding:5px;">
-    <option value="">All</option>
-    <% school.classrooms.forEach(c => { %>
-      <option value="<%= c.name %>"><%= c.name %></option>
-    <% }) %>
-  </select>
-
-  <!-- 🔎 Search box -->
-  <input 
-    type="text" 
-    id="studentSearch" 
-    placeholder="Search student by name or email..." 
-    onkeyup="filterUsers('studentsTable', 'studentClassFilter', 'studentSearch')" 
-    style="margin-left:10px; padding:5px;"
-  />
-
-  <div class="multi-btn">
-    <button class="btn-sec" onclick="bulkEnableAvatarLogin()">
-      🚀 Enable Avatar Login (All Students)
-    </button>
-
-    <button class="btn-pri" onclick="runMigration()">
-      🔧 Migrate Student Login Fields
-    </button>
-
-    <button class="btn-blue"
-      onclick="bulkGenerateAvatars()">
-      🎭 Generate Student Avatars
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A8C66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="studentSearch" class="jk-search-input" placeholder="Search students by name or email…" onkeyup="filterUsers('studentsTable', 'studentClassFilter', 'studentSearch')">
+    </div>
+    <select id="studentClassFilter" class="jk-select" onchange="filterUsers('studentsTable', 'studentClassFilter', 'studentSearch')">
+      <option value="">All classrooms</option>
+      <% school.classrooms.forEach(c => { %>
+        <option value="<%= c.name %>"><%= c.name %></option>
+      <% }) %>
+    </select>
+    <div class="jk-toolbar-spacer"></div>
+    <button class="jk-btn-outline" onclick="openBulkStudentModal()" type="button">Bulk Upload</button>
+    <button class="jk-btn-outline" onclick="window.location.href='/admin/schools/<%= school.id %>/export-students-excel'" type="button">Export Excel</button>
+    <div class="jk-dropdown">
+      <button class="jk-btn-outline" onclick="toggleBulkToolsMenu()" type="button">Bulk Tools ▾</button>
+      <div id="bulkToolsMenu" class="jk-dropdown-menu" hidden>
+        <button class="jk-dropdown-item" onclick="bulkEnableAvatarLogin(); toggleBulkToolsMenu();" type="button">Enable Avatar Login (All)</button>
+        <button class="jk-dropdown-item" onclick="bulkGenerateAvatars(); toggleBulkToolsMenu();" type="button">Generate Avatars (All)</button>
+        <button class="jk-dropdown-item" onclick="runMigration(); toggleBulkToolsMenu();" type="button">Migrate Login Fields</button>
+      </div>
+    </div>
+    <button class="jk-btn-dark" onclick="openUserForm('student')" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add Student
     </button>
   </div>
+  <script>
+    function toggleBulkToolsMenu() { document.getElementById("bulkToolsMenu").hidden = !document.getElementById("bulkToolsMenu").hidden; }
+    document.addEventListener("click", (e) => {
+      const menu = document.getElementById("bulkToolsMenu");
+      if (!menu || menu.hidden) return;
+      if (!e.target.closest(".jk-dropdown")) menu.hidden = true;
+    });
+  </script>
 
-  <div class="multi-btn" id="selectedStudentActions">
-    <button class="btn-blue" onclick="bulkGenerateAvatarsSelected()">
-      🎭 Generate Avatars (Selected)
-    </button>
-    <button class="btn-sec" onclick="bulkEnableAvatarLoginSelected()">
-      🚀 Enable Avatar Login (Selected)
-    </button>
-    <span id="selectedStudentCount" style="align-self:center; color:#666; font-size:13px;">0 selected</span>
+  <div class="jk-selected-bar" id="selectedStudentActions">
+    <span id="selectedStudentCount">0 selected</span>
+    <button class="jk-btn-outline-sm" onclick="bulkGenerateAvatarsSelected()" type="button">Generate Avatars</button>
+    <button class="jk-btn-outline-sm" onclick="bulkEnableAvatarLoginSelected()" type="button">Enable Avatar Login</button>
   </div>
 
-  <!-- tabe for students -->
-  <div class="table-responsive">
-    <table id="studentsTable" class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table id="studentsTable" class="jk-table">
       <thead>
         <tr>
           <th><input type="checkbox" id="selectAllStudents" onchange="toggleSelectAllStudents(this)" title="Select all"></th>
-          <th>Name</th>
-          <th>Email</th>
+          <th>Student</th>
           <th>Classroom</th>
           <th>Status</th>
-          <th>Login Type</th>
-          <th>Pin</th>
-          <th>Log Enabled</th>
-          <th>Avatar</th>
-          <th>Actions</th>
-          <th>Progress</th>
+          <th>Avatar Login</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         <% if (school.students.length > 0) { %>
           <% school.students.forEach(student => { %>
-            <tr id="student-row-<%= student.id %>">
+            <tr id="student-row-<%= student.id %>" data-name="<%= student.full_name %>" data-email="<%= student.email %>" data-classroom="<%= student.classroom_name || '' %>">
               <td><input type="checkbox" class="student-select-cb" value="<%= student.id %>" onchange="updateSelectedStudentCount()"></td>
-              <td><%= student.full_name %></td>
-              <td><%= student.email %></td>
+              <td>
+                <div class="jk-row-user">
+                  <% if (student.avatar_url) { %>
+                    <img src="<%= student.avatar_url %>" alt="" style="width:34px; height:34px; border-radius:50%; object-fit:cover; flex:0 0 auto;">
+                  <% } else { %>
+                    <div class="jk-avatar" style="background:#A17807;"><%= (student.full_name || '?').split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() %></div>
+                  <% } %>
+                  <div>
+                    <p class="jk-row-name"><%= student.full_name %></p>
+                    <p class="jk-row-sub"><%= student.email %></p>
+                  </div>
+                </div>
+              </td>
               <td><%= student.classroom_name || '—' %></td>
               <td id="student-status-<%= student.id %>">
-                <% if (student.is_active === false) { %>
-                  <span style="background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Inactive</span>
-                <% } else { %>
-                  <span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Active</span>
-                <% } %>
+                <span class="jk-pill <%= student.is_active === false ? 'jk-pill--inactive' : 'jk-pill--active' %>"><%= student.is_active === false ? 'Inactive' : 'Active' %></span>
               </td>
-              <td><%= student.login_type || '—' %></td>
-              <td><%= student.pin || '—' %></td>
-              <td><%= student.classroom_login_enabled ? 'Yes' : 'No' %></td>
+              <td><span class="jk-pill <%= student.classroom_login_enabled ? 'jk-pill--on' : 'jk-pill--off' %>"><%= student.classroom_login_enabled ? 'Enabled' : 'Off' %></span></td>
               <td>
-                <% if (student.avatar_url) { %>
-                  <img src="<%= student.avatar_url %>" alt="Avatar" style="width:40px; height:40px; border-radius:50%;">
-                <% } else { %>
-                  —
-                <% } %>
-              </td>
-              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px; text-decoration: none;">
-                <!-- <button class="btn-view" onclick='openUserModal(<%- JSON.stringify(student) %>)'>👁️ View</button> -->
-                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(student) %>); return false;'>
-                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-                </a>
-                <a href="#" class="no-bg" onclick="openAssignModal('<%= student.id %>', 'student', '<%= student.classroom_id || '' %>'); return false;">
-                  <i class="fa-solid fa-thumbtack" style="color: #f39c12;"></i>
-                </a>
-                <a href="#" class="no-bg" title="Archive" onclick="deleteUser('<%= student.id %>'); return false;">
-                  <i class="fa-solid fa-trash" style="color: #e74c3c;"></i>
-                </a>
-                <a href="#" class="no-bg" onclick="toggleActiveStatus('<%= student.id %>', <%= student.is_active !== false %>); return false;" title="<%= student.is_active === false ? 'Reactivate student' : 'Mark inactive (graduated/left)' %>">
-                  <i class="fa-solid <%= student.is_active === false ? 'fa-rotate-left' : 'fa-user-slash' %>" style="color: <%= student.is_active === false ? '#16a34a' : '#6b7280' %>"></i>
-                </a>
-                <a href="#" class="no-bg" onclick="toggleAvatarLogin('<%= student.id %>', this); return false;" title="Toggle Avatar Login">
-                  <i class="fa-solid fa-wand-magic-sparkles"
-                    style="color: <%= student.classroom_login_enabled ? 'green' : 'gray' %>">
-                  </i>
-                </a>
-                <a href="#"
-                  class="no-bg"
-                  onclick="generateStudentAvatar('<%= student.id %>'); return false;">
-                  <i class="fa-solid fa-user-astronaut"></i>
-                </a>
-              </td>
-              <td>
-                <a href="/admin/students/<%= student.id %>/progress?from=admin"
-                  class="btn-edit"
-                  style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                  Progress
-                </a>
+                <button class="jk-icon-btn" title="View &amp; manage <%= student.full_name %>" onclick='openUserModal(<%- JSON.stringify(student) %>)' type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
+                </button>
               </td>
             </tr>
           <% }) %>
         <% } else { %>
-          <tr><td colspan="4" style="text-align:center;">No students yet</td></tr>
+          <tr><td colspan="6" style="text-align:center; color:#6E6350;">No students yet</td></tr>
         <% } %>
       </tbody>
     </table>
@@ -1204,36 +1189,54 @@
 
 <!-- User Modal -->
 <div id="userModal" class="modal" style="display:none;">
-  <div class="modal-content" style="max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; text-align: left;">
-    <span onclick="closeUserModal()" class="close" style="float:right;cursor:pointer;">&times;</span>
-    <h2>User Details</h2>
-    <img id="modalProfilePic" src="" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;"><br><br>
-    
-    <p><strong>Full Name:</strong> <span id="modalFullName"></span></p>
-    <p><strong>Email:</strong> <span id="modalEmail"></span></p>
-    <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
-    <p><strong>Date of Birth:</strong> <span id="modalDOB"></span></p>
-    <p><strong>Gender:</strong> <span id="modalGender"></span></p>
-    <p><strong>Role:</strong> <span id="modalRole"></span></p>
-    <p><strong>Classroom:</strong> <span id="modalClassroom"></span></p>
-    <p><strong>walletBalance:</strong> ₦<span id="modalWalletBalance"></span></p>
-    <p><strong>Date Registered:</strong> <span id="modalDate"></span></p>
-    <p><strong>Login Type:</strong> <span id="modalLoginType"></span></p>
-    <p><strong>Pin:</strong> <span id="modalPin"></span></p>
-    <p><strong>Avatar URL:</strong> <span id="modalAvatarUrl"></span></p>
-    <p><strong>Avatar Seed:</strong> <span id="modalAvatarSeed"></span></p>
-    <p><strong>Classroom Enabled:</strong> <span id="modalClassroomEnabled"></span></p>
-
-    <hr>
-    <!-- 🔑 Reset Password Form -->
-    <h3>Reset Password</h3>
-    <form id="resetPasswordForm">
-      <input type="hidden" id="resetUserId">
-      <div class="container">
-        <input type="password" id="newPassword" placeholder="Enter new password" required />
+  <div class="modal-content jk-user-modal" style="max-width: 520px; margin: auto; background: #fff; padding: 0; border-radius: 16px; text-align: left; overflow:hidden;">
+    <div style="padding:20px 22px; display:flex; align-items:flex-start; justify-content:space-between; border-bottom:1px solid #F1ECDD;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <img id="modalProfilePic" src="" alt="" style="width:54px; height:54px; border-radius:50%; object-fit:cover;">
+        <div>
+          <p style="margin:0; font-weight:800; font-size:16px; color:#1A1510;" id="modalFullName"></p>
+          <p style="margin:2px 0 0; font-size:12.5px; color:#6E6350;" id="modalEmail"></p>
+        </div>
       </div>
-      <button type="submit" class="btn-sec">Reset Password</button>
-    </form>
+      <span onclick="closeUserModal()" class="jk-modal-close" style="cursor:pointer;">&times;</span>
+    </div>
+
+    <div style="padding:18px 22px; display:grid; grid-template-columns:1fr 1fr; gap:12px 16px;">
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Phone</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalPhone"></p></div>
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Date of Birth</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalDOB"></p></div>
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Gender</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalGender"></p></div>
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Role</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalRole"></p></div>
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Classroom</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalClassroom"></p></div>
+      <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Date Registered</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalDate"></p></div>
+      <div class="jk-student-only"><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Wallet Balance</p><p style="margin:0; font-size:13px; color:#1A1510;">₦<span id="modalWalletBalance"></span></p></div>
+      <div class="jk-student-only"><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Login Type</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalLoginType"></p></div>
+      <div class="jk-student-only"><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">PIN</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalPin"></p></div>
+      <div class="jk-student-only"><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Avatar Login</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalClassroomEnabled"></p></div>
+      <!-- Kept off-screen, not shown to the admin — avatar_url/avatar_seed
+           are internal values the "Generate Avatar" / "Toggle Avatar
+           Login" actions below already surface visually (the avatar
+           image itself), not something an admin reads as text. -->
+      <span id="modalAvatarUrl" hidden></span>
+      <span id="modalAvatarSeed" hidden></span>
+    </div>
+
+    <div style="padding:0 22px 18px; display:flex; flex-wrap:wrap; gap:8px;">
+      <button id="modalAssignBtn" class="jk-btn-outline" type="button">Assign to Classroom</button>
+      <button id="modalToggleAvatarBtn" class="jk-btn-outline jk-student-only" type="button">Toggle Avatar Login</button>
+      <button id="modalGenerateAvatarBtn" class="jk-btn-outline jk-student-only" type="button">Generate Avatar</button>
+      <a id="modalProgressLink" class="jk-btn-outline jk-student-only" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Progress</a>
+      <button id="modalToggleActiveBtn" class="jk-btn-outline jk-student-only" type="button">Mark Inactive</button>
+      <button id="modalArchiveBtn" class="jk-btn-outline-sm" style="color:#B23A2A; border-color:#F3D4CE;" type="button">Archive</button>
+    </div>
+
+    <div style="padding:16px 22px 20px; border-top:1px solid #F1ECDD; background:#FAF8F2;">
+      <p style="margin:0 0 10px; font-weight:700; font-size:12.5px; color:#4C3802;">Reset Password</p>
+      <form id="resetPasswordForm" style="display:flex; gap:8px;">
+        <input type="hidden" id="resetUserId">
+        <input type="password" id="newPassword" placeholder="New password" required style="flex:1; padding:9px 12px; border-radius:9px; border:1px solid #E7E0CE; font-family:inherit; font-size:13px;">
+        <button type="submit" class="jk-btn-dark">Reset</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -1692,20 +1695,8 @@
       const statusCell = document.getElementById(`student-status-${studentId}`);
       if (statusCell) {
         statusCell.innerHTML = isActive
-          ? '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Active</span>'
-          : '<span style="background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">Inactive</span>';
-      }
-
-      const row = document.getElementById(`student-row-${studentId}`);
-      const toggleLink = row && row.querySelector('a[onclick^="toggleActiveStatus"]');
-      if (toggleLink) {
-        toggleLink.setAttribute("onclick", `toggleActiveStatus('${studentId}', ${isActive}); return false;`);
-        toggleLink.setAttribute("title", isActive ? "Mark inactive (graduated/left)" : "Reactivate student");
-        const icon = toggleLink.querySelector("i");
-        if (icon) {
-          icon.className = isActive ? "fa-solid fa-user-slash" : "fa-solid fa-rotate-left";
-          icon.style.color = isActive ? "#6b7280" : "#16a34a";
-        }
+          ? '<span class="jk-pill jk-pill--active">Active</span>'
+          : '<span class="jk-pill jk-pill--inactive">Inactive</span>';
       }
 
       // The classroom-candidate list depends on active status, so refresh
@@ -2498,30 +2489,29 @@ function exportExcel() {
 
 <!-- script for fitler table -->
 <script>
+  // Reads each row's own data-name/data-email/data-classroom attributes
+  // rather than fixed column positions, so the Students and Teachers
+  // tables can lay out their cells however their own design calls for
+  // (an avatar+name+email combined cell, a single actions button, etc.)
+  // without this shared filter breaking.
   function filterUsers(tableId, selectId, searchId) {
     const filterClass = document.getElementById(selectId).value.toLowerCase();
     const searchText = document.getElementById(searchId).value.toLowerCase();
     const table = document.getElementById(tableId);
-    const trs = table.getElementsByTagName("tr");
+    const body = table.tBodies[0];
+    if (!body) return;
 
-    for (let i = 1; i < trs.length; i++) { // skip header
-      // Filter out a leading row-selection checkbox cell (only the
-      // Students table has one) so the name/email/classroom column
-      // positions below stay correct for both tables either way.
-      const tds = Array.from(trs[i].getElementsByTagName("td")).filter(
-        (td) => !td.querySelector('input[type="checkbox"]')
-      );
-      if (tds.length > 0) {
-        const nameText = tds[0].innerText.toLowerCase();
-        const emailText = tds[1].innerText.toLowerCase();
-        const classText = tds[2].innerText.toLowerCase();
+    Array.from(body.rows).forEach((tr) => {
+      if (!tr.dataset.name) return; // the "No students/teachers yet" placeholder row
+      const nameText = (tr.dataset.name || "").toLowerCase();
+      const emailText = (tr.dataset.email || "").toLowerCase();
+      const classText = (tr.dataset.classroom || "").toLowerCase();
 
-        const matchClass = (filterClass === "" || classText === filterClass);
-        const matchSearch = (nameText.includes(searchText) || emailText.includes(searchText));
+      const matchClass = (filterClass === "" || classText === filterClass);
+      const matchSearch = (nameText.includes(searchText) || emailText.includes(searchText));
 
-        trs[i].style.display = (matchClass && matchSearch) ? "" : "none";
-      }
-    }
+      tr.style.display = (matchClass && matchSearch) ? "" : "none";
+    });
   }
 </script>
 
@@ -2547,7 +2537,7 @@ function exportExcel() {
   }
 
   function openUserModal(user) {
-    document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
+    document.getElementById("modalProfilePic").src = user.avatar_url || user.profile_picture || "/profile.webp";
     document.getElementById("modalFullName").textContent = user.full_name || "—";
     document.getElementById("modalEmail").textContent = user.email || "—";
     document.getElementById("modalPhone").textContent = user.phone || "—";
@@ -2565,6 +2555,35 @@ function exportExcel() {
 
     // 🔑 set userId for reset password
     document.getElementById("resetUserId").value = user.id;
+
+    // Student-only actions (avatar login, generate avatar, progress,
+    // active/inactive) don't apply to teachers — this same modal is
+    // shared by both the Students and Teachers tabs.
+    const isStudent = (user.role || user.role_in_school) === "student";
+    document.querySelectorAll("#userModal .jk-student-only").forEach((el) => {
+      el.style.display = isStudent ? "" : "none";
+    });
+
+    document.getElementById("modalAssignBtn").onclick = () => {
+      closeUserModal();
+      openAssignModal(user.id, isStudent ? "student" : "teacher", user.classroom_id || "");
+    };
+
+    if (isStudent) {
+      const avatarBtn = document.getElementById("modalToggleAvatarBtn");
+      avatarBtn.textContent = user.classroom_login_enabled ? "Disable Avatar Login" : "Enable Avatar Login";
+      avatarBtn.onclick = () => toggleAvatarLogin(user.id, avatarBtn);
+
+      document.getElementById("modalGenerateAvatarBtn").onclick = () => generateStudentAvatar(user.id);
+      document.getElementById("modalProgressLink").href = `/admin/students/${user.id}/progress?from=admin`;
+
+      const activeBtn = document.getElementById("modalToggleActiveBtn");
+      const currentlyActive = user.is_active !== false;
+      activeBtn.textContent = currentlyActive ? "Mark Inactive" : "Reactivate";
+      activeBtn.onclick = () => { closeUserModal(); toggleActiveStatus(user.id, currentlyActive); };
+    }
+
+    document.getElementById("modalArchiveBtn").onclick = () => deleteUser(user.id);
 
     document.getElementById("userModal").style.display = "block";
   }
