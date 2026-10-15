@@ -210,7 +210,7 @@ const FEATURE_MODULES = [
       { category: "Classrooms", items: [
         "Create/edit/delete classrooms; assign students and one or more teachers to each (School Admin); Admin can additionally place Instructors into classrooms across schools.",
         "Assign, change or remove which courses a classroom gets, limited to courses the platform has authorised for that school's current term (School Admin).",
-        "Reassigning a student's classroom now also updates their enrollment record for the school's active term, keeping it in sync with the live assignment — previously that record was only ever written once (at term-assignment time) and went stale on any later classroom change, which is what made classroom analytics and term-filtered student lists keep showing a student's old classroom.",
+        "Reassigning a student's classroom now also updates their enrollment record for the specific term the admin is working in, keeping it in sync with the live assignment — previously that record was only ever written once (at term-assignment time) and went stale on any later classroom change, which is what made classroom analytics and term-filtered student lists keep showing a student's old classroom. The classroom roster's \"view students\" list is now also term-aware, matching the term-scoped student count shown next to it rather than always showing every student ever assigned to that classroom across every term.",
       ]},
       { category: "Terms", items: [
         "Create/edit/delete academic terms; creating a term auto-generates a billing quote (School Admin/Admin).",

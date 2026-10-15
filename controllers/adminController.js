@@ -6882,8 +6882,40 @@ exports.getClassroomStudents = async (req, res) => {
     const classroomId =
       req.params.classroomId || req.params.id;
 
+    // Optional ?term_id= — scopes the roster to that term's actual
+    // enrollment (student_term_enrollments), matching the classroom
+    // list's own term-scoped student_count, instead of the live,
+    // all-time user_school.classroom_id roster below (every student
+    // ever assigned to this classroom, regardless of term — which is
+    // what made this modal show far more names than the term-scoped
+    // count badge above it). Callers with no term context at all
+    // (e.g. the classroom-login kiosk picker in login.ejs) simply don't
+    // pass it and keep getting the original live roster.
+    const termId = req.query.term_id ? parseInt(req.query.term_id, 10) : null;
+
     const studentsResult = await pool.query(
+      termId
+        ? `
+      SELECT
+        u.id,
+        u.fullname,
+        u.email,
+        u.phone,
+        u.gender,
+        u.dob,
+        u.created_at,
+        u.avatar_url,
+        u.avatar_seed,
+        u.pin,
+        u.classroom_login_enabled
+      FROM student_term_enrollments ste
+      JOIN users2 u ON u.id = ste.student_id
+      WHERE ste.classroom_id = $1
+        AND ste.term_id = $2
+        AND u.archived_at IS NULL
+      ORDER BY u.fullname ASC
       `
+        : `
       SELECT
         u.id,
         u.fullname,
@@ -6904,7 +6936,7 @@ exports.getClassroomStudents = async (req, res) => {
       AND u.archived_at IS NULL
       ORDER BY u.fullname ASC
       `,
-      [classroomId]
+      termId ? [classroomId, termId] : [classroomId]
     );
 
     res.json(studentsResult.rows);
@@ -10282,7 +10314,8 @@ exports.addStudentsToClassroom = async (req, res) => {
 
 exports.assignUsersToClassroom = async (req, res) => {
   const classroomId = parseInt(req.params.id, 10);
-  let { user_ids, role } = req.body;
+  let { user_ids, role, term_id } = req.body;
+  term_id = term_id ? parseInt(term_id, 10) : null;
 
   if (!user_ids) {
     return res
@@ -10380,20 +10413,38 @@ exports.assignUsersToClassroom = async (req, res) => {
 
       // Students only: keep student_term_enrollments.classroom_id (the
       // snapshot classroom analytics and term-filtered views actually
-      // read) in sync for the active term — see the matching comment in
-      // addStudentsToClassroom above for why this is needed.
+      // read) in sync with the live assignment above — see the matching
+      // comment in addStudentsToClassroom for why this is needed. Prefer
+      // the explicit term_id the admin was actually working in (sent by
+      // the Classrooms tab's "Assigning students from term" picker, and
+      // by the single-user assign modal via the page's global term
+      // filter) over guessing "the active term" — a newly created or
+      // backfilled term's is_active flag doesn't always match what the
+      // term dropdown's date-computed "(active)" label implies, which
+      // silently no-opped this sync for any term where the two disagree.
       if (role === "student") {
-        await pool.query(
-          `UPDATE student_term_enrollments ste
-           SET classroom_id = $1
-           FROM academic_terms t
-           WHERE ste.term_id = t.id
-             AND t.school_id = $2
-             AND t.is_active = true
-             AND t.archived_at IS NULL
-             AND ste.student_id = ANY($3::int[])`,
-          [classroomId, schoolId, user_ids]
-        );
+        if (term_id) {
+          await pool.query(
+            `UPDATE student_term_enrollments ste
+             SET classroom_id = $1
+             WHERE ste.term_id = $2
+               AND ste.school_id = $3
+               AND ste.student_id = ANY($4::int[])`,
+            [classroomId, term_id, schoolId, user_ids]
+          );
+        } else {
+          await pool.query(
+            `UPDATE student_term_enrollments ste
+             SET classroom_id = $1
+             FROM academic_terms t
+             WHERE ste.term_id = t.id
+               AND t.school_id = $2
+               AND t.is_active = true
+               AND t.archived_at IS NULL
+               AND ste.student_id = ANY($3::int[])`,
+            [classroomId, schoolId, user_ids]
+          );
+        }
       }
 
       // Fetch unassigned users of this role

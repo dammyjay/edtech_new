@@ -84,6 +84,10 @@
       <% } %>
     </div>
     <script>
+      // The page-wide selected term (null = "All Terms") — read by the
+      // classroom "view students" modal below so it matches the term
+      // scoping already applied to the classroom list's student_count.
+      const SELECTED_TERM_ID = <%- JSON.stringify(selectedTermId) %>;
       // Reloads the page with ?term_id= set, preserving whichever tab
       // was open (openTab()'s sections aren't otherwise reflected in the
       // URL) so switching terms doesn't bounce the admin back to the
@@ -2137,7 +2141,7 @@ function exportExcel() {
 
       if (!container.dataset.loaded) {
         try {
-          const res = await fetch(`/admin/classrooms/${classroomId}/students`);
+          const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
           const students = await res.json();
 
           if (students.length === 0) {
@@ -2195,7 +2199,7 @@ function exportExcel() {
       // If not loaded yet, fetch via AJAX
       if (!container.dataset.loaded) {
         try {
-          const res = await fetch(`/admin/classrooms/${classroomId}/students`);
+          const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
           const students = await res.json();
 
           if (students.length === 0) {
@@ -2434,11 +2438,20 @@ function exportExcel() {
         return showAlert(`Please select at least one ${role}.`);
       }
 
+      // The term these candidates were actually drawn from (see
+      // loadClassroomCandidates) — passed through so the server syncs
+      // student_term_enrollments for THIS term specifically, instead of
+      // guessing "whichever term is_active" (which can disagree with
+      // what's shown here when a term's is_active flag and its
+      // date-computed "(active)" label don't match).
+      const termSelectEl = document.getElementById("classroomAssignTermFilter");
+      const termId = termSelectEl ? termSelectEl.value : "";
+
       try {
         const res = await fetch(`/admin/classrooms/${classroomId}/assign`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_ids: selected, role })
+          body: JSON.stringify({ user_ids: selected, role, term_id: termId || undefined })
         });
 
         const data = await res.json();
@@ -2553,7 +2566,7 @@ function exportExcel() {
     async function refreshStudents(classroomId) {
       const container = document.getElementById(`students-container-${classroomId}`);
       try {
-        const res = await fetch(`/admin/classrooms/${classroomId}/students`);
+        const res = await fetch(`/admin/classrooms/${classroomId}/students${SELECTED_TERM_ID ? `?term_id=${SELECTED_TERM_ID}` : ""}`);
         const students = await res.json();
 
         if (students.length === 0) {
@@ -2629,10 +2642,13 @@ function exportExcel() {
 
       if (!classroomId) return showAlert("Please select a classroom");
 
+      // This modal has no term picker of its own — fall back to the
+      // page-wide term filter (see SELECTED_TERM_ID above) so the
+      // server still has a specific term to sync, when one's selected.
       const res = await fetch(`/admin/classrooms/${classroomId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_ids: [parseInt(userId)], role })
+        body: JSON.stringify({ user_ids: [parseInt(userId)], role, term_id: SELECTED_TERM_ID || undefined })
       });
 
       const data = await res.json();
