@@ -219,6 +219,7 @@ const FEATURE_MODULES = [
         "Enroll or remove students from a term via an eligibility-filtered picker; export term rosters to Excel.",
         "Close ('end') a term — auto-generates a report for every class and every enrolled student in the background (Admin).",
         "Reactivate an individual student's access after their term ends, for free (Admin) or via payment (Student/Parent — see §3.13).",
+        "The admin School Details page's Terms tab is redesigned (Phase 4): each term is a card (student count, price/plan/addons/discount/total, a clickable payment-status pill) instead of a plain table row, with View Roster/Edit/Export/Quote PDF/End Term/Archive all as clearly labelled actions on the card. The roster view and the create/edit/assign forms keep their exact original behaviour (field-for-field), just restyled to match the new look.",
       ]},
       { category: "Student Status", items: [
         "Mark a school-linked student active or inactive (e.g. graduated/withdrawn); inactive students drop out of assignment pickers and login-card exports while their history is preserved (Admin).",
