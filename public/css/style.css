@@ -3048,21 +3048,32 @@ th.sortable {
   cursor: pointer;
   user-select: none;
   position: relative;
+  padding-right: 18px !important;
 }
 
 th.sortable::after {
-  content: " ↕";
-  font-size: px;
+  content: "↕";
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
   font-weight: bold;
-  /* opacity: 0.6; */
+  opacity: 0.45;
+}
+
+th.sortable:hover::after {
+  opacity: 0.8;
 }
 
 th.sort-asc::after {
-  content: " ▲";
+  content: "▲";
+  opacity: 1;
+  color: var(--brand-pri, #A17807);
 }
 
 th.sort-desc::after {
-  content: " ▼";
+  content: "▼";
+  opacity: 1;
+  color: var(--brand-pri, #A17807);
 }
 
 .user-table {

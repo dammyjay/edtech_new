@@ -266,6 +266,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     headers.forEach((header, columnIndex) => {
 
+      // A header with no text (a checkbox-select-all column) has
+      // nothing meaningful to sort by. A labeled "Actions"-style column
+      // (buttons/links, no real text per cell) is the same problem in
+      // disguise — check actual body cells, not just the header label,
+      // since the header can say "Actions" while every cell is icon-only.
+      if (!header.textContent.trim() || header.querySelector('input[type="checkbox"]')) return;
+      const bodyRows = table.querySelectorAll("tbody tr");
+      const sampleCells = Array.from(bodyRows).slice(0, 3).map(r => r.children[columnIndex]);
+      if (sampleCells.length && sampleCells.every(c => !c || !c.textContent.trim())) return;
+
       header.classList.add("sortable");
 
       let ascending = true;
