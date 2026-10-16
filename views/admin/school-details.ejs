@@ -734,7 +734,7 @@
         <tr>
           <th>Teacher</th>
           <th>Classroom</th>
-          <th class="jk-col-actions"></th>
+          <th class="jk-col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -753,7 +753,7 @@
               <td><%= teacher.classroom_name || '—' %></td>
               <td class="jk-col-actions">
                 <button class="jk-icon-btn" title="View &amp; manage <%= teacher.full_name %>" onclick='openUserModal(<%- JSON.stringify(teacher) %>)' type="button">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:16px; height:16px; flex-shrink:0; display:block;"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg>
                 </button>
               </td>
             </tr>
@@ -972,7 +972,7 @@
               <td><span class="jk-pill <%= student.classroom_login_enabled ? 'jk-pill--on' : 'jk-pill--off' %>"><%= student.classroom_login_enabled ? 'Enabled' : 'Off' %></span></td>
               <td class="jk-col-actions">
                 <button class="jk-icon-btn" title="View &amp; manage <%= student.full_name %>" onclick='openUserModal(<%- JSON.stringify(student) %>)' type="button">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:16px; height:16px; flex-shrink:0; display:block;"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg>
                 </button>
               </td>
             </tr>
