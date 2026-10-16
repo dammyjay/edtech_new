@@ -153,6 +153,13 @@
 .jk-table thead th { text-align: left; padding: 12px 16px; background: #FAF8F2; font-size: 11px; font-weight: 700; color: #8A7B55; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
 .jk-table tbody td { padding: 11px 16px; border-top: 1px solid #F1ECDD; font-size: 13px; color: #332A18; vertical-align: middle; }
 .jk-table tbody tr:hover { background: #FBFAF6; }
+/* Keeps the row-actions column visible without horizontal scrolling —
+   on a narrow window/zoom level the other columns (esp. the student
+   name+email) can add up to more than the viewport, and without this
+   the action button silently scrolls out of view past the right edge
+   instead of just being reachable by scrolling the table. */
+.jk-table .jk-col-actions { position: sticky; right: 0; background: #fff; box-shadow: -6px 0 6px -6px rgba(26,21,16,0.12); }
+.jk-table thead .jk-col-actions { background: #FAF8F2; }
 .jk-row-user { display: flex; align-items: center; gap: 10px; }
 .jk-row-name { margin: 0; font-weight: 700; font-size: 13.5px; color: #1A1510; }
 .jk-row-sub { margin: 0; font-size: 12px; color: #6E6350; }
@@ -727,7 +734,7 @@
         <tr>
           <th>Teacher</th>
           <th>Classroom</th>
-          <th></th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -744,7 +751,7 @@
                 </div>
               </td>
               <td><%= teacher.classroom_name || '—' %></td>
-              <td>
+              <td class="jk-col-actions">
                 <button class="jk-icon-btn" title="View &amp; manage <%= teacher.full_name %>" onclick='openUserModal(<%- JSON.stringify(teacher) %>)' type="button">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
                 </button>
@@ -775,7 +782,7 @@
         <tr>
           <th>Instructor</th>
           <th>Classrooms</th>
-          <th></th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -792,7 +799,7 @@
                 </div>
               </td>
               <td style="max-width:360px;"><%= inst.classrooms %></td>
-              <td>
+              <td class="jk-col-actions">
                 <button class="jk-btn-outline-sm" onclick="openManageInstructorClassrooms('<%= inst.id %>', '<%= inst.full_name.replace(/'/g, "\\'") %>', <%- JSON.stringify(inst.classroom_ids) %>)" type="button">Manage Classrooms</button>
               </td>
             </tr>
@@ -937,7 +944,7 @@
           <th>Classroom</th>
           <th>Status</th>
           <th>Avatar Login</th>
-          <th></th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -963,7 +970,7 @@
                 <span class="jk-pill <%= student.is_active === false ? 'jk-pill--inactive' : 'jk-pill--active' %>"><%= student.is_active === false ? 'Inactive' : 'Active' %></span>
               </td>
               <td><span class="jk-pill <%= student.classroom_login_enabled ? 'jk-pill--on' : 'jk-pill--off' %>"><%= student.classroom_login_enabled ? 'Enabled' : 'Off' %></span></td>
-              <td>
+              <td class="jk-col-actions">
                 <button class="jk-icon-btn" title="View &amp; manage <%= student.full_name %>" onclick='openUserModal(<%- JSON.stringify(student) %>)' type="button">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
                 </button>
