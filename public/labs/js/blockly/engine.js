@@ -43,7 +43,23 @@ window.renderSprite = function (sprite) {
 
   sprite.element.style.left = sprite.x + "px";
   sprite.element.style.top = sprite.y + "px";
-  sprite.element.style.transform = `rotate(${sprite.rotation}deg)`;
+
+  // Mirrors Scratch's three rotation styles. "NONE" means the costume
+  // never visually rotates regardless of direction (e.g. a UI cursor);
+  // "LEFT_RIGHT" only ever mirrors horizontally (the common choice for
+  // a walking/side-view character, where a full spin would look
+  // upside-down); "ALL_AROUND" (the default, and the only style this
+  // engine had before) rotates freely.
+  const style = sprite.rotationStyle || "ALL_AROUND";
+  if (style === "NONE") {
+    sprite.element.style.transform = "";
+  } else if (style === "LEFT_RIGHT") {
+    const facingLeft = Math.cos((sprite.rotation * Math.PI) / 180) < 0;
+    sprite.element.style.transform = facingLeft ? "scaleX(-1)" : "";
+  } else {
+    sprite.element.style.transform = `rotate(${sprite.rotation}deg)`;
+  }
+
   sprite.element.style.display = sprite.visible ? "block" : "none";
   if (sprite.width) sprite.element.style.width = sprite.width + "px";
   if (sprite.height) sprite.element.style.height = sprite.height + "px";
@@ -261,6 +277,66 @@ window.goToPosition = function (x, y) {
   drawPenLine(start.x, start.y, end.x, end.y);
 };
 
+window.setX = function (x) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  const start = getSpriteCenter(sprite);
+  sprite.x = Number(x);
+  renderSprite(sprite);
+  const end = getSpriteCenter(sprite);
+  drawPenLine(start.x, start.y, end.x, end.y);
+};
+
+window.setY = function (y) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  const start = getSpriteCenter(sprite);
+  sprite.y = Number(y);
+  renderSprite(sprite);
+  const end = getSpriteCenter(sprite);
+  drawPenLine(start.x, start.y, end.x, end.y);
+};
+
+// Reverses direction when the sprite reaches the stage edge and nudges
+// it back inside the bounds, so it doesn't stay stuck re-triggering the
+// bounce every frame. A simple left/right + up/down reflection (not a
+// true angle-of-incidence bounce) — matches what Scratch's own
+// "if on edge, bounce" does for the common case of a sprite moving in a
+// straight line.
+window.ifOnEdgeBounce = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  const stage = document.getElementById("stage");
+  if (!stage || !touchingEdge()) return;
+
+  const size = sprite.width || 50;
+  const maxX = stage.clientWidth - size;
+  const maxY = stage.clientHeight - size;
+
+  let dx = Math.cos((sprite.rotation * Math.PI) / 180);
+  let dy = Math.sin((sprite.rotation * Math.PI) / 180);
+
+  if (sprite.x <= 0 || sprite.x >= maxX) dx = -dx;
+  if (sprite.y <= 0 || sprite.y >= maxY) dy = -dy;
+
+  sprite.rotation = (Math.atan2(dy, dx) * 180) / Math.PI;
+  sprite.x = Math.min(Math.max(sprite.x, 0), Math.max(maxX, 0));
+  sprite.y = Math.min(Math.max(sprite.y, 0), Math.max(maxY, 0));
+
+  renderSprite(sprite);
+};
+
+window.setRotationStyle = function (style) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  sprite.rotationStyle = style;
+  renderSprite(sprite);
+};
+
 window.turnSprite = function (angle) {
   const sprite = getRuntimeSprite();
   if (!sprite) return;
@@ -340,6 +416,129 @@ window.sayForSeconds = async function (text, seconds) {
   if (bubble) {
     bubble.style.display = "none";
   }
+};
+
+window.thinkText = function (text) {
+  const sprite = getRuntimeSprite();
+
+  let bubble = document.getElementById("thoughtBubble");
+
+  if (!bubble) {
+    bubble = document.createElement("div");
+    bubble.id = "thoughtBubble";
+    bubble.className = "speech-bubble thought-bubble";
+    document.getElementById("stage").appendChild(bubble);
+  }
+
+  bubble.innerText = text;
+  bubble.style.display = "block";
+
+  requestAnimationFrame(() => {
+    if (!sprite) return;
+    const bubbleHeight = bubble.offsetHeight;
+    bubble.style.left = sprite.x + 60 + "px";
+    bubble.style.top = sprite.y - bubbleHeight - 10 + "px";
+  });
+};
+
+window.thinkForSeconds = async function (text, seconds) {
+  thinkText(text);
+  await wait(seconds);
+  const bubble = document.getElementById("thoughtBubble");
+  if (bubble) bubble.style.display = "none";
+};
+
+// Scratch's graphic effects, approximated with CSS filter() — the
+// closest native browser equivalent for each. "color" cycles hue (the
+// Scratch range is conventionally 0-200 for one full rotation); "ghost"
+// is transparency; "brightness"/"blur" map directly to their CSS
+// filter counterparts. Effects stack as one combined filter string per
+// sprite, same as Scratch applies them together rather than
+// overwriting each other.
+window.applyGraphicEffects = function (sprite) {
+  if (!sprite || !sprite.element) return;
+  const fx = sprite.effects || {};
+  const parts = [];
+
+  if (fx.color) parts.push(`hue-rotate(${((fx.color % 200) / 200) * 360}deg)`);
+  if (fx.ghost) parts.push(`opacity(${Math.max(0, 1 - fx.ghost / 100)})`);
+  if (fx.brightness) parts.push(`brightness(${Math.max(0, 1 + fx.brightness / 100)})`);
+  if (fx.blur) parts.push(`blur(${Math.max(0, fx.blur) / 10}px)`);
+
+  sprite.element.style.filter = parts.join(" ");
+};
+
+window.changeGraphicEffect = function (effect, value) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  sprite.effects = sprite.effects || {};
+  sprite.effects[effect] = (sprite.effects[effect] || 0) + Number(value);
+  applyGraphicEffects(sprite);
+};
+
+window.setGraphicEffect = function (effect, value) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  sprite.effects = sprite.effects || {};
+  sprite.effects[effect] = Number(value);
+  applyGraphicEffects(sprite);
+};
+
+window.clearGraphicEffects = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+
+  sprite.effects = {};
+  if (sprite.element) sprite.element.style.filter = "";
+};
+
+// Layer order via z-index. window.nextZIndex only ever climbs, so
+// "go to front" is always higher than anything placed before it,
+// without needing to renumber every other sprite.
+window.nextZIndex = 1;
+
+window.goToLayer = function (layer) {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
+
+  if (layer === "front") {
+    window.nextZIndex += 1;
+    sprite.zIndex = window.nextZIndex;
+  } else {
+    sprite.zIndex = 0;
+    window.sprites.forEach((s) => {
+      if (s !== sprite && s.element) s.zIndex = (s.zIndex || 0) + 1;
+    });
+    window.sprites.forEach((s) => { if (s.element) s.element.style.zIndex = s.zIndex || 0; });
+  }
+  sprite.element.style.zIndex = sprite.zIndex || 0;
+};
+
+window.goLayers = function (direction, amount) {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.element) return;
+
+  const delta = direction === "forward" ? Number(amount) : -Number(amount);
+  sprite.zIndex = (sprite.zIndex || 0) + delta;
+  sprite.element.style.zIndex = sprite.zIndex;
+};
+
+window.getCostumeName = function () {
+  const sprite = getRuntimeSprite();
+  return sprite ? sprite.name : "";
+};
+
+window.currentBackdropName = "";
+
+window.getBackdropName = function () {
+  return window.currentBackdropName || "";
+};
+
+window.getSpriteSize = function () {
+  const sprite = getRuntimeSprite();
+  return sprite ? sprite.width || 0 : 0;
 };
 
 // Backdrop is a stage-level concept, shared by every sprite — not

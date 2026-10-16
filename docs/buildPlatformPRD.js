@@ -309,6 +309,7 @@ const FEATURE_MODULES = [
         "Drag-and-drop block coding (motion, looks, sound, pen, events, control, sensors, variables, console) driving sprites on a stage.",
         "Admin-curated sprite/background library; programs can prompt the user for input.",
         "Run/Stop, plus screenshot and video recording of the stage.",
+        "Expanded block set matching Scratch/PictoBlox: turn counter-clockwise, go to x/y, if-on-edge-bounce, rotation style (left-right/don't rotate/all around) with a sprite-direction reporter; think/think-for-seconds speech bubbles, graphic effects (color/ghost/brightness/blur, change or set, clear all), layer ordering (go to front/back, go forward/backward by N), and costume/backdrop/size reporters. More categories (Events, Sensing, Pen, Sound, Music, Text-to-Speech, Translate, Video Sensing) are being filled in to close the remaining gap against the full Scratch/PictoBlox block reference.",
       ]},
       { category: "Python Lab", items: [
         "Real Python executing instantly in-browser (never server-side) via a Web Worker; runaway code is force-stopped after 15 seconds.",

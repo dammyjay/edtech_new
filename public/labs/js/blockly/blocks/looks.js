@@ -226,3 +226,155 @@ Blockly.Blocks["set_background_image"] = {
     this.setColour("#9966FF");
   },
 };
+
+Blockly.Blocks["think_text"] = {
+  init() {
+    this.appendValueInput("TEXT").appendField("Think");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["think_for_seconds"] = {
+  init() {
+    this.appendValueInput("TEXT").appendField("Think");
+
+    this.appendValueInput("SECONDS").appendField("For");
+
+    this.appendDummyInput().appendField("Seconds");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["change_graphic_effect"] = {
+  init() {
+    this.appendValueInput("VALUE")
+      .appendField("Change")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["color", "color"],
+          ["ghost", "ghost"],
+          ["brightness", "brightness"],
+          ["blur", "blur"],
+        ]),
+        "EFFECT",
+      )
+      .appendField("effect by");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["set_graphic_effect"] = {
+  init() {
+    this.appendValueInput("VALUE")
+      .appendField("Set")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["color", "color"],
+          ["ghost", "ghost"],
+          ["brightness", "brightness"],
+          ["blur", "blur"],
+        ]),
+        "EFFECT",
+      )
+      .appendField("effect to");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["clear_graphic_effects"] = {
+  init() {
+    this.appendDummyInput().appendField("Clear graphic effects");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["go_to_layer"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Go to")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["front", "front"],
+          ["back", "back"],
+        ]),
+        "LAYER",
+      )
+      .appendField("layer");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["go_layers"] = {
+  init() {
+    this.appendValueInput("VALUE")
+      .appendField("Go")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["forward", "forward"],
+          ["backward", "backward"],
+        ]),
+        "DIRECTION",
+      );
+
+    this.appendDummyInput().appendField("layers");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["costume_reporter"] = {
+  init() {
+    this.appendDummyInput().appendField("costume name");
+
+    this.setOutput(true, "String");
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["backdrop_reporter"] = {
+  init() {
+    this.appendDummyInput().appendField("backdrop name");
+
+    this.setOutput(true, "String");
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["size_reporter"] = {
+  init() {
+    this.appendDummyInput().appendField("size");
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#9966FF");
+  },
+};

@@ -125,6 +125,41 @@ jsGenerator.forBlock["glide_to"] = function (block) {
   return `await glideTo(${sec},${x},${y});\n`;
 };
 
+jsGenerator.forBlock["turn_sprite_ccw"] = function (block) {
+  const angle =
+    jsGenerator.valueToCode(block, "ANGLE", javascript.Order.ATOMIC) || "0";
+
+  return `turnSprite(-(${angle}));\n`;
+};
+
+jsGenerator.forBlock["set_x"] = function (block) {
+  const value =
+    jsGenerator.valueToCode(block, "VALUE", javascript.Order.ATOMIC) || "0";
+
+  return `setX(${value});\n`;
+};
+
+jsGenerator.forBlock["set_y"] = function (block) {
+  const value =
+    jsGenerator.valueToCode(block, "VALUE", javascript.Order.ATOMIC) || "0";
+
+  return `setY(${value});\n`;
+};
+
+jsGenerator.forBlock["if_on_edge_bounce"] = function () {
+  return `ifOnEdgeBounce();\n`;
+};
+
+jsGenerator.forBlock["set_rotation_style"] = function (block) {
+  const style = block.getFieldValue("STYLE");
+
+  return `setRotationStyle("${style}");\n`;
+};
+
+jsGenerator.forBlock["sprite_direction"] = function () {
+  return ["getRuntimeSprite().rotation", javascript.Order.MEMBER];
+};
+
 // =========================
 // Generators for Looks Blocks
 // =========================
@@ -211,6 +246,63 @@ jsGenerator.forBlock["change_size_by"] = function (block) {
   return `
 changeSpriteSizeBy(${value});
 `;
+};
+
+jsGenerator.forBlock["think_text"] = function (block) {
+  const text =
+    jsGenerator.valueToCode(block, "TEXT", javascript.Order.ATOMIC) || '""';
+
+  return `thinkText(${text});\n`;
+};
+
+jsGenerator.forBlock["think_for_seconds"] = function (block) {
+  const text = jsGenerator.valueToCode(block, "TEXT", 0) || '""';
+  const sec = jsGenerator.valueToCode(block, "SECONDS", 0) || "2";
+
+  return `await thinkForSeconds(${text},${sec});\n`;
+};
+
+jsGenerator.forBlock["change_graphic_effect"] = function (block) {
+  const effect = block.getFieldValue("EFFECT");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "25";
+
+  return `changeGraphicEffect("${effect}", ${value});\n`;
+};
+
+jsGenerator.forBlock["set_graphic_effect"] = function (block) {
+  const effect = block.getFieldValue("EFFECT");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "0";
+
+  return `setGraphicEffect("${effect}", ${value});\n`;
+};
+
+jsGenerator.forBlock["clear_graphic_effects"] = function () {
+  return `clearGraphicEffects();\n`;
+};
+
+jsGenerator.forBlock["go_to_layer"] = function (block) {
+  const layer = block.getFieldValue("LAYER");
+
+  return `goToLayer("${layer}");\n`;
+};
+
+jsGenerator.forBlock["go_layers"] = function (block) {
+  const direction = block.getFieldValue("DIRECTION");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "1";
+
+  return `goLayers("${direction}", ${value});\n`;
+};
+
+jsGenerator.forBlock["costume_reporter"] = function () {
+  return ["getCostumeName()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["backdrop_reporter"] = function () {
+  return ["getBackdropName()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["size_reporter"] = function () {
+  return ["getSpriteSize()", javascript.Order.FUNCTION_CALL];
 };
 
 // =========================

@@ -285,6 +285,14 @@
       </value>
     </block>
 
+    <block type="turn_sprite_ccw">
+      <value name="ANGLE">
+        <shadow type="math_number">
+          <field name="NUM">15</field>
+        </shadow>
+      </value>
+    </block>
+
     <block type="point_direction">
       <value name="DIRECTION">
         <shadow type="math_number">
@@ -331,7 +339,29 @@
       </value>
     </block>
 
+    <block type="set_x">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_y">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+    </block>
+
     <block type="glide_to"></block>
+
+    <block type="if_on_edge_bounce"></block>
+
+    <block type="set_rotation_style"></block>
+
+    <block type="sprite_direction"></block>
   </category>
 
   <!-- LOOKS -->
@@ -348,6 +378,22 @@
       <value name="TEXT">
         <shadow type="text">
           <field name="TEXT">Hello!</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="think_text">
+      <value name="TEXT">
+        <shadow type="text">
+          <field name="TEXT">Hmm...</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="think_for_seconds">
+      <value name="TEXT">
+        <shadow type="text">
+          <field name="TEXT">Hmm...</field>
         </shadow>
       </value>
     </block>
@@ -385,6 +431,40 @@
     <block type="previous_background"></block>
 
     <block type="random_background"></block>
+
+    <block type="change_graphic_effect">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">25</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_graphic_effect">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="clear_graphic_effects"></block>
+
+    <block type="go_to_layer"></block>
+
+    <block type="go_layers">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">1</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="costume_reporter"></block>
+
+    <block type="backdrop_reporter"></block>
+
+    <block type="size_reporter"></block>
   </category>
 
   <!-- EVENTS -->

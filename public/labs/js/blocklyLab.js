@@ -326,6 +326,13 @@ window.setBackground = function (imageUrl) {
   // background" the moment a student manually picked one (NaN from
   // incrementing a string).
   window.currentBackdropUrl = imageUrl;
+  // Backs the "backdrop name" reporter block (engine.js's
+  // getBackdropName) — looked up from the same {url,name} list the
+  // picker/next/previous/random blocks already maintain, so it reports
+  // whatever name the admin's Lab Assets library gave it rather than a
+  // raw URL.
+  const match = (window.backgrounds || []).find((b) => b.url === imageUrl);
+  window.currentBackdropName = match ? match.name : imageUrl;
   setBackgroundImage(imageUrl);
 
   backgroundImage = new Image();
