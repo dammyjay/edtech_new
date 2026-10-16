@@ -1155,6 +1155,138 @@ window.resetTimer = function () {
   timerStart = Date.now();
 };
 
+// "When Timer > N" hats register here instead of being re-evaluated by
+// compileEvents (which only runs its scanned top-level blocks ONCE, at
+// compile time — fine for registerKeyEvent/registerBroadcast-style
+// calls, useless for a condition that needs re-checking over time).
+// A persistent ticker below polls every registered watch and fires each
+// one once per threshold-crossing, re-arming only once the timer drops
+// back to/under its threshold (e.g. after reset_timer), so it behaves
+// like Scratch's edge-triggered hat rather than firing every tick.
+window.timerWatches = [];
+
+window.registerTimerWatch = function (threshold, callback) {
+  window.timerWatches.push({
+    sprite: window.currentRuntimeSprite,
+    threshold: Number(threshold),
+    callback,
+    armed: true,
+  });
+};
+
+setInterval(() => {
+  const value = getTimer();
+
+  for (const watch of window.timerWatches) {
+    if (value > watch.threshold) {
+      if (watch.armed) {
+        watch.armed = false;
+        window.currentRuntimeSprite = watch.sprite;
+        watch.callback();
+        window.currentRuntimeSprite = null;
+      }
+    } else {
+      watch.armed = true;
+    }
+  }
+}, 100);
+
+// Mirrors registerBroadcast/broadcast exactly, keyed by backdrop name
+// instead of message text — fired for real by setBackground (see
+// blocklyLab.js) whenever the backdrop actually changes, not just once
+// at compile time.
+window.backdropSwitchListeners = {};
+
+window.registerBackdropSwitch = function (name, callback) {
+  if (!window.backdropSwitchListeners[name]) {
+    window.backdropSwitchListeners[name] = [];
+  }
+
+  window.backdropSwitchListeners[name].push({ sprite: window.currentRuntimeSprite, callback });
+};
+
+window.fireBackdropSwitch = async function (name) {
+  const listeners = window.backdropSwitchListeners[name];
+
+  if (!listeners) return;
+
+  for (const { sprite, callback } of listeners) {
+    window.currentRuntimeSprite = sprite;
+    await callback();
+  }
+
+  window.currentRuntimeSprite = null;
+};
+
+// =========================
+// SENSING: distance / generic attribute / date-time / username
+// =========================
+
+window.distanceToSprite = function (name) {
+  const sprite = getRuntimeSprite();
+  const other = getSprite(name);
+  if (!sprite || !other) return 0;
+
+  const dx = (other.x + (other.width || 0) / 2) - (sprite.x + (sprite.width || 0) / 2);
+  const dy = (other.y + (other.height || 0) / 2) - (sprite.y + (sprite.height || 0) / 2);
+
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
+window.distanceToMouse = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return 0;
+
+  const cx = sprite.x + (sprite.width || 0) / 2;
+  const cy = sprite.y + (sprite.height || 0) / 2;
+
+  const dx = window.mouseX - cx;
+  const dy = window.mouseY - cy;
+
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
+window.getAttributeOf = function (name, attribute) {
+  const sprite = getSprite(name);
+  if (!sprite) return "";
+
+  switch (attribute) {
+    case "x": return sprite.x;
+    case "y": return sprite.y;
+    case "direction": return sprite.rotation || 0;
+    case "size": return sprite.width || 0;
+    case "costume": return sprite.name;
+    case "visible": return !!sprite.visible;
+    default: return "";
+  }
+};
+
+window.currentDateTime = function (part) {
+  const d = new Date();
+
+  switch (part) {
+    case "year": return d.getFullYear();
+    case "month": return d.getMonth() + 1;
+    case "date": return d.getDate();
+    case "day_of_week": return d.getDay() + 1; // Scratch convention: 1 = Sunday
+    case "hour": return d.getHours();
+    case "minute": return d.getMinutes();
+    case "second": return d.getSeconds();
+    default: return 0;
+  }
+};
+
+window.daysSince2000 = function () {
+  const start = new Date(2000, 0, 1);
+  const now = new Date();
+
+  return (now - start) / 86400000;
+};
+
+window.getUsername = function () {
+  return window.currentUsername || "";
+};
+
 // =========================
 // CONSOLE
 // =========================

@@ -50,6 +50,36 @@ ${statements}
 `;
 };
 
+jsGenerator.forBlock["broadcast_and_wait"] = function (block) {
+  const msg = block.getFieldValue("MESSAGE");
+
+  return `await broadcast("${msg}");\n`;
+};
+
+jsGenerator.forBlock["when_backdrop_switches"] = function (block, generator) {
+  const name = block.getFieldValue("BACKDROP");
+
+  const statements = generator.statementToCode(block, "DO");
+
+  return `
+registerBackdropSwitch("${name}", async ()=>{
+${statements}
+});
+`;
+};
+
+jsGenerator.forBlock["when_timer_greater_than"] = function (block, generator) {
+  const value = jsGenerator.valueToCode(block, "VALUE", javascript.Order.ATOMIC) || "10";
+
+  const statements = generator.statementToCode(block, "DO");
+
+  return `
+registerTimerWatch(${value}, async ()=>{
+${statements}
+});
+`;
+};
+
 // =========================
 // Generators for Console Blocks
 // =========================
@@ -404,6 +434,43 @@ jsGenerator.forBlock["show_variable_monitor"] = function (block) {
   return `
  setMonitorVisible(${visible === "TRUE"});
  `;
+};
+
+jsGenerator.forBlock["touching_sprite_named"] = function (block) {
+  const name = block.getFieldValue("SPRITE");
+
+  return [`touchingSpriteNamed("${name}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["distance_to_sprite"] = function (block) {
+  const name = block.getFieldValue("SPRITE");
+
+  return [`distanceToSprite("${name}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["distance_to_mouse"] = function () {
+  return ["distanceToMouse()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["attribute_of_sprite"] = function (block) {
+  const attribute = block.getFieldValue("ATTRIBUTE");
+  const name = block.getFieldValue("SPRITE");
+
+  return [`getAttributeOf("${name}", "${attribute}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["current_date_time"] = function (block) {
+  const part = block.getFieldValue("PART");
+
+  return [`currentDateTime("${part}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["days_since_2000"] = function () {
+  return ["daysSince2000()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["username_reporter"] = function () {
+  return ["getUsername()", javascript.Order.FUNCTION_CALL];
 };
 
 // =========================

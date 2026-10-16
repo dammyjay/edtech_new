@@ -228,7 +228,7 @@ exports.getPythonLab = async (req, res) => {
 
 exports.getBlocklyLab = async (req, res) => {
   const studentId = req.session.user.id;
-  const studentRes = await pool.query("SELECT id, xp, coins FROM users2 WHERE id = $1", [studentId]);
+  const studentRes = await pool.query("SELECT id, xp, coins, fullname FROM users2 WHERE id = $1", [studentId]);
   const student = studentRes.rows[0] || { xp: 0, coins: 0 };
 
   const categoriesRes = await pool.query(

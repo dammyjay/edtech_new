@@ -207,6 +207,107 @@ Blockly.Blocks["reset_timer"] = {
   },
 };
 
+Blockly.Blocks["touching_sprite_named"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Touching")
+      .appendField(new Blockly.FieldTextInput("Sprite2"), "SPRITE")
+      .appendField("?");
+
+    this.setOutput(true, "Boolean");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["distance_to_sprite"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Distance To")
+      .appendField(new Blockly.FieldTextInput("Sprite2"), "SPRITE");
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["distance_to_mouse"] = {
+  init() {
+    this.appendDummyInput().appendField("Distance To Mouse");
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["attribute_of_sprite"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["x position", "x"],
+          ["y position", "y"],
+          ["direction", "direction"],
+          ["size", "size"],
+          ["costume name", "costume"],
+          ["visible?", "visible"],
+        ]),
+        "ATTRIBUTE",
+      )
+      .appendField("of")
+      .appendField(new Blockly.FieldTextInput("Sprite2"), "SPRITE");
+
+    this.setOutput(true, null);
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["current_date_time"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Current")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["year", "year"],
+          ["month", "month"],
+          ["date", "date"],
+          ["day of week", "day_of_week"],
+          ["hour", "hour"],
+          ["minute", "minute"],
+          ["second", "second"],
+        ]),
+        "PART",
+      );
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["days_since_2000"] = {
+  init() {
+    this.appendDummyInput().appendField("Days Since 2000");
+
+    this.setOutput(true, "Number");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["username_reporter"] = {
+  init() {
+    this.appendDummyInput().appendField("Username");
+
+    this.setOutput(true, "String");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
 Blockly.Blocks["show_variable_monitor"] = {
   init() {
     this.appendDummyInput()

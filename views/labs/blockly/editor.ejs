@@ -19,6 +19,8 @@
   // editors set up before that shared script runs.
   window.LAB_TYPE = "blockly";
   window.LAB_NEW_PROJECT_COIN_COST = <%- JSON.stringify(labNewProjectCoinCost) %>;
+  // Backs the "Username" Sensing reporter block (engine.js's getUsername).
+  window.currentUsername = <%- JSON.stringify(student.fullname || '') %>;
 </script>
 <link
   rel="stylesheet"
@@ -476,9 +478,19 @@
 
     <block type="broadcast_message"></block>
 
-    <!-- <block type="broadcast_wait"></block> -->
+    <block type="broadcast_and_wait"></block>
 
     <block type="when_message_received"></block>
+
+    <block type="when_backdrop_switches"></block>
+
+    <block type="when_timer_greater_than">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
   </category>
 
   <!-- CONTROL -->
@@ -630,6 +642,8 @@
 
     <block type="touching_sprite"></block>
 
+    <block type="touching_sprite_named"></block>
+
     <block type="touching_mouse"></block>
 
     <block type="mouse_x"></block>
@@ -638,7 +652,11 @@
 
     <block type="mouse_down"></block>
 
-    <!-- <block type="distance_to_mouse"></block> -->
+    <block type="distance_to_mouse"></block>
+
+    <block type="distance_to_sprite"></block>
+
+    <block type="attribute_of_sprite"></block>
 
     <block type="key_pressed"></block>
 
@@ -661,6 +679,12 @@
     <block type="timer"></block>
 
     <block type="reset_timer"></block>
+
+    <block type="current_date_time"></block>
+
+    <block type="days_since_2000"></block>
+
+    <block type="username_reporter"></block>
 
     <block type="show_variable_monitor"></block>
 

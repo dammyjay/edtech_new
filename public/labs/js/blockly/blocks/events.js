@@ -91,3 +91,39 @@ Blockly.Blocks["when_message_received"] = {
     this.setColour("#FFD500");
   },
 };
+
+Blockly.Blocks["broadcast_and_wait"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Broadcast")
+      .appendField(new Blockly.FieldTextInput("message1"), "MESSAGE")
+      .appendField("and Wait");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#FFD500");
+  },
+};
+
+Blockly.Blocks["when_backdrop_switches"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("When Backdrop Switches To")
+      .appendField(new Blockly.FieldTextInput("Backdrop1"), "BACKDROP");
+
+    this.appendStatementInput("DO");
+
+    this.setColour("#FFD500");
+  },
+};
+
+Blockly.Blocks["when_timer_greater_than"] = {
+  init() {
+    this.appendValueInput("VALUE").appendField("When Timer >");
+
+    this.appendStatementInput("DO");
+
+    this.setColour("#FFD500");
+  },
+};

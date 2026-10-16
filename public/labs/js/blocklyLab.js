@@ -333,6 +333,7 @@ window.setBackground = function (imageUrl) {
   // raw URL.
   const match = (window.backgrounds || []).find((b) => b.url === imageUrl);
   window.currentBackdropName = match ? match.name : imageUrl;
+  if (window.fireBackdropSwitch) window.fireBackdropSwitch(window.currentBackdropName);
   setBackgroundImage(imageUrl);
 
   backgroundImage = new Image();
@@ -1606,7 +1607,9 @@ async function compileEvents() {
         block.type === "when_key_pressed" ||
         block.type === "when_sprite_clicked" ||
         block.type === "when_message_received" ||
-        block.type === "when_touching_edge"
+        block.type === "when_touching_edge" ||
+        block.type === "when_backdrop_switches" ||
+        block.type === "when_timer_greater_than"
       ) {
         let code = generator.blockToCode(block);
         if (Array.isArray(code)) code = code[0];
@@ -1632,6 +1635,8 @@ async function compileEvents() {
 function clearEvents() {
   window.keyEvents = {};
   window.broadcastListeners = {};
+  window.backdropSwitchListeners = {};
+  window.timerWatches = [];
 }
 
 window.changeBackground = function (color) {
