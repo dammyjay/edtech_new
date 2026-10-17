@@ -232,21 +232,22 @@
 
   </div>
 
-  <div id="business-section" style="display:none;">
-  <h2>Business KPIs</h2>
+  <div id="business-section" class="jk-page" style="display:none;">
+  <div class="jk-section-head">
+    <h3>Business KPIs</h3>
+  </div>
 
-  <div class="dashboard-filter">
-
-    <select id="businessPeriod">
+  <div class="jk-toolbar">
+    <select id="businessPeriod" class="jk-select">
         <option value="all">All Time</option>
         <option value="year">Year</option>
         <option value="month">Month</option>
     </select>
 
-    <select id="businessYear">
+    <select id="businessYear" class="jk-select">
     </select>
 
-    <select id="businessMonth">
+    <select id="businessMonth" class="jk-select">
         <option value="">All Months</option>
         <option value="1">January</option>
         <option value="2">February</option>
@@ -262,99 +263,88 @@
         <option value="12">December</option>
     </select>
 
-    <button onclick="loadBusinessDashboard()">
-        Apply Filter
-    </button>
+    <div class="jk-toolbar-spacer"></div>
+    <button class="jk-btn-dark" onclick="loadBusinessDashboard()" type="button">Apply Filter</button>
+  </div>
 
-</div>
+  <div class="jk-stat-grid">
 
-  <section class="engagement-grid">
-
-    <div class="metric-card">
-      <div class="card-title blue-bg">
-        <p>Total Revenue</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Revenue</span>
+        <div class="jk-stat-icon" style="background:#E6F7F4;"><i class="fas fa-money-bill-wave" style="color:#1B8E79; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="businessRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="businessRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title green-bg">
-        <p>Revenue Selected Month</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Revenue Selected Period</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fas fa-calendar-check" style="color:#1E7A42; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="monthlyRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="monthlyRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title orange-bg">
-        <p>Schools Fully Paid</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Schools Fully Paid</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-school" style="color:#A17807; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="paidSchools">0</h4>
-      </div>
+      <span class="jk-stat-value" id="paidSchools">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title orange-bg">
-        <p>Terms Paid</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Terms Paid</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-calendar-days" style="color:#A17807; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="paidTermsCount">0</h4>
-      </div>
+      <span class="jk-stat-value" id="paidTermsCount">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>Outstanding Balances</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Outstanding Balances</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fas fa-triangle-exclamation" style="color:#B23A2A; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="outstandingBalance">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="outstandingBalance">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>School Revenue</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">School Revenue</span>
+        <div class="jk-stat-icon" style="background:#E9F3FB;"><i class="fas fa-school" style="color:#1F7AC9; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="schoolRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="schoolRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>Parent Revenue</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Parent Revenue</span>
+        <div class="jk-stat-icon" style="background:#F1EAFB;"><i class="fas fa-user-group" style="color:#7C4DCC; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="parentRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="parentRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>Event Revenue</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Event Revenue</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fas fa-ticket" style="color:#C9598A; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="eventRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="eventRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>Event Registrations</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Event Registrations</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fas fa-users" style="color:#C9598A; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="eventRegistrations">0</h4>
-      </div>
+      <span class="jk-stat-value" id="eventRegistrations">0</span>
     </div>
-  </section>
+  </div>
 
-  <div class="table-responsive">
-    <h3>School Payments</h3>
-    <table class="user-table sortable-table">
+  <div class="jk-section-head" style="margin-top:28px;"><h3>School Payments</h3></div>
+  <div class="jk-table-wrap" style="margin-bottom:26px;">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>School</th>
@@ -365,9 +355,11 @@
       </thead>
       <tbody id="schoolPaymentsTable"></tbody>
     </table>
+  </div>
 
-    <h3>Parent Payments</h3>
-    <table class="user-table sortable-table">
+  <div class="jk-section-head"><h3>Parent Payments</h3></div>
+  <div class="jk-table-wrap" style="margin-bottom:26px;">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Parent Name</th>
@@ -381,9 +373,11 @@
       </thead>
       <tbody id="parentPaymentsTable"></tbody>
     </table>
+  </div>
 
-    <h3>Event Payments</h3>
-     <table class="user-table sortable-table">
+  <div class="jk-section-head"><h3>Event Payments</h3></div>
+  <div class="jk-table-wrap" style="margin-bottom:26px;">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Event</th>
@@ -396,27 +390,18 @@
       </thead>
       <tbody id="eventPaymentsTable"></tbody>
     </table>
+  </div>
 
-    <h3>Income Sources</h3>
-
-    <table class="user-table">
-
-    <thead>
-
-    <tr>
-
-    <th>Income Source</th>
-
-    <th>Total Received</th>
-
-    </tr>
-
-    </thead>
-
-    <tbody id="incomeBreakdownTable">
-
-    </tbody>
-
+  <div class="jk-section-head"><h3>Income Sources</h3></div>
+  <div class="jk-table-wrap" style="margin-bottom:26px;">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Income Source</th>
+          <th>Total Received</th>
+        </tr>
+      </thead>
+      <tbody id="incomeBreakdownTable"></tbody>
     </table>
   </div>
 
@@ -1333,17 +1318,14 @@
           tbody.innerHTML = '';
 
           (data.schools || []).forEach(school => {
+            const isPaid = Number(school.balance) <= 0;
 
             tbody.innerHTML += `
               <tr>
                 <td>${school.school_name}</td>
                 <td>₦${Number(school.total_paid || 0).toLocaleString()}</td>
                 <td>₦${Number(school.balance || 0).toLocaleString()}</td>
-                <td>
-                  ${Number(school.balance) <= 0
-                    ? 'Paid'
-                    : 'Outstanding'}
-                </td>
+                <td><span class="jk-pill ${isPaid ? 'jk-pill--paid' : 'jk-pill--unpaid'}">${isPaid ? 'Paid' : 'Outstanding'}</span></td>
               </tr>
             `;
           });
@@ -1376,6 +1358,9 @@
 
             (data.parentPayments || []).forEach(p=>{
 
+            const pStatus = (p.status || '').toLowerCase();
+            const pPillClass = pStatus.includes('paid') ? 'jk-pill--paid' : pStatus.includes('pending') || pStatus.includes('partial') ? 'jk-pill--partial' : 'jk-pill--unpaid';
+
             parentBody.innerHTML +=`
 
             <tr>
@@ -1390,7 +1375,7 @@
 
             <td>₦${Number(p.amount).toLocaleString()}</td>
 
-            <td>${p.status}</td>
+            <td><span class="jk-pill ${pPillClass}">${p.status}</span></td>
 
             <td>${new Date(p.payment_date).toLocaleDateString()}</td>
 
@@ -1407,6 +1392,9 @@
 
             (data.eventPayments || []).forEach(r=>{
 
+            const rStatus = (r.payment_status || '').toLowerCase();
+            const rPillClass = rStatus.includes('paid') ? 'jk-pill--paid' : rStatus.includes('pending') || rStatus.includes('partial') ? 'jk-pill--partial' : 'jk-pill--unpaid';
+
             eventBody.innerHTML +=`
 
             <tr>
@@ -1419,7 +1407,7 @@
 
             <td>₦${Number(r.amount_paid).toLocaleString()}</td>
 
-            <td>${r.payment_status}</td>
+            <td><span class="jk-pill ${rPillClass}">${r.payment_status}</span></td>
 
             <td>${new Date(r.created_at).toLocaleDateString()}</td>
 
