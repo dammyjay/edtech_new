@@ -110,6 +110,10 @@
 .jk-modal-overlay { position: fixed; inset: 0; background: rgba(26,21,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; }
 .jk-modal-overlay[hidden] { display: none; }
 .jk-modal { background: #fff; border-radius: 18px; width: 520px; max-width: 100%; max-height: 86vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.jk-modal--wide { width: 900px; }
+.jk-modal-body details { border: 1px solid #EDE7D6; border-radius: 10px; padding: 10px 14px; }
+.jk-modal-body details summary { cursor: pointer; font-weight: 700; font-size: 13px; color: #4C3802; }
+.jk-modal-body details[open] summary { margin-bottom: 10px; }
 .jk-modal-head { padding: 20px 22px; display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #F1ECDD; }
 .jk-modal-head h4 { margin: 0; font-weight: 800; font-size: 15.5px; color: #1A1510; }
 .jk-modal-head p { margin: 3px 0 0; font-size: 12px; color: #6E6350; }
