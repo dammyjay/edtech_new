@@ -3791,7 +3791,7 @@ exports.listStudents = async (req, res) => {
       ORDER BY created_at DESC
       `
     );
-    res.render("admin/students", { users: users.rows, parents: parentsRes.rows, info });
+    res.render("admin/students", { users: users.rows, parents: parentsRes.rows, info, role: "admin", currentPage: "students" });
   } catch (err) {
     console.error("List students error:", err.message);
     res.status(500).send("Failed to fetch students");

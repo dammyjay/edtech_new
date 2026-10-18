@@ -1,500 +1,302 @@
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>All Students — <%= (info?.company_name || 'JKT Hub').trim() %></title>
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
-    <link rel="stylesheet" href="/css/style.css">
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <meta name="csrf-token" content="<%= csrfToken %>">
-    <script src="/js/csrf.js"></script>
-  </head>
-  <body>
-    <!-- Header -->
-    <header class="header">
-      <div class="logo-title">
-          <% info = info || {}; %> <% if (info.logo_url) { %>
-          <img src="<%= info.logo_url %>" alt="Logo" />
-          <% } %>
-          <p><%= (info?.company_name || 'JKT Hub').trim() %></p>
-      </div>
-      <a style="text-decoration: none; color: white;" href="/admin/dashboard">⬅ Back to Dashboard</a>
-    </header>
+<%- include('../partials/adminHeader', { info: info, title: 'All Students', currentPage: 'students' }) %>
 
-    <button onclick="openAddUserModal()" 
-      style="background:#000; color:#fff; padding:10px 15px; border:none; border-radius:5px;">
-      ➕ Add User
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div>
+      <h2>Students &amp; Parents</h2>
+      <p><%= users.length %> student<%= users.length === 1 ? '' : 's' %> · <%= parents.length %> parent<%= parents.length === 1 ? '' : 's' %> on the platform</p>
+    </div>
+    <button class="jk-btn-dark" onclick="openAddUserModal()" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add User
     </button>
+  </div>
 
-    <div id="addUserModal" class="modal" style="display:none;">
-      <div class="modal-content" style="max-width:400px; margin:auto; background:#fff; padding:20px; border-radius:8px;">
-        <span onclick="closeAddUserModal()" style="float:right; cursor:pointer;">&times;</span>
+  <div class="jk-section-head">
+    <h3>👩‍🎓 All Students</h3>
+  </div>
 
-        <h2>Add New User</h2>
-
-        <form method="POST" action="/admin/add-user">
-          <input type="text" name="fullname" placeholder="Full Name" required />
-          <input type="email" name="email" placeholder="Email" required />
-          <input type="text" name="phone" placeholder="Phone" />
-          
-          <select name="gender" required>
-            <option value="">Select Gender</option>
-            <option>Male</option>
-            <option>Female</option>
-          </select>
-
-          <select name="role" required>
-
-            <option value="user">
-                Normal User
-            </option>
-
-            <option value="student">
-                School Student
-            </option>
-
-            <option value="teacher">
-                Teacher
-            </option>
-
-            <option value="school_admin">
-                School Administrator
-            </option>
-
-            <option value="parent">
-                Parent
-            </option>
-
-            <option value="instructor">
-                Instructor
-            </option>
-
-            <option value="admin">
-                System Administrator
-            </option>
-
-        </select>
-
-        <div id="schoolInfoSection" style="display:none;">
-
-        <input
-        name="schoolName"
-        placeholder="School Name"
-        >
-
-        <input
-        name="schoolAddress"
-        placeholder="School Address"
-        >
-
-        <input
-        name="schoolEmail"
-        placeholder="School Email"
-        >
-
-        <input
-        name="schoolPhone"
-        placeholder="School Phone"
-        >
-
-        </div>
-
-        <div id="schoolLookupSection" style="display:none;">
-
-        <input
-        id="schoolIdInput"
-        name="schoolId"
-        placeholder="Enter School ID"
-        autocomplete="off">
-
-        <div id="schoolResult"></div>
-
-        </div>
-
-          <p style="font-size:12px; color:#666;">
-            Default password: <strong>12345678</strong>
-          </p>
-
-          <button type="submit" style="margin-top:10px;">Create User</button>
-        </form>
-      </div>
-    </div>
-
-
-    <h1>👩‍🎓 All Students</h1>
-
-    <div class="table-responsive">
-      <table class="user-table sortable-table" style="width: 90%; margin-top: 20px;">
-        <thead>
-          <tr>
-            <th>Profile</th>
-            <th>Full Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Gender</th>
-            <th>Registered</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% users.forEach(student => { %>
-            <tr>
-              <td>
-                <img src="<%= student.profile_picture || '/profile.webp' %>" 
-                    alt="Profile"
-                    style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
-              </td>
-              <td><%= student.fullname %></td>
-              <td><%= student.email %></td>
-              <td><%= student.phone %></td>
-              <td><%= student.gender %></td>
-              <td><%= new Date(student.created_at).toLocaleDateString() %></td>
-              <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 61px;">
-                <a href="#" class="no-bg" onclick='openUserModal(<%- JSON.stringify(student) %>)'>
-                  <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-                </a>
-                
-                <a href="/admin/students/<%= student.id %>/progress?from=admin"
-                  class="btn-edit"
-                  style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                  Progress
-                </a>
-
-                <!-- View Enrollments -->
-                <a href="/admin/students/<%= student.id %>/enrollments" class="btn-edit" style="background:blue; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                  Enrollments
-                </a>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-
-    <h1 style="margin-top:50px;">👨‍👩‍👧 All Parents</h1>
-
-    <!-- Parents Table -->
-  <div class="table-responsive">
-
-    <table class="user-table sortable-table" style="width:90%; margin-top:20px;">
-
+  <div class="jk-table-wrap" style="margin-bottom:34px;">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
-          <th>Profile</th>
-          <th>Full Name</th>
-          <th>Email</th>
+          <th>Student</th>
           <th>Phone</th>
+          <th>Gender</th>
           <th>Registered</th>
-          <th>Actions</th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
-
       <tbody>
-
-        <% parents.forEach(parent => { %>
-
+        <% users.forEach(student => { %>
           <tr>
-
             <td>
-              <img
-                src="<%= parent.profile_picture || '/profile.webp' %>"
-                style="
-                  width:50px;
-                  height:50px;
-                  border-radius:50%;
-                  object-fit:cover;
-                "
-              >
+              <div class="jk-row-user">
+                <img src="<%= student.profile_picture || '/profile.webp' %>" alt="" style="width:34px; height:34px; border-radius:50%; object-fit:cover; flex:0 0 auto;">
+                <div>
+                  <p class="jk-row-name"><%= student.fullname %></p>
+                  <p class="jk-row-sub"><%= student.email %></p>
+                </div>
+              </div>
             </td>
-
-            <td><%= parent.fullname %></td>
-
-            <td><%= parent.email %></td>
-
-            <td><%= parent.phone || 'N/A' %></td>
-
-            <td>
-              <%= new Date(parent.created_at).toLocaleDateString() %>
-            </td>
-
-            <td>
-
-              <button
-                onclick="openChildrenModal(<%= parent.id %>, '<%= parent.fullname %>')"
-                style="
-                  background:#007bff;
-                  color:#fff;
-                  border:none;
-                  padding:8px 12px;
-                  border-radius:5px;
-                  cursor:pointer;
-                "
-              >
-                View Children
+            <td><%= student.phone || '—' %></td>
+            <td><%= student.gender || '—' %></td>
+            <td><%= new Date(student.created_at).toLocaleDateString() %></td>
+            <td class="jk-col-actions">
+              <button class="jk-icon-btn" title="View &amp; manage <%= student.fullname %>" onclick='openUserModal(<%- JSON.stringify(student) %>)' type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:16px; height:16px; flex-shrink:0; display:block;"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg>
               </button>
-
             </td>
-
           </tr>
-
         <% }) %>
-
       </tbody>
-
     </table>
+  </div>
 
+  <div class="jk-section-head">
+    <h3>👨‍👩‍👧 All Parents</h3>
+  </div>
+
+  <div class="jk-table-wrap" style="margin-bottom:34px;">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Parent</th>
+          <th>Phone</th>
+          <th>Registered</th>
+          <th class="jk-col-actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% parents.forEach(parent => { %>
+          <tr>
+            <td>
+              <div class="jk-row-user">
+                <img src="<%= parent.profile_picture || '/profile.webp' %>" alt="" style="width:34px; height:34px; border-radius:50%; object-fit:cover; flex:0 0 auto;">
+                <div>
+                  <p class="jk-row-name"><%= parent.fullname %></p>
+                  <p class="jk-row-sub"><%= parent.email %></p>
+                </div>
+              </div>
+            </td>
+            <td><%= parent.phone || 'N/A' %></td>
+            <td><%= new Date(parent.created_at).toLocaleDateString() %></td>
+            <td class="jk-col-actions">
+              <button class="jk-btn-outline-sm" onclick="openChildrenModal(<%= parent.id %>, '<%= parent.fullname %>')" type="button">View Children</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
   </div>
 
   <!-- CHILDREN MODAL -->
-<div
-  id="childrenModal"
-  class="modal"
-  style="
-    display:none;
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    background:rgba(0,0,0,0.5);
-    z-index:9999;
-  "
->
-
-  <div
-    style="
-      background:#fff;
-      width:90%;
-      max-width:700px;
-      margin:50px auto;
-      padding:20px;
-      border-radius:10px;
-      max-height:85vh;
-      overflow-y:auto;
-    "
-  >
-
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-
-      <h2 id="childrenModalTitle">
-        Parent Children
-      </h2>
-
-      <span
-        onclick="closeChildrenModal()"
-        style="
-          cursor:pointer;
-          font-size:24px;
-          font-weight:bold;
-        "
-      >
-        &times;
-      </span>
-
-    </div>
-
-    <div class="table-responsive">
-
-      <table class="user-table sortable-table" width="100%">
-
-        <thead>
-          <tr>
-            <th>Student Name</th>
-            <th>Email</th>
-          </tr>
-        </thead>
-
-        <tbody id="childrenTableBody">
-
-          <tr>
-            <td colspan="2">Loading...</td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
-</div>
-
-    <!-- Assign Child to Parent -->
-  <h2 style="margin-top:40px;">👨‍👩‍👧 Assign Child to Parent</h2>
-  <form action="/admin/assign-child" method="POST">
-
-  <div class="field">
-    <label>Parent Email</label>
-
-    <input
-      type="text"
-      name="parentEmail"
-      id="parentEmail"
-      autocomplete="off"
-      required
-    >
-
-    <div id="parentSuggestions" class="suggestions"></div>
-  </div>
-
-  <div class="field">
-    <label>Child Email</label>
-
-    <input
-      type="text"
-      name="childEmail"
-      id="childEmail"
-      autocomplete="off"
-      required
-    >
-
-    <div id="childSuggestions" class="suggestions"></div>
-  </div>
-
-  <button type="submit">
-    Assign Child
-  </button>
-
-</form>
-
-    <!-- User details modal (reuse your existing modal logic) -->
-    <div id="userModal" class="modal" style="display:none;">
-      <div class="modal-content" style="max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; text-align: left;">
-        <span onclick="closeUserModal()" class="close" style="float:right;cursor:pointer;">&times;</span>
-        <h2>User Details</h2>
-        <img id="modalProfilePic" src="" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;"><br><br>
-        <p><strong>Full Name:</strong> <span id="modalFullName"></span></p>
-        <p><strong>Email:</strong> <span id="modalEmail"></span></p>
-        <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
-        <p><strong>Date of Birth:</strong> <span id="modalDOB"></span></p>
-        <p><strong>Gender:</strong> <span id="modalGender"></span></p>
-        <p><strong>Role:</strong> <span id="modalRole"></span></p>
-        <p><strong>Date Registered:</strong> <span id="modalDate"></span></p>
+  <div id="childrenModal" class="jk-modal-overlay" hidden>
+    <div class="jk-modal">
+      <div class="jk-modal-head">
+        <h4 id="childrenModalTitle">Parent Children</h4>
+        <button class="jk-modal-close" onclick="closeChildrenModal()" type="button">&times;</button>
+      </div>
+      <div class="jk-modal-body">
+        <div class="jk-table-wrap">
+          <table class="jk-table sortable-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody id="childrenTableBody">
+              <tr><td colspan="2">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+  </div>
 
-    <script>
-      function openUserModal(user) {
-        document.getElementById("modalFullName").textContent = user.fullname;
-        document.getElementById("modalEmail").textContent = user.email;
-        document.getElementById("modalPhone").textContent = user.phone;
-        document.getElementById("modalDOB").textContent = user.dob || "N/A";
-        document.getElementById("modalGender").textContent = user.gender;
-        document.getElementById("modalRole").textContent = user.role;
-        document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
-        document.getElementById("modalDate").textContent = new Date(user.created_at).toLocaleString();
-        document.getElementById("userModal").style.display = "block";
-      }
+  <!-- Assign Child to Parent -->
+  <div class="jk-section-head">
+    <h3>👨‍👩‍👧 Assign Child to Parent</h3>
+  </div>
+  <div class="jk-report-panel">
+    <form class="jk-toolbar" action="/admin/assign-child" method="POST" style="align-items:flex-start;">
+      <div style="flex:1 1 240px; position:relative;">
+        <label style="display:block; font-size:12.5px; font-weight:700; color:#4C3802; margin-bottom:5px;">Parent Email</label>
+        <input type="text" name="parentEmail" id="parentEmail" autocomplete="off" required class="jk-search-input" style="padding-left:12px;">
+        <div id="parentSuggestions" class="suggestions"></div>
+      </div>
 
-      function closeUserModal() {
-        document.getElementById("userModal").style.display = "none";
-      }
-    </script>
+      <div style="flex:1 1 240px; position:relative;">
+        <label style="display:block; font-size:12.5px; font-weight:700; color:#4C3802; margin-bottom:5px;">Child Email</label>
+        <input type="text" name="childEmail" id="childEmail" autocomplete="off" required class="jk-search-input" style="padding-left:12px;">
+        <div id="childSuggestions" class="suggestions"></div>
+      </div>
 
-    <!-- Script to open add user modal -->
-     <script>
+      <button type="submit" class="jk-btn-dark" style="margin-top:22px;">Assign Child</button>
+    </form>
+  </div>
+
+</section>
+
+<div id="addUserModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>Add New User</h4>
+      <button class="jk-modal-close" onclick="closeAddUserModal()" type="button">&times;</button>
+    </div>
+    <form class="jk-modal-body" method="POST" action="/admin/add-user">
+      <input type="text" name="fullname" placeholder="Full Name" required />
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="text" name="phone" placeholder="Phone" />
+
+      <select name="gender" required>
+        <option value="">Select Gender</option>
+        <option>Male</option>
+        <option>Female</option>
+      </select>
+
+      <select name="role" required>
+        <option value="user">Normal User</option>
+        <option value="student">School Student</option>
+        <option value="teacher">Teacher</option>
+        <option value="school_admin">School Administrator</option>
+        <option value="parent">Parent</option>
+        <option value="instructor">Instructor</option>
+        <option value="admin">System Administrator</option>
+      </select>
+
+      <div id="schoolInfoSection" style="display:none;">
+        <input name="schoolName" placeholder="School Name">
+        <input name="schoolAddress" placeholder="School Address">
+        <input name="schoolEmail" placeholder="School Email">
+        <input name="schoolPhone" placeholder="School Phone">
+      </div>
+
+      <div id="schoolLookupSection" style="display:none;">
+        <input id="schoolIdInput" name="schoolId" placeholder="Enter School ID" autocomplete="off">
+        <div id="schoolResult"></div>
+      </div>
+
+      <p style="font-size:12px; color:#6E6350;">
+        Default password: <strong>12345678</strong>
+      </p>
+
+      <button type="submit" class="jk-btn-dark" id="createUserBtn" style="width:100%; justify-content:center;">Create User</button>
+    </form>
+  </div>
+</div>
+
+<!-- User details modal (reuse your existing modal logic) -->
+<div id="userModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <img id="modalProfilePic" src="" alt="" style="width:54px; height:54px; border-radius:50%; object-fit:cover;">
+        <div>
+          <h4 id="modalFullName"></h4>
+          <p id="modalEmail"></p>
+        </div>
+      </div>
+      <button class="jk-modal-close" onclick="closeUserModal()" type="button">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 16px;">
+        <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Phone</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalPhone"></p></div>
+        <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Date of Birth</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalDOB"></p></div>
+        <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Gender</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalGender"></p></div>
+        <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Role</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalRole"></p></div>
+        <div><p style="margin:0 0 2px; font-size:10.5px; font-weight:700; color:#8A7B55; text-transform:uppercase;">Date Registered</p><p style="margin:0; font-size:13px; color:#1A1510;" id="modalDate"></p></div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <a id="modalProgressLink" class="jk-btn-outline" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Progress</a>
+        <a id="modalEnrollmentsLink" class="jk-btn-outline" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Enrollments</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openUserModal(user) {
+    document.getElementById("modalFullName").textContent = user.fullname;
+    document.getElementById("modalEmail").textContent = user.email;
+    document.getElementById("modalPhone").textContent = user.phone;
+    document.getElementById("modalDOB").textContent = user.dob || "N/A";
+    document.getElementById("modalGender").textContent = user.gender;
+    document.getElementById("modalRole").textContent = user.role;
+    document.getElementById("modalProfilePic").src = user.profile_picture || "/profile.webp";
+    document.getElementById("modalDate").textContent = new Date(user.created_at).toLocaleString();
+    document.getElementById("modalProgressLink").href = `/admin/students/${user.id}/progress?from=admin`;
+    document.getElementById("modalEnrollmentsLink").href = `/admin/students/${user.id}/enrollments`;
+    document.getElementById("userModal").hidden = false;
+  }
+
+  function closeUserModal() {
+    document.getElementById("userModal").hidden = true;
+  }
+</script>
+
+<!-- Script to open add user modal -->
+<script>
   function openAddUserModal() {
-    document.getElementById("addUserModal").style.display = "block";
+    document.getElementById("addUserModal").hidden = false;
   }
 
   function closeAddUserModal() {
-    document.getElementById("addUserModal").style.display = "none";
+    document.getElementById("addUserModal").hidden = true;
   }
 
-  const roleSelect =
-document.querySelector('select[name="role"]');
+  const roleSelect = document.querySelector('select[name="role"]');
+  const schoolInfoSection = document.getElementById("schoolInfoSection");
+  const schoolLookupSection = document.getElementById("schoolLookupSection");
+  const schoolIdInput = document.getElementById("schoolIdInput");
+  const schoolResult = document.getElementById("schoolResult");
 
-const schoolInfoSection =
-document.getElementById("schoolInfoSection");
+  roleSelect.addEventListener("change", function () {
+    const role = this.value;
 
-const schoolLookupSection =
-document.getElementById("schoolLookupSection");
+    schoolInfoSection.style.display = "none";
+    schoolLookupSection.style.display = "none";
 
-const schoolIdInput =
-document.getElementById("schoolIdInput");
-
-const schoolResult =
-document.getElementById("schoolResult");
-
-  roleSelect.addEventListener("change", function(){
-
-    const role=this.value;
-
-    schoolInfoSection.style.display="none";
-
-    schoolLookupSection.style.display="none";
-
-    if(role==="school_admin"){
-
-        schoolInfoSection.style.display="block";
-
+    if (role === "school_admin") {
+      schoolInfoSection.style.display = "block";
     }
 
-    if(role==="teacher" || role==="student"){
+    if (role === "teacher" || role === "student") {
+      schoolLookupSection.style.display = "block";
+    }
+  });
 
-        schoolLookupSection.style.display="block";
+  schoolIdInput.addEventListener("keyup", async () => {
+    const schoolId = schoolIdInput.value.trim();
 
+    if (schoolId.length < 3) {
+      schoolResult.innerHTML = "";
+      return;
     }
 
-});
+    const res = await fetch(`/admin/check-school/${schoolId}`);
+    const data = await res.json();
+    const submitBtn = document.getElementById("createUserBtn");
 
-schoolIdInput.addEventListener("keyup", async ()=>{
-
-    const schoolId=schoolIdInput.value.trim();
-
-    if(schoolId.length<3){
-
-        schoolResult.innerHTML="";
-
-        return;
-
+    if (data.found) {
+      schoolResult.innerHTML = `<span style="color:green;">✔ ${data.school.name}</span>`;
+      submitBtn.disabled = false;
+    } else {
+      schoolResult.innerHTML = `<span style="color:red;">School not found</span>`;
+      submitBtn.disabled = true;
     }
-
-    const res=await fetch(
-        `/admin/check-school/${schoolId}`
-    );
-
-    const data=await res.json();
-
-    const submitBtn =
-document.getElementById("createUserBtn");
-
-if(data.found){
-
-    schoolResult.innerHTML=`
-        <span style="color:green;">
-        ✔ ${data.school.name}
-        </span>
-        `;
-
-        submitBtn.disabled=false;
-
-    }else{
-
-        schoolResult.innerHTML=`
-            <span style="color:red;">
-            School not found
-            </span>
-        `;
-
-        submitBtn.disabled=true;
-
-    }
-
-});
+  });
 </script>
 
 <!-- script for autocomplete -->
- <script>
-
+<script>
   async function setupAutocomplete(inputId, suggestionId, role) {
-
     const input = document.getElementById(inputId);
     const suggestions = document.getElementById(suggestionId);
 
     input.addEventListener("input", async () => {
-
       const q = input.value.trim();
 
       if (!q) {
@@ -502,189 +304,62 @@ if(data.found){
         return;
       }
 
-      const res = await fetch(
-        `/admin/search-users?q=${encodeURIComponent(q)}&role=${role}`
-      );
-
+      const res = await fetch(`/admin/search-users?q=${encodeURIComponent(q)}&role=${role}`);
       const users = await res.json();
 
       suggestions.innerHTML = users.map(user => `
-        <div class="suggestion-item"
-          onclick="selectSuggestion(
-            '${inputId}',
-            '${suggestionId}',
-            '${user.email}'
-          )">
-
+        <div class="suggestion-item" onclick="selectSuggestion('${inputId}', '${suggestionId}', '${user.email}')">
           <strong>${user.fullname}</strong><br>
           <small>${user.email}</small>
-
         </div>
       `).join("");
-
     });
-
   }
 
   function selectSuggestion(inputId, suggestionId, value) {
-
     document.getElementById(inputId).value = value;
-
     document.getElementById(suggestionId).innerHTML = "";
-
   }
 
-  setupAutocomplete(
-    "parentEmail",
-    "parentSuggestions",
-    "parent"
-  );
-
-  setupAutocomplete(
-    "childEmail",
-    "childSuggestions",
-    "user"
-  );
-
+  setupAutocomplete("parentEmail", "parentSuggestions", "parent");
+  setupAutocomplete("childEmail", "childSuggestions", "user");
 </script>
 
 <script>
+  async function openChildrenModal(parentId, parentName) {
+    document.getElementById("childrenModal").hidden = false;
+    document.getElementById("childrenModalTitle").innerText = `${parentName}'s Children`;
 
-async function openChildrenModal(parentId, parentName) {
+    document.getElementById("childrenTableBody").innerHTML = `
+      <tr><td colspan="2">Loading...</td></tr>
+    `;
 
-  document.getElementById("childrenModal").style.display = "block";
+    try {
+      const res = await fetch(`/admin/parents/${parentId}/children-json`);
+      const children = await res.json();
 
-  document.getElementById("childrenModalTitle").innerText =
-    `${parentName}'s Children`;
+      if (!children.length) {
+        document.getElementById("childrenTableBody").innerHTML = `
+          <tr><td colspan="2">No children assigned</td></tr>
+        `;
+        return;
+      }
 
-  document.getElementById("childrenTableBody").innerHTML = `
-    <tr>
-      <td colspan="2">Loading...</td>
-    </tr>
-  `;
-
-  try {
-
-    const res = await fetch(
-      `/admin/parents/${parentId}/children-json`
-    );
-
-    const children = await res.json();
-
-    if (!children.length) {
-
-      document.getElementById("childrenTableBody").innerHTML = `
-        <tr>
-          <td colspan="2">No children assigned</td>
-        </tr>
-      `;
-
-      return;
-    }
-
-    document.getElementById("childrenTableBody").innerHTML =
-      children.map(child => `
+      document.getElementById("childrenTableBody").innerHTML = children.map(child => `
         <tr>
           <td>${child.fullname}</td>
           <td>${child.email}</td>
         </tr>
       `).join("");
-
-  } catch (err) {
-
-    console.error(err);
-
-    document.getElementById("childrenTableBody").innerHTML = `
-      <tr>
-        <td colspan="2">Error loading children</td>
-      </tr>
-    `;
+    } catch (err) {
+      console.error(err);
+      document.getElementById("childrenTableBody").innerHTML = `
+        <tr><td colspan="2">Error loading children</td></tr>
+      `;
+    }
   }
-}
 
-function closeChildrenModal() {
-  document.getElementById("childrenModal").style.display = "none";
-}
-
+  function closeChildrenModal() {
+    document.getElementById("childrenModal").hidden = true;
+  }
 </script>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-
-  document.querySelectorAll(".sortable-table").forEach(table => {
-
-    const headers = table.querySelectorAll("thead th");
-
-    headers.forEach((header, columnIndex) => {
-
-      header.classList.add("sortable");
-
-      let ascending = true;
-
-      header.addEventListener("click", () => {
-
-        const tbody = table.querySelector("tbody");
-        const rows = Array.from(tbody.querySelectorAll("tr"));
-
-        // Remove previous sort indicators
-        headers.forEach(h => {
-          h.classList.remove("sort-asc", "sort-desc");
-        });
-
-        rows.sort((a, b) => {
-
-          let aText =
-            a.children[columnIndex]?.innerText.trim() || "";
-
-          let bText =
-            b.children[columnIndex]?.innerText.trim() || "";
-
-          // Numeric sorting
-          const aNum =
-            parseFloat(aText.replace(/[^\d.-]/g, ""));
-
-          const bNum =
-            parseFloat(bText.replace(/[^\d.-]/g, ""));
-
-          if (!isNaN(aNum) && !isNaN(bNum)) {
-            return ascending
-              ? aNum - bNum
-              : bNum - aNum;
-          }
-
-          // Date sorting
-          const aDate = Date.parse(aText);
-          const bDate = Date.parse(bText);
-
-          if (!isNaN(aDate) && !isNaN(bDate)) {
-            return ascending
-              ? aDate - bDate
-              : bDate - aDate;
-          }
-
-          // Text sorting
-          return ascending
-            ? aText.localeCompare(bText)
-            : bText.localeCompare(aText);
-
-        });
-
-        tbody.innerHTML = "";
-        rows.forEach(row => tbody.appendChild(row));
-
-        header.classList.add(
-          ascending ? "sort-asc" : "sort-desc"
-        );
-
-        ascending = !ascending;
-      });
-
-    });
-
-  });
-
-});
-</script>
-
-  </body>
-  </html>
