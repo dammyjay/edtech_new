@@ -559,51 +559,49 @@
 
 </div>
 
-<div id="schools-section" style="display:none;">
-  <h2>Schools Dashboard</h2>
+<div id="schools-section" class="jk-page" style="display:none;">
+  <div class="jk-section-head">
+    <h3>Schools Dashboard</h3>
+  </div>
 
-  <section class="engagement-grid">
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr));">
 
-    <div class="metric-card">
-      <div class="card-title blue-bg">
-        <p>Total Schools</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Schools</span>
+        <div class="jk-stat-icon" style="background:#E9F3FB;"><i class="fas fa-school" style="color:#1F7AC9; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="schoolCount">0</h4>
-      </div>
+      <span class="jk-stat-value" id="schoolCount">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title green-bg">
-        <p>Total Students</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Students</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fas fa-user-graduate" style="color:#1E7A42; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="schoolStudents">0</h4>
-      </div>
+      <span class="jk-stat-value" id="schoolStudents">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title orange-bg">
-        <p>Total Teachers</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Teachers</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-chalkboard-user" style="color:#A17807; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="schoolTeachers">0</h4>
-      </div>
+      <span class="jk-stat-value" id="schoolTeachers">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title purple-bg">
-        <p>Total Classrooms</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Classrooms</span>
+        <div class="jk-stat-icon" style="background:#F1EAFB;"><i class="fas fa-door-open" style="color:#7C4DCC; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="schoolClassrooms">0</h4>
-      </div>
+      <span class="jk-stat-value" id="schoolClassrooms">0</span>
     </div>
 
-  </section>
+  </div>
 
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>School</th>
@@ -619,42 +617,41 @@
 
 </div>
 
-<div id="finance-section" style="display:none;">
-  <h2>Finance</h2>
+<div id="finance-section" class="jk-page" style="display:none;">
+  <div class="jk-section-head">
+    <h3>Finance</h3>
+  </div>
 
-  <section class="engagement-grid">
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(3, minmax(0,1fr));">
 
-    <div class="metric-card">
-      <div class="card-title teal-bg">
-        <p>Total Revenue</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Revenue</span>
+        <div class="jk-stat-icon" style="background:#E6F7F4;"><i class="fas fa-money-bill-wave" style="color:#1B8E79; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="financeRevenue">₦0</h4>
-      </div>
+      <span class="jk-stat-value" id="financeRevenue">₦0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title blue-bg">
-        <p>Total Transactions</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Transactions</span>
+        <div class="jk-stat-icon" style="background:#E9F3FB;"><i class="fas fa-receipt" style="color:#1F7AC9; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="financeTransactions">0</h4>
-      </div>
+      <span class="jk-stat-value" id="financeTransactions">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title dark-red-bg">
-        <p>Failed Transactions</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Failed Transactions</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fas fa-triangle-exclamation" style="color:#B23A2A; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="failedTransactions">0</h4>
-      </div>
+      <span class="jk-stat-value" id="failedTransactions">0</span>
     </div>
 
-  </section>
+  </div>
 
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -669,76 +666,58 @@
 
 </div>
 
-<div id="engagement-section" style="display:none;">
-  <h2>User Engagement</h2>
+<div id="engagement-section" class="jk-page" style="display:none;">
+  <div class="jk-section-head">
+    <h3>User Engagement</h3>
+  </div>
 
-  <section class="engagement-grid">
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr));">
 
-    <div class="metric-card">
-      <div class="card-title blue-bg">
-        <p>Daily Active Users</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Daily Active Users</span>
+        <div class="jk-stat-icon" style="background:#E9F3FB;"><i class="fas fa-user-clock" style="color:#1F7AC9; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="dailyUsers">0</h4>
-      </div>
+      <span class="jk-stat-value" id="dailyUsers">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title green-bg">
-        <p>Weekly Active Users</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Weekly Active Users</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fas fa-calendar-week" style="color:#1E7A42; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="weeklyUsers">0</h4>
-      </div>
+      <span class="jk-stat-value" id="weeklyUsers">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title orange-bg">
-        <p>Lessons Completed</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Lessons Completed</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-circle-check" style="color:#A17807; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="completedLessons">0</h4>
-      </div>
+      <span class="jk-stat-value" id="completedLessons">0</span>
     </div>
 
-    <div class="metric-card">
-      <div class="card-title purple-bg">
-        <p>AI Tutor Questions</p>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">AI Tutor Questions</span>
+        <div class="jk-stat-icon" style="background:#F1EAFB;"><i class="fas fa-robot" style="color:#7C4DCC; font-size:13px;"></i></div>
       </div>
-      <div class="metric-card-content">
-        <h4 id="aiQuestions">0</h4>
-      </div>
+      <span class="jk-stat-value" id="aiQuestions">0</span>
     </div>
 
-  </section>
+  </div>
 
-  <h3>Recent Activities</h3>
-  <div class="filter-bar">
+  <div class="jk-section-head"><h3>Recent Activities</h3></div>
+  <div class="jk-toolbar">
+    <input type="text" id="activityAction" class="jk-search-input" style="max-width:220px;" placeholder="Filter by action">
+    <input type="date" id="activityStartDate" class="jk-select">
+    <input type="date" id="activityEndDate" class="jk-select">
+    <div class="jk-toolbar-spacer"></div>
+    <button class="jk-btn-dark" onclick="applyActivityFilters()" type="button">Filter</button>
+  </div>
 
-  <input
-    type="text"
-    id="activityAction"
-    placeholder="Filter by action">
-
-  <input
-    type="date"
-    id="activityStartDate">
-
-  <input
-    type="date"
-    id="activityEndDate">
-
-  <!-- <button onclick="loadEngagementDashboard()">
-    Filter
-  </button> -->
-  <button onclick="applyActivityFilters()">
-    Filter
-  </button>
-
-</div>
-
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>User</th>
@@ -748,36 +727,42 @@
           <th>Lesson</th>
           <th>Course</th>
           <th>Date</th>
-          <th>History</th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
       <tbody id="activitiesTable"></tbody>
     </table>
   </div>
 
-      <button
-        id="loadMoreActivities"
-        onclick="loadMoreActivities()">
-        Load More
-      </button>
+  <div style="text-align:center; margin-top:16px;">
+    <button
+      id="loadMoreActivities"
+      class="jk-btn-outline"
+      onclick="loadMoreActivities()"
+      type="button">
+      Load More
+    </button>
+  </div>
 </div>
 
-<div id="reports-section" style="display:none;">
-  <h2>Reports & Pitch Decks</h2>
+<div id="reports-section" class="jk-page" style="display:none;">
+  <div class="jk-section-head">
+    <h3>Reports &amp; Pitch Decks</h3>
+  </div>
 
-  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+  <div class="report-panel jk-report-panel">
     <h3>Analytics Report</h3>
-    <p style="color:#666;">Generate a monthly or yearly analytics report with AI-written commentary, exported as PDF, Excel, and PowerPoint.</p>
+    <p style="color:#6E6350;">Generate a monthly or yearly analytics report with AI-written commentary, exported as PDF, Excel, and PowerPoint.</p>
 
-    <div class="filter-bar">
-      <select id="reportScope" onchange="toggleReportPeriodInputs()">
+    <div class="jk-toolbar">
+      <select id="reportScope" class="jk-select" onchange="toggleReportPeriodInputs()">
         <option value="month">Monthly</option>
         <option value="year">Yearly</option>
       </select>
 
-      <select id="reportYear"></select>
+      <select id="reportYear" class="jk-select"></select>
 
-      <select id="reportMonth">
+      <select id="reportMonth" class="jk-select">
         <option value="1">January</option>
         <option value="2">February</option>
         <option value="3">March</option>
@@ -801,19 +786,19 @@
       <label><input type="checkbox" id="formatPptx" checked> PowerPoint</label>
     </div>
 
-    <button onclick="generatePlatformReport()" id="generateReportBtn">Generate & Download</button>
+    <button class="jk-btn-dark" onclick="generatePlatformReport()" id="generateReportBtn" type="button">Generate &amp; Download</button>
     &nbsp;
-    <button onclick="emailPlatformReportNow()" id="emailReportBtn">Send me a copy by email now</button>
+    <button class="jk-btn-outline" onclick="emailPlatformReportNow()" id="emailReportBtn" type="button">Send me a copy by email now</button>
 
-    <p id="reportStatus" style="margin-top:10px; color:#666;"></p>
+    <p id="reportStatus" style="margin-top:10px; color:#6E6350;"></p>
   </div>
 
-  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+  <div class="report-panel jk-report-panel">
     <h3>Pitch Deck</h3>
-    <p style="color:#666;">Generate an AI-assisted PowerPoint pitch deck tailored to a specific audience.</p>
+    <p style="color:#6E6350;">Generate an AI-assisted PowerPoint pitch deck tailored to a specific audience.</p>
 
-    <div class="filter-bar">
-      <select id="pitchDeckAudience">
+    <div class="jk-toolbar">
+      <select id="pitchDeckAudience" class="jk-select">
         <option value="schools">Schools</option>
         <option value="grants">Grant Applications</option>
         <option value="investors">Investors</option>
@@ -821,9 +806,9 @@
       </select>
     </div>
 
-    <button onclick="generatePitchDeck()" id="generateDeckBtn">Generate Pitch Deck</button>
+    <button class="jk-btn-dark" onclick="generatePitchDeck()" id="generateDeckBtn" type="button">Generate Pitch Deck</button>
 
-    <p id="deckStatus" style="margin-top:10px; color:#666;"></p>
+    <p id="deckStatus" style="margin-top:10px; color:#6E6350;"></p>
   </div>
 
   <style>
@@ -850,12 +835,12 @@
     .photo-picker-btn:hover { background:#fdf3e7; }
   </style>
 
-  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; margin-bottom:25px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+  <div class="report-panel jk-report-panel">
     <h3>Partnership Proposal</h3>
-    <p style="color:#666;">Generate a full partnership proposal deck (about us, track record, programs, pricing, FAQ) — draft it with AI first, review and edit everything, then download.</p>
+    <p style="color:#6E6350;">Generate a full partnership proposal deck (about us, track record, programs, pricing, FAQ) — draft it with AI first, review and edit everything, then download.</p>
 
-    <div class="filter-bar" style="flex-wrap:wrap; gap:10px;">
-      <select id="proposalAudience">
+    <div class="jk-toolbar">
+      <select id="proposalAudience" class="jk-select">
         <option value="schools">Schools</option>
         <option value="grants">Grant Applications</option>
         <option value="investors">Investors</option>
@@ -865,8 +850,8 @@
     </div>
     <textarea id="proposalFocusNotes" placeholder="Optional: anything specific to emphasize (e.g. 'focus on STEM coding for primary pupils')" style="width:100%; min-height:50px; margin-top:10px;"></textarea>
 
-    <button onclick="generateProposalPreview()" id="generateProposalPreviewBtn" style="margin-top:10px;">Generate Preview</button>
-    <p id="proposalPreviewStatus" style="margin-top:10px; color:#666;"></p>
+    <button class="jk-btn-dark" onclick="generateProposalPreview()" id="generateProposalPreviewBtn" style="margin-top:10px;" type="button">Generate Preview</button>
+    <p id="proposalPreviewStatus" style="margin-top:10px; color:#6E6350;"></p>
 
     <div id="proposalEditArea" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
 
@@ -1005,15 +990,15 @@
         <p id="proposalTemplateDescription" style="font-size:12px; color:#888; margin-top:6px;"></p>
       </div>
 
-      <button onclick="downloadProposal()" id="downloadProposalBtn">Download Proposal</button>
+      <button class="jk-btn-dark" onclick="downloadProposal()" id="downloadProposalBtn" type="button">Download Proposal</button>
       <p id="proposalDownloadStatus" style="margin-top:10px; color:#666;"></p>
     </div>
   </div>
 
-  <div class="report-panel" style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+  <div class="report-panel jk-report-panel">
     <h3>Recent Reports</h3>
-    <div class="table-responsive">
-      <table class="user-table sortable-table">
+    <div class="jk-table-wrap">
+      <table class="jk-table sortable-table">
         <thead>
           <tr>
             <th>Type</th>
@@ -1042,30 +1027,28 @@
   </div>
 </div>
 
-<div id="activityModal" class="modal">
-  <div class="modal-content">
+<div id="activityModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>User Activity History</h4>
+      <button class="jk-modal-close" onclick="closeActivityModal()" type="button">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <div class="jk-table-wrap">
+        <table class="jk-table sortable-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Lesson</th>
+              <th>Course</th>
+              <th>Date</th>
+            </tr>
+          </thead>
 
-    <span
-      class="close"
-      onclick="closeActivityModal()">
-      &times;
-    </span>
-
-    <h3>User Activity History</h3>
-
-    <table class="user-table sortable-table">
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>Lesson</th>
-          <th>Course</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-
-      <tbody id="activityHistoryBody"></tbody>
-    </table>
-
+          <tbody id="activityHistoryBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1548,13 +1531,15 @@
           tbody.innerHTML = '';
 
           (data.transactions || []).forEach(tx => {
+            const txStatus = (tx.status || '').toLowerCase();
+            const txPillClass = txStatus.includes('success') || txStatus.includes('paid') || txStatus.includes('complete') ? 'jk-pill--paid' : txStatus.includes('pending') || txStatus.includes('partial') ? 'jk-pill--partial' : 'jk-pill--unpaid';
 
             tbody.innerHTML += `
               <tr>
                 <td>${new Date(tx.created_at).toLocaleDateString()}</td>
                 <td>${tx.user_name || tx.email || '-'}</td>
                 <td>₦${Number(tx.amount || 0).toLocaleString()}</td>
-                <td>${tx.status}</td>
+                <td><span class="jk-pill ${txPillClass}">${tx.status}</span></td>
               </tr>
             `;
           });
@@ -1622,10 +1607,11 @@
 
               <td>${new Date(activity.created_at).toLocaleString()}</td>
 
-              <td>
+              <td class="jk-col-actions">
                 <button
-                  class="btn btn-sm btn-primary"
-                  onclick="viewUserActivities(${activity.user_id})">
+                  class="jk-btn-outline-sm"
+                  onclick="viewUserActivities(${activity.user_id})"
+                  type="button">
                   View
                 </button>
               </td>
@@ -1664,7 +1650,17 @@
         );
 
       }
-    
+
+      // The Filter button's onclick referenced this but it was never
+      // defined anywhere — clicking it threw "applyActivityFilters is
+      // not defined" and silently did nothing. Resets back to page 1
+      // (not appending) so the new filters replace the current list
+      // instead of being tacked onto whatever was already loaded.
+      function applyActivityFilters() {
+        currentActivityPage = 1;
+        loadEngagementDashboard(1, false);
+      }
+
       async function viewUserActivities(userId) {
 
         const res = await fetch(
@@ -1694,13 +1690,13 @@
 
         document.getElementById(
           "activityModal"
-        ).style.display = "block";
+        ).hidden = false;
       }
 
       function closeActivityModal() {
         document.getElementById(
           "activityModal"
-        ).style.display = "none";
+        ).hidden = true;
       }
       
       loadDashboardOverview();
@@ -2538,7 +2534,7 @@
             const detail = row.audience
               ? (AUDIENCE_LABELS[row.audience] || row.audience)
               : (row.period_label || "-");
-            const statusColor = row.status === "success" ? "#1B7A3D" : "#B23B3B";
+            const statusPillClass = row.status === "success" ? "jk-pill--paid" : "jk-pill--unpaid";
             const statusTitle = row.error_message ? ` title="${row.error_message.replace(/"/g, "&quot;")}"` : "";
 
             tbody.innerHTML += `
@@ -2547,7 +2543,7 @@
                 <td>${detail}</td>
                 <td>${(row.formats_generated || []).join(", ")}</td>
                 <td>${row.triggered_by === "cron" ? "Scheduled" : "Admin"}</td>
-                <td style="color:${statusColor}; font-weight:600;"${statusTitle}>${row.status}</td>
+                <td><span class="jk-pill ${statusPillClass}"${statusTitle}>${row.status}</span></td>
                 <td>${new Date(row.created_at).toLocaleString()}</td>
               </tr>
             `;

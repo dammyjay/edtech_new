@@ -140,11 +140,17 @@
 .jk-search-wrap { position: relative; flex: 1 1 240px; max-width: 320px; }
 .jk-search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .jk-search-input { width: 100%; padding: 9px 12px 9px 34px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 0; }
-/* width:auto overrides style.css's global `select { width:100% }` — without
-   it every .jk-select stretches to fill its flex container instead of
-   sizing to its content, breaking the inline toolbar layout (forces
-   search/selects/button to stack one per row instead of flowing in a row). */
-.jk-select { width: auto; padding: 9px 12px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 0; }
+/* width:auto overrides style.css's global `select { width:100% }` and
+   `input[type="date"] { width:100% }` — without it every .jk-select
+   stretches to fill its flex container instead of sizing to its content,
+   breaking the inline toolbar layout (forces search/selects/button to
+   stack one per row instead of flowing in a row). Written as
+   `select.jk-select, input.jk-select` (not just `.jk-select`) because
+   style.css's input[type="date"] rule has specificity (0,1,1) — a bare
+   class selector (0,1,0) loses to it regardless of source order; tying
+   the specificity at (0,1,1) lets this file's later position in <head>
+   decide the cascade instead. */
+select.jk-select, input.jk-select { width: auto; padding: 9px 12px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 0; }
 .jk-dropdown { position: relative; display: inline-block; }
 .jk-dropdown-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; background: #fff; border: 1px solid #E7E0CE; border-radius: 11px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 6px; width: 240px; }
 .jk-dropdown-menu[hidden] { display: none; }
@@ -197,3 +203,9 @@
   font-family: inherit; font-size: 13px; box-sizing: border-box; background: #fff;
 }
 .jk-term-modal label { font-weight: 600; font-size: 12.5px; color: #4C3802; }
+
+/* A simple bordered white panel (report/proposal builder sections) —
+   same visual language as jk-stat-card/jk-table-wrap but sized for
+   free-form content rather than a grid or table. */
+.jk-report-panel { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+.jk-report-panel h3 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: #1A1510; }
