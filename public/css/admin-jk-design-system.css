@@ -107,7 +107,7 @@
 .jk-cc-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .jk-cc-actions button { flex: 1 1 auto; }
 
-.jk-modal-overlay { position: fixed; inset: 0; background: rgba(26,21,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; }
+.jk-modal-overlay { position: fixed; inset: 0; background: rgba(26,21,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 24px; }
 .jk-modal-overlay[hidden] { display: none; }
 .jk-modal { background: #fff; border-radius: 18px; width: 520px; max-width: 100%; max-height: 86vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
 .jk-modal--wide { width: 900px; }
