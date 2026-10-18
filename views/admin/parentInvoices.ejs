@@ -1,648 +1,307 @@
 
-<%- include('../partials/adminHeader', { title: 'Quotes' }) %>
+<%- include('../partials/adminHeader', { title: 'Parent Invoices' }) %>
 
-  <style>
-    /* small local styles — integrate into your style.css later */
-    .analytics-container { width: 95%; margin: 20px auto; padding: 20px;}
-    .cards { display:flex; gap:16px; flex-wrap:wrap; }
-    .card { background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.08); flex:1 1 220px; min-width:180px; }
-    .charts { display:flex; gap:16px; margin-top:16px; flex-wrap:wrap; }
-    .chart-card { flex:1 1 480px; background:#fff; padding:16px; border-radius:8px; }
-    .table-responsive { margin-top:20px; }
-    .filter-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
-    .activity-feed { max-height:360px; overflow:auto; background:#fff; padding:12px; border-radius:8px; }
-  </style>
+<section class="section jk-page">
 
-<h2>Parent Invoice</h2>
-
-<div style="margin:20px 0;">
-    <button class="btn btn-primary" onclick="openCreateInvoiceModal()">
-        <i class="fa fa-plus"></i>
-        Create Parent Invoice
+  <div class="jk-header-card">
+    <div>
+      <h2>Parent Invoices</h2>
+      <p>Training invoices, payments and collection analytics.</p>
+    </div>
+    <button class="jk-btn-dark" onclick="openCreateInvoiceModal()">
+      <i class="fa fa-plus"></i> Create Parent Invoice
     </button>
-</div>
-
-<div class="analytics-container">
-  <h1>Financial Analytics</h1>
-
-  <div class="filter-row">
-
-            <label style="margin-left:8px;">School:
-            <select id="schoolFilter"><option value="">All Schools</option></select>
-            </label>
-
-            <button id="refreshBtn">Refresh</button>
-        </div>
-
-        <!-- 🔥 FINANCE CARDS -->
-        <section class="section">
-            <div class="engagement-grid">
-
-            <!-- TOTAL EXPECTED -->
-            <div class="metric-card">
-                    <div class="card-title blue-bg">
-                        <p>Total Expected</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon blue-bg">
-                        <i class="fa-solid fa-money-bill-wave"></i>
-                        </div>
-                        <h4 id="cardTotalExpected">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- TOTAL PAID -->
-            <div class="metric-card">
-                    <div class="card-title dark-green-bg">
-                        <p>Total Collected</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon dark-green-bg">
-                        <i class="fa-solid fa-check"></i>
-                        </div>
-                        <h4 id="cardTotalPaid">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- OUTSTANDING -->
-            <div class="metric-card">
-                    <div class="card-title dark-red-bg">
-                        <p>Outstanding</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon dark-red-bg">
-                        <i class="fa-solid fa-clock"></i>
-                        </div>
-                        <h4 id="cardOutstanding">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- COLLECTION RATE -->
-            <div class="metric-card">
-                    <div class="card-title purple-bg">
-                        <p>Collection Rate</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon purple-bg">
-                        <i class="fa-solid fa-chart-line"></i>
-                        </div>
-                        <h4 id="cardCollectionRate">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- PAID QUOTES -->
-            <div class="metric-card">
-                    <div class="card-title green-bg">
-                        <p>Paid Quotes</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon green-bg">
-                        <i class="fa-solid fa-circle-check"></i>
-                        </div>
-                        <h4 id="cardPaidQuotes">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- PARTIAL -->
-            <div class="metric-card">
-                    <div class="card-title orange-bg">
-                        <p>Partial Payments</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon orange-bg">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <h4 id="cardPartialQuotes">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- UNPAID -->
-            <div class="metric-card">
-                    <div class="card-title dark-red-bg">
-                        <p>Overdue Payment</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon dark-red-bg">
-                        <i class="fa-solid fa-xmark"></i>
-                        </div>
-                        <h4 id="cardUnpaidQuotes">₦0</h4>
-                    </div>
-                </div>
-
-            <!-- Pending -->
-            <div class="metric-card">
-                    <div class="card-title indigo-bg">
-                        <p>Ongoing Quotes</p>
-                    </div>
-                    <div class="metric-card-content">
-                        <div class="card-icon indigo-bg">
-                        <i class="fa-solid fa-hourglass-half"></i>
-                        </div>
-                        <h4 id="cardPendingQuotes">₦0</h4>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-        <div class="chart-card">
-            <h4>Payment Trends</h4>
-            <canvas id="paymentChart" height="150"></canvas>
-        </div>
-        </div>
-
-        <!-- <input type="text" id="searchInput" placeholder="Search quotes..." />
-            <select id="statusFilter">
-            <option value="">All</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="overdue">Overdue</option>
-            <option value="pending">Ongoing</option>
-            <option value="upcoming">Upcoming</option>
-            </select> -->
-
-            <div class="filter-row">
-
-            <input
-                type="text"
-                id="searchInput"
-                placeholder="Search Invoice, Parent, Student, Training...">
-
-            <select id="statusFilter">
-                <option value="">All Status</option>
-                <option value="paid">Paid</option>
-                <option value="partial">Partial</option>
-                <option value="pending">Pending</option>
-            </select>
-
-            <select id="paymentFilter">
-                <option value="">Payment Progress</option>
-                <option value="paid">Fully Paid</option>
-                <option value="balance">Has Balance</option>
-                <option value="excess">Excess Payment</option>
-            </select>
-
-            <select id="dueFilter">
-
-                <option value="">Due Date</option>
-
-                <option value="overdue">Overdue</option>
-
-                <option value="today">Due Today</option>
-
-                <option value="upcoming">Upcoming</option>
-
-            </select>
-
-        </div>
-
-<div class="table-responsive">
-  <table class="user-table" style="width:100%; margin-top:20px;">
-
-    <!-- <thead>
-        <tr>
-
-        <th>Invoice</th>
-
-        <th>Parent</th>
-
-        <th>Students</th>
-
-        <th>Training</th>
-
-        <th>Amount</th>
-
-        <th>Paid</th>
-
-        <th>Balance</th>
-
-        <th>Status</th>
-
-        <th>Action</th>
-
-        </tr>
-
-    </thead> -->
-  
-    <thead>
-        <tr>
-
-        <th>Invoice No</th>
-
-        <th>Created Date</th>
-
-        <th>Due Date</th>
-
-        <th>Final Payment</th>
-
-        <th>Parent</th>
-
-        <th>Students</th>
-
-        <th>Training</th>
-
-        <th>Payable</th>
-
-        <th>Paid</th>
-
-        <th>Balance</th>
-
-        <th>Excess</th>
-
-        <th>Status</th>
-
-        <th>Actions</th>
-
-        </tr>
-    </thead>
-    <tbody>
-        <% invoices.forEach(invoice=>{ %>
-
-            <tr
-
-                data-status="<%= invoice.status %>"
-
-                data-parent="<%= invoice.parent_name.toLowerCase() %>"
-
-                data-training="<%= invoice.training_title.toLowerCase() %>"
-
-                data-students="<%= invoice.students.toLowerCase() %>"
-
-                data-balance="<%= invoice.balance %>"
-
-                data-excess="<%= invoice.excess_payment %>"
-
-                data-due="<%= invoice.due_date || '' %>"
-
-                >
-
-                <td>
-                <strong><%= invoice.invoice_number %></strong>
-                </td>
-
-                <td>
-                <%= new Date(invoice.created_at).toLocaleDateString() %>
-                </td>
-
-                <td>
-
-                <% if(invoice.due_date){ %>
-
-                <%= new Date(invoice.due_date).toLocaleDateString() %>
-
-                <% }else{ %>
-
-                -
-
-                <% } %>
-
-                </td>
-
-                <td>
-
-                <% if(invoice.final_payment_date){ %>
-
-                <%= new Date(invoice.final_payment_date).toLocaleDateString() %>
-
-                <% }else{ %>
-
-                -
-
-                <% } %>
-
-                </td>
-
-                <td>
-
-                <b><%= invoice.parent_name %></b>
-
-                <br>
-
-                <small><%= invoice.phone || "" %></small>
-
-                </td>
-
-                <td>
-
-                <%= invoice.students %>
-
-                </td>
-
-                <td>
-
-                <%= invoice.training_title %>
-
-                </td>
-
-                <td>
-
-                ₦<%= Number(invoice.payable).toLocaleString() %>
-
-                </td>
-
-                <td>
-
-                ₦<%= Number(invoice.total_paid).toLocaleString() %>
-
-                </td>
-
-                <td>
-
-                ₦<%= Number(invoice.balance).toLocaleString() %>
-
-                </td>
-
-                <td>
-
-                <% if(Number(invoice.excess_payment)>0){ %>
-
-                <span style="color:green;font-weight:bold;">
-
-                ₦<%= Number(invoice.excess_payment).toLocaleString() %>
-
-                </span>
-
-                <% }else{ %>
-
-                -
-
-                <% } %>
-
-                </td>
-
-                <td>
-
-                <% if(invoice.status==="paid"){ %>
-
-                <!-- <span class="badge bg-success"> -->
-                <span class="badge payment-status bg-success">
-                Paid
-
-                </span>
-
-                <% }else if(invoice.status==="partial"){ %>
-
-                <!-- <span class="badge bg-warning"> -->
-                <span class="badge payment-status bg-warning">
-
-                Partial
-
-                </span>
-
-                <% }else{ %>
-
-                <!-- <span class="badge bg-danger"> -->
-                <span class="badge payment-status bg-danger">
-
-                Pending
-
-                </span>
-
-                <% } %>
-
-                </td>
-
-                <td>
-
-                <a href="/admin/parent-invoices/<%= invoice.id %>/download" class="no-bg">
-
-                <i class="fa-solid fa-file-pdf" style="color:red;"></i>
-
-                </a>
-
-                <a href="/admin/parent-invoices/<%= invoice.id %>/send" class="no-bg">
-
-                <i class="fa-solid fa-paper-plane" style="color:#007bff;"></i>
-
-                </a>
-
-                <a href="#" onclick="openPaymentModal('<%= invoice.id %>'); return false;" class="no-bg">
-                    <i class="fa-solid fa-credit-card" style="color: green;"></i>
-                </a>
-
-                <!-- <button
-                class="btn btn-success btn-sm"
-                onclick="openPaymentModal('<%= invoice.id %>')">
-
-                <i class="fa fa-credit-card"></i>
-
-                </button> -->
-
-                <a href="#" onclick="viewPayments(<%= invoice.id %>); return false;" class="no-bg">
-                    <i class="fa-solid fa-history" style="color: purple;"></i>
-                </a>
-
-                </td>
-
-            </tr>
-            <% }) %>
-    </tbody>
-  </table>
-</div>
-
-<div id="createInvoiceModal" class="modal-overlay" style="display:none;">
-
-    <div class="modal-content" style="max-width:700px;">
-
-        <span class="close-btn" onclick="closeModal('createInvoiceModal')">
-        &times;
-        </span>
-
-        <h2>Create Parent Training Invoice</h2>
-
-        <form action="/admin/parent-training-invoices/create" method="POST">
-
-            <!-- Parent Search -->
-
-            <label>Parent</label>
-
-            <input
-            type="text"
-            id="parentSearch"
-            placeholder="Type parent name..."
-            autocomplete="off">
-
-            <input
-            type="hidden"
-            name="parent_id"
-            id="parentId">
-
-            <div
-            id="parentSuggestions"
-            class="autocomplete-box">
-            </div>
-
-
-            <hr>
-
-
-            <!-- Students -->
-
-            <label>Students</label>
-
-            <div id="studentContainer">
-
-            <p style="color:#888;">
-            Select a parent first.
-            </p>
-
-            </div>
-
-
-            <hr>
-
-
-            <label>Training Title</label>
-
-            <input
-            type="text"
-            name="training_title"
-            value="Coding & Robotics Training">
-
-
-            <label>Agreed Amount</label>
-
-            <input
-            type="number"
-            name="agreed_amount"
-            required>
-
-
-            <label>Discount</label>
-
-            <input
-            type="number"
-            name="discount"
-            value="0">
-
-
-            <!-- <label>Due Date</label>
-
-            <input
-            type="date"
-            name="due_date"> -->
-
-            <label>Due Date</label>
-            <input type="date" name="due_date">
-
-            <label>Grace Period (Days)</label>
-            <input
-                type="number"
-                name="grace_days"
-                value="5"
-                min="0">
-
-
-            <label>Notes</label>
-
-            <textarea
-            name="notes"
-            rows="4"></textarea>
-
-
-            <button type="submit">
-
-            Create Invoice
-
-            </button>
-
-        </form>
-
+  </div>
+
+  <div class="jk-toolbar">
+    <label style="font-size:13px; font-weight:600; color:#4C3802; display:flex; align-items:center; gap:8px;">
+      School:
+      <select id="schoolFilter" class="jk-select"><option value="">All Schools</option></select>
+    </label>
+    <button id="refreshBtn" class="jk-btn-outline">Refresh</button>
+  </div>
+
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr));">
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Expected</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fa-solid fa-money-bill-wave" style="color:#A17807; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardTotalExpected">₦0</span>
     </div>
 
-</div>
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Collected</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fa-solid fa-check" style="color:#1E7A42; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardTotalPaid">₦0</span>
+    </div>
 
-<!-- Payment modal -->
-<div id="paymentModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
-    <span class="close-btn" onclick="closeModal('paymentModal')">&times;</span>
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Outstanding</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fa-solid fa-clock" style="color:#B23A2A; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardOutstanding">₦0</span>
+    </div>
 
-    <h2>💳 Add Payment</h2>
-    <p id="quoteInfo"></p>
-    <form action="/admin/parent-payments" method="POST">
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Collection Rate</span>
+        <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fa-solid fa-chart-line" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardCollectionRate">₦0</span>
+    </div>
 
-        <input
-        type="hidden"
-        name="invoice_id"
-        id="invoiceId">
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Paid Quotes</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fa-solid fa-circle-check" style="color:#1E7A42; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPaidQuotes">₦0</span>
+    </div>
 
-        <label>
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Partial Payments</span>
+        <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPartialQuotes">₦0</span>
+    </div>
 
-        Payment Method
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Overdue Payment</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fa-solid fa-xmark" style="color:#B23A2A; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardUnpaidQuotes">₦0</span>
+    </div>
 
-        </label>
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Ongoing Quotes</span>
+        <div class="jk-stat-icon" style="background:#F1ECDD;"><i class="fa-solid fa-hourglass-half" style="color:#6E6350; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPendingQuotes">₦0</span>
+    </div>
 
-        <select name="payment_method">
+  </div>
 
-        <option>Cash</option>
+  <div class="jk-report-panel">
+    <h3>Payment Trends</h3>
+    <canvas id="paymentChart" height="90"></canvas>
+  </div>
 
-        <option>Transfer</option>
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="searchInput" class="jk-search-input" placeholder="Search Invoice, Parent, Student, Training...">
+    </div>
 
-        <option>POS</option>
+    <select id="statusFilter" class="jk-select">
+      <option value="">All Status</option>
+      <option value="paid">Paid</option>
+      <option value="partial">Partial</option>
+      <option value="pending">Pending</option>
+    </select>
 
-        <option>Online</option>
+    <select id="paymentFilter" class="jk-select">
+      <option value="">Payment Progress</option>
+      <option value="paid">Fully Paid</option>
+      <option value="balance">Has Balance</option>
+      <option value="excess">Excess Payment</option>
+    </select>
 
-        </select>
+    <select id="dueFilter" class="jk-select">
+      <option value="">Due Date</option>
+      <option value="overdue">Overdue</option>
+      <option value="today">Due Today</option>
+      <option value="upcoming">Upcoming</option>
+    </select>
+  </div>
 
-        <label>
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Invoice No</th>
+          <th>Created Date</th>
+          <th>Due Date</th>
+          <th>Final Payment</th>
+          <th>Parent</th>
+          <th>Students</th>
+          <th>Training</th>
+          <th>Payable</th>
+          <th>Paid</th>
+          <th>Balance</th>
+          <th>Excess</th>
+          <th>Status</th>
+          <th class="jk-col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% invoices.forEach(invoice=>{ %>
+          <tr
+            data-status="<%= invoice.status %>"
+            data-parent="<%= invoice.parent_name.toLowerCase() %>"
+            data-training="<%= invoice.training_title.toLowerCase() %>"
+            data-students="<%= invoice.students.toLowerCase() %>"
+            data-balance="<%= invoice.balance %>"
+            data-excess="<%= invoice.excess_payment %>"
+            data-due="<%= invoice.due_date || '' %>"
+          >
+            <td><strong><%= invoice.invoice_number %></strong></td>
+            <td><%= new Date(invoice.created_at).toLocaleDateString() %></td>
+            <td>
+              <% if(invoice.due_date){ %><%= new Date(invoice.due_date).toLocaleDateString() %><% }else{ %>—<% } %>
+            </td>
+            <td>
+              <% if(invoice.final_payment_date){ %><%= new Date(invoice.final_payment_date).toLocaleDateString() %><% }else{ %>—<% } %>
+            </td>
+            <td>
+              <div class="jk-row-user">
+                <div>
+                  <p class="jk-row-name"><%= invoice.parent_name %></p>
+                  <p class="jk-row-sub"><%= invoice.phone || "" %></p>
+                </div>
+              </div>
+            </td>
+            <td><%= invoice.students %></td>
+            <td><%= invoice.training_title %></td>
+            <td>₦<%= Number(invoice.payable).toLocaleString() %></td>
+            <td>₦<%= Number(invoice.total_paid).toLocaleString() %></td>
+            <td>₦<%= Number(invoice.balance).toLocaleString() %></td>
+            <td>
+              <% if(Number(invoice.excess_payment)>0){ %>
+                <span style="color:#1E7A42; font-weight:700;">₦<%= Number(invoice.excess_payment).toLocaleString() %></span>
+              <% }else{ %>—<% } %>
+            </td>
+            <td>
+              <% if(invoice.status==="paid"){ %>
+                <span class="jk-pill jk-pill--paid">Paid</span>
+              <% }else if(invoice.status==="partial"){ %>
+                <span class="jk-pill jk-pill--partial">Partial</span>
+              <% }else{ %>
+                <span class="jk-pill jk-pill--unpaid">Pending</span>
+              <% } %>
+            </td>
+            <td class="jk-col-actions">
+              <a href="/admin/parent-invoices/<%= invoice.id %>/download" class="jk-icon-btn" title="Download">
+                <i class="fa-solid fa-file-pdf" style="color:#B23A2A;"></i>
+              </a>
+              <a href="/admin/parent-invoices/<%= invoice.id %>/send" class="jk-icon-btn" title="Send">
+                <i class="fa-solid fa-paper-plane" style="color:#2563EB;"></i>
+              </a>
+              <a href="#" onclick="openPaymentModal('<%= invoice.id %>'); return false;" class="jk-icon-btn" title="Add Payment">
+                <i class="fa-solid fa-credit-card" style="color:#1E7A42;"></i>
+              </a>
+              <a href="#" onclick="viewPayments(<%= invoice.id %>); return false;" class="jk-icon-btn" title="Payment History">
+                <i class="fa-solid fa-history" style="color:#6E6350;"></i>
+              </a>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
 
-        Amount
+</section>
 
-        </label>
+<div id="createInvoiceModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal jk-modal--wide">
+    <div class="jk-modal-head">
+      <div>
+        <h4>Create Parent Training Invoice</h4>
+      </div>
+      <button type="button" class="jk-modal-close" onclick="closeModal('createInvoiceModal')">&times;</button>
+    </div>
 
-        <input
-        type="number"
-        name="amount"
-        required>
+    <form action="/admin/parent-training-invoices/create" method="POST" class="jk-modal-body">
 
-        <label>Payment Date</label>
+      <label>Parent</label>
+      <input type="text" id="parentSearch" class="jk-select" style="width:100%;" placeholder="Type parent name..." autocomplete="off">
+      <input type="hidden" name="parent_id" id="parentId">
+      <div id="parentSuggestions" class="autocomplete-box"></div>
 
-        <input
-            type="date"
-            name="payment_date"
-            value="<%= new Date().toISOString().split('T')[0] %>"
-            required>
+      <label>Students</label>
+      <div id="studentContainer">
+        <p style="color:#8A7B55;">Select a parent first.</p>
+      </div>
 
-        <label>
+      <label>Training Title</label>
+      <input type="text" name="training_title" class="jk-select" style="width:100%;" value="Coding &amp; Robotics Training">
 
-        Payment Note
+      <label>Agreed Amount</label>
+      <input type="number" name="agreed_amount" class="jk-select" style="width:100%;" required>
 
-        </label>
+      <label>Discount</label>
+      <input type="number" name="discount" class="jk-select" style="width:100%;" value="0">
 
-        <textarea
-        name="payment_note"
-        rows="3"></textarea>
+      <label>Due Date</label>
+      <input type="date" name="due_date" class="jk-select" style="width:100%;">
 
-        <button type="submit">
+      <label>Grace Period (Days)</label>
+      <input type="number" name="grace_days" class="jk-select" style="width:100%;" value="5" min="0">
 
-        Save Payment
+      <label>Notes</label>
+      <textarea name="notes" rows="4" class="jk-select" style="width:100%;"></textarea>
 
-        </button>
+      <button type="submit" class="jk-btn-dark" style="align-self:flex-start;">Create Invoice</button>
 
     </form>
   </div>
 </div>
 
-<div id="paymentHistoryModal" class="modal-overlay" style="display:none;">
+<!-- Payment modal -->
+<div id="paymentModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4>💳 Add Payment</h4>
+        <p id="quoteInfo"></p>
+      </div>
+      <button type="button" class="jk-modal-close" onclick="closeModal('paymentModal')">&times;</button>
+    </div>
 
-<div class="modal-content" style="max-width:900px;">
+    <form action="/admin/parent-payments" method="POST" class="jk-modal-body">
 
-<span class="close-btn"
-onclick="closeModal('paymentHistoryModal')">
+      <input type="hidden" name="invoice_id" id="invoiceId">
 
-&times;
+      <label>Payment Method</label>
+      <select name="payment_method" class="jk-select" style="width:100%;">
+        <option>Cash</option>
+        <option>Transfer</option>
+        <option>POS</option>
+        <option>Online</option>
+      </select>
 
-</span>
+      <label>Amount</label>
+      <input type="number" name="amount" class="jk-select" style="width:100%;" required>
 
-<h2>Payment History</h2>
+      <label>Payment Date</label>
+      <input type="date" name="payment_date" class="jk-select" style="width:100%;" value="<%= new Date().toISOString().split('T')[0] %>" required>
 
-<div id="paymentHistoryTable">
+      <label>Payment Note</label>
+      <textarea name="payment_note" rows="3" class="jk-select" style="width:100%;"></textarea>
 
-Loading...
+      <button type="submit" class="jk-btn-dark" style="align-self:flex-start;">Save Payment</button>
 
+    </form>
+  </div>
 </div>
 
-</div>
-
+<div id="paymentHistoryModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal jk-modal--wide">
+    <div class="jk-modal-head">
+      <div><h4>Payment History</h4></div>
+      <button type="button" class="jk-modal-close" onclick="closeModal('paymentHistoryModal')">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <div id="paymentHistoryTable">Loading...</div>
+    </div>
+  </div>
 </div>
 
 <!-- chart script -->
@@ -684,7 +343,7 @@ Loading...
   const totalPaid = Number(summary.total_paid || 0);
   const outstanding = Number(summary.outstanding || 0);
 
-  const rate = totalExpected > 0 
+  const rate = totalExpected > 0
     ? ((totalPaid / totalExpected) * 100).toFixed(1)
     : 0;
 
@@ -696,7 +355,6 @@ Loading...
 
   document.getElementById("cardPaidQuotes").innerText = summary.paid_quotes || 0;
   document.getElementById("cardPartialQuotes").innerText = summary.partial_quotes || 0;
-  // document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardPendingQuotes").innerText = summary.pending_quotes || 0;
 </script>
@@ -815,27 +473,6 @@ window.onclick=function(e){
 
         });
 
-    }
-</script>
-<!-- Script for sorting table -->
- <script>
-    function sortTable(colIndex) {
-      const table = document.querySelector("table tbody");
-      const rows = Array.from(table.rows);
-
-      const asc = table.classList.toggle("asc");
-
-      rows.sort((a, b) => {
-        let A = a.cells[colIndex].innerText.replace(/[₦,]/g, "");
-        let B = b.cells[colIndex].innerText.replace(/[₦,]/g, "");
-
-        A = isNaN(A) ? A : Number(A);
-        B = isNaN(B) ? B : Number(B);
-
-        return asc ? (A > B ? 1 : -1) : (A < B ? 1 : -1);
-      });
-
-      rows.forEach(row => table.appendChild(row));
     }
 </script>
 
@@ -1006,7 +643,7 @@ async function loadStudents(parentId){
 
 }
 </script>
- 
+
 <script>
     async function viewPayments(invoiceId){
 
@@ -1017,7 +654,7 @@ async function loadStudents(parentId){
         const payments = await res.json();
 
         let html = `
-        <table class="user-table">
+        <table class="jk-table">
 
         <thead>
 
