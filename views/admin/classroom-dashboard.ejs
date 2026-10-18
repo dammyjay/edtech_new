@@ -1,297 +1,187 @@
 <%- include('../partials/adminHeader', { title: classroom.school_name }) %>
 
+<section class="section jk-page">
 
-<section class="section">
-    <div style="background:var(--grey);padding:20px;border-radius:8px;margin-bottom:20px;">
-        <img src="<%= classroom.school_logo %>" alt="School Logo" style="width:100px;height:100px;object-fit:cover;">
-        <h2><%= classroom.school_name %></h2>
-        <p><strong>Email:</strong> <%= classroom.school_email %></p>
-        <p><strong>Phone:</strong> <%= classroom.school_phone %></p>
-        <p><strong>Address:</strong> <%= classroom.school_address %></p>
-
-        
-
-        <div class="multi-btn">
-            <button class="btn-sec" onclick="window.location.href='/admin/schools/<%= classroom.school_id %>'">← Back to School Details</button>
-            <button class="btn-pri" onclick="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard/export<%= selectedTerm ? '?term_id=' + selectedTerm.id : '' %>'">Download Classroom PDF</button>
-        </div>
-
-        <% if (terms && terms.length) { %>
-        <div style="margin-top:15px;">
-            <label for="analyticsTermSelect"><strong>Analytics Term:</strong></label>
-            <select id="analyticsTermSelect" onchange="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
-                <% terms.forEach(t => { %>
-                <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
-                    <%= t.name %><%= t.is_active ? ' (Active)' : '' %><%= t.is_ended ? ' (Ended)' : '' %>
-                </option>
-                <% }) %>
-            </select>
-            <p style="color:#666; font-size:12px; margin-top:6px;">
-                Controls the metrics/leaderboard/course breakdown below. Separate from the Report Centre's own term selector further down.
-            </p>
-        </div>
-        <% } %>
-
-        <hr>
-
-        <!-- <div class="report-generator">
-
-            <label><strong>Select Academic Term</strong></label>
-
-            <select id="termSelect">
-
-                <% terms.forEach(term=>{ %>
-
-                    <option value="<%= term.id %>">
-
-                        <%= term.name %>
-
-                    </option>
-
-                <% }) %>
-
-            </select>
-
-            <button
-                id="generateReportBtn"
-                class="btn-pri">
-
-                📄 Generate AI Term Report
-
-            </button>
-
-        </div> -->
+  <div class="jk-header-card">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <img src="<%= classroom.school_logo %>" alt="" style="width:64px; height:64px; border-radius:12px; object-fit:cover; background:#FAF8F2;">
+      <div>
+        <h2><%= classroom.school_name %> — <%= classroom.name %></h2>
+        <p><%= classroom.school_email %> · <%= classroom.school_phone %> · <%= classroom.school_address %></p>
+      </div>
     </div>
-</section>
+    <div style="display:flex; gap:8px;">
+      <button class="jk-btn-outline" onclick="window.location.href='/admin/schools/<%= classroom.school_id %>'" type="button">← Back to School Details</button>
+      <button class="jk-btn-dark" onclick="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard/export<%= selectedTerm ? '?term_id=' + selectedTerm.id : '' %>'" type="button">Download Classroom PDF</button>
+    </div>
+  </div>
 
+  <% if (terms && terms.length) { %>
+  <div class="jk-toolbar" style="margin-bottom:28px;">
+    <label style="font-size:12.5px; font-weight:700; color:#4C3802;">Analytics Term:</label>
+    <select id="analyticsTermSelect" class="jk-select" onchange="window.location.href='/admin/classrooms/<%= classroom.id %>/dashboard?term_id=' + this.value">
+      <% terms.forEach(t => { %>
+      <option value="<%= t.id %>" <%= selectedTerm && selectedTerm.id === t.id ? 'selected' : '' %>>
+          <%= t.name %><%= t.is_active ? ' (Active)' : '' %><%= t.is_ended ? ' (Ended)' : '' %>
+      </option>
+      <% }) %>
+    </select>
+    <span style="color:#8A7B55; font-size:12px;">Controls the metrics/leaderboard/course breakdown below — separate from the Report Centre's own term selector.</span>
+  </div>
+  <% } %>
 
+  <div class="jk-report-panel">
+    <h3>📑 Report Centre</h3>
 
-<section class="section">
-
-    <h2>📑 Report Centre</h2>
-
-    <div class="report-centre">
-
-        <div class="report-header">
-
-            <label>Academic Term</label>
-            <select id="termSelect">
-
-                <% terms.forEach(term=>{ %>
-
-                    <option value="<%= term.id %>">
-                        <%= term.name %>
-                    </option>
-
-                <% }) %>
-
-            </select>
-
-        </div>
-
-        <br>
-
-        <div class="report-header">
-
-            <label>Student</label>
-            <select id="studentSelect">
-
-                <% students.forEach(student=>{ %>
-
-                    <option value="<%= student.id %>">
-
-                        <%= student.fullname %>
-
-                    </option>
-
-                <% }) %>
-
-            </select>
-
-        </div>
-
-        <br>
-
-        <div class="report-actions">
-
-            <button
-                id="btnFullReport"
-                class="btn-pri">
-
-                📄 Generate Full Class Report
-
-            </button>
-
-            <button
-                id="btnStudentReport"
-                class="btn-sec">
-
-                👨‍🎓 Generate Student Report
-
-            </button>
-
-            <button class="btn-sec">
-
-                📧 Email Reports
-
-            </button>
-
-            <button class="btn-sec">
-
-                📊 Export Excel
-
-            </button>
-
-        </div>
-
+    <div class="jk-toolbar" style="margin-top:12px;">
+      <div>
+        <label style="display:block; font-size:12px; font-weight:700; color:#4C3802; margin-bottom:4px;">Academic Term</label>
+        <select id="termSelect" class="jk-select">
+          <% terms.forEach(term=>{ %>
+            <option value="<%= term.id %>"><%= term.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:12px; font-weight:700; color:#4C3802; margin-bottom:4px;">Student</label>
+        <select id="studentSelect" class="jk-select">
+          <% students.forEach(student=>{ %>
+            <option value="<%= student.id %>"><%= student.fullname %></option>
+          <% }) %>
+        </select>
+      </div>
     </div>
 
-</section>
-
-<h2>📊 <%= classroom.name %> - Classroom Analytics</h2>
-
-<section class="section">
-    <div class="engagement-grid">
-        <div class="metric-card">
-            <div class="card-title blue-bg">
-                <p>Total Students</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon blue-bg">
-                    <i class="fa-solid fa-users"></i>
-                </div>
-                <h4><%= totalStudents %></h4>
-            </div>
-        </div>
-
-        <div class="metric-card">
-            <div class="card-title green-bg">
-                <p>Average Completion</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon green-bg">
-                    <i class="fa-solid fa-book-open"></i>
-                </div>
-                <h4><%= averageCompletion %>%</h4>
-            </div>
-        </div>
-
-        <div class="metric-card">
-            <div class="card-title pink-bg">
-                <p>Average Quiz Score</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon pink-bg">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <h4><%= averageQuiz %>%</h4>
-            </div>
-        </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">
+      <button id="btnFullReport" class="jk-btn-dark" type="button">📄 Generate Full Class Report</button>
+      <button id="btnStudentReport" class="jk-btn-outline" type="button">👨‍🎓 Generate Student Report</button>
+      <button class="jk-btn-outline" type="button">📧 Email Reports</button>
+      <button class="jk-btn-outline" type="button">📊 Export Excel</button>
     </div>
-</section>
+  </div>
 
+  <div class="jk-section-head" style="margin-top:28px;">
+    <h3>📊 Classroom Analytics</h3>
+  </div>
 
-<hr>
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(3, minmax(0,1fr));">
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Students</span>
+        <div class="jk-stat-icon" style="background:#E9F3FB;"><i class="fa-solid fa-users" style="color:#1F7AC9; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value"><%= totalStudents %></span>
+    </div>
 
-<section class="section">
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Average Completion</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fa-solid fa-book-open" style="color:#1E7A42; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value"><%= averageCompletion %>%</span>
+    </div>
+
+    <div class="jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Average Quiz Score</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fa-solid fa-chart-line" style="color:#C9598A; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value"><%= averageQuiz %>%</span>
+    </div>
+  </div>
+
+  <div class="jk-section-head" style="margin-top:28px;">
     <h3>📚 Courses This Term</h3>
-    <div class="table-responsive">
-        <table class="user-table sortable-table">
-            <thead>
-                <tr>
-                    <th>Course</th>
-                    <th>Level</th>
-                    <th>Lessons</th>
-                    <th>Students Engaged</th>
-                    <th>Avg Completion</th>
-                    <th>Avg Quiz Score</th>
-                </tr>
-            </thead>
-            <tbody>
-            <% if (courseBreakdown && courseBreakdown.length) { %>
-                <% courseBreakdown.forEach(course => { %>
-                <tr>
-                    <td><%= course.title %></td>
-                    <td><%= course.level || '-' %></td>
-                    <td><%= course.totalLessons %></td>
-                    <td><%= course.studentsEngaged %> / <%= course.totalStudents %></td>
-                    <td><%= course.avgCompletion %>%</td>
-                    <td><%= course.avgQuiz %>%</td>
-                </tr>
-                <% }) %>
-            <% } else { %>
-                <tr><td colspan="6" style="text-align:center;">No courses assigned to this classroom yet</td></tr>
-            <% } %>
-            </tbody>
-        </table>
-    </div>
-</section>
+  </div>
+  <div class="jk-table-wrap" style="margin-bottom:28px;">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Level</th>
+          <th>Lessons</th>
+          <th>Students Engaged</th>
+          <th>Avg Completion</th>
+          <th>Avg Quiz Score</th>
+        </tr>
+      </thead>
+      <tbody>
+      <% if (courseBreakdown && courseBreakdown.length) { %>
+        <% courseBreakdown.forEach(course => { %>
+        <tr>
+          <td><%= course.title %></td>
+          <td><%= course.level || '-' %></td>
+          <td><%= course.totalLessons %></td>
+          <td><%= course.studentsEngaged %> / <%= course.totalStudents %></td>
+          <td><%= course.avgCompletion %>%</td>
+          <td><%= course.avgQuiz %>%</td>
+        </tr>
+        <% }) %>
+      <% } else { %>
+        <tr><td colspan="6" style="text-align:center; color:#8A7B55;">No courses assigned to this classroom yet</td></tr>
+      <% } %>
+      </tbody>
+    </table>
+  </div>
 
-<hr>
-
-<section class="section">
+  <div class="jk-section-head">
     <h3>📈 Lesson Completion Chart</h3>
+  </div>
+  <div class="jk-report-panel" style="margin-bottom:28px;">
     <canvas id="completionChart"></canvas>
-</section>
+  </div>
 
-<section class="section">
+  <div class="jk-section-head">
     <h3>🏆 Leaderboard</h3>
-    <div class="table-responsive">
-        <table class="user-table sortable-table">
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Name</th>
-                    <th>Lessons</th>
-                    <th>Completion %</th>
-                    <th>Quiz Avg</th>
-                    <th>Pace</th>
-                    <th>Overall</th>
-                    <th>Progress</th>
-                </tr>
-            </thead>
-            <tbody>
-            <% leaderboard.forEach((student, index) => { %>
-                <tr>
-                    <td><%= index + 1 %></td>
-                    <td><%= student.fullname %></td>
-                    <td>
-                        <%= student.completedLessons %> /
-                        <%= student.totalLessons %>
-                    </td>
-                    <td><%= student.completionPercent %>%</td>
-                    <td><%= student.quizAvg %>%</td>
-                    <td><%= student.avgDaysToComplete !== null ? student.avgDaysToComplete + 'd avg' : '-' %></td>
-                    <td><strong><%= student.overallScore %>%</strong></td>
-                    <td>
-                        <a href="/admin/students/<%= student.id %>/progress?from=admin"
-                        class="btn-edit"
-                        style="background:green; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                        Progress
-                        </a>
-                    </td>
-                </tr>
-            <% }) %>
-            </tbody>
-        </table>
-    </div>
-</section>
+  </div>
+  <div class="jk-table-wrap" style="margin-bottom:28px;">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Name</th>
+          <th>Lessons</th>
+          <th>Completion %</th>
+          <th>Quiz Avg</th>
+          <th>Pace</th>
+          <th>Overall</th>
+          <th class="jk-col-actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+      <% leaderboard.forEach((student, index) => { %>
+        <tr>
+          <td><%= index + 1 %></td>
+          <td><%= student.fullname %></td>
+          <td>
+              <%= student.completedLessons %> /
+              <%= student.totalLessons %>
+          </td>
+          <td><%= student.completionPercent %>%</td>
+          <td><%= student.quizAvg %>%</td>
+          <td><%= student.avgDaysToComplete !== null ? student.avgDaysToComplete + 'd avg' : '-' %></td>
+          <td><strong><%= student.overallScore %>%</strong></td>
+          <td class="jk-col-actions">
+              <a href="/admin/students/<%= student.id %>/progress?from=admin" class="jk-btn-outline-sm" style="text-decoration:none;">Progress</a>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
 
-
-<hr>
-
-<section class="section">
-  <h3>⚠️ At Risk Students</h3>
-
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-section-head">
+    <h3>⚠️ At Risk Students</h3>
+  </div>
+  <div class="jk-table-wrap" style="margin-bottom:28px;">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Name</th>
           <th>Lessons</th>
           <th>Completion %</th>
           <th>Quiz Avg</th>
-          <th>Progress</th>
+          <th class="jk-col-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -300,27 +190,23 @@
             <tr>
               <td><%= student.fullname %></td>
               <td>
-                <%= student.completedLessons %> / 
+                <%= student.completedLessons %> /
                 <%= student.totalLessons %>
               </td>
-              <td style="color:#e74c3c;">
+              <td style="color:#B23A2A; font-weight:700;">
                 <%= student.completionPercent %>%
               </td>
-              <td style="color:#e74c3c;">
+              <td style="color:#B23A2A; font-weight:700;">
                 <%= student.quizAvg %>%
               </td>
-                <td>
-                    <a href="/admin/students/<%= student.id %>/progress?from=admin"
-                    class="btn-edit"
-                    style="background:#e74c3c; color:#fff; padding:5px 8px; border-radius:4px; text-decoration:none;">
-                    Progress
-                    </a>
-                </td>
+              <td class="jk-col-actions">
+                  <a href="/admin/students/<%= student.id %>/progress?from=admin" class="jk-btn-outline-sm" style="text-decoration:none; color:#B23A2A; border-color:#F3D4CE;">Progress</a>
+              </td>
             </tr>
           <% }) %>
         <% } else { %>
           <tr>
-            <td colspan="4" style="text-align:center;">
+            <td colspan="5" style="text-align:center; color:#8A7B55;">
               ✅ No students at risk
             </td>
           </tr>
@@ -328,29 +214,27 @@
       </tbody>
     </table>
   </div>
-</section>
 
-<% if (selectedTerm && selectedTerm.is_ended) { %>
-<hr>
-
-<section class="section">
-  <h3>🔒 Locked Students <small style="font-weight:normal; color:#666;">(term ended)</small></h3>
-  <p style="color:#666; font-size:13px;">
+  <% if (selectedTerm && selectedTerm.is_ended) { %>
+  <div class="jk-section-head">
+    <h3>🔒 Locked Students <small style="font-weight:normal; color:#8A7B55;">(term ended)</small></h3>
+  </div>
+  <p style="color:#6E6350; font-size:13px; margin-top:-12px;">
     This term has ended. Students below have unfinished lessons in it and are locked out of continuing
     until the term is reactivated for them — pay from their wallet (student-initiated), or reactivate here for free.
   </p>
 
   <% if (!lockedStudents || !lockedStudents.length) { %>
-    <p style="color:#666;">✅ No students have unfinished, locked content in this term.</p>
+    <p style="color:#8A7B55;">✅ No students have unfinished, locked content in this term.</p>
   <% } else { %>
-    <div class="table-responsive">
-      <table class="user-table sortable-table">
+    <div class="jk-table-wrap">
+      <table class="jk-table sortable-table">
         <thead>
           <tr>
             <th>Name</th>
             <th>Locked Courses</th>
             <th>Reactivation Price</th>
-            <th>Action</th>
+            <th class="jk-col-actions"></th>
           </tr>
         </thead>
         <tbody>
@@ -361,9 +245,9 @@
                 <%= stu.priceInfo.courses.map(c => c.title + ' (' + c.completedLessons + '/' + c.totalLessons + ')').join(', ') %>
               </td>
               <td>₦<%= stu.priceInfo.totalPrice.toLocaleString() %></td>
-              <td>
+              <td class="jk-col-actions">
                 <form method="POST" action="/admin/classrooms/<%= classroom.id %>/terms/<%= selectedTerm.id %>/students/<%= stu.id %>/reactivate">
-                  <button type="submit" class="btn-edit" style="background:#2ecc71; color:#fff; padding:5px 8px; border-radius:4px; border:none; cursor:pointer;">
+                  <button type="submit" class="jk-btn-outline-sm" style="color:#1E7A42; border-color:#B6DFC4;">
                     🔓 Reactivate
                   </button>
                 </form>
@@ -374,8 +258,9 @@
       </table>
     </div>
   <% } %>
+  <% } %>
+
 </section>
-<% } %>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -393,42 +278,6 @@ new Chart(ctx, {
   }
 });
 </script>
-
-<!-- <script>
-
-    document.addEventListener("DOMContentLoaded", () => {
-
-        const fullBtn = document.getElementById("btnFullReport");
-
-        const studentBtn = document.getElementById("btnStudentReport");
-
-        fullBtn.addEventListener("click", () => {
-
-            const termId =
-                document.getElementById("termSelect").value;
-
-            window.location.href =
-                `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/download`;
-
-        });
-
-        studentBtn.addEventListener("click", () => {
-
-            const termId =
-                document.getElementById("termSelect").value;
-
-            const studentId =
-                document.getElementById("studentSelect").value;
-
-            window.location.href =
-                `/admin/reports/<%= classroom.school_id %>/<%= classroom.id %>/${termId}/student/${studentId}/download`;
-
-        });
-
-    });
-
-</script> -->
-
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
