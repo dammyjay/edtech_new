@@ -1,24 +1,24 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <h2><%= course.title %></h2>
+    <section class="section jk-page">
 
-    <!-- <ul class="tab-list">
-      <li class="<%= activeTab === 'details' ? 'active' : '' %>">
-        <a href="?tab=details">Course Details</a>
-      </li>
-      <li class="<%= activeTab === 'modules' ? 'active' : '' %>">
-        <a href="?tab=modules">Modules</a>
-      </li>
-      <li class="<%= activeTab === 'lessons' ? 'active' : '' %>">
-        <a href="?tab=lessons">Lessons</a>
-      </li>
-      <li class="<%= activeTab === 'assignment' ? 'active' : '' %>">
-        <a href="?tab=assignment">Assignment</a>
-      </li>
-      <li class="<%= activeTab === 'project' ? 'active' : '' %>">
-        <a href="?tab=project">Capstone Project</a>
-      </li>
-    </ul> -->
+    <div class="jk-header-card">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <% if (course.thumbnail_url) { %>
+          <img src="<%= course.thumbnail_url %>" alt="" style="width:54px; height:54px; border-radius:10px; object-fit:cover; flex:0 0 auto; background:#FAF8F2;">
+        <% } %>
+        <div>
+          <h2><%= course.title %></h2>
+          <p><%= course.level %> · ₦<%= Number(course.amount || 0).toLocaleString() %></p>
+        </div>
+      </div>
+      <a href="/admin/courses/<%= course.id %>/certificate-preview"
+        target="_blank"
+        class="jk-btn-outline"
+        style="text-decoration:none;">
+        🎓 Preview Certificate
+      </a>
+    </div>
 
     <div class="login-tabs scroll-tabs">
 
@@ -80,11 +80,7 @@
       <% } %>
     </div>
 
-    <a href="/admin/courses/<%= course.id %>/certificate-preview" 
-      target="_blank"
-      class="btn btn-primary">
-      Preview Certificate
-    </a>
+    </section>
 
     <!-- SCRIPT SECTION -->
     <script>
@@ -150,9 +146,9 @@
 
     <!-- script to preview image before upload -->
     <script>
-      document
-        .getElementById("imageInput")
-        .addEventListener("change", function () {
+      const imageInput = document.getElementById("imageInput");
+      if (imageInput) {
+        imageInput.addEventListener("change", function () {
           const preview = document.getElementById("imagePreview");
           const file = this.files[0];
           if (file) {
@@ -167,6 +163,7 @@
             preview.style.display = "none";
           }
         });
+      }
     </script>
 
     <!-- script to filter level for each career pathway -->

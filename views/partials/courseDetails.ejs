@@ -1,5 +1,5 @@
 
-<button class="btn-create" onclick="openEditModal('course')">✏️ Edit Course</button>
+<button class="jk-btn-dark" onclick="openEditModal('course')">✏️ Edit Course</button>
 
 <div id="editModal-course" class="modal">
   <div class="modal-content">
@@ -41,42 +41,58 @@
 </div>
 
 
-<div class="course-details">
-  <img src="<%= course.thumbnail_url %>" style="width: 300px; height:200px; object-fit: contain;" alt="">
-  <h2 style="text-align: left;"><%= course.title %></h2>
-  <p>Course ID: <%= course.id %></p>
-  <p><strong>Level:</strong> <%= course.level %></p>
-  <p><strong>Description:</strong> <%- course.description %></p>
-  <p><strong>Level:</strong> <%= course.Level %></p>
-  <p><strong>Created At:</strong> <%= course.created_at.toDateString() %></p>
-  <p><strong>sort number</strong> <%= course.sort_order %></p>
-  <p><strong>Price: </strong> ₦ <%= course.amount %></p>
+<div class="course-details jk-report-panel" style="margin-top:16px;">
+  <% if (course.thumbnail_url) { %>
+    <img src="<%= course.thumbnail_url %>" style="width: 220px; height:150px; object-fit: cover; border-radius:10px; background:#FAF8F2;" alt="">
+  <% } %>
 
-   <h3>Course Curriculum</h3>
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr)); margin-top:16px;">
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Course ID</span></div>
+      <span class="jk-stat-value" style="font-size:18px;"><%= course.id %></span>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Level</span></div>
+      <span class="jk-stat-value" style="font-size:18px;"><%= course.level %></span>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Price</span></div>
+      <span class="jk-stat-value" style="font-size:18px;">₦<%= Number(course.amount || 0).toLocaleString() %></span>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Sort Order</span></div>
+      <span class="jk-stat-value" style="font-size:18px;"><%= course.sort_order %></span>
+    </div>
+  </div>
+
+  <p style="color:#6E6350; font-size:12.5px; margin-top:14px;">Created <%= course.created_at.toDateString() %></p>
+
+  <h3 style="margin-top:10px;"><strong>Description</strong></h3>
+  <div><%- course.description %></div>
+
+   <h3 style="margin-top:18px;">Course Curriculum</h3>
       <div class="curriculum-content">
         <%- course.curriculum_content %>
       </div>
 
     <a
       href="/admin/courses/<%= course.id %>/curriculum/download"
-      class="btn btn-outline-primary"
-      style="margin-top:15px;"
+      class="jk-btn-outline"
+      style="margin-top:15px; display:inline-flex; text-decoration:none;"
     >
       📥 Download Curriculum (PDF)
     </a>
 
   <% if (course.certificate_url) { %>
-  <p><strong>Certificate Template:</strong></p>
+  <p style="margin-top:18px;"><strong>Certificate Template:</strong></p>
   <% if (course.certificate_url.endsWith('.pdf')) { %>
     <a href="<%= course.certificate_url %>" target="_blank">📄 View Certificate PDF</a>
   <% } else { %>
     <img src="<%= course.certificate_url %>" style="max-width:300px; border-radius:8px;">
   <% } %>
   <% } else { %>
-    <p>No certificate file uploaded.</p>
+    <p style="margin-top:18px; color:#8A7B55;">No certificate file uploaded.</p>
   <% } %>
-
-  
 </div>
 
 <script>
