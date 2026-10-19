@@ -62,30 +62,24 @@
       </div>
     </div>
 
-    <div class="container2">
-        <button onclick="openModal()" class="btn-pri">
-        + Create New Course
+    <section class="section jk-page">
+
+      <div class="jk-header-card">
+        <div>
+          <h2>Course Catalog</h2>
+          <p>Create, edit and organize every course on the platform.</p>
+        </div>
+        <button onclick="openModal()" class="jk-btn-dark">
+          + Create New Course
         </button>
-    </div>
+      </div>
 
-    <!-- <form method="GET" action="/admin/courses" style="margin-top: 20px">
-      <input
-        type="text"
-        name="search"
-        placeholder="Search by title..."
-        value="<%= search || '' %>"
-      />
-      <button class="btn-sec" type="submit">Search</button>
-    </form> -->
-    <div style="margin-top:20px;">
-      <input
-        type="text"
-        id="courseSearch"
-        placeholder="Search courses..."
-      />
-    </div>
-
-    <h2>Existing Courses</h2>
+      <div class="jk-toolbar">
+        <div class="jk-search-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="courseSearch" class="jk-search-input" placeholder="Search courses...">
+        </div>
+      </div>
 
 <div class="login-tabs">
   <button class="login-tab active" onclick="filterByPathway('All', this)">All Pathways</button>
@@ -96,16 +90,16 @@
 
   <% for (let pathway in groupedCourses) { %>
   <div class="pathway-group" data-pathway="<%= pathway %>">
-    <h2 style="margin-top: 2rem; color: goldenrod;"><%= pathway %></h2>
+    <h2 style="margin-top: 2rem; color: var(--brand-pri-dark);"><%= pathway %></h2>
 
     <% for (let level in groupedCourses[pathway]) { %>
       <div class="course-level-section" data-level="<%= level %>">
         <h3 style="margin-top: 1rem; color: #444;"><%= level %> Level</h3>
         <div class="section">
-          <section class="course-scroll-container">
+          <section class="course-scroll-container jk-course-grid">
             <% groupedCourses[pathway][level].forEach(course => { %>
               <div
-                class="card-thumbnail hoverable scroll-card"
+                class="card-thumbnail hoverable scroll-card jk-course-card"
                 data-title="<%= course.title.toLowerCase() %>"
                 data-pathway="<%= pathway.toLowerCase() %>"
                 data-level="<%= level.toLowerCase() %>"
@@ -214,10 +208,9 @@
   </div>
 <% } %>
 
+    <a href="/admin/dashboard" class="jk-btn-outline" style="display:inline-flex; text-decoration:none; margin-top:20px;">⬅ Back to Dashboard</a>
 
-
-
-    <a href="/admin/dashboard">Back to Dashboard</a>
+    </section>
 
 
     <!-- script for ckeditor -->

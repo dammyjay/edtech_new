@@ -130,9 +130,9 @@
 
 /* Pill-style tab bar, replacing the plain gray login-tabs look */
 .login-tabs { display: flex; gap: 4px; border-bottom: 1.5px solid #E7E0CE; margin: 22px 0; overflow-x: auto; }
-.login-tab { background: none; border: none; cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 13.5px; white-space: nowrap; color: #9A8C66; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; font-family: inherit; }
+.login-tab { background: none; border: none; cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 13.5px; white-space: nowrap; color: #9A8C66; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; font-family: inherit;}
 .login-tab.active { color: var(--brand-pri-dark); border-bottom-color: var(--brand-pri); }
-.login-tab:hover:not(.active) { color: var(--brand-pri-dark); }
+.login-tab:hover:not(.active) { color: var(--brand-pri); }
 
 /* ===== Toolbar + searchable/filterable list pattern ===== */
 .jk-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -221,3 +221,22 @@ select.jk-select, input.jk-select { width: auto; padding: 9px 12px; border-radiu
 .suggestion-item:hover { background: #FAF8F2; }
 .suggestion-item strong { color: #1A1510; }
 .suggestion-item small { color: #6E6350; }
+
+/* Course/pathway card grid (courses.ejs, pathways.ejs, pathwayCourses.ejs)
+   — an additive class alongside each page's existing .card-thumbnail etc.
+   so none of their JS selectors or data-* attributes change; this only
+   supplies the visual facelift. Scoped under .jk-course-card so it can't
+   leak onto the public-facing home.ejs, which reuses the bare
+   .card-thumbnail class but never loads this stylesheet. */
+.jk-course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+.jk-course-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: box-shadow 0.15s, transform 0.15s; }
+.jk-course-card:hover { box-shadow: 0 10px 28px rgba(26,21,16,0.1); transform: translateY(-2px); }
+.jk-course-card > img { width: 100%; height: 140px; object-fit: cover; background: #FAF8F2; }
+.jk-course-card .card-content { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
+.jk-course-card h4 { margin: 0; font-size: 15px; font-weight: 800; color: #1A1510; }
+.jk-course-card .card-body { font-size: 12.5px; color: #6E6350; line-height: 1.5; margin: 2px 0; }
+.jk-course-card .article-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.jk-course-card .article-buttons button,
+.jk-course-card .article-buttons .overview-trigger-btn { background: #F6F4EF; color: #4C3802; border: 1px solid #EDE7D6; border-radius: 8px; padding: 6px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.jk-course-card .article-buttons .btn-edit { background: #201B12; color: #EDE6D6; border-color: #201B12; }
+.jk-course-card .article-buttons .btn-delete { background: #FDEEEC; color: #B23A2A; border-color: #F7D9D4; }
