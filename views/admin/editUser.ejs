@@ -1,48 +1,64 @@
-<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+<%- include('../partials/adminHeader', { info: info, role: role, currentPage: 'dashboard' }) %>
 
-  <h2>Edit User</h2>
-<form action="/admin/users/edit/<%= user.id %>" method="POST">
-  <label>Full Name</label><br />
-  <input type="text" name="fullname" value="<%= user.fullname %>" required /><br /><br />
+<section class="section jk-page">
 
-  <label>Email</label><br />
-  <input type="email" name="email" value="<%= user.email %>" required /><br /><br />
+  <div class="jk-header-card">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="jk-avatar" style="width:54px; height:54px; font-size:20px; background:#A17807;"><%= (user.fullname || '?').trim().charAt(0).toUpperCase() %></div>
+      <div>
+        <h2>Edit User</h2>
+        <p><%= user.fullname %> · <%= user.email %></p>
+      </div>
+    </div>
+    <a class="jk-btn-outline" style="text-decoration:none;" href="/admin/dashboard">⬅ Back to Dashboard</a>
+  </div>
 
-  <label>Phone</label><br />
-  <input type="text" name="phone" value="<%= user.phone || '' %>" /><br /><br />
+  <div class="jk-report-panel" style="max-width:560px;">
+    <form action="/admin/users/edit/<%= user.id %>" method="POST" style="display:flex; flex-direction:column; gap:14px;">
 
-  <label>Gender</label><br />
-  <select name="gender" required>
-    <!-- <option value="male" <%= user.gender === 'male' ? 'selected' : '' %>>Male</option>
-    <option value="female" <%= user.gender === 'female' ? 'selected' : '' %>>Female</option> -->
-    <option value="male" <%= user.gender === 'male' ? 'selected' : '' %>>Male</option>
-    <option value="female" <%= user.gender === 'female' ? 'selected' : '' %>>Female</option>
+      <div>
+        <label>Full Name</label><br />
+        <input type="text" name="fullname" class="jk-select" style="width:100%; margin-top:4px;" value="<%= user.fullname %>" required />
+      </div>
 
-  </select><br /><br />
+      <div>
+        <label>Email</label><br />
+        <input type="email" name="email" class="jk-select" style="width:100%; margin-top:4px;" value="<%= user.email %>" required />
+      </div>
 
-  <label>Role</label><br />
-  <select name="role" required>
-    <option value="admin" <%= role === 'admin' ? 'selected' : '' %>>Admin</option> 
-    <option value="user" <%= role === 'user' ? 'selected' : '' %>>User</option> 
-    <option value="instructor" <%= role === 'instructor' ? 'selected' : '' %>>Instructor</option> 
-    <option value="teacher" <%= role === 'teacher' ? 'selected' : '' %>>Teacher</option> 
-    <option value="student" <%= role === 'student' ? 'selected' : '' %>>Student</option> 
-    <option value="school_admin" <%= role === 'school_admin' ? 'selected' : '' %>>School Admin</option> 
-    <option value="parent" <%= role === 'parent' ? 'selected' : '' %>>Parent</option> 
-  </select><br /><br />
-  <label>Wallet Balance ($)</label><br />
-  <input type="number" step="0.01" name="wallet_balance2" value ="<%= user.wallet_balance2 %>" /><br /><br />
-  
+      <div>
+        <label>Phone</label><br />
+        <input type="text" name="phone" class="jk-select" style="width:100%; margin-top:4px;" value="<%= user.phone || '' %>" />
+      </div>
 
-  <button type="submit">Update User</button>
-</form>
+      <div>
+        <label>Gender</label><br />
+        <select name="gender" class="jk-select" style="width:100%; margin-top:4px;" required>
+          <option value="male" <%= user.gender === 'male' ? 'selected' : '' %>>Male</option>
+          <option value="female" <%= user.gender === 'female' ? 'selected' : '' %>>Female</option>
+        </select>
+      </div>
 
-  <a href="/admin/dashboard">Back to Articles</a>
+      <div>
+        <label>Role</label><br />
+        <select name="role" class="jk-select" style="width:100%; margin-top:4px;" required>
+          <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+          <option value="user" <%= user.role === 'user' ? 'selected' : '' %>>User</option>
+          <option value="instructor" <%= user.role === 'instructor' ? 'selected' : '' %>>Instructor</option>
+          <option value="teacher" <%= user.role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+          <option value="student" <%= user.role === 'student' ? 'selected' : '' %>>Student</option>
+          <option value="school_admin" <%= user.role === 'school_admin' ? 'selected' : '' %>>School Admin</option>
+          <option value="parent" <%= user.role === 'parent' ? 'selected' : '' %>>Parent</option>
+        </select>
+      </div>
 
-  <!-- script for navbar hamburger -->
-    <script>
-      function toggleNav() {
-        var nav = document.getElementById("main-nav");
-        nav.classList.toggle("open");
-      }
-    </script>
+      <div>
+        <label>Wallet Balance ($)</label><br />
+        <input type="number" step="0.01" name="wallet_balance2" class="jk-select" style="width:100%; margin-top:4px;" value="<%= user.wallet_balance2 %>" />
+      </div>
+
+      <button type="submit" class="jk-btn-dark" style="align-self:flex-start;">💾 Update User</button>
+    </form>
+  </div>
+
+</section>
