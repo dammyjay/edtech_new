@@ -1,160 +1,103 @@
 
 <%- include('../partials/adminHeader', { title: 'Quotes' }) %>
 
-  <style>
-    /* small local styles — integrate into your style.css later */
-    .analytics-container { width: 95%; margin: 20px auto; padding: 20px;}
-    .cards { display:flex; gap:16px; flex-wrap:wrap; }
-    .card { background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.08); flex:1 1 220px; min-width:180px; }
-    .charts { display:flex; gap:16px; margin-top:16px; flex-wrap:wrap; }
-    .chart-card { flex:1 1 480px; background:#fff; padding:16px; border-radius:8px; }
-    .table-responsive { margin-top:20px; }
-    .filter-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
-    .activity-feed { max-height:360px; overflow:auto; background:#fff; padding:12px; border-radius:8px; }
-  </style>
+<section class="section jk-page">
 
-<h2>All Quotes</h2>
-
-<div class="analytics-container">
-  <h1>Financial Analytics</h1>
-
-  <div class="filter-row">
-    <!-- <label>Range:
-      <select id="rangeSelect">
-        <option value="7">Last 7 days</option>
-        <option value="30" selected>Last 30 days</option>
-        <option value="90">Last 90 days</option>
-      </select>
-    </label> -->
-
-    <label style="margin-left:8px;">School:
-      <select id="schoolFilter"><option value="">All Schools</option></select>
-    </label>
-
-    <button id="refreshBtn">Refresh</button>
-  </div>
-
-  <!-- 🔥 FINANCE CARDS -->
-  <section class="section">
-    <div class="engagement-grid">
-
-      <!-- TOTAL EXPECTED -->
-      <div class="metric-card">
-            <div class="card-title blue-bg">
-                <p>Total Expected</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon blue-bg">
-                  <i class="fa-solid fa-money-bill-wave"></i>
-                </div>
-                <h4 id="cardTotalExpected">₦0</h4>
-            </div>
-        </div>
-
-      <!-- TOTAL PAID -->
-       <div class="metric-card">
-            <div class="card-title dark-green-bg">
-                <p>Total Collected</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-green-bg">
-                  <i class="fa-solid fa-check"></i>
-                </div>
-                <h4 id="cardTotalPaid">₦0</h4>
-            </div>
-        </div>
-
-      <!-- OUTSTANDING -->
-       <div class="metric-card">
-            <div class="card-title dark-red-bg">
-                <p>Outstanding</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-red-bg">
-                  <i class="fa-solid fa-clock"></i>
-                </div>
-                <h4 id="cardOutstanding">₦0</h4>
-            </div>
-        </div>
-
-      <!-- COLLECTION RATE -->
-       <div class="metric-card">
-            <div class="card-title purple-bg">
-                <p>Collection Rate</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon purple-bg">
-                  <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <h4 id="cardCollectionRate">₦0</h4>
-            </div>
-        </div>
-
-      <!-- PAID QUOTES -->
-       <div class="metric-card">
-            <div class="card-title green-bg">
-                <p>Paid Quotes</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon green-bg">
-                  <i class="fa-solid fa-circle-check"></i>
-                </div>
-                <h4 id="cardPaidQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- PARTIAL -->
-       <div class="metric-card">
-            <div class="card-title orange-bg">
-                <p>Partial Payments</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon orange-bg">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                </div>
-                <h4 id="cardPartialQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- UNPAID -->
-       <div class="metric-card">
-            <div class="card-title dark-red-bg">
-                <p>Overdue Payment</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon dark-red-bg">
-                  <i class="fa-solid fa-xmark"></i>
-                </div>
-                <h4 id="cardUnpaidQuotes">₦0</h4>
-            </div>
-        </div>
-
-      <!-- Pending -->
-       <div class="metric-card">
-            <div class="card-title indigo-bg">
-                <p>Ongoing Quotes</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon indigo-bg">
-                  <i class="fa-solid fa-hourglass-half"></i>
-                </div>
-                <h4 id="cardPendingQuotes">₦0</h4>
-            </div>
-        </div>
-
+  <div class="jk-header-card">
+    <div>
+      <h2>All Quotes</h2>
+      <p>School training quotes, payments and collection analytics.</p>
     </div>
-  </section>
-  <div class="chart-card">
-    <h4>Payment Trends</h4>
-    <canvas id="paymentChart" height="150"></canvas>
   </div>
-</div>
 
-<input type="text" id="searchInput" placeholder="Search quotes..." />
+  <div class="jk-toolbar">
+    <label style="font-size:13px; font-weight:600; color:#4C3802; display:flex; align-items:center; gap:8px;">
+      School:
+      <select id="schoolFilter" class="jk-select"><option value="">All Schools</option></select>
+    </label>
+    <button id="refreshBtn" class="jk-btn-outline">Refresh</button>
+  </div>
 
+  <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr));">
 
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Expected</span>
+        <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fa-solid fa-money-bill-wave" style="color:#A17807; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardTotalExpected">₦0</span>
+    </div>
 
-    <select id="statusFilter">
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Total Collected</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fa-solid fa-check" style="color:#1E7A42; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardTotalPaid">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Outstanding</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fa-solid fa-clock" style="color:#B23A2A; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardOutstanding">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Collection Rate</span>
+        <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fa-solid fa-chart-line" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardCollectionRate">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Paid Quotes</span>
+        <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fa-solid fa-circle-check" style="color:#1E7A42; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPaidQuotes">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Partial Payments</span>
+        <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPartialQuotes">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Overdue Payment</span>
+        <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fa-solid fa-xmark" style="color:#B23A2A; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardUnpaidQuotes">₦0</span>
+    </div>
+
+    <div class="metric-card jk-stat-card">
+      <div class="jk-stat-head">
+        <span class="jk-stat-label">Ongoing Quotes</span>
+        <div class="jk-stat-icon" style="background:#F1ECDD;"><i class="fa-solid fa-hourglass-half" style="color:#6E6350; font-size:13px;"></i></div>
+      </div>
+      <span class="jk-stat-value" id="cardPendingQuotes">₦0</span>
+    </div>
+
+  </div>
+
+  <div class="jk-report-panel">
+    <h3>Payment Trends</h3>
+    <canvas id="paymentChart" height="90"></canvas>
+  </div>
+
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="searchInput" class="jk-search-input" placeholder="Search quotes...">
+    </div>
+
+    <select id="statusFilter" class="jk-select">
       <option value="">All</option>
       <option value="paid">Paid</option>
       <option value="partial">Partial</option>
@@ -162,104 +105,105 @@
       <option value="pending">Ongoing</option>
       <option value="upcoming">Upcoming</option>
     </select>
+  </div>
 
-<div class="table-responsive">
-  <table class="user-table" style="width:100%; margin-top:20px;">
-    <thead>
-      <tr>
-
-        <th style="cursor: pointer;" onclick="sortTable(0)">ID ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(1)">School ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(2)">Term ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(3)">Students ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(4)">Price / Student ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(5)">Total Amount ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(6)">Paid ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(7)">Balance ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(8)">Status ⬍</th>
-        <th style="cursor: pointer;" onclick="sortTable(9)">Actions ⬍</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      <% quotes.forEach(q => { %>
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
+      <thead>
         <tr>
-          <td><%= q.id %></td>
-          <td><%= q.school_name %></td>
-          <td><%= q.term_name %></td>
-          <td><%= q.total_students %></td>
-          <td>₦<%= q.price_per_student %></td>
-          <td>₦<%= q.total_amount %></td>
-          <td>₦<%= q.total_paid.toLocaleString() %></td>
-          <td>₦<%= q.balance.toLocaleString() %></td>
-          <td>
-            <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
-            
-
-              <% if(q.status === 'paid') { %>
-                <span style="color:green;">✅ Paid</span>
-
-              <% } else if(q.status === 'partial') { %>
-                <span style="color:orange;">⚠️ Part Payment</span>
-
-              <% } else if(q.status === 'overdue') { %>
-                <span style="color: red;">🚨 Overdue</span>
-
-              <% } else if(q.status === 'pending') { %>
-                <span style="color: blue;">⏳ Ongoing</span>
-
-              <% } else if(q.status === 'upcoming') { %>
-                <span style="background: rgb(252, 246, 246);
-                      color: black;  
-                      border: none;
-                      padding: 6px 12px;
-                      border-radius: 20px;
-                      cursor: pointer;
-                      font-size: 13px;">📅 Upcoming</span>
-
-              <% } else { %>
-                <span style="color:red;">❌ Unpaid</span>
-              <% } %>
-            </button>
-          </td>
-          <td>
-            <!-- <a href="/admin/quotes/<%= q.id %>/download">📄 PDF</a> -->
-            <a href="/admin/quotes/<%= q.id %>/download" class="no-bg">
-              <i class="fa-solid fa-file-pdf" style="color: red;"></i>
-            </a>
-
-            <a href="/admin/quotes/<%= q.id %>/send" class="no-bg">
-                <i class="fa-solid fa-paper-plane" style="color:#007bff;"></i>
-            </a>
-
-
-            
-            <a href="#" onclick="openPaymentModal('<%= q.id %>', '<%= q.school_id %>'); return false;" class="no-bg">
-              <i class="fa-solid fa-credit-card" style="color: green;"></i>
-            </a>
-          </td>
+          <th>ID</th>
+          <th>School</th>
+          <th>Term</th>
+          <th>Students</th>
+          <th>Price / Student</th>
+          <th>Total Amount</th>
+          <th>Paid</th>
+          <th>Balance</th>
+          <th>Status</th>
+          <th class="jk-col-actions">Actions</th>
         </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
+      </thead>
 
+      <tbody>
+        <% quotes.forEach(q => { %>
+          <tr>
+            <td><%= q.id %></td>
+            <td><%= q.school_name %></td>
+            <td><%= q.term_name %></td>
+            <td><%= q.total_students %></td>
+            <td>₦<%= q.price_per_student %></td>
+            <td>₦<%= q.total_amount %></td>
+            <td>₦<%= q.total_paid.toLocaleString() %></td>
+            <td>₦<%= q.balance.toLocaleString() %></td>
+            <td>
+              <button class="payment-toggle <%= q.status %>" onclick="togglePayment('<%= q.id %>', '<%= q.status %>')">
+
+                <% if(q.status === 'paid') { %>
+                  <span style="color:green;">✅ Paid</span>
+
+                <% } else if(q.status === 'partial') { %>
+                  <span style="color:orange;">⚠️ Part Payment</span>
+
+                <% } else if(q.status === 'overdue') { %>
+                  <span style="color: red;">🚨 Overdue</span>
+
+                <% } else if(q.status === 'pending') { %>
+                  <span style="color: blue;">⏳ Ongoing</span>
+
+                <% } else if(q.status === 'upcoming') { %>
+                  <span style="background: rgb(252, 246, 246);
+                        color: black;
+                        border: none;
+                        padding: 6px 12px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                        font-size: 13px;">📅 Upcoming</span>
+
+                <% } else { %>
+                  <span style="color:red;">❌ Unpaid</span>
+                <% } %>
+              </button>
+            </td>
+            <td class="jk-col-actions">
+              <a href="/admin/quotes/<%= q.id %>/download" class="jk-icon-btn" title="Download">
+                <i class="fa-solid fa-file-pdf" style="color:#B23A2A;"></i>
+              </a>
+
+              <a href="/admin/quotes/<%= q.id %>/send" class="jk-icon-btn" title="Send">
+                <i class="fa-solid fa-paper-plane" style="color:#2563EB;"></i>
+              </a>
+
+              <a href="#" onclick="openPaymentModal('<%= q.id %>', '<%= q.school_id %>'); return false;" class="jk-icon-btn" title="Add Payment">
+                <i class="fa-solid fa-credit-card" style="color:#1E7A42;"></i>
+              </a>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+</section>
 
 <!-- Payment modal -->
-<div id="paymentModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
-    <span class="close-btn" onclick="closeModal('paymentModal')">&times;</span>
+<div id="paymentModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4>💳 Add Payment</h4>
+        <p id="quoteInfo"></p>
+      </div>
+      <button type="button" class="jk-modal-close" onclick="closeModal('paymentModal')">&times;</button>
+    </div>
 
-    <h2>💳 Add Payment</h2>
-    <p id="quoteInfo"></p>
-    <form action="/admin/payments" method="POST">
+    <form action="/admin/payments" method="POST" class="jk-modal-body">
       <input type="hidden" name="quote_id" id="modalQuoteId">
       <input type="hidden" name="school_id" id="modalSchoolId">
 
       <label>Amount</label>
-      <input type="number" name="amount" placeholder="Enter amount" required>
+      <input type="number" name="amount" class="jk-select" style="width:100%;" placeholder="Enter amount" required>
 
-      <button type="submit">Submit Payment</button>
+      <button type="submit" class="jk-btn-dark" style="align-self:flex-start;">Submit Payment</button>
     </form>
   </div>
 </div>
@@ -303,7 +247,7 @@
   const totalPaid = Number(summary.total_paid || 0);
   const outstanding = Number(summary.outstanding || 0);
 
-  const rate = totalExpected > 0 
+  const rate = totalExpected > 0
     ? ((totalPaid / totalExpected) * 100).toFixed(1)
     : 0;
 
@@ -315,7 +259,6 @@
 
   document.getElementById("cardPaidQuotes").innerText = summary.paid_quotes || 0;
   document.getElementById("cardPartialQuotes").innerText = summary.partial_quotes || 0;
-  // document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardUnpaidQuotes").innerText = summary.unpaid_quotes || 0;
   document.getElementById("cardPendingQuotes").innerText = summary.pending_quotes || 0;
 </script>
@@ -390,27 +333,3 @@
     });
   });
 </script>
-
-<!-- Script for sorting table -->
- <script>
-    function sortTable(colIndex) {
-      const table = document.querySelector("table tbody");
-      const rows = Array.from(table.rows);
-
-      const asc = table.classList.toggle("asc");
-
-      rows.sort((a, b) => {
-        let A = a.cells[colIndex].innerText.replace(/[₦,]/g, "");
-        let B = b.cells[colIndex].innerText.replace(/[₦,]/g, "");
-
-        A = isNaN(A) ? A : Number(A);
-        B = isNaN(B) ? B : Number(B);
-
-        return asc ? (A > B ? 1 : -1) : (A < B ? 1 : -1);
-      });
-
-      rows.forEach(row => table.appendChild(row));
-    }
-</script>
-
-
