@@ -1,43 +1,48 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <h2>Manage Events</h2>
-    <button onclick="openEventModal()" class="btn-create">+ Create Event</button>
+<section class="section jk-page">
 
-    <!-- Event Table -->
-    <div class="table-responsive">
-      <table class="user-table sortable-table">
-        <thead>
+  <div class="jk-header-card">
+    <div><h2>Manage Events</h2></div>
+    <button onclick="openEventModal()" class="jk-btn-dark">+ Create Event</button>
+  </div>
+
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Location</th>
+          <th>Paid</th>
+          <th class="jk-col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% events.forEach(function(event){ %>
           <tr>
-            <th>Title</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Location</th>
-            <th>Paid</th>
-            <th>Actions</th>
+            <td><%= event.title %></td>
+            <td><%= event.event_date.toDateString() %></td>
+            <td><%= event.time %></td>
+            <td><%= event.location %></td>
+            <td><%= event.is_paid ? ('Yes (₦' + event.amount + ')') : 'No' %></td>
+            <td class="jk-col-actions">
+              <div class="article-buttons">
+                <a href="/admin/events/registrations/<%= event.id %>" class="btn-edit">View</a>
+                <button class="btn-edit" onclick="openEditModal(<%= event.id %>)">Edit</button>
+                <form action="/admin/events/<%= event.id %>?_method=DELETE" method="POST" style="display:inline" onsubmit="return handleConfirmSubmit(event, 'Archive this event? It will be hidden everywhere but can be restored later from the Archive screen.')">
+                  <button type="submit" class="btn-delete">Archive</button>
+                </form>
+              </div>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          <% events.forEach(function(event){ %>
-            <tr>
-              <td><%= event.title %></td>
-              <td><%= event.event_date.toDateString() %></td>
-              <td><%= event.time %></td>
-              <td><%= event.location %></td>
-              <td><%= event.is_paid ? ('Yes (₦' + event.amount + ')') : 'No' %></td>
-              <td>
-                <div class="article-buttons">
-                  <a href="/admin/events/registrations/<%= event.id %>" style="background-color: black" class="btn-edit">View</a>
-                  <button class="btn-edit" onclick="openEditModal(<%= event.id %>)">Edit</button>
-                  <form action="/admin/events/<%= event.id %>?_method=DELETE" method="POST" style="display:inline" onsubmit="return handleConfirmSubmit(event, 'Archive this event? It will be hidden everywhere but can be restored later from the Archive screen.')">
-                    <button type="submit" class="btn-delete">Archive</button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          <% }); %>
-        </tbody>
-      </table>
-    </div>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+</section>
 
     <!-- Create Event Modal -->
     <div id="createEventModal" class="modal">
@@ -127,11 +132,6 @@
     <% }); %>
 
     <!-- Scripts -->
-    <script>CKEDITOR.replace("eventDescription");</script>
-    <% events.forEach(function(event){ %>
-      <script>CKEDITOR.replace("editDescription-<%= event.id %>");</script>
-    <% }); %>
-
     <script>
       function openEventModal(){ document.getElementById("createEventModal").style.display="block"; }
       function closeEventModal(){ document.getElementById("createEventModal").style.display="none"; }
