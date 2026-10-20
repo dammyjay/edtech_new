@@ -1,28 +1,27 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <h2><%= pathway.title %> - Courses</h2>
-    <div class="container2">
-        <button onclick="openModal()" class="btn-create">+ Add Course</button>
+    <section class="section jk-page">
+
+    <div class="jk-header-card">
+      <div><h2><%= pathway.title %> — Courses</h2></div>
+      <button onclick="openModal()" class="jk-btn-dark">+ Add Course</button>
     </div>
 
    <!-- COURSE GRID -->
-<section class="section">
-    <div class="card-grid">
+    <div class="card-grid jk-course-grid">
     <% courses.forEach(course => { %>
-      <div class="card-thumbnail hoverable">
+      <div class="card-thumbnail hoverable jk-course-card">
           <% if (course.thumbnail_url) { %>
-              <a href="/admin/courses/<%= course.id %>" class="article-card-link">
-                  <img src="<%= course.thumbnail_url %>" 
+              <a href="/admin/courses/<%= course.id %>">
+                  <img src="<%= course.thumbnail_url %>"
                     alt="Course Thumbnail"
-                    style="width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background-color: #d6a740;"
                   />
               </a>
-          <% } %> 
-        <br>
+          <% } %>
 
         <div class="card-content">
           <h3><%= course.title %></h3>
-          <p>Course ID: <%= course.id %></p>
+          <p class="card-body">Course ID: <%= course.id %></p>
           <div class="card-body">
             <p><%- course.description.substring(0, 100) %>...</p>
           </div>
@@ -37,7 +36,7 @@
             <button class="btn-delete" onclick="openDeleteModal(<%= course.id %>)">Delete</button>
           </div>
         </div>
-        
+
       </div>
 
       <div id="editModal-<%= course.id %>" class="modal">
@@ -121,22 +120,10 @@
       </div>
     <% }) %>
   </div>
-</section>
+
+  </section>
 
   <!-- CREATE COURSE MODAL -->
-  <!-- <div id="createModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeCreateModal()">&times;</span>
-      <h2>Add New Course</h2>
-      <form action="/admin/pathways/<%= pathway.id %>/courses" method="POST" enctype="multipart/form-data">
-        <input type="text" name="title" placeholder="Course Title" required />
-        <textarea id="content" name="description"></textarea>
-        <input type="text" name="level" placeholder="Beginner, Intermediate, Advanced" required />
-        <input type="file" name="thumbnail" accept="image/*" />
-        <button type="submit">Create Course</button>
-      </form>
-    </div>
-  </div> -->
   <div id="createModal" class="modal">
       <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
@@ -205,20 +192,6 @@
 
   <!-- SCRIPT SECTION -->
   <script>
-    function openCreateModal() {
-      document.getElementById("createModal").style.display = "block";
-    }
-    function closeCreateModal() {
-      document.getElementById("createModal").style.display = "none";
-    }
-
-    function openEditModal(id) {
-      document.getElementById("editModal-" + id).style.display = "block";
-    }
-    function closeEditModal(id) {
-      document.getElementById("editModal-" + id).style.display = "none";
-    }
-
     function openDeleteModal(id) {
       document.getElementById("deleteModal-" + id).style.display = "block";
     }
@@ -232,14 +205,12 @@
   });
   </script>
 
-    <a href="/admin/dashboard">Back to Dashboard</a>
+    <a href="/admin/dashboard" class="jk-btn-outline" style="display:inline-flex; text-decoration:none; margin:16px 0 0 24px;">⬅ Back to Dashboard</a>
 
     <!-- script for ckeditor -->
     <script>
       CKEDITOR.replace("content");
     </script>
-
-    
 
     <!-- script to toggle navigation menu -->
     <script>
@@ -272,9 +243,9 @@
 
     <!-- script to preview image before upload -->
     <script>
-      document
-        .getElementById("imageInput")
-        .addEventListener("change", function () {
+      const imageInput = document.getElementById("imageInput");
+      if (imageInput) {
+        imageInput.addEventListener("change", function () {
           const preview = document.getElementById("imagePreview");
           const file = this.files[0];
           if (file) {
@@ -287,36 +258,6 @@
           } else {
             preview.src = "#";
             preview.style.display = "none";
-          }
-        });
-    </script>
-
-    <!-- script to filter level for each career pathway -->
-    <!--<script>
-      function filterByLevel() {
-        const selected = document.getElementById("levelFilter").value;
-        const sections = document.querySelectorAll(".course-level-section");
-
-        sections.forEach(section => {
-          const level = section.getAttribute("data-level");
-          if (selected === "All" || level === selected) {
-            section.style.display = "block";
-          } else {
-            section.style.display = "none";
-          }
-        });
-      }
-    </script> -->
-
-    <script>
-      function filterByPathway(pathway) {
-        const groups = document.querySelectorAll(".pathway-group");
-        groups.forEach((group) => {
-          const groupName = group.getAttribute("data-pathway");
-          if (pathway === "All" || groupName === pathway) {
-            group.style.display = "block";
-          } else {
-            group.style.display = "none";
           }
         });
       }
@@ -340,13 +281,6 @@
         document.getElementById("editModal-" + id).style.display = "none";
       }
 
-      // Close modal when clicking outside the modal content
-      // window.onclick = function (event) {
-      //   const modal = document.getElementById("createModal");
-      //   if (event.target == modal) {
-      //     modal.style.display = "none";
-      //   }
-      // };
       // Close any modal when clicking outside it
       window.onclick = function (event) {
         if (event.target.classList.contains("modal")) {
