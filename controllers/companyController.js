@@ -8,9 +8,8 @@ exports.showForm = async (req, res) => {
   }
   const result = await pool.query("SELECT * FROM company_info LIMIT 1");
   res.render("admin/company", {
-    info: result.rows[0],
+    info: result.rows[0] || {},
     title: "company info",
-    info: infoResult.rows[0] || {},
     role: "admin",
     users: req.session.user,
   });

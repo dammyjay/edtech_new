@@ -1,16 +1,21 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <h2>company Info</h2>
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div><h2>Company Info</h2></div>
+    <a href="/admin/dashboard" class="jk-btn-outline" style="text-decoration:none;">⬅ Back to Dashboard</a>
+  </div>
+
+  <div class="jk-report-panel">
     <form method="POST" action="/admin/company" enctype="multipart/form-data">
-      <label>Logo URL:</label><br />
-      <!-- <input type="text" name="logo_url" value="<%= info?.logo_url || '' %>"><br><br> -->
+      <label>Logo</label><br />
       <input type="file" name="logo" /><br /><br />
       <% if (info?.logo_url) { %>
       <img
         src="<%= info.logo_url %>"
-        alt="company Logo"
-        style="max-width: 200px"
-        requred
+        alt="Company Logo"
+        style="max-width: 200px; border-radius:8px;"
       />
       <% } %><br /><br />
 
@@ -21,39 +26,36 @@
       <textarea name="mission"><%= info?.mission || '' %></textarea><br /><br />
 
       <label>History:</label><br />
-      <textarea name="history" id="content"><%= info?.history || '' %></textarea
+      <textarea name="history" id="historyContent"><%= info?.history || '' %></textarea
       ><br /><br />
 
-      <label>Hero Image:</label><br />
-      <input type="file" name="heroImage" accept="image/*" required/><br /><br />
+      <label>Hero Image (optional — leave blank to keep the current one):</label><br />
+      <input type="file" name="heroImage" accept="image/*"/><br /><br />
       <% if (info?.hero_image_url) { %>
       <img
         src="<%= info.hero_image_url %>"
         alt="Hero Image"
-        style="max-width: 300px"
+        style="max-width: 300px; border-radius:8px;"
       /><br /><br />
       <% } %>
 
       <label>Company Name:</label><br />
-      <textarea name="company" id="content" required><%= (info?.company_name || 'JKT Hub').trim() %></textarea
-      ><br /><br />
-
+      <input type="text" name="company" class="jk-select" style="width:100%; max-width:420px;" required value="<%= (info?.company_name || 'JKT Hub').trim() %>"
+      /><br /><br />
 
       <label>Marquee Message:</label><br />
-      <textarea name="marquee_message" id="content" rows="2">
-<%= info?.marquee_message || '' %></textarea
-      ><br /><br />
+      <textarea name="marquee_message" class="jk-select" style="width:100%; max-width:600px;" rows="2"><%= info?.marquee_message || '' %></textarea><br /><br />
 
       <hr />
       <h3>🎓 Certificate Template</h3>
-      <p style="font-size:13px; color:#666;">Controls what students see on the certificate awarded when they complete a course. Leave any field as-is to keep what's already set.</p>
+      <p style="font-size:13px; color:#8A7B55;">Controls what students see on the certificate awarded when they complete a course. Leave any field as-is to keep what's already set.</p>
 
       <label>Certificate Background:</label><br />
       <input type="file" name="certificateBackground" accept="image/*" /><br /><br />
       <img
         src="<%= info?.certificate_background_url || 'https://acad.jkthub.com/images/Certificate.png' %>"
         alt="Certificate background"
-        style="max-width: 300px"
+        style="max-width: 300px; border-radius:8px;"
       /><br /><br />
 
       <label>Signature Image:</label><br />
@@ -61,27 +63,27 @@
       <img
         src="<%= info?.certificate_signature_url || 'https://acad.jkthub.com/images/Signature.jpg' %>"
         alt="Signature"
-        style="max-width: 150px"
+        style="max-width: 150px; border-radius:8px;"
       /><br /><br />
 
       <label>Signee Name:</label><br />
-      <input type="text" name="certificate_signee_name" value="<%= info?.certificate_signee_name || 'Jimoh Damilola' %>" /><br /><br />
+      <input type="text" name="certificate_signee_name" class="jk-select" style="width:100%; max-width:420px;" value="<%= info?.certificate_signee_name || 'Jimoh Damilola' %>" /><br /><br />
 
       <label>Certificate Title:</label><br />
-      <input type="text" name="certificate_title" value="<%= info?.certificate_title || 'CERTIFICATE OF COMPLETION' %>" /><br /><br />
+      <input type="text" name="certificate_title" class="jk-select" style="width:100%; max-width:420px;" value="<%= info?.certificate_title || 'CERTIFICATE OF COMPLETION' %>" /><br /><br />
 
       <label>Coins to start an additional lab project, or to remix someone else's (Web/Blockly/Arduino/Python Labs — a student's first project is always free):</label><br />
-      <input type="number" min="0" name="lab_new_project_coin_cost" value="<%= info?.lab_new_project_coin_cost ?? 50 %>" /><br /><br />
+      <input type="number" min="0" name="lab_new_project_coin_cost" class="jk-select" value="<%= info?.lab_new_project_coin_cost ?? 50 %>" /><br /><br />
 
       <label>Coins awarded to a project's owner when someone remixes it:</label><br />
-      <input type="number" min="0" name="lab_remix_owner_coin_reward" value="<%= info?.lab_remix_owner_coin_reward ?? 20 %>" /><br /><br />
+      <input type="number" min="0" name="lab_remix_owner_coin_reward" class="jk-select" value="<%= info?.lab_remix_owner_coin_reward ?? 20 %>" /><br /><br />
 
-      <button type="submit">Save</button>
+      <button type="submit" class="jk-btn-dark">💾 Save</button>
     </form>
+  </div>
 
-    <br />
+</section>
 
-    <a href="/admin/dashboard">Back to Dashboard</a>
-    <script>
-      CKEDITOR.replace("content");
-    </script>
+<script>
+  CKEDITOR.replace("historyContent");
+</script>
