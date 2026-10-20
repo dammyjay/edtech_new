@@ -1,24 +1,22 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-    <h2>Existing Pathways</h2>
+    <section class="section jk-page">
 
-    <div class="container2">
-      <button onclick="openModal()" class="btn-pri">
+    <div class="jk-header-card">
+      <div><h2>Existing Pathways</h2></div>
+      <button onclick="openModal()" class="jk-btn-dark">
         + Create New Pathway
       </button>
     </div>
 
-
-
-    <section class="section">
-    <div class="card-grid">
+    <div class="card-grid jk-course-grid">
       <% pathways.forEach(pathway => { %>
-      <div class="card-thumbnail">
+      <div class="card-thumbnail jk-course-card">
         <% if (pathway.thumbnail_url) { %>
         <img
           src="<%= pathway.thumbnail_url %>"
           alt="Pathway Thumbnail"
-          
+
         />
         <% } %>
         <div class="card-content">
@@ -31,27 +29,27 @@
           >
             <%- pathway.description.substring(0,100) %>...
           </div>
-        </div>
-        <a
-          href="javascript:void(0);"
-          class="toggle-article"
-          onclick="togglePathway(<%= pathway.id %>)"
-          >Show More</a
-        >
-        <div class="article-buttons">
-          <!-- <a href="/admin/pathways/edit/<%= pathway.id %>">Edit</a> -->
-          <button class="btn-edit" onclick="openEditModal(<%= pathway.id %>)">
-            Edit
-          </button>
-          <form
-            action="/admin/pathways/delete/<%= pathway.id %>"
-            method="POST"
-            onsubmit="return handleConfirmSubmit(event, 'Delete this pathway?')"
+          <a
+            href="javascript:void(0);"
+            class="toggle-article"
+            onclick="togglePathway(<%= pathway.id %>)"
+            >Show More</a
           >
-            <button type="submit">Delete</button>
-          </form>
+          <div class="article-buttons">
+            <button class="btn-edit" onclick="openEditModal(<%= pathway.id %>)">
+              Edit
+            </button>
+            <form
+              action="/admin/pathways/delete/<%= pathway.id %>"
+              method="POST"
+              onsubmit="return handleConfirmSubmit(event, 'Delete this pathway?')"
+              style="display:inline;"
+            >
+              <button class="btn-delete" type="submit">Delete</button>
+            </form>
 
-          <a style="background-color: black;" href="/admin/pathways/<%= pathway.id %>/courses" class="btn-create">View Courses</a>
+            <a href="/admin/pathways/<%= pathway.id %>/courses" class="btn-create">View Courses</a>
+          </div>
         </div>
       </div>
       <!-- EDIT Modal for Pathway ID:-->
@@ -75,7 +73,6 @@
             /><br />
             <label for="">Description</label>
             <textarea
-              id="content"
               name="description"
               id="edit-desc2-<%= pathway.id %>"
             >
@@ -133,10 +130,6 @@
       </script>
 
       <script>
-        CKEDITOR.replace("edit-desc-<%= pathway.id %>");
-      </script>
-
-      <script>
         CKEDITOR.replace("edit-desc2-<%= pathway.id %>");
       </script>
 
@@ -145,6 +138,7 @@
       </script>
       <% }) %>
       </div>
+
     </section>
 
     <!-- Create Pathway Modal -->
@@ -229,8 +223,7 @@
       </div>
     </div>
 
-    <button class="btn-pri" onclick="window.location.href='/admin/dashboard'">Back to Dashboard</button>
-    <!-- <a href="/admin/dashboard">Back to Dashboard</a> -->
+    <a href="/admin/dashboard" class="jk-btn-outline" style="display:inline-flex; text-decoration:none; margin:16px 0 0 24px;">⬅ Back to Dashboard</a>
     <script>
       CKEDITOR.replace("content");
     </script>
