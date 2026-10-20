@@ -1,6 +1,13 @@
     <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
+<section class="section jk-page">
 
+  <div class="jk-header-card">
+    <div>
+      <h2>Guides</h2>
+      <p>Shared help text shown to students/parents/teachers on the relevant pages.</p>
+    </div>
+  </div>
 
 <div class="login-tabs">
 
@@ -37,146 +44,60 @@
 </div>
 
 
-<div id="assignment-section">
-    <h3>Module Assignments</h3>
-
-    <div class="assignment-actions">
-        <button onclick="openGuideModal('assignment')">
-            📘 Assignment Submission Guide
-        </button>
-
-        <button onclick="openAssignmentModal()">
-            + Add Assignment
-        </button>
-    </div>
-
-<h2>Assignment Submission Guide</h2>
-
-<button onclick="openGuideModal('assignment')">
-    Edit Guide
+<div id="assignment-section" class="jk-report-panel">
+<h3 style="margin-top:0;">Assignment Submission Guide</h3>
+<p style="color:#8A7B55; font-size:12.5px; max-width:600px;">Shown to every student on their assignment submission page.</p>
+<button onclick="openGuideModal('assignment')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
 
-<div id="course-section" style="display:none">
-
-<h2>Course Guide</h2>
-
-<button onclick="openGuideModal('course')">
-    Edit Guide
+<div id="course-section" class="jk-report-panel" style="display:none">
+<h3 style="margin-top:0;">Course Guide</h3>
+<button onclick="openGuideModal('course')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
 
-<div id="certificate-section" style="display:none">
-
-<h2>Certificate Guide</h2>
-
-<button onclick="openGuideModal('certificate')">
-    Edit Guide
+<div id="certificate-section" class="jk-report-panel" style="display:none">
+<h3 style="margin-top:0;">Certificate Guide</h3>
+<button onclick="openGuideModal('certificate')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
 
-<div id="parent-section" style="display:none">
-
-<h2>Parent Guide</h2>
-
-<button onclick="openGuideModal('parent')">
-    Edit Guide
+<div id="parent-section" class="jk-report-panel" style="display:none">
+<h3 style="margin-top:0;">Parent Guide</h3>
+<button onclick="openGuideModal('parent')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
 
-<div id="teacher-section" style="display:none">
-
-<h2>Teacher Guide</h2>
-
-<button onclick="openGuideModal('teacher')">
-    Edit Guide
+<div id="teacher-section" class="jk-report-panel" style="display:none">
+<h3 style="margin-top:0;">Teacher Guide</h3>
+<button onclick="openGuideModal('teacher')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
 
-<div id="external-project-section" style="display:none">
-
-<h2>External Project Guide</h2>
-<p style="font-size:13px; color:#666; max-width:600px;">
+<div id="external-project-section" class="jk-report-panel" style="display:none">
+<h3 style="margin-top:0;">External Project Guide</h3>
+<p style="color:#8A7B55; font-size:12.5px; max-width:600px;">
     Shown to every student on every External Project submission page — write it once here
     (how to zip a project, how to share a GitHub link, how to get a shareable video link) instead of
     every instructor re-explaining it per task. sample_submission can hold a worked example of a
     genuinely good submission.
 </p>
-
-<button onclick="openGuideModal('external_project')">
-    Edit Guide
+<button onclick="openGuideModal('external_project')" class="jk-btn-dark">
+    ✏️ Edit Guide
 </button>
-
 </div>
+
+</section>
 
 
 
 <!-- ASSIGNMENT GUIDE MODAL -->
-
-<!-- <div id="guideModal" class="modal" style="display:none;">
-
-<form
-id="guideForm"
-class="modal-content"
-enctype="multipart/form-data">
-
-<h2>Assignment Submission Guide</h2>
-
-<input type="hidden" id="guideId" name="id">
-
-<label>Guide Title</label>
-
-<input
-type="text"
-name="title"
-id="guideTitle"
-required>
-
-<label>Description</label>
-
-<textarea
-name="description"
-id="guideDescription"></textarea>
-
-<label>Guide Video (Youtube Link)</label>
-
-<input
-type="text"
-name="video_url"
-id="guideVideo">
-
-<label>Sample Assignment PDF/DOC</label>
-
-<input
-type="file"
-name="sample_document">
-
-<div class="modal-actions">
-
-<button type="submit">
-
-Save Guide
-
-</button>
-
-<button
-type="button"
-onclick="closeGuideModal()">
-
-Cancel
-
-</button>
-
-</div>
-
-</form>
-
-</div> -->
 
 <div id="guideModal"
      class="modal"
