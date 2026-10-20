@@ -1,36 +1,33 @@
 <!-- <pre><%= JSON.stringify(course, null, 2) %></pre> -->
 
-<div class="lesson-header">
-  <form method="GET" action="">
+<div class="jk-header-card" style="margin-top:16px;">
+  <div><h3 style="margin:0;">Lessons</h3></div>
+  <button onclick="openLessonModal()" class="jk-btn-dark">+ Add Lesson</button>
+</div>
+
+<div class="jk-toolbar">
+  <form method="GET" action="" style="display:flex; align-items:center; gap:8px;">
     <input type="hidden" name="tab" value="lessons">
-    <label>Filter by Module:</label>
-    <select name="module" onchange="this.form.submit()">
+    <label style="font-size:13px; font-weight:600; color:#4C3802;">Filter by Module:</label>
+    <select name="module" class="jk-select" onchange="this.form.submit()">
       <option value="all" <%= selectedModuleId === 'all' ? 'selected' : '' %>>All Modules</option>
       <% modules.forEach(mod => { %>
         <option value="<%= mod.id %>" <%= selectedModuleId == mod.id ? 'selected' : '' %>><%= mod.title %></option>
       <% }) %>
     </select>
   </form>
-
 </div>
 
-
-<button onclick="openLessonModal()">+ Add Lesson</button> <br>
-
-<div class="article-grid">
+<div class="article-grid jk-course-grid">
   <% lessons.forEach(lesson => { %>
-    <!-- <div class="article-card" data-course-id="<%= course.id %>" data-lesson-id="<%= lesson.id %>"> -->
-      <div class="article-card" data-course-id="<%= lesson.course_id %>" data-lesson-id="<%= lesson.id %>">
+      <div class="article-card jk-course-card" data-course-id="<%= lesson.course_id %>" data-lesson-id="<%= lesson.id %>">
+      <div class="card-content">
       <h3><%= lesson.title %></h3>
-      <p>Lesson ID: <%= lesson.id %></p>
-      <p><strong>Module:</strong> <%= lesson.module_title %></p>
-      <!-- <% if (lesson.video_url) { %>
-        <video src="<%= lesson.video_url %>" controls></video>
-      <% } %>
-      <p><%- lesson.content.substring(0, 200) %>...</p> -->
+      <p class="card-body">Lesson ID: <%= lesson.id %></p>
+      <p class="card-body"><strong>Module:</strong> <%= lesson.module_title %></p>
       <div class="article-buttons">
         <button class="btn-edit" onclick="openEditLessonModal(<%= lesson.id %>)">Edit</button>
-          
+
         <form method="POST" action="/admin/lessons/<%= lesson.id %>/delete" style="display:inline;">
           <input type="hidden" name="course_id" value="<%= course.id %>">
           <button class="btn-delete" type="submit" onclick="showConfirm('Archive this lesson? It will be hidden everywhere but can be restored later from the Archive screen.').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">Archive</button>
@@ -39,8 +36,9 @@
         <button class="btn-view" type="button" onclick="openLabModal(<%= lesson.id %>)">Manage Lab</button>
 
       </div>
+      </div>
     </div>
-    
+
   <% }) %>
 </div>
 
