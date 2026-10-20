@@ -1,12 +1,15 @@
 
 
-<h3>Module Assignments</h3>
+<div class="jk-header-card" style="margin-top:16px;">
+  <div><h3 style="margin:0;">Module Assignments</h3></div>
+  <button onclick="openAssignmentModal()" class="jk-btn-dark">+ Add Assignment</button>
+</div>
 
-<div class="assignment-header">
-  <form method="GET" action="">
+<div class="jk-toolbar">
+  <form method="GET" action="" style="display:flex; align-items:center; gap:8px;">
     <input type="hidden" name="tab" value="assignment">
-    <label>Filter by Module:</label>
-    <select name="module" onchange="this.form.submit()">
+    <label style="font-size:13px; font-weight:600; color:#4C3802;">Filter by Module:</label>
+    <select name="module" class="jk-select" onchange="this.form.submit()">
       <option value="all" <%= selectedModuleId === 'all' ? 'selected' : '' %>>All Modules</option>
       <% modules.forEach(mod => { %>
         <option value="<%= mod.id %>" <%= selectedModuleId == mod.id ? 'selected' : '' %>>
@@ -17,19 +20,19 @@
   </form>
 </div>
 
-<button onclick="openAssignmentModal()">+ Add Assignment</button>
-
 <!-- Assignment List -->
-<div class="article-grid" id="assignmentList">
+<div class="article-grid jk-course-grid" id="assignmentList">
   <% assignments.forEach(assign => { %>
-    <div class="article-card" data-id="<%= assign.id %>">
+    <div class="article-card jk-course-card" data-id="<%= assign.id %>">
+      <div class="card-content">
       <h3><%= assign.title %></h3>
-      <p>Assignment ID: <%= assign.id %></p>
-      <p><strong>Module:</strong> <%= assign.module_title %></p>
-      <p><%- assign.instructions.substring(0, 100) %>...</p>
+      <p class="card-body">Assignment ID: <%= assign.id %></p>
+      <p class="card-body"><strong>Module:</strong> <%= assign.module_title %></p>
+      <p class="card-body assignment-preview-text"><%- assign.instructions.substring(0, 100) %>...</p>
       <div class="article-buttons">
         <button class="btn-edit" onclick='openEditAssignmentModal(<%- JSON.stringify(assign) %>)'>Edit</button>
         <button class="btn-delete" type="button" onclick="deleteAssignment(<%= assign.id %>)">Delete</button>
+      </div>
       </div>
     </div>
   <% }) %>
@@ -124,13 +127,16 @@ document.getElementById('createAssignmentForm').addEventListener('submit', async
 
     // Append to list
     document.getElementById('assignmentList').insertAdjacentHTML('beforeend', `
-      <div class="article-card" data-id="${newAssignment.id}">
+      <div class="article-card jk-course-card" data-id="${newAssignment.id}">
+        <div class="card-content">
         <h3>${newAssignment.title}</h3>
-        <p><strong>Module:</strong> ${newAssignment.module_title}</p>
-        <p>${newAssignment.instructions.substring(0, 100)}...</p>
+        <p class="card-body">Assignment ID: ${newAssignment.id}</p>
+        <p class="card-body"><strong>Module:</strong> ${newAssignment.module_title}</p>
+        <p class="card-body assignment-preview-text">${newAssignment.instructions.substring(0, 100)}...</p>
         <div class="article-buttons">
           <button class="btn-edit" onclick='openEditAssignmentModal(${JSON.stringify(newAssignment)})'>Edit</button>
           <button class="btn-delete" onclick="deleteAssignment(${newAssignment.id})">Delete</button>
+        </div>
         </div>
       </div>
     `);
@@ -192,7 +198,7 @@ document.getElementById('editAssignmentForm').addEventListener('submit', async f
     const card = document.querySelector(`.article-card[data-id="${id}"]`);
     if (card) {
       card.querySelector('h3').textContent = updatedAssignment.title;
-      card.querySelector('p:nth-of-type(2)').innerHTML = updatedAssignment.instructions.substring(0, 100) + '...';
+      card.querySelector('.assignment-preview-text').innerHTML = updatedAssignment.instructions.substring(0, 100) + '...';
     }
 
     closeEditAssignmentModal();
