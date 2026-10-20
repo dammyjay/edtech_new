@@ -1,28 +1,32 @@
 
 
-<h3>🎓 Course Capstone Project</h3>
+<div class="jk-header-card" style="margin-top:16px;">
+  <div><h3 style="margin:0;">🎓 Course Capstone Project</h3></div>
+</div>
 
 <!-- 🟢 CREATE FORM -->
+<div class="jk-report-panel">
 <form action="/admin/courses/<%= course.id %>/project" method="POST">
   <label>Project Title</label>
-  <input type="text" name="title" required>
+  <input type="text" name="title" class="jk-select" style="width:100%;" required>
 
   <label>Project Description</label>
   <textarea id="projectContent" name="description"></textarea>
 
-  <button type="submit" class="btn-save">➕ Add Project</button>
+  <button type="submit" class="jk-btn-dark" style="margin-top:10px;">➕ Add Project</button>
 </form>
-
-<hr>
+</div>
 
 <!-- 🟢 PROJECT LIST -->
 <% if (projects && projects.length > 0) { %>
+  <div class="jk-course-grid">
   <% projects.forEach(project => { %>
-    <div class="project-card">
-      <p>📌 <strong><%= project.title %></strong></p>
-      <div class="project-desc"><%- project.description %></div>
+    <div class="jk-course-card">
+      <div class="card-content">
+      <h4>📌 <%= project.title %></h4>
+      <div class="card-body"><%- project.description %></div>
 
-      <div class="project-actions">
+      <div class="article-buttons">
         <button class="btn-edit" onclick="openEditModal(<%= project.id %>)">✏️ Edit</button>
         <form action="/admin/projects/delete/<%= project.id %>" method="POST" style="display:inline;">
           <input type="hidden" name="course_id" value="<%= course.id %>">
@@ -30,10 +34,11 @@
         </form>
 
       </div>
+      </div>
     </div>
 
     <!-- 🟢 EDIT MODAL -->
-    <div id="editModal-<%= project.id %>" class="modal">
+    <div id="editModal-<%= project.id %>" class="modal" style="display:none;">
       <div class="modal-content">
         <span class="close" onclick="closeEditModal(<%= project.id %>)">&times;</span>
         <h3>Edit Project</h3>
@@ -42,18 +47,19 @@
           <input type="hidden" name="course_id" value="<%= course.id %>">
 
           <label>Project Title</label>
-          <input type="text" name="title" value="<%= project.title %>" required>
+          <input type="text" name="title" class="jk-select" style="width:100%;" value="<%= project.title %>" required>
 
           <label>Project Description</label>
           <textarea id="editContent-<%= project.id %>" name="description"><%= project.description %></textarea>
 
-          <button type="submit" class="btn-save">💾 Save Changes</button>
+          <button type="submit" class="jk-btn-dark" style="margin-top:10px;">💾 Save Changes</button>
         </form>
       </div>
     </div>
   <% }) %>
+  </div>
 <% } else { %>
-  <p>No project found for this course yet.</p>
+  <p style="color:#8A7B55;">No project found for this course yet.</p>
 <% } %>
 
 <!-- ✅ CKEditor 4 Script -->
@@ -99,52 +105,3 @@
     document.getElementById("editModal-" + id).style.display = "none";
   }
 </script>
-
-<!-- ✅ Styling -->
-<style>
-  .project-card {
-    background: #fff;
-    border: 1px solid #eee;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-  }
-  .project-actions {
-    margin-top: 10px;
-  }
-  .btn-edit, .btn-delete, .btn-save {
-    background-color: #f3b63f;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-right: 6px;
-  }
-  .btn-delete {
-    background-color: #d9534f;
-  }
-  .btn-edit:hover, .btn-delete:hover {
-    opacity: 0.8;
-  }
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 999;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.4);
-  }
-  .modal-content {
-    background-color: #fff;
-    margin: 10% auto;
-    padding: 20px;
-    width: 60%;
-    border-radius: 10px;
-  }
-  .close {
-    float: right;
-    cursor: pointer;
-    font-size: 20px;
-  }
-</style>
