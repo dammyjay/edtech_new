@@ -128,7 +128,7 @@
                       data-content-id="courseOverviewData-<%= course.id %>"
                       data-download-url="/admin/courses/<%= course.id %>/curriculum/download"
                     >📘 View Curriculum</button>
-                    <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Replace the current thumbnail with a new auto-generated one?')">
+                    <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmitWithLoading(event, 'Replace the current thumbnail with a new auto-generated one?', '🖼️ Generating… (can take up to a minute)')">
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button type="submit">🖼️ Regenerate Thumbnail</button>
                     </form>

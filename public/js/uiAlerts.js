@@ -163,4 +163,35 @@
     });
     return false;
   };
+
+  // Disables the form's submit button and swaps its label to show work is
+  // in progress, for actions slow enough (several seconds to over a
+  // minute — e.g. regenerating a thumbnail/badge, which renders an image
+  // and uploads it) that a silent wait looks identical to a frozen/broken
+  // button. The button stays disabled until the page navigates away on
+  // the form's normal POST-redirect response, so no re-enable path is
+  // needed. loadingText defaults to the button's own current text with a
+  // trailing ellipsis if none is given.
+  window.handleConfirmSubmitWithLoading = function (event, message, loadingText, options) {
+    event.preventDefault();
+    var form = event.target;
+    window.showConfirm(message, options).then(function (ok) {
+      if (!ok) return;
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = loadingText || (btn.textContent.trim() + "...");
+      }
+      form.submit();
+    });
+    return false;
+  };
+
+  // Same idea for the onclick="showConfirm(...).then(...)" pattern used on
+  // buttons that aren't a form's own onsubmit (the button is inside the
+  // form but confirms via its own onclick instead).
+  window.setButtonLoading = function (btn, loadingText) {
+    btn.disabled = true;
+    btn.textContent = loadingText || (btn.textContent.trim() + "...");
+  };
 })();

@@ -114,6 +114,8 @@
 <input type="hidden"
        id="guideId">
 
+<span class="close" onclick="closeGuideModal()">&times;</span>
+
 <h2 id="guideHeading"></h2>
 
 <label>Title</label>
@@ -330,4 +332,11 @@ async function deleteGuide(){
 
         btn.classList.add("active");
     }
+
+    // Close any modal when clicking outside it
+    window.onclick = function (event) {
+        if (event.target.classList.contains("modal")) {
+            event.target.style.display = "none";
+        }
+    };
 </script>

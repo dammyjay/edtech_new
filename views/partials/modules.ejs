@@ -75,12 +75,12 @@
 
           <!-- Regenerate Thumbnail -->
           <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
-            <button type="submit" onclick="showConfirm('Replace the current thumbnail with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🖼️ Regenerate Thumbnail</button>
+            <button type="submit" onclick="var btn = this; showConfirm('Replace the current thumbnail with a new auto-generated one?').then(function(ok) { if (ok) { setButtonLoading(btn, '🖼️ Generating… (can take up to a minute)'); btn.closest('form').submit(); } }); return false;">🖼️ Regenerate Thumbnail</button>
           </form>
 
           <!-- Regenerate Badge -->
           <form action="/admin/modules/<%= module.id %>/regenerate-badge" method="POST" style="display:inline;">
-            <button type="submit" onclick="showConfirm('Replace the current badge with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🏅 Regenerate Badge</button>
+            <button type="submit" onclick="var btn = this; showConfirm('Replace the current badge with a new auto-generated one?').then(function(ok) { if (ok) { setButtonLoading(btn, '🏅 Generating… (can take up to a minute)'); btn.closest('form').submit(); } }); return false;">🏅 Regenerate Badge</button>
           </form>
 
           <!-- Archive Form -->
