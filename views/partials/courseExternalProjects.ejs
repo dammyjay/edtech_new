@@ -1,25 +1,30 @@
-<h3>External Projects</h3>
-<p style="font-size:13px; color:#666; max-width:640px;">
-  For work that can't run in any in-browser lab — a real web server, a Docker deployment, OS-level
-  automation — attach a task here instead of a Lab Task. Students submit a file or a GitHub link per
-  deliverable you define, and it's graded against the rubric you set. See the "External Project Guide"
-  under Guides for the shared "how to submit" help shown to every student.
-</p>
+<div class="jk-header-card" style="margin-top:16px;">
+  <div>
+    <h3 style="margin:0;">External Projects</h3>
+    <p style="font-size:12.5px; max-width:640px; margin-top:4px;">
+      For work that can't run in any in-browser lab — a real web server, a Docker deployment, OS-level
+      automation — attach a task here instead of a Lab Task. Students submit a file or a GitHub link per
+      deliverable you define, and it's graded against the rubric you set. See the "External Project Guide"
+      under Guides for the shared "how to submit" help shown to every student.
+    </p>
+  </div>
+  <button type="button" onclick="openExternalProjectModal()" class="jk-btn-dark" style="flex:0 0 auto;">+ Add External Project</button>
+</div>
 
-<button type="button" onclick="openExternalProjectModal()">+ Add External Project</button>
-
-<div class="article-grid" id="externalProjectList">
+<div class="article-grid jk-course-grid" id="externalProjectList">
   <% externalProjects.forEach(function(ep) { %>
-    <div class="article-card" data-id="<%= ep.id %>">
-      <h3><%= ep.title %></h3>
-      <p><strong>Attached to:</strong>
+    <div class="article-card jk-course-card" data-id="<%= ep.id %>">
+      <div class="card-content">
+      <h4><%= ep.title %></h4>
+      <p class="card-body"><strong>Attached to:</strong>
         <%= ep.level === 'lesson' ? ('Lesson — ' + ep.lesson_title) : ep.level === 'module' ? ('Module — ' + ep.module_title) : 'This course' %>
       </p>
-      <p><strong>Deliverables:</strong> <%= (ep.deliverables || []).map(function(d){ return d.label; }).join(', ') %></p>
-      <p><strong>Points:</strong> <%= ep.points %></p>
+      <p class="card-body"><strong>Deliverables:</strong> <%= (ep.deliverables || []).map(function(d){ return d.label; }).join(', ') %></p>
+      <p class="card-body"><strong>Points:</strong> <%= ep.points %></p>
       <div class="article-buttons">
         <button class="btn-edit" type="button" onclick='openEditExternalProjectModal(<%- JSON.stringify(ep) %>)'>Edit</button>
         <button class="btn-delete" type="button" onclick="deleteExternalProject(<%= ep.id %>)">Archive</button>
+      </div>
       </div>
     </div>
   <% }) %>
