@@ -1,168 +1,100 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-   <!-- views/admin/benefits.ejs -->
-    <div class="container2">
-        <button onclick="openModal()" class="btn-create">+ Create Benefit</button>
-    </div>
+<section class="section jk-page">
 
-    <div id="createModal" class="modal">
+  <div class="jk-header-card">
+    <div><h2>Our Benefits</h2></div>
+    <button onclick="openModal()" class="jk-btn-dark">+ Create Benefit</button>
+  </div>
+
+  <div id="createModal" class="modal">
     <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2>Create Benefit</h2>
-        <form method="POST" action="/admin/benefits" enctype="multipart/form-data">
-        <input type="text" name="title" placeholder="Benefit Title" required />
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2>Create Benefit</h2>
+      <form method="POST" action="/admin/benefits" enctype="multipart/form-data">
+        <input type="text" name="title" class="jk-select" style="width:100%;" placeholder="Benefit Title" required />
         <textarea name="description" placeholder="Benefit Description" required></textarea>
         <input type="file" name="icon" />
-        <button type="submit">Save</button>
+        <button type="submit" class="jk-btn-dark" style="margin-top:10px;">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card-grid jk-course-grid">
+    <% benefits.forEach(benefit => { %>
+    <div class="jk-course-card">
+      <div class="card-content">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <img src="<%= benefit.icon || '/images/default-user.png' %>" alt="Icon" style="width:40px; height:40px; border-radius:8px; object-fit:cover; background:#FAF8F2;" />
+          <h4 style="margin:0;"><%= benefit.title %></h4>
+        </div>
+        <p class="card-body"><%= benefit.description %></p>
+
+        <div class="article-buttons">
+          <button class="btn-edit" onclick="openEditModal('<%= benefit.id %>')">Edit</button>
+          <form action="/admin/benefits/delete/<%= benefit.id %>" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Are you sure?')">
+            <button class="btn-delete" type="submit">Delete</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal Overlay -->
+    <div id="editModal-<%= benefit.id %>" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeEditModal('<%= benefit.id %>')">&times;</span>
+        <h2>Edit Benefit</h2>
+        <form method="POST" action="/admin/benefits/edit/<%= benefit.id %>" enctype="multipart/form-data">
+          <input type="text" name="title" class="jk-select" style="width:100%;" value="<%= benefit.title %>" required />
+          <textarea name="description" required><%= benefit.description %></textarea>
+          <% if (benefit.icon) { %>
+          <img src="<%= benefit.icon %>" width="40" style="margin-bottom: 10px; border-radius:8px;" />
+          <% } %>
+          <input type="file" name="icon" />
+          <button type="submit" class="jk-btn-dark" style="margin-top:10px;">Update</button>
         </form>
+      </div>
     </div>
-    </div>
+    <% }) %>
 
-    <h2>Our Benefits</h2>
-    <div class="benefit-container">
-        <!-- Inside the benefits.forEach loop -->
-        <% benefits.forEach(benefit => { %>
-        <div class="section">
-            <div class="benefit-card">
-            <div class="benefit-profile">
-                <img src="<%= benefit.icon || '/images/default-user.png' %>" alt="Icon" />
-            </div>
-            <div class="benefit-details">
-                <h4><%= benefit.title %></h4>
-                <p><%= benefit.description %></p>
-            </div>
-            </div>
+  </div>
 
-            <div class="article-buttons" style="margin-top: 10px;">
-            <button class="btn-edit" onclick="openEditModal('<%= benefit.id %>')">Edit</button>
-            <form action="/admin/benefits/delete/<%= benefit.id %>" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmit(event, 'Are you sure?')">
-                <button type="submit">Delete</button>
-            </form>
-            </div>
-        </div>
+</section>
 
-        <!-- Edit Modal Overlay -->
-        <div id="editModal-<%= benefit.id %>" class="modal">
-            <div class="modal-content">
-            <span class="close" onclick="closeEditModal('<%= benefit.id %>')">&times;</span>
-            <h2>Edit Benefit</h2>
-            <form method="POST" action="/admin/benefits/edit/<%= benefit.id %>" enctype="multipart/form-data">
-                <input type="text" name="title" value="<%= benefit.title %>" required />
-                <textarea name="description" required><%= benefit.description %></textarea>
-                <% if (benefit.icon) { %>
-                <img src="<%= benefit.icon %>" width="40" style="margin-bottom: 10px;" />
-                <% } %>
-                <input type="file" name="icon" />
-                <button type="submit">Update</button>
-            </form>
-            </div>
-        </div>
-        <% }) %>
-
-    </div>
-
-
-    <script>
-      CKEDITOR.replace("content");
-    </script>
-
-    <!-- script to toggle navigation menu -->
-    <!-- <script>
-      function toggleNav() {
-        var nav = document.getElementById("main-nav");
-        nav.classList.toggle("open");
-      }
-    </script> -->
-
-    <script>
-        // Close nav when clicking outside of it
-        document.addEventListener("click", function (event) {
-            const nav = document.getElementById("main-nav");
-            const toggleBtn = document.querySelector(".nav-toggle");
-
-            if (
-            nav.classList.toggle("open") &&
-            !nav.contains(event.target) &&
-            !toggleBtn.contains(event.target)
-            ) {
-            nav.classList.remove("open");
-            }
+<!-- Script not to be able to copy content from article body -->
+<script>
+  document.querySelectorAll(".article-body").forEach(function (el) {
+    el.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
     });
-    </script>
-
-
-    <!-- Script not to be able to copy content from article body -->
-    <script>
-      document.querySelectorAll(".article-body").forEach(function (el) {
-        el.addEventListener("contextmenu", function (e) {
-          e.preventDefault();
-        });
-        el.addEventListener("copy", function (e) {
-          e.preventDefault();
-        });
-      });
-    </script>
-
-    <!-- script to preview image before upload -->
-    <script>
-      document
-        .getElementById("imageInput")
-        .addEventListener("change", function () {
-          const preview = document.getElementById("imagePreview");
-          const file = this.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-              preview.src = e.target.result;
-              preview.style.display = "block";
-            };
-            reader.readAsDataURL(file);
-          } else {
-            preview.src = "#";
-            preview.style.display = "none";
-          }
-        });
-    </script>
-
-    <!-- script to filter level for each career pathway -->
-
-<!-- script for toggling pathway description -->
-    <script>
-  function filterByPathway(pathway) {
-    const groups = document.querySelectorAll(".pathway-group");
-    groups.forEach(group => {
-      const groupName = group.getAttribute("data-pathway");
-      if (pathway === "All" || groupName === pathway) {
-        group.style.display = "block";
-      } else {
-        group.style.display = "none";
-      }
+    el.addEventListener("copy", function (e) {
+      e.preventDefault();
     });
-  }
+  });
 </script>
 
 <!-- script for opening and closing the modal -->
-    <script>
-        function openModal() {
-          document.getElementById("createModal").style.display = "block";
-        }
-      
-        function closeModal() {
-          document.getElementById("createModal").style.display = "none";
-        }
+<script>
+    function openModal() {
+      document.getElementById("createModal").style.display = "block";
+    }
 
-        function openEditModal(id) {
-            document.getElementById("editModal-" + id).style.display = "block";
-        }
+    function closeModal() {
+      document.getElementById("createModal").style.display = "none";
+    }
 
-        function closeEditModal(id) {
-            document.getElementById("editModal-" + id).style.display = "none";
+    function openEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "block";
+    }
+
+    function closeEditModal(id) {
+        document.getElementById("editModal-" + id).style.display = "none";
+    }
+
+    // Close any modal when clicking outside it
+    window.onclick = function (event) {
+        if (event.target.classList.contains("modal")) {
+        event.target.style.display = "none";
         }
-      
-        // Close any modal when clicking outside it
-        window.onclick = function (event) {
-            if (event.target.classList.contains("modal")) {
-            event.target.style.display = "none";
-            }
-        };
-      </script>
+    };
+  </script>
