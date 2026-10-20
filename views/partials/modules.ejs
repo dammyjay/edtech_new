@@ -1,7 +1,9 @@
 
 
-  <h3>Modules</h3>
-<button onclick="openModal('createModuleModal')">+ Add Module</button>
+  <div class="jk-header-card" style="margin-top:16px;">
+    <div><h3 style="margin:0;">Modules</h3></div>
+    <button onclick="openModal('createModuleModal')" class="jk-btn-dark">+ Add Module</button>
+  </div>
 
 <div id="createModuleModal" class="modal">
   <div class="modal-content">
@@ -19,74 +21,74 @@
 <!-- Existing modules are listed below: -->
 
 
-<section class="article-grid2">
+<section class="article-grid2 jk-course-grid">
   <% modules.forEach(module => { %>
-    <div class="article-card2">
-      <div class="card-images" style="display: flex;">
+    <div class="article-card2 jk-course-card">
+      <div class="card-images" style="display: flex; gap:10px; padding:12px 12px 0;">
         <div>
-          <p>Thumbnail
+          <p style="font-size:11px; color:#8A7B55; margin:0 0 4px;">Thumbnail
             <% if (module.thumbnail_source === 'auto') { %>
               <span style="font-size:11px; color:#666;">(auto-generated)</span>
             <% } else if (module.thumbnail_source === 'upload') { %>
               <span style="font-size:11px; color:#666;">(custom upload)</span>
             <% } %>
           </p>
-          <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="">
+          <img src="<%= module.thumbnail || '/images/JKT logo bg.png' %>" alt="" style="width:100px; height:70px; object-fit:cover; border-radius:8px; background:#FAF8F2;">
         </div>
         <!-- Badge Image -->
         <% if (module.badge_image) { %>
           <div>
-            <p>🏅 Badge
+            <p style="font-size:11px; color:#8A7B55; margin:0 0 4px;">🏅 Badge
               <% if (module.badge_source === 'auto') { %>
                 <span style="font-size:11px; color:#666;">(auto-generated)</span>
               <% } else if (module.badge_source === 'upload') { %>
                 <span style="font-size:11px; color:#666;">(custom upload)</span>
               <% } %>
             </p>
-            <img src="<%= module.badge_image %>" alt="Badge">
+            <img src="<%= module.badge_image %>" alt="Badge" style="width:70px; height:70px; object-fit:contain; border-radius:8px; background:#FAF8F2;">
           </div>
         <% } else { %>
-          <p>No badge assigned</p>
+          <p style="font-size:11px; color:#8A7B55;">No badge assigned</p>
         <% } %>
       </div>
-      <h4><%= module.title %></h4>
-      <p>Module ID: <%= module.id %></p>
-      <p>Created At: <%= module.created_at.toDateString() %></p>
+      <div class="card-content">
+        <h4><%= module.title %></h4>
+        <p class="card-body">Module ID: <%= module.id %></p>
+        <p class="card-body">Created At: <%= module.created_at.toDateString() %></p>
 
-      <% const moduleCurriculum = module.curriculum_content || module.description; %>
-      <% if (moduleCurriculum) { %>
-        <div id="moduleOverviewData-<%= module.id %>" hidden><%- moduleCurriculum %></div>
-      <% } %>
-
-      <!-- Edit Button triggers modal -->
-       <div class="article-buttons">
-        <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
+        <% const moduleCurriculum = module.curriculum_content || module.description; %>
         <% if (moduleCurriculum) { %>
-          <button type="button" class="overview-trigger-btn"
-            data-kind="Module"
-            data-title="<%= module.title %>"
-            data-thumbnail="<%= module.thumbnail || '' %>"
-            data-content-id="moduleOverviewData-<%= module.id %>"
-          >📦 View Curriculum</button>
+          <div id="moduleOverviewData-<%= module.id %>" hidden><%- moduleCurriculum %></div>
         <% } %>
 
-        <!-- Regenerate Thumbnail -->
-        <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
-          <button type="submit" onclick="showConfirm('Replace the current thumbnail with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🖼️ Regenerate Thumbnail</button>
-        </form>
+        <!-- Edit Button triggers modal -->
+         <div class="article-buttons">
+          <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
+          <% if (moduleCurriculum) { %>
+            <button type="button" class="overview-trigger-btn"
+              data-kind="Module"
+              data-title="<%= module.title %>"
+              data-thumbnail="<%= module.thumbnail || '' %>"
+              data-content-id="moduleOverviewData-<%= module.id %>"
+            >📦 View Curriculum</button>
+          <% } %>
 
-        <!-- Regenerate Badge -->
-        <form action="/admin/modules/<%= module.id %>/regenerate-badge" method="POST" style="display:inline;">
-          <button type="submit" onclick="showConfirm('Replace the current badge with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🏅 Regenerate Badge</button>
-        </form>
+          <!-- Regenerate Thumbnail -->
+          <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
+            <button type="submit" onclick="showConfirm('Replace the current thumbnail with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🖼️ Regenerate Thumbnail</button>
+          </form>
 
-        <!-- Archive Form -->
-        <form action="/admin/modules/delete/<%= module.id %>" method="POST" style="display:inline;">
-          <button class="btn-delete" type="submit" onclick="showConfirm('Archive this module? It will be hidden everywhere but can be restored later from the Archive screen.').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🗑️ Archive</button>
-        </form>
+          <!-- Regenerate Badge -->
+          <form action="/admin/modules/<%= module.id %>/regenerate-badge" method="POST" style="display:inline;">
+            <button type="submit" onclick="showConfirm('Replace the current badge with a new auto-generated one?').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🏅 Regenerate Badge</button>
+          </form>
+
+          <!-- Archive Form -->
+          <form action="/admin/modules/delete/<%= module.id %>" method="POST" style="display:inline;">
+            <button class="btn-delete" type="submit" onclick="showConfirm('Archive this module? It will be hidden everywhere but can be restored later from the Archive screen.').then(function(ok) { if (ok) { event.target.closest('form').submit(); } }); return false;">🗑️ Archive</button>
+          </form>
+        </div>
       </div>
-
-      
     </div>
   <% }) %>
 </section>
@@ -148,30 +150,13 @@
       </div>
     <% }) %>
 
-<!-- Modal to Add New Module -->
-<h3>Create Module</h3>
-    <!-- <form action="/admin/modules/create" method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="course_id" value="<%= course.id %>" />
-      <input type="text" name="title" placeholder="Module Title" required />
-      <label for="">Description</label>
-      <textarea name="description" id="ckeditor"></textarea>
-      <label for="">Objectives</label>
-      <textarea name="objectives" id="ckeditor1"></textarea>
-      <label for="">Learning Outcomes</label>
-      <textarea name="learning_outcomes" id="ckeditor2"></textarea>
-      <label for="">Thumbnail</label>
-      <input type="file" name="thumbnail" placeholder="Thumbnail" required>
-      <label for="">Order Number</label>
-      <input type="number" name="order_number" placeholder="Order Number" required>
-      <button type="submit">Create</button>
-    </form> -->
-
-<h3>Create Module</h3>
+<div class="jk-report-panel" style="margin-top:20px;">
+<h3 style="margin-top:0;">Create Module</h3>
 <form action="/admin/modules/create" method="POST" enctype="multipart/form-data">
   <input type="hidden" name="course_id" value="<%= course.id %>" />
 
   <label>Title</label>
-  <input type="text" name="title" placeholder="Module Title" required />
+  <input type="text" name="title" class="jk-select" style="width:100%;" placeholder="Module Title" required />
 
   <label>Short Description</label>
   <textarea name="description" id="ckeditor"></textarea>
@@ -192,44 +177,12 @@
   <input type="file" name="badge_image" accept="image/*">
 
   <label>Order Number</label>
-  <input type="number" name="order_number" required>
+  <input type="number" name="order_number" class="jk-select" style="width:100%;" required>
 
-  <button type="submit">Create</button>
+  <button type="submit" class="jk-btn-dark" style="margin-top:10px;">Create</button>
 </form>
+</div>
 
-
-<!-- <div id="createModuleModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeModal('createModuleModal')">&times;</span>
-    <h3>Create Module</h3>
-    <form action="/admin/modules/create" method="POST">
-      <input type="hidden" name="course_id" value="<%= course.id %>" />
-      <input type="text" name="title" placeholder="Module Title" required />
-      <button type="submit">Create</button>
-    </form>
-  </div>
-</div> -->
-<!-- 
-<style>
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
-  }
-
-  .modal-content {
-    background-color: #fff;
-    margin: 10% auto;
-    padding: 20px;
-    width: 60%;
-    border-radius: 5px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  }
-</style> -->
 
 <script>
  function openModal(id) {

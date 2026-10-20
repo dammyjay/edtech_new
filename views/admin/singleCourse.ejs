@@ -84,25 +84,11 @@
 
     <!-- SCRIPT SECTION -->
     <script>
-      function openCreateModal() {
-        document.getElementById("createModal").style.display = "block";
-      }
-      function closeCreateModal() {
-        document.getElementById("createModal").style.display = "none";
-      }
-
       function openEditModal(id) {
         document.getElementById("editModal-" + id).style.display = "block";
       }
       function closeEditModal(id) {
         document.getElementById("editModal-" + id).style.display = "none";
-      }
-
-      function openDeleteModal(id) {
-        document.getElementById("deleteModal-" + id).style.display = "block";
-      }
-      function closeDeleteModal(id) {
-        document.getElementById("deleteModal-" + id).style.display = "none";
       }
 
       CKEDITOR.replaceAll("textarea");
@@ -182,32 +168,12 @@
       }
     </script>
 
-    <!-- script for opening and closing the modal -->
+    <!-- Close any modal when clicking outside it. This page's own modals
+         (editModal-course, editModal-<moduleId>, createModuleModal, etc.)
+         each open/close via their own id-aware functions defined in their
+         partial — this just handles the click-outside-to-dismiss part
+         generically, for any element with the shared "modal" class. -->
     <script>
-      function openModal() {
-        document.getElementById("createModal").style.display = "block";
-      }
-
-      function closeModal() {
-        document.getElementById("createModal").style.display = "none";
-      }
-
-      function openEditModal(id) {
-        document.getElementById("editModal-" + id).style.display = "block";
-      }
-
-      function closeEditModal(id) {
-        document.getElementById("editModal-" + id).style.display = "none";
-      }
-
-      // Close modal when clicking outside the modal content
-      // window.onclick = function (event) {
-      //   const modal = document.getElementById("createModal");
-      //   if (event.target == modal) {
-      //     modal.style.display = "none";
-      //   }
-      // };
-      // Close any modal when clicking outside it
       window.onclick = function (event) {
         if (event.target.classList.contains("modal")) {
           event.target.style.display = "none";
