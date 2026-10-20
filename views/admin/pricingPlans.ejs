@@ -14,20 +14,21 @@
   const getTier = (i) => TIERS[Math.min(i, TIERS.length - 1)];
 %>
 
-<div class="container2" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+<section class="section jk-page" style="max-width: 1200px; margin: 0 auto;">
 
-  <h2>💲 Pricing Plans</h2>
-  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -8px;">
-    A standard rate card for both segments. Defining a plan here doesn't charge or gate anything by itself —
-    it's a reusable reference other admin screens can pick from (e.g. pre-filling a school quote).
-  </p>
+  <div class="jk-header-card">
+    <div>
+      <h2>💲 Pricing Plans</h2>
+      <p>A standard rate card for both segments. Defining a plan here doesn't charge or gate anything by itself — it's a reusable reference other admin screens can pick from (e.g. pre-filling a school quote).</p>
+    </div>
+  </div>
 
   <!-- ============ Instructor-Led Plans ============ -->
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 28px;">
+  <div class="jk-section-head" style="margin-top: 28px;">
     <h3 style="margin:0;">Instructor-Led Plans</h3>
-    <button type="button" class="btn-black" onclick="openModal('createIndividual')">+ Create Instructor-Led Plan</button>
+    <button type="button" class="jk-btn-dark" onclick="openModal('createIndividual')">+ Create Instructor-Led Plan</button>
   </div>
-  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -4px;">
+  <p style="color: #8A7B55; font-size: 13px; margin-top: -4px;">
     Live classes with an instructor (Group, Private, Flexible Private, etc.) — distinct from self-paced course pricing and the school rate card.
   </p>
 
@@ -63,9 +64,9 @@
   </div>
 
   <!-- ============ School Rate Card ============ -->
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 36px;">
+  <div class="jk-section-head" style="margin-top: 36px;">
     <h3 style="margin:0;">School Rate Card</h3>
-    <button type="button" class="btn-black" onclick="openModal('createSchool')">+ Create School Plan</button>
+    <button type="button" class="jk-btn-dark" onclick="openModal('createSchool')">+ Create School Plan</button>
   </div>
 
   <div class="plan-grid">
@@ -99,11 +100,11 @@
   </div>
 
   <!-- ============ Add-on Modules ============ -->
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 36px;">
+  <div class="jk-section-head" style="margin-top: 36px;">
     <h3 style="margin:0;">Add-on Modules</h3>
-    <button type="button" class="btn-black" onclick="openModal('createAddon')">+ Create Add-on Module</button>
+    <button type="button" class="jk-btn-dark" onclick="openModal('createAddon')">+ Create Add-on Module</button>
   </div>
-  <p style="color: var(--text-secondary, #666); font-size: 13px; margin-top: -4px;">
+  <p style="color: #8A7B55; font-size: 13px; margin-top: -4px;">
     Flat fee per school per term (not per-student) — gadgets, internet support, robotics kits. A school can stack more than one on top of its base rate.
   </p>
 
@@ -139,7 +140,7 @@
     <% }) %>
   </div>
 
-</div>
+</section>
 
 <!-- Create modals -->
 <div id="createIndividual" class="modal">
