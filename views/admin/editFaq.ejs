@@ -1,38 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Edit FAQ</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
-    <meta name="csrf-token" content="<%= csrfToken %>">
-    <script src="/js/csrf.js"></script>
-  </head>
-  <body>
-    <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
-    <h2>Edit FAQ</h2>
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div><h2>Edit FAQ</h2></div>
+    <a href="/admin/faqs" class="jk-btn-outline" style="text-decoration:none;">⬅ Cancel</a>
+  </div>
+
+  <div class="jk-report-panel">
     <form action="/admin/faqs/update/<%= faq.id %>" method="POST">
       <p><strong>Question:</strong> <%- faq.question %></p>
       <label for="answer">Answer:</label><br />
       <textarea name="answer" id="content" rows="5"><%- faq.answer || '' %></textarea
       ><br /><br />
 
-      <label>
+      <label style="font-weight:normal;">
         <input type="checkbox" name="is_published" <%= faq.is_published ? 'checked' : '' %>> Publish this answer
       </label><br><br>
-      
-      <button type="submit">Save</button>
-      <a href="/admin/faqs">Cancel</a>
-      
+
+      <button type="submit" class="jk-btn-dark">💾 Save</button>
     </form>
-    <script> CKEDITOR.replace('content'); </script>
-    <script>
-      function toggleNav() {
-        var nav = document.getElementById("main-nav");
-        nav.classList.toggle("open");
-      }
-    </script>
-  </body>
-</html>
+  </div>
+
+</section>
+
+<script> CKEDITOR.replace('content'); </script>
