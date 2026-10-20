@@ -2,20 +2,23 @@
 <link rel="stylesheet" href="/labs/css/labRunPreview.css" />
 <script src="/labs/js/labRunPython.js"></script>
 
-<div class="pgm-page">
-  <h2>🖼️ Project Gallery Moderation</h2>
+<div class="pgm-page jk-page">
 
-  <div class="pgm-tabs">
-    <button type="button" class="pgm-tab active" data-tab="lab">Lab Gallery</button>
-    <button type="button" class="pgm-tab" data-tab="external">External Projects</button>
+  <div class="jk-header-card">
+    <div><h2>🖼️ Project Gallery Moderation</h2></div>
+  </div>
+
+  <div class="pgm-tabs login-tabs">
+    <button type="button" class="pgm-tab login-tab active" data-tab="lab">Lab Gallery</button>
+    <button type="button" class="pgm-tab login-tab" data-tab="external">External Projects</button>
   </div>
 
   <div id="pgm-tab-lab">
     <p class="pgm-sub">Every project currently published to the platform-wide gallery. Lesson lab tasks never appear here — only students' own freeform Web Lab / Blockly Lab projects can be published.</p>
 
-    <div class="pgm-toolbar">
-      <input type="text" id="pgmSearch" placeholder="Search by project or student name…" />
-      <select id="pgmLabType">
+    <div class="pgm-toolbar jk-toolbar">
+      <input type="text" id="pgmSearch" class="jk-search-input" style="flex:1; min-width:220px;" placeholder="Search by project or student name…" />
+      <select id="pgmLabType" class="jk-select">
         <option value="">All lab types</option>
         <option value="web">🌐 Web Lab</option>
         <option value="blockly">🧩 Blockly Lab</option>
@@ -25,7 +28,7 @@
       <label class="pgm-flag-toggle">
         <input type="checkbox" id="pgmFlaggedOnly" /> Flagged only 🚩
       </label>
-      <button type="button" id="pgmRefresh">Refresh</button>
+      <button type="button" id="pgmRefresh" class="jk-btn-outline">Refresh</button>
     </div>
 
     <div class="pgm-table-wrap">
@@ -60,12 +63,12 @@
   <div id="pgm-tab-external" style="display:none;">
     <p class="pgm-sub">Graded (or manually reviewed) External Project submissions. Featuring one here — an admin decision, separate from student self-publishing — shows it in the Labs Gallery to every logged-in platform user, and in the public Showcase teaser IF the student's family has also enabled public sharing.</p>
 
-    <div class="pgm-toolbar">
-      <input type="text" id="pgmExtSearch" placeholder="Search by project or student name…" />
+    <div class="pgm-toolbar jk-toolbar">
+      <input type="text" id="pgmExtSearch" class="jk-search-input" style="flex:1; min-width:220px;" placeholder="Search by project or student name…" />
       <label class="pgm-flag-toggle">
         <input type="checkbox" id="pgmExtFeaturedOnly" /> Featured only ⭐
       </label>
-      <button type="button" id="pgmExtRefresh">Refresh</button>
+      <button type="button" id="pgmExtRefresh" class="jk-btn-outline">Refresh</button>
     </div>
 
     <div class="pgm-table-wrap">
@@ -89,108 +92,74 @@
 </div>
 
 <style>
-  .pgm-page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
-  .pgm-sub { color: #666; font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
+  .pgm-page.jk-page { max-width: 1100px; }
+  .pgm-sub { color: #8A7B55; font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
 
-  .pgm-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-  .pgm-toolbar input[type="text"] {
-    flex: 1;
-    min-width: 220px;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-  }
-  .pgm-toolbar select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-  }
-  .pgm-flag-toggle { font-size: 13px; display: flex; align-items: center; gap: 6px; }
-  .pgm-toolbar button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
-  }
+  .pgm-flag-toggle { font-size: 13px; display: flex; align-items: center; gap: 6px; color: #4C3802; }
 
   .pgm-table-wrap {
     overflow-x: auto;
     background: #fff;
-    border-radius: 12px;
-    border: 1px solid #eee;
+    border-radius: 14px;
+    border: 1px solid #EDE7D6;
   }
   .pgm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .pgm-table th, .pgm-table td {
     padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #F1ECDD;
     white-space: nowrap;
   }
-  .pgm-table th { background: #fafafa; font-weight: 700; color: #444; }
-  .pgm-table tr.flagged td { background: #fff5f5; }
-  .pgm-empty { text-align: center; color: #999; padding: 30px !important; }
+  .pgm-table th { background: #FAF8F2; font-weight: 700; color: #6E6350; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pgm-table tr.flagged td { background: #FDEEEC; }
+  .pgm-empty { text-align: center; color: #8A7B55; padding: 30px !important; }
 
   .pgm-unpublish-btn {
-    border: none;
-    background: #f1f1f1;
-    color: #b02a37;
+    border: 1px solid #F7D9D4;
+    background: #FDEEEC;
+    color: #B23A2A;
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
   }
-  .pgm-unpublish-btn:hover { background: #ffe1e1; }
-
-  .pgm-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
-  .pgm-tab {
-    border: 1px solid #ddd; background: #fff; color: #444;
-    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
-  }
-  .pgm-tab.active { background: #333; color: #fff; border-color: #333; }
+  .pgm-unpublish-btn:hover { background: #F7D9D4; }
 
   .pgm-feature-btn {
-    border: none; background: #f1f1f1; color: #4a3b00; padding: 6px 12px;
-    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;
+    border: 1px solid #EDE7D6; background: #F6F4EF; color: #4C3802; padding: 6px 12px;
+    border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700;
   }
-  .pgm-feature-btn.featured { background: #fff3cd; color: #856404; }
+  .pgm-feature-btn.featured { background: var(--brand-tint); color: var(--brand-pri-dark); border-color: var(--brand-tint); }
   .pgm-feature-btn:hover { opacity: 0.85; }
 
   .pgm-view-btn {
-    border: none; background: #eef4ff; color: #2c5fa8; padding: 6px 12px;
-    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 6px;
+    border: 1px solid #E7E0CE; background: #fff; color: var(--brand-pri-dark); padding: 6px 12px;
+    border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; margin-right: 6px;
   }
-  .pgm-view-btn:hover { background: #dce8ff; }
+  .pgm-view-btn:hover { background: #FAF8F2; }
 
   .pgm-modal { position: fixed; inset: 0; z-index: 100000; }
-  .pgm-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+  .pgm-modal-overlay { position: absolute; inset: 0; background: rgba(26,21,16,0.55); }
   .pgm-modal-card {
     position: relative; max-width: 700px; margin: 40px auto; max-height: 85vh; overflow-y: auto;
-    background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   }
   .pgm-modal-close {
-    position: absolute; top: 14px; right: 14px; border: none; background: #f1f1f1;
-    width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px;
+    position: absolute; top: 14px; right: 14px; border: none; background: #F6F4EF;
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px; color: var(--brand-pri-dark);
   }
 
   .pgm-pubprofile-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 8px 12px;
+    background: #FAF8F2; border: 1px solid #EDE7D6; border-radius: 10px; padding: 8px 12px;
     font-size: 13px;
   }
   .pgm-pubprofile-btn {
-    border: 1px solid #333; background: #fff; color: #333; padding: 5px 12px;
-    border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
+    border: 1px solid #201B12; background: #fff; color: #201B12; padding: 5px 12px;
+    border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap;
   }
-  .pgm-pubprofile-btn:hover { background: #333; color: #fff; }
+  .pgm-pubprofile-btn:hover { background: #201B12; color: #fff; }
 </style>
 
 <script>
