@@ -1,12 +1,9 @@
-<div class="instructor-topbar">
-  <div>
-    <h1><i class="fa-solid fa-user-graduate"></i> My Students</h1>
-    <p class="subtitle">Recognize great work with real, capped coin awards — never arbitrary amounts.</p>
-  </div>
+<div class="jk-header-card">
+  <div><h2>My Students</h2></div>
 </div>
 
 <% if (awardBudget) { %>
-  <div class="card" style="max-width:420px;">
+  <div class="jk-report-panel" style="max-width:420px; margin-bottom:16px;">
     <strong>Today's award budget</strong>
     <div class="award-budget-meter">
       <div class="fill" style="width: <%= Math.min(100, Math.round((awardBudget.spentToday / awardBudget.budget) * 100)) %>%;"></div>
@@ -18,27 +15,31 @@
   </div>
 <% } %>
 
-<div class="instructor-toolbar" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0;">
-  <input type="text" id="studentSearch" placeholder="Search students by name or email…" onkeyup="filterInstructorStudents()" style="flex:1; min-width:200px; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light);">
-  <select id="studentClassroomFilter" onchange="filterInstructorStudents()" style="padding:9px 12px; border-radius:9px; border:1px solid var(--border-light);">
+<div class="jk-toolbar">
+  <div class="jk-search-wrap">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input type="text" id="studentSearch" class="jk-search-input" placeholder="Search students by name or email…" onkeyup="filterInstructorStudents()">
+  </div>
+  <select id="studentClassroomFilter" class="jk-select" onchange="filterInstructorStudents()">
     <option value="">All classrooms</option>
     <% (classes || []).forEach(c => { %>
       <option value="<%= c.name %>"><%= c.name %></option>
     <% }) %>
   </select>
-  <button class="btn-award" onclick="openAddStudentModal()"><i class="fa-solid fa-user-plus"></i> Add Student</button>
+  <div class="jk-toolbar-spacer"></div>
+  <button class="jk-btn-dark" onclick="openAddStudentModal()"><i class="fa-solid fa-user-plus"></i> Add Student</button>
 </div>
 
-<div class="table-responsive">
-  <table class="user-table sortable-table" id="studentsTable">
+<div class="jk-table-wrap">
+  <table class="jk-table sortable-table" id="studentsTable">
     <thead>
       <tr>
         <th>Full Name</th>
         <th>Email</th>
         <th>Classroom</th>
-        <th>Coins</th>
+        <th>Coins &amp; XP</th>
         <th>Login PIN</th>
-        <th>Actions</th>
+        <th class="jk-col-actions">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -53,7 +54,7 @@
               <span class="student-coin-badge" style="background:#eef2ff; color:#4338ca;">⭐ Lvl <%= stu.level || 1 %> · <%= stu.xp || 0 %> XP</span>
             </td>
             <td><%= stu.classroom_login_enabled && stu.pin ? stu.pin : '—' %></td>
-            <td class="multi-btn">
+            <td class="jk-col-actions multi-btn">
               <button class="btn-award" onclick="openAwardModal(<%= stu.id %>, <%= stu.classroom_id %>, '<%= stu.fullname.replace(/'/g, "\\'") %>')">
                 <i class="fa-solid fa-star"></i> Award Points
               </button>
@@ -68,85 +69,91 @@
   </table>
 </div>
 
-<h2 style="margin-top:26px;"><i class="fa-solid fa-medal"></i> Recent Awards</h2>
+<div class="jk-section-head" style="margin-top:26px;"><h3>🏅 Recent Awards</h3></div>
 <ul class="recent-awards-list" id="recentAwardsList">
   <p style="color:#999; font-size:13px;">Loading…</p>
 </ul>
 
 <!-- Award Modal -->
-<div id="awardModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeAwardModal()">&times;</span>
-    <h3>🌟 Award Points to <span id="awardModalStudentName"></span></h3>
-
-    <div class="award-budget-meter">
-      <div class="fill" id="awardBudgetFill" style="width:0%;"></div>
+<div id="awardModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>🌟 Award Points to <span id="awardModalStudentName"></span></h4>
+      <button class="jk-modal-close" onclick="closeAwardModal()" aria-label="Close">&times;</button>
     </div>
-    <div class="award-budget-label"><span id="awardBudgetLabel">Loading budget…</span></div>
+    <div class="jk-modal-body">
+      <div class="award-budget-meter">
+        <div class="fill" id="awardBudgetFill" style="width:0%;"></div>
+      </div>
+      <div class="award-budget-label"><span id="awardBudgetLabel">Loading budget…</span></div>
 
-    <p style="font-size:13px; color:#666; margin:14px 0 4px;">Pick ONE reason — the coin value is fixed per category, and you can give each student at most 3 awards a day.</p>
-    <div class="award-category-grid">
-      <% (awardCategories || []).forEach(cat => { %>
-        <div class="award-category-chip" onclick="selectAwardCategory('<%= cat.key %>', this)">
-          <span class="emoji"><%= cat.emoji %></span>
-          <span class="label"><%= cat.label %></span>
-          <span class="amount">+<%= cat.amount %> coins</span>
-        </div>
-      <% }) %>
-    </div>
+      <p style="font-size:13px; color:#666; margin:14px 0 4px;">Pick ONE reason — the coin value is fixed per category, and you can give each student at most 3 awards a day.</p>
+      <div class="award-category-grid">
+        <% (awardCategories || []).forEach(cat => { %>
+          <div class="award-category-chip" onclick="selectAwardCategory('<%= cat.key %>', this)">
+            <span class="emoji"><%= cat.emoji %></span>
+            <span class="label"><%= cat.label %></span>
+            <span class="amount">+<%= cat.amount %> coins</span>
+          </div>
+        <% }) %>
+      </div>
 
-    <label style="font-size:13px; font-weight:600;">Note (optional)</label>
-    <textarea id="awardNote" rows="2" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); box-sizing:border-box;" placeholder="e.g. Helped explain the loop to the whole class"></textarea>
+      <label style="font-size:13px; font-weight:600;">Note (optional)</label>
+      <textarea id="awardNote" rows="2" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); box-sizing:border-box;" placeholder="e.g. Helped explain the loop to the whole class"></textarea>
 
-    <div class="multi-btn" style="margin-top:16px;">
-      <button class="btn-award" onclick="submitAward()"><i class="fa-solid fa-gift"></i> Give Award</button>
-      <button class="btn-pri" onclick="closeAwardModal()">Cancel</button>
+      <div class="multi-btn" style="margin-top:16px;">
+        <button class="btn-award" onclick="submitAward()"><i class="fa-solid fa-gift"></i> Give Award</button>
+        <button class="btn-pri" onclick="closeAwardModal()">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- Add Student Modal -->
-<div id="addStudentModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeAddStudentModal()">&times;</span>
-    <h3>➕ Add Student</h3>
-
-    <div id="addStudentFormStep">
-      <label style="font-size:13px; font-weight:600;">Full Name</label>
-      <input type="text" id="addStudentName" placeholder="e.g. Ada Lovelace" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-
-      <label style="font-size:13px; font-weight:600;">Term (optional)</label>
-      <select id="addStudentTerm" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-        <option value="">No term / unassigned</option>
-        <% (terms || []).forEach(t => { %>
-          <option value="<%= t.term_id %>"><%= t.term_name %></option>
-        <% }) %>
-      </select>
-
-      <label style="font-size:13px; font-weight:600;">Classroom</label>
-      <select id="addStudentClassroom" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-        <option value="">Choose a classroom</option>
-        <% (classes || []).forEach(c => { %>
-          <option value="<%= c.id %>"><%= c.name %></option>
-        <% }) %>
-      </select>
-
-      <p style="font-size:12px; color:#8a8a8a;">Email, password, login PIN, and avatar are generated automatically.</p>
-
-      <div class="multi-btn" style="margin-top:10px;">
-        <button class="btn-award" onclick="submitAddStudent()"><i class="fa-solid fa-user-plus"></i> Create Student</button>
-        <button class="btn-pri" onclick="closeAddStudentModal()">Cancel</button>
-      </div>
+<div id="addStudentModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>➕ Add Student</h4>
+      <button class="jk-modal-close" onclick="closeAddStudentModal()" aria-label="Close">&times;</button>
     </div>
+    <div class="jk-modal-body">
+      <div id="addStudentFormStep">
+        <label style="font-size:13px; font-weight:600;">Full Name</label>
+        <input type="text" id="addStudentName" class="jk-select" placeholder="e.g. Ada Lovelace">
 
-    <div id="addStudentResultStep" style="display:none;">
-      <p>✅ Student created. Share these login details with them:</p>
-      <p><strong>Email:</strong> <span id="resultEmail"></span></p>
-      <p><strong>Password:</strong> <span id="resultPassword"></span></p>
-      <p><strong>Login PIN:</strong> <span id="resultPin"></span></p>
-      <img id="resultAvatar" width="72" height="72" style="border-radius:50%; margin-top:6px;">
-      <div class="multi-btn" style="margin-top:16px;">
-        <button class="btn-pri" onclick="closeAddStudentModal()">Done</button>
+        <label style="font-size:13px; font-weight:600;">Term (optional)</label>
+        <select id="addStudentTerm" class="jk-select" style="width:100%;">
+          <option value="">No term / unassigned</option>
+          <% (terms || []).forEach(t => { %>
+            <option value="<%= t.term_id %>"><%= t.term_name %></option>
+          <% }) %>
+        </select>
+
+        <label style="font-size:13px; font-weight:600;">Classroom</label>
+        <select id="addStudentClassroom" class="jk-select" style="width:100%;">
+          <option value="">Choose a classroom</option>
+          <% (classes || []).forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }) %>
+        </select>
+
+        <p style="font-size:12px; color:#8a8a8a;">Email, password, login PIN, and avatar are generated automatically.</p>
+
+        <div class="multi-btn" style="margin-top:10px;">
+          <button class="btn-award" onclick="submitAddStudent()"><i class="fa-solid fa-user-plus"></i> Create Student</button>
+          <button class="btn-pri" onclick="closeAddStudentModal()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="addStudentResultStep" style="display:none;">
+        <p>✅ Student created. Share these login details with them:</p>
+        <p><strong>Email:</strong> <span id="resultEmail"></span></p>
+        <p><strong>Password:</strong> <span id="resultPassword"></span></p>
+        <p><strong>Login PIN:</strong> <span id="resultPin"></span></p>
+        <img id="resultAvatar" width="72" height="72" style="border-radius:50%; margin-top:6px;">
+        <div class="multi-btn" style="margin-top:16px;">
+          <button class="btn-pri" onclick="closeAddStudentModal()">Done</button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,120 +1,115 @@
-<div class="instructor-topbar">
-  <div>
-    <h1><i class="fa-solid fa-school"></i> My Classes</h1>
-    <p class="subtitle">An overview of every classroom you teach in this school.</p>
+<div class="jk-header-card">
+  <div><h2>My Classes</h2></div>
+</div>
+
+<div class="jk-stat-grid">
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Classes</span><span class="jk-stat-icon">🏫</span></div>
+    <div class="jk-stat-value"><%= overview.total_classes || 0 %></div>
+  </div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Students</span><span class="jk-stat-icon">🎓</span></div>
+    <div class="jk-stat-value"><%= overview.total_students || 0 %></div>
+  </div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Lessons</span><span class="jk-stat-icon">📚</span></div>
+    <div class="jk-stat-value"><%= overview.total_lessons || 0 %></div>
+  </div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Avg Quiz Score</span><span class="jk-stat-icon">🧠</span></div>
+    <div class="jk-stat-value"><%= overview.avg_quiz_score || "–" %></div>
+  </div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Avg Assignment Score</span><span class="jk-stat-icon">📝</span></div>
+    <div class="jk-stat-value"><%= overview.avg_assignment_score || "–" %></div>
+  </div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Engagement (7d)</span><span class="jk-stat-icon">🔥</span></div>
+    <div class="jk-stat-value"><%= overview.engagement_last7 || 0 %>%</div>
   </div>
 </div>
 
-<div class="stat-card-grid">
-  <div class="stat-card">
-    <div class="stat-icon icon-blue"><i class="fa-solid fa-school"></i></div>
-    <div><div class="stat-value"><%= overview.total_classes || 0 %></div><div class="stat-label">Classes</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-green"><i class="fa-solid fa-user-graduate"></i></div>
-    <div><div class="stat-value"><%= overview.total_students || 0 %></div><div class="stat-label">Students</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-gold"><i class="fa-solid fa-book"></i></div>
-    <div><div class="stat-value"><%= overview.total_lessons || 0 %></div><div class="stat-label">Lessons</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-purple"><i class="fa-solid fa-chart-line"></i></div>
-    <div><div class="stat-value"><%= overview.avg_quiz_score || "–" %></div><div class="stat-label">Avg Quiz Score</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-red"><i class="fa-solid fa-file-pen"></i></div>
-    <div><div class="stat-value"><%= overview.avg_assignment_score || "–" %></div><div class="stat-label">Avg Assignment Score</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-gold"><i class="fa-solid fa-fire"></i></div>
-    <div><div class="stat-value"><%= overview.engagement_last7 || 0 %>%</div><div class="stat-label">Engagement (7d)</div></div>
-  </div>
-</div>
+<div class="jk-section-head"><h3>Classroom List</h3></div>
 
-<h2><i class="fa-solid fa-list"></i> Classroom List</h2>
 <% if (!classes || classes.length === 0) { %>
   <div class="instructor-empty">
     <i class="fa-solid fa-school"></i>
     <p>No classrooms assigned to you yet.</p>
   </div>
 <% } else { %>
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
-      <thead>
-        <tr>
-          <th>Class Name</th>
-          <th>Students</th>
-          <th>Lessons</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% classes.forEach(cls => { %>
-          <tr>
-            <td><%= cls.name %></td>
-            <td><%= (studentCountsPerClass.find(s => s.id == cls.id) || {}).student_count || 0 %></td>
-            <td><%= (lessonsPerClass.find(l => l.id == cls.id) || {}).lesson_count || 0 %></td>
-            <td>
-              <button class="btn-view" onclick="loadSection('students?classroom_id=<%= cls.id %>')">
-                <i class="fa-solid fa-user-graduate"></i> View Students
-              </button>
-              <button class="btn-blue" onclick="loadSection('schools?classroom_id=<%= cls.id %>')">
-                <i class="fa-solid fa-chart-pie"></i> Analytics
-              </button>
-              <button class="btn-award" onclick="openAddStudentModal(<%= cls.id %>)">
-                <i class="fa-solid fa-user-plus"></i> Add Student
-              </button>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+  <div class="jk-course-grid">
+    <% classes.forEach(cls => { %>
+      <% const studentCount = (studentCountsPerClass.find(s => s.id == cls.id) || {}).student_count || 0; %>
+      <% const lessonCount = (lessonsPerClass.find(l => l.id == cls.id) || {}).lesson_count || 0; %>
+      <div class="jk-course-card">
+        <div class="card-content">
+          <h4>🏫 <%= cls.name %></h4>
+          <div class="card-body">
+            <span class="jk-pill">🎓 <%= studentCount %> student<%= studentCount === 1 ? "" : "s" %></span>
+            <span class="jk-pill">📚 <%= lessonCount %> lesson<%= lessonCount === 1 ? "" : "s" %></span>
+          </div>
+          <div class="article-buttons">
+            <button class="btn-view" onclick="loadSection('students?classroom_id=<%= cls.id %>')">
+              <i class="fa-solid fa-user-graduate"></i> View Students
+            </button>
+            <button onclick="loadSection('schools?classroom_id=<%= cls.id %>')">
+              <i class="fa-solid fa-chart-pie"></i> Analytics
+            </button>
+            <button class="btn-edit" onclick="openAddStudentModal(<%= cls.id %>)">
+              <i class="fa-solid fa-user-plus"></i> Add Student
+            </button>
+          </div>
+        </div>
+      </div>
+    <% }) %>
   </div>
 <% } %>
 
 <!-- Add Student Modal -->
-<div id="addStudentModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeAddStudentModal()">&times;</span>
-    <h3>➕ Add Student</h3>
-
-    <div id="addStudentFormStep">
-      <label style="font-size:13px; font-weight:600;">Full Name</label>
-      <input type="text" id="addStudentName" placeholder="e.g. Ada Lovelace" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-
-      <label style="font-size:13px; font-weight:600;">Term (optional)</label>
-      <select id="addStudentTerm" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-        <option value="">No term / unassigned</option>
-        <% (terms || []).forEach(t => { %>
-          <option value="<%= t.term_id %>"><%= t.term_name %></option>
-        <% }) %>
-      </select>
-
-      <label style="font-size:13px; font-weight:600;">Classroom</label>
-      <select id="addStudentClassroom" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
-        <option value="">Choose a classroom</option>
-        <% (classes || []).forEach(c => { %>
-          <option value="<%= c.id %>"><%= c.name %></option>
-        <% }) %>
-      </select>
-
-      <p style="font-size:12px; color:#8a8a8a;">Email, password, login PIN, and avatar are generated automatically.</p>
-
-      <div class="multi-btn" style="margin-top:10px;">
-        <button class="btn-award" onclick="submitAddStudent()"><i class="fa-solid fa-user-plus"></i> Create Student</button>
-        <button class="btn-pri" onclick="closeAddStudentModal()">Cancel</button>
-      </div>
+<div id="addStudentModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>➕ Add Student</h4>
+      <button class="jk-modal-close" onclick="closeAddStudentModal()" aria-label="Close">&times;</button>
     </div>
+    <div class="jk-modal-body">
+      <div id="addStudentFormStep">
+        <label style="font-size:13px; font-weight:600;">Full Name</label>
+        <input type="text" id="addStudentName" class="jk-select" placeholder="e.g. Ada Lovelace">
 
-    <div id="addStudentResultStep" style="display:none;">
-      <p>✅ Student created. Share these login details with them:</p>
-      <p><strong>Email:</strong> <span id="resultEmail"></span></p>
-      <p><strong>Password:</strong> <span id="resultPassword"></span></p>
-      <p><strong>Login PIN:</strong> <span id="resultPin"></span></p>
-      <img id="resultAvatar" width="72" height="72" style="border-radius:50%; margin-top:6px;">
-      <div class="multi-btn" style="margin-top:16px;">
-        <button class="btn-pri" onclick="closeAddStudentModal()">Done</button>
+        <label style="font-size:13px; font-weight:600;">Term (optional)</label>
+        <select id="addStudentTerm" class="jk-select" style="width:100%;">
+          <option value="">No term / unassigned</option>
+          <% (terms || []).forEach(t => { %>
+            <option value="<%= t.term_id %>"><%= t.term_name %></option>
+          <% }) %>
+        </select>
+
+        <label style="font-size:13px; font-weight:600;">Classroom</label>
+        <select id="addStudentClassroom" class="jk-select" style="width:100%;">
+          <option value="">Choose a classroom</option>
+          <% (classes || []).forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }) %>
+        </select>
+
+        <p style="font-size:12px; color:#8a8a8a;">Email, password, login PIN, and avatar are generated automatically.</p>
+
+        <div class="multi-btn" style="margin-top:10px;">
+          <button class="btn-award" onclick="submitAddStudent()"><i class="fa-solid fa-user-plus"></i> Create Student</button>
+          <button class="btn-pri" onclick="closeAddStudentModal()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="addStudentResultStep" style="display:none;">
+        <p>✅ Student created. Share these login details with them:</p>
+        <p><strong>Email:</strong> <span id="resultEmail"></span></p>
+        <p><strong>Password:</strong> <span id="resultPassword"></span></p>
+        <p><strong>Login PIN:</strong> <span id="resultPin"></span></p>
+        <img id="resultAvatar" width="72" height="72" style="border-radius:50%; margin-top:6px;">
+        <div class="multi-btn" style="margin-top:16px;">
+          <button class="btn-pri" onclick="closeAddStudentModal()">Done</button>
+        </div>
       </div>
     </div>
   </div>
