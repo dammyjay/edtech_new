@@ -1,101 +1,115 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-<h3>Search</h3>
+<style>
+  .vt-pagination { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+  .vt-pagination a {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px;
+    padding: 0 8px; border: 1px solid #E7E0CE; border-radius: 8px; color: #4C3802; font-size: 12.5px;
+    font-weight: 700; text-decoration: none;
+  }
+  .vt-pagination a.active { background: #201B12; color: #EDE6D6; border-color: #201B12; }
+  #createModal .jk-modal, #rowModal .jk-modal, #editModal .jk-modal { padding: 20px 22px; }
+  #createModal .jk-modal h3, #rowModal .jk-modal h3, #editModal .jk-modal h3 { margin: 0 0 14px; font-size: 15.5px; font-weight: 800; color: #1A1510; }
+  #createModal form > div, #editFields > div { margin-bottom: 12px; }
+  #createModal label, #editFields label { display: block; font-size: 12px; font-weight: 700; color: #4C3802; margin-bottom: 4px; }
+  #createModal input[type="text"], #createModal input[type="date"], #createModal input[type="datetime-local"],
+  #createModal textarea, #editFields input[type="text"], #editFields textarea {
+    width: 100%; box-sizing: border-box; padding: 8px 11px; border-radius: 8px; border: 1px solid #E7E0CE; font-family: inherit; font-size: 13px;
+  }
+  #modalContent p { font-size: 13px; margin: 6px 0; word-break: break-word; }
+</style>
 
+<section class="section jk-page">
 
-<h3>Add New Record</h3>
+  <div class="jk-header-card">
+    <div><h2>Table: <%= table %></h2></div>
+    <button onclick="openCreateModal()" class="jk-btn-dark"><i class="fas fa-plus"></i> Add New Record</button>
+  </div>
 
-<button onclick="openCreateModal()">+ Add New Record</button>
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="liveSearch" class="jk-search-input" placeholder="Search...">
+    </div>
+  </div>
 
-<h2>Table: <%= table %></h2>
-<input 
-  type="text" 
-  id="liveSearch"
-  placeholder="Search..."
->
-<div class="table-responsive">
-  <table class="user-table sortable-table">
-  <thead>
-    <tr>
-      <% if(rows.length > 0){ %>
-        <% Object.keys(rows[0]).forEach(col => { %>
-          <th><%= col %></th>
-        <% }) %>
-        <th>Actions</th>
-      <% } %>
-    </tr>
-  </thead>
-  <tbody>
-    <% rows.forEach(row => { %>
+  <div class="jk-table-wrap">
+    <table class="jk-table user-table sortable-table">
+    <thead>
       <tr>
-
-      <% Object.entries(row).forEach(([key, val]) => { %>
-        <td>
-          <% if(typeof val === 'object'){ %>
-            <pre style="max-height:100px; overflow:auto;">
-      <%= JSON.stringify(val, null, 2) %>
-            </pre>
-          <% } else if(typeof val === 'string' && val.length > 10){ %>
-            <%= val.substring(0,10) %>...
-            <!-- <a href="#" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>View</a> -->
-          <% } else { %>
-            <!-- <%= val %> -->
-             <% if(row[key + "_name"]){ %>
-              <%= val %> — <strong><%= row[key + "_name"] %></strong>
-            <% } else { %>
-              <%= val %>
-            <% } %>
-          <% } %>
-        </td>
-      <% }) %>
-
-        <td style="display:flex; gap:10px; justify-content:center; align-items:center; height: 82px; text-decoration: none;">
-          <a href="#" class="no-bg" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>
-            <i class="fa-regular fa-eye" style="color: #0000ff;">   </i>
-          </a>
-          <a href="#" class="no-bg" onclick='openEditModal(<%- JSON.stringify(row) %>); return false;'>
-            <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);">  </i>
-          </a>
-
-          <!-- <a href="#" 
-            class="no-bg"
-            onclick="confirmDelete('<%= row.id %>'); return false;">
-            <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
-          </a> -->
-          <% if(row.id){ %>
-            <a href="#" 
-              class="no-bg"
-              onclick="confirmDelete('<%= row.id %>'); return false;">
-              <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
-            </a>
-          <% } %>
-          
-        </td>
+        <% if(rows.length > 0){ %>
+          <% Object.keys(rows[0]).forEach(col => { %>
+            <th><%= col %></th>
+          <% }) %>
+          <th class="jk-col-actions">Actions</th>
+        <% } %>
       </tr>
-    <% }) %>
-  </tbody>
-</table>
-<div style="margin-top:20px;">
-  <% for(let i=1; i<=totalPages; i++){ %>
-    <a href="?page=<%= i %>&search=<%= search %>"
-       style="<%= currentPage === i ? 'font-weight:bold;' : '' %>">
-       <%= i %>
-    </a>
-  <% } %>
-</div>
-</div>
+    </thead>
+    <tbody>
+      <% rows.forEach(row => { %>
+        <tr>
+
+        <% Object.entries(row).forEach(([key, val]) => { %>
+          <td>
+            <% if(typeof val === 'object'){ %>
+              <pre style="max-height:100px; overflow:auto;">
+        <%= JSON.stringify(val, null, 2) %>
+              </pre>
+            <% } else if(typeof val === 'string' && val.length > 10){ %>
+              <%= val.substring(0,10) %>...
+            <% } else { %>
+               <% if(row[key + "_name"]){ %>
+                <%= val %> — <strong><%= row[key + "_name"] %></strong>
+              <% } else { %>
+                <%= val %>
+              <% } %>
+            <% } %>
+          </td>
+        <% }) %>
+
+          <td class="jk-col-actions" style="display:flex; gap:6px; justify-content:center; align-items:center; height: 82px; text-decoration: none;">
+            <a href="#" class="jk-icon-btn" onclick='openRowModal(<%- JSON.stringify(row) %>); return false;'>
+              <i class="fa-regular fa-eye" style="color: #0000ff;"></i>
+            </a>
+            <a href="#" class="jk-icon-btn" onclick='openEditModal(<%- JSON.stringify(row) %>); return false;'>
+              <i class="fa-regular fa-pen-to-square" style="color: rgb(1, 156, 61);"></i>
+            </a>
+            <% if(row.id){ %>
+              <a href="#"
+                class="jk-icon-btn"
+                onclick="confirmDelete('<%= row.id %>'); return false;">
+                <i class="fa-regular fa-trash-can" style="color: rgb(252, 21, 5);"></i>
+              </a>
+            <% } %>
+
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <div class="vt-pagination">
+    <% for(let i=1; i<=totalPages; i++){ %>
+      <a href="?page=<%= i %>&search=<%= search %>"
+         class="<%= currentPage === i ? 'active' : '' %>">
+         <%= i %>
+      </a>
+    <% } %>
+  </div>
+  </div>
+
+</section>
 
 <!-- create record modal -->
-<div id="createModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <span onclick="closeCreateModal()" class="close">&times;</span>
+<div id="createModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <span onclick="closeCreateModal()" class="jk-modal-close" style="float:right;">&times;</span>
     <h3>Add New Record</h3>
 
     <form id="createForm">
       <% columns.forEach(col => { %>
         <% if(col.column_name !== 'id' && col.column_name !== 'created_at'){ %>
-          <div style="margin-bottom:10px;">
-            <label><%= col.column_name %></label><br>
+          <div>
+            <label><%= col.column_name %></label>
 
             <% if(col.data_type === 'boolean'){ %>
               <input type="hidden" name="<%= col.column_name %>" value="false">
@@ -109,7 +123,6 @@
 
             <% } else if(col.data_type === 'jsonb'){ %>
               <textarea class="ckeditor" name="<%= col.column_name %>" rows="4"></textarea>
-              <!-- <textarea class="ckeditor" name="<%= col.column_name %>"></textarea> -->
 
             <% } else { %>
               <input type="text" name="<%= col.column_name %>">
@@ -119,29 +132,29 @@
         <% } %>
       <% }) %>
 
-      <button type="submit">Create</button>
+      <button type="submit" class="jk-btn-dark">Create</button>
     </form>
 
   </div>
 </div>
 
 <!-- Row Modal -->
-<div id="rowModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <span onclick="closeRowModal()" class="close">&times;</span>
+<div id="rowModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <span onclick="closeRowModal()" class="jk-modal-close" style="float:right;">&times;</span>
     <h3>Full Record Details</h3>
     <div id="modalContent"></div>
   </div>
 </div>
 
-<div id="editModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <span onclick="closeEditModal()" class="close">&times;</span>
+<div id="editModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <span onclick="closeEditModal()" class="jk-modal-close" style="float:right;">&times;</span>
     <h3>Edit Record</h3>
     <form id="editForm" method="POST">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div id="editFields"></div>
-      <button type="submit">Update</button>
+      <button type="submit" class="jk-btn-dark">Update</button>
     </form>
   </div>
 </div>
@@ -410,14 +423,14 @@ ${JSON.stringify(val, null, 2)}
     actionTd.style.alignItems = "center";
 
     actionTd.innerHTML = `
-      <a href="#" class="no-bg" onclick='openRowModal(${JSON.stringify(row)}); return false;'>
+      <a href="#" class="jk-icon-btn" onclick='openRowModal(${JSON.stringify(row)}); return false;'>
         <i class="fa-regular fa-eye" style="color:#0000ff;"></i>
       </a>
-      <a href="#" class="no-bg" onclick='openEditModal(${JSON.stringify(row)}); return false;'>
+      <a href="#" class="jk-icon-btn" onclick='openEditModal(${JSON.stringify(row)}); return false;'>
         <i class="fa-regular fa-pen-to-square" style="color:rgb(1,156,61);"></i>
       </a>
       ${row.id ? `
-      <a href="#" class="no-bg" onclick="confirmDelete('${row.id}'); return false;">
+      <a href="#" class="jk-icon-btn" onclick="confirmDelete('${row.id}'); return false;">
         <i class="fa-regular fa-trash-can" style="color:rgb(252,21,5);"></i>
       </a>
       ` : ''}

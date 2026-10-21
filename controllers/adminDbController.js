@@ -12,16 +12,14 @@ exports.showTables = async (req, res) => {
   );
   const info = infoResult.rows[0];
 
-  // 🔥 Get count for each table
-  const tableData = [];
-
-  for (let table of allowedTables) {
-    const result = await pool.query(`SELECT COUNT(*) FROM ${table}`);
-    tableData.push({
-      name: table,
-      count: result.rows[0].count
-    });
-  }
+  // Get count for each table, in parallel — sequential awaits here meant
+  // one round trip per table (85 of them), ~30s+ to load this page.
+  const tableData = await Promise.all(
+    allowedTables.map(async (table) => {
+      const result = await pool.query(`SELECT COUNT(*) FROM ${table}`);
+      return { name: table, count: result.rows[0].count };
+    })
+  );
 
   res.render("admin/dbTables", {
     tables: tableData,   // 👈 changed

@@ -1,33 +1,34 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-<h2>Database Tables</h2>
+<style>
+  .db-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 4px; }
+  .db-table-card {
+    display: block; text-decoration: none; background: #fff; border: 1px solid #F1ECDD;
+    border-radius: 14px; padding: 16px 18px; transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .db-table-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(32,27,18,0.1); }
+  .db-table-card .db-table-icon {
+    width: 38px; height: 38px; border-radius: 10px; background: #201B12; color: #EDE6D6;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 12px;
+  }
+  .db-table-card .db-table-name { font-weight: 800; font-size: 13.5px; color: #1A1510; word-break: break-word; }
+  .db-table-card .db-table-count { font-size: 12px; color: #8A7B55; margin-top: 4px; }
+</style>
 
+<section class="section jk-page">
 
-<div class="engagement-grid">
+  <div class="jk-header-card">
+    <div><h2>Database Tables</h2></div>
+  </div>
+
+  <div class="db-table-grid">
     <% tables.forEach(table => { %>
-        <a href="/admin/db/<%= table.name %>" style="text-decoration:none;color:inherit;">
-            <div class="metric-card">
-                <div class="card-title black-bg">
-                    <p><%= table.name %></p>
-                </div>
-                <div class="metric-card-content">
-                    <div class="card-icon black-bg">
-                        <i class="fa-solid fa-database"></i>
-                    </div>
-                    <p style="color: #555;"><%= table.count %> Records</p>
-                </div>
-            </div>
-            <!-- <div class="metric-card">
-                <div class="card-icon">
-                    <i style="color: black;" class="fa-solid fa-database"></i>
-                </div>
-                
-                <div class="card-content">
-                    <h5><%= table.name %></h5>
-                    <p><%= table.count %> Records</p>
-                </div>
-                
-            </div> -->
-        </a>
+      <a href="/admin/db/<%= table.name %>" class="db-table-card">
+        <div class="db-table-icon"><i class="fa-solid fa-database"></i></div>
+        <div class="db-table-name"><%= table.name %></div>
+        <div class="db-table-count"><%= table.count %> Records</div>
+      </a>
     <% }) %>
-</div>
+  </div>
+
+</section>
