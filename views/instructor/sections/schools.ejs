@@ -1,58 +1,54 @@
-<div class="instructor-topbar">
-  <div>
-    <h1><i class="fa-solid fa-chart-pie"></i> Classroom Analytics</h1>
-    <p class="subtitle">Progress, gender mix, and quiz performance for one classroom at a time.</p>
-  </div>
-  <div>
-    <select id="analyticsClassroomSelect" onchange="loadSection('schools?classroom_id=' + this.value)">
-      <% (classes || []).forEach(c => { %>
-        <option value="<%= c.id %>" <%= String(selectedClassroomId) === String(c.id) ? "selected" : "" %>><%= c.name %></option>
-      <% }) %>
-    </select>
-  </div>
+<div class="jk-header-card">
+  <div><h2>📊 Classroom Analytics</h2></div>
+  <select id="analyticsClassroomSelect" class="jk-select" onchange="loadSection('schools?classroom_id=' + this.value)">
+    <% (classes || []).forEach(c => { %>
+      <option value="<%= c.id %>" <%= String(selectedClassroomId) === String(c.id) ? "selected" : "" %>><%= c.name %></option>
+    <% }) %>
+  </select>
 </div>
 
 <% if (!classes || classes.length === 0) { %>
   <p style="color:#999;">No classrooms assigned yet.</p>
 <% } else { %>
 
-<div class="card-grid">
-  <div class="card">
-    <h3>📘 Avg Progress</h3>
-    <p class="stat-value"><%= avgProgress %>%</p>
+<div class="jk-stat-grid">
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Avg Progress</span><span class="jk-stat-icon">📘</span></div>
+    <div class="jk-stat-value"><%= avgProgress %>%</div>
   </div>
-
-  <div class="card">
-    <h3>🏅 Top Student</h3>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Top Student</span><span class="jk-stat-icon">🏅</span></div>
     <% if (topStudent && topStudent.fullname) { %>
-      <p><strong><%= topStudent.fullname %></strong></p>
-      <p>Quiz Avg: <%= topStudent.avg_quiz_score || "–" %></p>
+      <div style="font-size:15px; font-weight:800; color:#1A1510;"><%= topStudent.fullname %></div>
+      <div style="font-size:12px; color:#6E6350;">Quiz Avg: <%= topStudent.avg_quiz_score || "–" %></div>
     <% } else { %>
-      <p>No student data</p>
+      <div style="font-size:13px; color:#6E6350;">No student data</div>
     <% } %>
   </div>
+</div>
 
-  <div class="card">
-    <h3>👩‍🎓 Gender Ratio</h3>
+<div class="jk-report-panel" style="margin-bottom:16px;">
+  <h4 style="margin:0 0 10px;">👩‍🎓 Gender Ratio</h4>
+  <div style="max-width:320px; max-height:280px; margin:0 auto;">
     <canvas id="genderChart"></canvas>
   </div>
 </div>
 
-<h2>📈 Class Analytics</h2>
-<div style="display:flex; gap:30px; flex-wrap:wrap;">
-  <div style="flex:1; min-width:300px;">
-    <h3>Progress Distribution</h3>
+<div class="jk-section-head"><h3>📈 Class Analytics</h3></div>
+<div style="display:flex; gap:20px; flex-wrap:wrap;">
+  <div class="jk-report-panel" style="flex:1; min-width:300px;">
+    <h4 style="margin:0 0 10px;">Progress Distribution</h4>
     <canvas id="progressChart"></canvas>
   </div>
-  <div style="flex:1; min-width:300px;">
-    <h3>Quiz Performance</h3>
+  <div class="jk-report-panel" style="flex:1; min-width:300px;">
+    <h4 style="margin:0 0 10px;">Quiz Performance</h4>
     <canvas id="quizChart"></canvas>
   </div>
 </div>
 
-<h2>👥 Student Details</h2>
-<div class="table-responsive">
-  <table class="user-table sortable-table">
+<div class="jk-section-head"><h3>👥 Student Details</h3></div>
+<div class="jk-table-wrap">
+  <table class="jk-table sortable-table">
     <thead>
       <tr>
         <th>Full Name</th>
