@@ -18,8 +18,19 @@
   </div>
 <% } %>
 
+<div class="instructor-toolbar" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0;">
+  <input type="text" id="studentSearch" placeholder="Search students by name or email…" onkeyup="filterInstructorStudents()" style="flex:1; min-width:200px; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light);">
+  <select id="studentClassroomFilter" onchange="filterInstructorStudents()" style="padding:9px 12px; border-radius:9px; border:1px solid var(--border-light);">
+    <option value="">All classrooms</option>
+    <% (classes || []).forEach(c => { %>
+      <option value="<%= c.name %>"><%= c.name %></option>
+    <% }) %>
+  </select>
+  <button class="btn-award" onclick="openAddStudentModal()"><i class="fa-solid fa-user-plus"></i> Add Student</button>
+</div>
+
 <div class="table-responsive">
-  <table class="user-table sortable-table">
+  <table class="user-table sortable-table" id="studentsTable">
     <thead>
       <tr>
         <th>Full Name</th>
@@ -33,7 +44,7 @@
     <tbody>
       <% if (students.length > 0) { %>
         <% students.forEach(stu => { %>
-          <tr>
+          <tr data-name="<%= stu.fullname %>" data-email="<%= stu.email %>" data-classroom="<%= stu.classroom_name %>">
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
@@ -87,6 +98,53 @@
     <div class="multi-btn" style="margin-top:16px;">
       <button class="btn-award" onclick="submitAward()"><i class="fa-solid fa-gift"></i> Give Award</button>
       <button class="btn-pri" onclick="closeAwardModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div id="addStudentModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeAddStudentModal()">&times;</span>
+    <h3>➕ Add Student</h3>
+
+    <div id="addStudentFormStep">
+      <label style="font-size:13px; font-weight:600;">Full Name</label>
+      <input type="text" id="addStudentName" placeholder="e.g. Ada Lovelace" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
+
+      <label style="font-size:13px; font-weight:600;">Term (optional)</label>
+      <select id="addStudentTerm" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
+        <option value="">No term / unassigned</option>
+        <% (terms || []).forEach(t => { %>
+          <option value="<%= t.term_id %>"><%= t.term_name %></option>
+        <% }) %>
+      </select>
+
+      <label style="font-size:13px; font-weight:600;">Classroom</label>
+      <select id="addStudentClassroom" style="width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border-light); box-sizing:border-box; margin:4px 0 14px;">
+        <option value="">Choose a classroom</option>
+        <% (classes || []).forEach(c => { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+
+      <p style="font-size:12px; color:#8a8a8a;">Email, password, login PIN, and avatar are generated automatically.</p>
+
+      <div class="multi-btn" style="margin-top:10px;">
+        <button class="btn-award" onclick="submitAddStudent()"><i class="fa-solid fa-user-plus"></i> Create Student</button>
+        <button class="btn-pri" onclick="closeAddStudentModal()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="addStudentResultStep" style="display:none;">
+      <p>✅ Student created. Share these login details with them:</p>
+      <p><strong>Email:</strong> <span id="resultEmail"></span></p>
+      <p><strong>Password:</strong> <span id="resultPassword"></span></p>
+      <p><strong>Login PIN:</strong> <span id="resultPin"></span></p>
+      <img id="resultAvatar" width="72" height="72" style="border-radius:50%; margin-top:6px;">
+      <div class="multi-btn" style="margin-top:16px;">
+        <button class="btn-pri" onclick="closeAddStudentModal()">Done</button>
+      </div>
     </div>
   </div>
 </div>

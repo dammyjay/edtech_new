@@ -325,6 +325,106 @@ async function submitAward() {
 }
 
 // =====================================================================
+// ADD STUDENT — self-serve student creation
+// (views/instructor/sections/students.ejs + classes.ejs, both carry a
+// copy of #addStudentModal since only one section is ever in the DOM at
+// once — same reason #awardModal above only lives in students.ejs)
+// =====================================================================
+
+function openAddStudentModal(presetClassroomId) {
+  const modal = document.getElementById("addStudentModal");
+  if (!modal) return;
+
+  const nameEl = document.getElementById("addStudentName");
+  if (nameEl) nameEl.value = "";
+  const classroomEl = document.getElementById("addStudentClassroom");
+  if (classroomEl && presetClassroomId) classroomEl.value = presetClassroomId;
+
+  document.getElementById("addStudentFormStep").style.display = "";
+  document.getElementById("addStudentResultStep").style.display = "none";
+
+  modal.style.display = "flex";
+}
+
+function closeAddStudentModal() {
+  const modal = document.getElementById("addStudentModal");
+  if (modal) modal.style.display = "none";
+  // Refresh so the new student / updated classroom count show up
+  // immediately, same as closeAwardModal's reload above.
+  loadSection(currentSection);
+}
+
+async function submitAddStudent() {
+  const fullname = document.getElementById("addStudentName").value.trim();
+  const classroomId = document.getElementById("addStudentClassroom").value;
+  const termId = document.getElementById("addStudentTerm").value;
+
+  if (!fullname) {
+    showAlert("Enter the student's full name.", "warning");
+    return;
+  }
+  if (!classroomId) {
+    showAlert("Choose a classroom.", "warning");
+    return;
+  }
+
+  await withButtonLoading("#addStudentFormStep .btn-award", "Creating…", async () => {
+    try {
+      const res = await fetch("/instructor/students/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullname, classroom_id: classroomId, term_id: termId || null }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showAlert(data.message || "Couldn't create student.", "error");
+        return;
+      }
+
+      if (data.warning) showAlert(data.warning, "warning");
+
+      document.getElementById("resultEmail").textContent = data.credentials.email;
+      document.getElementById("resultPassword").textContent = data.credentials.password;
+      document.getElementById("resultPin").textContent = data.credentials.pin;
+      document.getElementById("resultAvatar").src = data.credentials.avatarUrl;
+
+      document.getElementById("addStudentFormStep").style.display = "none";
+      document.getElementById("addStudentResultStep").style.display = "";
+    } catch (err) {
+      console.error("Submit add student error:", err);
+      showAlert("Server error creating student.", "error");
+    }
+  });
+}
+
+// Client-side row filter for the Students table — same idiom as
+// views/admin/school-details.ejs's filterUsers(), specialized to this
+// page's fixed element ids.
+function filterInstructorStudents() {
+  const searchEl = document.getElementById("studentSearch");
+  const classroomEl = document.getElementById("studentClassroomFilter");
+  const table = document.getElementById("studentsTable");
+  if (!table) return;
+
+  const searchText = (searchEl ? searchEl.value : "").toLowerCase();
+  const filterClass = (classroomEl ? classroomEl.value : "").toLowerCase();
+  const body = table.tBodies[0];
+  if (!body) return;
+
+  Array.from(body.rows).forEach((tr) => {
+    if (!tr.dataset.name) return; // the "No students found" placeholder row
+    const nameText = (tr.dataset.name || "").toLowerCase();
+    const emailText = (tr.dataset.email || "").toLowerCase();
+    const classText = (tr.dataset.classroom || "").toLowerCase();
+
+    const matchClass = filterClass === "" || classText === filterClass;
+    const matchSearch = nameText.includes(searchText) || emailText.includes(searchText);
+
+    tr.style.display = matchClass && matchSearch ? "" : "none";
+  });
+}
+
+// =====================================================================
 // CLASSROOM ANALYTICS — Chart.js (views/instructor/sections/schools.ejs)
 // =====================================================================
 
