@@ -1,10 +1,14 @@
 const pool = require("../models/db");
 // const puppeteer = require("puppeteer");
+const bcrypt = require("bcrypt");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
 const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const instructorAwardService = require("../services/instructorAwardService");
 const classroomPacingService = require("../services/classroomPacingService");
+const generateDefaultPassword = require("../utils/generateDefaultPassword");
+const { recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
+const { generateUniqueStudentEmail, generateStudentPinAndAvatar } = require("../services/instructorStudentService");
 
 // Same banned-word list as the student side (studentController.sendChatMessage)
 // — kept in sync so instructor messages get the same moderation, now that
@@ -3142,6 +3146,123 @@ exports.getRecentAwards = async (req, res) => {
   } catch (err) {
     console.error("Get recent awards error:", err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Lets an instructor add a student directly to one of their own classrooms
+// in a single step — name in, everything else (email, password, PIN,
+// avatar, classroom/term enrollment) generated and wired up server-side.
+// No single admin endpoint does this today; it's composed from the same
+// tables the admin "add student" + "assign classroom" + "assign term"
+// flows write to, so the new student shows up correctly everywhere those
+// already read from (see services/instructorStudentService.js for why the
+// email/avatar generation isn't just reused as-is from adminController.js).
+exports.addStudentDirect = async (req, res) => {
+  const instructorId = req.user.id;
+  const { fullname, classroom_id, term_id } = req.body;
+  const classroomId = parseInt(classroom_id, 10);
+  const termId = term_id ? parseInt(term_id, 10) : null;
+
+  if (!fullname || !fullname.trim() || !classroomId) {
+    return res.status(400).json({ success: false, message: "Student name and classroom are required." });
+  }
+
+  // Ownership check BEFORE opening a transaction — ensureInstructorOrAdmin
+  // is role-only (no per-classroom ownership check), so a crafted
+  // classroom_id must be explicitly rejected here rather than trusted
+  // because the client's own <select> happened to only list owned
+  // classrooms. Reuses the same check createClassReport already uses.
+  const classroom = await instructorOwnsClassroom(classroomId, instructorId);
+  if (!classroom) {
+    return res.status(403).json({ success: false, message: "You do not teach this classroom." });
+  }
+  const schoolId = classroom.school_id;
+
+  const schoolRes = await pool.query("SELECT name FROM schools WHERE id = $1", [schoolId]);
+  const schoolName = schoolRes.rows[0]?.name || "school";
+
+  if (termId) {
+    const termCheck = await pool.query(
+      "SELECT 1 FROM academic_terms WHERE id = $1 AND school_id = $2",
+      [termId, schoolId]
+    );
+    if (termCheck.rowCount === 0) {
+      return res.status(400).json({ success: false, message: "Invalid term for this school." });
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const email = await generateUniqueStudentEmail(client, fullname.trim(), schoolName);
+    const generatedPassword = generateDefaultPassword();
+    const hashed = await bcrypt.hash(generatedPassword, 10);
+
+    const userRes = await client.query(
+      `INSERT INTO users2 (fullname, email, password, role, profile_picture, created_at)
+       VALUES ($1, $2, $3, 'student', '/profile.webp', NOW())
+       RETURNING id`,
+      [fullname.trim(), email, hashed]
+    );
+    const studentId = userRes.rows[0].id;
+
+    await client.query(
+      `INSERT INTO user_school (user_id, school_id, role_in_school, classroom_id, approved)
+       VALUES ($1, $2, 'student', $3, true)`,
+      [studentId, schoolId, classroomId]
+    );
+
+    if (termId) {
+      await client.query(
+        `INSERT INTO student_term_enrollments (student_id, school_id, term_id, classroom_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (student_id, term_id) DO UPDATE SET classroom_id = EXCLUDED.classroom_id`,
+        [studentId, schoolId, termId, classroomId]
+      );
+    }
+
+    const { pin, avatarSeed, avatarUrl } = generateStudentPinAndAvatar(studentId);
+    await client.query(
+      `UPDATE users2
+       SET pin = $1, avatar_seed = $2, avatar_url = $3,
+           login_type = 'avatar_pin', classroom_login_enabled = true
+       WHERE id = $4`,
+      [pin, avatarSeed, avatarUrl, studentId]
+    );
+
+    await client.query("COMMIT");
+
+    // Billing recalc happens after commit — a quote-service failure
+    // shouldn't roll back a student who was successfully created; it's
+    // reported back as a non-fatal warning instead. This is the same
+    // side effect adminController.assignStudentsToTerm performs when a
+    // student joins a paying term — skipping it would silently leave the
+    // school under-billed for the new student.
+    let warning = null;
+    if (termId) {
+      try {
+        const quoteIdRes = await pool.query("SELECT id FROM quotes WHERE term_id = $1", [termId]);
+        const quoteId = quoteIdRes.rows[0]?.id;
+        if (quoteId) await recalcAndPersistQuoteTotal(quoteId);
+      } catch (quoteErr) {
+        console.error("addStudentDirect: quote recalc failed", quoteErr);
+        warning = "Student created, but the school's billing total could not be recalculated automatically.";
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      student: { id: studentId, fullname: fullname.trim(), classroom_id: classroomId },
+      credentials: { email, password: generatedPassword, pin, avatarUrl },
+      warning,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("addStudentDirect error:", err);
+    return res.status(500).json({ success: false, message: "Could not create student." });
+  } finally {
+    client.release();
   }
 };
 
