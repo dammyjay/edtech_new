@@ -38,27 +38,32 @@
   </div>
 </div>
 
-<% if (topStudentsByXp && topStudentsByXp.length > 0) { %>
-  <div class="jk-section-head"><h3>🏆 Top Students</h3></div>
+<% if (topStudentsPerClassroom && topStudentsPerClassroom.length > 0) { %>
+  <div class="jk-section-head">
+    <h3>🏆 Top Students — <%= school && school.name ? school.name : "this school" %></h3>
+  </div>
+  <p style="font-size:12px; color:#8A7B55; margin:-6px 0 10px;">Top 3 per classroom, ranked by lesson completion, then quiz average.</p>
   <div class="jk-table-wrap">
     <table class="jk-table">
       <thead>
         <tr>
+          <th>Classroom</th>
           <th>Rank</th>
           <th>Student</th>
-          <th>Level</th>
-          <th>XP</th>
-          <th>Coins</th>
+          <th>Lessons</th>
+          <th>Quiz Avg</th>
+          <th>Why they're top</th>
         </tr>
       </thead>
       <tbody>
-        <% topStudentsByXp.forEach((s, i) => { %>
+        <% topStudentsPerClassroom.forEach((s) => { %>
           <tr>
-            <td><%= ["🥇","🥈","🥉"][i] || (i + 1) %></td>
+            <td><%= s.classroomName %></td>
+            <td><%= ["🥇","🥈","🥉"][s.rank - 1] || s.rank %></td>
             <td><%= s.fullname %></td>
-            <td>Lvl <%= s.level %></td>
-            <td><%= s.xp %> XP</td>
-            <td>🪙 <%= s.coins %></td>
+            <td><%= s.completedLessons %> / <%= s.totalLessons %></td>
+            <td><%= s.quizAvg %>%</td>
+            <td><%= s.completionPercent %>% lessons done, <%= s.quizAvg %>% quiz avg</td>
           </tr>
         <% }) %>
       </tbody>

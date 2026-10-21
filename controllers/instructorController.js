@@ -9,6 +9,35 @@ const classroomPacingService = require("../services/classroomPacingService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 const { recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
 const { generateUniqueStudentEmail, generateStudentPinAndAvatar } = require("../services/instructorStudentService");
+const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
+
+// Thin wrapper over computeClassroomTermAnalytics, scoped to ONE school —
+// mirrors teacherController.js's getTeacherClassroomAnalytics (same shared
+// service), but a teacher only ever has classrooms in one school while an
+// instructor can span several (confirmed via the Dashboard's own school
+// switcher), so this adds the school_id filter that wrapper doesn't need.
+async function getInstructorClassroomAnalyticsForSchool(instructorId, schoolId, termId) {
+  const classroomsRes = await pool.query(
+    `SELECT c.id, c.school_id, c.name
+     FROM classroom_instructors ci
+     JOIN classrooms c ON c.id = ci.classroom_id
+     WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
+     ORDER BY c.name`,
+    [instructorId, schoolId]
+  );
+
+  return Promise.all(
+    classroomsRes.rows.map(async (classroom) => {
+      try {
+        const result = await computeClassroomTermAnalytics(classroom.school_id, classroom.id, termId);
+        return { classroomId: classroom.id, classroomName: classroom.name, ...result };
+      } catch (err) {
+        console.error(`Instructor analytics failed for classroom ${classroom.id}:`, err.message);
+        return { classroomId: classroom.id, classroomName: classroom.name, terms: [], selectedTerm: null, leaderboard: [], atRiskStudents: [] };
+      }
+    })
+  );
+}
 
 // Same banned-word list as the student side (studentController.sendChatMessage)
 // — kept in sync so instructor messages get the same moderation, now that
@@ -948,16 +977,20 @@ exports.loadSection = async (req, res) => {
     let overview = {};
     let lessonsPerClass = [];
     let studentCountsPerClass = [];
-    let topStudentsByXp = [];
     let terms = [];
     // "Classroom Analytics" tab (sections/schools.ejs) state — see the
     // section === "schools" block below for where these get populated.
     let avgProgress = 0;
+    let avgQuiz = 0;
     let topStudent = {};
     let genderSummary = [];
     let progressDist = { low: 0, mid: 0, high: 0 };
     let selectedClassroomId = null;
     let classReports = [];
+    let classroomAnalytics = null;
+    // Dashboard "Top Students" — top 3 per classroom, for the active
+    // school only (see the section === "dashboard" block below).
+    let topStudentsPerClassroom = [];
 
     if (activeSchoolId) {
       
@@ -1097,29 +1130,22 @@ exports.loadSection = async (req, res) => {
         students = studentsRes.rows;
       }
 
-      // Dashboard leaderboard — top 5 by XP across the instructor's own
-      // classrooms, same classroom_instructors scoping as every other
-      // query here. Visualizes existing student_xp data only, no new
-      // mechanic.
-      if (section === "dashboard") {
-        const topStudentsRes = await pool.query(
-          `
-          SELECT u.id, u.fullname, COALESCE(sx.xp, 0) AS xp, COALESCE(sx.level, 1) AS level,
-                 COALESCE(u.coins, 0) AS coins
-          FROM user_school us
-          JOIN users2 u ON u.id = us.user_id
-          JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
-          LEFT JOIN student_xp sx ON sx.user_id = u.id
-          WHERE ci.instructor_id = $1
-            AND us.role_in_school = 'student'
-            AND us.approved = true
-            AND u.archived_at IS NULL
-          ORDER BY xp DESC, coins DESC
-          LIMIT 5
-        `,
-          [instructorId]
+      // Dashboard "Top Students" — top 3 per classroom, for the
+      // currently selected school only (previously this pooled XP across
+      // every school the instructor teaches at, regardless of which one
+      // was selected — a real scoping bug). Now uses the same
+      // completion% -> quizAvg -> pace ranking as the admin/teacher
+      // leaderboards (computeClassroomTermAnalytics), so "why" a student
+      // is top is the same two numbers shown in the row.
+      if (section === "dashboard" && activeSchoolId) {
+        const schoolAnalytics = await getInstructorClassroomAnalyticsForSchool(instructorId, activeSchoolId);
+        topStudentsPerClassroom = schoolAnalytics.flatMap((a) =>
+          (a.leaderboard || []).slice(0, 3).map((s, i) => ({
+            classroomName: a.classroomName,
+            rank: i + 1,
+            ...s,
+          }))
         );
-        topStudentsByXp = topStudentsRes.rows;
       }
 
       // If section is classes, get lessons per class and student counts per class
@@ -1158,12 +1184,36 @@ exports.loadSection = async (req, res) => {
         lessonsPerClass = lessonsPerClassResDB.rows;
         studentCountsPerClass = studentCountsPerClassRes.rows;
 
+        // Was hardcoded to the literal string "–" (never actually
+        // computed) — real averages across every student in the
+        // instructor's classes in this school, all-time.
+        const scoresRes = await pool.query(
+          `SELECT
+             (SELECT ROUND(AVG(qs.score::numeric), 1)
+              FROM quiz_submissions qs
+              JOIN user_school us ON us.user_id = qs.student_id
+              JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+              WHERE ci.instructor_id = $1 AND us.school_id = $2
+                AND us.role_in_school = 'student' AND us.approved = true
+             ) AS avg_quiz_score,
+             (SELECT ROUND(AVG(asub.grade::numeric), 1)
+              FROM assignment_submissions asub
+              JOIN user_school us ON us.user_id = asub.student_id
+              JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+              WHERE ci.instructor_id = $1 AND us.school_id = $2
+                AND us.role_in_school = 'student' AND us.approved = true
+                AND asub.grade IS NOT NULL
+             ) AS avg_assignment_score`,
+          [instructorId, activeSchoolId]
+        );
+        const scores = scoresRes.rows[0];
+
         overview = {
           total_classes: classes.length,
           total_students: studentCountsPerClassRes.rows.reduce((sum, c) => sum + parseInt(c.student_count || 0), 0),
-          avg_quiz_score: "–",
+          avg_quiz_score: scores.avg_quiz_score !== null ? `${scores.avg_quiz_score}%` : "–",
           total_lessons: lessonsPerClass.reduce((sum, c) => sum + parseInt(c.lesson_count || 0), 0),
-          avg_assignment_score: "–",
+          avg_assignment_score: scores.avg_assignment_score !== null ? `${scores.avg_assignment_score}%` : "–",
           engagement_last7: 0
         };
       }
@@ -1191,51 +1241,24 @@ exports.loadSection = async (req, res) => {
 
       // "Classroom Analytics" tab (rendered by sections/schools.ejs — kept
       // that filename to avoid touching every reference, but the sidenav
-      // now labels it "Classroom Analytics"). Was previously unreachable:
-      // no sidenav entry pointed at it AND this data block didn't exist
-      // at all, so every variable the template needs (avgProgress,
-      // topStudent, genderSummary, progressDist, per-student gender/
-      // lessons/quiz/assignment/last-login) was undefined. Query shape
-      // mirrors the teacher role's equivalent (classroom-students.ejs),
-      // scoped through classroom_instructors instead of classroom_teachers.
+      // now labels it "Classroom Analytics"). Now powered by the same
+      // computeClassroomTermAnalytics service the admin and teacher
+      // dashboards already use (services/classroomTermAnalyticsService.js)
+      // instead of a separate hand-rolled query — gives this page the
+      // same leaderboard (completion% -> quizAvg -> pace) and at-risk
+      // (completion% < 40 OR quizAvg < 50) logic admin already has,
+      // rather than a second, drifting implementation. Previously this
+      // block picked a "top student" by quiz score alone; now matches
+      // the shared service's ranking (lesson completion first).
       if (section === "schools") {
         const analyticsClassroomId = req.query.classroom_id || (classes[0] && classes[0].id) || null;
 
         if (analyticsClassroomId) {
-          const analyticsStudentsRes = await pool.query(
-            `WITH last_activity AS (
-               SELECT user_id, MAX(created_at) AS last_login
-               FROM activities
-               GROUP BY user_id
-             )
-             SELECT
-                u.id, u.fullname, u.email, u.gender,
-                COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
-                COUNT(DISTINCT l.id) AS total_lessons,
-                ROUND(AVG(qs.score::numeric), 1) AS avg_quiz_score,
-                ROUND(AVG(asub.grade::numeric), 1) AS avg_assignment_score,
-                la.last_login
-             FROM user_school us
-             JOIN users2 u ON u.id = us.user_id
-             JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
-             LEFT JOIN last_activity la ON la.user_id = u.id
-             LEFT JOIN classroom_courses cc ON us.classroom_id = cc.classroom_id
-             LEFT JOIN courses cr ON cc.course_id = cr.id
-             LEFT JOIN modules m ON m.course_id = cr.id
-             LEFT JOIN lessons l ON l.module_id = m.id
-             LEFT JOIN user_lesson_progress ulp ON ulp.user_id = u.id AND ulp.lesson_id = l.id
-             LEFT JOIN quiz_submissions qs ON qs.student_id = u.id
-             LEFT JOIN assignment_submissions asub ON asub.student_id = u.id
-             WHERE us.classroom_id = $1
-               AND ci.instructor_id = $2
-               AND us.role_in_school = 'student'
-               AND us.approved = true
-               AND u.archived_at IS NULL
-             GROUP BY u.id, u.fullname, u.email, u.gender, la.last_login
-             ORDER BY u.fullname`,
-            [analyticsClassroomId, instructorId]
+          const analyticsResult = await computeClassroomTermAnalytics(
+            activeSchoolId,
+            analyticsClassroomId,
+            req.query.term_id ? parseInt(req.query.term_id, 10) : undefined
           );
-          const analyticsStudents = analyticsStudentsRes.rows;
 
           const genderSummaryRes = await pool.query(
             `SELECT u.gender, COUNT(*)
@@ -1249,36 +1272,19 @@ exports.loadSection = async (req, res) => {
             [analyticsClassroomId, instructorId]
           );
 
-          const analyticsTopStudent = analyticsStudents.reduce(
-            (best, s) => ((s.avg_quiz_score || 0) > (best.avg_quiz_score || 0) ? s : best),
-            { avg_quiz_score: 0 }
-          );
-
-          const analyticsAvgProgress = analyticsStudents.length > 0
-            ? Math.round(
-                analyticsStudents.reduce((sum, s) => {
-                  const pct = s.total_lessons > 0 ? (s.lessons_completed / s.total_lessons) * 100 : 0;
-                  return sum + pct;
-                }, 0) / analyticsStudents.length
-              )
-            : 0;
-
+          const metrics = analyticsResult?.studentMetrics || [];
           const analyticsProgressDist = { low: 0, mid: 0, high: 0 };
-          analyticsStudents.forEach((s) => {
-            const pct = s.total_lessons > 0 ? (s.lessons_completed / s.total_lessons) * 100 : 0;
-            if (pct < 50) analyticsProgressDist.low++;
-            else if (pct < 75) analyticsProgressDist.mid++;
+          metrics.forEach((s) => {
+            if (s.completionPercent < 50) analyticsProgressDist.low++;
+            else if (s.completionPercent < 75) analyticsProgressDist.mid++;
             else analyticsProgressDist.high++;
           });
 
-          // Reuses the same `students`/`genderSummary`/etc. locals the
-          // rest of loadSection declares — safe because only one section
-          // branch ever runs per request, so there's no cross-section
-          // collision despite the shared variable names.
-          students = analyticsStudents;
           genderSummary = genderSummaryRes.rows;
-          topStudent = analyticsTopStudent;
-          avgProgress = analyticsAvgProgress;
+          classroomAnalytics = analyticsResult;
+          topStudent = analyticsResult?.leaderboard?.[0] || null;
+          avgProgress = analyticsResult?.averageCompletion || 0;
+          avgQuiz = analyticsResult?.averageQuiz || 0;
           progressDist = analyticsProgressDist;
           selectedClassroomId = analyticsClassroomId;
         }
@@ -1386,15 +1392,17 @@ exports.loadSection = async (req, res) => {
       overview,
       lessonsPerClass,
       studentCountsPerClass,
-      topStudentsByXp,
+      topStudentsPerClassroom,
       terms,
       // Classroom Analytics tab (sections/schools.ejs)
       avgProgress,
+      avgQuiz,
       topStudent,
       genderSummary,
       progressDist,
       selectedClassroomId,
       classReports,
+      classroomAnalytics,
       // Award-points tab config (sections/students.ejs) — the fixed
       // category list + today's remaining budget, so the UI can show
       // both before the instructor even opens the award modal.

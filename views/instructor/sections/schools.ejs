@@ -17,10 +17,14 @@
     <div class="jk-stat-value"><%= avgProgress %>%</div>
   </div>
   <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Avg Quiz</span><span class="jk-stat-icon">🧠</span></div>
+    <div class="jk-stat-value"><%= avgQuiz %>%</div>
+  </div>
+  <div class="jk-stat-card">
     <div class="jk-stat-head"><span class="jk-stat-label">Top Student</span><span class="jk-stat-icon">🏅</span></div>
     <% if (topStudent && topStudent.fullname) { %>
       <div style="font-size:15px; font-weight:800; color:#1A1510;"><%= topStudent.fullname %></div>
-      <div style="font-size:12px; color:#6E6350;">Quiz Avg: <%= topStudent.avg_quiz_score || "–" %></div>
+      <div style="font-size:12px; color:#6E6350;"><%= topStudent.completionPercent %>% lessons · <%= topStudent.quizAvg %>% quiz</div>
     <% } else { %>
       <div style="font-size:13px; color:#6E6350;">No student data</div>
     <% } %>
@@ -46,31 +50,33 @@
   </div>
 </div>
 
-<div class="jk-section-head"><h3>👥 Student Details</h3></div>
+<div class="jk-section-head"><h3>🏆 Leaderboard</h3></div>
+<p style="font-size:12px; color:#8A7B55; margin:-6px 0 10px;">Ranked by lesson completion, then quiz average, then pace (same logic the school admin's analytics uses).</p>
 <div class="jk-table-wrap">
   <table class="jk-table sortable-table">
     <thead>
       <tr>
+        <th>Rank</th>
         <th>Full Name</th>
-        <th>Email</th>
-        <th>Gender</th>
         <th>Lessons</th>
+        <th>Completion %</th>
         <th>Quiz Avg</th>
-        <th>Assignment Avg</th>
-        <th>Last Active</th>
+        <th>Pace</th>
+        <th>Overall</th>
       </tr>
     </thead>
     <tbody>
-      <% if (students.length > 0) { %>
-        <% students.forEach(stu => { %>
+      <% const leaderboard = (classroomAnalytics && classroomAnalytics.leaderboard) || []; %>
+      <% if (leaderboard.length > 0) { %>
+        <% leaderboard.forEach((s, i) => { %>
           <tr>
-            <td><%= stu.fullname %></td>
-            <td><%= stu.email %></td>
-            <td><%= stu.gender || "–" %></td>
-            <td><%= stu.lessons_completed %> / <%= stu.total_lessons %></td>
-            <td><%= stu.avg_quiz_score || "–" %></td>
-            <td><%= stu.avg_assignment_score || "–" %></td>
-            <td><%= stu.last_login ? new Date(stu.last_login).toLocaleString() : "Never" %></td>
+            <td><%= ["🥇","🥈","🥉"][i] || (i + 1) %></td>
+            <td><%= s.fullname %></td>
+            <td><%= s.completedLessons %> / <%= s.totalLessons %></td>
+            <td><%= s.completionPercent %>%</td>
+            <td><%= s.quizAvg %>%</td>
+            <td><%= s.avgDaysToComplete !== null ? s.avgDaysToComplete + "d avg" : "–" %></td>
+            <td><strong><%= s.overallScore %>%</strong></td>
           </tr>
         <% }) %>
       <% } else { %>
@@ -79,6 +85,36 @@
     </tbody>
   </table>
 </div>
+
+<div class="jk-section-head"><h3>⚠️ At-Risk Students</h3></div>
+<p style="font-size:12px; color:#8A7B55; margin:-6px 0 10px;">Below 40% lesson completion or below 50% quiz average.</p>
+<% const atRisk = (classroomAnalytics && classroomAnalytics.atRiskStudents) || []; %>
+<% if (atRisk.length > 0) { %>
+  <div class="jk-table-wrap">
+    <table class="jk-table">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Lessons</th>
+          <th>Completion %</th>
+          <th>Quiz Avg</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% atRisk.forEach(s => { %>
+          <tr>
+            <td><%= s.fullname %></td>
+            <td><%= s.completedLessons %> / <%= s.totalLessons %></td>
+            <td style="color:#B23A2A; font-weight:700;"><%= s.completionPercent %>%</td>
+            <td style="color:#B23A2A; font-weight:700;"><%= s.quizAvg %>%</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } else { %>
+  <p style="color:#1E7A42; font-weight:600;">✅ No students at risk.</p>
+<% } %>
 
 <!-- Chart.js is loaded once, persistently, from the shell — and this
      JSON block (never executed, just read) is how the analytics data
@@ -91,8 +127,8 @@
     genderLabels: genderSummary.map(g => g.gender || "Unknown"),
     genderCounts: genderSummary.map(g => parseInt(g.count)),
     progressDist,
-    studentNames: students.map(s => s.fullname),
-    studentQuizAvgs: students.map(s => s.avg_quiz_score || 0),
+    studentNames: leaderboard.map(s => s.fullname),
+    studentQuizAvgs: leaderboard.map(s => s.quizAvg || 0),
   }) %>
 </script>
 <% } %>
