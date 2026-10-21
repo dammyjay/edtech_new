@@ -114,6 +114,12 @@ router.use(ensureAdmin);
 // untouched.
 router.use(ensureCsrfToken, verifyCsrfToken);
 
+// Admin's own profile page — getAdminProfile/updateAdminProfile existed in
+// adminController.js but were never wired to a route (dead code; the nav's
+// own "Profile" link pointed at the shared, non-admin /profile instead).
+router.get("/profile", adminController.getAdminProfile);
+router.post("/profile", upload.single("profile_picture"), adminController.updateAdminProfile);
+
 // Archive screen — everything "Delete" now archives first (see
 // controllers/archiveController.js) lands here for review, restore, or a
 // separate, explicit permanent delete. Admin-only, same as every route in

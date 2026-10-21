@@ -2476,23 +2476,36 @@ exports.getAdminProfile = async (req, res) => {
   const result = await pool.query("SELECT * FROM users2 WHERE id = $1", [
     userId,
   ]);
-  res.render("adminProfile", {
+  const infoResult = await pool.query(
+    "SELECT * FROM company_info ORDER BY id DESC LIMIT 1"
+  );
+  res.render("admin/adminProfile", {
     user: result.rows[0],
     title: "Admin Profile",
+    role: "admin",
+    info: infoResult.rows[0] || {},
   });
 };
 
 exports.updateAdminProfile = async (req, res) => {
   const { fullname, phone, dob } = req.body;
   const dobValue = dob && dob.trim() !== "" ? dob : null;
-  const profile_picture = req.file
-    ? req.file.path
-    : req.session.user.profile_picture;
+  let profile_picture = req.session.user.profile_picture;
+
+  if (req.file) {
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "profile_pictures",
+    });
+    profile_picture = result.secure_url;
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+  }
+
   await pool.query(
     "UPDATE users2 SET fullname = $1, phone = $2, profile_picture = $3, dob = $4 WHERE id = $5",
     [fullname, phone, profile_picture, dobValue, req.session.user.id]
   );
   req.session.user.profile_picture = profile_picture; // update session
+  req.session.user.fullname = fullname;
   await logActivityForUser(
     req,
     "Admin Profile Updated ",

@@ -1,39 +1,56 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title><%= title %> — <%= (info?.company_name || 'JKT Hub').trim() %></title>
-    <link rel="icon" type="image/x-icon" href="/images/JKT logo bg.png" />
-    <link rel="stylesheet" href="/css/style.css" />
-    <meta name="csrf-token" content="<%= csrfToken %>">
-    <script src="/js/csrf.js"></script>
-  </head>
-  <body>
-    <h2>Your Profile</h2>
-    <form action="/profile" method="POST" enctype="multipart/form-data">
-      <img src="<%= user.profile_picture || '/default.jpg' %>" width="100" />
-      <input type="file" name="profile_picture" value="<%= user.profile_picture || '/default.jpg' %>"/>
-      
-      <label for="">Email</label>
-      <input type="text" value="<%= user.email %>" disabled />
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
-      <label for="">Fullname</label>
-      <input
-        type="text"
-        name="fullname"
-        value="<%= user.fullname %>"
-        required
-      />
-      <label for="">Phone Number</label>
-      <input type="text" name="phone" value="<%= user.phone %>" />
+<style>
+  .ap-card { max-width: 560px; }
+  .ap-avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .ap-avatar-row img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 1px solid #F1ECDD; }
+  .ap-avatar-row input[type="file"] { font-size: 12.5px; }
+  .ap-form-group { margin-bottom: 14px; }
+  .ap-form-group label { display: block; font-size: 12.5px; font-weight: 700; color: #4C3802; margin-bottom: 4px; }
+  .ap-form-group input[type="text"],
+  .ap-form-group input[type="date"] {
+    width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 9px;
+    border: 1px solid #E7E0CE; font-family: inherit; font-size: 13px;
+  }
+  .ap-form-group input[disabled] { background: #F6F4EF; color: #6E6350; }
+</style>
 
-      <label for="">Date of Birth</label>
-      <!-- Display the date of birth as text and as a date input -->
-      <input type="text" value="<%= user.dob %>" disabled />
-      <input type="date" name="dob" value="<%= user.dob %>" />>
-      
-      <button type="submit">Update Profile</button>
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div><h2>Your Profile</h2></div>
+  </div>
+
+  <div class="jk-report-panel ap-card">
+    <form action="/admin/profile" method="POST" enctype="multipart/form-data">
+
+      <div class="ap-avatar-row">
+        <img src="<%= user.profile_picture || '/default.jpg' %>">
+        <input type="file" name="profile_picture" accept="image/*">
+      </div>
+
+      <div class="ap-form-group">
+        <label>Email</label>
+        <input type="text" value="<%= user.email %>" disabled>
+      </div>
+
+      <div class="ap-form-group">
+        <label>Full Name</label>
+        <input type="text" name="fullname" value="<%= user.fullname %>" required>
+      </div>
+
+      <div class="ap-form-group">
+        <label>Phone Number</label>
+        <input type="text" name="phone" value="<%= user.phone || '' %>">
+      </div>
+
+      <div class="ap-form-group">
+        <label>Date of Birth</label>
+        <input type="date" name="dob" value="<%= user.dob ? user.dob.toISOString().split('T')[0] : '' %>">
+      </div>
+
+      <button type="submit" class="jk-btn-dark">Update Profile</button>
     </form>
-    <p><a href="/admin/dashboard">← Back</a></p>
-  </body>
-</html>
+  </div>
+
+</section>

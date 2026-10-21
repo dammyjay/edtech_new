@@ -155,7 +155,11 @@
         <% } %>
 
         <%- include('./notificationBell') %>
-        <a href="/profile">Profile</a>
+        <% if (role === 'admin') { %>
+          <a href="/admin/profile">Profile</a>
+        <% } else { %>
+          <a href="/profile">Profile</a>
+        <% } %>
         <a href="/admin/logout" class="logout-button">Logout</a>
       </nav>
     </header>
