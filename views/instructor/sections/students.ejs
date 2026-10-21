@@ -48,7 +48,10 @@
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
-            <td><span class="student-coin-badge">🪙 <%= stu.coins || 0 %></span></td>
+            <td>
+              <span class="student-coin-badge">🪙 <%= stu.coins || 0 %></span>
+              <span class="student-coin-badge" style="background:#eef2ff; color:#4338ca;">⭐ Lvl <%= stu.level || 1 %> · <%= stu.xp || 0 %> XP</span>
+            </td>
             <td><%= stu.classroom_login_enabled && stu.pin ? stu.pin : '—' %></td>
             <td class="multi-btn">
               <button class="btn-award" onclick="openAwardModal(<%= stu.id %>, <%= stu.classroom_id %>, '<%= stu.fullname.replace(/'/g, "\\'") %>')">

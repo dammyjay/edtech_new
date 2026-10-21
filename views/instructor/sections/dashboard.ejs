@@ -44,6 +44,34 @@
   </div>
 </div>
 
+<% if (topStudentsByXp && topStudentsByXp.length > 0) { %>
+  <h2><i class="fa-solid fa-trophy"></i> Top Students</h2>
+  <div class="table-responsive">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Student</th>
+          <th>Level</th>
+          <th>XP</th>
+          <th>Coins</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% topStudentsByXp.forEach((s, i) => { %>
+          <tr>
+            <td><%= ["🥇","🥈","🥉"][i] || (i + 1) %></td>
+            <td><%= s.fullname %></td>
+            <td>Lvl <%= s.level %></td>
+            <td><%= s.xp %> XP</td>
+            <td>🪙 <%= s.coins %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
 <h2><i class="fa-solid fa-school"></i> Assigned Classrooms</h2>
 <% if (classrooms.length > 0) { %>
   <div class="card-grid">

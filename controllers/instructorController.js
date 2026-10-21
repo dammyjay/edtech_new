@@ -938,6 +938,7 @@ exports.loadSection = async (req, res) => {
     let overview = {};
     let lessonsPerClass = [];
     let studentCountsPerClass = [];
+    let topStudentsByXp = [];
     let terms = [];
     // "Classroom Analytics" tab (sections/schools.ejs) state — see the
     // section === "schools" block below for where these get populated.
@@ -1062,11 +1063,13 @@ exports.loadSection = async (req, res) => {
           SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
                  COALESCE(u.coins, 0) AS coins,
                  u.pin, u.classroom_login_enabled,
-                 c.id AS classroom_id, c.name AS classroom_name
+                 c.id AS classroom_id, c.name AS classroom_name,
+                 COALESCE(sx.xp, 0) AS xp, COALESCE(sx.level, 1) AS level
           FROM user_school us
           JOIN users2 u ON u.id = us.user_id
           JOIN classrooms c ON c.id = us.classroom_id
           JOIN classroom_instructors ci ON ci.classroom_id = c.id
+          LEFT JOIN student_xp sx ON sx.user_id = u.id
           WHERE ci.instructor_id = $1
             AND c.school_id = $2
             AND us.role_in_school = 'student'
@@ -1082,6 +1085,31 @@ exports.loadSection = async (req, res) => {
 
         const studentsRes = await pool.query(studentsQuery, params);
         students = studentsRes.rows;
+      }
+
+      // Dashboard leaderboard — top 5 by XP across the instructor's own
+      // classrooms, same classroom_instructors scoping as every other
+      // query here. Visualizes existing student_xp data only, no new
+      // mechanic.
+      if (section === "dashboard") {
+        const topStudentsRes = await pool.query(
+          `
+          SELECT u.id, u.fullname, COALESCE(sx.xp, 0) AS xp, COALESCE(sx.level, 1) AS level,
+                 COALESCE(u.coins, 0) AS coins
+          FROM user_school us
+          JOIN users2 u ON u.id = us.user_id
+          JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
+          LEFT JOIN student_xp sx ON sx.user_id = u.id
+          WHERE ci.instructor_id = $1
+            AND us.role_in_school = 'student'
+            AND us.approved = true
+            AND u.archived_at IS NULL
+          ORDER BY xp DESC, coins DESC
+          LIMIT 5
+        `,
+          [instructorId]
+        );
+        topStudentsByXp = topStudentsRes.rows;
       }
 
       // If section is classes, get lessons per class and student counts per class
@@ -1347,6 +1375,7 @@ exports.loadSection = async (req, res) => {
       overview,
       lessonsPerClass,
       studentCountsPerClass,
+      topStudentsByXp,
       terms,
       // Classroom Analytics tab (sections/schools.ejs)
       avgProgress,
@@ -1408,11 +1437,13 @@ exports.getInstructorStudentsSection = async (req, res) => {
       SELECT DISTINCT u.id, u.fullname, u.email, u.profile_picture,
              COALESCE(u.coins, 0) AS coins,
              u.pin, u.classroom_login_enabled,
-             c.id AS classroom_id, c.name AS classroom_name
+             c.id AS classroom_id, c.name AS classroom_name,
+             COALESCE(sx.xp, 0) AS xp, COALESCE(sx.level, 1) AS level
       FROM user_school us
       JOIN users2 u ON u.id = us.user_id
       JOIN classrooms c ON c.id = us.classroom_id
       JOIN classroom_instructors ci ON ci.classroom_id = c.id
+      LEFT JOIN student_xp sx ON sx.user_id = u.id
       WHERE ci.instructor_id = $1
         AND c.school_id = $2
         AND us.role_in_school = 'student'
