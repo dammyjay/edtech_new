@@ -1840,11 +1840,12 @@ exports.finance = async (req, res) => {
       FROM transactions;
     `);
 
-    // School payments by status
+    // School payments by status (status lives on the linked quote, not on school_payments itself)
     const schoolPayments = await pool.query(`
-      SELECT status, COUNT(*)::int AS count
-      FROM school_payments
-      GROUP BY status
+      SELECT q.status, COUNT(*)::int AS count
+      FROM school_payments sp
+      JOIN quotes q ON q.id = sp.quote_id
+      GROUP BY q.status
     `);
 
     // Event payments by status
