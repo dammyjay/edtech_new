@@ -1,27 +1,33 @@
  <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 
- <button id="newAnnouncementBtn" class="btn-primary">
-    <i class="fas fa-plus"></i>
-    New Announcement
-</button>
+<section class="section jk-page">
 
-<input
-    type="text"
-    id="announcementSearch"
-    placeholder="Search announcements..."
->
+  <div class="jk-header-card">
+    <div><h2>Announcements</h2></div>
+    <button id="newAnnouncementBtn" class="jk-btn-dark">
+        <i class="fas fa-plus"></i>
+        New Announcement
+    </button>
+  </div>
 
-<select id="statusFilter">
-    <option value="">All</option>
-    <option value="draft">Draft</option>
-    <option value="published">Published</option>
-    <option value="scheduled">Scheduled</option>
-    <option value="expired">Expired</option>
-    <option value="archived">Archived</option>
-</select>
+  <div class="jk-toolbar">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="announcementSearch" class="jk-search-input" placeholder="Search announcements...">
+    </div>
 
-<div class="table-responsive">
-    <table id="announcementTable" class="user-table">
+    <select id="statusFilter" class="jk-select">
+        <option value="">All</option>
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+        <option value="scheduled">Scheduled</option>
+        <option value="expired">Expired</option>
+        <option value="archived">Archived</option>
+    </select>
+  </div>
+
+  <div class="jk-table-wrap">
+    <table id="announcementTable" class="jk-table sortable-table">
         <thead>
             <tr>
                 <th>Image</th>
@@ -32,13 +38,15 @@
                 <th>Audience</th>
                 <th>Views</th>
                 <th>Display Location</th>
-                <th>Actions</th>
+                <th class="jk-col-actions">Actions</th>
             </tr>
         </thead>
         <tbody>
         </tbody>
     </table>
-</div>
+  </div>
+
+</section>
 
 <!-- Announcement Modal -->
 <div id="announcementModal" class="modal">
@@ -294,6 +302,91 @@
     </div>
 
 </div>
+
+<style>
+  /* None of these classes (used by public/js/admin-announcements.js's
+     JS-rendered modal structure and table rows) had any CSS anywhere in
+     the codebase — this page's modals and action buttons were rendering
+     essentially unstyled. Scoped here rather than touching the shared JS. */
+  #announcementModal .modal-content.large-modal,
+  #viewAnnouncementModal .modal-content.large-modal {
+    max-width: 640px;
+    width: 100%;
+    border-radius: 18px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid #F1ECDD;
+  }
+  .modal-header h2 { margin: 0; font-size: 17px; font-weight: 800; color: #1A1510; }
+  .closeModal, .closeViewModal {
+    cursor: pointer;
+    font-size: 22px;
+    color: #6E6350;
+    line-height: 1;
+  }
+  .closeModal:hover, .closeViewModal:hover { color: var(--brand-pri-dark); }
+  #announcementForm, #viewAnnouncementModal .modal-body {
+    padding: 18px 22px 22px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12.5px; font-weight: 700; color: #4C3802; margin-bottom: 4px; }
+  .form-group input[type="text"],
+  .form-group input[type="file"],
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border-radius: 9px;
+    border: 1px solid #E7E0CE;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 4px; }
+  .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 500; font-size: 13px; color: #1A1510; }
+  .modal-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
+  .modal-footer .btn-primary, #newAnnouncementBtn.btn-primary {
+    background: #201B12; color: #EDE6D6; border: none; padding: 9px 18px;
+    border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+
+  .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-buttons button {
+    border: none; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px;
+  }
+  .btn-view { background: #F6F4EF; color: #4C3802; }
+  .btn-edit { background: #FBF3DD; color: #A17807; }
+  .btn-success { background: #EAF7EE; color: #1E7A42; }
+  .btn-warning { background: var(--brand-tint); color: var(--brand-pri-dark); }
+  .btn-danger { background: #FDEEEC; color: #B23A2A; }
+  .action-buttons button:hover { opacity: 0.8; }
+
+  .priority, .status {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px;
+    border-radius: 999px; text-transform: capitalize;
+  }
+  .priority.low { background: #F1ECDD; color: #6E6350; }
+  .priority.normal { background: #F6F4EF; color: #4C3802; }
+  .priority.high { background: var(--brand-tint); color: var(--brand-pri-dark); }
+  .priority.critical { background: #FDEEEC; color: #B23A2A; }
+  .status.draft { background: #F1ECDD; color: #6E6350; }
+  .status.published { background: #EAF7EE; color: #1E7A42; }
+  .status.scheduled { background: var(--brand-tint); color: var(--brand-pri-dark); }
+  .status.expired, .status.archived { background: #FDEEEC; color: #B23A2A; }
+
+  .text-muted { color: #8A7B55; font-size: 12px; }
+  .text-center { text-align: center; color: #8A7B55; padding: 20px !important; }
+</style>
 
 <script src="https://cdn.ckeditor.com/4.22.1/full/ckeditor.js"></script>
 
