@@ -1,8 +1,5 @@
-<div class="instructor-topbar">
-  <div>
-    <h1><i class="fa-solid fa-file-arrow-down"></i> Student Reports</h1>
-    <p class="subtitle">Download a full progress report (PDF) for any student you teach.</p>
-  </div>
+<div class="jk-header-card">
+  <div><h2>📥 Student Reports</h2></div>
 </div>
 
 <% if (!students || students.length === 0) { %>
@@ -11,14 +8,14 @@
     <p>No students found.</p>
   </div>
 <% } else { %>
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Full Name</th>
           <th>Email</th>
           <th>Classroom</th>
-          <th>Report</th>
+          <th class="jk-col-actions">Report</th>
         </tr>
       </thead>
       <tbody>
@@ -27,7 +24,7 @@
             <td><%= stu.fullname %></td>
             <td><%= stu.email %></td>
             <td><%= stu.classroom_name %></td>
-            <td>
+            <td class="jk-col-actions">
               <a class="btn-view" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;" href="/instructor/student/<%= stu.id %>/report">
                 <i class="fa-solid fa-download"></i> Download
               </a>
