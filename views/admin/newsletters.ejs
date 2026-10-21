@@ -1,316 +1,172 @@
 <%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
 <link rel="stylesheet" href="/css/admin-newsletters.css">
 
+<section class="section jk-page">
 
-    <div class="page-header">
-
+    <div class="jk-header-card">
         <div>
-
             <h2>Newsletters</h2>
-
             <p>Create and send newsletters.</p>
-
         </div>
-
-        <button class="btn-pri" id="openCreateModal">
-
+        <button class="jk-btn-dark" id="openCreateModal">
             <i class="fa-solid fa-plus"></i>
-
             New Newsletter
-
         </button>
+    </div>
+
+    <div class="jk-stat-grid" style="grid-template-columns: repeat(4, minmax(0,1fr));">
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Total Newsletters</span>
+                <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-envelope-open-text" style="color:#A17807; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.total || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Drafts</span>
+                <div class="jk-stat-icon" style="background:#F1ECDD;"><i class="fas fa-file-alt" style="color:#6E6350; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.drafts || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Scheduled</span>
+                <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fas fa-calendar-alt" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.scheduled || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Sending</span>
+                <div class="jk-stat-icon" style="background:#FBF3DD;"><i class="fas fa-paper-plane" style="color:#A17807; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.sending || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Sent</span>
+                <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fas fa-check-circle" style="color:#1E7A42; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.sent || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Delivered</span>
+                <div class="jk-stat-icon" style="background:#EAF7EE;"><i class="fas fa-inbox" style="color:#1E7A42; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.delivered || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Opened</span>
+                <div class="jk-stat-icon" style="background:var(--brand-tint);"><i class="fas fa-envelope-open" style="color:var(--brand-pri-dark); font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.opened || 0 %></span>
+        </div>
+
+        <div class="jk-stat-card">
+            <div class="jk-stat-head">
+                <span class="jk-stat-label">Failed</span>
+                <div class="jk-stat-icon" style="background:#FDEEEC;"><i class="fas fa-times-circle" style="color:#B23A2A; font-size:13px;"></i></div>
+            </div>
+            <span class="jk-stat-value"><%= stats.failed || 0 %></span>
+        </div>
 
     </div>
 
-    <section class="engagement-grid">
-
-        <!-- Total Newsletters -->
-        <div class="metric-card">
-            <div class="card-title blue-bg">
-                <p>Total Newsletters</p>
-            </div>
-            <div class="metric-card-content">
-                <div class="card-icon blue-bg">
-                    <i class="fas fa-envelope-open-text"></i>
-                </div>
-                <h4><%= stats.total || 0 %></h4>
-            </div>
+    <div class="jk-toolbar">
+        <div class="jk-search-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="newsletterSearch" class="jk-search-input" placeholder="Search newsletter...">
         </div>
 
-        <!-- Draft -->
-        <div class="metric-card">
-
-            <div class="card-title orange-bg">
-                <p>Drafts</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon orange-bg">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-
-                <h4><%= stats.drafts || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Scheduled -->
-        <div class="metric-card">
-
-            <div class="card-title purple-bg">
-                <p>Scheduled</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon purple-bg">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-
-                <h4><%= stats.scheduled || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Sending -->
-        <div class="metric-card">
-
-            <div class="card-title teal-bg">
-                <p>Sending</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon teal-bg">
-                    <i class="fas fa-paper-plane"></i>
-                </div>
-
-                <h4><%= stats.sending || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Sent -->
-        <div class="metric-card">
-
-            <div class="card-title green-bg">
-                <p>Sent</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon green-bg">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-
-                <h4><%= stats.sent || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Delivered -->
-        <div class="metric-card">
-
-            <div class="card-title indigo-bg">
-                <p>Delivered</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon indigo-bg">
-                    <i class="fas fa-inbox"></i>
-                </div>
-
-                <h4><%= stats.delivered || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Opened -->
-        <div class="metric-card">
-
-            <div class="card-title pink-bg">
-                <p>Opened</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon pink-bg">
-                    <i class="fas fa-envelope-open"></i>
-                </div>
-
-                <h4><%= stats.opened || 0 %></h4>
-
-            </div>
-
-        </div>
-
-        <!-- Failed -->
-        <div class="metric-card">
-
-            <div class="card-title dark-red-bg">
-                <p>Failed</p>
-            </div>
-
-            <div class="metric-card-content">
-
-                <div class="card-icon dark-red-bg">
-                    <i class="fas fa-times-circle"></i>
-                </div>
-
-                <h4><%= stats.failed || 0 %></h4>
-
-            </div>
-
-        </div>
-
-    </section>
-
-    <div class="toolbar">
-
-        <input
-            type="text"
-            placeholder="Search newsletter..."
-        >
-
-        <select>
-
-            <option>All Status</option>
-
-            <option>Draft</option>
-
-            <option>Scheduled</option>
-
-            <option>Sending</option>
-
-            <option>Sent</option>
-
+        <select id="newsletterStatusFilter" class="jk-select">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="sending">Sending</option>
+            <option value="sent">Sent</option>
         </select>
-
     </div>
 
-    <div class="table-responsive">
-        <table class="user-table">
+    <div class="jk-table-wrap">
+        <table class="jk-table sortable-table">
 
             <thead>
-
             <tr>
-
                 <th>Subject</th>
-
                 <th>Audience</th>
-
                 <th>Status</th>
-
                 <th>Recipients</th>
-
                 <th>Created</th>
-
-                <th>Actions</th>
-
+                <th class="jk-col-actions">Actions</th>
             </tr>
-
             </thead>
 
-            <tbody>
-
+            <tbody id="newsletterTableBody">
             <% newsletters.forEach(newsletter => { %>
-
-                <tr>
-
+                <tr data-subject="<%= newsletter.subject.toLowerCase() %>" data-status="<%= newsletter.status %>">
                     <td><%= newsletter.subject %></td>
-
                     <td><%= newsletter.recipient_type %></td>
-
                     <td>
-
-                        <span class="status <%= newsletter.status %>">
-
+                        <span class="jk-pill <%= newsletter.status === 'sent' ? 'jk-pill--active' : newsletter.status === 'failed' ? 'jk-pill--unpaid' : newsletter.status === 'draft' ? 'jk-pill--inactive' : 'jk-pill--partial' %>">
                             <%= newsletter.status %>
-
                         </span>
-
                     </td>
-
-                    <td>
-
-                        <%= newsletter.total_recipients %>
-
-                    </td>
-
-                    <td>
-
-                        <%= new Date(newsletter.created_at).toLocaleDateString() %>
-
-                    </td>
-
-                    <!-- <td>
-
-                        <button class="viewBtn">
-
-                            <i class="fa fa-eye"></i>
-
-                        </button>
-
-                        <button class="editBtn">
-
-                            <i class="fa fa-edit"></i>
-
-                        </button>
-
-                        <button class="deleteBtn">
-
-                            <i class="fa fa-trash"></i>
-
-                        </button>
-
-                    </td> -->
-
-                    <td>
-
-                        <button
-                            class="btn-view"
-                            onclick="viewNewsletter(<%= newsletter.id %>)">
-
+                    <td><%= newsletter.total_recipients %></td>
+                    <td><%= new Date(newsletter.created_at).toLocaleDateString() %></td>
+                    <td class="jk-col-actions">
+                        <button class="jk-icon-btn" title="View" onclick="viewNewsletter(<%= newsletter.id %>)">
                             <i class="fas fa-eye"></i>
-
                         </button>
-
                         <% if(newsletter.status !== 'sent'){ %>
-
-                            <button
-                                class="btn-edit"
-                                onclick="editNewsletter(<%= newsletter.id %>)">
-
+                            <button class="jk-icon-btn" title="Edit" onclick="editNewsletter(<%= newsletter.id %>)">
                                 <i class="fas fa-edit"></i>
-
                             </button>
-
-                            <button
-                                class="btn-delete"
-                                onclick="deleteNewsletter(<%= newsletter.id %>)">
-
+                            <button class="jk-icon-btn" title="Delete" onclick="deleteNewsletter(<%= newsletter.id %>)" style="color:#B23A2A;">
                                 <i class="fas fa-trash"></i>
-
                             </button>
-
                         <% } %>
-
                     </td>
                 </tr>
-
             <% }) %>
-
             </tbody>
 
         </table>
     </div>
+
+</section>
+
+<!-- Search/filter for the newsletter list table (previously dead UI — the
+     search input and status <select> had no id and no wiring at all). -->
+<script>
+    (function () {
+        const search = document.getElementById("newsletterSearch");
+        const statusFilter = document.getElementById("newsletterStatusFilter");
+        const rows = () => document.querySelectorAll("#newsletterTableBody tr");
+
+        function applyFilters() {
+            const keyword = search.value.trim().toLowerCase();
+            const status = statusFilter.value;
+            rows().forEach((row) => {
+                const matchesSearch = !keyword || row.dataset.subject.includes(keyword);
+                const matchesStatus = !status || row.dataset.status === status;
+                row.style.display = matchesSearch && matchesStatus ? "" : "none";
+            });
+        }
+
+        search.addEventListener("keyup", applyFilters);
+        statusFilter.addEventListener("change", applyFilters);
+    })();
+</script>
 
     <!-- ==========================
 CREATE NEWSLETTER MODAL
