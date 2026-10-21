@@ -41,7 +41,6 @@ router.get("/dashboard", adminController.instructorDashboard);
 router.get("/ajax/courses", instructorController.ajaxCourses);
 // routes/instructorRoutes.js
 router.get("/section/:section",instructorController.loadSection);
-router.get("/classroom/:id/students", instructorController.getInstructorClassesSection);
 router.get("/students", instructorController.getInstructorStudentsSection);
 router.get("/reports", instructorController.getInstructorReportsSection);
 router.get("/student/:id/progress", instructorController.viewStudentProgress);

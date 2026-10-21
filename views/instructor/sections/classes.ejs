@@ -44,6 +44,7 @@
       <thead>
         <tr>
           <th>Class Name</th>
+          <th>Students</th>
           <th>Lessons</th>
           <th>Actions</th>
         </tr>
@@ -52,6 +53,7 @@
         <% classes.forEach(cls => { %>
           <tr>
             <td><%= cls.name %></td>
+            <td><%= (studentCountsPerClass.find(s => s.id == cls.id) || {}).student_count || 0 %></td>
             <td><%= (lessonsPerClass.find(l => l.id == cls.id) || {}).lesson_count || 0 %></td>
             <td>
               <button class="btn-view" onclick="loadSection('students?classroom_id=<%= cls.id %>')">

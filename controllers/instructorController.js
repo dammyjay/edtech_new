@@ -933,6 +933,7 @@ exports.loadSection = async (req, res) => {
     let total_submissions = 0;
     let overview = {};
     let lessonsPerClass = [];
+    let studentCountsPerClass = [];
     let terms = [];
     // "Classroom Analytics" tab (sections/schools.ejs) state — see the
     // section === "schools" block below for where these get populated.
@@ -1113,6 +1114,7 @@ exports.loadSection = async (req, res) => {
         `, [instructorId, activeSchoolId]);
 
         lessonsPerClass = lessonsPerClassResDB.rows;
+        studentCountsPerClass = studentCountsPerClassRes.rows;
 
         overview = {
           total_classes: classes.length,
@@ -1340,6 +1342,7 @@ exports.loadSection = async (req, res) => {
       selectedSchoolId: activeSchoolId,
       overview,
       lessonsPerClass,
+      studentCountsPerClass,
       terms,
       // Classroom Analytics tab (sections/schools.ejs)
       avgProgress,
@@ -1386,79 +1389,6 @@ exports.loadSection = async (req, res) => {
 };
 
 
-exports.getInstructorClassesSection = async (req, res) => {
-  try {
-    const instructorId = req.user.id;
-    const schoolId = req.session.activeSchoolId;
-
-    // Fetch instructor's classes
-    const classesRes = await pool.query(
-      `SELECT c.id, c.name
-       FROM classrooms c
-       JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL`,
-      [instructorId, schoolId]
-    );
-    const classes = classesRes.rows;
-
-    // Students per class
-    const studentCountsRes = await pool.query(
-      `SELECT c.id, COUNT(us.user_id) AS student_count
-       FROM classrooms c
-       JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       LEFT JOIN user_school us
-         ON us.classroom_id = c.id
-        AND us.role_in_school = 'student'
-        AND us.approved = true
-       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
-       GROUP BY c.id`,
-      [instructorId, schoolId]
-    );
-
-    // Lessons per class
-    const lessonsPerClassRes = await pool.query(
-      `SELECT c.id, COUNT(l.id) AS lesson_count
-       FROM classrooms c
-       JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       LEFT JOIN classroom_courses cc ON cc.classroom_id = c.id
-       LEFT JOIN courses co ON co.id = cc.course_id
-       LEFT JOIN modules m ON m.course_id = co.id
-       LEFT JOIN lessons l ON l.module_id = m.id
-       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
-       GROUP BY c.id`,
-      [instructorId, schoolId]
-    );
-
-    // Build overview
-    const totalClasses = classes.length;
-    const totalStudents = studentCountsRes.rows.reduce(
-      (sum, c) => sum + parseInt(c.student_count || 0),
-      0
-    );
-
-    const overview = {
-      total_classes: totalClasses,
-      total_students: totalStudents,
-      avg_quiz_score: "–",
-      total_lessons: lessonsPerClassRes.rows.reduce(
-        (sum, c) => sum + parseInt(c.lesson_count || 0),
-        0
-      ),
-      avg_assignment_score: "–",
-      engagement_last7: 0,
-    };
-
-    res.render("instructor/sections/classes", {
-      classes,
-      overview,
-      lessonsPerClass: lessonsPerClassRes.rows,
-    });
-  } catch (err) {
-    console.error("Instructor Classes Section Error:", err);
-    res.status(500).send("<p>Error loading classes</p>");
-  }
-};
-
 exports.getInstructorStudentsSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
@@ -1497,10 +1427,33 @@ exports.getInstructorStudentsSection = async (req, res) => {
     // it at least renders instead of throwing "awardBudget is not defined".
     const awardBudget = await instructorAwardService.getRemainingBudget(instructorId);
 
+    // classes/terms: the Add Student modal on this view needs both for its
+    // dropdowns. loadSection's AJAX path already supplies them, but a
+    // direct hit on this route previously didn't — added here so the
+    // modal works regardless of which entry point rendered the page.
+    const classesRes = await pool.query(
+      `SELECT c.id, c.name
+       FROM classrooms c
+       JOIN classroom_instructors ci ON ci.classroom_id = c.id
+       WHERE ci.instructor_id = $1 AND c.school_id = $2 AND c.archived_at IS NULL
+       ORDER BY c.name`,
+      [instructorId, schoolId]
+    );
+    const termsRes = await pool.query(
+      `SELECT id AS term_id, name AS term_name
+       FROM academic_terms
+       WHERE school_id = $1 AND archived_at IS NULL
+       ORDER BY id DESC`,
+      [schoolId]
+    );
+
     res.render("instructor/sections/students", {
       students: studentsRes.rows,
       awardBudget,
       awardCategories: instructorAwardService.getCategoryList(),
+      classes: classesRes.rows,
+      classrooms: classesRes.rows,
+      terms: termsRes.rows,
     });
   } catch (err) {
     console.error("Instructor Students Section Error:", err);
