@@ -899,6 +899,16 @@ exports.loadSection = async (req, res) => {
 
     const profilePic = req.session.user?.profile_picture || null;
 
+    // req.session.user only ever stores id/email/role/profile_picture/
+    // equipped_avatar_frame (set at login, adminController.js's login) —
+    // fullname was never included, so dashboard.ejs's "Welcome, <name>"
+    // greeting has always rendered blank via the global `user` local
+    // every view gets from res.locals.user. Fixing the session shape
+    // itself is platform-wide and out of scope here; this just fetches
+    // the real name for this one render instead.
+    const instructorNameRes = await pool.query("SELECT fullname FROM users2 WHERE id = $1", [instructorId]);
+    const instructorFullname = instructorNameRes.rows[0]?.fullname || "";
+
     const schoolsRes = await pool.query(`
       SELECT DISTINCT s.id, s.name
       FROM classroom_instructors ci
@@ -1358,6 +1368,7 @@ exports.loadSection = async (req, res) => {
     const data = {
       info,
       profilePic,
+      user: { ...req.session.user, fullname: instructorFullname },
       schools,
       school,
       classes,

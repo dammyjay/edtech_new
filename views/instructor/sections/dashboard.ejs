@@ -1,53 +1,47 @@
-<div class="instructor-topbar">
-  <div>
-    <h1>👋 Welcome, <%= user.fullname %></h1>
-    <p class="subtitle">Here's what's happening across your classes today.</p>
-  </div>
-
-  <div class="school-switcher">
-    <select id="schoolSelect">
-      <% if (schools && schools.length > 0) { %>
-        <% schools.forEach(s => { %>
-          <option value="<%= s.id %>" <%= selectedSchoolId == s.id ? "selected" : "" %>><%= s.name %></option>
-        <% }) %>
-      <% } else { %>
-        <option disabled>No schools available</option>
-      <% } %>
-    </select>
-  </div>
+<div class="jk-header-card">
+  <div><h2>👋 Welcome, <%= user.fullname %></h2></div>
+  <select id="schoolSelect" class="jk-select">
+    <% if (schools && schools.length > 0) { %>
+      <% schools.forEach(s => { %>
+        <option value="<%= s.id %>" <%= selectedSchoolId == s.id ? "selected" : "" %>><%= s.name %></option>
+      <% }) %>
+    <% } else { %>
+      <option disabled>No schools available</option>
+    <% } %>
+  </select>
 </div>
 
 <% if (!school || !school.name) { %>
   <p style="color:#999;">You haven't been assigned to a school yet — contact your platform admin.</p>
 <% } %>
 
-<div class="stat-card-grid">
-  <div class="stat-card">
-    <div class="stat-icon icon-gold"><i class="fa-solid fa-book"></i></div>
-    <div><div class="stat-value"><%= total_courses %></div><div class="stat-label">Courses</div></div>
+<div class="jk-stat-grid">
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Courses</span><span class="jk-stat-icon">📚</span></div>
+    <div class="jk-stat-value"><%= total_courses %></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-blue"><i class="fa-solid fa-layer-group"></i></div>
-    <div><div class="stat-value"><%= total_modules %></div><div class="stat-label">Modules</div></div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Modules</span><span class="jk-stat-icon">🧩</span></div>
+    <div class="jk-stat-value"><%= total_modules %></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-purple"><i class="fa-solid fa-chalkboard"></i></div>
-    <div><div class="stat-value"><%= total_lessons %></div><div class="stat-label">Lessons</div></div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Lessons</span><span class="jk-stat-icon">📖</span></div>
+    <div class="jk-stat-value"><%= total_lessons %></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-green"><i class="fa-solid fa-user-graduate"></i></div>
-    <div><div class="stat-value"><%= total_students %></div><div class="stat-label">Students</div></div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Students</span><span class="jk-stat-icon">🎓</span></div>
+    <div class="jk-stat-value"><%= total_students %></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-red"><i class="fa-solid fa-file-circle-check"></i></div>
-    <div><div class="stat-value"><%= total_submissions %></div><div class="stat-label">Submissions</div></div>
+  <div class="jk-stat-card">
+    <div class="jk-stat-head"><span class="jk-stat-label">Submissions</span><span class="jk-stat-icon">✅</span></div>
+    <div class="jk-stat-value"><%= total_submissions %></div>
   </div>
 </div>
 
 <% if (topStudentsByXp && topStudentsByXp.length > 0) { %>
-  <h2><i class="fa-solid fa-trophy"></i> Top Students</h2>
-  <div class="table-responsive">
-    <table class="user-table">
+  <div class="jk-section-head"><h3>🏆 Top Students</h3></div>
+  <div class="jk-table-wrap">
+    <table class="jk-table">
       <thead>
         <tr>
           <th>Rank</th>
@@ -72,25 +66,27 @@
   </div>
 <% } %>
 
-<h2><i class="fa-solid fa-school"></i> Assigned Classrooms</h2>
+<div class="jk-section-head"><h3>🏫 Assigned Classrooms</h3></div>
 <% if (classrooms.length > 0) { %>
-  <div class="card-grid">
+  <div class="jk-course-grid">
     <% classrooms.forEach(c => { %>
-      <div class="card"><h3>🏫 <%= c.name %></h3></div>
+      <div class="jk-course-card">
+        <div class="card-content"><h4>🏫 <%= c.name %></h4></div>
+      </div>
     <% }) %>
   </div>
 <% } else { %>
   <p style="color:#999;">No classroom assigned yet.</p>
 <% } %>
 
-<h2><i class="fa-solid fa-book"></i> Your Courses</h2>
-<div class="table-responsive">
-  <table class="user-table sortable-table">
+<div class="jk-section-head"><h3>📚 Your Courses</h3></div>
+<div class="jk-table-wrap">
+  <table class="jk-table sortable-table">
     <thead>
       <tr>
         <th>Course Title</th>
         <th>Students Enrolled</th>
-        <th>Actions</th>
+        <th class="jk-col-actions">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -99,7 +95,7 @@
           <tr>
             <td><%= course.title %></td>
             <td><%= course.student_count %></td>
-            <td class="multi-btn">
+            <td class="jk-col-actions multi-btn">
               <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn'">View Content</button>
               <button class="btn-edit" onclick="window.location.href='/instructor/courses/<%= course.id %>'">Edit</button>
               <button class="btn-blue" onclick="loadSection('students')">Students</button>
@@ -113,10 +109,10 @@
   </table>
 </div>
 
-<h2><i class="fa-solid fa-envelope"></i> Recent Messages (<%= (receivedMessages || []).length %>)</h2>
+<div class="jk-section-head"><h3>✉️ Recent Messages (<%= (receivedMessages || []).length %>)</h3></div>
 <% if (receivedMessages && receivedMessages.length > 0) { %>
-  <div class="table-responsive">
-    <table class="user-table sortable-table">
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
       <thead>
         <tr>
           <th>Sender</th>
@@ -145,10 +141,10 @@
   <p style="color:#999;">No messages received yet.</p>
 <% } %>
 
-<div id="replyBox" style="display:none; margin-top:16px;" class="card">
+<div id="replyBox" style="display:none; margin-top:16px;" class="jk-report-panel">
   <h4>Replying to <span id="replyToName"></span></h4>
   <input type="hidden" id="replyReceiverId">
-  <textarea id="replyMessage" rows="3" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light);"></textarea>
+  <textarea id="replyMessage" rows="3" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border-light); box-sizing:border-box;"></textarea>
   <div class="multi-btn" style="margin-top:8px;">
     <button class="btn-green" onclick="sendReply()">Send Reply</button>
     <button class="btn-pri" onclick="closeReplyBox()">Cancel</button>
