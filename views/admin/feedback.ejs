@@ -10,7 +10,6 @@
       margin-top: 20px;
     }
 
-    /* Mobile: single column */
     @media (max-width: 600px) {
       .feedback-grid {
         grid-template-columns: 1fr;
@@ -19,38 +18,39 @@
 
     /* ===== CARD ===== */
     .feedback-card {
-      background: white;
+      background: #fff;
+      border: 1px solid #F1ECDD;
       border-radius: 14px;
       padding: 16px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 10px rgba(32,27,18,0.05);
       display: flex;
       flex-direction: column;
       gap: 10px;
       position: relative;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-      animation: fadeInUp 0.4s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeInUp 0.3s ease;
     }
 
     .feedback-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 12px 25px rgba(0,0,0,0.12);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 22px rgba(32,27,18,0.1);
     }
 
     /* ===== PINNED ===== */
     .feedback-card.pinned {
-      border: 2px solid #ffc107;
+      border: 2px solid var(--brand-pri);
     }
 
     .pinned-label {
       position: absolute;
       top: 10px;
       right: 10px;
-      background: #ffc107;
-      color: #000;
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 20px;
-      font-weight: bold;
+      background: var(--brand-pri);
+      color: #201B12;
+      font-size: 10.5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-weight: 800;
     }
 
     /* ===== HEADER ===== */
@@ -62,288 +62,136 @@
 
     /* ===== USER TYPE BADGES ===== */
     .badge {
-      padding: 4px 10px;
-      font-size: 11px;
-      border-radius: 20px;
-      font-weight: bold;
-      color: white;
+      padding: 3px 10px;
+      font-size: 10.5px;
+      border-radius: 999px;
+      font-weight: 800;
+      color: #fff;
       text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
-    .badge.student { background:#007bff; }
-    .badge.teacher { background:#28a745; }
-    .badge.parent { background:#17a2b8; }
-    .badge.school_owner { background:#6f42c1; }
-    .badge.organization { background:#fd7e14; }
+    .badge.student { background:#3D7EDB; }
+    .badge.teacher { background:#1E7A42; }
+    .badge.parent { background:#1B8B9B; }
+    .badge.school_owner { background:#6F4FC1; }
+    .badge.organization { background:#C1711F; }
 
     /* ===== STAR RATING ===== */
     .stars {
-      color: #ffc107;
-      font-size: 15px;
+      color: var(--brand-pri-dark);
+      font-size: 14px;
     }
 
     /* ===== MESSAGE PREVIEW ===== */
     .message {
-      font-size: 14px;
-      color: #444;
+      font-size: 13.5px;
+      color: #4C3802;
       line-height: 1.45;
       max-height: 60px;
       overflow: hidden;
       transition: max-height 0.3s ease;
     }
 
-    /* Expand on hover */
     .feedback-card:hover .message {
       max-height: 300px;
     }
 
     /* ===== SENTIMENT ===== */
     .sentiment {
-      font-size: 12px;
-      font-weight: bold;
+      font-size: 11.5px;
+      font-weight: 700;
     }
 
-    .sentiment.positive { color:#28a745; }
-    .sentiment.neutral { color:#6c757d; }
-    .sentiment.negative { color:#dc3545; }
+    .sentiment.positive { color:#1E7A42; }
+    .sentiment.neutral { color:#6E6350; }
+    .sentiment.negative { color:#B23A2A; }
+
+    .feedback-card small { color: #8A7B55; font-size: 11.5px; }
+    .feedback-card strong { color: #1A1510; font-size: 14px; }
 
     /* ===== ACTIONS ===== */
     .actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
       margin-top: auto;
     }
 
     .actions button {
       border: none;
-      padding: 6px 10px;
-      border-radius: 6px;
+      padding: 6px 11px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 700;
     }
 
-    .view-btn { background:#17a2b8; color:white; }
-    .publish-btn { background:#28a745; color:white; }
-    .publish-btn.unpublish { background:#6c757d; }
-    .delete-btn { background:#dc3545; color:white; }
+    .view-btn { background:#F6F4EF; color:#4C3802; }
+    .publish-btn { background:#EAF7EE; color:#1E7A42; }
+    .publish-btn.unpublish { background:#F1ECDD; color:#6E6350; }
+    .delete-btn { background:#FDEEEC; color:#B23A2A; }
+    .actions button:hover { opacity: 0.8; }
 
     /* ===== ANIMATION ===== */
     @keyframes fadeInUp {
-      from { opacity:0; transform: translateY(20px); }
+      from { opacity:0; transform: translateY(16px); }
       to { opacity:1; transform: translateY(0); }
     }
 
-    .feedback-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
+    #pagination { display: flex; gap: 6px; flex-wrap: wrap; }
+    #pagination button {
+      border: 1px solid #E7E0CE; background: #fff; color: #4C3802;
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px; font-weight: 700;
     }
-
-    .feedback-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 15px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .feedback-card .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .feedback-card .type {
-      font-size: 12px;
-      text-transform: uppercase;
-      font-weight: bold;
-      color: #007bff;
-    }
-
-    .feedback-card .rating {
-      font-weight: bold;
-    }
-
-    .feedback-card .message {
-      font-size: 14px;
-      color: #444;
-      line-height: 1.4;
-      max-height: 70px;
-      overflow: hidden;
-    }
-
-    .feedback-card .meta {
-      font-size: 12px;
-      color: #777;
-    }
-
-    .feedback-card .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: auto;
-    }
-
-    .feedback-card button {
-      border: none;
-      padding: 6px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .view-btn {
-      background: #17a2b8;
-      color: #fff;
-    }
-
-    .publish-btn {
-      background: #28a745;
-      color: #fff;
-    }
-
-    .publish-btn.unpublish {
-      background: #6c757d;
-    }
-
-    .delete-btn {
-      background: #dc3545;
-      color: #fff;
-    }
-
-    .stat-box {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      width: 160px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      text-align:center;
-    }
-    .stat-box h3 { margin-bottom: 10px; font-size: 16px; color: #444; }
-    .stat-box p { font-size: 22px; font-weight: bold; }
-    .btn {
-      display:inline-block;
-      padding:10px 15px;
-      background:#007bff;
-      color:white;
-      border-radius:6px;
-      text-decoration:none;
-      margin-right:8px;
-    }
-    .modal {
-      position:fixed;
-      top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,0.5);
-      padding-top:60px;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      z-index:9999; /* ✅ makes it appear on top */
-    }
-
-    .modal-content {
-      background:white;
-      padding:20px;
-      border-radius:8px;
-      width:90%;
-      max-width:600px;
-      margin:auto;
-    }
-
-    .filter {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        width: auto;
-        margin-bottom:12px;
-      }
-
-    .publish-btn {
-      background: #28a745;
-      color: white;
-      padding: 6px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .publish-btn.unpublish {
-      background: #6c757d;
-    }
-
-    .delete-btn {
-      background: #d9534f;
-      color: white;
-      padding: 6px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-
-    @media screen {
-      .filter {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        width: auto;
-        margin-bottom:12px;
-      }
-    }
+    #pagination button:disabled { background: #201B12; color: #EDE6D6; border-color: #201B12; cursor: default; }
   </style>
 
-  <h1 style="margin-top:20px;">Feedback Dashboard</h1>
+<section class="section jk-page">
 
-  <!-- EXPORT BUTTONS -->
-  <div style="margin:20px 0;">
-    <a href="/admin/feedback/export/pdf" class="btn">Export PDF</a>
-    <a href="/admin/feedback/export/excel" class="btn">Export Excel</a>
-    <a href="/admin/feedback/export/csv" class="btn">Export CSV</a>
+  <div class="jk-header-card">
+    <div><h2>Feedback Dashboard</h2></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="/admin/feedback/export/pdf" class="jk-btn-outline-sm"><i class="fas fa-file-pdf"></i> PDF</a>
+      <a href="/admin/feedback/export/excel" class="jk-btn-outline-sm"><i class="fas fa-file-excel"></i> Excel</a>
+      <a href="/admin/feedback/export/csv" class="jk-btn-outline-sm"><i class="fas fa-file-csv"></i> CSV</a>
+    </div>
   </div>
 
-  <!-- SUMMARY CARDS -->
-<div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
-  <div class="stat-box">
-    <h3>Total Feedback</h3>
-    <p><%= feedback.length %></p>
+  <div class="jk-stat-grid">
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Total Feedback</span><span class="jk-stat-icon">💬</span></div>
+      <div class="jk-stat-value"><%= feedback.length %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Average Rating</span><span class="jk-stat-icon">⭐</span></div>
+      <div class="jk-stat-value"><%= feedback.length ? (feedback.reduce((s,f)=>s+(f.rating||0),0)/feedback.length).toFixed(1) : "0.0" %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Students</span><span class="jk-stat-icon">🎓</span></div>
+      <div class="jk-stat-value"><%= feedback.filter(f=>f.user_type==='student').length %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Teachers</span><span class="jk-stat-icon">🧑‍🏫</span></div>
+      <div class="jk-stat-value"><%= feedback.filter(f=>f.user_type==='teacher').length %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Parents</span><span class="jk-stat-icon">👪</span></div>
+      <div class="jk-stat-value"><%= feedback.filter(f=>f.user_type==='parent').length %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">School Owners</span><span class="jk-stat-icon">🏫</span></div>
+      <div class="jk-stat-value"><%= feedback.filter(f=>f.user_type==='school_owner').length %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Organizations</span><span class="jk-stat-icon">🏢</span></div>
+      <div class="jk-stat-value"><%= feedback.filter(f=>f.user_type==='organization').length %></div>
+    </div>
   </div>
-
-  <div class="stat-box">
-    <h3>Average Rating</h3>
-    <p><%= (feedback.reduce((s,f)=>s+(f.rating||0),0)/feedback.length).toFixed(1) %> ⭐</p>
-  </div>
-
-  <div class="stat-box">
-    <h3>Students</h3>
-    <p><%= feedback.filter(f=>f.user_type==='student').length %></p>
-  </div>
-
-  <div class="stat-box">
-    <h3>Teachers</h3>
-    <p><%= feedback.filter(f=>f.user_type==='teacher').length %></p>
-  </div>
-
-  <div class="stat-box">
-    <h3>Parents</h3>
-    <p><%= feedback.filter(f=>f.user_type==='parent').length %></p>
-  </div>
-
-  <div class="stat-box">
-    <h3>School Owners</h3>
-    <p><%= feedback.filter(f=>f.user_type==='school_owner').length %></p>
-  </div>
-
-  <div class="stat-box">
-    <h3>Organizations</h3>
-    <p><%= feedback.filter(f=>f.user_type==='organization').length %></p>
-  </div>
-</div>
 
   <!-- FILTERS -->
-  <div class="filter" >
-    <select id="filterType">
+  <div class="jk-toolbar">
+    <select id="filterType" class="jk-select">
       <option value="">All Users</option>
       <option value="parent">Parent</option>
       <option value="student">Student</option>
@@ -352,52 +200,53 @@
       <option value="organization">Organization</option>
     </select>
 
-    <select id="filterRating">
+    <select id="filterRating" class="jk-select">
       <option value="">Any Rating</option>
       <option value="5">5</option><option value="4">4</option>
       <option value="3">3</option><option value="2">2</option><option value="1">1</option>
     </select>
 
-    <select id="filterPublished">
+    <select id="filterPublished" class="jk-select">
       <option value="">Both</option>
       <option value="true">Published</option>
       <option value="false">Unpublished</option>
     </select>
 
-    <input id="filterSearch" placeholder="Search feedback..." style="flex:1;">
+    <div class="jk-search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="filterSearch" class="jk-search-input" placeholder="Search feedback...">
+    </div>
 
-    <button id="applyFilters">Apply</button>
+    <button id="applyFilters" class="jk-btn-dark">Apply</button>
   </div>
 
-  <!-- WORD CLOUD -->
-  <!-- <h3>Keyword Cloud</h3> -->
-  <!-- <canvas id="wordCloudCanvas" width="500" height="230"></canvas> -->
-
-  <!-- TABLE -->
-  <!-- <div id="feedbackTableWrap" class="table-responsive" style="margin-top:20px;"></div> -->
-
   <!-- Feedback Grid -->
-   <div id="feedbackCardsWrap" class="feedback-grid"></div>
-
+  <div id="feedbackCardsWrap" class="feedback-grid"></div>
 
   <!-- PAGINATION -->
   <div id="pagination" style="margin-top:20px;"></div>
 
   <!-- MODAL -->
-  <div id="feedbackModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <span onclick="closeFeedbackModal()" style="float:right; cursor:pointer; font-size:20px;">&times;</span>
-      <h2>Feedback Details</h2>
-      <p><strong>User Type:</strong> <span id="fbType"></span></p>
-      <p><strong>Name:</strong> <span id="fbName"></span></p>
-      <p><strong>Email:</strong> <span id="fbEmail"></span></p>
-      <p><strong>Rating:</strong> <span id="fbRating"></span></p>
-      <p><strong>Sentiment:</strong> <span id="fbSentiment"></span></p>
-      <p><strong>Message:</strong></p>
-      <div id="fbMessage" style="padding:10px; background:#f3f3f3; border-radius:6px;"></div>
-      <p><strong>Published:</strong></p> <span id="fbPublished"></span>
+  <div id="feedbackModal" class="jk-modal-overlay" style="display:none;">
+    <div class="jk-modal">
+      <div class="jk-modal-head">
+        <h4>Feedback Details</h4>
+        <span onclick="closeFeedbackModal()" class="jk-modal-close">&times;</span>
+      </div>
+      <div class="jk-modal-body">
+        <p><strong>User Type:</strong> <span id="fbType"></span></p>
+        <p><strong>Name:</strong> <span id="fbName"></span></p>
+        <p><strong>Email:</strong> <span id="fbEmail"></span></p>
+        <p><strong>Rating:</strong> <span id="fbRating"></span></p>
+        <p><strong>Sentiment:</strong> <span id="fbSentiment"></span></p>
+        <p><strong>Message:</strong></p>
+        <div id="fbMessage" style="padding:10px; background:#F6F4EF; border-radius:8px;"></div>
+        <p><strong>Published:</strong> <span id="fbPublished"></span></p>
+      </div>
     </div>
   </div>
+
+</section>
 
 <script>
 const fetchJSON = (url) => fetch(url).then(r=>r.json());
@@ -569,7 +418,7 @@ async function openFeedbackModal(id){
   fbMessage.textContent = row.message;
   fbPublished.textContent = row.is_published ? "Yes" : "No";
 
-  feedbackModal.style.display = "block";
+  feedbackModal.style.display = "flex";
 }
 function closeFeedbackModal(){
   feedbackModal.style.display = "none";

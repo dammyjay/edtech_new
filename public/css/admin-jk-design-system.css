@@ -139,7 +139,7 @@
 .jk-toolbar-spacer { flex: 1 1 auto; }
 .jk-search-wrap { position: relative; flex: 1 1 240px; max-width: 320px; }
 .jk-search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-.jk-search-input { width: 100%; padding: 9px 12px 9px 34px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 0; }
+.jk-search-input { width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; border-radius: 9px; border: 1px solid #E7E0CE; font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 0; }
 /* width:auto overrides style.css's global `select { width:100% }` and
    `input[type="date"] { width:100% }` — without it every .jk-select
    stretches to fill its flex container instead of sizing to its content,
