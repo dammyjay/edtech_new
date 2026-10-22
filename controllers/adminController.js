@@ -5815,7 +5815,7 @@ exports.exportSchoolsPdf = async (req, res) => {
 
 exports.updateSchoolInfo = async (req, res) => {
   try {
-    const { id, email, phone, address } = req.body;
+    const { id, email, phone, address, class_days_touched, class_days } = req.body;
     let logo_url = null;
 
     // ✅ Upload new logo to Cloudinary if provided
@@ -5849,6 +5849,16 @@ exports.updateSchoolInfo = async (req, res) => {
     if (logo_url) {
       fields.push(`logo_url = $${index++}`);
       values.push(logo_url);
+    }
+    // class_days_touched is always present when the form's checkbox
+    // section was submitted — distinguishes "all days unchecked"
+    // (clear it) from this field simply not being part of the request.
+    if (class_days_touched) {
+      const days = (Array.isArray(class_days) ? class_days : class_days ? [class_days] : [])
+        .map((d) => parseInt(d, 10))
+        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+      fields.push(`class_days = $${index++}`);
+      values.push(days.length ? days : null);
     }
 
     if (fields.length === 0)

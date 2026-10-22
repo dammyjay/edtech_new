@@ -226,6 +226,14 @@ router.post(
   instructorController.unreleaseLessonFromClassroom
 );
 
+// Assign one or more lessons (quiz and/or lab) to a classroom as a task
+// — see services/lessonTaskService.js.
+router.post(
+  "/lesson-tasks",
+  ensureInstructorOrAdmin,
+  instructorController.createLessonTask
+);
+
 // Was wired to viewStudentProgress, which reads req.params.id (a
 // student id) — this route only ever supplies :courseId, so every hit
 // silently 403'd ("Not authorized to view this student"). The two

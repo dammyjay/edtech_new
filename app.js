@@ -14,6 +14,7 @@ require("./cron/parentWeeklyDigest");
 require("./cron/parentAtRiskAlert");
 require("./cron/spacedReviewNudge");
 require("./cron/weeklyLeaderboardCoins");
+require("./cron/lessonTaskReminderJobs");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const runNewsletterScheduler = require("./cron/newsletterScheduler");
 // const runDevotionalScheduler = require("./cron/cronJobs");

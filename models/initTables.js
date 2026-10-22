@@ -802,8 +802,15 @@ async function createTables() {
         created_at TIMESTAMP DEFAULT NOW(),
         logo_url TEXT
       );
+
+      -- Which weekday(s) this school holds its weekly class, as
+      -- JS Date.getDay() indices (0=Sunday..6=Saturday). NULL/empty
+      -- means "not configured yet" — the lesson-task reminder job
+      -- simply never fires for this school until an admin sets it.
+      ALTER TABLE schools
+      ADD COLUMN IF NOT EXISTS class_days INTEGER[];
     `);
-    
+
       // User school
     await pool.query(`
         CREATE TABLE IF NOT EXISTS user_school (
@@ -1098,6 +1105,32 @@ async function createTables() {
         released_at TIMESTAMP DEFAULT NOW(),
         released_by INT REFERENCES users2(id),
         UNIQUE(classroom_id, lesson_id)
+      );
+      `);
+
+    // An instructor-assigned task bundling one or more lessons (quiz
+    // and/or lab) for a classroom to complete, with a due_class_date
+    // computed from the school's class_days at creation time. No
+    // submission table of its own — completion is derived live from
+    // user_lesson_progress for each bundled lesson (see
+    // services/lessonTaskService.js). due_class_date is purely
+    // informational/reminder-timing, never enforced as a hard lock.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classroom_lesson_tasks (
+        id SERIAL PRIMARY KEY,
+        classroom_id INT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+        instructor_id INT REFERENCES users2(id),
+        title TEXT NOT NULL,
+        instructions TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        due_class_date DATE,
+        last_reminder_sent_for_date DATE
+      );
+
+      CREATE TABLE IF NOT EXISTS classroom_lesson_task_lessons (
+        task_id INT NOT NULL REFERENCES classroom_lesson_tasks(id) ON DELETE CASCADE,
+        lesson_id INT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+        PRIMARY KEY (task_id, lesson_id)
       );
       `);
 

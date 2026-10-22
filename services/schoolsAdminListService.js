@@ -37,6 +37,7 @@ async function getAllSchoolsWithPaymentSummary() {
       s.phone,
       s.address,
       s.logo_url,
+      s.class_days,
       s.created_at,
       COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' AND us.approved = true THEN u.id END) AS teacher_count,
       COUNT(DISTINCT c.id) AS classroom_count,

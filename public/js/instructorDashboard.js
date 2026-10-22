@@ -697,6 +697,166 @@ async function deleteClassReportConfirm(id) {
 }
 
 // =====================================================================
+// Lesson Tasks — assign lesson(s) (quiz and/or lab) to a classroom as a
+// task. taskableCoursesData is embedded server-side as a JSON <script>
+// (never executes, read via .textContent — the established convention
+// for passing server data into this persistently-loaded shell script).
+// =====================================================================
+
+function openLessonTaskModal() {
+  const modal = document.getElementById("lessonTaskModal");
+  if (!modal) return;
+  document.getElementById("taskClassroomSelect").value = "";
+  document.getElementById("taskCourseSelect").innerHTML = '<option value="">Select a classroom first…</option>';
+  document.getElementById("taskLessonList").innerHTML = '<span style="color:#999;">Select a course to see its lessons.</span>';
+  document.getElementById("taskTitleInput").value = "";
+  document.getElementById("taskInstructionsInput").value = "";
+  modal.style.display = "flex";
+}
+
+function closeLessonTaskModal() {
+  const modal = document.getElementById("lessonTaskModal");
+  if (modal) modal.style.display = "none";
+}
+
+function getTaskableCourses() {
+  const el = document.getElementById("taskableCoursesData");
+  if (!el) return [];
+  try {
+    return JSON.parse(el.textContent);
+  } catch {
+    return [];
+  }
+}
+
+function onTaskClassroomChange() {
+  const classroomId = document.getElementById("taskClassroomSelect").value;
+  const courseSelect = document.getElementById("taskCourseSelect");
+  document.getElementById("taskLessonList").innerHTML = '<span style="color:#999;">Select a course to see its lessons.</span>';
+
+  if (!classroomId) {
+    courseSelect.innerHTML = '<option value="">Select a classroom first…</option>';
+    return;
+  }
+
+  const courses = getTaskableCourses().filter((c) => c.classroomIds.map(String).includes(classroomId));
+  if (courses.length === 0) {
+    courseSelect.innerHTML = '<option value="">No courses assigned to this classroom</option>';
+    return;
+  }
+  courseSelect.innerHTML =
+    '<option value="">Select a course…</option>' +
+    courses.map((c) => `<option value="${c.id}">${c.title}</option>`).join("");
+}
+
+function onTaskCourseChange() {
+  const courseId = document.getElementById("taskCourseSelect").value;
+  const list = document.getElementById("taskLessonList");
+  if (!courseId) {
+    list.innerHTML = '<span style="color:#999;">Select a course to see its lessons.</span>';
+    return;
+  }
+
+  const course = getTaskableCourses().find((c) => String(c.id) === courseId);
+  const modules = course?.modules || [];
+  if (modules.length === 0) {
+    list.innerHTML = '<span style="color:#999;">This course has no lessons yet.</span>';
+    return;
+  }
+
+  list.innerHTML = modules
+    .map(
+      (m) => `
+      <div style="margin-bottom:6px;">
+        <strong>${m.title}</strong>
+        ${(m.lessons || [])
+          .map(
+            (l) => `
+          <label style="display:block; margin:4px 0 4px 12px;">
+            <input type="checkbox" name="taskLessonId" value="${l.id}"> ${l.title}
+          </label>`
+          )
+          .join("")}
+      </div>`
+    )
+    .join("");
+}
+
+async function submitLessonTask() {
+  const classroomId = document.getElementById("taskClassroomSelect").value;
+  const title = document.getElementById("taskTitleInput").value.trim();
+  const instructions = document.getElementById("taskInstructionsInput").value.trim();
+  const lessonIds = Array.from(document.querySelectorAll('#taskLessonList input[name="taskLessonId"]:checked')).map(
+    (cb) => cb.value
+  );
+
+  if (!classroomId) {
+    showAlert("Please select a classroom.", "warning");
+    return;
+  }
+  if (!title) {
+    showAlert("Please give this task a title.", "warning");
+    return;
+  }
+  if (lessonIds.length === 0) {
+    showAlert("Please select at least one lesson.", "warning");
+    return;
+  }
+
+  await withButtonLoading("#lessonTaskModal .btn-primary", "Assigning…", async () => {
+    try {
+      const res = await fetch("/instructor/lesson-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classroomId, lessonIds, title, instructions }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert("Task assigned!", "success");
+        closeLessonTaskModal();
+        loadSection("lesson_tasks");
+      } else {
+        showAlert(data.message || "Couldn't assign this task.", "error");
+      }
+    } catch (err) {
+      console.error("Submit lesson task error:", err);
+      showAlert("Server error assigning task.", "error");
+    }
+  });
+}
+
+function openTaskStatusModal(task) {
+  document.getElementById("taskStatusTitle").textContent = `📋 ${task.title}`;
+  const metaParts = [
+    `<span><i class="fa-solid fa-school"></i> ${task.classroom_name}</span>`,
+    `<span><i class="fa-solid fa-book"></i> ${(task.lessons || []).map((l) => l.title).join(", ")}</span>`,
+    task.due_class_date
+      ? `<span><i class="fa-solid fa-calendar"></i> Due by ${new Date(task.due_class_date).toLocaleDateString()}</span>`
+      : "",
+  ].filter(Boolean);
+  document.getElementById("taskStatusMeta").innerHTML = metaParts.join("");
+
+  const totalLessons = (task.lessons || []).length;
+  document.getElementById("taskStatusBody").innerHTML = (task.students || [])
+    .map(
+      (s) => `
+    <tr>
+      <td>${s.fullname}</td>
+      <td>${s.completedCount} / ${totalLessons}</td>
+      <td>${s.completedAll ? '<span class="jk-pill" style="background:#DFF3E3; color:#1E7B3C;">✅ Done</span>' : '<span class="jk-pill">⏳ Pending</span>'}</td>
+    </tr>`
+    )
+    .join("");
+
+  document.getElementById("taskStatusModal").style.display = "flex";
+}
+
+function closeTaskStatusModal() {
+  const modal = document.getElementById("taskStatusModal");
+  if (modal) modal.style.display = "none";
+}
+
+// =====================================================================
 // Sidebar toggle (mobile) — same fixed off-canvas + hamburger pattern
 // as the rest of the app's dashboards (views/partials/sidenav.ejs).
 // =====================================================================

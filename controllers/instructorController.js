@@ -10,6 +10,7 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 const { recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
 const { generateUniqueStudentEmail, generateStudentPinAndAvatar } = require("../services/instructorStudentService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
+const lessonTaskService = require("../services/lessonTaskService");
 
 // Thin wrapper over computeClassroomTermAnalytics, scoped to ONE school —
 // mirrors teacherController.js's getTeacherClassroomAnalytics (same shared
@@ -1369,7 +1370,54 @@ exports.loadSection = async (req, res) => {
       `, [classroomIds]);
     }
 
-  
+    // Lesson Tasks tab (sections/lesson_tasks.ejs): modules/lessons for
+    // every course assigned to one of this instructor's classrooms (the
+    // "assign lesson(s) as a task" picker), plus every task already
+    // created, each with its live per-student completion status.
+    let lessonTasks = [];
+    let taskableCourses = [];
+    if (section === "lesson_tasks") {
+      const courseIds = [...new Set(classroomCourse.rows.map((cc) => cc.id))];
+      if (courseIds.length > 0) {
+        const modulesRes = await pool.query(
+          `SELECT id, course_id, title, order_number
+           FROM modules
+           WHERE course_id = ANY($1::int[]) AND archived_at IS NULL
+           ORDER BY order_number`,
+          [courseIds]
+        );
+        const lessonsRes = await pool.query(
+          `SELECT l.id, l.module_id, l.title, l.order_number
+           FROM lessons l
+           JOIN modules m ON m.id = l.module_id
+           WHERE m.course_id = ANY($1::int[]) AND l.archived_at IS NULL AND m.archived_at IS NULL
+           ORDER BY l.order_number`,
+          [courseIds]
+        );
+        const lessonsByModule = {};
+        lessonsRes.rows.forEach((l) => {
+          (lessonsByModule[l.module_id] = lessonsByModule[l.module_id] || []).push(l);
+        });
+
+        const coursesById = {};
+        classroomCourse.rows.forEach((cc) => {
+          if (!coursesById[cc.id]) coursesById[cc.id] = { id: cc.id, title: cc.title, classroomIds: new Set() };
+          coursesById[cc.id].classroomIds.add(cc.classroom_id);
+        });
+        modulesRes.rows.forEach((m) => {
+          if (coursesById[m.course_id]) {
+            (coursesById[m.course_id].modules = coursesById[m.course_id].modules || []).push({
+              ...m,
+              lessons: lessonsByModule[m.id] || [],
+            });
+          }
+        });
+        taskableCourses = Object.values(coursesById).map((c) => ({ ...c, classroomIds: [...c.classroomIds] }));
+      }
+
+      lessonTasks = await lessonTaskService.getLessonTasksForInstructor(instructorId);
+    }
+
     // Build final data object
     const data = {
       info,
@@ -1403,6 +1451,8 @@ exports.loadSection = async (req, res) => {
       selectedClassroomId,
       classReports,
       classroomAnalytics,
+      lessonTasks,
+      taskableCourses,
       // Award-points tab config (sections/students.ejs) — the fixed
       // category list + today's remaining budget, so the UI can show
       // both before the instructor even opens the award modal.
@@ -1423,6 +1473,7 @@ exports.loadSection = async (req, res) => {
       case "assigned_courses":
       case "attendance":
       case "class_reports":
+      case "lesson_tasks":
         return res.render(`instructor/sections/${section}`, data);
       default:
         // A real 404 (not the default 200) so the client's loadSection()
@@ -2313,6 +2364,40 @@ exports.releaseLessonToClassroom = async (req, res) => {
   } catch (err) {
     console.error("releaseLessonToClassroom error:", err.message);
     res.status(500).json({ success: false });
+  }
+};
+
+// POST /instructor/lesson-tasks
+// Bundles one or more lessons (quiz and/or lab task) as a task for a
+// classroom, with a due_class_date computed from the school's
+// class_days (see services/lessonTaskService.js). Ownership is
+// verified inside the service itself, not just here.
+exports.createLessonTask = async (req, res) => {
+  const instructorId = req.user.id;
+  const { classroomId, lessonIds, title, instructions } = req.body;
+
+  try {
+    const parsedClassroomId = parseInt(classroomId, 10);
+    const parsedLessonIds = Array.isArray(lessonIds)
+      ? lessonIds.map((id) => parseInt(id, 10))
+      : [parseInt(lessonIds, 10)];
+
+    if (!parsedClassroomId || !title || !title.trim()) {
+      return res.status(400).json({ success: false, message: "Classroom and title are required." });
+    }
+
+    const task = await lessonTaskService.createLessonTask(
+      instructorId,
+      parsedClassroomId,
+      parsedLessonIds,
+      title.trim(),
+      instructions
+    );
+    res.json({ success: true, task });
+  } catch (err) {
+    console.error("createLessonTask error:", err.message);
+    const status = err.message === "You don't teach this classroom." ? 403 : 400;
+    res.status(status).json({ success: false, message: err.message });
   }
 };
 

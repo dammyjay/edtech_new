@@ -22,6 +22,8 @@ module.exports = [
   "class_term_reports",
   "classroom_courses",
   "classroom_instructors",
+  "classroom_lesson_task_lessons",
+  "classroom_lesson_tasks",
   "classroom_teachers",
   "classrooms",
   "company_info",

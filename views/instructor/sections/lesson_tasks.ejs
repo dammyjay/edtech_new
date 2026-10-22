@@ -1,0 +1,99 @@
+<div class="jk-header-card">
+  <div><h2>📋 Lesson Tasks</h2></div>
+  <button class="jk-btn-dark" onclick="openLessonTaskModal()"><i class="fa-solid fa-plus"></i> Assign Task</button>
+</div>
+
+<% if (!lessonTasks || lessonTasks.length === 0) { %>
+  <p style="color:#999;">No lesson tasks assigned yet — bundle a lesson's quiz or lab task as homework above.</p>
+<% } else { %>
+  <div class="jk-course-grid">
+    <% lessonTasks.forEach(t => { %>
+      <div class="jk-course-card">
+        <div class="card-content">
+          <h4><%= t.title %></h4>
+          <div class="report-meta">
+            <span><i class="fa-solid fa-school"></i> <%= t.classroom_name %></span>
+            <span><i class="fa-solid fa-book"></i> <%= t.lessons.length %> lesson<%= t.lessons.length === 1 ? '' : 's' %></span>
+            <% if (t.due_class_date) { %>
+              <span><i class="fa-solid fa-calendar"></i> Due by <%= new Date(t.due_class_date).toLocaleDateString() %></span>
+            <% } else { %>
+              <span><i class="fa-solid fa-calendar-xmark"></i> No class day set for this school yet</span>
+            <% } %>
+          </div>
+          <div class="card-body">
+            <span class="jk-pill" style="<%= t.allComplete ? 'background:#DFF3E3; color:#1E7B3C;' : '' %>">
+              <%= t.completedStudents %> of <%= t.totalStudents %> done
+            </span>
+          </div>
+          <div class="article-buttons">
+            <button class="btn-view" onclick='openTaskStatusModal(<%- JSON.stringify(t) %>)'><i class="fa-solid fa-list-check"></i> View Status</button>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<!-- Create Task Modal -->
+<div id="lessonTaskModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <h4>📋 Assign Lesson(s) as a Task</h4>
+      <button class="jk-modal-close" onclick="closeLessonTaskModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <label style="font-size:13px; font-weight:600;">Classroom</label>
+      <select id="taskClassroomSelect" class="jk-select" style="width:100%; margin-bottom:12px;" onchange="onTaskClassroomChange()">
+        <option value="">Select a classroom…</option>
+        <% (classes || []).forEach(c => { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+
+      <label style="font-size:13px; font-weight:600;">Course</label>
+      <select id="taskCourseSelect" class="jk-select" style="width:100%; margin-bottom:12px;" onchange="onTaskCourseChange()">
+        <option value="">Select a classroom first…</option>
+      </select>
+
+      <label style="font-size:13px; font-weight:600;">Lesson(s)</label>
+      <div id="taskLessonList" style="max-height:220px; overflow-y:auto; border:1px solid var(--border-light); border-radius:8px; padding:8px; margin-bottom:12px; font-size:13px;">
+        <span style="color:#999;">Select a course to see its lessons.</span>
+      </div>
+
+      <label style="font-size:13px; font-weight:600;">Title</label>
+      <input type="text" id="taskTitleInput" class="jk-select" placeholder="e.g. Finish Lesson 3 quiz before next class" style="width:100%; margin-bottom:12px;" />
+
+      <label style="font-size:13px; font-weight:600;">Instructions (optional)</label>
+      <textarea id="taskInstructionsInput" class="jk-select" rows="3" style="width:100%; margin-bottom:12px; resize:vertical;"></textarea>
+
+      <div class="multi-btn" style="margin-top:16px;">
+        <button class="btn-primary" onclick="submitLessonTask()"><i class="fa-solid fa-floppy-disk"></i> Assign Task</button>
+        <button class="btn-pri" onclick="closeLessonTaskModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status Modal (read-only) -->
+<div id="taskStatusModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal jk-modal--wide">
+    <div class="jk-modal-head">
+      <h4 id="taskStatusTitle">📋 Task Status</h4>
+      <button class="jk-modal-close" onclick="closeTaskStatusModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <div id="taskStatusMeta" class="report-meta" style="margin-bottom:12px;"></div>
+      <div class="jk-table-wrap">
+        <table class="jk-table">
+          <thead><tr><th>Student</th><th>Lessons Completed</th><th>Status</th></tr></thead>
+          <tbody id="taskStatusBody"></tbody>
+        </table>
+      </div>
+      <div class="multi-btn" style="margin-top:16px;">
+        <button class="btn-pri" onclick="closeTaskStatusModal()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="taskableCoursesData"><%- JSON.stringify(taskableCourses || []) %></script>
