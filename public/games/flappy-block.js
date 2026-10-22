@@ -1,8 +1,15 @@
 // Arcade: Flappy Block — canvas, tap/click/space to flap.
 (function () {
+  // hasDifficulty: true — gap size and pipe speed both shift with
+  // difficulty ("easy" = wider gap, slower pipes).
+  const GAP_RATIO_BY_DIFFICULTY = { easy: 0.4, medium: 0.3, hard: 0.24 };
+  const SPEED_MULT_BY_DIFFICULTY = { easy: 0.8, medium: 1, hard: 1.3 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#0ea5e9");
+    const gapRatio = GAP_RATIO_BY_DIFFICULTY[container.dataset.difficulty] || 0.3;
+    const speedMult = SPEED_MULT_BY_DIFFICULTY[container.dataset.difficulty] || 1;
     container.innerHTML = `
       <p class="arcade-game-hint">Tap, click, or press Space to flap. Thread the gaps.</p>
       <div class="arcade-scoreboard">
@@ -17,7 +24,7 @@
     const bestEl = container.querySelector("#fbBest");
 
     let dims, ctx, bird, pipes, score, running, started, rafId, overlayEl, removeResize, spawnTimer;
-    const GRAVITY = 0.45, FLAP = -7.2, PIPE_GAP_RATIO = 0.3, PIPE_W = 52;
+    const GRAVITY = 0.45, FLAP = -7.2, PIPE_GAP_RATIO = gapRatio, PIPE_W = 52;
 
     function layout() {
       dims = ArcadeEngine.fitCanvas(canvas, 0.72, 380);
@@ -69,7 +76,7 @@
       spawnTimer++;
       if (spawnTimer > 95) { spawnTimer = 0; spawnPipe(); }
 
-      const speed = dims.width * 0.014;
+      const speed = dims.width * 0.014 * speedMult;
       pipes.forEach((p) => { p.x -= speed; });
       pipes = pipes.filter((p) => p.x + PIPE_W > 0);
 

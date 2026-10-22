@@ -2,9 +2,18 @@
 (function () {
   const SIZE = 3; // 3x3 grid
 
+  // hasDifficulty: true — mole up-time and spawn interval both shift
+  // with difficulty ("easy" = moles stay up longer, pop less often).
+  const UPFOR_BASE_BY_DIFFICULTY = { easy: 1200, medium: 950, hard: 750 };
+  const UPFOR_MIN_BY_DIFFICULTY = { easy: 650, medium: 450, hard: 350 };
+  const SPAWN_INTERVAL_BY_DIFFICULTY = { easy: 900, medium: 700, hard: 550 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#a16207");
+    const upForBase = UPFOR_BASE_BY_DIFFICULTY[container.dataset.difficulty] || 950;
+    const upForMin = UPFOR_MIN_BY_DIFFICULTY[container.dataset.difficulty] || 450;
+    const spawnInterval = SPAWN_INTERVAL_BY_DIFFICULTY[container.dataset.difficulty] || 700;
     container.innerHTML = `
       <p class="arcade-game-hint">Tap the moles the instant they pop up. 30 seconds!</p>
       <div class="arcade-scoreboard">
@@ -53,7 +62,7 @@
       const h = holes[idx];
       h.up = true;
       h.mole.style.height = "80%";
-      const upFor = Math.max(450, 950 - score * 15);
+      const upFor = Math.max(upForMin, upForBase - score * 15);
       h.timeoutId = setTimeout(() => {
         if (h.up) { h.up = false; h.mole.style.height = "0%"; }
       }, upFor);
@@ -67,7 +76,7 @@
       holes.forEach((h) => { h.up = false; h.mole.style.height = "0%"; if (h.timeoutId) clearTimeout(h.timeoutId); });
 
       if (spawnTimer) clearInterval(spawnTimer);
-      spawnTimer = setInterval(popRandom, 700);
+      spawnTimer = setInterval(popRandom, spawnInterval);
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
         timeLeft--;

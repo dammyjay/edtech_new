@@ -10,9 +10,22 @@
     "puzzle", "victory", "journey", "explore", "curious", "elegant", "diamond", "harvest",
   ];
 
+  // hasDifficulty: true — base fall speed and word length both shift with
+  // difficulty ("easy" = slower, shorter words; "hard" = faster, longer
+  // words) — same word-pool-by-length idea as word-scramble.js.
+  const SPEED_BASE_BY_DIFFICULTY = { easy: 15, medium: 22, hard: 30 };
+
+  function wordPoolFor(difficulty) {
+    if (difficulty === "easy") return WORDS.filter((w) => w.length <= 6);
+    if (difficulty === "hard") return WORDS.filter((w) => w.length >= 8);
+    return WORDS;
+  }
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#475569");
+    const speedBase = SPEED_BASE_BY_DIFFICULTY[container.dataset.difficulty] || 22;
+    const wordPool = wordPoolFor(container.dataset.difficulty);
     container.innerHTML = `
       <p class="arcade-game-hint">Type the falling word exactly, then hit Enter (or just finish typing it) before it lands.</p>
       <div class="arcade-scoreboard">
@@ -41,12 +54,12 @@
     function trackHeight() { return track.clientHeight; }
 
     function spawnWord() {
-      currentWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+      currentWord = wordPool[Math.floor(Math.random() * wordPool.length)];
       wordEl.textContent = currentWord;
       wordEl.style.color = "#e2e8f0";
       top = 0;
       wordEl.style.top = "0px";
-      speed = 22 + Math.min(score, 400) * 0.06; // px/sec, ramps with score
+      speed = speedBase + Math.min(score, 400) * 0.06; // px/sec, ramps with score
     }
 
     function loop(ts) {

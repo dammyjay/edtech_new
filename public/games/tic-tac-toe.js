@@ -35,11 +35,21 @@
     return moves.reduce((best, m) => (m.score < best.score ? m : best));
   }
 
+  // hasDifficulty: true — on "easy"/"medium" the computer occasionally
+  // plays a random legal move instead of its minimax-optimal one, so it's
+  // actually beatable; "hard" keeps the original always-perfect play.
+  const RANDOM_MOVE_CHANCE_BY_DIFFICULTY = { easy: 0.5, medium: 0.2, hard: 0 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#0891b2");
+    const difficultyKey = container.dataset.difficulty;
+    const randomMoveChance = difficultyKey in RANDOM_MOVE_CHANCE_BY_DIFFICULTY ? RANDOM_MOVE_CHANCE_BY_DIFFICULTY[difficultyKey] : 0;
+    const hintText = randomMoveChance > 0
+      ? "You're X. Tap a square. The computer sometimes slips up at this difficulty."
+      : "You're X. Tap a square. The computer plays perfectly — a draw is a great result!";
     container.innerHTML = `
-      <p class="arcade-game-hint">You're X. Tap a square. The computer plays perfectly — a draw is a great result!</p>
+      <p class="arcade-game-hint">${hintText}</p>
       <div class="arcade-scoreboard">
         <div class="arcade-score-pill"><span class="label">Wins</span><span class="value" id="tttWins">0</span></div>
         <div class="arcade-score-pill"><span class="label">Draws</span><span class="value" id="tttDraws">0</span></div>
@@ -87,7 +97,13 @@
 
     function computerMove() {
       if (over) return;
-      const { index } = minimax(board, "O");
+      let index;
+      if (randomMoveChance > 0 && Math.random() < randomMoveChance) {
+        const empties = board.map((c, i) => (c ? -1 : i)).filter((i) => i >= 0);
+        index = empties[Math.floor(Math.random() * empties.length)];
+      } else {
+        index = minimax(board, "O").index;
+      }
       board[index] = "O";
       render();
       turn = "X";

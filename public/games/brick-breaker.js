@@ -1,8 +1,15 @@
 // Arcade: Brick Breaker — canvas, drag/touch paddle + keyboard.
 (function () {
+  // hasDifficulty: true — ball speed and paddle width both shift with
+  // difficulty ("easy" = slower ball + wider paddle to track it with).
+  const SPEED_MULT_BY_DIFFICULTY = { easy: 0.75, medium: 1, hard: 1.35 };
+  const PADDLE_FACTOR_BY_DIFFICULTY = { easy: 0.26, medium: 0.2, hard: 0.15 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#dc2626");
+    const speedMult = SPEED_MULT_BY_DIFFICULTY[container.dataset.difficulty] || 1;
+    const paddleFactor = PADDLE_FACTOR_BY_DIFFICULTY[container.dataset.difficulty] || 0.2;
     container.innerHTML = `
       <p class="arcade-game-hint">Drag left/right (or arrow keys) to move the paddle. Smash every brick.</p>
       <div class="arcade-scoreboard">
@@ -24,15 +31,15 @@
       ctx = dims.ctx;
       if (!paddle) initEntities();
       else {
-        paddle.w = dims.width * 0.2;
+        paddle.w = dims.width * paddleFactor;
         paddle.y = dims.height - 22;
         if (paddle.x > dims.width - paddle.w) paddle.x = dims.width - paddle.w;
       }
     }
 
     function initEntities() {
-      paddle = { w: dims.width * 0.2, h: 12, x: dims.width / 2 - dims.width * 0.1, y: dims.height - 22 };
-      ball = { x: dims.width / 2, y: dims.height - 40, r: 6, vx: dims.width * 0.006, vy: -dims.width * 0.008 };
+      paddle = { w: dims.width * paddleFactor, h: 12, x: dims.width / 2 - dims.width * paddleFactor / 2, y: dims.height - 22 };
+      ball = { x: dims.width / 2, y: dims.height - 40, r: 6, vx: dims.width * 0.006 * speedMult, vy: -dims.width * 0.008 * speedMult };
       bricks = [];
       const brickW = dims.width / COLS;
       const brickH = 18;
@@ -55,8 +62,8 @@
     function launchBallReset() {
       ball.x = paddle.x + paddle.w / 2;
       ball.y = paddle.y - 10;
-      ball.vx = dims.width * 0.006 * (Math.random() < 0.5 ? 1 : -1);
-      ball.vy = -dims.width * 0.008;
+      ball.vx = dims.width * 0.006 * speedMult * (Math.random() < 0.5 ? 1 : -1);
+      ball.vy = -dims.width * 0.008 * speedMult;
     }
 
     function roundRect(x, y, w, h, r) {
@@ -79,7 +86,7 @@
 
       if (ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h + 6 && ball.x >= paddle.x && ball.x <= paddle.x + paddle.w && ball.vy > 0) {
         const hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2); // -1..1
-        ball.vx = hitPos * dims.width * 0.01;
+        ball.vx = hitPos * dims.width * 0.01 * speedMult;
         ball.vy = -Math.abs(ball.vy);
         ArcadeEngine.vibrate(8);
       }

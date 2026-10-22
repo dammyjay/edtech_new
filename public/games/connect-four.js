@@ -2,7 +2,11 @@
 // pruning over a line-counting heuristic — genuinely challenging, still
 // beatable, and fast enough to run synchronously on tap).
 (function () {
-  const COLS = 7, ROWS = 6, PLAYER = "R", AI = "Y", DEPTH = 5;
+  const COLS = 7, ROWS = 6, PLAYER = "R", AI = "Y";
+  // hasDifficulty: true — how many moves ahead the AI searches shifts
+  // with difficulty ("easy" barely looks ahead; "hard" searches one move
+  // deeper than the original fixed DEPTH of 5).
+  const DEPTH_BY_DIFFICULTY = { easy: 2, medium: 5, hard: 6 };
 
   function emptyBoard() {
     return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -94,6 +98,7 @@
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#2563eb");
+    const depth = DEPTH_BY_DIFFICULTY[container.dataset.difficulty] || 5;
     container.innerHTML = `
       <p class="arcade-game-hint">Tap a column to drop your disc. Connect four in a row to win.</p>
       <div class="arcade-scoreboard">
@@ -134,7 +139,7 @@
       if (w) return finish(w);
       over = true; // lock input while computer "thinks"
       setTimeout(() => {
-        const { col } = minimax(board, DEPTH, -Infinity, Infinity, true);
+        const { col } = minimax(board, depth, -Infinity, Infinity, true);
         const rr = dropRow(board, col);
         if (rr !== -1) board[rr][col] = AI;
         render();

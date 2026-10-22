@@ -1,8 +1,15 @@
 // Arcade: Bubble Pop — canvas, tap/click bubbles before they float away.
 (function () {
+  // hasDifficulty: true — bubble rise speed and starting spawn rate both
+  // shift with difficulty ("easy" = slower, sparser bubbles).
+  const SPEED_MULT_BY_DIFFICULTY = { easy: 0.7, medium: 1, hard: 1.35 };
+  const SPAWN_BASE_BY_DIFFICULTY = { easy: 40, medium: 32, hard: 24 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#06b6d4");
+    const speedMult = SPEED_MULT_BY_DIFFICULTY[container.dataset.difficulty] || 1;
+    const spawnBase = SPAWN_BASE_BY_DIFFICULTY[container.dataset.difficulty] || 32;
     container.innerHTML = `
       <p class="arcade-game-hint">Tap bubbles before they float off the top. 60 seconds — go!</p>
       <div class="arcade-scoreboard">
@@ -48,7 +55,7 @@
         x: r + Math.random() * (dims.width - r * 2),
         y: dims.height + r,
         r,
-        vy: -(dims.height * 0.0025 + Math.random() * dims.height * 0.002),
+        vy: -(dims.height * 0.0025 + Math.random() * dims.height * 0.002) * speedMult,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         popped: false,
         popFrame: 0,
@@ -57,7 +64,7 @@
 
     function step() {
       spawnTimer++;
-      const spawnEvery = Math.max(14, 32 - Math.floor(score / 5)); // spawns faster as score grows
+      const spawnEvery = Math.max(14, spawnBase - Math.floor(score / 5)); // spawns faster as score grows
       if (spawnTimer > spawnEvery) { spawnTimer = 0; spawnBubble(); }
 
       bubbles.forEach((b) => {

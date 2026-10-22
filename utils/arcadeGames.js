@@ -39,6 +39,7 @@ const ARCADE_GAMES = [
     tag: "Classic",
     accent: "#f59e0b",
     accentDark: "#92400e",
+    hasDifficulty: true,
   },
   {
     id: "memory-match",
@@ -60,6 +61,7 @@ const ARCADE_GAMES = [
     tag: "Classic",
     accent: "#dc2626",
     accentDark: "#7f1d1d",
+    hasDifficulty: true,
   },
   {
     id: "flappy-block",
@@ -70,6 +72,7 @@ const ARCADE_GAMES = [
     tag: "Classic",
     accent: "#0ea5e9",
     accentDark: "#0c4a6e",
+    hasDifficulty: true,
   },
   {
     id: "bubble-pop",
@@ -80,6 +83,7 @@ const ARCADE_GAMES = [
     tag: "Reflex",
     accent: "#06b6d4",
     accentDark: "#164e63",
+    hasDifficulty: true,
   },
   {
     id: "whack-a-mole",
@@ -90,6 +94,7 @@ const ARCADE_GAMES = [
     tag: "Reflex",
     accent: "#a16207",
     accentDark: "#422006",
+    hasDifficulty: true,
   },
   {
     id: "reaction-test",
@@ -111,6 +116,7 @@ const ARCADE_GAMES = [
     tag: "Reflex",
     accent: "#ec4899",
     accentDark: "#831843",
+    hasDifficulty: true,
   },
   {
     id: "simon-says",
@@ -121,6 +127,7 @@ const ARCADE_GAMES = [
     tag: "Memory",
     accent: "#7c3aed",
     accentDark: "#3b0764",
+    hasDifficulty: true,
   },
   {
     id: "tic-tac-toe",
@@ -131,6 +138,7 @@ const ARCADE_GAMES = [
     tag: "Strategy",
     accent: "#0891b2",
     accentDark: "#164e63",
+    hasDifficulty: true,
   },
   {
     id: "connect-four",
@@ -141,6 +149,7 @@ const ARCADE_GAMES = [
     tag: "Strategy",
     accent: "#2563eb",
     accentDark: "#1e3a8a",
+    hasDifficulty: true,
   },
   {
     id: "math-blitz",
@@ -162,6 +171,7 @@ const ARCADE_GAMES = [
     tag: "Typing",
     accent: "#475569",
     accentDark: "#1e293b",
+    hasDifficulty: true,
   },
   {
     id: "word-scramble",

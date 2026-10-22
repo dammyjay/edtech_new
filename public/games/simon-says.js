@@ -7,9 +7,19 @@
     { name: "blue", color: "#2563eb", lit: "#60a5fa" },
   ];
 
+  // hasDifficulty: true — flash speed (base duration, floor, and how much
+  // it shrinks per round) all shift with difficulty ("easy" = slower,
+  // more forgiving flashes).
+  const FLASH_BASE_BY_DIFFICULTY = { easy: 650, medium: 520, hard: 420 };
+  const FLASH_MIN_BY_DIFFICULTY = { easy: 380, medium: 280, hard: 200 };
+  const FLASH_STEP_BY_DIFFICULTY = { easy: 10, medium: 15, hard: 20 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#7c3aed");
+    const flashBase = FLASH_BASE_BY_DIFFICULTY[container.dataset.difficulty] || 520;
+    const flashMin = FLASH_MIN_BY_DIFFICULTY[container.dataset.difficulty] || 280;
+    const flashStep = FLASH_STEP_BY_DIFFICULTY[container.dataset.difficulty] || 15;
     container.innerHTML = `
       <p class="arcade-game-hint">Watch the sequence light up, then tap it back in order.</p>
       <div class="arcade-scoreboard">
@@ -54,7 +64,7 @@
       statusEl.textContent = "Watch…";
       await new Promise((r) => setTimeout(r, 400));
       for (const idx of sequence) {
-        await flash(idx, Math.max(280, 520 - round * 15));
+        await flash(idx, Math.max(flashMin, flashBase - round * flashStep));
       }
       playerStep = 0;
       accepting = true;

@@ -9,17 +9,25 @@
     { name: "PURPLE", hex: "#a855f7" },
   ];
 
+  // hasDifficulty: true — round time and how many colors are in play both
+  // shift with difficulty ("easy" = more time, fewer colors to scan).
+  const TIME_LIMIT_BY_DIFFICULTY = { easy: 40, medium: 30, hard: 20 };
+  const COLOR_COUNT_BY_DIFFICULTY = { easy: 3, medium: 5, hard: 5 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#ec4899");
+    const timeLimit = TIME_LIMIT_BY_DIFFICULTY[container.dataset.difficulty] || 30;
+    const colorCount = COLOR_COUNT_BY_DIFFICULTY[container.dataset.difficulty] || COLORS.length;
+    const activeColors = COLORS.slice(0, colorCount);
     container.innerHTML = `
       <p class="arcade-game-hint">Tap the button matching the COLOR the word is printed in — not what it says!</p>
       <div class="arcade-scoreboard">
         <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="cmScore">0</span></div>
-        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="cmTime">30</span></div>
+        <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="cmTime">${timeLimit}</span></div>
       </div>
       <div id="cmWord" style="font-size:clamp(32px, 9vw, 48px); font-weight:900; margin:20px 0;"></div>
-      <div id="cmOptions" style="display:grid; grid-template-columns:repeat(${COLORS.length > 4 ? 3 : COLORS.length}, 1fr); gap:10px; max-width:420px; margin:0 auto;"></div>
+      <div id="cmOptions" style="display:grid; grid-template-columns:repeat(${activeColors.length > 4 ? 3 : activeColors.length}, 1fr); gap:10px; max-width:420px; margin:0 auto;"></div>
     `;
 
     const wordEl = container.querySelector("#cmWord");
@@ -29,7 +37,7 @@
 
     let score, timeLeft, running, current, timerId, overlayEl;
 
-    COLORS.forEach((c) => {
+    activeColors.forEach((c) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = c.name;
@@ -39,12 +47,12 @@
     });
 
     function nextRound() {
-      const word = COLORS[Math.floor(Math.random() * COLORS.length)];
-      let ink = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const word = activeColors[Math.floor(Math.random() * activeColors.length)];
+      let ink = activeColors[Math.floor(Math.random() * activeColors.length)];
       // Bias against the word matching its own ink color so most rounds
       // are genuinely a Stroop conflict, not a freebie.
       if (Math.random() < 0.85) {
-        while (ink.name === word.name) ink = COLORS[Math.floor(Math.random() * COLORS.length)];
+        while (ink.name === word.name) ink = activeColors[Math.floor(Math.random() * activeColors.length)];
       }
       current = { word, ink };
       wordEl.textContent = word.name;
@@ -66,8 +74,8 @@
 
     function reset() {
       if (overlayEl) { overlayEl.remove(); overlayEl = null; }
-      score = 0; timeLeft = 30; running = true;
-      scoreEl.textContent = "0"; timeEl.textContent = "30";
+      score = 0; timeLeft = timeLimit; running = true;
+      scoreEl.textContent = "0"; timeEl.textContent = String(timeLimit);
       nextRound();
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {

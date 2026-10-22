@@ -8,9 +8,16 @@
     512: "#edc850", 1024: "#edc53f", 2048: "#edc22e", 4096: "#3c3a32",
   };
 
+  // hasDifficulty: true — the chance a new tile spawns as a 4 instead of a
+  // 2 shifts with difficulty (a classic 2048-variant knob: more 4s means
+  // more awkward values to merge). "easy" never spawns a 4 at all.
+  const FOUR_CHANCE_BY_DIFFICULTY = { easy: 0, medium: 0.1, hard: 0.3 };
+
   function start(container) {
     container.classList.add("arcade-game");
     container.style.setProperty("--game-accent", "#f59e0b");
+    const fourChance = FOUR_CHANCE_BY_DIFFICULTY[container.dataset.difficulty];
+    const fourChanceResolved = fourChance === undefined ? 0.1 : fourChance;
     container.innerHTML = `
       <p class="arcade-game-hint">Swipe or use arrow keys. Matching tiles merge — reach 2048!</p>
       <div class="arcade-scoreboard">
@@ -37,7 +44,7 @@
       for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (grid[r][c] === 0) empties.push([r, c]);
       if (!empties.length) return;
       const [r, c] = empties[Math.floor(Math.random() * empties.length)];
-      grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+      grid[r][c] = Math.random() < fourChanceResolved ? 4 : 2;
     }
 
     function reset() {
