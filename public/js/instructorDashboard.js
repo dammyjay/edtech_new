@@ -41,7 +41,20 @@ async function withButtonLoading(selector, label, fn) {
   }
 }
 
+// loadSection() auto-fires once for the Dashboard tab on initial script
+// load (see the bare loadSection(currentSection) call near the bottom of
+// this file), and a user (or an automated script) switching tabs again
+// before that first fetch resolves starts a SECOND, overlapping call.
+// Without tracking which call is the most recent, whichever fetch
+// happens to resolve last wins and overwrites #main-content — including
+// a slower initial Dashboard load finishing AFTER a quick follow-up tab
+// click, silently reverting the user back to Dashboard's HTML (and
+// wiping out whatever the newer tab's own markup, like a modal, had
+// just been swapped in). Standard "ignore stale async responses" guard.
+let loadSectionRequestId = 0;
+
 async function loadSection(section) {
+  const requestId = ++loadSectionRequestId;
   // A live CKEditor instance (from the class-report composer) keeps
   // internal references to its own DOM (iframe, floating toolbars) that
   // #main-content's innerHTML= is about to rip out from under it —
@@ -81,6 +94,7 @@ async function loadSection(section) {
 
   try {
     const res = await fetch(url);
+    if (requestId !== loadSectionRequestId) return; // superseded by a newer loadSection() call
     if (!res.ok) {
       main.innerHTML = `
         <div class="instructor-empty">
@@ -91,9 +105,11 @@ async function loadSection(section) {
       return;
     }
     const html = await res.text();
+    if (requestId !== loadSectionRequestId) return; // superseded by a newer loadSection() call
     main.innerHTML = html;
     afterSectionLoad(baseSection);
   } catch (err) {
+    if (requestId !== loadSectionRequestId) return; // superseded by a newer loadSection() call
     console.error("Load section error:", err);
     main.innerHTML = `
       <div class="instructor-empty">
@@ -583,6 +599,37 @@ async function openEditReportModal(id) {
 
 function closeClassReportModal() {
   const modal = document.getElementById("classReportModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function openViewReportModal(id) {
+  try {
+    const res = await fetch(`/instructor/class-reports/${id}`);
+    const data = await res.json();
+    if (!data.success) {
+      showAlert(data.message || "Couldn't load this report.", "error");
+      return;
+    }
+
+    const r = data.report;
+    document.getElementById("viewReportTitle").textContent = `📄 ${r.title}`;
+    const metaParts = [
+      `<span><i class="fa-solid fa-school"></i> ${r.classroom_name}</span>`,
+      r.term_name ? `<span><i class="fa-solid fa-calendar"></i> ${r.term_name}</span>` : "",
+      `<span><i class="fa-solid fa-clock"></i> ${new Date(r.report_date).toLocaleDateString()}</span>`,
+    ].filter(Boolean);
+    document.getElementById("viewReportMeta").innerHTML = metaParts.join("");
+    document.getElementById("viewReportContent").innerHTML = r.content || "";
+
+    document.getElementById("viewReportModal").style.display = "flex";
+  } catch (err) {
+    console.error("Open view report error:", err);
+    showAlert("Server error loading report.", "error");
+  }
+}
+
+function closeViewReportModal() {
+  const modal = document.getElementById("viewReportModal");
   if (modal) modal.style.display = "none";
 }
 

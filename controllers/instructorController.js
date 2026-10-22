@@ -3367,9 +3367,11 @@ exports.getClassReport = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT cr.*
+      `SELECT cr.*, c.name AS classroom_name, t.name AS term_name
        FROM classroom_reports cr
+       JOIN classrooms c ON c.id = cr.classroom_id
        JOIN classroom_instructors ci ON ci.classroom_id = cr.classroom_id
+       LEFT JOIN academic_terms t ON t.id = cr.term_id
        WHERE cr.id = $1 AND ci.instructor_id = $2`,
       [id, instructorId]
     );

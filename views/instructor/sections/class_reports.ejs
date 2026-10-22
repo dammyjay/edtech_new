@@ -6,22 +6,43 @@
 <% if (!classReports || classReports.length === 0) { %>
   <p style="color:#999;">No class reports yet — write your first one above.</p>
 <% } else { %>
-  <% classReports.forEach(r => { %>
-    <div class="jk-report-panel" style="margin-bottom:14px;">
-      <h3 style="margin:0 0 8px;"><%= r.title %></h3>
-      <div class="report-meta">
-        <span><i class="fa-solid fa-school"></i> <%= r.classroom_name %></span>
-        <% if (r.term_name) { %><span><i class="fa-solid fa-calendar"></i> <%= r.term_name %></span><% } %>
-        <span><i class="fa-solid fa-clock"></i> <%= new Date(r.report_date).toLocaleDateString() %></span>
+  <div class="jk-course-grid">
+    <% classReports.forEach(r => { %>
+      <div class="jk-course-card">
+        <div class="card-content">
+          <h4><%= r.title %></h4>
+          <div class="report-meta">
+            <span><i class="fa-solid fa-school"></i> <%= r.classroom_name %></span>
+            <% if (r.term_name) { %><span><i class="fa-solid fa-calendar"></i> <%= r.term_name %></span><% } %>
+            <span><i class="fa-solid fa-clock"></i> <%= new Date(r.report_date).toLocaleDateString() %></span>
+          </div>
+          <div class="article-buttons">
+            <button class="btn-view" onclick="openViewReportModal(<%= r.id %>)"><i class="fa-solid fa-eye"></i> View Report</button>
+            <button class="btn-edit" onclick="openEditReportModal(<%= r.id %>)">Edit</button>
+            <button class="btn-delete" onclick="deleteClassReportConfirm(<%= r.id %>)">Delete</button>
+          </div>
+        </div>
       </div>
-      <div class="report-preview"><%- r.content %></div>
-      <div class="multi-btn" style="margin-top:10px;">
-        <button class="btn-edit" onclick="openEditReportModal(<%= r.id %>)">Edit</button>
-        <button class="btn-delete" onclick="deleteClassReportConfirm(<%= r.id %>)">Delete</button>
+    <% }) %>
+  </div>
+<% } %>
+
+<!-- View Modal (read-only) -->
+<div id="viewReportModal" class="jk-modal-overlay" style="display:none;">
+  <div class="jk-modal jk-modal--wide">
+    <div class="jk-modal-head">
+      <h4 id="viewReportTitle">📄 Report</h4>
+      <button class="jk-modal-close" onclick="closeViewReportModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="jk-modal-body">
+      <div class="report-meta" id="viewReportMeta" style="margin-bottom:12px;"></div>
+      <div id="viewReportContent" class="report-preview"></div>
+      <div class="multi-btn" style="margin-top:16px;">
+        <button class="btn-pri" onclick="closeViewReportModal()">Close</button>
       </div>
     </div>
-  <% }) %>
-<% } %>
+  </div>
+</div>
 
 <!-- Compose / Edit Modal -->
 <div id="classReportModal" class="jk-modal-overlay" style="display:none;">
