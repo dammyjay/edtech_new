@@ -14,6 +14,7 @@ const { getLockedStudentsForRoster } = require("../services/termReactivationServ
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
 const { calculateQuoteTotal } = require("../services/quoteCalcService");
+const { getLessonTasksForSchool } = require("../services/lessonTaskService");
 const archiveService = require("../services/archiveService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
@@ -989,6 +990,11 @@ ORDER BY engagement_rate DESC;
       },
       selectedTermId: termId,
     });
+  }
+
+  if (section === "lesson-tasks") {
+    const lessonTasks = await getLessonTasksForSchool(schoolId);
+    return res.render("partials/lessonTasks", { lessonTasks });
   }
 
   return res.send("<p>Section not found.</p>");

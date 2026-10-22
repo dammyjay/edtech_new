@@ -47,6 +47,8 @@ router.get("/section/:name", async (req, res) => {
         return teacherController.getGradingQueue(req, res);
       case "external-projects":
         return externalProjectController.getExternalProjectGradingQueue(req, res);
+      case "lesson-tasks":
+        return teacherController.getLessonTasksSection(req, res);
       default:
         return res.status(404).send("<p>Section not found</p>");
     }

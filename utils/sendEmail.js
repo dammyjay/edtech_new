@@ -38,7 +38,7 @@ apiInstance.setApiKey(
   process.env.BREVO_API_KEY,
 );
 
-async function sendEmail(to, subject, htmlContent) {
+async function sendEmail(to, subject, htmlContent, { cc } = {}) {
   try {
     // Supports either:
     // sendEmail("abc@gmail.com", ...)
@@ -60,6 +60,12 @@ async function sendEmail(to, subject, htmlContent) {
       subject,
       htmlContent,
     };
+
+    // Optional CC — e.g. the platform admin, so they see the exact email
+    // that went to the primary recipient(s) rather than a separate copy.
+    if (cc && cc.length > 0) {
+      sendSmtpEmail.cc = cc.map((email) => ({ email }));
+    }
 
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 

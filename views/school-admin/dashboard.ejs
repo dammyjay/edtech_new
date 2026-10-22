@@ -209,6 +209,15 @@
     }
   }
 
+  // Lets an email reminder link straight into a section (e.g.
+  // ?section=lesson-tasks) instead of always showing the server-rendered
+  // Overview — same idea as the instructor/teacher dashboards' own
+  // ?section= bootstrap.
+  (function bootstrapSectionFromUrl() {
+    const section = new URLSearchParams(location.search).get("section");
+    if (section) loadSection(section);
+  })();
+
   document.getElementById("globalTermFilter")?.addEventListener("change", async (e) => {
     try {
       await fetch(`/school-admin/select-term?term_id=${encodeURIComponent(e.target.value)}`);

@@ -7,6 +7,7 @@ const { computeClassroomTermAnalytics } = require("../services/classroomTermAnal
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { notifyUser, notifyClassroom, notifyNewDirectMessage, notifyNewClassMessage, notifyClassroomAnnouncement } = require("../utils/notify");
+const { getLessonTasksForTeacher } = require("../services/lessonTaskService");
 // const puppeteer = require("puppeteer");
 
 // ----------------- DASHBOARD WRAPPER -----------------
@@ -1937,5 +1938,18 @@ exports.deleteClassroomAnnouncement = async (req, res) => {
   } catch (err) {
     console.error("Delete classroom announcement error:", err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// GET /teacher/section/lesson-tasks — read-only view of every lesson
+// task across the teacher's own classrooms (see services/lessonTaskService.js).
+exports.getLessonTasksSection = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const lessonTasks = await getLessonTasksForTeacher(teacherId);
+    res.render("teacher/sections/lesson_tasks", { lessonTasks });
+  } catch (err) {
+    console.error("Teacher lesson tasks section error:", err);
+    res.status(500).send("<p>Error loading lesson tasks.</p>");
   }
 };

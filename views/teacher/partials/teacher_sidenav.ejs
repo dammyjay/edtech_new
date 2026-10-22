@@ -8,6 +8,7 @@
     <li><a href="javascript:void(0)" data-section="grading" onclick="loadSection('grading')"><i class="fa-solid fa-square-check"></i> Grading</a></li>
     <li><a href="javascript:void(0)" data-section="external-projects" onclick="loadSection('external-projects')"><i class="fa-solid fa-file-arrow-up"></i> External Projects</a></li>
     <li><a href="javascript:void(0)" data-section="reports" onclick="loadSection('reports')"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
+    <li><a href="javascript:void(0)" data-section="lesson-tasks" onclick="loadSection('lesson-tasks')"><i class="fa-solid fa-list-check"></i> Lesson Tasks</a></li>
     <li><a href="/admin/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
   </ul>
 </div>
@@ -431,7 +432,9 @@
     // views/partials/notificationBell.ejs / utils/notify.js.
     const params = new URLSearchParams(location.search);
     const target = params.get("target");
-    if (target) loadUrl(target, params.get("section") || "dashboard");
+    const section = params.get("section");
+    if (target) loadUrl(target, section || "dashboard");
+    else if (section) loadSection(section);
     else loadSection("dashboard");
   });
 </script>

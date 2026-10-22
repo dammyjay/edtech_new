@@ -66,6 +66,23 @@ async function createLessonTask(instructorId, classroomId, lessonIds, title, ins
 }
 
 /**
+ * A single task's own metadata (no completion status) — used by
+ * one-off pages that already know the task id (the parent-facing
+ * status view) rather than listing every task for a role.
+ */
+async function getLessonTaskById(taskId) {
+  const res = await pool.query(
+    `SELECT t.id, t.classroom_id, c.name AS classroom_name, t.title, t.instructions,
+            t.created_at, t.due_class_date
+     FROM classroom_lesson_tasks t
+     JOIN classrooms c ON c.id = t.classroom_id
+     WHERE t.id = $1`,
+    [taskId]
+  );
+  return res.rows[0] || null;
+}
+
+/**
  * Every task an instructor has created, across their own classrooms,
  * each with its lesson titles and a per-student completion summary.
  */
@@ -78,6 +95,54 @@ async function getLessonTasksForInstructor(instructorId) {
      WHERE t.instructor_id = $1
      ORDER BY t.created_at DESC`,
     [instructorId]
+  );
+
+  return Promise.all(
+    tasksRes.rows.map(async (task) => ({
+      ...task,
+      ...(await getTaskCompletionStatus(task.id)),
+    }))
+  );
+}
+
+/**
+ * Every task across every classroom in a school — the school admin's
+ * read-only view (full roster visibility, matching their existing
+ * access everywhere else in this codebase).
+ */
+async function getLessonTasksForSchool(schoolId) {
+  const tasksRes = await pool.query(
+    `SELECT t.id, t.classroom_id, c.name AS classroom_name, t.title, t.instructions,
+            t.created_at, t.due_class_date
+     FROM classroom_lesson_tasks t
+     JOIN classrooms c ON c.id = t.classroom_id
+     WHERE c.school_id = $1 AND c.archived_at IS NULL
+     ORDER BY t.created_at DESC`,
+    [schoolId]
+  );
+
+  return Promise.all(
+    tasksRes.rows.map(async (task) => ({
+      ...task,
+      ...(await getTaskCompletionStatus(task.id)),
+    }))
+  );
+}
+
+/**
+ * Every task across the classrooms a teacher is assigned to — same
+ * classroom_teachers join used throughout teacherController.js.
+ */
+async function getLessonTasksForTeacher(teacherId) {
+  const tasksRes = await pool.query(
+    `SELECT t.id, t.classroom_id, c.name AS classroom_name, t.title, t.instructions,
+            t.created_at, t.due_class_date
+     FROM classroom_lesson_tasks t
+     JOIN classrooms c ON c.id = t.classroom_id
+     JOIN classroom_teachers ct ON ct.classroom_id = c.id
+     WHERE ct.teacher_id = $1 AND c.archived_at IS NULL
+     ORDER BY t.created_at DESC`,
+    [teacherId]
   );
 
   return Promise.all(
@@ -183,7 +248,10 @@ async function markTasksReminded(taskIds, upcomingClassDate) {
 
 module.exports = {
   createLessonTask,
+  getLessonTaskById,
   getLessonTasksForInstructor,
+  getLessonTasksForSchool,
+  getLessonTasksForTeacher,
   getTaskCompletionStatus,
   getPendingTasksForSchool,
   markTasksReminded,

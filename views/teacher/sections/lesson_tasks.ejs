@@ -1,0 +1,31 @@
+<button type="button" class="back-btn" onclick="loadSection('dashboard')">⬅ Back to dashboard</button>
+
+<h2 class="tc-section-title">📋 Lesson Tasks</h2>
+<p style="color:#777; font-size:13px;">Lessons instructors have assigned as tasks in your classroom(s), and how many students have finished each one.</p>
+
+<% if (!lessonTasks || lessonTasks.length === 0) { %>
+  <p style="color:#999;">No lesson tasks assigned yet.</p>
+<% } else { %>
+  <table class="user-table sortable-table" width="100%">
+    <thead>
+      <tr>
+        <th>Classroom</th>
+        <th>Title</th>
+        <th>Lesson(s)</th>
+        <th>Due</th>
+        <th>Completion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% lessonTasks.forEach(t => { %>
+        <tr>
+          <td><%= t.classroom_name %></td>
+          <td><%= t.title %></td>
+          <td><%= t.lessons.map(l => l.title).join(", ") %></td>
+          <td><%= t.due_class_date ? new Date(t.due_class_date).toLocaleDateString() : "—" %></td>
+          <td><%= t.completedStudents %> / <%= t.totalStudents %> done</td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>

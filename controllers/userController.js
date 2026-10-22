@@ -8,6 +8,7 @@ const PDFDocument = require("pdfkit");
 const generatePdf = require("../utils/generatePdf");
 const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
+const { getLessonTaskById, getTaskCompletionStatus } = require("../services/lessonTaskService");
 const getAnnouncements = require("../utils/getAnnouncements");
 const { renderQuizReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 const axios = require("axios");
@@ -1471,6 +1472,44 @@ async function isAuthorizedForStudentResult(req, studentId) {
   }
   return false;
 }
+
+// GET /parent/lesson-task/:taskId — the "how to access it" link in the
+// lesson-task reminder email. Parent-only (route is ensureParent-gated);
+// filters the task's full roster down to just this parent's own
+// child(ren) in that classroom — never exposes other students' names.
+exports.viewLessonTaskStatus = async (req, res) => {
+  try {
+    const taskId = req.params.taskId;
+    const parentId = req.session.user.id;
+
+    const task = await getLessonTaskById(taskId);
+    if (!task) {
+      return res.status(404).send("Task not found");
+    }
+
+    const childrenRes = await pool.query(
+      `SELECT child_id FROM parent_children WHERE parent_id = $1`,
+      [parentId]
+    );
+    const childIds = new Set(childrenRes.rows.map((r) => r.child_id));
+
+    const status = await getTaskCompletionStatus(taskId);
+    const myChildren = status.students.filter((s) => childIds.has(s.id));
+
+    if (myChildren.length === 0) {
+      return res.status(403).send("Access denied");
+    }
+
+    res.render("parentLessonTaskView", {
+      task,
+      lessons: status.lessons,
+      myChildren,
+    });
+  } catch (err) {
+    console.error("viewLessonTaskStatus error:", err);
+    res.send("Error loading task");
+  }
+};
 
 exports.viewQuizResult = async (req, res) => {
   try {
