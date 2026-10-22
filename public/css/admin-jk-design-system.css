@@ -93,6 +93,19 @@
 .jk-btn-outline-sm { background: #fff; color: var(--brand-pri-dark); border: 1px solid #E7E0CE; padding: 7px 10px; border-radius: 8px; font-weight: 700; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .jk-icon-btn { background: none; border: none; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #6E6350; }
 .jk-icon-btn:hover { background: #F6F4EF; }
+/* An inline SVG's own width/height HTML attributes aren't reliably
+   respected as a <button>/<a> child in this codebase's layout contexts
+   (confirmed via a live computed-style check: renders at 0x0 despite
+   width="15" height="15" on the element) — same root cause already
+   found and fixed once before for a different icon (School Details'
+   row-action SVGs), but never generalized. Every .jk-icon-btn SVG
+   across the whole admin panel has silently been invisible-but-
+   clickable as a result. One shared rule fixes all of them at once
+   instead of hunting down every individual inline style="width:...".
+   An SVG that already carries its own inline style keeps that value
+   (inline styles win), so this changes nothing for ones already fixed
+   one-off. */
+.jk-icon-btn svg { width: 15px; height: 15px; flex-shrink: 0; display: block; }
 
 .jk-classroom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 30px; }
 .jk-classroom-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
@@ -119,6 +132,11 @@
 .jk-modal-head p { margin: 3px 0 0; font-size: 12px; color: #6E6350; }
 .jk-modal-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
 .jk-modal-close { background: #F6F4EF; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--brand-pri-dark); flex: 0 0 auto; }
+/* Same SVG-width-collapse issue as .jk-icon-btn above — every modal's
+   × close button has been rendering as a blank (but still clickable)
+   circle platform-wide. Confirmed live on an already-shipped page
+   (School Details' Term Roster modal), not something newly introduced. */
+.jk-modal-close svg { width: 13px; height: 13px; flex-shrink: 0; display: block; }
 .jk-roster-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
 .jk-roster-row:hover { background: #FAF8F2; }
 .jk-avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }

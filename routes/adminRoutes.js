@@ -706,6 +706,9 @@ router.delete(
 
 // UPDATE SINGLE STUDENT RECORD
 router.put("/attendance/record/:id", adminController.updateAttendanceRecord);
+// UPSERT A STUDENT RECORD FOR A SESSION (handles the "no record exists
+// yet" case the by-id route above can't — see upsertAttendanceRecord)
+router.put("/attendance/session/:sessionId/record", adminController.upsertAttendanceRecord);
 
 // ANALYTICS
 router.get(

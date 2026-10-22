@@ -11559,6 +11559,36 @@ exports.updateAttendanceRecord = async (req, res) => {
   }
 };
 
+// PUT /admin/attendance/session/:sessionId/record — upserts a single
+// student's status for this session, keyed by (session_id, student_id)
+// rather than an existing attendance_records.id. The edit modal's
+// "no records exist yet for this session" case (a session changed from
+// e.g. no_class to held) has no row to target by id at all — it was
+// previously calling updateAttendanceRecord with an empty id, which
+// silently failed every time (WHERE id = '' against an integer column)
+// while the UI still showed "Updated successfully." Same ON CONFLICT
+// upsert shape as saveAttendance's own initial-save path, so both ways
+// of recording attendance for a session converge on the same row.
+exports.upsertAttendanceRecord = async (req, res) => {
+  const { sessionId } = req.params;
+  const { student_id, status } = req.body;
+
+  try {
+    await pool.query(
+      `INSERT INTO attendance_records (session_id, student_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (session_id, student_id)
+       DO UPDATE SET status = EXCLUDED.status`,
+      [sessionId, student_id, status]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("upsertAttendanceRecord error:", err.message);
+    res.status(500).json({ success: false, message: "Update failed" });
+  }
+};
+
 exports.getWeeklyAttendanceStats = async (req, res) => {
   const { term_id, classroom_id } = req.query;
 
@@ -11681,8 +11711,16 @@ exports.getAttendanceSession = async (req, res) => {
       [id]
     );
 
+    // Was missing the fullname join entirely — the edit modal's
+    // "records already exist" case read r.fullname off this response
+    // and always got undefined, so every student row in that case
+    // showed the literal text "undefined" instead of a name.
     const records = await pool.query(
-      `SELECT id, student_id, status FROM attendance_records WHERE session_id=$1`,
+      `SELECT ar.id, ar.student_id, ar.status, u.fullname
+       FROM attendance_records ar
+       JOIN users2 u ON u.id = ar.student_id
+       WHERE ar.session_id=$1
+       ORDER BY u.fullname`,
       [id]
     );
 
