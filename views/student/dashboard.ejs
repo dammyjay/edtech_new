@@ -448,6 +448,24 @@
 
  <main class="main-content">
 
+  <%
+    // Every internal "/student/dashboard?section=..." link below needs
+    // this appended, or navigating from the course list into a module/
+    // lesson loses preview mode (previewClassroomId wouldn't carry
+    // forward) and silently falls back to an empty dashboard. Empty
+    // string for a real student — appending nothing changes nothing.
+    const previewQS = (typeof previewMode !== "undefined" && previewMode && classroom)
+      ? `&previewClassroomId=${classroom.id}`
+      : "";
+  %>
+  <% if (typeof previewMode !== "undefined" && previewMode) { %>
+    <div style="background:#FFF8E1; border:1px solid #F0D060; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <span>👀 <strong>Student View (Preview)</strong> — <%= classroom && classroom.name ? `viewing as a student in ${classroom.name}` : "previewing a classroom's courses" %>. Nothing here is saved to a real student's progress.</span>
+      <a href="/instructor/dashboard" class="btn-view" style="text-decoration:none;">⬅ Back to Instructor Dashboard</a>
+    </div>
+    <script>window.__STUDENT_VIEW_PREVIEW__ = true;</script>
+  <% } %>
+
   <!-- BOSS BATTLE MODAL — opt-in reskin over an already-graded quiz's
        reviewData (see startBossBattle, called from renderQuizSummary,
        section === 'module'). Deliberately rendered here, OUTSIDE the
@@ -915,7 +933,7 @@
       <div class="course-grid">
 
         <% enrolledCourses.forEach(course => { %>
-          <a href="/student/dashboard?section=module&courseId=<%= course.id %>"
+          <a href="/student/dashboard?section=module&courseId=<%= course.id %><%= previewQS %>"
              class="course-card3" style="flex-direction: column; align-items: stretch;">
 
             <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" style="width:100%; height:110px; border-radius: var(--radius, 10px);" />
@@ -1260,7 +1278,7 @@
     <div id="sidebarHandle" class="sidebar-handle">❮</div>
 
     <button id="focusModeBtn" class="focus-mode-btn" onclick="toggleFocusMode()">🎯 Focus Mode</button>
-    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>" style="display:inline-block; margin-bottom:10px; font-size:13px; text-decoration:none; color:var(--text-secondary,#666);">← Back to All Modules</a>
+    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %><%= previewQS %>" style="display:inline-block; margin-bottom:10px; font-size:13px; text-decoration:none; color:var(--text-secondary,#666);">← Back to All Modules</a>
     <% Object.keys(courseModules).forEach(courseId => { %>
       <% courseModules[courseId].forEach(module => { %>
         <div class="module-block">
@@ -1331,7 +1349,7 @@
   <% } %>
 
   <% if (nextModuleId) { %>
-    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>&moduleId=<%= nextModuleId %>"
+    <a href="/student/dashboard?section=module&courseId=<%= moduleInfo.course_id %>&moduleId=<%= nextModuleId %><%= previewQS %>"
        class="btn-view" style="display:block; text-align:center; text-decoration:none; margin-top:16px;">
       ➡️ Next Module
     </a>
@@ -1376,7 +1394,7 @@
       <div class="course-grid">
         <% moduleGridModules.forEach(mod => { %>
           <% if (mod.unlocked) { %>
-          <a href="/student/dashboard?section=module&courseId=<%= moduleGridCourseId %>&moduleId=<%= mod.id %>"
+          <a href="/student/dashboard?section=module&courseId=<%= moduleGridCourseId %>&moduleId=<%= mod.id %><%= previewQS %>"
              class="course-card3" style="flex-direction:column; align-items:stretch;">
           <% } else { %>
           <div class="course-card3" style="flex-direction:column; align-items:stretch; opacity:0.6;">
@@ -1744,7 +1762,7 @@
     <h2>Continue Learning</h2>
     <div class="course-grid">
       <% enrolledCourses.forEach(course => { %>
-      <a href="/student/dashboard?section=module&courseId=<%= course.id %>" class="course-card3">
+      <a href="/student/dashboard?section=module&courseId=<%= course.id %><%= previewQS %>" class="course-card3">
         <img src="<%= course.thumbnail_url %>" alt="" />
         <div>
           <h4><%= course.title %></h4>
@@ -1812,7 +1830,7 @@
            instead of this view jumping straight into a raw module grid. -->
       <div class="course-grid">
         <% pathwayCourses[selectedPathway].forEach(course => { %>
-          <a href="/student/dashboard?section=module&courseId=<%= course.id %>"
+          <a href="/student/dashboard?section=module&courseId=<%= course.id %><%= previewQS %>"
              class="course-card3" style="flex-direction: column; align-items: stretch;">
             <img src="<%= course.thumbnail_url || '/images/default-course.png' %>" style="width:100%; height:110px; border-radius: var(--radius, 10px);" />
             <div>
@@ -5225,7 +5243,9 @@ async function requestFiftyFifty(questionId) {
           ${lab.instructions ? `<div style="white-space:pre-wrap; background:#f8f9fa; border-radius:10px; padding:14px; margin:14px 0;">${escapeHtml(lab.instructions)}</div>` : ""}
           <p style="font-size:13px; color:#888;">Worth ${lab.points ?? 10} XP on first submission.</p>
           ${gradeHTML}
-          <button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${openUrl}'">Open Lab →</button>
+          ${window.__STUDENT_VIEW_PREVIEW__
+            ? `<p style="font-size:13px; color:#888; font-style:italic;">Lab editor preview isn't available in Student View yet.</p>`
+            : `<button class="quiz-btn quiz-btn-primary" onclick="window.location.href='${openUrl}'">Open Lab →</button>`}
         `;
       })
       .catch(err => {

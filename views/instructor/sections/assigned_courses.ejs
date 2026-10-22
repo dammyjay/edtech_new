@@ -21,6 +21,9 @@
             <button class="btn-view" onclick="window.location.href='/instructor/courses/<%= course.id %>/learn?classroomId=<%= course.classroom_id %>'">
               <i class="fa-solid fa-chalkboard"></i> Teach
             </button>
+            <button onclick="window.location.href='/student/dashboard?previewClassroomId=<%= course.classroom_id %>'">
+              <i class="fa-solid fa-eye"></i> Student View
+            </button>
             <button onclick="loadSection('students?classroom_id=<%= course.classroom_id %>')">
               <i class="fa-solid fa-user-graduate"></i> Students
             </button>

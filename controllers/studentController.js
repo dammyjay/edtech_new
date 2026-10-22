@@ -246,6 +246,49 @@ exports.getDashboard = async (req, res) => {
       }
     }
 
+    // ✅ Instructor "Student View" — a genuine preview of a course exactly
+    // as a real student in one of the instructor's own classrooms sees it
+    // (see views/instructor/sections/assigned_courses.ejs's "Student View"
+    // button, which links here with ?previewClassroomId=). Deliberately
+    // reuses this same real dashboard route/controller/template rather
+    // than a separate copy, so there's zero drift risk between what an
+    // instructor previews and what a student actually experiences.
+    // Setting `classroom` (and `school`) here feeds the exact same
+    // classroom_courses-based `enrolledCourses` query above (and, further
+    // down, the exact same pathwayCourses/courseModules/moduleLessons
+    // tree-building that already keys off `enrolledCourses` generically,
+    // not role-gated) — no separate course-tree logic needed.
+    let previewMode = false;
+    if (role === "instructor" && req.query.previewClassroomId) {
+      const previewClassroomId = parseInt(req.query.previewClassroomId, 10);
+      const ownsRes = await pool.query(
+        `SELECT c.id, c.name, c.school_id, s.name AS school_name
+         FROM classroom_instructors ci
+         JOIN classrooms c ON c.id = ci.classroom_id
+         JOIN schools s ON s.id = c.school_id
+         WHERE ci.instructor_id = $1 AND ci.classroom_id = $2`,
+        [studentId, previewClassroomId]
+      );
+      if (ownsRes.rows.length > 0) {
+        previewMode = true;
+        classroom = { id: ownsRes.rows[0].id, name: ownsRes.rows[0].name };
+        school = { id: ownsRes.rows[0].school_id, name: ownsRes.rows[0].school_name };
+
+        const enrolledCoursesRes = await pool.query(
+          `SELECT cr.*, p.title AS pathway_name
+           FROM classroom_courses cc
+           JOIN courses cr ON cc.course_id = cr.id
+           LEFT JOIN career_pathways p ON cr.career_pathway_id = p.id
+           WHERE cc.classroom_id = $1 AND cr.archived_at IS NULL
+           ORDER BY cr.title`,
+          [classroom.id]
+        );
+        enrolledCourses = enrolledCoursesRes.rows;
+      }
+      // Ownership check failed — previewClassroomId is silently ignored,
+      // same safe empty-dashboard fallback a non-student gets today.
+    }
+
     // Courses from a classroom this student used to be in (per
     // student_term_enrollments) that dropped out of enrolledCourses
     // because their live classroom changed — kept visible for review
@@ -454,7 +497,9 @@ exports.getDashboard = async (req, res) => {
             [courseId]
           );
 
-          if (firstModuleRes.rows.length > 0) {
+          // Instructor Student View is a read-only preview — never write
+          // real unlock state under the instructor's own account.
+          if (firstModuleRes.rows.length > 0 && !previewMode) {
             const firstModuleId = firstModuleRes.rows[0].id;
             await pool.query(
               `INSERT INTO unlocked_modules (student_id, module_id)
@@ -501,6 +546,17 @@ exports.getDashboard = async (req, res) => {
          ORDER BY l.order_number ASC`,
         [moduleIds, studentId]
       );
+
+      // Student View preview: every module/lesson shows as open, matching
+      // the confirmed design (no fake locked-progression simulation) —
+      // forcing these flags true in-memory here, before the real
+      // auto-unlock loop below runs, also makes that loop's own
+      // "nothing unlocked yet" condition naturally false, so it never
+      // fires its INSERT under the instructor's account either.
+      if (previewMode) {
+        modulesRes.rows.forEach((m) => { m.unlocked = true; });
+        lessonsRes.rows.forEach((l) => { l.unlocked = true; });
+      }
 
       for (const mod of modulesRes.rows) {
         if (!mod.unlocked) continue;
@@ -1029,7 +1085,11 @@ exports.getDashboard = async (req, res) => {
           // Same classroom-wide release gate as the main dashboard lesson
           // list above — folded into `unlocked` here too, since this
           // focused single-module view has its own separate query.
-          if (classroom) {
+          // Skipped entirely in Student View preview — every lesson shows
+          // open, per the confirmed design (this is a SEPARATE query path
+          // from the main dashboard's lesson list above, so it needs its
+          // own force-unlock rather than inheriting that one's).
+          if (classroom && !previewMode) {
             const lessonIds2 = lessonsRes2.rows.map((l) => l.id);
             const [firstLessonIds2, releasedLessonIds2] = await Promise.all([
               classroomPacingService.getFirstLessonIdsForCourses([moduleInfo.course_id]),
@@ -1039,6 +1099,8 @@ exports.getDashboard = async (req, res) => {
               const releasedToClass = firstLessonIds2.has(lsn.id) || releasedLessonIds2.has(lsn.id);
               lsn.unlocked = lsn.unlocked && releasedToClass;
             });
+          } else if (previewMode) {
+            lessonsRes2.rows.forEach((lsn) => { lsn.unlocked = true; });
           }
 
           moduleLessons = { [moduleInfo.id]: lessonsRes2.rows };
@@ -1099,6 +1161,10 @@ exports.getDashboard = async (req, res) => {
           moduleGridCourseTitle = courseRes.rows[0]?.title || "";
           moduleGridModules = modsRes.rows.map((m) => ({
             ...m,
+            // Every module shows as open in Student View preview — see
+            // the same force-unlock note on the main dashboard lesson
+            // list above.
+            unlocked: previewMode ? true : m.unlocked,
             progress: progressByModule[m.id] || 0,
           }));
         }
@@ -1283,6 +1349,7 @@ exports.getDashboard = async (req, res) => {
       avatarFrames: AVATAR_FRAMES,
       equippedBannerStyle,
       equippedTitleTag,
+      previewMode,
     });
   } catch (err) {
     console.error("Dashboard Error:", err.message);
@@ -3438,6 +3505,10 @@ exports.editProfile = async (req, res) => {
 exports.viewLesson = async (req, res) => {
   const lessonId = req.params.lessonId;
   const studentId = req.session?.student?.id || req.user?.id;
+  // Instructor Student View preview — every lesson shows as open, per the
+  // confirmed design (see getDashboard's previewMode branch above this
+  // same file). Never applies to a real student session.
+  const isInstructorPreview = req.session?.user?.role === "instructor";
 
   try {
     const lessonRes = await pool.query(
@@ -3459,7 +3530,7 @@ exports.viewLesson = async (req, res) => {
     // enforced client-side) AND the instructor having released this
     // lesson to the whole class (classroom_lesson_releases). Independent
     // students have no classroom and skip this entirely.
-    const classroomId = await classroomPacingService.getStudentClassroomId(studentId);
+    const classroomId = isInstructorPreview ? null : await classroomPacingService.getStudentClassroomId(studentId);
     if (classroomId) {
       const individuallyUnlockedRes = await pool.query(
         `SELECT 1 FROM unlocked_lessons WHERE student_id = $1 AND lesson_id = $2`,
@@ -3505,9 +3576,9 @@ exports.viewLesson = async (req, res) => {
     // (not just hiding them client-side) matters here: the raw
     // lesson_file_url/video_url would otherwise be sitting in the JSON
     // regardless of which tab the student clicked.
-    const quizDone = await isQuizDoneForLesson(lessonId, studentId);
-    const quizStarted = quizDone ? false : await hasStudentStartedQuiz(lessonId, studentId);
-    const resourcesLocked = quizStarted;
+    const quizDone = isInstructorPreview ? false : await isQuizDoneForLesson(lessonId, studentId);
+    const quizStarted = quizDone ? false : isInstructorPreview ? false : await hasStudentStartedQuiz(lessonId, studentId);
+    const resourcesLocked = isInstructorPreview ? false : quizStarted;
 
     res.json({
       success: true,
@@ -3923,6 +3994,12 @@ exports.submitLessonQuiz = async (req, res) => {
     const { lessonId, answers } = req.body;
     const studentId =
       req.session?.student?.id || req.user?.id || req.body.studentId;
+    // Instructor Student View preview — the quiz is fully interactive
+    // (real scoring/AI feedback, same response shape) but nothing below
+    // persists: no quiz_submissions row, no XP/coins, no lesson unlock,
+    // no parent email, no AI mastery-signal call. Never true for a real
+    // student session.
+    const isInstructorPreview = req.session?.user?.role === "instructor";
 
     if (!lessonId || !answers) {
       return res.status(400).json({
@@ -4140,25 +4217,32 @@ ${JSON.stringify(reviewData, null, 2)}
     // (controllers/labController.js).
     const isFirstQuizAttempt = attemptCountSoFar === 0;
 
-    const submissionRes = await pool.query(
-    `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
-    VALUES ($1,$2,$3,$4,$5)
-    RETURNING id`,
-    [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
-  );
+    const submissionRes = isInstructorPreview
+      ? { rows: [{ id: null }] }
+      : await pool.query(
+        `INSERT INTO quiz_submissions (quiz_id, student_id, score, passed, review_data)
+        VALUES ($1,$2,$3,$4,$5)
+        RETURNING id`,
+        [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
+      );
 
     // Every attempt's own score, oldest first, including the one just
     // inserted above — same average + breakdown shown on a later
     // getLessonQuiz reload, computed fresh here so the result screen
     // right after submitting already has it (see "Every attempt's own
     // score" above for why this mirrors the lab task's attempts array).
-    const allAttemptsRes = await pool.query(
-      `SELECT score, created_at FROM quiz_submissions
-       WHERE quiz_id = $1 AND student_id = $2
-       ORDER BY created_at ASC`,
-      [quizId, studentId]
-    );
-    const allQuizAttempts = allAttemptsRes.rows;
+    // In preview, nothing was inserted, so this is just the one
+    // in-memory attempt rather than a real query.
+    const allQuizAttempts = isInstructorPreview
+      ? [{ score: percent, created_at: new Date() }]
+      : (
+        await pool.query(
+          `SELECT score, created_at FROM quiz_submissions
+           WHERE quiz_id = $1 AND student_id = $2
+           ORDER BY created_at ASC`,
+          [quizId, studentId]
+        )
+      ).rows;
     const quizAverageScore = allQuizAttempts.length
       ? Math.round(allQuizAttempts.reduce((sum, a) => sum + a.score, 0) / allQuizAttempts.length)
       : null;
@@ -4166,7 +4250,7 @@ ${JSON.stringify(reviewData, null, 2)}
     let xpGained = 0;
     let levelUp = false;
     let bossBattleCoins = 0;
-    if (isFirstQuizAttempt) {
+    if (isFirstQuizAttempt && !isInstructorPreview) {
       const awarded = await awardXp(studentId, 10, `Completed quiz for lesson ${lessonId}`);
       xpGained = awarded.xpGained;
       levelUp = awarded.levelUp;
@@ -4194,21 +4278,26 @@ ${JSON.stringify(reviewData, null, 2)}
       badgeAwarded,
       badgeName,
       badgeImage,
-    } = await maybeUnlockNextLesson(studentId, lessonId);
+    } = isInstructorPreview
+      ? { pendingLab: null, nextLessonId: null, nextModuleUnlocked: false, nextModuleId: null, badgeAwarded: false, badgeName: null, badgeImage: null }
+      : await maybeUnlockNextLesson(studentId, lessonId);
     const moduleResult = { badgeAwarded, badgeName, badgeImage };
 
     const xpAfterRes = await pool.query("SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1", [studentId]);
     const levelAfter = getLevelForXp(xpAfterRes.rows[0].xp);
 
-    // ✅ Get linked parent (if any)
-    const parentRes = await pool.query(
-      `SELECT u.fullname, u.email
-        FROM users2 u
-        JOIN parent_children pc ON pc.parent_id = u.id
-        WHERE pc.child_id = $1
-        LIMIT 1`,
-      [studentId],
-    );
+    // ✅ Get linked parent (if any) — never looked up in preview, since
+    // nothing should be emailed about an instructor's own account.
+    const parentRes = isInstructorPreview
+      ? { rows: [] }
+      : await pool.query(
+        `SELECT u.fullname, u.email
+          FROM users2 u
+          JOIN parent_children pc ON pc.parent_id = u.id
+          WHERE pc.child_id = $1
+          LIMIT 1`,
+        [studentId],
+      );
 
     const parent = parentRes.rows[0];
     try {
@@ -4311,23 +4400,25 @@ ${JSON.stringify(reviewData, null, 2)}
     // is null on most submissions; failure here shouldn't fail the quiz
     // result itself.
     let masterySignal = null;
-    try {
-      const wrongAnswersSummary = reviewData
-        .filter((r) => !r.isCorrect)
-        .map((r) => `- "${r.question}" — answered "${r.yourAnswer || "(no answer)"}", correct answer was "${r.correctAnswer}"`)
-        .join("\n");
-      masterySignal = await generateMasterySignal({
-        studentId,
-        lessonId,
-        source: "quiz",
-        sourceId: submissionRes.rows[0].id,
-        score: percent,
-        lessonTitle: lesson.title,
-        lessonContext: lesson.content,
-        wrongAnswersSummary,
-      });
-    } catch (err) {
-      console.error("generateMasterySignal (quiz) error:", err.message);
+    if (!isInstructorPreview) {
+      try {
+        const wrongAnswersSummary = reviewData
+          .filter((r) => !r.isCorrect)
+          .map((r) => `- "${r.question}" — answered "${r.yourAnswer || "(no answer)"}", correct answer was "${r.correctAnswer}"`)
+          .join("\n");
+        masterySignal = await generateMasterySignal({
+          studentId,
+          lessonId,
+          source: "quiz",
+          sourceId: submissionRes.rows[0].id,
+          score: percent,
+          lessonTitle: lesson.title,
+          lessonContext: lesson.content,
+          wrongAnswersSummary,
+        });
+      } catch (err) {
+        console.error("generateMasterySignal (quiz) error:", err.message);
+      }
     }
 
     res.json({

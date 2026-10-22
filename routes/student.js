@@ -12,6 +12,24 @@ const externalProjectController = require("../controllers/externalProjectControl
 const { ensureAuthenticated } = require("../middlewares/auth");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
+// Instructor Student View preview (controllers/studentController.js's
+// getDashboard previewMode branch) reuses this same /lessons/:lessonId
+// route — skip the real activity log for a non-student viewer instead of
+// changing activityLoggerMiddleware itself, which is also used by
+// several unrelated admin routes.
+function activityLoggerUnlessPreview(actionText, detailBuilder) {
+  const real = activityLoggerMiddleware(actionText, detailBuilder);
+  return (req, res, next) => {
+    // Several real student sessions use role values other than the
+    // literal "student" (controllers/studentController.js's getDashboard
+    // reads "student"/"individual_student"/"user") — only "instructor"
+    // means Student View preview, so check for that specifically rather
+    // than requiring an exact "student" match.
+    if (req.session?.user?.role === "instructor") return next();
+    return real(req, res, next);
+  };
+}
+
 // CSRF protection — see the matching comment in routes/adminRoutes.js.
 // Mounted at "/student" (a specific prefix, not "/"), so a path-less
 // router.use() here is safe.
@@ -59,7 +77,7 @@ router.post(
 router.get(
   "/lessons/:lessonId",
   ensureAuthenticated,
-  activityLoggerMiddleware(
+  activityLoggerUnlessPreview(
     "Viewed Lesson",
     (req) => `Lesson ${req.params.lessonId}`,
   ),
@@ -140,8 +158,16 @@ router.post("/lesson-start", ensureAuthenticated, async (req, res) => {
     const { lessonId, startTime } = req.body;
     const userId = req.user.id;
 
+    // Instructor Student View preview — never log a real session; the
+    // client's own sendLessonDuration() already no-ops on a falsy
+    // activityId (views/student/dashboard.ejs), so null needs no other
+    // client-side change.
+    if (req.session?.user?.role === "instructor") {
+      return res.json({ success: true, activityId: null });
+    }
+
     const result = await pool.query(
-      `INSERT INTO activities 
+      `INSERT INTO activities
        (user_id, action, lesson_id, start_time, duration_seconds)
        VALUES ($1, $2, $3, to_timestamp($4/1000.0), 0)
        RETURNING id`,
@@ -169,7 +195,7 @@ router.get('/lessons/:lessonId/lab', studentController.getLessonLab);
 
 router.post(
   "/lessons/:id/quiz/submit",
-  express.json(),activityLoggerMiddleware(
+  express.json(),activityLoggerUnlessPreview(
       "Student submitted Quiz",
       (req) => `Lesson: ${req.params.id}, Score: ${req.body.score}`
     ),
