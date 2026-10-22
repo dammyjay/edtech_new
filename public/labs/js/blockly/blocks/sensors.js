@@ -320,3 +320,34 @@ Blockly.Blocks["show_variable_monitor"] = {
     this.setColour("#5CB1D6");
   },
 };
+
+Blockly.Blocks["touching_color"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Touching Color")
+      .appendField(new Blockly.FieldColour("#ff0000"), "COLOR");
+
+    this.setOutput(true, "Boolean");
+
+    this.setColour("#5CB1D6");
+  },
+};
+
+Blockly.Blocks["set_drag_mode"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Set Drag Mode")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["Draggable", "draggable"],
+          ["Not Draggable", "not draggable"],
+        ]),
+        "MODE",
+      );
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#5CB1D6");
+  },
+};

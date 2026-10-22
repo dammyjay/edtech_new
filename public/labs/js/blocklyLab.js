@@ -187,6 +187,12 @@ window.createSprite = function (spriteName, imageUrl) {
     spawnWidth: 120,
     spawnHeight: 120,
     spawnRotation: 0,
+    // A sprite always has at least one costume — its own starting image —
+    // so switch/next-costume blocks work even before "Add Costume" is
+    // ever used.
+    costumes: [{ name: spriteName, src: sprite.src }],
+    costumeIndex: 0,
+    draggable: true,
   };
 
   sprites.push(spriteData);
@@ -197,6 +203,59 @@ window.createSprite = function (spriteName, imageUrl) {
 
   document.getElementById("spriteModal").style.display = "none";
 };
+
+// Dispatcher for every click in the sprite-picker grid (editor.ejs's
+// onclick="handleSpriteAssetPick(...)"): normally creates a brand-new
+// sprite (the existing createSprite flow, unchanged), but when the modal
+// was opened via "Add Costume" it instead appends the picked asset as a
+// new costume on the currently-selected sprite and reuses the same
+// modal/grid rather than building a separate picker.
+window.spriteModalMode = "new";
+
+window.handleSpriteAssetPick = function (name, url) {
+  if (window.spriteModalMode === "addCostume" && window.currentSprite) {
+    const sprite = window.currentSprite;
+    sprite.costumes = sprite.costumes || [];
+    sprite.costumes.push({ name, src: url });
+    sprite.costumeIndex = sprite.costumes.length - 1;
+    sprite.image = url;
+    sprite.element.src = url;
+
+    renderCostumeList(sprite);
+    window.spriteModalMode = "new";
+    document.getElementById("spriteModal").style.display = "none";
+    return;
+  }
+
+  createSprite(name, url);
+};
+
+window.openAddCostumeModal = function () {
+  if (!window.currentSprite) return;
+  window.spriteModalMode = "addCostume";
+  document.getElementById("spriteModal").style.display = "flex";
+};
+
+function renderCostumeList(sprite) {
+  const container = document.getElementById("costumeList");
+  if (!container) return;
+
+  container.innerHTML = "";
+  (sprite.costumes || []).forEach((costume, index) => {
+    const thumb = document.createElement("img");
+    thumb.src = costume.src;
+    thumb.title = costume.name;
+    thumb.className = "costume-thumb";
+    thumb.style.cssText = `width:36px;height:36px;object-fit:contain;border-radius:6px;cursor:pointer;border:2px solid ${index === sprite.costumeIndex ? "#9966FF" : "transparent"};`;
+    thumb.addEventListener("click", () => {
+      sprite.costumeIndex = index;
+      sprite.image = costume.src;
+      sprite.element.src = costume.src;
+      renderCostumeList(sprite);
+    });
+    container.appendChild(thumb);
+  });
+}
 
 function makeSpriteDraggable(spriteData) {
   const stage = document.getElementById("stage");
@@ -209,6 +268,7 @@ function makeSpriteDraggable(spriteData) {
   // for mouse, touch, and pen, so this one listener set covers dragging
   // a sprite by touch too, which plain mouse events never did.
   spriteData.element.addEventListener("pointerdown", (e) => {
+    if (spriteData.draggable === false) return; // "set drag mode [not draggable]" was used on this sprite
     if (e.button !== undefined && e.button !== 0) return; // left mouse button only; every touch/pen contact reports button 0
     e.preventDefault();
     selectSpriteById(spriteData.id);
@@ -524,6 +584,9 @@ async function initBlocklyLab() {
       spawnWidth: 120,
       spawnHeight: 120,
       spawnRotation: 0,
+      costumes: [{ name: "Jay", src: defaultSprite.src }],
+      costumeIndex: 0,
+      draggable: true,
     };
 
     makeSpriteDraggable(spriteData);
@@ -859,6 +922,7 @@ async function initBlocklyLab() {
 
     if (addSpriteBtn) {
       addSpriteBtn.addEventListener("click", () => {
+        window.spriteModalMode = "new";
         spriteModal.style.display = "flex";
       });
     }
@@ -1273,6 +1337,7 @@ window.addEventListener("click", (e) => {
 
   if (e.target === spriteModal) {
     spriteModal.style.display = "none";
+    window.spriteModalMode = "new";
   }
 
   if (e.target === backgroundModal) {
@@ -1357,6 +1422,15 @@ async function initLab(labType) {
 
         const spriteData = { ...saved, element: el };
 
+        // Legacy projects saved before costumes/drag-mode existed —
+        // synthesize the one-costume list from the sprite's own image
+        // instead of leaving switch/next-costume with nothing to work on.
+        if (!spriteData.costumes || !spriteData.costumes.length) {
+          spriteData.costumes = [{ name: spriteData.name, src: spriteData.image }];
+          spriteData.costumeIndex = 0;
+        }
+        if (spriteData.draggable === undefined) spriteData.draggable = true;
+
         makeSpriteDraggable(spriteData);
         el.addEventListener("click", () => selectSpriteById(spriteData.id));
 
@@ -1435,6 +1509,9 @@ async function saveProject(manual = false) {
           spawnWidth: sprite.spawnWidth ?? sprite.width,
           spawnHeight: sprite.spawnHeight ?? sprite.height,
           spawnRotation: sprite.spawnRotation ?? 0,
+          costumes: sprite.costumes || [{ name: sprite.name, src: sprite.image }],
+          costumeIndex: sprite.costumeIndex || 0,
+          draggable: sprite.draggable !== false,
         })),
       },
     };

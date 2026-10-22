@@ -85,3 +85,69 @@ Blockly.Blocks["change_pen_size"] = {
     this.setColour("#0fBD8C");
   },
 };
+
+Blockly.Blocks["stamp"] = {
+  init() {
+    this.appendDummyInput().appendField("Stamp");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#0fBD8C");
+  },
+};
+
+Blockly.Blocks["change_pen_color"] = {
+  init() {
+    this.appendValueInput("VALUE").appendField("Change Pen Color By");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#0fBD8C");
+  },
+};
+
+Blockly.Blocks["set_pen_property"] = {
+  init() {
+    this.appendValueInput("VALUE")
+      .appendField("Set Pen")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["Color", "color"],
+          ["Saturation", "saturation"],
+          ["Brightness", "brightness"],
+          ["Transparency", "transparency"],
+        ]),
+        "PROPERTY",
+      )
+      .appendField("To");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#0fBD8C");
+  },
+};
+
+Blockly.Blocks["change_pen_property"] = {
+  init() {
+    this.appendValueInput("VALUE")
+      .appendField("Change Pen")
+      .appendField(
+        new Blockly.FieldDropdown([
+          ["Color", "color"],
+          ["Saturation", "saturation"],
+          ["Brightness", "brightness"],
+          ["Transparency", "transparency"],
+        ]),
+        "PROPERTY",
+      )
+      .appendField("By");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#0fBD8C");
+  },
+};

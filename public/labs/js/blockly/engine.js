@@ -21,6 +21,16 @@ window.backgrounds = [];
 
 window.penDownState = false;
 
+// Pen color's real source of truth is the HSV-style quad below (matching
+// Scratch's own pen model) — penColor is always DERIVED from it via
+// recomputePenColor(), never set directly, so the legacy swatch-dropdown
+// block and the newer generic set/change-property blocks can't fork into
+// two different "current pen color"s.
+window.penHue = 0; // 0-100, maps to 0-360 degrees
+window.penSaturation = 100; // 0-100
+window.penBrightness = 100; // 0-100
+window.penTransparency = 0; // 0-100, 0 = fully opaque
+
 window.penColor = "#000000";
 
 window.penSize = 2;
@@ -28,6 +38,41 @@ window.penSize = 2;
 window.penCanvas = null;
 
 window.penCtx = null;
+
+// Brightness/transparency are mapped onto HSL lightness/alpha as an
+// approximation (HSB brightness isn't the same axis as HSL lightness) —
+// same honesty-flagged approximation already used by the CSS-filter-based
+// graphic effects below, not true colorimetric HSV.
+function recomputePenColor() {
+  const hueDeg = (((window.penHue % 100) + 100) % 100) * 3.6;
+  const lightness = Math.max(0, Math.min(100, window.penBrightness)) / 2;
+  const alpha = 1 - Math.max(0, Math.min(100, window.penTransparency)) / 100;
+  window.penColor = `hsla(${hueDeg}, ${Math.max(0, Math.min(100, window.penSaturation))}%, ${lightness}%, ${alpha})`;
+}
+
+function hexToHsl(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex) || [];
+  const int = parseInt(m[1] || "000000", 16);
+  const r = ((int >> 16) & 255) / 255;
+  const g = ((int >> 8) & 255) / 255;
+  const b = (int & 255) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  return { h, l };
+}
 
 
 // =========================
@@ -204,7 +249,15 @@ window.clearPen = function () {
 };
 
 window.setPenColor = function (color) {
-  penColor = color;
+  // Legacy swatch-dropdown block — reset the full HSV quad from the
+  // chosen hex so it stays the single source of truth alongside the
+  // newer generic property blocks, instead of forking penColor directly.
+  const { h } = hexToHsl(color);
+  penHue = (h / 360) * 100;
+  penSaturation = 100;
+  penBrightness = 100;
+  penTransparency = 0;
+  recomputePenColor();
 };
 
 window.setPenSize = function (size) {
@@ -217,6 +270,48 @@ window.changePenSizeBy = function (value) {
   if (penSize < 1) {
     penSize = 1;
   }
+};
+
+window.stampSprite = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !window.penCtx) return;
+  drawSpriteToCanvas(window.penCtx, sprite);
+};
+
+window.changePenColorBy = function (value) {
+  penHue = (((penHue + Number(value)) % 100) + 100) % 100;
+  recomputePenColor();
+};
+
+const PEN_PROPERTY_FIELDS = {
+  color: "penHue",
+  saturation: "penSaturation",
+  brightness: "penBrightness",
+  transparency: "penTransparency",
+};
+
+window.setPenProperty = function (property, value) {
+  const field = PEN_PROPERTY_FIELDS[property];
+  if (!field) return;
+
+  let v = Number(value);
+  if (field === "penHue") v = ((v % 100) + 100) % 100;
+  else v = Math.max(0, Math.min(100, v));
+
+  window[field] = v;
+  recomputePenColor();
+};
+
+window.changePenProperty = function (property, value) {
+  const field = PEN_PROPERTY_FIELDS[property];
+  if (!field) return;
+
+  let v = window[field] + Number(value);
+  if (field === "penHue") v = ((v % 100) + 100) % 100;
+  else v = Math.max(0, Math.min(100, v));
+
+  window[field] = v;
+  recomputePenColor();
 };
 // =========================
 // MOTION
@@ -527,7 +622,32 @@ window.goLayers = function (direction, amount) {
 
 window.getCostumeName = function () {
   const sprite = getRuntimeSprite();
-  return sprite ? sprite.name : "";
+  if (!sprite) return "";
+  const costume = sprite.costumes && sprite.costumes[sprite.costumeIndex || 0];
+  return costume ? costume.name : sprite.name;
+};
+
+window.switchCostumeTo = function (name) {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.costumes || !sprite.costumes.length) return;
+
+  const idx = sprite.costumes.findIndex(
+    (c) => c.name.toLowerCase() === String(name).toLowerCase(),
+  );
+  if (idx === -1) return;
+
+  sprite.costumeIndex = idx;
+  sprite.image = sprite.costumes[idx].src;
+  sprite.element.src = sprite.image;
+};
+
+window.nextCostume = function () {
+  const sprite = getRuntimeSprite();
+  if (!sprite || !sprite.costumes || sprite.costumes.length < 2) return;
+
+  sprite.costumeIndex = ((sprite.costumeIndex || 0) + 1) % sprite.costumes.length;
+  sprite.image = sprite.costumes[sprite.costumeIndex].src;
+  sprite.element.src = sprite.image;
 };
 
 window.currentBackdropName = "";
@@ -764,6 +884,8 @@ function loadSpriteProperties(sprite) {
   document.getElementById("spriteRotation").value = sprite.rotation || 0;
 
   document.getElementById("spriteVisible").checked = sprite.visible !== false;
+
+  if (typeof renderCostumeList === "function") renderCostumeList(sprite);
 }
 
 function updateSelectedSprite() {
@@ -1071,6 +1193,79 @@ window.touchingMouse = function () {
   );
 };
 
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex) || [];
+  const int = parseInt(m[1] || "000000", 16);
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+}
+
+function colorDistance(a, b) {
+  return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+}
+
+let colorCheckCanvas = null;
+let colorCheckCtx = null;
+
+// Reuses the exact compositing recipe composeStageSnapshot() (blocklyLab.js)
+// already uses for Screenshot/Record — backdrop, then the pen layer, then
+// every OTHER sprite (never the one asking) — drawn into one cached
+// offscreen canvas instead of allocating a new one on every call, since a
+// `touching color?` reporter can run every frame inside a forever loop.
+window.touchingColor = function (hexColor) {
+  const sprite = getRuntimeSprite();
+  const stage = document.getElementById("stage");
+  if (!sprite || !stage) return false;
+
+  const w = stage.clientWidth;
+  const h = stage.clientHeight;
+  if (!w || !h) return false;
+
+  if (!colorCheckCanvas) {
+    colorCheckCanvas = document.createElement("canvas");
+    colorCheckCtx = colorCheckCanvas.getContext("2d", { willReadFrequently: true });
+  }
+  if (colorCheckCanvas.width !== w) colorCheckCanvas.width = w;
+  if (colorCheckCanvas.height !== h) colorCheckCanvas.height = h;
+
+  colorCheckCtx.clearRect(0, 0, w, h);
+
+  if (typeof drawBackdropToCanvas === "function" && typeof backgroundImage !== "undefined") {
+    drawBackdropToCanvas(colorCheckCtx, backgroundImage, w, h);
+  }
+
+  const penCanvasEl = document.getElementById("penCanvas");
+  if (penCanvasEl) colorCheckCtx.drawImage(penCanvasEl, 0, 0, w, h);
+
+  if (typeof drawSpriteToCanvas === "function") {
+    window.sprites.forEach((other) => {
+      if (other !== sprite) drawSpriteToCanvas(colorCheckCtx, other);
+    });
+  }
+
+  const sampleX = Math.max(0, Math.floor(sprite.x));
+  const sampleY = Math.max(0, Math.floor(sprite.y));
+  const sampleW = Math.min(sprite.width || 50, w - sampleX);
+  const sampleH = Math.min(sprite.height || 50, h - sampleY);
+  if (sampleW <= 0 || sampleH <= 0) return false;
+
+  const target = hexToRgb(hexColor);
+  const data = colorCheckCtx.getImageData(sampleX, sampleY, sampleW, sampleH).data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 10) continue; // transparent pixel, nothing drawn there
+    if (colorDistance([data[i], data[i + 1], data[i + 2]], target) < 40) {
+      return true;
+    }
+  }
+  return false;
+};
+
+window.setDragMode = function (mode) {
+  const sprite = getRuntimeSprite();
+  if (!sprite) return;
+  sprite.draggable = mode === "draggable";
+};
+
 window.pressedKeys = {};
 
 document.addEventListener("keydown", (e) => {
@@ -1255,7 +1450,10 @@ window.getAttributeOf = function (name, attribute) {
     case "y": return sprite.y;
     case "direction": return sprite.rotation || 0;
     case "size": return sprite.width || 0;
-    case "costume": return sprite.name;
+    case "costume": {
+      const costume = sprite.costumes && sprite.costumes[sprite.costumeIndex || 0];
+      return costume ? costume.name : sprite.name;
+    }
     case "visible": return !!sprite.visible;
     default: return "";
   }

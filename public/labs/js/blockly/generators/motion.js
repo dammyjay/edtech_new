@@ -335,6 +335,16 @@ jsGenerator.forBlock["size_reporter"] = function () {
   return ["getSpriteSize()", javascript.Order.FUNCTION_CALL];
 };
 
+jsGenerator.forBlock["switch_costume_to"] = function (block) {
+  const name = block.getFieldValue("NAME");
+
+  return `switchCostumeTo(${JSON.stringify(name)});\n`;
+};
+
+jsGenerator.forBlock["next_costume"] = function () {
+  return `nextCostume();\n`;
+};
+
 // =========================
 // Generators for Sensors Blocks
 // =========================
@@ -471,6 +481,18 @@ jsGenerator.forBlock["days_since_2000"] = function () {
 
 jsGenerator.forBlock["username_reporter"] = function () {
   return ["getUsername()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["touching_color"] = function (block) {
+  const color = block.getFieldValue("COLOR");
+
+  return [`touchingColor("${color}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["set_drag_mode"] = function (block) {
+  const mode = block.getFieldValue("MODE");
+
+  return `setDragMode("${mode}");\n`;
 };
 
 // =========================
@@ -617,4 +639,28 @@ jsGenerator.forBlock["change_pen_size"] = function (block) {
   const size = jsGenerator.valueToCode(block, "VALUE", 0) || "1";
 
   return `changePenSizeBy(${size});\n`;
+};
+
+jsGenerator.forBlock["stamp"] = function () {
+  return `stampSprite();\n`;
+};
+
+jsGenerator.forBlock["change_pen_color"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "1";
+
+  return `changePenColorBy(${value});\n`;
+};
+
+jsGenerator.forBlock["set_pen_property"] = function (block) {
+  const property = block.getFieldValue("PROPERTY");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "0";
+
+  return `setPenProperty("${property}", ${value});\n`;
+};
+
+jsGenerator.forBlock["change_pen_property"] = function (block) {
+  const property = block.getFieldValue("PROPERTY");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "0";
+
+  return `changePenProperty("${property}", ${value});\n`;
 };

@@ -359,6 +359,30 @@ Blockly.Blocks["costume_reporter"] = {
   },
 };
 
+Blockly.Blocks["switch_costume_to"] = {
+  init() {
+    this.appendDummyInput()
+      .appendField("Switch Costume To")
+      .appendField(new Blockly.FieldTextInput("costume1"), "NAME");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
+Blockly.Blocks["next_costume"] = {
+  init() {
+    this.appendDummyInput().appendField("Next Costume");
+
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+
+    this.setColour("#9966FF");
+  },
+};
+
 Blockly.Blocks["backdrop_reporter"] = {
   init() {
     this.appendDummyInput().appendField("backdrop name");

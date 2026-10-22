@@ -244,6 +244,12 @@
               Show
             </label>
           </div>
+
+          <div class="sprite-costumes-row" style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+            <span>Costumes</span>
+            <div id="costumeList" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+            <button type="button" id="addCostumeBtn" onclick="openAddCostumeModal()">+ Add Costume</button>
+          </div>
         </div>
 
         <div id="spriteList"></div>
@@ -461,6 +467,10 @@
         </shadow>
       </value>
     </block>
+
+    <block type="switch_costume_to"></block>
+
+    <block type="next_costume"></block>
 
     <block type="costume_reporter"></block>
 
@@ -688,6 +698,10 @@
 
     <block type="show_variable_monitor"></block>
 
+    <block type="touching_color"></block>
+
+    <block type="set_drag_mode"></block>
+
   </category>
 
   <!-- VARIABLES -->
@@ -721,6 +735,32 @@
 
     <block type="change_pen_size"></block>
 
+    <block type="stamp"></block>
+
+    <block type="change_pen_color">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_pen_property">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">50</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="change_pen_property">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
   </category>
 </xml>
 
@@ -743,7 +783,7 @@
       <div class="sprite-grid" id="spriteGrid">
         <% spriteCategories.forEach(cat => { cat.assets.forEach(a => { %>
           <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>">
-            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="createSprite('<%= a.name %>', '<%= a.asset_url %>')" />
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="handleSpriteAssetPick('<%= a.name %>', '<%= a.asset_url %>')" />
             <span class="asset-picker-label"><%= a.name %></span>
           </div>
         <% }) }) %>
