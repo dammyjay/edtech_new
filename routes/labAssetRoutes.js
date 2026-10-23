@@ -41,9 +41,12 @@ router.post(
 
 router.post("/delete/:id", labAssetController.deleteAsset);
 
+// Higher cap than the sprite/background uploaders (20) — a costume set
+// for one character (e.g. a full walk/run animation sequence) can
+// realistically run into the dozens of frames in one batch.
 router.post(
   "/sprite/:id/costumes",
-  upload.array("sprite_costume_image", 20),
+  upload.array("sprite_costume_image", 100),
   labAssetController.uploadCostume
 );
 router.post(
