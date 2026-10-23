@@ -246,24 +246,92 @@ window.openAddCostumeModal = function () {
   document.getElementById("spriteModal").style.display = "flex";
 };
 
-function renderCostumeList(sprite) {
-  const container = document.getElementById("costumeList");
-  if (!container) return;
+// Costumes panel — a dedicated modal (not the cramped inline strip this
+// replaced) so a sprite with a large costume set (e.g. a full walk/run
+// animation sequence, now that admin costume uploads allow up to 100
+// files at once) stays browsable: real thumbnails with names, a search
+// box, and per-costume delete.
+window.openCostumesModal = function () {
+  if (!window.currentSprite) return;
+  renderCostumeList(window.currentSprite);
+  document.getElementById("costumesModalSearch").value = "";
+  document.getElementById("costumesModal").style.display = "flex";
+};
 
-  container.innerHTML = "";
+window.filterCostumesModal = function (value) {
+  const search = value.trim().toLowerCase();
+  const grid = document.getElementById("costumesModalGrid");
+  let visibleCount = 0;
+
+  grid.querySelectorAll(".costume-grid-item").forEach((item) => {
+    const show = !search || item.dataset.name.includes(search);
+    item.style.display = show ? "" : "none";
+    if (show) visibleCount++;
+  });
+
+  document.getElementById("costumesModalEmpty").style.display = visibleCount === 0 ? "block" : "none";
+};
+
+window.removeCostume = function (sprite, index) {
+  if (!sprite.costumes || sprite.costumes.length <= 1) return; // a sprite always keeps at least one costume
+
+  sprite.costumes.splice(index, 1);
+  if (index < sprite.costumeIndex) {
+    sprite.costumeIndex -= 1;
+  } else if (index === sprite.costumeIndex) {
+    sprite.costumeIndex = Math.min(sprite.costumeIndex, sprite.costumes.length - 1);
+    sprite.image = sprite.costumes[sprite.costumeIndex].src;
+    sprite.element.src = sprite.image;
+  }
+
+  renderCostumeList(sprite);
+};
+
+function renderCostumeList(sprite) {
+  const countEl = document.getElementById("costumeCount");
+  if (countEl) countEl.textContent = String((sprite.costumes || []).length);
+
+  const grid = document.getElementById("costumesModalGrid");
+  if (!grid) return;
+
+  grid.innerHTML = "";
   (sprite.costumes || []).forEach((costume, index) => {
+    const item = document.createElement("div");
+    item.className = "costume-grid-item asset-picker-item";
+    item.dataset.name = costume.name.toLowerCase();
+
     const thumb = document.createElement("img");
     thumb.src = costume.src;
     thumb.title = costume.name;
-    thumb.className = "costume-thumb";
-    thumb.style.cssText = `width:36px;height:36px;object-fit:contain;border-radius:6px;cursor:pointer;border:2px solid ${index === sprite.costumeIndex ? "#9966FF" : "transparent"};`;
+    if (index === sprite.costumeIndex) thumb.classList.add("selected");
     thumb.addEventListener("click", () => {
       sprite.costumeIndex = index;
       sprite.image = costume.src;
       sprite.element.src = costume.src;
       renderCostumeList(sprite);
     });
-    container.appendChild(thumb);
+
+    const label = document.createElement("span");
+    label.className = "asset-picker-label";
+    label.textContent = costume.name;
+
+    item.appendChild(thumb);
+    item.appendChild(label);
+
+    if (sprite.costumes.length > 1) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "costume-delete-btn";
+      deleteBtn.title = "Remove this costume";
+      deleteBtn.textContent = "✕";
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeCostume(sprite, index);
+      });
+      item.appendChild(deleteBtn);
+    }
+
+    grid.appendChild(item);
   });
 }
 
@@ -1345,6 +1413,8 @@ window.addEventListener("click", (e) => {
 
   const backgroundModal = document.getElementById("backgroundModal");
 
+  const costumesModal = document.getElementById("costumesModal");
+
   if (e.target === spriteModal) {
     spriteModal.style.display = "none";
     window.spriteModalMode = "new";
@@ -1352,6 +1422,10 @@ window.addEventListener("click", (e) => {
 
   if (e.target === backgroundModal) {
     backgroundModal.style.display = "none";
+  }
+
+  if (e.target === costumesModal) {
+    costumesModal.style.display = "none";
   }
 });
 

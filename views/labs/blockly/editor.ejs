@@ -246,10 +246,8 @@
             </label>
           </div>
 
-          <div class="sprite-costumes-row" style="display:flex; align-items:center; gap:6px; margin-top:6px;">
-            <span>Costumes</span>
-            <div id="costumeList" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
-            <button type="button" id="addCostumeBtn" onclick="openAddCostumeModal()">+ Add Costume</button>
+          <div class="sprite-costumes-row" style="margin-top:6px;">
+            <button type="button" id="costumesPanelBtn" onclick="openCostumesModal()">🎭 Costumes (<span id="costumeCount">1</span>)</button>
           </div>
         </div>
 
@@ -782,6 +780,25 @@
 </xml>
 
 
+<div id="costumesModal" class="modal">
+  <div class="modal-content asset-picker-modal">
+    <h3>Costumes</h3>
+
+    <input type="search" class="asset-picker-search" id="costumesModalSearch" placeholder="🔍 Search costumes…"
+           oninput="filterCostumesModal(this.value)" />
+
+    <div class="asset-picker-scroll">
+      <div class="sprite-grid" id="costumesModalGrid"></div>
+      <p class="asset-picker-empty" id="costumesModalEmpty" style="display:none">No costumes match your search.</p>
+    </div>
+
+    <button type="button" id="addCostumeBtn" onclick="openAddCostumeModal()">+ Add Costume</button>
+  </div>
+</div>
+
+<!-- Comes after costumesModal in the DOM so, at equal z-index, it
+     correctly stacks ON TOP when "+ Add Costume" opens it over an
+     already-open Costumes panel. -->
 <div id="spriteModal" class="modal">
   <div class="modal-content asset-picker-modal">
     <h3>Choose Sprite</h3>

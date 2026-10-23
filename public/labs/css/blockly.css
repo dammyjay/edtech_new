@@ -608,6 +608,63 @@ body.blockly-fullscreen .stage-panel {
     background-color: var(--brand-pri-dark, #4C3802);
 }
 
+#costumesPanelBtn,
+#addCostumeBtn {
+    width: auto;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    background-color: var(--brand-pri, #A17807);
+    color: #fff;
+}
+
+#costumesPanelBtn:hover,
+#addCostumeBtn:hover {
+    background-color: var(--brand-pri-dark, #4C3802);
+}
+
+#addCostumeBtn {
+    margin-top: 10px;
+}
+
+/* Costumes modal grid — same .sprite-grid look as the sprite/background
+   pickers, plus a selected-state border and a small per-item delete
+   button (costumes are the student's own project data once added, so
+   they can remove one, unlike the admin-managed sprite/background
+   library itself). */
+.costume-grid-item {
+    position: relative;
+}
+
+.costume-grid-item img.selected {
+    border-color: var(--brand-pri, #A17807);
+    box-shadow: 0 0 0 2px var(--brand-pri, #A17807);
+}
+
+.costume-grid-item .costume-delete-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.costume-grid-item .costume-delete-btn:hover {
+    background: #c0392b;
+}
+
 /* =========================
    LISTS
 ========================= */
