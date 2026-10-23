@@ -941,6 +941,12 @@
           <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>" data-costumes='<%- JSON.stringify((a.costumes || []).map(c => ({ name: c.name, src: c.asset_url }))).replace(/'/g, "&#39;") %>' data-sounds='<%- JSON.stringify((a.sounds || []).map(s => ({ name: s.name, src: s.asset_url }))).replace(/'/g, "&#39;") %>'>
             <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="handleSpriteAssetPick('<%= a.name %>', '<%= a.asset_url %>', this.parentElement.dataset.costumes, this.parentElement.dataset.sounds)" />
             <span class="asset-picker-label"><%= a.name %></span>
+            <% if ((a.costumes && a.costumes.length) || (a.sounds && a.sounds.length)) { %>
+              <span class="asset-picker-extras">
+                <% if (a.costumes && a.costumes.length) { %><span title="<%= a.costumes.length %> costume<%= a.costumes.length === 1 ? '' : 's' %> included">🎭<%= a.costumes.length %></span><% } %>
+                <% if (a.sounds && a.sounds.length) { %><span title="<%= a.sounds.length %> sound<%= a.sounds.length === 1 ? '' : 's' %> included">🔊<%= a.sounds.length %></span><% } %>
+              </span>
+            <% } %>
           </div>
         <% }) }) %>
       </div>

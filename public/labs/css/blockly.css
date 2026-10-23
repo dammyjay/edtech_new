@@ -923,6 +923,17 @@ body.blockly-fullscreen .stage-panel {
     gap: 4px;
 }
 
+/* Lets a student see, before picking, that a sprite already comes with
+   admin-added costumes and/or sounds — matches the "+N costumes"/"+N
+   sounds" badges already shown in the admin Lab Assets grid. */
+.asset-picker-extras {
+    display: flex;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--brand-pri-dark, #4C3802);
+}
+
 .asset-picker-label {
     font-size: 11px;
     font-weight: 600;
