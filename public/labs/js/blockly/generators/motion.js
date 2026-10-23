@@ -664,3 +664,23 @@ jsGenerator.forBlock["change_pen_property"] = function (block) {
 
   return `changePenProperty("${property}", ${value});\n`;
 };
+
+// TEXT TO SPEECH
+
+jsGenerator.forBlock["tts_speak"] = function (block) {
+  const text = jsGenerator.valueToCode(block, "TEXT", javascript.Order.ATOMIC) || '""';
+
+  return `await ttsSpeak(${text});\n`;
+};
+
+jsGenerator.forBlock["tts_set_voice"] = function (block) {
+  const voice = block.getFieldValue("VOICE");
+
+  return `setTtsVoice(${JSON.stringify(voice)});\n`;
+};
+
+jsGenerator.forBlock["tts_set_language"] = function (block) {
+  const lang = block.getFieldValue("LANGUAGE");
+
+  return `setTtsLanguage("${lang}");\n`;
+};

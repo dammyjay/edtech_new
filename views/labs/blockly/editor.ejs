@@ -40,6 +40,7 @@
 <script src="/labs/js/blockly/blocks/sensors.js"></script>
 <script src="/labs/js/blockly/blocks/control.js"></script>
 <script src="/labs/js/blockly/blocks/pen.js"></script>
+<script src="/labs/js/blockly/blocks/tts.js"></script>
 
 <script src="/labs/js/blockly/generators/motion.js"></script>
 <script src="/labs/js/blockly/generators/looks.js"></script>
@@ -760,6 +761,22 @@
         </shadow>
       </value>
     </block>
+
+  </category>
+
+  <category name="Text to Speech" colour="#774B9E">
+
+    <block type="tts_speak">
+      <value name="TEXT">
+        <shadow type="text">
+          <field name="TEXT">Hello!</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="tts_set_voice"></block>
+
+    <block type="tts_set_language"></block>
 
   </category>
 </xml>

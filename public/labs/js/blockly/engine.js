@@ -1566,6 +1566,49 @@ window.resetStage = function () {
 };
 
 // =========================
+// TEXT TO SPEECH
+// =========================
+// Uses the browser's own SpeechSynthesis API — no API key, no external
+// service, works offline. window.speechSynthesis is missing on some very
+// old/embedded browsers, so every function here no-ops safely if it is.
+
+window.ttsLang = "en-US";
+window.ttsVoiceName = ""; // "" = browser default for the current language
+
+window.setTtsVoice = function (name) {
+  window.ttsVoiceName = name || "";
+};
+
+window.setTtsLanguage = function (lang) {
+  window.ttsLang = lang || "en-US";
+};
+
+// Real Scratch/PictoBlox "speak" blocks the script until the speech
+// finishes (not fire-and-forget) — resolving the promise on the
+// utterance's end/error event matches that, the same way wait()/
+// askAndWait() already pause generated scripts elsewhere in this file.
+window.ttsSpeak = function (text) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") {
+      resolve();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(String(text));
+    utterance.lang = window.ttsLang || "en-US";
+
+    if (window.ttsVoiceName) {
+      const match = speechSynthesis.getVoices().find((v) => v.name === window.ttsVoiceName);
+      if (match) utterance.voice = match;
+    }
+
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    speechSynthesis.speak(utterance);
+  });
+};
+
+// =========================
 // INITIALIZE
 // =========================
 
