@@ -238,11 +238,22 @@ exports.getBlocklyLab = async (req, res) => {
     `SELECT * FROM lab_assets WHERE lab_type = 'blockly' ORDER BY name ASC`
   );
 
+  const spriteAssetRows = assetsRes.rows.filter((a) => a.asset_type === "sprite");
+  if (spriteAssetRows.length) {
+    const costumesRes = await pool.query(
+      `SELECT * FROM lab_asset_costumes WHERE lab_asset_id = ANY($1) ORDER BY sort_order ASC, id ASC`,
+      [spriteAssetRows.map((a) => a.id)]
+    );
+    spriteAssetRows.forEach((a) => {
+      a.costumes = costumesRes.rows.filter((c) => c.lab_asset_id === a.id);
+    });
+  }
+
   const spriteCategories = categoriesRes.rows
     .filter((c) => c.asset_type === "sprite")
     .map((c) => ({
       ...c,
-      assets: assetsRes.rows.filter((a) => a.asset_type === "sprite" && a.category_id === c.id),
+      assets: spriteAssetRows.filter((a) => a.category_id === c.id),
     }));
 
   const backgroundCategories = categoriesRes.rows

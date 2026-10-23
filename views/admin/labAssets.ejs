@@ -52,6 +52,9 @@
           <div class="la-card" data-cat="<%= a.category_id || '' %>" data-name="<%= a.name.toLowerCase() %>">
             <div class="la-thumb"><img src="<%= a.asset_url %>" alt="<%= a.name %>" loading="lazy" /></div>
             <p class="la-card-name" title="<%= a.name %>"><%= a.name %></p>
+            <% if (a.costumes && a.costumes.length) { %>
+              <span class="la-costume-badge" title="<%= a.costumes.map(c => c.name).join(', ') %>">🎭 <%= a.costumes.length %> costume<%= a.costumes.length === 1 ? '' : 's' %></span>
+            <% } %>
             <div class="la-card-actions">
               <button type="button" class="la-card-btn" title="Edit" onclick="openModal('editSpriteModal-<%= a.id %>')">✏️</button>
               <form method="POST" action="/admin/lab-assets/delete/<%= a.id %>"
@@ -87,6 +90,36 @@
           <input type="file" name="sprite_image" accept="image/*" />
 
           <button type="submit">💾 Save Changes</button>
+        </form>
+
+        <hr style="margin:16px 0;" />
+
+        <h4>Costumes</h4>
+        <p style="font-size:13px; color:var(--text-dim,#666); margin:0 0 8px;">
+          Pre-add costumes this sprite will already carry when a student adds it to their project.
+        </p>
+
+        <% if (a.costumes && a.costumes.length) { %>
+          <div class="la-costume-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <% a.costumes.forEach(c => { %>
+              <div class="la-costume-item" style="text-align:center;">
+                <img src="<%= c.asset_url %>" title="<%= c.name %>" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:var(--brand-tint,#FBF3DD);display:block;" />
+                <span style="font-size:11px; display:block; max-width:48px; overflow:hidden; text-overflow:ellipsis;"><%= c.name %></span>
+                <form method="POST" action="/admin/lab-assets/sprite/<%= a.id %>/costumes/<%= c.id %>/delete"
+                      onsubmit="return handleConfirmSubmit(event, 'Remove this costume?')">
+                  <button type="submit" class="la-card-btn la-card-btn-danger" style="font-size:11px; padding:1px 4px;" title="Remove">🗑</button>
+                </form>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <form action="/admin/lab-assets/sprite/<%= a.id %>/costumes" method="POST" enctype="multipart/form-data">
+          <label>Add Costume(s):</label>
+          <input type="file" name="sprite_costume_image" accept="image/*" multiple
+                 onchange="renderBulkNameFields(this, 'costumeBulkNames-<%= a.id %>')" />
+          <div id="costumeBulkNames-<%= a.id %>" class="la-bulk-names"></div>
+          <button type="submit">➕ Add Costume(s)</button>
         </form>
       </div>
     </div>

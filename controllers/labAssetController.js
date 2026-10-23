@@ -22,6 +22,20 @@ exports.getAdminLabAssets = async (req, res) => {
   const spriteAssets = assetsRes.rows.filter((a) => a.asset_type === "sprite");
   const backgroundAssets = assetsRes.rows.filter((a) => a.asset_type === "background");
 
+  // Attach each sprite's admin-curated costumes (lab_asset_costumes) —
+  // what a student sees pre-added when they add this sprite to their own
+  // project (see controllers/labController.js's getBlocklyLab). Backgrounds
+  // have no costume concept.
+  if (spriteAssets.length) {
+    const costumesRes = await pool.query(
+      `SELECT * FROM lab_asset_costumes WHERE lab_asset_id = ANY($1) ORDER BY sort_order ASC, id ASC`,
+      [spriteAssets.map((a) => a.id)]
+    );
+    spriteAssets.forEach((a) => {
+      a.costumes = costumesRes.rows.filter((c) => c.lab_asset_id === a.id);
+    });
+  }
+
   res.render("admin/labAssets", {
     spriteCategories,
     backgroundCategories,
@@ -126,5 +140,46 @@ exports.deleteCategory = async (req, res) => {
   }
   const { id } = req.params;
   await pool.query("DELETE FROM lab_asset_categories WHERE id = $1", [id]);
+  res.redirect("/admin/lab-assets");
+};
+
+// Pre-attach one or more costumes to a sprite asset — same bulk
+// multi-file + parallel names[] shape as uploadAsset above, scoped to one
+// sprite via :id instead of a category. A student adding this sprite to
+// their project gets these seeded onto its costume list automatically
+// (controllers/labController.js's getBlocklyLab).
+exports.uploadCostume = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const { id } = req.params;
+  const files = req.files || [];
+  if (!files.length) {
+    return res.redirect("/admin/lab-assets");
+  }
+
+  let names = req.body.names || [];
+  if (!Array.isArray(names)) names = [names];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fallbackName = file.originalname.replace(/\.[^/.]+$/, "");
+    const name = (names[i] || "").trim() || fallbackName;
+
+    await pool.query(
+      `INSERT INTO lab_asset_costumes (lab_asset_id, name, asset_url) VALUES ($1, $2, $3)`,
+      [id, name, file.path]
+    );
+  }
+
+  res.redirect("/admin/lab-assets");
+};
+
+exports.deleteCostume = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const { costumeId } = req.params;
+  await pool.query("DELETE FROM lab_asset_costumes WHERE id = $1", [costumeId]);
   res.redirect("/admin/lab-assets");
 };

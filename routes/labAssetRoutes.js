@@ -41,4 +41,14 @@ router.post(
 
 router.post("/delete/:id", labAssetController.deleteAsset);
 
+router.post(
+  "/sprite/:id/costumes",
+  upload.array("sprite_costume_image", 20),
+  labAssetController.uploadCostume
+);
+router.post(
+  "/sprite/:id/costumes/:costumeId/delete",
+  labAssetController.deleteCostume
+);
+
 module.exports = router;

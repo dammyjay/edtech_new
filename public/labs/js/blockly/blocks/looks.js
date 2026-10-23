@@ -363,7 +363,20 @@ Blockly.Blocks["switch_costume_to"] = {
   init() {
     this.appendDummyInput()
       .appendField("Switch Costume To")
-      .appendField(new Blockly.FieldTextInput("costume1"), "NAME");
+      .appendField(
+        new Blockly.FieldDropdown(() => {
+          // Dynamic dropdown — Blockly calls this fresh every time the
+          // menu opens, so it always lists whichever sprite's workspace
+          // is currently open (window.currentSprite), not a fixed list
+          // baked in when the block was first placed.
+          const sprite = window.currentSprite;
+          const costumes = sprite && sprite.costumes && sprite.costumes.length
+            ? sprite.costumes
+            : [{ name: "costume1" }];
+          return costumes.map((c) => [c.name, c.name]);
+        }),
+        "NAME",
+      );
 
     this.setPreviousStatement(true);
     this.setNextStatement(true);

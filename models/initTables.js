@@ -2320,6 +2320,22 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Admin-curated costumes pre-attached to a sprite asset — a student
+    // adding that sprite gets these seeded onto its costumes list
+    // automatically (see controllers/labController.js's getBlocklyLab and
+    // public/labs/js/blocklyLab.js's createSprite). Sprite-only; backgrounds
+    // have no costume concept.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS lab_asset_costumes (
+        id SERIAL PRIMARY KEY,
+        lab_asset_id INT NOT NULL REFERENCES lab_assets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        asset_url TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     // One-time seed of the sprites/backgrounds that used to be hardcoded in
     // the Blockly editor template, so switching to the DB-driven picker
     // doesn't make any of them disappear. Guarded on lab_assets being

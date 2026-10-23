@@ -139,7 +139,7 @@ function fitBlocklyContainer() {
 
 window.addEventListener("resize", fitBlocklyContainer);
 
-window.createSprite = function (spriteName, imageUrl) {
+window.createSprite = function (spriteName, imageUrl, preCostumes) {
   const stage = document.getElementById("stage");
 
   const sprite = document.createElement("img");
@@ -189,8 +189,10 @@ window.createSprite = function (spriteName, imageUrl) {
     spawnRotation: 0,
     // A sprite always has at least one costume — its own starting image —
     // so switch/next-costume blocks work even before "Add Costume" is
-    // ever used.
-    costumes: [{ name: spriteName, src: sprite.src }],
+    // ever used. Any admin-curated costumes pre-attached to this sprite
+    // asset (lab_asset_costumes) follow it, so a student sees them right
+    // away without adding anything themselves.
+    costumes: [{ name: spriteName, src: sprite.src }, ...(preCostumes || [])],
     costumeIndex: 0,
     draggable: true,
   };
@@ -212,7 +214,7 @@ window.createSprite = function (spriteName, imageUrl) {
 // modal/grid rather than building a separate picker.
 window.spriteModalMode = "new";
 
-window.handleSpriteAssetPick = function (name, url) {
+window.handleSpriteAssetPick = function (name, url, costumesJson) {
   if (window.spriteModalMode === "addCostume" && window.currentSprite) {
     const sprite = window.currentSprite;
     sprite.costumes = sprite.costumes || [];
@@ -227,7 +229,15 @@ window.handleSpriteAssetPick = function (name, url) {
     return;
   }
 
-  createSprite(name, url);
+  let preCostumes = [];
+  if (costumesJson) {
+    try {
+      preCostumes = JSON.parse(costumesJson);
+    } catch (e) {
+      preCostumes = [];
+    }
+  }
+  createSprite(name, url, preCostumes);
 };
 
 window.openAddCostumeModal = function () {
