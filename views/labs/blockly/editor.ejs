@@ -41,6 +41,8 @@
 <script src="/labs/js/blockly/blocks/control.js"></script>
 <script src="/labs/js/blockly/blocks/pen.js"></script>
 <script src="/labs/js/blockly/blocks/tts.js"></script>
+<script src="/labs/js/blockly/blocks/sound.js"></script>
+<script src="/labs/js/blockly/blocks/music.js"></script>
 
 <script src="/labs/js/blockly/generators/motion.js"></script>
 <script src="/labs/js/blockly/generators/looks.js"></script>
@@ -246,8 +248,9 @@
             </label>
           </div>
 
-          <div class="sprite-costumes-row" style="margin-top:6px;">
+          <div class="sprite-costumes-row" style="margin-top:6px; display:flex; gap:6px;">
             <button type="button" id="costumesPanelBtn" onclick="openCostumesModal()">🎭 Costumes (<span id="costumeCount">1</span>)</button>
+            <button type="button" id="soundsPanelBtn" onclick="openSoundsModal()">🔊 Sounds (<span id="soundCount">0</span>)</button>
           </div>
         </div>
 
@@ -777,6 +780,105 @@
     <block type="tts_set_language"></block>
 
   </category>
+
+  <category name="Sound" colour="#CF63CF">
+
+    <block type="start_sound"></block>
+
+    <block type="play_sound_until_done"></block>
+
+    <block type="stop_all_sounds"></block>
+
+    <block type="change_volume">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_volume">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">100</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="volume_reporter"></block>
+
+    <block type="set_sound_effect">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">0</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="change_sound_effect">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="clear_sound_effects"></block>
+
+  </category>
+
+  <category name="Music" colour="#4C97FF">
+
+    <block type="play_drum">
+      <value name="BEATS">
+        <shadow type="math_number">
+          <field name="NUM">0.25</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="music_rest">
+      <value name="BEATS">
+        <shadow type="math_number">
+          <field name="NUM">0.25</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="play_note">
+      <value name="NOTE">
+        <shadow type="math_number">
+          <field name="NUM">60</field>
+        </shadow>
+      </value>
+      <value name="BEATS">
+        <shadow type="math_number">
+          <field name="NUM">0.5</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_instrument"></block>
+
+    <block type="change_tempo">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">20</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="set_tempo">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">60</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="tempo_reporter"></block>
+
+  </category>
 </xml>
 
 
@@ -793,6 +895,26 @@
     </div>
 
     <button type="button" id="addCostumeBtn" onclick="openAddCostumeModal()">+ Add Costume</button>
+  </div>
+</div>
+
+<div id="soundsModal" class="modal">
+  <div class="modal-content asset-picker-modal">
+    <h3>Sounds</h3>
+
+    <input type="search" class="asset-picker-search" id="soundsModalSearch" placeholder="🔍 Search sounds…"
+           oninput="filterSoundsModal(this.value)" />
+
+    <div class="asset-picker-scroll">
+      <div class="sprite-grid" id="soundsModalGrid"></div>
+      <p class="asset-picker-empty" id="soundsModalEmpty" style="display:none">No sounds match your search.</p>
+    </div>
+
+    <!-- Unlike "+ Add Costume" (which picks from the existing admin
+         sprite library), there's no shared sound library to pick from —
+         a student uploads their own file directly. -->
+    <button type="button" id="addSoundBtn" onclick="document.getElementById('soundFileInput').click()">+ Add Sound</button>
+    <input type="file" id="soundFileInput" accept="audio/*" style="display:none" onchange="handleSoundFileSelected(this)" />
   </div>
 </div>
 
@@ -816,8 +938,8 @@
     <div class="asset-picker-scroll">
       <div class="sprite-grid" id="spriteGrid">
         <% spriteCategories.forEach(cat => { cat.assets.forEach(a => { %>
-          <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>" data-costumes='<%- JSON.stringify((a.costumes || []).map(c => ({ name: c.name, src: c.asset_url }))).replace(/'/g, "&#39;") %>'>
-            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="handleSpriteAssetPick('<%= a.name %>', '<%= a.asset_url %>', this.parentElement.dataset.costumes)" />
+          <div class="asset-picker-item" data-cat="<%= cat.id %>" data-name="<%= a.name.toLowerCase() %>" data-costumes='<%- JSON.stringify((a.costumes || []).map(c => ({ name: c.name, src: c.asset_url }))).replace(/'/g, "&#39;") %>' data-sounds='<%- JSON.stringify((a.sounds || []).map(s => ({ name: s.name, src: s.asset_url }))).replace(/'/g, "&#39;") %>'>
+            <img src="<%= a.asset_url %>" title="<%= a.name %>" loading="lazy" onclick="handleSpriteAssetPick('<%= a.name %>', '<%= a.asset_url %>', this.parentElement.dataset.costumes, this.parentElement.dataset.sounds)" />
             <span class="asset-picker-label"><%= a.name %></span>
           </div>
         <% }) }) %>

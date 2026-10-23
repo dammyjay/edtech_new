@@ -247,6 +247,14 @@ exports.getBlocklyLab = async (req, res) => {
     spriteAssetRows.forEach((a) => {
       a.costumes = costumesRes.rows.filter((c) => c.lab_asset_id === a.id);
     });
+
+    const soundsRes = await pool.query(
+      `SELECT * FROM lab_asset_sounds WHERE lab_asset_id = ANY($1) ORDER BY sort_order ASC, id ASC`,
+      [spriteAssetRows.map((a) => a.id)]
+    );
+    spriteAssetRows.forEach((a) => {
+      a.sounds = soundsRes.rows.filter((s) => s.lab_asset_id === a.id);
+    });
   }
 
   const spriteCategories = categoriesRes.rows
@@ -277,6 +285,21 @@ exports.getBlocklyLab = async (req, res) => {
     labNewProjectCoinCost,
     viewProject,
   });
+};
+
+// A student's own "+ Add Sound" upload (public/labs/js/blocklyLab.js's
+// openAddSoundModal) — not persisted server-side beyond the Cloudinary
+// file itself; the resulting URL/name just gets pushed onto that
+// sprite's own sounds[] array the same way an admin-attached sound would,
+// and is saved as part of the student's own project_data on their next
+// project save.
+exports.uploadStudentSound = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No file uploaded." });
+  }
+
+  const name = (req.body.name || "").trim() || req.file.originalname.replace(/\.[^/.]+$/, "");
+  res.json({ success: true, url: req.file.path, name });
 };
 
 // Catalog tags that aren't themselves real @wokwi/elements custom element

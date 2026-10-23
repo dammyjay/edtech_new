@@ -2336,6 +2336,20 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Admin-curated sound clips pre-attached to a sprite asset — same shape
+    // and purpose as lab_asset_costumes above, for the Sound category's
+    // start/play-until-done blocks. Sprite-only.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS lab_asset_sounds (
+        id SERIAL PRIMARY KEY,
+        lab_asset_id INT NOT NULL REFERENCES lab_assets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        asset_url TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     // One-time seed of the sprites/backgrounds that used to be hardcoded in
     // the Blockly editor template, so switching to the DB-driven picker
     // doesn't make any of them disappear. Guarded on lab_assets being

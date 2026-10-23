@@ -34,6 +34,14 @@ exports.getAdminLabAssets = async (req, res) => {
     spriteAssets.forEach((a) => {
       a.costumes = costumesRes.rows.filter((c) => c.lab_asset_id === a.id);
     });
+
+    const soundsRes = await pool.query(
+      `SELECT * FROM lab_asset_sounds WHERE lab_asset_id = ANY($1) ORDER BY sort_order ASC, id ASC`,
+      [spriteAssets.map((a) => a.id)]
+    );
+    spriteAssets.forEach((a) => {
+      a.sounds = soundsRes.rows.filter((s) => s.lab_asset_id === a.id);
+    });
   }
 
   res.render("admin/labAssets", {
@@ -181,5 +189,45 @@ exports.deleteCostume = async (req, res) => {
   }
   const { costumeId } = req.params;
   await pool.query("DELETE FROM lab_asset_costumes WHERE id = $1", [costumeId]);
+  res.redirect("/admin/lab-assets");
+};
+
+// Pre-attach one or more sound clips to a sprite asset — same shape as
+// uploadCostume above. A student adding this sprite to their project gets
+// these seeded onto its sound list automatically (labController.js's
+// getBlocklyLab).
+exports.uploadSound = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const { id } = req.params;
+  const files = req.files || [];
+  if (!files.length) {
+    return res.redirect("/admin/lab-assets");
+  }
+
+  let names = req.body.names || [];
+  if (!Array.isArray(names)) names = [names];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fallbackName = file.originalname.replace(/\.[^/.]+$/, "");
+    const name = (names[i] || "").trim() || fallbackName;
+
+    await pool.query(
+      `INSERT INTO lab_asset_sounds (lab_asset_id, name, asset_url) VALUES ($1, $2, $3)`,
+      [id, name, file.path]
+    );
+  }
+
+  res.redirect("/admin/lab-assets");
+};
+
+exports.deleteSound = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const { soundId } = req.params;
+  await pool.query("DELETE FROM lab_asset_sounds WHERE id = $1", [soundId]);
   res.redirect("/admin/lab-assets");
 };

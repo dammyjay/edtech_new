@@ -886,6 +886,7 @@ function loadSpriteProperties(sprite) {
   document.getElementById("spriteVisible").checked = sprite.visible !== false;
 
   if (typeof renderCostumeList === "function") renderCostumeList(sprite);
+  if (typeof renderSoundList === "function") renderSoundList(sprite);
 }
 
 function updateSelectedSprite() {
@@ -1606,6 +1607,227 @@ window.ttsSpeak = function (text) {
     utterance.onerror = () => resolve();
     speechSynthesis.speak(utterance);
   });
+};
+
+// =========================
+// SOUND
+// =========================
+// Real audio clips attached to a sprite (sprite.sounds[]) — admin-curated
+// (lab_asset_sounds) and/or student-uploaded. One shared, lazily-created
+// AudioContext; every play gets its own <audio> element routed through
+// GainNode (volume) -> StereoPannerNode (pan) -> destination. Pitch is
+// approximated via playbackRate (changes speed too — an approximation,
+// same honesty-flagged approach as the pen HSL/graphic-effects
+// approximations above), since real-time pitch-shifting without changing
+// speed needs a much heavier DSP approach this scope doesn't call for.
+
+window.soundVolume = 100; // 0-100
+window.soundPitch = 0; // unbounded; mapped onto playbackRate via a cents-like curve
+window.soundPan = 0; // -100 (left) to 100 (right)
+
+let sharedAudioCtx = null;
+function getAudioCtx() {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return sharedAudioCtx;
+}
+
+const activeSoundNodes = [];
+
+function findSpriteSound(sprite, name) {
+  if (!sprite || !sprite.sounds) return null;
+  return sprite.sounds.find((s) => s.name.toLowerCase() === String(name).toLowerCase());
+}
+
+function playSoundInternal(name, waitForEnd) {
+  const sprite = getRuntimeSprite();
+  const soundDef = findSpriteSound(sprite, name);
+  if (!soundDef) return waitForEnd ? Promise.resolve() : undefined;
+
+  const ctx = getAudioCtx();
+  const audioEl = new Audio(soundDef.src);
+  audioEl.crossOrigin = "anonymous";
+  audioEl.playbackRate = Math.pow(2, window.soundPitch / 1200);
+
+  let node;
+  try {
+    const source = ctx.createMediaElementSource(audioEl);
+    const gain = ctx.createGain();
+    const panner = ctx.createStereoPanner();
+    gain.gain.value = Math.max(0, Math.min(100, window.soundVolume)) / 100;
+    panner.pan.value = Math.max(-100, Math.min(100, window.soundPan)) / 100;
+    source.connect(gain).connect(panner).connect(ctx.destination);
+    node = { audioEl, source, gain, panner };
+  } catch (e) {
+    // Cross-origin/CORS source that Web Audio refuses to tap — fall back
+    // to plain <audio> playback (no volume/pan routing, but it still
+    // plays) rather than silently doing nothing.
+    audioEl.volume = Math.max(0, Math.min(100, window.soundVolume)) / 100;
+    node = { audioEl };
+  }
+
+  activeSoundNodes.push(node);
+  const cleanup = () => {
+    const idx = activeSoundNodes.indexOf(node);
+    if (idx !== -1) activeSoundNodes.splice(idx, 1);
+  };
+
+  if (waitForEnd) {
+    return new Promise((resolve) => {
+      audioEl.onended = () => { cleanup(); resolve(); };
+      audioEl.onerror = () => { cleanup(); resolve(); };
+      audioEl.play().catch(() => { cleanup(); resolve(); });
+    });
+  }
+
+  audioEl.onended = cleanup;
+  audioEl.play().catch(cleanup);
+  return undefined;
+}
+
+window.startSound = function (name) {
+  playSoundInternal(name, false);
+};
+
+window.playSoundUntilDone = function (name) {
+  return playSoundInternal(name, true);
+};
+
+window.stopAllSounds = function () {
+  activeSoundNodes.slice().forEach(({ audioEl }) => {
+    audioEl.pause();
+    audioEl.currentTime = 0;
+  });
+  activeSoundNodes.length = 0;
+};
+
+window.setVolume = function (value) {
+  window.soundVolume = Math.max(0, Math.min(100, Number(value)));
+};
+
+window.changeVolumeBy = function (value) {
+  window.soundVolume = Math.max(0, Math.min(100, window.soundVolume + Number(value)));
+};
+
+window.getVolume = function () {
+  return window.soundVolume;
+};
+
+window.setSoundEffect = function (effect, value) {
+  if (effect === "pitch") window.soundPitch = Number(value);
+  else if (effect === "pan") window.soundPan = Math.max(-100, Math.min(100, Number(value)));
+};
+
+window.changeSoundEffect = function (effect, value) {
+  if (effect === "pitch") window.soundPitch += Number(value);
+  else if (effect === "pan") window.soundPan = Math.max(-100, Math.min(100, window.soundPan + Number(value)));
+};
+
+window.clearSoundEffects = function () {
+  window.soundPitch = 0;
+  window.soundPan = 0;
+};
+
+// =========================
+// MUSIC
+// =========================
+// Scratch's own Music extension plays sampled instruments — avoiding the
+// need to source/host/license real instrument/drum samples (the same
+// reasoning public/js/gamify.js's quiz chime effects already used),
+// notes/drums here are synthesized with the Web Audio API instead: a
+// simple timbre-approximation waveform per instrument, and filtered
+// white-noise bursts for drums. Flagged here plainly — these are
+// synthesized tones, not real sampled instruments.
+
+window.musicTempo = 60; // BPM
+window.musicInstrument = "piano";
+
+const INSTRUMENT_WAVEFORMS = {
+  piano: "triangle",
+  "electric piano": "sine",
+  guitar: "sawtooth",
+  organ: "square",
+  marimba: "sine",
+  synth: "sawtooth",
+};
+
+function beatsToSeconds(beats) {
+  return (60 / (window.musicTempo || 60)) * Number(beats);
+}
+
+function midiToFrequency(note) {
+  return 440 * Math.pow(2, (Number(note) - 69) / 12);
+}
+
+window.playNote = function (note, beats) {
+  const ctx = getAudioCtx();
+  const duration = Math.max(0.05, beatsToSeconds(beats));
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = INSTRUMENT_WAVEFORMS[window.musicInstrument] || "triangle";
+  osc.frequency.value = midiToFrequency(note);
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+
+  return new Promise((resolve) => setTimeout(resolve, duration * 1000));
+};
+
+const DRUM_NOISE_PARAMS = {
+  snare: { duration: 0.15, filterFreq: 1800 },
+  "bass drum": { duration: 0.25, filterFreq: 150 },
+  "hi-hat": { duration: 0.05, filterFreq: 8000 },
+  tambourine: { duration: 0.1, filterFreq: 6000 },
+  cowbell: { duration: 0.2, filterFreq: 800 },
+  clap: { duration: 0.12, filterFreq: 1200 },
+};
+
+window.playDrum = function (drum, beats) {
+  const ctx = getAudioCtx();
+  const params = DRUM_NOISE_PARAMS[drum] || DRUM_NOISE_PARAMS.snare;
+  const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * params.duration));
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = params.filterFreq;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.5, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + params.duration);
+
+  noise.connect(filter).connect(gain).connect(ctx.destination);
+  noise.start();
+
+  const totalDuration = Math.max(params.duration, beatsToSeconds(beats));
+  return new Promise((resolve) => setTimeout(resolve, totalDuration * 1000));
+};
+
+window.musicRest = function (beats) {
+  return new Promise((resolve) => setTimeout(resolve, beatsToSeconds(beats) * 1000));
+};
+
+window.setInstrument = function (instrument) {
+  window.musicInstrument = instrument;
+};
+
+window.setTempo = function (bpm) {
+  window.musicTempo = Math.max(20, Math.min(500, Number(bpm)));
+};
+
+window.changeTempoBy = function (delta) {
+  window.musicTempo = Math.max(20, Math.min(500, window.musicTempo + Number(delta)));
+};
+
+window.getTempo = function () {
+  return window.musicTempo;
 };
 
 // =========================

@@ -139,7 +139,7 @@ function fitBlocklyContainer() {
 
 window.addEventListener("resize", fitBlocklyContainer);
 
-window.createSprite = function (spriteName, imageUrl, preCostumes) {
+window.createSprite = function (spriteName, imageUrl, preCostumes, preSounds) {
   const stage = document.getElementById("stage");
 
   const sprite = document.createElement("img");
@@ -195,6 +195,10 @@ window.createSprite = function (spriteName, imageUrl, preCostumes) {
     costumes: [{ name: spriteName, src: sprite.src }, ...(preCostumes || [])],
     costumeIndex: 0,
     draggable: true,
+    // Admin-curated sound clips pre-attached to this sprite asset
+    // (lab_asset_sounds) — a sprite has none by default (unlike costumes,
+    // a sound isn't required for the sprite to function).
+    sounds: [...(preSounds || [])],
   };
 
   sprites.push(spriteData);
@@ -214,7 +218,7 @@ window.createSprite = function (spriteName, imageUrl, preCostumes) {
 // modal/grid rather than building a separate picker.
 window.spriteModalMode = "new";
 
-window.handleSpriteAssetPick = function (name, url, costumesJson) {
+window.handleSpriteAssetPick = function (name, url, costumesJson, soundsJson) {
   if (window.spriteModalMode === "addCostume" && window.currentSprite) {
     const sprite = window.currentSprite;
     sprite.costumes = sprite.costumes || [];
@@ -237,7 +241,15 @@ window.handleSpriteAssetPick = function (name, url, costumesJson) {
       preCostumes = [];
     }
   }
-  createSprite(name, url, preCostumes);
+  let preSounds = [];
+  if (soundsJson) {
+    try {
+      preSounds = JSON.parse(soundsJson);
+    } catch (e) {
+      preSounds = [];
+    }
+  }
+  createSprite(name, url, preCostumes, preSounds);
 };
 
 window.openAddCostumeModal = function () {
@@ -330,6 +342,112 @@ function renderCostumeList(sprite) {
       });
       item.appendChild(deleteBtn);
     }
+
+    grid.appendChild(item);
+  });
+}
+
+// Sounds panel — mirrors the Costumes panel above, but with <audio
+// controls> playback instead of selectable thumbnails (a sound isn't
+// "the sprite's current state" the way a costume is — there's no
+// single active sound to highlight) and a direct file upload for
+// "+ Add Sound" instead of picking from the sprite library, since there's
+// no shared sound library to pick from.
+window.openSoundsModal = function () {
+  if (!window.currentSprite) return;
+  renderSoundList(window.currentSprite);
+  document.getElementById("soundsModalSearch").value = "";
+  document.getElementById("soundsModal").style.display = "flex";
+};
+
+window.filterSoundsModal = function (value) {
+  const search = value.trim().toLowerCase();
+  const grid = document.getElementById("soundsModalGrid");
+  let visibleCount = 0;
+
+  grid.querySelectorAll(".costume-grid-item").forEach((item) => {
+    const show = !search || item.dataset.name.includes(search);
+    item.style.display = show ? "" : "none";
+    if (show) visibleCount++;
+  });
+
+  document.getElementById("soundsModalEmpty").style.display = visibleCount === 0 ? "block" : "none";
+};
+
+window.removeSound = function (sprite, index) {
+  if (!sprite.sounds) return;
+  sprite.sounds.splice(index, 1);
+  renderSoundList(sprite);
+};
+
+window.handleSoundFileSelected = async function (input) {
+  const file = input.files && input.files[0];
+  if (!file || !window.currentSprite) {
+    input.value = "";
+    return;
+  }
+
+  const sprite = window.currentSprite;
+  const name = file.name.replace(/\.[^/.]+$/, "");
+
+  const formData = new FormData();
+  formData.append("student_sound_file", file);
+  formData.append("name", name);
+
+  try {
+    const res = await fetch("/labs/sound/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't upload that sound.", "error");
+      return;
+    }
+
+    sprite.sounds = sprite.sounds || [];
+    sprite.sounds.push({ name: data.name, src: data.url });
+    renderSoundList(sprite);
+  } catch (err) {
+    console.error("Sound upload error:", err);
+    showToast("Couldn't upload that sound — try again.", "error");
+  } finally {
+    input.value = "";
+  }
+};
+
+function renderSoundList(sprite) {
+  const countEl = document.getElementById("soundCount");
+  if (countEl) countEl.textContent = String((sprite.sounds || []).length);
+
+  const grid = document.getElementById("soundsModalGrid");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+  (sprite.sounds || []).forEach((sound, index) => {
+    const item = document.createElement("div");
+    item.className = "costume-grid-item asset-picker-item";
+    item.dataset.name = sound.name.toLowerCase();
+
+    const audio = document.createElement("audio");
+    audio.src = sound.src;
+    audio.controls = true;
+    audio.style.cssText = "width:120px; height:32px;";
+
+    const label = document.createElement("span");
+    label.className = "asset-picker-label";
+    label.textContent = sound.name;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "costume-delete-btn";
+    deleteBtn.title = "Remove this sound";
+    deleteBtn.textContent = "✕";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeSound(sprite, index);
+    });
+
+    item.appendChild(audio);
+    item.appendChild(label);
+    item.appendChild(deleteBtn);
 
     grid.appendChild(item);
   });
@@ -665,6 +783,7 @@ async function initBlocklyLab() {
       costumes: [{ name: "Jay", src: defaultSprite.src }],
       costumeIndex: 0,
       draggable: true,
+      sounds: [],
     };
 
     makeSpriteDraggable(spriteData);
@@ -1415,6 +1534,8 @@ window.addEventListener("click", (e) => {
 
   const costumesModal = document.getElementById("costumesModal");
 
+  const soundsModal = document.getElementById("soundsModal");
+
   if (e.target === spriteModal) {
     spriteModal.style.display = "none";
     window.spriteModalMode = "new";
@@ -1426,6 +1547,10 @@ window.addEventListener("click", (e) => {
 
   if (e.target === costumesModal) {
     costumesModal.style.display = "none";
+  }
+
+  if (e.target === soundsModal) {
+    soundsModal.style.display = "none";
   }
 });
 
@@ -1514,6 +1639,7 @@ async function initLab(labType) {
           spriteData.costumeIndex = 0;
         }
         if (spriteData.draggable === undefined) spriteData.draggable = true;
+        if (!spriteData.sounds) spriteData.sounds = [];
 
         makeSpriteDraggable(spriteData);
         el.addEventListener("click", () => selectSpriteById(spriteData.id));
@@ -1596,6 +1722,7 @@ async function saveProject(manual = false) {
           costumes: sprite.costumes || [{ name: sprite.name, src: sprite.image }],
           costumeIndex: sprite.costumeIndex || 0,
           draggable: sprite.draggable !== false,
+          sounds: sprite.sounds || [],
         })),
       },
     };

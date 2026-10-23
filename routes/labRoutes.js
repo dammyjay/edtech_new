@@ -5,6 +5,7 @@ const labController = require("../controllers/labController");
 const externalProjectController = require("../controllers/externalProjectController");
 const { ensureAuthenticated } = require("../middlewares/auth");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
+const { upload } = require("../middlewares/upload");
 
 // Deliberately BEFORE router.use(ensureAuthenticated) below — the one
 // lab route an anonymous visitor can reach, for the public showcase's
@@ -66,5 +67,16 @@ router.post("/gallery/unpublish", labController.unpublishProject);
 router.post("/gallery/like", labController.toggleLike);
 router.post("/gallery/remix", labController.remixProject);
 router.post("/gallery/report", labController.reportProject);
+
+// A student's own "+ Add Sound" upload in the Blockly Lab — unlike
+// sprites/costumes/backgrounds (admin-curated, students only ever pick
+// from them), there's no shared sound library to pick from, so a student
+// adding their own sound uploads a real file and gets back a permanent
+// URL the same way an admin's lab-asset upload does.
+router.post(
+  "/sound/upload",
+  upload.single("student_sound_file"),
+  labController.uploadStudentSound
+);
 
 module.exports = router;

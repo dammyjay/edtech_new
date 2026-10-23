@@ -55,6 +55,9 @@
             <% if (a.costumes && a.costumes.length) { %>
               <span class="la-costume-badge" title="<%= a.costumes.map(c => c.name).join(', ') %>">🎭 <%= a.costumes.length %> costume<%= a.costumes.length === 1 ? '' : 's' %></span>
             <% } %>
+            <% if (a.sounds && a.sounds.length) { %>
+              <span class="la-costume-badge" title="<%= a.sounds.map(s => s.name).join(', ') %>">🔊 <%= a.sounds.length %> sound<%= a.sounds.length === 1 ? '' : 's' %></span>
+            <% } %>
             <div class="la-card-actions">
               <button type="button" class="la-card-btn" title="Edit" onclick="openModal('editSpriteModal-<%= a.id %>')">✏️</button>
               <form method="POST" action="/admin/lab-assets/delete/<%= a.id %>"
@@ -120,6 +123,36 @@
                  onchange="renderBulkNameFields(this, 'costumeBulkNames-<%= a.id %>')" />
           <div id="costumeBulkNames-<%= a.id %>" class="la-bulk-names"></div>
           <button type="submit">➕ Add Costume(s)</button>
+        </form>
+
+        <hr style="margin:16px 0;" />
+
+        <h4>Sounds</h4>
+        <p style="font-size:13px; color:var(--text-dim,#666); margin:0 0 8px;">
+          Pre-add sound clips this sprite will already carry when a student adds it to their project.
+        </p>
+
+        <% if (a.sounds && a.sounds.length) { %>
+          <div class="la-costume-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <% a.sounds.forEach(s => { %>
+              <div class="la-costume-item" style="text-align:center;">
+                <audio src="<%= s.asset_url %>" controls style="width:140px; height:32px; display:block; margin-bottom:2px;"></audio>
+                <span style="font-size:11px; display:block; max-width:140px; overflow:hidden; text-overflow:ellipsis;"><%= s.name %></span>
+                <form method="POST" action="/admin/lab-assets/sprite/<%= a.id %>/sounds/<%= s.id %>/delete"
+                      onsubmit="return handleConfirmSubmit(event, 'Remove this sound?')">
+                  <button type="submit" class="la-card-btn la-card-btn-danger" style="font-size:11px; padding:1px 4px;" title="Remove">🗑</button>
+                </form>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <form action="/admin/lab-assets/sprite/<%= a.id %>/sounds" method="POST" enctype="multipart/form-data">
+          <label>Add Sound(s):</label>
+          <input type="file" name="sprite_sound_file" accept="audio/*" multiple
+                 onchange="renderBulkNameFields(this, 'soundBulkNames-<%= a.id %>')" />
+          <div id="soundBulkNames-<%= a.id %>" class="la-bulk-names"></div>
+          <button type="submit">➕ Add Sound(s)</button>
         </form>
       </div>
     </div>

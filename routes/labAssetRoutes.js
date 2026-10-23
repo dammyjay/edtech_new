@@ -54,4 +54,14 @@ router.post(
   labAssetController.deleteCostume
 );
 
+router.post(
+  "/sprite/:id/sounds",
+  upload.array("sprite_sound_file", 100),
+  labAssetController.uploadSound
+);
+router.post(
+  "/sprite/:id/sounds/:soundId/delete",
+  labAssetController.deleteSound
+);
+
 module.exports = router;

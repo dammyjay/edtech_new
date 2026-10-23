@@ -684,3 +684,99 @@ jsGenerator.forBlock["tts_set_language"] = function (block) {
 
   return `setTtsLanguage("${lang}");\n`;
 };
+
+// SOUND
+
+jsGenerator.forBlock["start_sound"] = function (block) {
+  const sound = block.getFieldValue("SOUND");
+
+  return `startSound(${JSON.stringify(sound)});\n`;
+};
+
+jsGenerator.forBlock["play_sound_until_done"] = function (block) {
+  const sound = block.getFieldValue("SOUND");
+
+  return `await playSoundUntilDone(${JSON.stringify(sound)});\n`;
+};
+
+jsGenerator.forBlock["stop_all_sounds"] = function () {
+  return `stopAllSounds();\n`;
+};
+
+jsGenerator.forBlock["change_volume"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "10";
+
+  return `changeVolumeBy(${value});\n`;
+};
+
+jsGenerator.forBlock["set_volume"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "100";
+
+  return `setVolume(${value});\n`;
+};
+
+jsGenerator.forBlock["volume_reporter"] = function () {
+  return ["getVolume()", javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["set_sound_effect"] = function (block) {
+  const effect = block.getFieldValue("EFFECT");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "0";
+
+  return `setSoundEffect("${effect}", ${value});\n`;
+};
+
+jsGenerator.forBlock["change_sound_effect"] = function (block) {
+  const effect = block.getFieldValue("EFFECT");
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "10";
+
+  return `changeSoundEffect("${effect}", ${value});\n`;
+};
+
+jsGenerator.forBlock["clear_sound_effects"] = function () {
+  return `clearSoundEffects();\n`;
+};
+
+// MUSIC
+
+jsGenerator.forBlock["play_drum"] = function (block) {
+  const drum = block.getFieldValue("DRUM");
+  const beats = jsGenerator.valueToCode(block, "BEATS", 0) || "0.25";
+
+  return `await playDrum("${drum}", ${beats});\n`;
+};
+
+jsGenerator.forBlock["music_rest"] = function (block) {
+  const beats = jsGenerator.valueToCode(block, "BEATS", 0) || "0.25";
+
+  return `await musicRest(${beats});\n`;
+};
+
+jsGenerator.forBlock["play_note"] = function (block) {
+  const note = jsGenerator.valueToCode(block, "NOTE", 0) || "60";
+  const beats = jsGenerator.valueToCode(block, "BEATS", 0) || "0.5";
+
+  return `await playNote(${note}, ${beats});\n`;
+};
+
+jsGenerator.forBlock["set_instrument"] = function (block) {
+  const instrument = block.getFieldValue("INSTRUMENT");
+
+  return `setInstrument("${instrument}");\n`;
+};
+
+jsGenerator.forBlock["change_tempo"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "20";
+
+  return `changeTempoBy(${value});\n`;
+};
+
+jsGenerator.forBlock["set_tempo"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "60";
+
+  return `setTempo(${value});\n`;
+};
+
+jsGenerator.forBlock["tempo_reporter"] = function () {
+  return ["getTempo()", javascript.Order.FUNCTION_CALL];
+};
