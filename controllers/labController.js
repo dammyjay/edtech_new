@@ -264,6 +264,17 @@ exports.getBlocklyLab = async (req, res) => {
       assets: spriteAssetRows.filter((a) => a.category_id === c.id),
     }));
 
+  // The default "Jay" sprite every brand-new project starts with
+  // (blocklyLab.js's hardcoded bootstrap, views/labs/blockly/editor.ejs)
+  // is a separate, built-in element — not actually tied to the "Jay" row
+  // in the admin sprite library, even though they're the same image.
+  // Matched by asset_url (not name — more robust if that row ever gets
+  // renamed) so an admin's costumes/sounds on it reach the one sprite
+  // every student sees automatically, not just sprites picked by hand.
+  const defaultSpriteAsset = spriteAssetRows.find((a) => a.asset_url === "/labs/images/sprites/Jay.png");
+  const defaultSpriteCostumes = (defaultSpriteAsset && defaultSpriteAsset.costumes) || [];
+  const defaultSpriteSounds = (defaultSpriteAsset && defaultSpriteAsset.sounds) || [];
+
   const backgroundCategories = categoriesRes.rows
     .filter((c) => c.asset_type === "background")
     .map((c) => ({
@@ -281,6 +292,8 @@ exports.getBlocklyLab = async (req, res) => {
     student,
     spriteCategories,
     backgroundCategories,
+    defaultSpriteCostumes,
+    defaultSpriteSounds,
     lessonLab,
     labNewProjectCoinCost,
     viewProject,

@@ -21,6 +21,12 @@
   window.LAB_NEW_PROJECT_COIN_COST = <%- JSON.stringify(labNewProjectCoinCost) %>;
   // Backs the "Username" Sensing reporter block (engine.js's getUsername).
   window.currentUsername = <%- JSON.stringify(student.fullname || '') %>;
+  // Admin-curated costumes/sounds for the default "Jay" sprite every new
+  // project starts with — read by blocklyLab.js's bootstrap so that
+  // built-in sprite gets the same treatment as one picked from the
+  // library, instead of never seeing admin-added extras at all.
+  window.DEFAULT_SPRITE_COSTUMES = <%- JSON.stringify((defaultSpriteCostumes || []).map(c => ({ name: c.name, src: c.asset_url }))) %>;
+  window.DEFAULT_SPRITE_SOUNDS = <%- JSON.stringify((defaultSpriteSounds || []).map(s => ({ name: s.name, src: s.asset_url }))) %>;
 </script>
 <link
   rel="stylesheet"

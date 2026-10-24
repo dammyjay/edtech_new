@@ -780,10 +780,14 @@ async function initBlocklyLab() {
       spawnWidth: 120,
       spawnHeight: 120,
       spawnRotation: 0,
-      costumes: [{ name: "Jay", src: defaultSprite.src }],
+      // Admin-curated extras on the library's "Jay" sprite (server-set in
+      // editor.ejs) — same treatment a picked sprite gets via createSprite's
+      // preCostumes/preSounds, so the one sprite every project starts with
+      // isn't the one sprite that can never carry them.
+      costumes: [{ name: "Jay", src: defaultSprite.src }, ...(window.DEFAULT_SPRITE_COSTUMES || [])],
       costumeIndex: 0,
       draggable: true,
-      sounds: [],
+      sounds: [...(window.DEFAULT_SPRITE_SOUNDS || [])],
     };
 
     makeSpriteDraggable(spriteData);
