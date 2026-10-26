@@ -478,6 +478,21 @@ body.blockly-fullscreen .stage-panel {
     z-index: 1;
 }
 
+/* Camera feed renders like a dynamic backdrop — behind pen marks and
+   sprites (z-index 0 vs penCanvas's 1), never obscuring the student's
+   own work. #videoFeed (the raw <video> stream) stays hidden; this
+   canvas is what's actually drawn to the stage, at an opacity engine.js
+   derives from videoTransparency. */
+#videoCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
 .speech-bubble::after {
     content: "";
     position: absolute;

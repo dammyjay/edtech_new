@@ -1901,7 +1901,8 @@ async function compileEvents() {
         block.type === "when_message_received" ||
         block.type === "when_touching_edge" ||
         block.type === "when_backdrop_switches" ||
-        block.type === "when_timer_greater_than"
+        block.type === "when_timer_greater_than" ||
+        block.type === "when_video_motion_greater_than"
       ) {
         let code = generator.blockToCode(block);
         if (Array.isArray(code)) code = code[0];
@@ -1929,6 +1930,7 @@ function clearEvents() {
   window.broadcastListeners = {};
   window.backdropSwitchListeners = {};
   window.timerWatches = [];
+  window.videoMotionWatches = [];
 }
 
 window.changeBackground = function (color) {

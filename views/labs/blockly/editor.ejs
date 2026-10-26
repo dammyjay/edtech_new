@@ -49,6 +49,7 @@
 <script src="/labs/js/blockly/blocks/tts.js"></script>
 <script src="/labs/js/blockly/blocks/sound.js"></script>
 <script src="/labs/js/blockly/blocks/music.js"></script>
+<script src="/labs/js/blockly/blocks/video.js"></script>
 
 <script src="/labs/js/blockly/generators/motion.js"></script>
 <script src="/labs/js/blockly/generators/looks.js"></script>
@@ -194,6 +195,8 @@
         <div id="recordCursor"></div>
         <div id="mouseXIndicator">X: 0</div>
         <div id="mouseYIndicator">Y: 0</div>
+        <canvas id="videoCanvas"></canvas>
+        <video id="videoFeed" autoplay playsinline muted style="display:none;"></video>
         <canvas id="penCanvas"></canvas>
           <div id="askBox" class="ask-box" style="display:none;">
             <div id="askQuestion"></div>
@@ -883,6 +886,30 @@
     </block>
 
     <block type="tempo_reporter"></block>
+
+  </category>
+
+  <category name="Video Sensing" colour="#0FBD8C">
+
+    <block type="turn_video"></block>
+
+    <block type="set_video_transparency">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">50</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="video_sensing_reporter"></block>
+
+    <block type="when_video_motion_greater_than">
+      <value name="VALUE">
+        <shadow type="math_number">
+          <field name="NUM">10</field>
+        </shadow>
+      </value>
+    </block>
 
   </category>
 </xml>

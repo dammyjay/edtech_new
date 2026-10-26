@@ -780,3 +780,39 @@ jsGenerator.forBlock["set_tempo"] = function (block) {
 jsGenerator.forBlock["tempo_reporter"] = function () {
   return ["getTempo()", javascript.Order.FUNCTION_CALL];
 };
+
+// VIDEO SENSING
+
+jsGenerator.forBlock["turn_video"] = function (block) {
+  const state = block.getFieldValue("STATE");
+
+  return `turnVideo("${state}");\n`;
+};
+
+jsGenerator.forBlock["set_video_transparency"] = function (block) {
+  const value = jsGenerator.valueToCode(block, "VALUE", 0) || "50";
+
+  return `setVideoTransparency(${value});\n`;
+};
+
+jsGenerator.forBlock["video_sensing_reporter"] = function (block) {
+  const attribute = block.getFieldValue("ATTRIBUTE");
+  const target = block.getFieldValue("TARGET");
+
+  if (attribute === "direction") {
+    return [`getVideoDirection("${target}")`, javascript.Order.FUNCTION_CALL];
+  }
+  return [`getVideoMotion("${target}")`, javascript.Order.FUNCTION_CALL];
+};
+
+jsGenerator.forBlock["when_video_motion_greater_than"] = function (block, generator) {
+  const value = jsGenerator.valueToCode(block, "VALUE", javascript.Order.ATOMIC) || "10";
+
+  const statements = generator.statementToCode(block, "DO");
+
+  return `
+registerVideoMotionWatch(${value}, async ()=>{
+${statements}
+});
+`;
+};

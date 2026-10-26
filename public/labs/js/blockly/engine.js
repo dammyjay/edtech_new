@@ -1831,6 +1831,244 @@ window.getTempo = function () {
 };
 
 // =========================
+// VIDEO SENSING
+// =========================
+// Camera feed renders onto #videoCanvas (CSS z-index 0, behind pen marks
+// and sprites — see blockly.css) via a requestAnimationFrame loop that
+// also draws each frame onto a small offscreen analysis canvas and diffs
+// it against the previous frame to compute a 0-100 motion amount. A
+// continuous-watch "when video motion > N" trigger reuses the exact
+// registerTimerWatch/timerWatches pattern above (registerVideoMotionWatch/
+// videoMotionWatches), since this is the same "re-check every tick, not
+// just once at compile time" problem Phase 2's timer watch already solved.
+
+window.videoEnabled = false;
+window.videoTransparency = 50; // Scratch's own scale: 0 = fully opaque, 100 = fully invisible
+
+let videoStream = null;
+let videoRafId = null;
+const VIDEO_ANALYSIS_W = 64;
+const VIDEO_ANALYSIS_H = 48;
+let videoAnalysisCanvas = null;
+let videoAnalysisCtx = null;
+let videoPrevFrame = null; // Uint8ClampedArray snapshot of the previous analysis frame
+let videoMotionGrid = null; // per-cell motion amounts (VIDEO_ANALYSIS_W x VIDEO_ANALYSIS_H), for per-sprite sampling
+let videoGlobalMotion = 0;
+let videoGlobalDirection = 0;
+
+function ensureVideoAnalysisCanvas() {
+  if (!videoAnalysisCanvas) {
+    videoAnalysisCanvas = document.createElement("canvas");
+    videoAnalysisCanvas.width = VIDEO_ANALYSIS_W;
+    videoAnalysisCanvas.height = VIDEO_ANALYSIS_H;
+    videoAnalysisCtx = videoAnalysisCanvas.getContext("2d", { willReadFrequently: true });
+  }
+}
+
+function videoRenderLoop() {
+  if (!window.videoEnabled) return;
+
+  const videoEl = document.getElementById("videoFeed");
+  const canvas = document.getElementById("videoCanvas");
+  const stage = document.getElementById("stage");
+  if (!videoEl || !canvas || !stage || videoEl.readyState < 2) {
+    videoRafId = requestAnimationFrame(videoRenderLoop);
+    return;
+  }
+
+  const w = stage.clientWidth;
+  const h = stage.clientHeight;
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
+
+  const ctx = canvas.getContext("2d");
+  ctx.save();
+  ctx.globalAlpha = 1 - Math.max(0, Math.min(100, window.videoTransparency)) / 100;
+  // Mirrored, matching how a student sees themselves in a normal webcam
+  // view (Scratch does the same) — "video direction" below is computed
+  // in this same mirrored space, so left/right stay intuitive to them.
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(videoEl, 0, 0, w, h);
+  ctx.restore();
+
+  ensureVideoAnalysisCanvas();
+  videoAnalysisCtx.save();
+  videoAnalysisCtx.translate(VIDEO_ANALYSIS_W, 0);
+  videoAnalysisCtx.scale(-1, 1);
+  videoAnalysisCtx.drawImage(videoEl, 0, 0, VIDEO_ANALYSIS_W, VIDEO_ANALYSIS_H);
+  videoAnalysisCtx.restore();
+
+  const frame = videoAnalysisCtx.getImageData(0, 0, VIDEO_ANALYSIS_W, VIDEO_ANALYSIS_H).data;
+
+  if (videoPrevFrame) {
+    const grid = new Float32Array(VIDEO_ANALYSIS_W * VIDEO_ANALYSIS_H);
+    let total = 0;
+    let leftSum = 0, rightSum = 0, topSum = 0, bottomSum = 0;
+
+    for (let y = 0; y < VIDEO_ANALYSIS_H; y++) {
+      for (let x = 0; x < VIDEO_ANALYSIS_W; x++) {
+        const i = (y * VIDEO_ANALYSIS_W + x) * 4;
+        const diff =
+          Math.abs(frame[i] - videoPrevFrame[i]) +
+          Math.abs(frame[i + 1] - videoPrevFrame[i + 1]) +
+          Math.abs(frame[i + 2] - videoPrevFrame[i + 2]);
+        const cell = diff / (3 * 255); // 0-1 per cell
+        grid[y * VIDEO_ANALYSIS_W + x] = cell;
+        total += cell;
+
+        if (x < VIDEO_ANALYSIS_W / 2) leftSum += cell; else rightSum += cell;
+        if (y < VIDEO_ANALYSIS_H / 2) topSum += cell; else bottomSum += cell;
+      }
+    }
+
+    videoMotionGrid = grid;
+    // Scaled so "a good amount of on-screen movement" lands near 100,
+    // matching the feel of Scratch's own 0-100 motion scale rather than
+    // a raw average that rarely rises above single digits.
+    videoGlobalMotion = Math.min(100, (total / (VIDEO_ANALYSIS_W * VIDEO_ANALYSIS_H)) * 400);
+
+    // Deliberately simple direction approximation (not true optical
+    // flow): which half of the frame has more motion sets the angle,
+    // weighted toward whichever axis is more lopsided. 0deg = right,
+    // 90deg = up, matching Scratch's compass-style direction reporter.
+    const dx = rightSum - leftSum;
+    const dy = topSum - bottomSum;
+    videoGlobalDirection = (dx === 0 && dy === 0) ? 0 : (Math.atan2(dy, dx) * 180) / Math.PI;
+  }
+
+  videoPrevFrame = frame;
+  videoRafId = requestAnimationFrame(videoRenderLoop);
+}
+
+window.turnVideo = function (state) {
+  if (state === "on") {
+    if (window.videoEnabled) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (typeof showToast === "function") showToast("This device/browser doesn't support camera access.", "error");
+      return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: false })
+      .then((stream) => {
+        videoStream = stream;
+        const videoEl = document.getElementById("videoFeed");
+        videoEl.srcObject = stream;
+        window.videoEnabled = true;
+        videoPrevFrame = null;
+        videoRafId = requestAnimationFrame(videoRenderLoop);
+      })
+      .catch(() => {
+        if (typeof showToast === "function") showToast("Camera access was denied or unavailable.", "error");
+      });
+  } else {
+    window.videoEnabled = false;
+    if (videoRafId) cancelAnimationFrame(videoRafId);
+    videoRafId = null;
+    if (videoStream) {
+      videoStream.getTracks().forEach((track) => track.stop());
+      videoStream = null;
+    }
+    const videoEl = document.getElementById("videoFeed");
+    if (videoEl) videoEl.srcObject = null;
+    const canvas = document.getElementById("videoCanvas");
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    videoPrevFrame = null;
+    videoMotionGrid = null;
+    videoGlobalMotion = 0;
+  }
+};
+
+window.setVideoTransparency = function (value) {
+  window.videoTransparency = Math.max(0, Math.min(100, Number(value)));
+};
+
+function spriteMotionFromGrid() {
+  const sprite = getRuntimeSprite();
+  const stage = document.getElementById("stage");
+  if (!sprite || !stage || !videoMotionGrid) return 0;
+
+  const w = stage.clientWidth || 1;
+  const h = stage.clientHeight || 1;
+  const cellW = w / VIDEO_ANALYSIS_W;
+  const cellH = h / VIDEO_ANALYSIS_H;
+
+  const x0 = Math.max(0, Math.floor(sprite.x / cellW));
+  const y0 = Math.max(0, Math.floor(sprite.y / cellH));
+  const x1 = Math.min(VIDEO_ANALYSIS_W, Math.ceil((sprite.x + (sprite.width || 50)) / cellW));
+  const y1 = Math.min(VIDEO_ANALYSIS_H, Math.ceil((sprite.y + (sprite.height || 50)) / cellH));
+
+  let sum = 0;
+  let count = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      sum += videoMotionGrid[y * VIDEO_ANALYSIS_W + x];
+      count++;
+    }
+  }
+  if (!count) return 0;
+  return Math.min(100, (sum / count) * 400);
+}
+
+window.getVideoMotion = function (target) {
+  if (!window.videoEnabled) return 0;
+  if (target === "sprite") return spriteMotionFromGrid();
+  return videoGlobalMotion;
+};
+
+window.getVideoDirection = function (target) {
+  if (!window.videoEnabled) return 0;
+  // Per-sprite direction isn't computed separately (the grid-region sum
+  // above only tracks magnitude, not a per-region vector) — the global
+  // direction approximation is returned for either target, which is a
+  // reasonable simplification at this scope.
+  return Math.round(videoGlobalDirection);
+};
+
+// "When video motion > N" hats — same edge-triggered continuous-watch
+// pattern as registerTimerWatch above.
+window.videoMotionWatches = [];
+
+window.registerVideoMotionWatch = function (threshold, callback) {
+  window.videoMotionWatches.push({
+    sprite: window.currentRuntimeSprite,
+    threshold: Number(threshold),
+    callback,
+    armed: true,
+  });
+};
+
+setInterval(() => {
+  if (!window.videoEnabled) return;
+  const value = window.getVideoMotion("stage");
+
+  for (const watch of window.videoMotionWatches) {
+    if (value > watch.threshold) {
+      if (watch.armed) {
+        watch.armed = false;
+        window.currentRuntimeSprite = watch.sprite;
+        watch.callback();
+        window.currentRuntimeSprite = null;
+      }
+    } else {
+      watch.armed = true;
+    }
+  }
+}, 100);
+
+// Safety net so leaving the lab (navigating away, closing the tab) never
+// leaves the webcam indicator light on — "Stop" doesn't turn video off
+// (matches how it doesn't stop sound either; an explicit "Turn Video
+// Off" block is the in-project way), but leaving the page entirely should
+// always release the camera regardless of project state.
+window.addEventListener("pagehide", () => {
+  if (window.videoEnabled) window.turnVideo("off");
+});
+
+// =========================
 // INITIALIZE
 // =========================
 
