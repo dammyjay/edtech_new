@@ -196,7 +196,14 @@
         <div id="mouseXIndicator">X: 0</div>
         <div id="mouseYIndicator">Y: 0</div>
         <canvas id="videoCanvas"></canvas>
-        <video id="videoFeed" autoplay playsinline muted style="display:none;"></video>
+        <!-- Visually hidden but NOT display:none — some browsers pause or
+             throttle actual frame decoding for a real camera stream (as
+             opposed to a synthetic test source) on a display:none video
+             element, since it's treated as "not rendering" and skipped as
+             a decode optimization. Kept in the layout at 1x1px/opacity:0
+             instead, which every browser keeps decoding normally. -->
+        <video id="videoFeed" autoplay playsinline muted
+               style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
         <canvas id="penCanvas"></canvas>
           <div id="askBox" class="ask-box" style="display:none;">
             <div id="askQuestion"></div>

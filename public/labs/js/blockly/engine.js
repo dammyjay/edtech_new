@@ -1954,6 +1954,12 @@ window.turnVideo = function (state) {
         videoStream = stream;
         const videoEl = document.getElementById("videoFeed");
         videoEl.srcObject = stream;
+        // Explicit play() rather than relying solely on the `autoplay`
+        // attribute — "Turn Video On" always runs from a real click (Run),
+        // so this is never blocked by autoplay policy, and calling it
+        // directly is more reliable across browsers than waiting on the
+        // attribute alone.
+        videoEl.play().catch(() => {});
         window.videoEnabled = true;
         videoPrevFrame = null;
         videoRafId = requestAnimationFrame(videoRenderLoop);
