@@ -1,5 +1,6 @@
 Blockly.Blocks["say_text"] = {
   init() {
+    this.setTooltip("Shows a speech bubble with this text until changed.");
     this.appendValueInput("TEXT").appendField("Say");
 
     this.setPreviousStatement(true);
@@ -11,6 +12,7 @@ Blockly.Blocks["say_text"] = {
 
 Blockly.Blocks["say_for_seconds"] = {
   init() {
+    this.setTooltip("Shows a speech bubble with this text for the given number of seconds.");
     this.appendValueInput("TEXT").appendField("Say");
 
     this.appendValueInput("SECONDS").appendField("For");
@@ -26,6 +28,7 @@ Blockly.Blocks["say_for_seconds"] = {
 
 Blockly.Blocks["set_background_image"] = {
   init() {
+    this.setTooltip("Changes the stage backdrop to the chosen image.");
     this.appendDummyInput()
       .appendField("Set Background Image to")
       .appendField(
@@ -46,6 +49,7 @@ Blockly.Blocks["set_background_image"] = {
 
 Blockly.Blocks["change_background"] = {
   init: function () {
+    this.setTooltip("Changes the stage background to a plain color.");
     this.appendDummyInput()
       .appendField("Change Background Color")
       .appendField(new Blockly.FieldTextInput("red"), "COLOR");
@@ -59,6 +63,7 @@ Blockly.Blocks["change_background"] = {
 
 Blockly.Blocks["add_sprite"] = {
   init: function () {
+    this.setTooltip("Adds a new sprite to the stage at the given position.");
     this.appendDummyInput()
       .appendField("Add Sprite")
       .appendField(
@@ -98,6 +103,7 @@ Blockly.Blocks["add_sprite"] = {
 
 Blockly.Blocks["set_sprite"] = {
   init: function () {
+    this.setTooltip("Switches the current sprite's image.");
     this.appendDummyInput()
       .appendField("Set Sprite")
       .appendField(
@@ -132,6 +138,7 @@ Blockly.Blocks["set_sprite"] = {
 
 Blockly.Blocks["hide_sprite"] = {
   init() {
+    this.setTooltip("Makes the sprite invisible.");
     this.appendDummyInput().appendField("Hide Sprite");
 
     this.setPreviousStatement(true);
@@ -143,6 +150,7 @@ Blockly.Blocks["hide_sprite"] = {
 
 Blockly.Blocks["show_sprite"] = {
   init() {
+    this.setTooltip("Makes the sprite visible.");
     this.appendDummyInput().appendField("Show Sprite");
 
     this.setPreviousStatement(true);
@@ -154,6 +162,7 @@ Blockly.Blocks["show_sprite"] = {
 
 Blockly.Blocks["set_sprite_size"] = {
   init() {
+    this.setTooltip("Sets the sprite's size as a percentage.");
     this.appendValueInput("SIZE").appendField("Set Sprite Size To");
 
     this.setPreviousStatement(true);
@@ -165,6 +174,7 @@ Blockly.Blocks["set_sprite_size"] = {
 
 Blockly.Blocks["change_size_by"] = {
   init() {
+    this.setTooltip("Changes the sprite's size by the given amount.");
     this.appendValueInput("SIZE").appendField("Change Size By");
 
     this.setPreviousStatement(true);
@@ -176,6 +186,7 @@ Blockly.Blocks["change_size_by"] = {
 
 Blockly.Blocks["next_background"] = {
   init() {
+    this.setTooltip("Switches to the next backdrop in the library.");
     this.appendDummyInput().appendField("Next Background");
 
     this.setPreviousStatement(true);
@@ -187,6 +198,7 @@ Blockly.Blocks["next_background"] = {
 
 Blockly.Blocks["previous_background"] = {
   init() {
+    this.setTooltip("Switches to the previous backdrop in the library.");
     this.appendDummyInput().appendField("Previous Background");
 
     this.setPreviousStatement(true);
@@ -198,6 +210,7 @@ Blockly.Blocks["previous_background"] = {
 
 Blockly.Blocks["random_background"] = {
   init() {
+    this.setTooltip("Switches to a random backdrop from the library.");
     this.appendDummyInput().appendField("Random Background");
 
     this.setPreviousStatement(true);
@@ -209,6 +222,7 @@ Blockly.Blocks["random_background"] = {
 
 Blockly.Blocks["set_background_image"] = {
   init() {
+    this.setTooltip("Changes the stage backdrop to the chosen image.");
     this.appendDummyInput()
       .appendField("Set Background Image to")
       .appendField(
@@ -229,6 +243,7 @@ Blockly.Blocks["set_background_image"] = {
 
 Blockly.Blocks["think_text"] = {
   init() {
+    this.setTooltip("Shows a thought bubble with this text until changed.");
     this.appendValueInput("TEXT").appendField("Think");
 
     this.setPreviousStatement(true);
@@ -240,6 +255,7 @@ Blockly.Blocks["think_text"] = {
 
 Blockly.Blocks["think_for_seconds"] = {
   init() {
+    this.setTooltip("Shows a thought bubble with this text for the given number of seconds.");
     this.appendValueInput("TEXT").appendField("Think");
 
     this.appendValueInput("SECONDS").appendField("For");
@@ -255,6 +271,7 @@ Blockly.Blocks["think_for_seconds"] = {
 
 Blockly.Blocks["change_graphic_effect"] = {
   init() {
+    this.setTooltip("Changes the chosen visual effect (color, ghost, brightness, blur) by the given amount.");
     this.appendValueInput("VALUE")
       .appendField("Change")
       .appendField(
@@ -277,6 +294,7 @@ Blockly.Blocks["change_graphic_effect"] = {
 
 Blockly.Blocks["set_graphic_effect"] = {
   init() {
+    this.setTooltip("Sets the chosen visual effect (color, ghost, brightness, blur) to the given value.");
     this.appendValueInput("VALUE")
       .appendField("Set")
       .appendField(
@@ -299,6 +317,7 @@ Blockly.Blocks["set_graphic_effect"] = {
 
 Blockly.Blocks["clear_graphic_effects"] = {
   init() {
+    this.setTooltip("Removes every visual effect from the sprite.");
     this.appendDummyInput().appendField("Clear graphic effects");
 
     this.setPreviousStatement(true);
@@ -310,6 +329,7 @@ Blockly.Blocks["clear_graphic_effects"] = {
 
 Blockly.Blocks["go_to_layer"] = {
   init() {
+    this.setTooltip("Moves the sprite to the front or back layer.");
     this.appendDummyInput()
       .appendField("Go to")
       .appendField(
@@ -330,6 +350,7 @@ Blockly.Blocks["go_to_layer"] = {
 
 Blockly.Blocks["go_layers"] = {
   init() {
+    this.setTooltip("Moves the sprite forward or backward through the layers by the given number.");
     this.appendValueInput("VALUE")
       .appendField("Go")
       .appendField(
@@ -351,6 +372,7 @@ Blockly.Blocks["go_layers"] = {
 
 Blockly.Blocks["costume_reporter"] = {
   init() {
+    this.setTooltip("Reports the name of the sprite's current costume.");
     this.appendDummyInput().appendField("costume name");
 
     this.setOutput(true, "String");
@@ -361,6 +383,7 @@ Blockly.Blocks["costume_reporter"] = {
 
 Blockly.Blocks["switch_costume_to"] = {
   init() {
+    this.setTooltip("Switches the sprite to the chosen costume.");
     this.appendDummyInput()
       .appendField("Switch Costume To")
       .appendField(
@@ -387,6 +410,7 @@ Blockly.Blocks["switch_costume_to"] = {
 
 Blockly.Blocks["next_costume"] = {
   init() {
+    this.setTooltip("Switches the sprite to its next costume, wrapping back to the first after the last.");
     this.appendDummyInput().appendField("Next Costume");
 
     this.setPreviousStatement(true);
@@ -398,6 +422,7 @@ Blockly.Blocks["next_costume"] = {
 
 Blockly.Blocks["backdrop_reporter"] = {
   init() {
+    this.setTooltip("Reports the name of the current backdrop.");
     this.appendDummyInput().appendField("backdrop name");
 
     this.setOutput(true, "String");
@@ -408,6 +433,7 @@ Blockly.Blocks["backdrop_reporter"] = {
 
 Blockly.Blocks["size_reporter"] = {
   init() {
+    this.setTooltip("Reports the sprite's current size as a percentage.");
     this.appendDummyInput().appendField("size");
 
     this.setOutput(true, "Number");

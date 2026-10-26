@@ -3,6 +3,7 @@
 
 Blockly.Blocks["tts_speak"] = {
   init() {
+    this.setTooltip("Speaks this text out loud using the browser's text-to-speech, and waits until it finishes.");
     this.appendValueInput("TEXT").appendField("Speak");
 
     this.setPreviousStatement(true);
@@ -14,6 +15,7 @@ Blockly.Blocks["tts_speak"] = {
 
 Blockly.Blocks["tts_set_voice"] = {
   init() {
+    this.setTooltip("Sets which voice future Speak blocks use.");
     this.appendDummyInput()
       .appendField("Set Voice To")
       .appendField(
@@ -37,6 +39,7 @@ Blockly.Blocks["tts_set_voice"] = {
 
 Blockly.Blocks["tts_set_language"] = {
   init() {
+    this.setTooltip("Sets the language future Speak blocks use.");
     this.appendDummyInput()
       .appendField("Set Language To")
       .appendField(

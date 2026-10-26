@@ -3,6 +3,7 @@
 
 Blockly.Blocks["play_drum"] = {
   init() {
+    this.setTooltip("Plays the chosen drum sound for the given number of beats.");
     this.appendValueInput("BEATS")
       .appendField("Play Drum")
       .appendField(
@@ -29,6 +30,7 @@ Blockly.Blocks["play_drum"] = {
 
 Blockly.Blocks["music_rest"] = {
   init() {
+    this.setTooltip("Pauses for the given number of beats, in silence.");
     this.appendValueInput("BEATS").appendField("Rest For");
 
     this.appendDummyInput().appendField("Beats");
@@ -42,6 +44,7 @@ Blockly.Blocks["music_rest"] = {
 
 Blockly.Blocks["play_note"] = {
   init() {
+    this.setTooltip("Plays a musical note (0-127, middle C is 60) for the given number of beats.");
     this.appendValueInput("NOTE").appendField("Play Note");
 
     this.appendValueInput("BEATS").appendField("For");
@@ -57,6 +60,7 @@ Blockly.Blocks["play_note"] = {
 
 Blockly.Blocks["set_instrument"] = {
   init() {
+    this.setTooltip("Sets which instrument sound future notes play with.");
     this.appendDummyInput()
       .appendField("Set Instrument To")
       .appendField(
@@ -80,6 +84,7 @@ Blockly.Blocks["set_instrument"] = {
 
 Blockly.Blocks["change_tempo"] = {
   init() {
+    this.setTooltip("Changes the tempo (speed of beats) by the given amount.");
     this.appendValueInput("VALUE").appendField("Change Tempo By");
 
     this.setPreviousStatement(true);
@@ -91,6 +96,7 @@ Blockly.Blocks["change_tempo"] = {
 
 Blockly.Blocks["set_tempo"] = {
   init() {
+    this.setTooltip("Sets the tempo in beats per minute.");
     this.appendValueInput("VALUE").appendField("Set Tempo To");
 
     this.appendDummyInput().appendField("BPM");
@@ -104,6 +110,7 @@ Blockly.Blocks["set_tempo"] = {
 
 Blockly.Blocks["tempo_reporter"] = {
   init() {
+    this.setTooltip("Reports the current tempo in beats per minute.");
     this.appendDummyInput().appendField("tempo");
 
     this.setOutput(true, "Number");

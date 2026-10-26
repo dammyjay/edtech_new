@@ -10,6 +10,7 @@ function spriteSoundDropdown() {
 
 Blockly.Blocks["start_sound"] = {
   init() {
+    this.setTooltip("Starts playing the chosen sound without waiting for it to finish.");
     this.appendDummyInput()
       .appendField("Start Sound")
       .appendField(new Blockly.FieldDropdown(spriteSoundDropdown), "SOUND");
@@ -23,6 +24,7 @@ Blockly.Blocks["start_sound"] = {
 
 Blockly.Blocks["play_sound_until_done"] = {
   init() {
+    this.setTooltip("Plays the chosen sound and waits until it finishes before continuing.");
     this.appendDummyInput()
       .appendField("Play Sound")
       .appendField(new Blockly.FieldDropdown(spriteSoundDropdown), "SOUND")
@@ -37,6 +39,7 @@ Blockly.Blocks["play_sound_until_done"] = {
 
 Blockly.Blocks["stop_all_sounds"] = {
   init() {
+    this.setTooltip("Stops every sound that's currently playing.");
     this.appendDummyInput().appendField("Stop All Sounds");
 
     this.setPreviousStatement(true);
@@ -48,6 +51,7 @@ Blockly.Blocks["stop_all_sounds"] = {
 
 Blockly.Blocks["change_volume"] = {
   init() {
+    this.setTooltip("Changes the volume by the given amount.");
     this.appendValueInput("VALUE").appendField("Change Volume By");
 
     this.setPreviousStatement(true);
@@ -59,6 +63,7 @@ Blockly.Blocks["change_volume"] = {
 
 Blockly.Blocks["set_volume"] = {
   init() {
+    this.setTooltip("Sets the volume as a percentage.");
     this.appendValueInput("VALUE").appendField("Set Volume To");
 
     this.setPreviousStatement(true);
@@ -70,6 +75,7 @@ Blockly.Blocks["set_volume"] = {
 
 Blockly.Blocks["volume_reporter"] = {
   init() {
+    this.setTooltip("Reports the current volume.");
     this.appendDummyInput().appendField("volume");
 
     this.setOutput(true, "Number");
@@ -80,6 +86,7 @@ Blockly.Blocks["volume_reporter"] = {
 
 Blockly.Blocks["set_sound_effect"] = {
   init() {
+    this.setTooltip("Sets the pitch or pan (left/right balance) effect to a value.");
     this.appendValueInput("VALUE")
       .appendField("Set")
       .appendField(
@@ -100,6 +107,7 @@ Blockly.Blocks["set_sound_effect"] = {
 
 Blockly.Blocks["change_sound_effect"] = {
   init() {
+    this.setTooltip("Changes the pitch or pan (left/right balance) effect by the given amount.");
     this.appendValueInput("VALUE")
       .appendField("Change")
       .appendField(
@@ -120,6 +128,7 @@ Blockly.Blocks["change_sound_effect"] = {
 
 Blockly.Blocks["clear_sound_effects"] = {
   init() {
+    this.setTooltip("Removes every sound effect (pitch, pan).");
     this.appendDummyInput().appendField("Clear Sound Effects");
 
     this.setPreviousStatement(true);

@@ -1,6 +1,7 @@
 
 Blockly.Blocks["when_run_clicked"] = {
   init: function () {
+    this.setTooltip("Runs the blocks inside when the green Run button is clicked.");
     this.appendDummyInput().appendField("When Run Clicked");
 
     this.appendStatementInput("DO");
@@ -11,6 +12,7 @@ Blockly.Blocks["when_run_clicked"] = {
 
 Blockly.Blocks["when_key_pressed"] = {
   init() {
+    this.setTooltip("Runs the blocks inside when the chosen key is pressed.");
     this.appendDummyInput()
       .appendField("When Key")
       .appendField(
@@ -59,6 +61,7 @@ Blockly.Blocks["when_key_pressed"] = {
 
 Blockly.Blocks["when_sprite_clicked"] = {
   init() {
+    this.setTooltip("Runs the blocks inside when this sprite is clicked or tapped.");
     this.appendDummyInput().appendField("When Sprite Clicked");
 
     this.appendStatementInput("DO");
@@ -69,6 +72,7 @@ Blockly.Blocks["when_sprite_clicked"] = {
 
 Blockly.Blocks["broadcast_message"] = {
   init() {
+    this.setTooltip("Sends a message to every sprite listening for it.");
     this.appendDummyInput()
       .appendField("Broadcast")
       .appendField(new Blockly.FieldTextInput("message1"), "MESSAGE");
@@ -82,6 +86,7 @@ Blockly.Blocks["broadcast_message"] = {
 
 Blockly.Blocks["when_message_received"] = {
   init() {
+    this.setTooltip("Runs the blocks inside when the chosen broadcast message is received.");
     this.appendDummyInput()
       .appendField("When I Receive")
       .appendField(new Blockly.FieldTextInput("message1"), "MESSAGE");
@@ -94,6 +99,7 @@ Blockly.Blocks["when_message_received"] = {
 
 Blockly.Blocks["broadcast_and_wait"] = {
   init() {
+    this.setTooltip("Sends a message and waits until every sprite that received it finishes responding.");
     this.appendDummyInput()
       .appendField("Broadcast")
       .appendField(new Blockly.FieldTextInput("message1"), "MESSAGE")
@@ -108,6 +114,7 @@ Blockly.Blocks["broadcast_and_wait"] = {
 
 Blockly.Blocks["when_backdrop_switches"] = {
   init() {
+    this.setTooltip("Runs the blocks inside when the backdrop changes to the chosen one.");
     this.appendDummyInput()
       .appendField("When Backdrop Switches To")
       .appendField(new Blockly.FieldTextInput("Backdrop1"), "BACKDROP");
@@ -120,6 +127,7 @@ Blockly.Blocks["when_backdrop_switches"] = {
 
 Blockly.Blocks["when_timer_greater_than"] = {
   init() {
+    this.setTooltip("Runs the blocks inside once the timer passes the given number of seconds.");
     this.appendValueInput("VALUE").appendField("When Timer >");
 
     this.appendStatementInput("DO");
