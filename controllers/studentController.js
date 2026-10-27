@@ -13,6 +13,7 @@ const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
+const portfolioService = require("../services/portfolioService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
@@ -1285,6 +1286,11 @@ exports.getDashboard = async (req, res) => {
       skillTreeData = await getStudentSkillTreeData(studentId);
     }
 
+    let portfolioData = null;
+    if (req.query.section === "portfolio") {
+      portfolioData = await portfolioService.getPortfolioData(studentId, { courseId: req.query.courseId });
+    }
+
     // --- Render
     res.render("student/dashboard", {
       student,
@@ -1326,6 +1332,7 @@ exports.getDashboard = async (req, res) => {
       engagementData,
       selectedPathway: req.query.pathway || null,
       section: req.query.section || null,
+      portfolioData,
       moduleInfo,
       moduleGridCourseId,
       moduleGridCourseTitle,
@@ -3410,6 +3417,62 @@ exports.setOwnPublicProfile = async (req, res) => {
   } catch (err) {
     console.error("setOwnPublicProfile error:", err.message);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Portfolio/CV builder — see services/portfolioService.js for the actual
+// data gathering + AI summary generation; these are thin route handlers.
+exports.addPortfolioEntry = async (req, res) => {
+  const studentId = req.session.user.id;
+  const { entryType, title, organization, entryYear, description, linkUrl } = req.body;
+  if (!title || !title.trim()) {
+    return res.status(400).json({ success: false, message: "A title is required." });
+  }
+  try {
+    const entry = await portfolioService.addEntry(studentId, { entryType, title, organization, entryYear, description, linkUrl });
+    res.json({ success: true, entry });
+  } catch (err) {
+    console.error("addPortfolioEntry error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't save that entry." });
+  }
+};
+
+exports.updatePortfolioEntry = async (req, res) => {
+  const studentId = req.session.user.id;
+  const { entryType, title, organization, entryYear, description, linkUrl } = req.body;
+  if (!title || !title.trim()) {
+    return res.status(400).json({ success: false, message: "A title is required." });
+  }
+  try {
+    const entry = await portfolioService.updateEntry(studentId, req.params.id, { entryType, title, organization, entryYear, description, linkUrl });
+    if (!entry) return res.status(404).json({ success: false, message: "Entry not found." });
+    res.json({ success: true, entry });
+  } catch (err) {
+    console.error("updatePortfolioEntry error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't update that entry." });
+  }
+};
+
+exports.deletePortfolioEntry = async (req, res) => {
+  const studentId = req.session.user.id;
+  try {
+    const ok = await portfolioService.deleteEntry(studentId, req.params.id);
+    res.json({ success: ok });
+  } catch (err) {
+    console.error("deletePortfolioEntry error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't delete that entry." });
+  }
+};
+
+exports.regeneratePortfolioSummary = async (req, res) => {
+  const studentId = req.session.user.id;
+  const { courseId } = req.body;
+  try {
+    const summaryText = await portfolioService.generateAndSaveSummary(studentId, { courseId });
+    res.json({ success: true, summaryText });
+  } catch (err) {
+    console.error("regeneratePortfolioSummary error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't generate a summary right now — try again shortly." });
   }
 };
 

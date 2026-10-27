@@ -173,6 +173,7 @@
       <li><a href="/student/arcade"><i class="fa-solid fa-gamepad"></i> Arcade</a></li>
       <li><a href="/student/dashboard?section=profile"><i class="fa-solid fa-user"></i> My Profile</a></li>
       <li><a href="/student/dashboard?section=progress"><i class="fa-solid fa-chart-line"></i> My Progress</a></li>
+      <li><a href="/student/dashboard?section=portfolio"><i class="fa-solid fa-id-card"></i> My Portfolio</a></li>
       <% if (role === 'student' && classroom) { %>
         <li><a href="/student/dashboard?section=leaderboard"><i class="fa-solid fa-trophy"></i> Leaderboard</a></li>
         <li><a href="/student/dashboard?section=peer-review"><i class="fa-solid fa-magnifying-glass"></i> Peer Review</a></li>
@@ -1105,6 +1106,191 @@
 
     </div>
 
+
+  <% } else if (section === 'portfolio') { %>
+
+    <div class="progress-container" id="portfolioSection">
+
+      <h2>🎓 My Portfolio / CV</h2>
+
+      <div class="jk-toolbar" style="margin-bottom:16px;">
+        <select id="portfolioCourseSelect" class="jk-select" onchange="switchPortfolioCourse(this.value)">
+          <option value="" <%= !portfolioData.scopedCourseId ? 'selected' : '' %>>Full CV (all courses)</option>
+          <% (portfolioData.courseOptions || []).forEach(c => { %>
+            <option value="<%= c.id %>" <%= portfolioData.scopedCourseId === c.id ? 'selected' : '' %>><%= c.title %></option>
+          <% }) %>
+        </select>
+
+        <% if (student.public_profile_enabled && student.public_profile_slug) { %>
+          <a href="/achievements/<%= student.public_profile_slug %>" target="_blank" class="btn-view" style="text-decoration:none;">
+            🌐 View my public portfolio
+          </a>
+        <% } %>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="portfolio-skills" style="margin-bottom:20px;">
+        <h3>🛠️ Skills</h3>
+        <% if (portfolioData.skills && portfolioData.skills.length) { %>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <% portfolioData.skills.forEach(s => { %>
+              <span class="jk-pill" style="background:#eef6ff; color:#1a5fb4; padding:6px 12px; border-radius:16px; font-size:13px;"><%= s %></span>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p style="color:#888; font-size:13px;">Complete a course or publish a project to start building your skills list.</p>
+        <% } %>
+      </div>
+
+      <!-- AI SUMMARY -->
+      <div class="portfolio-summary" style="margin-bottom:20px; background:#fafafa; border:1px solid #eee; border-radius:10px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">🤖 AI Overview</h3>
+          <button type="button" class="btn-view" id="regenerateSummaryBtn" onclick="regeneratePortfolioSummary()">
+            ✨ <%= portfolioData.summary ? 'Regenerate' : 'Generate' %> Summary
+          </button>
+        </div>
+        <div id="portfolioSummaryText" style="margin-top:10px; white-space:pre-line; font-size:14px; color:#333;">
+          <% if (portfolioData.summary) { %>
+            <%= portfolioData.summary.summary_text %>
+            <p style="color:#aaa; font-size:11px; margin-top:8px;">Generated <%= new Date(portfolioData.summary.generated_at).toLocaleDateString() %></p>
+          <% } else { %>
+            <span style="color:#888;">No AI summary yet — click Generate Summary above.</span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- COURSES -->
+      <% if (!portfolioData.scopedCourseId) { %>
+        <div class="portfolio-courses" style="margin-bottom:20px;">
+          <h3>📘 Courses</h3>
+          <% if (portfolioData.courses.length) { %>
+            <table class="jk-table" style="width:100%;">
+              <thead><tr><th>Course</th><th>Level</th><th>Progress</th><th>Quiz Avg</th></tr></thead>
+              <tbody>
+                <% portfolioData.courses.forEach(c => { %>
+                  <tr>
+                    <td><%= c.title %></td>
+                    <td><%= c.level || '—' %></td>
+                    <td><%= c.progress %>%</td>
+                    <td><%= c.quiz_avg !== null ? c.quiz_avg + '%' : '—' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p style="color:#888; font-size:13px;">No enrolled courses yet.</p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <!-- CERTIFICATES -->
+      <div class="portfolio-certificates" style="margin-bottom:20px;">
+        <h3>📜 Certificates</h3>
+        <% if (portfolioData.certificates.length) { %>
+          <ul style="padding-left:20px; font-size:14px;">
+            <% portfolioData.certificates.forEach(cert => { %>
+              <li><%= cert.course_title %> — issued <%= new Date(cert.issued_at).toLocaleDateString() %></li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p style="color:#888; font-size:13px;">No certificates in this scope yet.</p>
+        <% } %>
+      </div>
+
+      <!-- BADGES -->
+      <div class="portfolio-badges" style="margin-bottom:20px;">
+        <h3>🏅 Badges</h3>
+        <% if (portfolioData.badges.length) { %>
+          <ul style="padding-left:20px; font-size:14px;">
+            <% portfolioData.badges.forEach(b => { %>
+              <li><%= b.badge_name %> — <%= b.module_title %></li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p style="color:#888; font-size:13px;">No badges in this scope yet.</p>
+        <% } %>
+      </div>
+
+      <!-- PROJECTS -->
+      <div class="portfolio-projects" style="margin-bottom:20px;">
+        <h3>🚀 Projects</h3>
+        <% if (portfolioData.projects.length) { %>
+          <ul style="padding-left:20px; font-size:14px;">
+            <% portfolioData.projects.forEach(p => { %>
+              <li>
+                <strong><%= p.title %></strong> — <%= p.type %>
+                <%= p.score !== null && p.score !== undefined ? ' (score ' + p.score + ')' : '' %>
+                <%= p.isPublished ? ' 🌐 Published to Gallery' : '' %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p style="color:#888; font-size:13px;">No projects in this scope yet.</p>
+        <% } %>
+      </div>
+
+      <!-- ACHIEVEMENTS / EXPERIENCE (student-added) -->
+      <div class="portfolio-entries">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>🏆 Achievements &amp; Experience</h3>
+          <button type="button" class="btn-view" onclick="openPortfolioEntryForm()">➕ Add</button>
+        </div>
+
+        <div id="portfolioEntriesList">
+          <% (portfolioData.entries || []).forEach(e => { %>
+            <div class="portfolio-entry-card" data-entry-id="<%= e.id %>" style="border:1px solid #eee; border-radius:8px; padding:12px; margin:10px 0;">
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <div>
+                  <strong><%= e.title %></strong>
+                  <span style="color:#888; font-size:12px;">[<%= e.entry_type %>]</span>
+                  <% if (e.entry_year) { %><span style="color:#888; font-size:12px;"> · <%= e.entry_year %></span><% } %>
+                  <% if (e.organization) { %><div style="font-size:13px; color:#555;"><%= e.organization %></div><% } %>
+                  <% if (e.description) { %><div style="font-size:13px; color:#555; margin-top:4px;"><%= e.description %></div><% } %>
+                  <% if (e.link_url) { %><a href="<%= e.link_url %>" target="_blank" style="font-size:12px;">🔗 Link</a><% } %>
+                </div>
+                <div style="white-space:nowrap;">
+                  <button type="button" class="btn-view"
+                    onclick='openPortfolioEntryForm(<%- JSON.stringify({ id: e.id, entryType: e.entry_type, title: e.title, organization: e.organization, entryYear: e.entry_year, description: e.description, linkUrl: e.link_url }) %>)'>✏️</button>
+                  <button type="button" class="btn-view" onclick="deletePortfolioEntry(<%= e.id %>)">🗑️</button>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+          <% if (!(portfolioData.entries || []).length) { %>
+            <p style="color:#888; font-size:13px;">Nothing added yet — add a competition, extra project, or other experience.</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- ADD/EDIT ENTRY MODAL -->
+      <div id="portfolioEntryModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closePortfolioEntryForm()">&times;</span>
+          <h3 id="portfolioEntryModalTitle">Add Achievement / Experience</h3>
+          <input type="hidden" id="portfolioEntryId" value="">
+          <label>Type</label>
+          <select id="portfolioEntryType" class="jk-select">
+            <option value="project">Project</option>
+            <option value="competition">Competition</option>
+            <option value="experience">Experience</option>
+            <option value="other">Other</option>
+          </select>
+          <label>Title</label>
+          <input type="text" id="portfolioEntryTitle" placeholder="e.g. National Robotics Challenge">
+          <label>Organization / Name (optional)</label>
+          <input type="text" id="portfolioEntryOrganization" placeholder="e.g. NASCO, My School, etc.">
+          <label>Year (optional)</label>
+          <input type="text" id="portfolioEntryYear" placeholder="e.g. 2026">
+          <label>Description (optional)</label>
+          <textarea id="portfolioEntryDescription" rows="3" placeholder="What did you do / achieve?"></textarea>
+          <label>Link (optional)</label>
+          <input type="text" id="portfolioEntryLink" placeholder="https://...">
+          <button type="button" class="btn-view" onclick="savePortfolioEntry()">💾 Save</button>
+        </div>
+      </div>
+
+    </div>
 
   <% } else if (section === 'classroom' && classroom) { %>
   <h2>👥 Your Classmates in <%= classroom.name %></h2>
@@ -3156,6 +3342,104 @@ async function unlockAvatarFrame(frameKey) {
     }
   } catch (err) {
     console.error("Failed to unlock avatar frame:", err);
+  }
+}
+
+function switchPortfolioCourse(courseId) {
+  window.location.href = "/student/dashboard?section=portfolio" + (courseId ? "&courseId=" + encodeURIComponent(courseId) : "");
+}
+
+async function regeneratePortfolioSummary() {
+  const btn = document.getElementById("regenerateSummaryBtn");
+  const textEl = document.getElementById("portfolioSummaryText");
+  const courseSelect = document.getElementById("portfolioCourseSelect");
+  const courseId = courseSelect ? courseSelect.value : "";
+  if (btn) { btn.disabled = true; btn.textContent = "✨ Generating…"; }
+  try {
+    const res = await fetch("/student/portfolio/regenerate-summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseId: courseId || null }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't generate a summary right now.");
+      return;
+    }
+    if (textEl) textEl.textContent = data.summaryText;
+    showToast("✨ Summary updated!");
+  } catch (err) {
+    console.error("regeneratePortfolioSummary error:", err);
+    showToast("Something went wrong generating your summary.");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "✨ Regenerate Summary"; }
+  }
+}
+
+function openPortfolioEntryForm(entry) {
+  document.getElementById("portfolioEntryModalTitle").textContent = entry ? "Edit Achievement / Experience" : "Add Achievement / Experience";
+  document.getElementById("portfolioEntryId").value = entry ? entry.id : "";
+  document.getElementById("portfolioEntryType").value = entry ? entry.entryType : "project";
+  document.getElementById("portfolioEntryTitle").value = entry ? entry.title : "";
+  document.getElementById("portfolioEntryOrganization").value = entry ? (entry.organization || "") : "";
+  document.getElementById("portfolioEntryYear").value = entry ? (entry.entryYear || "") : "";
+  document.getElementById("portfolioEntryDescription").value = entry ? (entry.description || "") : "";
+  document.getElementById("portfolioEntryLink").value = entry ? (entry.linkUrl || "") : "";
+  document.getElementById("portfolioEntryModal").style.display = "block";
+}
+
+function closePortfolioEntryForm() {
+  document.getElementById("portfolioEntryModal").style.display = "none";
+}
+
+async function savePortfolioEntry() {
+  const id = document.getElementById("portfolioEntryId").value;
+  const payload = {
+    entryType: document.getElementById("portfolioEntryType").value,
+    title: document.getElementById("portfolioEntryTitle").value.trim(),
+    organization: document.getElementById("portfolioEntryOrganization").value.trim(),
+    entryYear: document.getElementById("portfolioEntryYear").value.trim(),
+    description: document.getElementById("portfolioEntryDescription").value.trim(),
+    linkUrl: document.getElementById("portfolioEntryLink").value.trim(),
+  };
+  if (!payload.title) {
+    showToast("A title is required.");
+    return;
+  }
+  try {
+    const res = await fetch(id ? "/student/portfolio/entries/" + id : "/student/portfolio/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.message || "Couldn't save that entry.");
+      return;
+    }
+    showToast("💾 Saved!");
+    window.location.href = "/student/dashboard?section=portfolio";
+  } catch (err) {
+    console.error("savePortfolioEntry error:", err);
+    showToast("Something went wrong saving that entry.");
+  }
+}
+
+async function deletePortfolioEntry(id) {
+  const ok = await (typeof showConfirm === "function" ? showConfirm("Delete this entry?") : Promise.resolve(confirm("Delete this entry?")));
+  if (!ok) return;
+  try {
+    const res = await fetch("/student/portfolio/entries/" + id + "/delete", { method: "POST" });
+    const data = await res.json();
+    if (!data.success) {
+      showToast("Couldn't delete that entry.");
+      return;
+    }
+    const card = document.querySelector('.portfolio-entry-card[data-entry-id="' + id + '"]');
+    if (card) card.remove();
+  } catch (err) {
+    console.error("deletePortfolioEntry error:", err);
+    showToast("Something went wrong deleting that entry.");
   }
 }
 

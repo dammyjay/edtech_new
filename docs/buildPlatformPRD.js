@@ -452,8 +452,15 @@ const FEATURE_MODULES = [
       ]},
       { category: "What's Shown", items: [
         "Public Showcase: published Web/Blockly gallery projects plus admin-featured External Projects, shortened to 'First L.' names, with like counts and star ratings; filters live as you type/click, by project name and lab type, with no page reload, and links back to the author's portfolio page.",
-        "Public achievement/portfolio page (/achievements/:slug, unguessable link): level, streak, badges, certificates under a cartoon avatar and shortened name, plus a grid of that student's own published gallery projects.",
+        "Public achievement/portfolio page (/achievements/:slug, unguessable link): level, streak, badges, certificates under a cartoon avatar and shortened name, a Skills list, an AI-written overview paragraph, any student-added achievements/experience entries, plus a grid of that student's own published gallery projects.",
         "Individual badge/certificate share cards, redacted so a real full name is never exposed even though the underlying certificate image carries it.",
+      ]},
+      { category: "Portfolio / CV Builder", items: [
+        "A student's own 'My Portfolio' tab on their dashboard: a full CV aggregating every completed/in-progress course (with quiz average), certificates, badges, and projects pulled from all three real project sources (published Lab Gallery work, lesson-tied lab tasks, graded External Project submissions) — or the same view scoped to just one course via a course switcher.",
+        "An AI-written 2-3 paragraph overview (via the same AI primitive used for quiz/lab/project feedback) summarizing skills, courses, and projects — generated on demand (never automatically, to keep it a bounded, explicit cost), separately for the full CV and for each course. The prompt deliberately never names the student, so the exact same text is safe to reuse unredacted on the public achievement page.",
+        "Students can add their own free-text achievements/experience (competitions, outside projects, other experience — title, organization, year, description, link), fully separate from anything the platform tracks automatically.",
+        "A linked parent gets a read-only 'Portfolio' view of each child from their own dashboard (same ownership check as the existing public-profile toggle) — full name shown (a parent already knows their own child), no edit/regenerate controls.",
+        "Sharing reuses the existing public_profile_enabled/slug consent system end-to-end — no new visibility flag was introduced.",
       ]},
     ],
   },

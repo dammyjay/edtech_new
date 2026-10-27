@@ -20,6 +20,7 @@ const { getCompanyInfo } = require("../utils/companyInfo");
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getPublicStudentBySlug, toDisplayName } = require("../services/publicAchievementService");
+const portfolioService = require("../services/portfolioService");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
@@ -87,6 +88,14 @@ router.get("/achievements/:slug", async (req, res) => {
       getCompanyInfo(),
     ]);
 
+    // Portfolio/CV additions (services/portfolioService.js) — only its
+    // skills/entries/summary are used here; courses/certificates/badges/
+    // projects stay driven by this route's own existing queries above so
+    // this page's established data/redaction behavior doesn't drift.
+    // buildPortfolioPrompt() never names the student, so this AI summary
+    // text is already safe to show unredacted on a public page.
+    const portfolioExtra = await portfolioService.getPortfolioData(student.id, {});
+
     res.render("public/achievements", {
       slug: req.params.slug,
       displayName: student.displayName,
@@ -97,6 +106,9 @@ router.get("/achievements/:slug", async (req, res) => {
       certificates: certificatesRes.rows,
       coursesCompleted: parseInt(coursesCompletedRes.rows[0].count, 10) || 0,
       projects: projectsRes.rows,
+      skills: portfolioExtra.skills,
+      portfolioEntries: portfolioExtra.entries,
+      portfolioSummary: portfolioExtra.summary,
       company,
     });
   } catch (err) {

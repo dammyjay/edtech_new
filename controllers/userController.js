@@ -10,6 +10,7 @@ const crypto = require("crypto");
 const { logActivityForUser } = require("../utils/activityLogger");
 const { getLessonTaskById, getTaskCompletionStatus } = require("../services/lessonTaskService");
 const getAnnouncements = require("../utils/getAnnouncements");
+const portfolioService = require("../services/portfolioService");
 const { renderQuizReportHtml, renderCourseReportHtml } = require("../utils/reportTemplate");
 const axios = require("axios");
 const { getStudentStreak } = require("../services/streakService");
@@ -1127,6 +1128,36 @@ exports.setChildPublicProfile = async (req, res) => {
   } catch (err) {
     console.error("Error setting child public profile:", err.message);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Read-only view of a linked child's Portfolio/CV — same ownership check as
+// setChildPublicProfile above. Deliberately no edit/regenerate controls
+// here; only the student themselves can change their own portfolio (see
+// controllers/studentController.js's portfolio routes).
+exports.getChildPortfolio = async (req, res) => {
+  const parent = req.session.user;
+  if (!parent || parent.role !== "parent") {
+    return res.status(403).send("Only a parent can view this page.");
+  }
+
+  const { childId } = req.params;
+  try {
+    const ownershipRes = await pool.query(
+      `SELECT id, fullname, avatar_url, profile_picture FROM users2
+       WHERE id = $1 AND id IN (SELECT child_id FROM parent_children WHERE parent_id = $2)`,
+      [childId, parent.id]
+    );
+    const child = ownershipRes.rows[0];
+    if (!child) {
+      return res.status(403).send("You are not linked to this child.");
+    }
+
+    const portfolioData = await portfolioService.getPortfolioData(childId, { courseId: req.query.courseId });
+    res.render("parent/childPortfolio", { child, portfolioData });
+  } catch (err) {
+    console.error("getChildPortfolio error:", err.message);
+    res.status(500).send("Something went wrong loading this portfolio.");
   }
 };
 

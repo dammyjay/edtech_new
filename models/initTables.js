@@ -2515,6 +2515,46 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE lab_projects      ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
     `);
 
+    // Student Portfolio/CV Builder — a student's own free-text additions
+    // (competitions, outside experience, extra projects not tracked by any
+    // lab/course system) alongside the auto-pulled course/certificate/
+    // badge/project data already in the platform. Deliberately has no
+    // course_id: these are whole-CV-level extras, not tied to one course.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS portfolio_entries (
+        id SERIAL PRIMARY KEY,
+        student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        entry_type TEXT NOT NULL DEFAULT 'other',
+        title TEXT NOT NULL,
+        organization TEXT,
+        entry_year TEXT,
+        description TEXT,
+        link_url TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
+    // AI-generated CV/portfolio summaries (services/portfolioService.js).
+    // course_id NULL = the full, all-courses summary; a non-null course_id
+    // is that one course's own summary. Generated on demand (a student
+    // clicks "Regenerate"), never automatically, so it stays a bounded,
+    // explicit AI cost rather than a per-page-load one. No UNIQUE
+    // constraint here on purpose — Postgres treats NULL as distinct from
+    // itself, which would let several "aggregate" (course_id IS NULL) rows
+    // pile up under a naive UNIQUE(student_id, course_id); the service
+    // does its own select-then-update-or-insert instead.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS portfolio_summaries (
+        id SERIAL PRIMARY KEY,
+        student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        course_id INT REFERENCES courses(id) ON DELETE CASCADE,
+        summary_text TEXT NOT NULL,
+        generated_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

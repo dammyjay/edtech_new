@@ -74,6 +74,13 @@ router.post(
   studentController.setOwnPublicProfile
 );
 
+// Portfolio/CV builder — see controllers/studentController.js and
+// services/portfolioService.js.
+router.post("/portfolio/entries", express.json(), studentController.addPortfolioEntry);
+router.post("/portfolio/entries/:id", express.json(), studentController.updatePortfolioEntry);
+router.post("/portfolio/entries/:id/delete", express.json(), studentController.deletePortfolioEntry);
+router.post("/portfolio/regenerate-summary", express.json(), studentController.regeneratePortfolioSummary);
+
 router.get(
   "/lessons/:lessonId",
   ensureAuthenticated,

@@ -97,6 +97,22 @@
       display: inline-block; background: var(--brand-pri, #A17807); color: #fff; text-decoration: none;
       padding: 12px 26px; border-radius: 8px; font-weight: 700; font-size: 14px;
     }
+
+    .pa-skill-chip {
+      display: inline-block; background: #fff; border-radius: 999px; padding: 6px 14px;
+      font-size: 12px; font-weight: 700; color: var(--brand-pri-dark, #4C3802); margin: 0 6px 8px 0;
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-summary-box {
+      background: #fff; border-radius: var(--radius, 10px); padding: 16px;
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); font-size: 13.5px; white-space: pre-line;
+    }
+    .pa-entry-card {
+      background: #fff; border-radius: var(--radius, 10px); padding: 12px 16px; margin-bottom: 10px;
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .pa-entry-title { font-weight: 700; font-size: 13.5px; }
+    .pa-entry-meta { font-size: 11px; color: var(--text-secondary, #666); }
   </style>
 </head>
 <body>
@@ -121,6 +137,18 @@
       <div class="pa-stat-card"><strong><%= streak.currentStreak %></strong><span>Day Streak</span></div>
       <div class="pa-stat-card"><strong><%= badges.length %></strong><span>Badges</span></div>
     </div>
+
+    <% if (skills && skills.length) { %>
+      <h2 class="pa-section-title">🛠️ Skills</h2>
+      <div>
+        <% skills.forEach(s => { %><span class="pa-skill-chip"><%= s %></span><% }) %>
+      </div>
+    <% } %>
+
+    <% if (portfolioSummary) { %>
+      <h2 class="pa-section-title">🤖 Overview</h2>
+      <div class="pa-summary-box"><%= portfolioSummary.summary_text %></div>
+    <% } %>
 
     <h2 class="pa-section-title">🏅 Badges</h2>
     <% if (badges.length) { %>
@@ -156,6 +184,19 @@
       </div>
     <% } else { %>
       <p class="pa-empty">No certificates earned yet — check back soon!</p>
+    <% } %>
+
+    <% if (portfolioEntries && portfolioEntries.length) { %>
+      <h2 class="pa-section-title">🏆 Achievements &amp; Experience</h2>
+      <% portfolioEntries.forEach(e => { %>
+        <div class="pa-entry-card">
+          <div class="pa-entry-title"><%= e.title %></div>
+          <div class="pa-entry-meta">
+            <%= e.entry_type %><%= e.entry_year ? ' · ' + e.entry_year : '' %><%= e.organization ? ' · ' + e.organization : '' %>
+          </div>
+          <% if (e.description) { %><p style="font-size:12.5px; margin:6px 0 0;"><%= e.description %></p><% } %>
+        </div>
+      <% }) %>
     <% } %>
 
     <% if (projects && projects.length) { %>

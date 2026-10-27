@@ -1,0 +1,143 @@
+<%- include('../partials/header', { title: child.fullname + "'s Portfolio" }) %>
+
+<style>
+  .pd-portfolio-header { display:flex; align-items:center; gap:14px; margin:20px 0; }
+  .pd-portfolio-header img { width:56px; height:56px; border-radius:50%; object-fit:cover; }
+  .pd-portfolio-header h1 { margin:0; font-size:20px; color: var(--brand-pri-dark, #4C3802); }
+  .pd-portfolio-skill { background:#eef6ff; color:#1a5fb4; padding:6px 12px; border-radius:16px; font-size:13px; display:inline-block; margin:0 6px 6px 0; }
+  .pd-portfolio-section { margin-bottom:24px; }
+  .pd-portfolio-section h3 { margin-bottom:8px; }
+  .pd-portfolio-summary-box { background:#fafafa; border:1px solid #eee; border-radius:10px; padding:16px; white-space:pre-line; font-size:14px; color:#333; }
+  .pd-portfolio-entry-card { border:1px solid #eee; border-radius:8px; padding:12px; margin:10px 0; }
+</style>
+
+<div class="pd-portfolio-header">
+  <img src="<%= child.avatar_url || child.profile_picture || '/profile.webp' %>" alt="">
+  <div>
+    <h1><%= child.fullname %>'s Portfolio</h1>
+    <p style="margin:2px 0 0; color:#888; font-size:13px;">Read-only — only <%= child.fullname %> can edit this.</p>
+  </div>
+</div>
+
+<div class="jk-toolbar" style="margin-bottom:16px;">
+  <select id="portfolioCourseSelect" class="jk-select" onchange="switchChildPortfolioCourse(this.value)">
+    <option value="" <%= !portfolioData.scopedCourseId ? 'selected' : '' %>>Full CV (all courses)</option>
+    <% (portfolioData.courseOptions || []).forEach(c => { %>
+      <option value="<%= c.id %>" <%= portfolioData.scopedCourseId === c.id ? 'selected' : '' %>><%= c.title %></option>
+    <% }) %>
+  </select>
+</div>
+
+<div class="pd-portfolio-section">
+  <h3>🛠️ Skills</h3>
+  <% if (portfolioData.skills && portfolioData.skills.length) { %>
+    <% portfolioData.skills.forEach(s => { %><span class="pd-portfolio-skill"><%= s %></span><% }) %>
+  <% } else { %>
+    <p style="color:#888; font-size:13px;">Nothing yet.</p>
+  <% } %>
+</div>
+
+<div class="pd-portfolio-section">
+  <h3>🤖 AI Overview</h3>
+  <div class="pd-portfolio-summary-box">
+    <% if (portfolioData.summary) { %>
+      <%= portfolioData.summary.summary_text %>
+      <p style="color:#aaa; font-size:11px; margin-top:8px;">Generated <%= new Date(portfolioData.summary.generated_at).toLocaleDateString() %></p>
+    <% } else { %>
+      <span style="color:#888;">Your child hasn't generated an AI summary yet.</span>
+    <% } %>
+  </div>
+</div>
+
+<% if (!portfolioData.scopedCourseId) { %>
+  <div class="pd-portfolio-section">
+    <h3>📘 Courses</h3>
+    <% if (portfolioData.courses.length) { %>
+      <table class="jk-table" style="width:100%;">
+        <thead><tr><th>Course</th><th>Level</th><th>Progress</th><th>Quiz Avg</th></tr></thead>
+        <tbody>
+          <% portfolioData.courses.forEach(c => { %>
+            <tr>
+              <td><%= c.title %></td>
+              <td><%= c.level || '—' %></td>
+              <td><%= c.progress %>%</td>
+              <td><%= c.quiz_avg !== null ? c.quiz_avg + '%' : '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p style="color:#888; font-size:13px;">No enrolled courses yet.</p>
+    <% } %>
+  </div>
+<% } %>
+
+<div class="pd-portfolio-section">
+  <h3>📜 Certificates</h3>
+  <% if (portfolioData.certificates.length) { %>
+    <ul style="padding-left:20px; font-size:14px;">
+      <% portfolioData.certificates.forEach(cert => { %>
+        <li><%= cert.course_title %> — issued <%= new Date(cert.issued_at).toLocaleDateString() %></li>
+      <% }) %>
+    </ul>
+  <% } else { %>
+    <p style="color:#888; font-size:13px;">None yet.</p>
+  <% } %>
+</div>
+
+<div class="pd-portfolio-section">
+  <h3>🏅 Badges</h3>
+  <% if (portfolioData.badges.length) { %>
+    <ul style="padding-left:20px; font-size:14px;">
+      <% portfolioData.badges.forEach(b => { %>
+        <li><%= b.badge_name %> — <%= b.module_title %></li>
+      <% }) %>
+    </ul>
+  <% } else { %>
+    <p style="color:#888; font-size:13px;">None yet.</p>
+  <% } %>
+</div>
+
+<div class="pd-portfolio-section">
+  <h3>🚀 Projects</h3>
+  <% if (portfolioData.projects.length) { %>
+    <ul style="padding-left:20px; font-size:14px;">
+      <% portfolioData.projects.forEach(p => { %>
+        <li>
+          <strong><%= p.title %></strong> — <%= p.type %>
+          <%= p.score !== null && p.score !== undefined ? ' (score ' + p.score + ')' : '' %>
+          <%= p.isPublished ? ' 🌐 Published to Gallery' : '' %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } else { %>
+    <p style="color:#888; font-size:13px;">None yet.</p>
+  <% } %>
+</div>
+
+<div class="pd-portfolio-section">
+  <h3>🏆 Achievements &amp; Experience</h3>
+  <% if ((portfolioData.entries || []).length) { %>
+    <% portfolioData.entries.forEach(e => { %>
+      <div class="pd-portfolio-entry-card">
+        <strong><%= e.title %></strong>
+        <span style="color:#888; font-size:12px;">[<%= e.entry_type %>]</span>
+        <% if (e.entry_year) { %><span style="color:#888; font-size:12px;"> · <%= e.entry_year %></span><% } %>
+        <% if (e.organization) { %><div style="font-size:13px; color:#555;"><%= e.organization %></div><% } %>
+        <% if (e.description) { %><div style="font-size:13px; color:#555; margin-top:4px;"><%= e.description %></div><% } %>
+        <% if (e.link_url) { %><a href="<%= e.link_url %>" target="_blank" style="font-size:12px;">🔗 Link</a><% } %>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <p style="color:#888; font-size:13px;">Nothing added yet.</p>
+  <% } %>
+</div>
+
+<script>
+  function switchChildPortfolioCourse(courseId) {
+    const url = new URL(window.location.href);
+    if (courseId) url.searchParams.set('courseId', courseId);
+    else url.searchParams.delete('courseId');
+    window.location.href = url.toString();
+  }
+</script>
