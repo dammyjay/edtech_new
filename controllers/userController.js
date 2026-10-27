@@ -1153,8 +1153,16 @@ exports.getChildPortfolio = async (req, res) => {
       return res.status(403).send("You are not linked to this child.");
     }
 
-    const portfolioData = await portfolioService.getPortfolioData(childId, { courseId: req.query.courseId });
-    res.render("parent/childPortfolio", { child, portfolioData });
+    const [portfolioData, childSummary] = await Promise.all([
+      portfolioService.getPortfolioData(childId, { courseId: req.query.courseId }),
+      getChildSummary(childId),
+    ]);
+    res.render("parent/childPortfolio", {
+      child,
+      portfolioData,
+      levelInfo: childSummary.levelInfo,
+      streak: childSummary.streak,
+    });
   } catch (err) {
     console.error("getChildPortfolio error:", err.message);
     res.status(500).send("Something went wrong loading this portfolio.");
