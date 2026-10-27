@@ -21,6 +21,21 @@ const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { getPublicStudentBySlug, toDisplayName } = require("../services/publicAchievementService");
 const portfolioService = require("../services/portfolioService");
+const { renderAndUploadCertificate } = require("../services/issueCertificate");
+
+// Renders+uploads a privacy-safe copy of a certificate (real template,
+// redacted "First L." name) and caches it on public_certificate_url.
+// Puppeteer rendering takes ~20-30s, so every caller here fires this in
+// the background (never awaited on a live visitor's request) — see the
+// two call sites below.
+async function warmPublicCertificateImage(certId, displayName, courseTitle) {
+  try {
+    const { url } = await renderAndUploadCertificate({ studentName: displayName, courseTitle });
+    await pool.query(`UPDATE user_certificates SET public_certificate_url = $1 WHERE id = $2`, [url, certId]);
+  } catch (err) {
+    console.error("warmPublicCertificateImage error:", err.message);
+  }
+}
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 
 // No-login-required unsubscribe for cron/parentWeeklyDigest.js — token is
@@ -63,7 +78,7 @@ router.get("/achievements/:slug", async (req, res) => {
         [student.id]
       ),
       pool.query(
-        `SELECT uc.id, uc.issued_at, c.title AS course_title
+        `SELECT uc.id, uc.issued_at, uc.public_certificate_url, c.title AS course_title
          FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
          WHERE uc.user_id = $1 ORDER BY uc.issued_at DESC`,
         [student.id]
@@ -87,6 +102,18 @@ router.get("/achievements/:slug", async (req, res) => {
       ),
       getCompanyInfo(),
     ]);
+
+    // Pre-warm each certificate's privacy-safe share image in the
+    // background (fire-and-forget — never awaited here) so that by the
+    // time a visitor actually clicks "Share" on one, it's very likely
+    // already cached instead of making them wait ~20-30s for a live
+    // Puppeteer render. The share route below still handles the case
+    // where someone reaches it before this finishes.
+    for (const cert of certificatesRes.rows) {
+      if (!cert.public_certificate_url) {
+        warmPublicCertificateImage(cert.id, student.displayName, cert.course_title);
+      }
+    }
 
     // Portfolio/CV additions (services/portfolioService.js) — only its
     // skills/entries/summary are used here; courses/certificates/badges/
@@ -145,17 +172,21 @@ router.get("/achievements/:slug/badge/:badgeId", async (req, res) => {
   }
 });
 
-// Individual certificate share page — deliberately does NOT render or link
-// uc.certificate_url (see the note on the main achievements route above).
-// Renders a redacted card instead, built fresh from data that's already
-// public-safe (course title, issue date, "First L.").
+// Individual certificate share page — never renders or links
+// uc.certificate_url directly (see the note on the main achievements route
+// above: it has the student's REAL full legal name printed on it). Instead
+// shows the actual certificate ARTWORK rendered a second time with the
+// page's redacted "First L." name baked in via the same template/
+// background/signature (services/issueCertificate.js's
+// renderAndUploadCertificate) — real design, no name leak. Generated
+// lazily on first share, then cached on user_certificates.public_certificate_url.
 router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
   try {
     const student = await getPublicStudentBySlug(req.params.slug);
     if (!student) return res.status(404).send("This page isn't available.");
 
     const certRes = await pool.query(
-      `SELECT uc.issued_at, c.title AS course_title
+      `SELECT uc.id, uc.issued_at, uc.public_certificate_url, c.title AS course_title
        FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
        WHERE uc.id = $1 AND uc.user_id = $2`,
       [req.params.certId, student.id]
@@ -163,11 +194,20 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
     const certificate = certRes.rows[0];
     if (!certificate) return res.status(404).send("Certificate not found.");
 
+    // Never block this live request on a ~20-30s Puppeteer render — if the
+    // main achievements page's pre-warm (above) hasn't finished yet, kick
+    // it off here too (fire-and-forget) and fall back to the redacted text
+    // card for this one visit; a refresh shortly after will have it.
+    if (!certificate.public_certificate_url) {
+      warmPublicCertificateImage(certificate.id, student.displayName, certificate.course_title);
+    }
+
     const company = await getCompanyInfo();
     res.render("public/certificateShare", {
       slug: req.params.slug,
       displayName: student.displayName,
       certificate,
+      certificateImageUrl: certificate.public_certificate_url || null,
       company,
     });
   } catch (err) {

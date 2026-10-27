@@ -2515,6 +2515,17 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE lab_projects      ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
     `);
 
+    // A second, privacy-safe render of a student's real certificate —
+    // same template/background/signature as the real one, but with the
+    // public page's redacted "First L." name baked in instead of the real
+    // full legal name — so the public certificate-share page
+    // (routes/publicRoutes.js's /achievements/:slug/certificate/:certId)
+    // can show the actual certificate artwork instead of a plain text
+    // card. Generated lazily on first share, then cached here.
+    await pool.query(
+      `ALTER TABLE user_certificates ADD COLUMN IF NOT EXISTS public_certificate_url TEXT;`
+    );
+
     // Student Portfolio/CV Builder — a student's own free-text additions
     // (competitions, outside experience, extra projects not tracked by any
     // lab/course system) alongside the auto-pulled course/certificate/

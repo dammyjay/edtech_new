@@ -86,3 +86,11 @@ module.exports.regenerateCertificate = async ({ userId, courseId, studentName, c
   );
   return { certificateId: inserted.rows[0].id, url, created: true };
 };
+
+// Exposed so routes/publicRoutes.js can render a second, privacy-safe copy
+// of a student's real certificate (same template, a redacted "First L."
+// name instead of the real one) for the public certificate-share page —
+// same render+upload step as issuing/regenerating, just never written to
+// user_certificates.certificate_url/certificate_code (those stay the
+// REAL, name-bearing certificate).
+module.exports.renderAndUploadCertificate = renderAndUploadCertificate;
