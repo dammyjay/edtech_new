@@ -79,4 +79,8 @@ router.post(
   labController.uploadStudentSound
 );
 
+// Blockly Lab's "Translate" category — proxies to the free MyMemory API
+// server-side (see labController.translateText for why).
+router.post("/translate", labController.translateText);
+
 module.exports = router;

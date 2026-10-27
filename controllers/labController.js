@@ -315,6 +315,61 @@ exports.uploadStudentSound = async (req, res) => {
   res.json({ success: true, url: req.file.path, name });
 };
 
+// Blockly Lab's "Translate" category calls MyMemory (api.mymemory.
+// translated.net) through this proxy rather than straight from the
+// browser — MyMemory is free and needs no API key/signup, but its daily
+// character quota is tracked per caller (IP, or the contact email below),
+// so it's shared across every student on the platform. A small in-memory
+// cache and a server-side length cap make that shared quota go further;
+// the contact email raises the daily limit from 5,000 to 50,000
+// characters (the admin's own choice, not a login/account).
+const MYMEMORY_CONTACT_EMAIL = "wificombattraining@gmail.com";
+const TRANSLATE_ALLOWED_LANGUAGES = new Set(["es", "fr", "de", "it", "pt", "zh", "ar", "ha", "yo", "ig", "sw"]);
+const translationCache = new Map();
+const TRANSLATION_CACHE_MAX = 2000;
+
+exports.translateText = async (req, res) => {
+  const text = (req.body.text || "").toString().trim().slice(0, 500);
+  const target = (req.body.target || "").toString().trim();
+
+  if (!text) {
+    return res.json({ success: true, translated: "" });
+  }
+  if (!TRANSLATE_ALLOWED_LANGUAGES.has(target)) {
+    return res.json({ success: false, message: "Unsupported language." });
+  }
+
+  const cacheKey = `${target}:${text}`;
+  if (translationCache.has(cacheKey)) {
+    return res.json({ success: true, translated: translationCache.get(cacheKey) });
+  }
+
+  try {
+    const url =
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}` +
+      `&langpair=en|${target}&de=${encodeURIComponent(MYMEMORY_CONTACT_EMAIL)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    const translated = data && data.responseData && data.responseData.translatedText;
+
+    if (!translated || /MYMEMORY WARNING/i.test(translated)) {
+      return res.json({
+        success: false,
+        message: "Translation is temporarily unavailable (daily limit reached). Try again tomorrow.",
+      });
+    }
+
+    if (translationCache.size >= TRANSLATION_CACHE_MAX) {
+      translationCache.delete(translationCache.keys().next().value);
+    }
+    translationCache.set(cacheKey, translated);
+
+    res.json({ success: true, translated });
+  } catch (err) {
+    res.json({ success: false, message: "Translation service is unavailable right now." });
+  }
+};
+
 // Catalog tags that aren't themselves real @wokwi/elements custom element
 // names — kept in sync by hand with public/labs/js/arduinoLab.js's own
 // SYNTHETIC_COMPONENT_VARIANTS (that file's comment explains why these

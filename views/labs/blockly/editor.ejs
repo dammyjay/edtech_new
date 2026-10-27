@@ -50,6 +50,7 @@
 <script src="/labs/js/blockly/blocks/sound.js"></script>
 <script src="/labs/js/blockly/blocks/music.js"></script>
 <script src="/labs/js/blockly/blocks/video.js"></script>
+<script src="/labs/js/blockly/blocks/translate.js"></script>
 
 <script src="/labs/js/blockly/generators/motion.js"></script>
 <script src="/labs/js/blockly/generators/looks.js"></script>
@@ -917,6 +918,22 @@
         </shadow>
       </value>
     </block>
+
+  </category>
+
+  <category name="Translate" colour="#4B9E8B">
+
+    <block type="translate_and_wait">
+      <value name="TEXT">
+        <shadow type="text">
+          <field name="TEXT">hello</field>
+        </shadow>
+      </value>
+    </block>
+
+    <block type="translation_result"></block>
+
+    <block type="viewer_language"></block>
 
   </category>
 </xml>

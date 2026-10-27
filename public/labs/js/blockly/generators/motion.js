@@ -816,3 +816,20 @@ ${statements}
 });
 `;
 };
+
+// TRANSLATE
+
+jsGenerator.forBlock["translate_and_wait"] = function (block) {
+  const text = jsGenerator.valueToCode(block, "TEXT", javascript.Order.ATOMIC) || '""';
+  const language = block.getFieldValue("LANGUAGE");
+
+  return `await translateAndWait(${text}, "${language}");\n`;
+};
+
+jsGenerator.forBlock["translation_result"] = function () {
+  return ["lastTranslation", javascript.Order.ATOMIC];
+};
+
+jsGenerator.forBlock["viewer_language"] = function () {
+  return ["getViewerLanguage()", javascript.Order.FUNCTION_CALL];
+};

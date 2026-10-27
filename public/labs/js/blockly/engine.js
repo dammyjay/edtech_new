@@ -2075,6 +2075,48 @@ window.addEventListener("pagehide", () => {
 });
 
 // =========================
+// TRANSLATE
+// =========================
+
+window.lastTranslation = "";
+
+// Calls the server-side proxy (routes/labRoutes.js's POST /labs/translate,
+// which talks to the free MyMemory API) and blocks the script until the
+// result is back — same "await the network, cache the result for a
+// separate reporter" pattern as askAndWait()/userAnswer above.
+window.translateAndWait = function (text, language) {
+  return fetch("/labs/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: String(text), target: language }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.success) {
+        lastTranslation = data.translated;
+      } else {
+        lastTranslation = "";
+        if (typeof showToast === "function") {
+          showToast((data && data.message) || "Translation failed.", "error");
+        }
+      }
+    })
+    .catch(() => {
+      lastTranslation = "";
+      if (typeof showToast === "function") {
+        showToast("Translation service is unavailable right now.", "error");
+      }
+    });
+};
+
+// Approximation: the browser/device's own locale setting, not the
+// project's own language — same honesty-flagged approach already used
+// elsewhere in this engine (video direction, graphic-effect approximations).
+window.getViewerLanguage = function () {
+  return ((navigator.language || "en").split("-")[0]);
+};
+
+// =========================
 // INITIALIZE
 // =========================
 
