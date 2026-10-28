@@ -553,7 +553,9 @@ const FEATURE_MODULES = [
       ]},
       { category: "Certificates", items: [
         "Auto-issued on 100% course completion plus all assignments submitted; unique certificate code; rendered via a Puppeteer HTML-to-image pipeline and stored on Cloudinary.",
-        "Admin sets the certificate background, signature image, signee name/title per course, and can preview certificates before they're issued.",
+        "Admin sets the certificate background, signature image, signee name/title, and can preview certificates before they're issued.",
+        "Certificate Template Library: admin can save more than one certificate design (background/signature/signee/title each) and switch which one is the active template with one click — every new certificate and every future 'Regenerate' always uses whichever is active. The single legacy background/signature/signee/title fields still work as a quick-edit fallback for a platform that never touches the library.",
+        "Regenerate All Issued Certificates (admin, client-requested): re-renders every certificate ever issued against the current active template in one action — useful right after uploading/activating a new design so historical certificates don't look out of date. Runs as a background job (never blocks the admin's request) at a deliberately conservative pace (one render at a time) since each render is a real ~20-30s headless-browser screenshot and running several at once was found to exhaust machine resources; a partial/failed run never corrupts a certificate — a failed render simply leaves that one certificate's existing image untouched until retried.",
       ]},
     ],
   },

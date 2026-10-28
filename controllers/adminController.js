@@ -2721,10 +2721,8 @@ exports.previewCertificate = async (req, res) => {
     const course = courseResult.rows[0];
     if (!course) return res.status(404).send("Course not found");
 
-    const infoRes = await pool.query(
-      "SELECT certificate_background_url, certificate_signature_url, certificate_signee_name, certificate_title FROM company_info ORDER BY id DESC LIMIT 1"
-    );
-    const info = infoRes.rows[0] || {};
+    const { getActiveCertificateTemplate } = require("../services/issueCertificate");
+    const info = await getActiveCertificateTemplate();
 
     const fs = require("fs");
     const path = require("path");

@@ -82,8 +82,123 @@
     </form>
   </div>
 
+  <div class="jk-report-panel">
+    <h3>🗂️ Certificate Template Library</h3>
+    <p style="font-size:13px; color:#8A7B55;">
+      Save more than one certificate design and switch which one is active. New certificates, and any
+      "Regenerate" action, always use whichever template is marked Active below — if none is saved yet,
+      the single "Certificate Template" section above still applies.
+    </p>
+
+    <div style="margin-bottom:18px;">
+      <button type="button" class="jk-btn-outline" onclick="regenerateAllCertificates()">🔄 Regenerate All Issued Certificates</button>
+      <span id="regenerateAllStatus" style="font-size:12px; color:#8A7B55; margin-left:10px;"></span>
+      <p style="font-size:11.5px; color:#8A7B55; margin-top:6px;">Re-renders every certificate ever issued using the current active template — useful right after uploading/activating a new one. Runs in the background and can take a few minutes for a large number of certificates.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; margin-bottom:20px;">
+      <% (certificateTemplates || []).forEach(t => { %>
+        <div class="jk-stat-card" data-template-id="<%= t.id %>" style="text-align:left; <%= t.is_active ? 'border: 2px solid var(--brand-pri, #A17807);' : '' %>">
+          <img src="<%= t.background_url %>" alt="<%= t.name %>" style="width:100%; height:100px; object-fit:cover; border-radius:8px;" />
+          <div style="font-weight:800; margin-top:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <%= t.name %>
+            <% if (t.is_active) { %><span class="jk-pill jk-pill--active">Active</span><% } %>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            <% if (!t.is_active) { %><button type="button" class="jk-btn-outline-sm" onclick="activateCertTemplate(<%= t.id %>)">✅ Activate</button><% } %>
+            <button type="button" class="jk-btn-outline-sm" onclick="deleteCertTemplate(<%= t.id %>)">🗑️ Delete</button>
+          </div>
+        </div>
+      <% }) %>
+      <% if (!(certificateTemplates || []).length) { %>
+        <p style="color:#8A7B55; font-size:13px;">No saved templates yet — add your first one below.</p>
+      <% } %>
+    </div>
+
+    <hr />
+    <h4>➕ Add New Template</h4>
+    <form id="addCertTemplateForm" enctype="multipart/form-data">
+      <label>Template Name</label><br />
+      <input type="text" name="name" class="jk-select" style="width:100%; max-width:420px;" required placeholder="e.g. 2026 Gold Edition" /><br /><br />
+
+      <label>Background Image (required)</label><br />
+      <input type="file" name="cert_template_background" accept="image/*" required /><br /><br />
+
+      <label>Signature Image (optional)</label><br />
+      <input type="file" name="cert_template_signature" accept="image/*" /><br /><br />
+
+      <label>Signee Name (optional, defaults to the Signee Name above)</label><br />
+      <input type="text" name="signee_name" class="jk-select" style="width:100%; max-width:420px;" placeholder="e.g. Jimoh Damilola" /><br /><br />
+
+      <label>Certificate Title (optional, defaults to "CERTIFICATE OF COMPLETION")</label><br />
+      <input type="text" name="title" class="jk-select" style="width:100%; max-width:420px;" placeholder="e.g. CERTIFICATE OF COMPLETION" /><br /><br />
+
+      <button type="submit" class="jk-btn-dark" id="addCertTemplateBtn">💾 Save Template</button>
+    </form>
+  </div>
+
 </section>
 
 <script>
   CKEDITOR.replace("historyContent");
+
+  document.getElementById("addCertTemplateForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = document.getElementById("addCertTemplateBtn");
+    btn.disabled = true;
+    try {
+      const res = await fetch("/admin/company/certificate-templates", {
+        method: "POST",
+        body: new FormData(form),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message || "Couldn't save that template.");
+        return;
+      }
+      window.location.reload();
+    } catch (err) {
+      alert("Something went wrong saving that template.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  async function activateCertTemplate(id) {
+    if (!confirm("Make this the active certificate template? New certificates (and future Regenerate actions) will use it.")) return;
+    try {
+      const res = await fetch(`/admin/company/certificate-templates/${id}/activate`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) window.location.reload();
+      else alert(data.message || "Couldn't activate that template.");
+    } catch (err) {
+      alert("Something went wrong activating that template.");
+    }
+  }
+
+  async function deleteCertTemplate(id) {
+    if (!confirm("Delete this template? This can't be undone.")) return;
+    try {
+      const res = await fetch(`/admin/company/certificate-templates/${id}/delete`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) window.location.reload();
+      else alert(data.message || "Couldn't delete that template.");
+    } catch (err) {
+      alert("Something went wrong deleting that template.");
+    }
+  }
+
+  async function regenerateAllCertificates() {
+    if (!confirm("Regenerate EVERY issued certificate using the current active template? This runs in the background and can take a few minutes.")) return;
+    const statusEl = document.getElementById("regenerateAllStatus");
+    statusEl.textContent = "Starting…";
+    try {
+      const res = await fetch("/admin/company/certificates/regenerate-all", { method: "POST" });
+      const data = await res.json();
+      statusEl.textContent = data.message || "Started.";
+    } catch (err) {
+      statusEl.textContent = "Failed to start — try again.";
+    }
+  }
 </script>

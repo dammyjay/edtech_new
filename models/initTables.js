@@ -2515,6 +2515,29 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       ALTER TABLE lab_projects      ADD COLUMN IF NOT EXISTS archived_by INTEGER REFERENCES users2(id);
     `);
 
+    // A switchable certificate template library — client asked to be able
+    // to upload more than the single global template company_info's
+    // certificate_* columns support. services/issueCertificate.js's
+    // renderAndUploadCertificate prefers the row with is_active=true here,
+    // falling back to company_info when this table is empty (so nothing
+    // changes until an admin actually saves a template here). Only one
+    // row is ever active at a time — enforced in application code
+    // (controllers/companyController.js's activateCertificateTemplate),
+    // not a DB constraint, same style as other single-active-row patterns
+    // in this codebase.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS certificate_templates (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        background_url TEXT NOT NULL,
+        signature_url TEXT,
+        signee_name TEXT,
+        title TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     // A second, privacy-safe render of a student's real certificate —
     // same template/background/signature as the real one, but with the
     // public page's redacted "First L." name baked in instead of the real

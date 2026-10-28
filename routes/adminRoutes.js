@@ -264,6 +264,24 @@ router.post(
   companyController.saveInfo
 );
 
+// Certificate template library (client-requested: more than one template
+// to choose from) — see models/initTables.js's certificate_templates and
+// services/issueCertificate.js's getActiveCertificateTemplate.
+router.post(
+  "/company/certificate-templates",
+  upload.fields([
+    { name: "cert_template_background", maxCount: 1 },
+    { name: "cert_template_signature", maxCount: 1 },
+  ]),
+  companyController.createCertificateTemplate
+);
+router.post("/company/certificate-templates/:id/activate", companyController.activateCertificateTemplate);
+router.post("/company/certificate-templates/:id/delete", companyController.deleteCertificateTemplate);
+
+// Bulk "re-render every issued certificate against the active template"
+// action (client-requested, after changing/uploading a new template).
+router.post("/company/certificates/regenerate-all", companyController.regenerateAllCertificates);
+
 // Career Pathways
 router.get("/pathways", adminController.showPathways);
 // router.post("/admin/pathways", adminController.createPathway);

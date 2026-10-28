@@ -35,6 +35,8 @@ const generalStorage = new CloudinaryStorage({
     else if (file.fieldname === "sprite_costume_image") folder = "labs/sprites";
     else if (file.fieldname === "sprite_sound_file") folder = "labs/sounds";
     else if (file.fieldname === "student_sound_file") folder = "labs/sounds";
+    else if (file.fieldname === "cert_template_background") folder = "certificate_templates";
+    else if (file.fieldname === "cert_template_signature") folder = "certificate_templates";
 
     return {
       folder,

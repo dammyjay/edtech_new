@@ -130,15 +130,111 @@ exports.showForm = async (req, res) => {
     );
     const info = result.rows[0] || {};
 
+    const templatesRes = await pool.query(
+      "SELECT * FROM certificate_templates ORDER BY created_at DESC"
+    );
+
     res.render("admin/company", {
       info,
       title: "company info",
       info,
       role: "admin",
       users: req.session.user,
+      certificateTemplates: templatesRes.rows,
     });
   } catch (error) {
     console.error(error);
     res.status(500).send("Server Error");
   }
+};
+
+// Certificate template library — see models/initTables.js's
+// certificate_templates table and services/issueCertificate.js's
+// getActiveCertificateTemplate for how the active row is actually used.
+exports.createCertificateTemplate = async (req, res) => {
+  const { name, signee_name, title } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: "A template name is required." });
+  }
+  if (!req.files || !req.files.cert_template_background || !req.files.cert_template_background[0]) {
+    return res.status(400).json({ success: false, message: "A background image is required." });
+  }
+
+  try {
+    const backgroundUrl = req.files.cert_template_background[0].path;
+    const signatureUrl = req.files.cert_template_signature && req.files.cert_template_signature[0]
+      ? req.files.cert_template_signature[0].path
+      : null;
+
+    // The very first template a platform ever saves here becomes active
+    // automatically — otherwise nothing would use the library at all
+    // until someone separately clicks Activate, a confusing extra step
+    // for what's obviously meant to be "my certificate template" at that
+    // point.
+    const countRes = await pool.query("SELECT COUNT(*) FROM certificate_templates");
+    const isFirst = parseInt(countRes.rows[0].count, 10) === 0;
+
+    const inserted = await pool.query(
+      `INSERT INTO certificate_templates (name, background_url, signature_url, signee_name, title, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name.trim(), backgroundUrl, signatureUrl, signee_name || null, title || null, isFirst]
+    );
+
+    res.json({ success: true, template: inserted.rows[0] });
+  } catch (err) {
+    console.error("createCertificateTemplate error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't save that template." });
+  }
+};
+
+exports.activateCertificateTemplate = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const existing = await pool.query("SELECT id FROM certificate_templates WHERE id = $1", [id]);
+    if (!existing.rows.length) {
+      return res.status(404).json({ success: false, message: "Template not found." });
+    }
+    await pool.query("UPDATE certificate_templates SET is_active = false WHERE is_active = true");
+    await pool.query("UPDATE certificate_templates SET is_active = true WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("activateCertificateTemplate error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't activate that template." });
+  }
+};
+
+exports.deleteCertificateTemplate = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM certificate_templates WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("deleteCertificateTemplate error:", err.message);
+    res.status(500).json({ success: false, message: "Couldn't delete that template." });
+  }
+};
+
+// Bulk action (client-requested): re-render every already-issued
+// certificate against whatever the active template looks like right now.
+// Fire-and-forget — never awaited here, since a real run is several
+// minutes (services/issueCertificate.js's regenerateAllCertificates has
+// the full explanation). Responds immediately so the admin's browser/the
+// request never hangs or risks a gateway timeout.
+exports.regenerateAllCertificates = async (req, res) => {
+  const { regenerateAllCertificates } = require("../services/issueCertificate");
+
+  res.json({ success: true, message: "Regeneration started in the background — this can take a few minutes for a large number of certificates." });
+
+  regenerateAllCertificates({
+    concurrency: 1,
+    onProgress: ({ done, total, failed }) => {
+      console.log(`Certificate regeneration: ${done}/${total} done (${failed} failed so far)`);
+    },
+  })
+    .then(({ total, failed }) => {
+      console.log(`Certificate regeneration complete: ${total - failed}/${total} succeeded.`);
+    })
+    .catch((err) => {
+      console.error("regenerateAllCertificates background job error:", err.message);
+    });
 };
