@@ -2680,6 +2680,7 @@ exports.showCourses = async (req, res) => {
   const coursesResult = await pool.query(coursesQuery, params);
 
   const pathwaysResult = await pool.query("SELECT * FROM career_pathways");
+  const certificateTemplatesResult = await pool.query("SELECT id, name, is_active FROM certificate_templates ORDER BY name");
 
   // Group courses by pathway and level
   const groupedCourses = {};
@@ -2697,6 +2698,7 @@ exports.showCourses = async (req, res) => {
     info,
     search: req.query.search || "",
     careerPathways: pathwaysResult.rows,
+    certificateTemplates: certificateTemplatesResult.rows,
     groupedCourses,
     role: req.session.user?.role || "admin",
   });
@@ -2721,8 +2723,8 @@ exports.previewCertificate = async (req, res) => {
     const course = courseResult.rows[0];
     if (!course) return res.status(404).send("Course not found");
 
-    const { getActiveCertificateTemplate } = require("../services/issueCertificate");
-    const info = await getActiveCertificateTemplate();
+    const { getTemplateForCourse } = require("../services/issueCertificate");
+    const info = await getTemplateForCourse(courseId);
 
     const fs = require("fs");
     const path = require("path");
@@ -2787,7 +2789,7 @@ exports.regenerateStudentCertificate = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
   console.log("📘 Creating course with:", req.body);
-  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content } =
+  const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content, certificate_template_id } =
     req.body;
 
   // multer-storage-cloudinary has already uploaded this to Cloudinary by
@@ -2818,9 +2820,9 @@ exports.createCourse = async (req, res) => {
         title, description, level, career_pathway_id,
         thumbnail_url, thumbnail_source, sort_order, amount,
         created_by, instructor_id,
-        curriculum_content
+        curriculum_content, certificate_template_id
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         title,
         description,
@@ -2832,7 +2834,8 @@ exports.createCourse = async (req, res) => {
         amount || 0,
         req.user.role === "instructor" ? "instructor" : "admin",
         req.user.role === "instructor" ? req.user.id : null,
-        curriculum_content
+        curriculum_content,
+        certificate_template_id || null,
       ]
     );
 
@@ -2854,7 +2857,7 @@ exports.createCourse = async (req, res) => {
 exports.editCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content, regenerate_thumbnail } = req.body;
+    const { title, description, level, career_pathway_id, sort_order, amount, curriculum_content, regenerate_thumbnail, certificate_template_id } = req.body;
 
     let thumbnailUrl = null;
     let thumbnailSource = null;
@@ -2924,8 +2927,8 @@ exports.editCourse = async (req, res) => {
         title=$1, description=$2, level=$3, career_pathway_id=$4,
         thumbnail_url=$5, thumbnail_source=$6, sort_order=$7, amount=$8,
         created_by=$9, instructor_id=$10,
-        curriculum_content=$11
-      WHERE id=$12`,
+        curriculum_content=$11, certificate_template_id=$12
+      WHERE id=$13`,
       [
         title,
         description,
@@ -2938,6 +2941,7 @@ exports.editCourse = async (req, res) => {
         req.user.role === "instructor" ? "instructor" : "admin",
         req.user.role === "instructor" ? req.user.id : null,
         curriculum_content || null,
+        certificate_template_id || null,
         id
       ]
     );

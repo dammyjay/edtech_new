@@ -2538,6 +2538,15 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Per-course template override (client-requested) — a course with no
+    // assignment here uses whichever certificate_templates row has
+    // is_active=true (the "default" template); ON DELETE SET NULL so
+    // deleting an assigned template just falls a course back to the
+    // default rather than breaking it.
+    await pool.query(
+      `ALTER TABLE courses ADD COLUMN IF NOT EXISTS certificate_template_id INT REFERENCES certificate_templates(id) ON DELETE SET NULL;`
+    );
+
     // A second, privacy-safe render of a student's real certificate —
     // same template/background/signature as the real one, but with the
     // public page's redacted "First L." name baked in instead of the real

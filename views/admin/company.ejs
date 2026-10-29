@@ -85,15 +85,16 @@
   <div class="jk-report-panel">
     <h3>🗂️ Certificate Template Library</h3>
     <p style="font-size:13px; color:#8A7B55;">
-      Save more than one certificate design and switch which one is active. New certificates, and any
-      "Regenerate" action, always use whichever template is marked Active below — if none is saved yet,
-      the single "Certificate Template" section above still applies.
+      Save more than one certificate design. One is always the <strong>Default</strong> — used by any course
+      that doesn't have its own template assigned (set per-course from that course's Edit form on the
+      Courses page). If no template is saved here at all, the single "Certificate Template" section above
+      still applies.
     </p>
 
     <div style="margin-bottom:18px;">
       <button type="button" class="jk-btn-outline" onclick="regenerateAllCertificates()">🔄 Regenerate All Issued Certificates</button>
       <span id="regenerateAllStatus" style="font-size:12px; color:#8A7B55; margin-left:10px;"></span>
-      <p style="font-size:11.5px; color:#8A7B55; margin-top:6px;">Re-renders every certificate ever issued using the current active template — useful right after uploading/activating a new one. Runs in the background and can take a few minutes for a large number of certificates.</p>
+      <p style="font-size:11.5px; color:#8A7B55; margin-top:6px;">Re-renders every certificate ever issued against its own course's template (or the Default, if that course has none assigned) — useful right after uploading/changing a template. Runs in the background and can take a few minutes for a large number of certificates.</p>
     </div>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; margin-bottom:20px;">
@@ -102,10 +103,10 @@
           <img src="<%= t.background_url %>" alt="<%= t.name %>" style="width:100%; height:100px; object-fit:cover; border-radius:8px;" />
           <div style="font-weight:800; margin-top:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             <%= t.name %>
-            <% if (t.is_active) { %><span class="jk-pill jk-pill--active">Active</span><% } %>
+            <% if (t.is_active) { %><span class="jk-pill jk-pill--active">Default</span><% } %>
           </div>
           <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
-            <% if (!t.is_active) { %><button type="button" class="jk-btn-outline-sm" onclick="activateCertTemplate(<%= t.id %>)">✅ Activate</button><% } %>
+            <% if (!t.is_active) { %><button type="button" class="jk-btn-outline-sm" onclick="activateCertTemplate(<%= t.id %>)">✅ Set as Default</button><% } %>
             <button type="button" class="jk-btn-outline-sm" onclick="deleteCertTemplate(<%= t.id %>)">🗑️ Delete</button>
           </div>
         </div>
@@ -166,7 +167,7 @@
   });
 
   async function activateCertTemplate(id) {
-    if (!confirm("Make this the active certificate template? New certificates (and future Regenerate actions) will use it.")) return;
+    if (!confirm("Make this the Default certificate template? Any course without its own assigned template will use it.")) return;
     try {
       const res = await fetch(`/admin/company/certificate-templates/${id}/activate`, { method: "POST" });
       const data = await res.json();

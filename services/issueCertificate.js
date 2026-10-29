@@ -3,10 +3,11 @@ const fs = require("fs");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
 
-// Which template a render uses: the active row in certificate_templates
-// (controllers/companyController.js's admin-managed template library) when
-// one exists, otherwise company_info's single legacy certificate_* columns
-// — so nothing changes for a platform that never touches the library.
+// The platform-wide default template: the row with is_active=true in
+// certificate_templates (controllers/companyController.js's admin-managed
+// library) when one exists, otherwise company_info's single legacy
+// certificate_* columns — so nothing changes for a platform that never
+// touches the library.
 async function getActiveCertificateTemplate() {
   const activeRes = await pool.query(
     `SELECT background_url AS certificate_background_url, signature_url AS certificate_signature_url,
@@ -21,13 +22,34 @@ async function getActiveCertificateTemplate() {
   return infoRes.rows[0] || {};
 }
 
-// Renders a fresh certificate image (current template — see
-// getActiveCertificateTemplate above) and uploads it to Cloudinary.
-// Shared by first-time issuing and by an admin's later "Regenerate"
-// action — both need the exact same render+upload step, just a different
-// DB write after it.
-async function renderAndUploadCertificate({ studentName, courseTitle }) {
-  const info = await getActiveCertificateTemplate();
+// Which template a render actually uses: a course's own assigned template
+// (courses.certificate_template_id, client-requested) when it has one,
+// otherwise the platform-wide default (getActiveCertificateTemplate
+// above). Every caller below passes a courseId (even the public
+// certificate-share copy), so a course's own design is respected
+// everywhere, not just on first issuance.
+async function getTemplateForCourse(courseId) {
+  if (courseId) {
+    const courseRes = await pool.query(
+      `SELECT ct.background_url AS certificate_background_url, ct.signature_url AS certificate_signature_url,
+              ct.signee_name AS certificate_signee_name, ct.title AS certificate_title
+       FROM courses c
+       JOIN certificate_templates ct ON ct.id = c.certificate_template_id
+       WHERE c.id = $1`,
+      [courseId]
+    );
+    if (courseRes.rows.length) return courseRes.rows[0];
+  }
+  return getActiveCertificateTemplate();
+}
+
+// Renders a fresh certificate image (the course's own template, or the
+// platform default — see getTemplateForCourse above) and uploads it to
+// Cloudinary. Shared by first-time issuing, an admin's later "Regenerate"
+// action, and the public certificate-share page's redacted copy — all
+// need the exact same render+upload step, just a different caller after.
+async function renderAndUploadCertificate({ studentName, courseTitle, courseId }) {
+  const info = await getTemplateForCourse(courseId);
 
   const { outputPath, certCode } = await generateCertificate({
     studentName,
@@ -58,7 +80,7 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
   );
   if (existing.rows.length) return;
 
-  const { certCode, url } = await renderAndUploadCertificate({ studentName, courseTitle });
+  const { certCode, url } = await renderAndUploadCertificate({ studentName, courseTitle, courseId });
 
   await pool.query(
     `INSERT INTO user_certificates
@@ -79,7 +101,7 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
 // regenerating a certificate that was never actually granted would be a
 // confusing silent no-op otherwise).
 module.exports.regenerateCertificate = async ({ userId, courseId, studentName, courseTitle }) => {
-  const { certCode, url } = await renderAndUploadCertificate({ studentName, courseTitle });
+  const { certCode, url } = await renderAndUploadCertificate({ studentName, courseTitle, courseId });
 
   const updated = await pool.query(
     `UPDATE user_certificates
@@ -110,9 +132,10 @@ module.exports.regenerateCertificate = async ({ userId, courseId, studentName, c
 module.exports.renderAndUploadCertificate = renderAndUploadCertificate;
 
 // Exposed so controllers/adminController.js's previewCertificate can show
-// the actual active template (library or legacy company_info) instead of
-// only ever reading company_info directly.
+// the actual template a course will use (its own assignment, or the
+// platform default) instead of only ever reading company_info directly.
 module.exports.getActiveCertificateTemplate = getActiveCertificateTemplate;
+module.exports.getTemplateForCourse = getTemplateForCourse;
 
 // Admin bulk action: re-render EVERY issued certificate against whatever
 // the active template looks like right now — e.g. right after uploading/
@@ -152,6 +175,7 @@ module.exports.regenerateAllCertificates = async ({ concurrency = 1, onProgress 
         const { certCode, url } = await renderAndUploadCertificate({
           studentName: cert.student_name,
           courseTitle: cert.course_title,
+          courseId: cert.course_id,
         });
         await pool.query(
           `UPDATE user_certificates SET certificate_code = $1, certificate_url = $2, public_certificate_url = NULL WHERE id = $3`,

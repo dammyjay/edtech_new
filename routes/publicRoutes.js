@@ -28,9 +28,9 @@ const { renderAndUploadCertificate } = require("../services/issueCertificate");
 // Puppeteer rendering takes ~20-30s, so every caller here fires this in
 // the background (never awaited on a live visitor's request) — see the
 // two call sites below.
-async function warmPublicCertificateImage(certId, displayName, courseTitle) {
+async function warmPublicCertificateImage(certId, displayName, courseTitle, courseId) {
   try {
-    const { url } = await renderAndUploadCertificate({ studentName: displayName, courseTitle });
+    const { url } = await renderAndUploadCertificate({ studentName: displayName, courseTitle, courseId });
     await pool.query(`UPDATE user_certificates SET public_certificate_url = $1 WHERE id = $2`, [url, certId]);
   } catch (err) {
     console.error("warmPublicCertificateImage error:", err.message);
@@ -78,7 +78,7 @@ router.get("/achievements/:slug", async (req, res) => {
         [student.id]
       ),
       pool.query(
-        `SELECT uc.id, uc.issued_at, uc.public_certificate_url, c.title AS course_title
+        `SELECT uc.id, uc.issued_at, uc.public_certificate_url, uc.course_id, c.title AS course_title
          FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
          WHERE uc.user_id = $1 ORDER BY uc.issued_at DESC`,
         [student.id]
@@ -111,7 +111,7 @@ router.get("/achievements/:slug", async (req, res) => {
     // where someone reaches it before this finishes.
     for (const cert of certificatesRes.rows) {
       if (!cert.public_certificate_url) {
-        warmPublicCertificateImage(cert.id, student.displayName, cert.course_title);
+        warmPublicCertificateImage(cert.id, student.displayName, cert.course_title, cert.course_id);
       }
     }
 
@@ -186,7 +186,7 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
     if (!student) return res.status(404).send("This page isn't available.");
 
     const certRes = await pool.query(
-      `SELECT uc.id, uc.issued_at, uc.public_certificate_url, c.title AS course_title
+      `SELECT uc.id, uc.issued_at, uc.public_certificate_url, uc.course_id, c.title AS course_title
        FROM user_certificates uc JOIN courses c ON c.id = uc.course_id
        WHERE uc.id = $1 AND uc.user_id = $2`,
       [req.params.certId, student.id]
@@ -199,7 +199,7 @@ router.get("/achievements/:slug/certificate/:certId", async (req, res) => {
     // it off here too (fire-and-forget) and fall back to the redacted text
     // card for this one visit; a refresh shortly after will have it.
     if (!certificate.public_certificate_url) {
-      warmPublicCertificateImage(certificate.id, student.displayName, certificate.course_title);
+      warmPublicCertificateImage(certificate.id, student.displayName, certificate.course_title, certificate.course_id);
     }
 
     const company = await getCompanyInfo();

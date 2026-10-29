@@ -57,6 +57,17 @@
               step="0.01"
               placeholder="Amount in ₦"
             /><br />
+
+      <div class="container">
+        <label for="">Certificate Template</label>
+        <select class="gender-details" name="certificate_template_id">
+          <option value="">-- Use Default Template --</option>
+          <% (certificateTemplates || []).forEach(t => { %>
+            <option value="<%= t.id %>"><%= t.name %><%= t.is_active ? ' (Default)' : '' %></option>
+          <% }) %>
+        </select><br />
+      </div>
+
       <button type="submit">Create Course</button>
     </form>
       </div>
@@ -128,6 +139,7 @@
                       data-content-id="courseOverviewData-<%= course.id %>"
                       data-download-url="/admin/courses/<%= course.id %>/curriculum/download"
                     >📘 View Curriculum</button>
+                    <a href="/admin/courses/<%= course.id %>/certificate-preview" target="_blank" class="btn-edit" style="text-decoration:none;">🎓 Preview Certificate</a>
                     <form action="/admin/courses/<%= course.id %>/regenerate-thumbnail" method="POST" style="display:inline;" onsubmit="return handleConfirmSubmitWithLoading(event, 'Replace the current thumbnail with a new auto-generated one?', '🖼️ Generating… (can take up to a minute)')">
                       <input type="hidden" name="redirect_to" value="/admin/courses" />
                       <button type="submit">🖼️ Regenerate Thumbnail</button>
@@ -194,7 +206,17 @@
                         value="<%= course.amount || '' %>"
                       /><br />
                     </div>
-                    
+
+                    <label for="">Certificate Template</label>
+                    <select name="certificate_template_id">
+                      <option value="">-- Use Default Template --</option>
+                      <% (certificateTemplates || []).forEach(t => { %>
+                        <option value="<%= t.id %>" <%= t.id === course.certificate_template_id ? 'selected' : '' %>>
+                          <%= t.name %><%= t.is_active ? ' (Default)' : '' %>
+                        </option>
+                      <% }) %>
+                    </select><br /><br>
+
                     <button type="submit">Update Course</button>
                   </form>
                 </div>
