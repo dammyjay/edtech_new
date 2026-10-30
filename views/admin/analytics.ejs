@@ -23,7 +23,12 @@
       <option value="90">Last 90 days</option>
     </select>
 
-    <select id="schoolFilter" class="jk-select"><option value="">All Schools</option></select>
+    <select id="schoolFilter" class="jk-select">
+      <option value="">All Schools</option>
+      <% (schools || []).forEach(s => { %>
+        <option value="<%= s.id %>"><%= s.name %></option>
+      <% }) %>
+    </select>
 
     <button id="refreshBtn" class="jk-btn-dark"><i class="fas fa-rotate"></i> Refresh</button>
   </div>
@@ -39,7 +44,7 @@
       <div class="jk-stat-value" id="cardTotalUsers">—</div>
     </div>
     <div class="jk-stat-card">
-      <div class="jk-stat-head"><span class="jk-stat-label">New (7d)</span><span class="jk-stat-icon">📈</span></div>
+      <div class="jk-stat-head"><span class="jk-stat-label" id="cardNewLabel">New (30d)</span><span class="jk-stat-icon">📈</span></div>
       <div class="jk-stat-value" id="cardNew7">—</div>
     </div>
     <div class="jk-stat-card">
@@ -55,7 +60,7 @@
       <div class="jk-stat-value" id="cardTotalRevenue">—</div>
     </div>
     <div class="jk-stat-card">
-      <div class="jk-stat-head"><span class="jk-stat-label">Revenue (30d)</span><span class="jk-stat-icon">💵</span></div>
+      <div class="jk-stat-head"><span class="jk-stat-label" id="cardRevenueLabel">Revenue (30d)</span><span class="jk-stat-icon">💵</span></div>
       <div class="jk-stat-value" id="cardRevenue30d">—</div>
     </div>
   </div>
@@ -105,8 +110,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
 
 <script>
+  // The Range/School dropdowns above used to be decorative — present in
+  // the DOM but read by nothing. Every stats fetch now carries both as
+  // query params, and every endpoint (controllers/adminController.js)
+  // actually scopes its query by them.
+  function currentFilterParams() {
+    const range = document.getElementById('rangeSelect').value;
+    const schoolId = document.getElementById('schoolFilter').value;
+    const params = new URLSearchParams({ range });
+    if (schoolId) params.set('schoolId', schoolId);
+    return params.toString();
+  }
+
   async function fetchJSON(path) {
-    const res = await fetch(path, {credentials: 'same-origin'});
+    const sep = path.includes('?') ? '&' : '?';
+    const res = await fetch(`${path}${sep}${currentFilterParams()}`, {credentials: 'same-origin'});
     if (!res.ok) throw new Error('Failed '+path);
     return res.json();
   }
@@ -117,7 +135,8 @@
     const data = await fetchJSON('/admin/stats/overview');
     document.getElementById('cardTotalUsers').innerText = data.totalUsers;
     document.getElementById('cardDAU').innerText = data.dau;
-    document.getElementById('cardNew7').innerText = data.newUsers.new_7d;
+    document.getElementById('cardNew7').innerText = data.newUsers.new_in_range;
+    document.getElementById('cardNewLabel').innerText = `New (${data.newUsers.range}d)`;
   }
 
     async function loadFinance() {
@@ -125,13 +144,14 @@
 
     // Update cards
     document.getElementById('cardTotalRevenue').innerText = data.revenue.total_revenue;
-    document.getElementById('cardRevenue30d').innerText = data.revenue.revenue_30d;
+    document.getElementById('cardRevenue30d').innerText = data.revenue.revenue_range;
+    document.getElementById('cardRevenueLabel').innerText = `Revenue (${document.getElementById('rangeSelect').value}d)`;
 
-    // Revenue Chart (simple example: last 30d vs earlier)
-    const labels = ['Last 30d', 'Earlier'];
+    // Revenue Chart (simple example: selected range vs earlier)
+    const labels = [`Last ${document.getElementById('rangeSelect').value}d`, 'Earlier'];
     const values = [
-        parseFloat(data.revenue.revenue_30d),
-        parseFloat(data.revenue.total_revenue) - parseFloat(data.revenue.revenue_30d)
+        parseFloat(data.revenue.revenue_range),
+        parseFloat(data.revenue.total_revenue) - parseFloat(data.revenue.revenue_range)
     ];
     const ctx = document.getElementById('revenueChart').getContext('2d');
     if (revenueChart) revenueChart.destroy();
@@ -306,6 +326,8 @@ async function loadCourses() {
   }
 
   document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+  document.getElementById('rangeSelect').addEventListener('change', refreshAll);
+  document.getElementById('schoolFilter').addEventListener('change', refreshAll);
 
   // initial load
   refreshAll();

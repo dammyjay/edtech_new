@@ -540,7 +540,7 @@ const FEATURE_MODULES = [
     groups: [
       { category: "Platform-Wide Analytics (Admin)", items: [
         "Main dashboard: revenue/growth KPIs, learning analytics (top courses, top/at-risk students), schools overview, finance breakdown by source, engagement history, user-growth chart, per-course and per-student drill-downs.",
-        "Analytics summary page (users, active/new users, course/quiz stats, revenue trend, top courses) exportable as PDF, with drill-downs into users/courses/progress/quizzes/finance/feedback/activity/events.",
+        "Analytics summary page (users, active/new users, course/quiz stats, revenue trend, top courses) exportable as PDF, with drill-downs into users/courses/progress/quizzes/finance/feedback/activity/events. A Range (7/30/90 days) and School filter narrow every card, chart and table on the page at once — including a real, populated list of schools to pick from.",
         "On-demand platform reports (all-time/yearly/monthly, multiple formats, AI-written commentary), emailable on demand, plus automatic monthly/yearly emails.",
         "Auto-generated pitch decks (schools/grants/investors/partners) and AI-drafted, editable partnership proposals with theme selection.",
       ]},

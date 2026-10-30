@@ -395,7 +395,8 @@ exports.analyticsPage = async (req, res) => {
   try {
     const infoResult = await pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1");
     const info = infoResult.rows[0] || {};
-    res.render('admin/analytics', { info, user: req.session.user ,role: 'admin' });
+    const schoolsResult = await pool.query("SELECT id, name FROM schools ORDER BY name");
+    res.render('admin/analytics', { info, user: req.session.user, role: 'admin', schools: schoolsResult.rows });
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
@@ -1115,23 +1116,48 @@ exports.exportAnalyticsPDF = async (req, res) => {
   }
 };
 
+// Admin Analytics' Range/School dropdowns (views/admin/analytics.ejs) were
+// decorative — present in the DOM, read by nothing. Shared across every
+// exports.<stat> function below: a day-window (7/30/90, default 30) and an
+// optional schools.id, scoping every query that can meaningfully support
+// it via user_school (approved=true) for user-based counts, or a direct
+// school_id column where one exists (quotes). Metrics with no honest
+// school linkage (e.g. `transactions` has no user_id/school_id at all,
+// just a loose email string) are deliberately left platform-wide rather
+// than forcing a fragile join.
+function parseStatsRange(req) {
+  const n = parseInt(req.query.range, 10);
+  return [7, 30, 90].includes(n) ? n : 30;
+}
+function parseStatsSchoolId(req) {
+  const n = parseInt(req.query.schoolId, 10);
+  return Number.isInteger(n) ? n : null;
+}
+
 exports.overview = async (req, res) => {
   try {
-    const total = await pool.query('SELECT COUNT(*)::int AS total_users FROM users2');
-    const roles = await pool.query('SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role');
-    const newbies = await pool.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')::int AS new_24h,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS new_7d,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_30d
-      FROM users2;
-    `);
-    const dau = await pool.query("SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day'");
+    const range = parseStatsRange(req);
+    const schoolId = parseStatsSchoolId(req);
+    const schoolFilter = schoolId ? `AND id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
+    const schoolActivityFilter = schoolId ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
+    const params = schoolId ? [schoolId] : [];
+
+    const total = await pool.query(`SELECT COUNT(*)::int AS total_users FROM users2 WHERE 1=1 ${schoolFilter}`, params);
+    const roles = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${schoolFilter} GROUP BY role`, params);
+    const newbies = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE created_at >= NOW() - ($${params.length + 1} || ' days')::interval)::int AS new_in_range
+       FROM users2 WHERE 1=1 ${schoolFilter}`,
+      [...params, range]
+    );
+    const dau = await pool.query(
+      `SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day' ${schoolActivityFilter}`,
+      params
+    );
 
     res.json({
       totalUsers: total.rows[0].total_users,
       roles: roles.rows,
-      newUsers: newbies.rows[0],
+      newUsers: { new_in_range: newbies.rows[0].new_in_range, range },
       dau: dau.rows[0].dau
     });
   } catch (err) {
@@ -1687,9 +1713,21 @@ exports.checkSchool = async (req, res) => {
 
 exports.users = async (req, res) => {
   try {
-    const byRole = await pool.query("SELECT role, COUNT(*)::int AS count FROM users2 GROUP BY role");
-    const active = await pool.query("SELECT COUNT(*)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours'");
-    const inactive = await pool.query("SELECT COUNT(*)::int AS inactive_30d FROM users2 WHERE id NOT IN (SELECT DISTINCT user_id FROM activities WHERE created_at >= NOW() - INTERVAL '30 days')");
+    const schoolId = parseStatsSchoolId(req);
+    const schoolFilter = schoolId ? `AND id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
+    const schoolActivityFilter = schoolId ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
+    const params = schoolId ? [schoolId] : [];
+
+    const byRole = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${schoolFilter} GROUP BY role`, params);
+    const active = await pool.query(
+      `SELECT COUNT(DISTINCT user_id)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours' ${schoolActivityFilter}`,
+      params
+    );
+    const inactive = await pool.query(
+      `SELECT COUNT(*)::int AS inactive_30d FROM users2
+       WHERE id NOT IN (SELECT DISTINCT user_id FROM activities WHERE created_at >= NOW() - INTERVAL '30 days') ${schoolFilter}`,
+      params
+    );
 
     res.json({ byRole: byRole.rows, active: active.rows[0].active_48h, inactive: inactive.rows[0].inactive_30d });
   } catch (err) { console.error(err); res.status(500).json({error:'Server error'}); }
@@ -1697,6 +1735,16 @@ exports.users = async (req, res) => {
 
 exports.courses = async (req, res) => {
   try {
+    const range = parseStatsRange(req);
+    const schoolId = parseStatsSchoolId(req);
+    // Individual enrollments have no school membership by definition, so
+    // the school filter only narrows the school-enrollment count — an
+    // individual-learner column staying platform-wide alongside a
+    // school-scoped one is the honest shape here, not a bug. $1 is always
+    // `range` below; schoolId (when present) is always $2.
+    const schoolEnrollFilter = schoolId ? `AND us.school_id = $2` : '';
+    const schoolParam = schoolId ? [schoolId] : [];
+
     const counts = await pool.query(`
       SELECT
         (SELECT COUNT(*) FROM courses) AS total_courses,
@@ -1764,29 +1812,32 @@ exports.courses = async (req, res) => {
       LEFT JOIN lesson_count lc ON lc.course_id = c.id
       LEFT JOIN avg_completion ac ON ac.course_id = c.id
 
-      -- INDIVIDUAL ENROLLMENTS
+      -- INDIVIDUAL ENROLLMENTS (within the selected date range)
       LEFT JOIN (
         SELECT course_id, COUNT(*)::int AS count
         FROM course_enrollments
+        WHERE enrolled_at >= NOW() - ($1 || ' days')::interval
         GROUP BY course_id
       ) indiv ON indiv.course_id = c.id
 
-      -- SCHOOL ENROLLMENTS
+      -- SCHOOL ENROLLMENTS (within the selected date range, and school if given)
       LEFT JOIN (
-        SELECT 
+        SELECT
           sc.course_id,
           COUNT(us.user_id)::int AS count
         FROM school_courses sc
-        JOIN user_school us 
+        JOIN user_school us
               ON us.school_id = sc.school_id
              AND us.role_in_school = 'student'
              AND us.approved = true
+        WHERE us.joined_at >= NOW() - ($1 || ' days')::interval
+          ${schoolEnrollFilter}
         GROUP BY sc.course_id
       ) school ON school.course_id = c.id
 
       ORDER BY total_enrollments DESC
       LIMIT 10;
-    `);
+    `, [range, ...schoolParam]);
 
     res.json({
       counts: counts.rows[0],
@@ -1818,35 +1869,61 @@ exports.progress = async (req, res) => {
 
 exports.quizzes = async (req, res) => {
   try {
-    const q = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM quizzes)::int AS total_quizzes,
-        (SELECT COUNT(*) FROM quiz_submissions)::int AS total_quiz_submissions,
-        (SELECT COALESCE(AVG(score),0) FROM quiz_submissions)::numeric(6,2) AS avg_score;
-    `);
-    const passFail = await pool.query("SELECT passed, COUNT(*)::int AS count FROM quiz_submissions GROUP BY passed");
+    const range = parseStatsRange(req);
+    const schoolId = parseStatsSchoolId(req);
+    const schoolFilter = schoolId
+      ? `AND student_id IN (SELECT user_id FROM user_school WHERE school_id = $2 AND approved = true)`
+      : '';
+    const params = schoolId ? [range, schoolId] : [range];
 
-    res.json({ summary: q.rows[0], passFail: passFail.rows });
+    const q = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM quizzes)::int AS total_quizzes,
+        (SELECT COUNT(*) FROM quiz_submissions WHERE created_at >= NOW() - ($1 || ' days')::interval ${schoolFilter})::int AS total_quiz_submissions,
+        (SELECT COALESCE(AVG(score),0) FROM quiz_submissions WHERE created_at >= NOW() - ($1 || ' days')::interval ${schoolFilter})::numeric(6,2) AS avg_score;
+      `,
+      params
+    );
+    const passFail = await pool.query(
+      `SELECT passed, COUNT(*)::int AS count FROM quiz_submissions
+       WHERE created_at >= NOW() - ($1 || ' days')::interval ${schoolFilter}
+       GROUP BY passed`,
+      params
+    );
+
+    res.json({ summary: q.rows[0], passFail: passFail.rows, range });
   } catch (err) { console.error(err); res.status(500).json({error:'Server error'}); }
 };
 
 exports.finance = async (req, res) => {
   try {
-    // Total revenue
-    const revenue = await pool.query(`
-      SELECT 
-        COALESCE(SUM(amount),0)::numeric(12,2) AS total_revenue,
-        COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'),0)::numeric(12,2) AS revenue_30d
-      FROM transactions;
-    `);
+    const range = parseStatsRange(req);
+    const schoolId = parseStatsSchoolId(req);
 
-    // School payments by status (status lives on the linked quote, not on school_payments itself)
-    const schoolPayments = await pool.query(`
-      SELECT q.status, COUNT(*)::int AS count
+    // Total revenue — `transactions` has no user_id/school_id (just a
+    // loose email string), so this one stays platform-wide regardless of
+    // the School filter; forcing an email-matched join here would be
+    // fragile and could silently miscount. revenue_range respects the
+    // selected day-window (previously a hardcoded 30 days).
+    const revenue = await pool.query(
+      `SELECT
+        COALESCE(SUM(amount),0)::numeric(12,2) AS total_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - ($1 || ' days')::interval),0)::numeric(12,2) AS revenue_range
+      FROM transactions;`,
+      [range]
+    );
+
+    // School payments by status (status lives on the linked quote, not on
+    // school_payments itself) — quotes.school_id is a direct, reliable
+    // column, so the School filter applies cleanly here.
+    const schoolPayments = await pool.query(
+      `SELECT q.status, COUNT(*)::int AS count
       FROM school_payments sp
       JOIN quotes q ON q.id = sp.quote_id
-      GROUP BY q.status
-    `);
+      WHERE 1=1 ${schoolId ? 'AND q.school_id = $1' : ''}
+      GROUP BY q.status`,
+      schoolId ? [schoolId] : []
+    );
 
     // Event payments by status
     const eventPayments = await pool.query(`
@@ -1911,12 +1988,21 @@ exports.feedback = async (req, res) => {
 
 exports.activity = async (req, res) => {
   try {
-    const feed = await pool.query(`
-      SELECT id, user_id, role, action, details, created_at
+    const range = parseStatsRange(req);
+    const schoolId = parseStatsSchoolId(req);
+    const schoolFilter = schoolId
+      ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $2 AND approved = true)`
+      : '';
+    const params = schoolId ? [range, schoolId] : [range];
+
+    const feed = await pool.query(
+      `SELECT id, user_id, role, action, details, created_at
       FROM activities
+      WHERE created_at >= NOW() - ($1 || ' days')::interval ${schoolFilter}
       ORDER BY created_at DESC
-      LIMIT 50
-    `);
+      LIMIT 50`,
+      params
+    );
     res.json({ feed: feed.rows });
   } catch (err) { console.error(err); res.status(500).json({error:'Server error'}); }
 };
@@ -2742,7 +2828,7 @@ exports.previewCertificate = async (req, res) => {
       .replace(/{{\s*DATE\s*}}/g, new Date().toDateString())
       .replace(/{{\s*CERT_CODE\s*}}/g, "PREVIEW-12345")
       .replace(/{{\s*BACKGROUND_URL\s*}}/g, info.certificate_background_url || "https://acad.jkthub.com/images/Certificate.png")
-      .replace(/{{\s*SIGNATURE_URL\s*}}/g, info.certificate_signature_url || "https://acad.jkthub.com/images/Signature.jpg")
+      .replace(/{{\s*SIGNATURE_URL\s*}}/g, info.certificate_signature_url || "https://acad.jkthub.com/images/Signature2.jpg")
       .replace(/{{\s*SIGNEE_NAME\s*}}/g, info.certificate_signee_name || "Jimoh Damilola")
       .replace(/{{\s*TITLE\s*}}/g, info.certificate_title || "CERTIFICATE OF COMPLETION");
 
