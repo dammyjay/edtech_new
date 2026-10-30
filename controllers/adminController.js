@@ -2930,7 +2930,7 @@ exports.previewCertificate = async (req, res) => {
       .replace(/{{\s*DATE\s*}}/g, new Date().toDateString())
       .replace(/{{\s*CERT_CODE\s*}}/g, "PREVIEW-12345")
       .replace(/{{\s*BACKGROUND_URL\s*}}/g, info.certificate_background_url || "https://acad.jkthub.com/images/Certificate.png")
-      .replace(/{{\s*SIGNATURE_URL\s*}}/g, info.certificate_signature_url || "https://acad.jkthub.com/images/Signature2.jpg")
+      .replace(/{{\s*SIGNATURE_URL\s*}}/g, info.certificate_signature_url || "https://acad.jkthub.com/images/Signature2.png")
       .replace(/{{\s*SIGNEE_NAME\s*}}/g, info.certificate_signee_name || "Jimoh Damilola")
       .replace(/{{\s*TITLE\s*}}/g, info.certificate_title || "CERTIFICATE OF COMPLETION");
 
@@ -8620,7 +8620,7 @@ Parent Signature
 <div class="signature-box">
 
 <img
-src="https://acad.jkthub.com/images/Signature.jpg"
+src="https://acad.jkthub.com/images/Signature2.png"
 class="signature-img"
 />
 
@@ -9436,7 +9436,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         <div class="signature-box">
 
         <img
-        src="https://acad.jkthub.com/images/Signature.jpg"
+        src="https://acad.jkthub.com/images/Signature2.png"
         class="signature-img"
         />
 
