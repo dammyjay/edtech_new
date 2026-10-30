@@ -1169,6 +1169,43 @@ exports.getChildPortfolio = async (req, res) => {
   }
 };
 
+// Same ownership check as getChildPortfolio above — a parent can only
+// download a PDF for a child they're actually linked to.
+exports.downloadChildPortfolioPdf = async (req, res) => {
+  const parent = req.session.user;
+  if (!parent || parent.role !== "parent") {
+    return res.status(403).send("Only a parent can download this.");
+  }
+
+  const { childId } = req.params;
+  try {
+    const ownershipRes = await pool.query(
+      `SELECT id, fullname, avatar_url, profile_picture FROM users2
+       WHERE id = $1 AND id IN (SELECT child_id FROM parent_children WHERE parent_id = $2)`,
+      [childId, parent.id]
+    );
+    const child = ownershipRes.rows[0];
+    if (!child) {
+      return res.status(403).send("You are not linked to this child.");
+    }
+
+    const pdf = await portfolioService.renderPortfolioPdf({
+      studentId: childId,
+      displayName: child.fullname,
+      avatarUrl: child.avatar_url || child.profile_picture || null,
+      courseId: req.query.courseId,
+    });
+
+    const safeName = (child.fullname || "Portfolio").replace(/[^\w\-]+/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}-Portfolio.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error("downloadChildPortfolioPdf error:", err.message);
+    res.status(500).send("Couldn't generate this portfolio PDF right now — please try again shortly.");
+  }
+};
+
 exports.addChild = async (req, res) => {
   const parent = req.session.user;
   if (!parent || parent.role !== "parent") {

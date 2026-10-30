@@ -3476,6 +3476,30 @@ exports.regeneratePortfolioSummary = async (req, res) => {
   }
 };
 
+exports.downloadPortfolioPdf = async (req, res) => {
+  const studentId = req.session.user.id;
+  try {
+    const studentRes = await pool.query("SELECT fullname, avatar_url, profile_picture FROM users2 WHERE id = $1", [studentId]);
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).send("Student not found.");
+
+    const pdf = await portfolioService.renderPortfolioPdf({
+      studentId,
+      displayName: student.fullname,
+      avatarUrl: student.avatar_url || student.profile_picture || null,
+      courseId: req.query.courseId,
+    });
+
+    const safeName = (student.fullname || "Portfolio").replace(/[^\w\-]+/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}-Portfolio.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error("downloadPortfolioPdf error:", err.message);
+    res.status(500).send("Couldn't generate your portfolio PDF right now — please try again shortly.");
+  }
+};
+
 exports.editProfile = async (req, res) => {
 
   const { fullname, gender, dob, current_password, new_password, confirm_password } = req.body;

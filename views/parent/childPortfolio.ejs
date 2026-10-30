@@ -20,6 +20,9 @@
   .pf-hero-score .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; }
 
   .pf-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .pf-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; background: #fff; color: var(--brand-pri-dark, #4C3802); border: 1px solid #E7E0CE; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+  .pf-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .pf-btn-gradient { background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); color: #fff; border: none; }
   .pf-select { background: #fff; border: 1px solid #E7E0CE; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #4C3802; cursor: pointer; }
 
   .pf-stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 22px; }
@@ -118,6 +121,8 @@
         <option value="<%= c.id %>" <%= portfolioData.scopedCourseId === c.id ? 'selected' : '' %>><%= c.title %></option>
       <% }) %>
     </select>
+
+    <a href="/parent/child/<%= child.id %>/portfolio/pdf<%= portfolioData.scopedCourseId ? '?courseId=' + portfolioData.scopedCourseId : '' %>" class="pf-btn pf-btn-gradient" id="portfolioPdfBtn" onclick="return handlePortfolioPdfClick(this)">⬇️ Download PDF</a>
   </div>
 
   <!-- STATS -->
@@ -265,5 +270,16 @@
     if (courseId) url.searchParams.set('courseId', courseId);
     else url.searchParams.delete('courseId');
     window.location.href = url.toString();
+  }
+
+  // The actual download still happens via the link's own href (a native
+  // browser download) — this just gives feedback while Puppeteer renders
+  // the PDF server-side, which takes a few real seconds.
+  function handlePortfolioPdfClick(link) {
+    const original = link.textContent;
+    link.textContent = "⏳ Generating…";
+    if (typeof showToast === "function") showToast("📄 Preparing the portfolio PDF — this can take a few seconds…");
+    setTimeout(() => { link.textContent = original; }, 6000);
+    return true;
   }
 </script>

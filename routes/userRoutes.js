@@ -33,6 +33,7 @@ router.post("/parent/fund-child/verify", userController.fundChildWallet);
 router.post("/parent/reactivate-term/verify", userController.payTermReactivationAsParent);
 router.post("/parent/child/:childId/public-profile", userController.setChildPublicProfile);
 router.get("/parent/child/:childId/portfolio", userController.getChildPortfolio);
+router.get("/parent/child/:childId/portfolio/pdf", userController.downloadChildPortfolioPdf);
 
 
 router.get("/vapid-public-key", (req, res) => {

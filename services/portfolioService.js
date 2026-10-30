@@ -1,5 +1,11 @@
 const pool = require("../models/db");
+const ejs = require("ejs");
+const path = require("path");
 const { askTutor } = require("../utils/ai");
+const generatePdf = require("../utils/generatePdf");
+const { getLevelForXp } = require("../utils/xpLevels");
+const { getStudentStreak } = require("./streakService");
+const { getCompanyInfo } = require("../utils/companyInfo");
 
 const LAB_TYPE_SKILLS = {
   web: "Web Development (HTML/CSS/JavaScript)",
@@ -329,11 +335,38 @@ async function deleteEntry(studentId, entryId) {
   return res.rowCount > 0;
 }
 
+// Renders the same gamified portfolio content as the on-screen pages
+// (views/student/dashboard.ejs's portfolio section, views/parent/
+// childPortfolio.ejs) into a print-optimized PDF — same data, same
+// "pf-*" visual language, just a dedicated layout tuned for A4 pagination
+// (views/pdf/portfolio.ejs) instead of a scrolling web page. Shared by
+// both the student's own download (controllers/studentController.js) and
+// a parent's download of a linked child's portfolio
+// (controllers/userController.js) — same render, different caller.
+async function renderPortfolioPdf({ studentId, displayName, avatarUrl, courseId }) {
+  const [portfolioData, xpRes, streak, company] = await Promise.all([
+    getPortfolioData(studentId, { courseId }),
+    pool.query("SELECT xp FROM users2 WHERE id = $1", [studentId]),
+    getStudentStreak(studentId),
+    getCompanyInfo(),
+  ]);
+
+  const levelInfo = getLevelForXp((xpRes.rows[0] || {}).xp || 0);
+
+  const html = await ejs.renderFile(
+    path.join(__dirname, "../views/pdf/portfolio.ejs"),
+    { portfolioData, displayName, avatarUrl, levelInfo, streak, companyName: company.company_name }
+  );
+
+  return generatePdf(html, { margin: { top: "16px", bottom: "16px", left: "16px", right: "16px" } });
+}
+
 module.exports = {
   getPortfolioData,
   generateAndSaveSummary,
   addEntry,
   updateEntry,
   deleteEntry,
+  renderPortfolioPdf,
   LAB_TYPE_SKILLS,
 };

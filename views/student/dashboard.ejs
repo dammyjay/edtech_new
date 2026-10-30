@@ -1259,6 +1259,8 @@
           <% }) %>
         </select>
 
+        <a href="/student/portfolio/pdf<%= portfolioData.scopedCourseId ? '?courseId=' + portfolioData.scopedCourseId : '' %>" class="pf-btn pf-btn-gradient" id="portfolioPdfBtn" onclick="return handlePortfolioPdfClick(this)">⬇️ Download PDF</a>
+
         <% if (student.public_profile_enabled && student.public_profile_slug) { %>
           <a href="/achievements/<%= student.public_profile_slug %>" target="_blank" class="pf-btn">🌐 View my public portfolio</a>
         <% } %>
@@ -3547,6 +3549,18 @@ async function unlockAvatarFrame(frameKey) {
 
 function switchPortfolioCourse(courseId) {
   window.location.href = "/student/dashboard?section=portfolio" + (courseId ? "&courseId=" + encodeURIComponent(courseId) : "");
+}
+
+// The actual download still happens via the link's own href (a native
+// browser download, no fetch/blob juggling needed) — this just gives
+// feedback while Puppeteer renders the PDF server-side, which takes a
+// few real seconds, not instant like the rest of this page.
+function handlePortfolioPdfClick(link) {
+  const original = link.textContent;
+  link.textContent = "⏳ Generating…";
+  showToast("📄 Preparing your portfolio PDF — this can take a few seconds…");
+  setTimeout(() => { link.textContent = original; }, 6000);
+  return true;
 }
 
 async function regeneratePortfolioSummary() {
