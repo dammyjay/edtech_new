@@ -1699,12 +1699,14 @@
         ).hidden = true;
       }
       
-      loadDashboardOverview();
-      loadBusinessDashboard();
-      loadLearningDashboard();
-      loadSchoolsDashboard();
-      loadFinanceDashboard();
-      loadEngagementDashboard();
+      // Every tab below used to fire its data load unconditionally here,
+      // on every single dashboard visit, regardless of which tab (if any)
+      // the admin actually looks at — 6+ queries/endpoints hit every time
+      // for tabs that might never be opened this session. Only the
+      // default-visible tab (Overview) loads here now; openDashboardTab()
+      // below lazy-loads each other tab the first time it's actually
+      // opened, via window.loadedDashboardSections.
+      window.loadedDashboardSections = { "overview-section": true };
       loadDashboardOverview();
 
     </script>
@@ -1812,6 +1814,22 @@
     <script>
       function openDashboardTab(sectionId, btn) {
 
+        // Built fresh on every call (not a module-level constant) — some
+        // of these loaders (loadReportHistory in particular) are declared
+        // in a LATER <script> block than this one, so capturing them into
+        // a static object up here at parse time would freeze in
+        // `undefined` for anything not yet defined. By the time a tab is
+        // actually clicked, every script block has long since run.
+        const dashboardSectionLoaders = {
+          "overview-section": loadDashboardOverview,
+          "business-section": loadBusinessDashboard,
+          "learning-section": loadLearningDashboard,
+          "schools-section": loadSchoolsDashboard,
+          "finance-section": loadFinanceDashboard,
+          "engagement-section": loadEngagementDashboard,
+          "reports-section": loadReportHistory,
+        };
+
         const sections = [
           'overview-section',
           'business-section',
@@ -1837,6 +1855,12 @@
           .forEach(tab => tab.classList.remove("active"));
 
         btn.classList.add("active");
+
+        if (!window.loadedDashboardSections[sectionId]) {
+          window.loadedDashboardSections[sectionId] = true;
+          const loader = dashboardSectionLoaders[sectionId];
+          if (loader) loader();
+        }
       }
     </script>
 
@@ -2553,7 +2577,12 @@
         }
       }
 
+      // populateReportYearSelect/toggleReportPeriodInputs are cheap,
+      // local DOM setup (no network call) — safe to run eagerly even
+      // though the Reports tab isn't visible by default. loadReportHistory
+      // is a real server fetch, so it's deliberately NOT called here —
+      // openDashboardTab's lazy loader calls it the first time the
+      // Reports tab is actually opened (see dashboardSectionLoaders).
       populateReportYearSelect();
       toggleReportPeriodInputs();
-      loadReportHistory();
     </script>
