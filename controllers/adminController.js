@@ -1129,36 +1129,75 @@ function parseStatsRange(req) {
   const n = parseInt(req.query.range, 10);
   return [7, 30, 90].includes(n) ? n : 30;
 }
+// 'individual' is a real third state, not just "no filter" — it means
+// "users with NO approved user_school row" (client-requested: the School
+// dropdown needs to be able to isolate non-school users specifically, not
+// just pick one school at a time or see everyone combined).
 function parseStatsSchoolId(req) {
+  if (req.query.schoolId === "individual") return "individual";
   const n = parseInt(req.query.schoolId, 10);
   return Number.isInteger(n) ? n : null;
+}
+
+// Builds the "AND <idColumn> [IN|NOT IN] (SELECT user_id FROM user_school
+// ...)" fragment shared by overview/users/quizzes/activity below, given
+// the already-built params array so far (appends to it, never reorders
+// earlier placeholders). idColumn is whatever column holds the user id in
+// that query's own WHERE scope (e.g. "id" on users2, "user_id" on
+// activities, "student_id" on quiz_submissions).
+function buildSchoolScopeClause(schoolId, idColumn, existingParams) {
+  if (schoolId === "individual") {
+    return {
+      clause: `AND ${idColumn} NOT IN (SELECT user_id FROM user_school WHERE approved = true)`,
+      params: existingParams,
+    };
+  }
+  if (schoolId) {
+    return {
+      clause: `AND ${idColumn} IN (SELECT user_id FROM user_school WHERE school_id = $${existingParams.length + 1} AND approved = true)`,
+      params: [...existingParams, schoolId],
+    };
+  }
+  return { clause: "", params: existingParams };
 }
 
 exports.overview = async (req, res) => {
   try {
     const range = parseStatsRange(req);
     const schoolId = parseStatsSchoolId(req);
-    const schoolFilter = schoolId ? `AND id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
-    const schoolActivityFilter = schoolId ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
-    const params = schoolId ? [schoolId] : [];
+    const scoped = buildSchoolScopeClause(schoolId, "id", []);
+    const activityScoped = buildSchoolScopeClause(schoolId, "user_id", []);
 
-    const total = await pool.query(`SELECT COUNT(*)::int AS total_users FROM users2 WHERE 1=1 ${schoolFilter}`, params);
-    const roles = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${schoolFilter} GROUP BY role`, params);
+    const total = await pool.query(`SELECT COUNT(*)::int AS total_users FROM users2 WHERE 1=1 ${scoped.clause}`, scoped.params);
+    const roles = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${scoped.clause} GROUP BY role`, scoped.params);
     const newbies = await pool.query(
-      `SELECT COUNT(*) FILTER (WHERE created_at >= NOW() - ($${params.length + 1} || ' days')::interval)::int AS new_in_range
-       FROM users2 WHERE 1=1 ${schoolFilter}`,
-      [...params, range]
+      `SELECT COUNT(*) FILTER (WHERE created_at >= NOW() - ($${scoped.params.length + 1} || ' days')::interval)::int AS new_in_range
+       FROM users2 WHERE 1=1 ${scoped.clause}`,
+      [...scoped.params, range]
     );
     const dau = await pool.query(
-      `SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day' ${schoolActivityFilter}`,
-      params
+      `SELECT COUNT(DISTINCT user_id)::int AS dau FROM activities WHERE created_at >= NOW() - INTERVAL '1 day' ${activityScoped.clause}`,
+      activityScoped.params
+    );
+
+    // Always computed, regardless of which School filter is selected —
+    // this is the actual "schools vs non-school users" correlation the
+    // Range/School dropdowns alone can't show (they narrow to ONE slice
+    // at a time; this shows the whole split at a glance). approved=true
+    // only — a pending/unapproved school link doesn't make someone a real
+    // member of that school yet.
+    const userSegments = await pool.query(
+      `SELECT
+        (SELECT COUNT(DISTINCT user_id)::int FROM user_school WHERE approved = true) AS school_linked,
+        (SELECT COUNT(*)::int FROM users2 WHERE id NOT IN (SELECT user_id FROM user_school WHERE approved = true)) AS independent`
     );
 
     res.json({
       totalUsers: total.rows[0].total_users,
       roles: roles.rows,
       newUsers: { new_in_range: newbies.rows[0].new_in_range, range },
-      dau: dau.rows[0].dau
+      dau: dau.rows[0].dau,
+      userSegments: userSegments.rows[0],
     });
   } catch (err) {
     console.error(err);
@@ -1714,19 +1753,18 @@ exports.checkSchool = async (req, res) => {
 exports.users = async (req, res) => {
   try {
     const schoolId = parseStatsSchoolId(req);
-    const schoolFilter = schoolId ? `AND id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
-    const schoolActivityFilter = schoolId ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $1 AND approved = true)` : '';
-    const params = schoolId ? [schoolId] : [];
+    const scoped = buildSchoolScopeClause(schoolId, "id", []);
+    const activityScoped = buildSchoolScopeClause(schoolId, "user_id", []);
 
-    const byRole = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${schoolFilter} GROUP BY role`, params);
+    const byRole = await pool.query(`SELECT role, COUNT(*)::int AS count FROM users2 WHERE 1=1 ${scoped.clause} GROUP BY role`, scoped.params);
     const active = await pool.query(
-      `SELECT COUNT(DISTINCT user_id)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours' ${schoolActivityFilter}`,
-      params
+      `SELECT COUNT(DISTINCT user_id)::int AS active_48h FROM activities WHERE created_at >= NOW() - INTERVAL '48 hours' ${activityScoped.clause}`,
+      activityScoped.params
     );
     const inactive = await pool.query(
       `SELECT COUNT(*)::int AS inactive_30d FROM users2
-       WHERE id NOT IN (SELECT DISTINCT user_id FROM activities WHERE created_at >= NOW() - INTERVAL '30 days') ${schoolFilter}`,
-      params
+       WHERE id NOT IN (SELECT DISTINCT user_id FROM activities WHERE created_at >= NOW() - INTERVAL '30 days') ${scoped.clause}`,
+      scoped.params
     );
 
     res.json({ byRole: byRole.rows, active: active.rows[0].active_48h, inactive: inactive.rows[0].inactive_30d });
@@ -1871,10 +1909,8 @@ exports.quizzes = async (req, res) => {
   try {
     const range = parseStatsRange(req);
     const schoolId = parseStatsSchoolId(req);
-    const schoolFilter = schoolId
-      ? `AND student_id IN (SELECT user_id FROM user_school WHERE school_id = $2 AND approved = true)`
-      : '';
-    const params = schoolId ? [range, schoolId] : [range];
+    const scoped = buildSchoolScopeClause(schoolId, "student_id", [range]);
+    const { clause: schoolFilter, params } = scoped;
 
     const q = await pool.query(
       `SELECT
@@ -1895,46 +1931,115 @@ exports.quizzes = async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({error:'Server error'}); }
 };
 
+// True platform revenue, broken into its 3 genuinely non-overlapping
+// sources — see services/analyticsAggregationService.js's
+// getOverviewAnalytics for the full trace of every money-writing path in
+// this codebase that justifies this model:
+//
+// 1. Wallet & Direct Payments (`transactions`, status='success', excluding
+//    'TERM-REACT-%' references): every real Paystack charge — wallet
+//    top-ups, parent-funds-child, parent-pays-term-reactivation, AND
+//    event ticket payments all land here. TERM-REACT-% rows are a student
+//    spending their OWN already-funded wallet to reactivate a term — an
+//    internal transfer of money already counted once when that wallet was
+//    funded, not new money, so excluded to avoid double-counting it.
+//    Platform-wide only: this table has no user_id/school_id (just a
+//    loose email string), so it can't be honestly split by school.
+// 2. School Fees (`school_payments`/`quotes`): the only source with a
+//    real, direct school_id — fully filterable by the School dropdown.
+//    Zero for the "individual" filter by definition (school fees are
+//    inherently school-scoped).
+// 3. Parent Training (`parent_payments`): parents are never school-linked
+//    (confirmed — no code anywhere creates a user_school row with
+//    role_in_school='parent'), so this is always "individual" money and
+//    never attributable to a specific school.
+async function getRevenueBySource(range, schoolId) {
+  const walletAndDirect = await pool.query(
+    `SELECT
+      COALESCE(SUM(amount),0)::numeric(12,2) AS all_time,
+      COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - ($1 || ' days')::interval),0)::numeric(12,2) AS in_range
+    FROM transactions WHERE status = 'success' AND reference NOT LIKE 'TERM-REACT-%';`,
+    [range]
+  );
+
+  // School fees: zero out entirely for "individual" (schools, by
+  // definition, have no individual-user revenue) rather than running a
+  // query that would just always return 0 anyway.
+  let schoolFees = { all_time: 0, in_range: 0 };
+  if (schoolId !== "individual") {
+    const schoolFilter = schoolId ? "AND q.school_id = $2" : "";
+    const schoolParams = schoolId ? [range, schoolId] : [range];
+    const schoolRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(sp.amount),0)::numeric(12,2) AS all_time,
+        COALESCE(SUM(sp.amount) FILTER (WHERE sp.payment_date >= NOW() - ($1 || ' days')::interval),0)::numeric(12,2) AS in_range
+      FROM school_payments sp
+      JOIN quotes q ON q.id = sp.quote_id
+      WHERE 1=1 ${schoolFilter};`,
+      schoolParams
+    );
+    schoolFees = schoolRes.rows[0];
+  }
+
+  // Parent training: zero out for a SPECIFIC school (this money is never
+  // attributable to any one school) but still shown for "All Schools" and
+  // "individual", since it's always individual money.
+  let parentTraining = { all_time: 0, in_range: 0 };
+  if (!schoolId || schoolId === "individual") {
+    const parentRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(amount),0)::numeric(12,2) AS all_time,
+        COALESCE(SUM(amount) FILTER (WHERE payment_date >= NOW() - ($1 || ' days')::interval),0)::numeric(12,2) AS in_range
+      FROM parent_payments;`,
+      [range]
+    );
+    parentTraining = parentRes.rows[0];
+  }
+
+  const toNum = (v) => parseFloat(v) || 0;
+  return {
+    walletAndDirect: { all_time: toNum(walletAndDirect.rows[0].all_time), in_range: toNum(walletAndDirect.rows[0].in_range) },
+    schoolFees: { all_time: toNum(schoolFees.all_time), in_range: toNum(schoolFees.in_range) },
+    parentTraining: { all_time: toNum(parentTraining.all_time), in_range: toNum(parentTraining.in_range) },
+  };
+}
+
 exports.finance = async (req, res) => {
   try {
     const range = parseStatsRange(req);
     const schoolId = parseStatsSchoolId(req);
 
-    // Total revenue — `transactions` has no user_id/school_id (just a
-    // loose email string), so this one stays platform-wide regardless of
-    // the School filter; forcing an email-matched join here would be
-    // fragile and could silently miscount. revenue_range respects the
-    // selected day-window (previously a hardcoded 30 days).
-    const revenue = await pool.query(
-      `SELECT
-        COALESCE(SUM(amount),0)::numeric(12,2) AS total_revenue,
-        COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - ($1 || ' days')::interval),0)::numeric(12,2) AS revenue_range
-      FROM transactions;`,
-      [range]
-    );
+    const bySource = await getRevenueBySource(range, schoolId);
+    const total_revenue = bySource.walletAndDirect.all_time + bySource.schoolFees.all_time + bySource.parentTraining.all_time;
+    const revenue_range = bySource.walletAndDirect.in_range + bySource.schoolFees.in_range + bySource.parentTraining.in_range;
 
     // School payments by status (status lives on the linked quote, not on
     // school_payments itself) — quotes.school_id is a direct, reliable
-    // column, so the School filter applies cleanly here.
-    const schoolPayments = await pool.query(
-      `SELECT q.status, COUNT(*)::int AS count
-      FROM school_payments sp
-      JOIN quotes q ON q.id = sp.quote_id
-      WHERE 1=1 ${schoolId ? 'AND q.school_id = $1' : ''}
-      GROUP BY q.status`,
-      schoolId ? [schoolId] : []
-    );
+    // column, so the School filter applies cleanly here. Not meaningful
+    // for "individual" (school payments are inherently school-scoped) —
+    // returns empty rather than running a query that's always empty.
+    const schoolPayments = schoolId === "individual"
+      ? { rows: [] }
+      : await pool.query(
+          `SELECT q.status, COUNT(*)::int AS count
+          FROM school_payments sp
+          JOIN quotes q ON q.id = sp.quote_id
+          WHERE 1=1 ${schoolId ? 'AND q.school_id = $1' : ''}
+          GROUP BY q.status`,
+          schoolId ? [schoolId] : []
+        );
 
-    // Event payments by status
+    // Event payments by status — platform-wide only (event registrants
+    // have no user_id/school_id at all, true walk-up/public registration).
     const eventPayments = await pool.query(`
-      SELECT payment_status, COUNT(*)::int AS count, 
+      SELECT payment_status, COUNT(*)::int AS count,
              COALESCE(SUM(amount_paid),0)::numeric(12,2) AS total_collected
       FROM event_registrations
       GROUP BY payment_status
     `);
 
     res.json({
-      revenue: revenue.rows[0],
+      revenue: { total_revenue, revenue_range, by_source: bySource },
       schoolPayments: schoolPayments.rows,
       eventPayments: eventPayments.rows,
     });
@@ -1990,18 +2095,15 @@ exports.activity = async (req, res) => {
   try {
     const range = parseStatsRange(req);
     const schoolId = parseStatsSchoolId(req);
-    const schoolFilter = schoolId
-      ? `AND user_id IN (SELECT user_id FROM user_school WHERE school_id = $2 AND approved = true)`
-      : '';
-    const params = schoolId ? [range, schoolId] : [range];
+    const scoped = buildSchoolScopeClause(schoolId, "user_id", [range]);
 
     const feed = await pool.query(
       `SELECT id, user_id, role, action, details, created_at
       FROM activities
-      WHERE created_at >= NOW() - ($1 || ' days')::interval ${schoolFilter}
+      WHERE created_at >= NOW() - ($1 || ' days')::interval ${scoped.clause}
       ORDER BY created_at DESC
       LIMIT 50`,
-      params
+      scoped.params
     );
     res.json({ feed: feed.rows });
   } catch (err) { console.error(err); res.status(500).json({error:'Server error'}); }

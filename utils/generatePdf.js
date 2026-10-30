@@ -1,4 +1,7 @@
   const puppeteer = require("puppeteer");
+  const fs = require("fs");
+  const os = require("os");
+  const path = require("path");
 
   // options.margin: optional {top, bottom, left, right} (CSS length strings,
   // e.g. "0.6in") passed straight to Puppeteer's page.pdf(). Defaults to no
@@ -7,6 +10,15 @@
   // opt-in per caller rather than changing everyone's output.
   async function generatePdf(html, options = {}) {
     let browser;
+    // A dedicated, unique profile directory per render — without this,
+    // Puppeteer defaults to ONE shared OS-temp profile directory for every
+    // launch from this process, so two renders overlapping in time (this
+    // function running at the same time as another one, or as
+    // utils/generateCertificate.js's own Puppeteer launch, which hit this
+    // exact bug) collide on that shared directory's lock files and crash
+    // the ENTIRE Node server, not just the one render. Confirmed live
+    // during that earlier fix.
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-render-"));
 
     try {
       browser = await puppeteer.launch({
@@ -14,6 +26,8 @@
 
         executablePath:
           process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+
+        userDataDir,
 
         args: [
           "--no-sandbox",
@@ -61,7 +75,12 @@
       throw error;
     } finally {
       if (browser) {
-        await browser.close();
+        await browser.close().catch((err) => console.error("generatePdf: browser.close failed:", err.message));
+      }
+      try {
+        fs.rmSync(userDataDir, { recursive: true, force: true });
+      } catch (err) {
+        console.error("generatePdf: failed to clean up temp profile dir:", err.message);
       }
     }
   }

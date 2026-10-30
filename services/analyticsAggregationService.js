@@ -109,10 +109,38 @@ async function getOverviewAnalytics(bounds) {
       }`,
       params
     ),
+    // Revenue = transactions (every real Paystack charge: wallet funding,
+    // parent-funds-child, parent-pays-term-reactivation, AND event ticket
+    // payments all land here — see routes/publicRoutes.js's
+    // /verify-payment and /verify-event-payment, controllers/
+    // userController.js's payTermReactivationAsParent) + school_payments
+    // (admin-entered school fees, never touch Paystack/transactions) +
+    // parent_payments (admin-entered training fees, same).
+    //
+    // Two bugs fixed here, found while tracing every money-writing path
+    // in this codebase:
+    // 1. event_registrations.amount_paid used to be added on TOP of
+    //    transactions — but every real event payment is already counted
+    //    once in transactions, so this double-counted every single event
+    //    payment. (amount_paid is also independently unreliable before a
+    //    real payment — see routes/userRoutes.js's registration INSERT,
+    //    fixed separately.) Dropped entirely from this sum; events are
+    //    fully represented via their transactions row already.
+    // 2. A student paying to reactivate a locked term FROM THEIR OWN
+    //    already-funded wallet (controllers/studentController.js's
+    //    payTermReactivation, reference prefixed 'TERM-REACT-') is an
+    //    internal transfer of money already counted once when that wallet
+    //    was originally funded — including it again here double-counted
+    //    that money a second time. Excluded via its reference prefix
+    //    (deterministic and platform-controlled, unlike Paystack's own
+    //    auto-generated references for other payment types). A parent
+    //    paying for reactivation with a fresh card charge
+    //    (payTermReactivationAsParent) is genuinely new money and stays
+    //    included — confirmed it never touches wallet_balance2.
     pool.query(
       `
       SELECT
-        COALESCE((SELECT SUM(amount) FROM transactions WHERE status = 'success' ${
+        COALESCE((SELECT SUM(amount) FROM transactions WHERE status = 'success' AND reference NOT LIKE 'TERM-REACT-%' ${
           bounds ? "AND created_at >= $1 AND created_at < $2" : ""
         }), 0)
         + COALESCE((SELECT SUM(amount) FROM school_payments ${
@@ -120,9 +148,6 @@ async function getOverviewAnalytics(bounds) {
         }), 0)
         + COALESCE((SELECT SUM(amount) FROM parent_payments ${
           bounds ? "WHERE payment_date >= $1 AND payment_date < $2" : ""
-        }), 0)
-        + COALESCE((SELECT SUM(amount_paid) FROM event_registrations ${
-          bounds ? "WHERE created_at >= $1 AND created_at < $2" : ""
         }), 0)
         AS total
       `,

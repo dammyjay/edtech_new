@@ -25,8 +25,9 @@
 
     <select id="schoolFilter" class="jk-select">
       <option value="">All Schools</option>
+      <option value="individual">🧑 Individual / Non-School Users Only</option>
       <% (schools || []).forEach(s => { %>
-        <option value="<%= s.id %>"><%= s.name %></option>
+        <option value="<%= s.id %>">🏫 <%= s.name %></option>
       <% }) %>
     </select>
 
@@ -62,6 +63,47 @@
     <div class="jk-stat-card">
       <div class="jk-stat-head"><span class="jk-stat-label" id="cardRevenueLabel">Revenue (30d)</span><span class="jk-stat-icon">💵</span></div>
       <div class="jk-stat-value" id="cardRevenue30d">—</div>
+    </div>
+  </div>
+
+  <!-- Always shows the FULL school-vs-individual split, regardless of
+       which School filter is selected above — the Range/School dropdowns
+       narrow everything else to one slice at a time, but this correlation
+       (how much of the platform is school-linked vs independent) needs to
+       stay visible no matter what's selected, or the "big picture" is lost. -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h4>🏫 User Base: Schools vs Individual</h4>
+    <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
+      <canvas id="userSegmentsChart" height="120" style="max-width:220px;"></canvas>
+      <div style="font-size:13px; color:#4C4432;">
+        <div><strong id="segSchoolLinked">—</strong> school-linked users (across all schools)</div>
+        <div style="margin-top:6px;"><strong id="segIndependent">—</strong> independent / non-school users</div>
+        <div style="margin-top:10px; font-size:11.5px; color:#8A7B55;">This card always shows the full platform split — use the School filter above to drill into one school or just independent users.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue broken into its 3 genuinely non-overlapping sources — see
+       controllers/adminController.js's getRevenueBySource for why these
+       three (and not a single "transactions" sum) are the correct model. -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h4>💰 Revenue by Source <span id="revenueRangeNote" style="font-weight:400; color:#8A7B55; font-size:11.5px;"></span></h4>
+    <div class="jk-stat-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+      <div class="jk-stat-card">
+        <div class="jk-stat-head"><span class="jk-stat-label">Wallet &amp; Direct Payments</span></div>
+        <div class="jk-stat-value" id="revWalletDirect">—</div>
+        <div style="font-size:10.5px; color:#8A7B55;">Wallet top-ups, course purchases, term reactivations, event tickets. Platform-wide only — can't be split by school.</div>
+      </div>
+      <div class="jk-stat-card">
+        <div class="jk-stat-head"><span class="jk-stat-label">School Fees</span></div>
+        <div class="jk-stat-value" id="revSchoolFees">—</div>
+        <div style="font-size:10.5px; color:#8A7B55;">Term quote payments. Fully filterable by the School dropdown above.</div>
+      </div>
+      <div class="jk-stat-card">
+        <div class="jk-stat-head"><span class="jk-stat-label">Parent Training</span></div>
+        <div class="jk-stat-value" id="revParentTraining">—</div>
+        <div style="font-size:10.5px; color:#8A7B55;">Instructor-led parent training fees. Always individual money — parents are never school-linked.</div>
+      </div>
     </div>
   </div>
 
@@ -129,7 +171,11 @@
     return res.json();
   }
 
-  let rolesChart, topCoursesChart, quizChart, revenueChart;
+  let rolesChart, topCoursesChart, quizChart, revenueChart, userSegmentsChart;
+
+  function formatNaira(n) {
+    return '₦' + (parseFloat(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
 
   async function loadOverview() {
     const data = await fetchJSON('/admin/stats/overview');
@@ -137,15 +183,41 @@
     document.getElementById('cardDAU').innerText = data.dau;
     document.getElementById('cardNew7').innerText = data.newUsers.new_in_range;
     document.getElementById('cardNewLabel').innerText = `New (${data.newUsers.range}d)`;
+
+    // This always reflects the FULL platform split (see
+    // controllers/adminController.js's exports.overview — computed
+    // unconditionally, not scoped by the School filter) even while every
+    // other card on the page is narrowed to one school/individual slice.
+    const seg = data.userSegments || { school_linked: 0, independent: 0 };
+    document.getElementById('segSchoolLinked').innerText = seg.school_linked;
+    document.getElementById('segIndependent').innerText = seg.independent;
+    const segCtx = document.getElementById('userSegmentsChart').getContext('2d');
+    if (userSegmentsChart) userSegmentsChart.destroy();
+    userSegmentsChart = new Chart(segCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['School-linked', 'Independent'],
+        datasets: [{ data: [seg.school_linked, seg.independent], backgroundColor: ['#4A90D9', '#D9A82C'] }],
+      },
+      options: { plugins: { legend: { position: 'bottom' } } },
+    });
   }
 
     async function loadFinance() {
     const data = await fetchJSON('/admin/stats/finance');
 
     // Update cards
-    document.getElementById('cardTotalRevenue').innerText = data.revenue.total_revenue;
-    document.getElementById('cardRevenue30d').innerText = data.revenue.revenue_range;
+    document.getElementById('cardTotalRevenue').innerText = formatNaira(data.revenue.total_revenue);
+    document.getElementById('cardRevenue30d').innerText = formatNaira(data.revenue.revenue_range);
     document.getElementById('cardRevenueLabel').innerText = `Revenue (${document.getElementById('rangeSelect').value}d)`;
+
+    // Revenue by source — the 3 genuinely non-overlapping buckets (see
+    // controllers/adminController.js's getRevenueBySource).
+    const src = data.revenue.by_source || {};
+    document.getElementById('revWalletDirect').innerText = formatNaira((src.walletAndDirect || {}).all_time);
+    document.getElementById('revSchoolFees').innerText = formatNaira((src.schoolFees || {}).all_time);
+    document.getElementById('revParentTraining').innerText = formatNaira((src.parentTraining || {}).all_time);
+    document.getElementById('revenueRangeNote').innerText = '(all-time totals — switch Range above for the period figure in the cards up top)';
 
     // Revenue Chart (simple example: selected range vs earlier)
     const labels = [`Last ${document.getElementById('rangeSelect').value}d`, 'Earlier'];

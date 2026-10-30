@@ -165,8 +165,20 @@ router.post("/register/:id", async (req, res) => {
     }
 
 
+    // amount_paid starts at 0 — it's literally "how much has actually been
+    // paid," not the fee owed (that's total_amount). This used to seed
+    // amount_paid to the same totalAmount value, so every registrant
+    // showed as having paid in FULL the instant they registered, before
+    // any real payment — confirmed live-visible on the admin Event
+    // Registrations table (views/admin/eventRegistrations.ejs), and it
+    // corrupted every revenue figure derived from this column. A real
+    // payment still correctly accumulates on top via
+    // `/verify-event-payment`'s `newTotalPaid = (reg.amount_paid||0) +
+    // amountPaid`, which was already written to handle a non-zero
+    // starting value (partial payments) — it just never got a true 0 to
+    // start from until now.
     const regRes = await pool.query(
-      `INSERT INTO event_registrations 
+      `INSERT INTO event_registrations
         (event_id, registrant_name, registrant_email, registrant_phone, num_people, child_names, amount_paid, total_amount, payment_option)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
@@ -177,7 +189,7 @@ router.post("/register/:id", async (req, res) => {
         registrant_phone || null,
         peopleCount,
         JSON.stringify(childNames),
-        totalAmount,
+        0,
         totalAmount,
         paymentOption,
       ]
