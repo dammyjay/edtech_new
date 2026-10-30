@@ -14,6 +14,31 @@
   }
   .page { padding: 28px 34px 40px; }
 
+  <%# Puppeteer's PDF output relies entirely on the fonts actually
+      installed on whatever server renders it — most servers have no
+      color/emoji font at all, so literal emoji characters render as
+      empty boxes in the downloaded PDF (confirmed: client-reported,
+      even though the exact same characters display fine in a real
+      browser). Embedding a real emoji font isn't a safe fix either —
+      Noto Color Emoji alone is ~25MB, and Chromium's PDF rasterizer has
+      long-standing, well-known bugs rendering color-glyph fonts in
+      printed output even when the font IS available. So this template
+      uses plain colored badges/dots (.pf-dot, .pf-badge) instead of any
+      emoji — just text in the same Georgia/Arial fonts already proven
+      to render correctly everywhere in this PDF. %>
+  .pf-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+  .pf-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 800; color: #fff; font-family: Arial, sans-serif;
+    letter-spacing: 0.02em; flex-shrink: 0;
+  }
+  .pf-medal {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%; color: #fff;
+    font-size: 12px; font-weight: 800; font-family: Arial, sans-serif; margin: 0 auto 4px;
+  }
+
   .pf-hero {
     background: linear-gradient(135deg, #D9A82C, #A17807);
     color: #fff;
@@ -28,7 +53,7 @@
   .pf-hero-left { display: flex; align-items: center; gap: 14px; }
   .pf-hero-avatar { width: 56px; height: 56px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.65); object-fit: cover; background: rgba(255,255,255,0.2); }
   .pf-hero-name { margin: 0 0 4px; font-size: 20px; font-weight: 700; font-family: 'Georgia', serif; }
-  .pf-hero-sub { margin: 0; font-size: 11px; opacity: 0.92; }
+  .pf-hero-sub { margin: 0; font-size: 11px; opacity: 0.92; text-transform: uppercase; letter-spacing: 0.06em; }
   .pf-hero-chip { display: inline-block; background: rgba(255,255,255,0.22); border-radius: 999px; padding: 3px 11px; font-size: 10.5px; font-weight: 700; margin-right: 6px; margin-top: 6px; }
   .pf-hero-score { text-align: center; background: rgba(255,255,255,0.18); border-radius: 12px; padding: 10px 18px; }
   .pf-hero-score .num { font-size: 24px; font-weight: 900; display: block; line-height: 1; }
@@ -36,12 +61,11 @@
 
   .pf-stat-row { display: flex; gap: 10px; margin-bottom: 18px; }
   .pf-stat-card { flex: 1; background: #fff; border: 1px solid #EDE7D6; border-top: 3px solid var(--pf-accent, #A17807); border-radius: 10px; padding: 10px 6px; text-align: center; }
-  .pf-stat-icon { font-size: 16px; }
-  .pf-stat-val { font-size: 16px; font-weight: 800; color: #1A1510; display: block; margin: 2px 0; }
+  .pf-stat-val { font-size: 18px; font-weight: 800; color: #1A1510; display: block; margin: 2px 0; }
   .pf-stat-lbl { font-size: 8px; color: #8A7B55; font-weight: 700; text-transform: uppercase; }
 
   .pf-section { background: #fff; border: 1px solid #EDE7D6; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; page-break-inside: avoid; }
-  .pf-section-title { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; color: #1A1510; font-family: Arial, sans-serif; }
+  .pf-section-title { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; color: #1A1510; font-family: Arial, sans-serif; display: flex; align-items: center; }
   .pf-empty { color: #8A7B55; font-size: 11px; }
 
   .pf-skill-chip { display: inline-block; background: #FBF3DD; color: #4C3802; padding: 4px 11px; border-radius: 999px; font-size: 10.5px; font-weight: 700; margin: 0 6px 6px 0; border: 1px solid #EBD7A0; }
@@ -61,14 +85,14 @@
 
   .pf-badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .pf-badge-card { width: 90px; text-align: center; border: 1px solid #EDE7D6; border-radius: 8px; padding: 8px 4px; }
-  .pf-badge-medal { font-size: 22px; }
   .pf-badge-name { font-size: 9px; font-weight: 700; margin-top: 2px; font-family: Arial, sans-serif; }
   .pf-badge-module { font-size: 8px; color: #8A7B55; }
 
-  .pf-project-row { border: 1px solid #EDE7D6; border-radius: 8px; padding: 8px 11px; margin-bottom: 6px; font-size: 10.5px; }
+  .pf-project-row { border: 1px solid #EDE7D6; border-radius: 8px; padding: 8px 11px; margin-bottom: 6px; font-size: 10.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .pf-project-title { font-weight: 700; }
   .pf-project-type { color: #8A7B55; font-size: 9px; }
-  .pf-score-pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; margin-left: 6px; }
+  .pf-score-pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; }
+  .pf-publish-pill { display: inline-block; font-size: 8px; font-weight: 700; padding: 2px 7px; border-radius: 999px; color: #fff; background: #4A90D9; font-family: Arial, sans-serif; }
 
   .pf-timeline-item { border-left: 2px solid #EBD7A0; padding-left: 10px; margin-bottom: 10px; page-break-inside: avoid; }
   .pf-timeline-title { font-weight: 700; font-size: 11px; }
@@ -83,10 +107,24 @@
 
   <%
     const pfLevelColor = (lvl) => lvl === 'Advanced' ? '#B23A2A' : lvl === 'Intermediate' ? '#9A6B1E' : '#1E7A42';
-    const pfProjectIcon = (type) => (type || '').includes('Web') ? '🌐' : (type || '').includes('Block') ? '🧩' : (type || '').includes('Python') ? '🐍' : (type || '').includes('Arduino') ? '🔌' : (type || '').includes('External') ? '📁' : '🚀';
+    // {label, color} instead of an emoji — see the big comment in <style> above.
+    const pfProjectBadge = (type) => {
+      const t = type || '';
+      if (t.includes('Web')) return { label: 'WEB', color: '#4A90D9' };
+      if (t.includes('Block')) return { label: 'BLOCKS', color: '#A463D9' };
+      if (t.includes('Python')) return { label: 'PYTHON', color: '#34C77B' };
+      if (t.includes('Arduino')) return { label: 'ARDUINO', color: '#2EA8A0' };
+      if (t.includes('External')) return { label: 'EXTERNAL', color: '#8A7B55' };
+      return { label: 'PROJECT', color: '#D94A7A' };
+    };
     const pfScoreColor = (score) => (score === null || score === undefined) ? '#8A7B55' : score >= 70 ? '#1E7A42' : score >= 50 ? '#9A6B1E' : '#B23A2A';
-    const pfEntryIcon = (t) => t === 'competition' ? '🏆' : t === 'project' ? '🚀' : t === 'experience' ? '💼' : '⭐';
-    const pfBadgeMedal = (name) => name === 'Beginner' ? '🥉' : name === 'Intermediate' ? '🥈' : name === 'Advanced' ? '🥇' : name === 'Master' ? '👑' : '🎖️';
+    const pfEntryColor = (t) => t === 'competition' ? '#D9A82C' : t === 'project' ? '#34C77B' : t === 'experience' ? '#4A90D9' : '#A463D9';
+    const pfBadgeMedal = (name) =>
+      name === 'Beginner' ? { label: 'B', color: '#CD7F32' } :
+      name === 'Intermediate' ? { label: 'I', color: '#9AA5B1' } :
+      name === 'Advanced' ? { label: 'A', color: '#D9A82C' } :
+      name === 'Master' ? { label: 'M', color: '#A463D9' } :
+      { label: '•', color: '#8A7B55' };
     const pfScore = (portfolioData.certificates.length * 15) + (portfolioData.badges.length * 8) + (portfolioData.projects.length * 10) + (portfolioData.entries.length * 5);
   %>
 
@@ -96,9 +134,9 @@
       <% if (avatarUrl) { %><img class="pf-hero-avatar" src="<%= avatarUrl %>" alt="" /><% } %>
       <div>
         <h1 class="pf-hero-name"><%= displayName %><%= portfolioData.scopedCourseTitle ? ' — ' + portfolioData.scopedCourseTitle : '' %></h1>
-        <p class="pf-hero-sub">🎓 Portfolio / CV <%= portfolioData.scopedCourseTitle ? '(Course: ' + portfolioData.scopedCourseTitle + ')' : '(All Courses)' %></p>
-        <% if (levelInfo) { %><span class="pf-hero-chip">🏆 Level <%= levelInfo.level %> — <%= levelInfo.name %></span><% } %>
-        <% if (streak) { %><span class="pf-hero-chip">🔥 <%= streak.currentStreak %>-day streak</span><% } %>
+        <p class="pf-hero-sub">Portfolio / CV <%= portfolioData.scopedCourseTitle ? '(Course: ' + portfolioData.scopedCourseTitle + ')' : '(All Courses)' %></p>
+        <% if (levelInfo) { %><span class="pf-hero-chip">Level <%= levelInfo.level %> — <%= levelInfo.name %></span><% } %>
+        <% if (streak) { %><span class="pf-hero-chip"><%= streak.currentStreak %>-day streak</span><% } %>
       </div>
     </div>
     <div class="pf-hero-score">
@@ -109,17 +147,17 @@
 
   <!-- STATS -->
   <div class="pf-stat-row">
-    <div class="pf-stat-card" style="--pf-accent:#4A90D9;"><div class="pf-stat-icon">📘</div><span class="pf-stat-val"><%= portfolioData.courses.length %></span><span class="pf-stat-lbl">Courses</span></div>
-    <div class="pf-stat-card" style="--pf-accent:#D9A82C;"><div class="pf-stat-icon">📜</div><span class="pf-stat-val"><%= portfolioData.certificates.length %></span><span class="pf-stat-lbl">Certificates</span></div>
-    <div class="pf-stat-card" style="--pf-accent:#C97A0F;"><div class="pf-stat-icon">🏅</div><span class="pf-stat-val"><%= portfolioData.badges.length %></span><span class="pf-stat-lbl">Badges</span></div>
-    <div class="pf-stat-card" style="--pf-accent:#34C77B;"><div class="pf-stat-icon">🚀</div><span class="pf-stat-val"><%= portfolioData.projects.length %></span><span class="pf-stat-lbl">Projects</span></div>
-    <div class="pf-stat-card" style="--pf-accent:#A463D9;"><div class="pf-stat-icon">🛠️</div><span class="pf-stat-val"><%= portfolioData.skills.length %></span><span class="pf-stat-lbl">Skills</span></div>
-    <div class="pf-stat-card" style="--pf-accent:#D94A7A;"><div class="pf-stat-icon">🏆</div><span class="pf-stat-val"><%= portfolioData.entries.length %></span><span class="pf-stat-lbl">Achievements</span></div>
+    <div class="pf-stat-card" style="border-top-color:#4A90D9;"><span class="pf-stat-val"><%= portfolioData.courses.length %></span><span class="pf-stat-lbl">Courses</span></div>
+    <div class="pf-stat-card" style="border-top-color:#D9A82C;"><span class="pf-stat-val"><%= portfolioData.certificates.length %></span><span class="pf-stat-lbl">Certificates</span></div>
+    <div class="pf-stat-card" style="border-top-color:#C97A0F;"><span class="pf-stat-val"><%= portfolioData.badges.length %></span><span class="pf-stat-lbl">Badges</span></div>
+    <div class="pf-stat-card" style="border-top-color:#34C77B;"><span class="pf-stat-val"><%= portfolioData.projects.length %></span><span class="pf-stat-lbl">Projects</span></div>
+    <div class="pf-stat-card" style="border-top-color:#A463D9;"><span class="pf-stat-val"><%= portfolioData.skills.length %></span><span class="pf-stat-lbl">Skills</span></div>
+    <div class="pf-stat-card" style="border-top-color:#D94A7A;"><span class="pf-stat-val"><%= portfolioData.entries.length %></span><span class="pf-stat-lbl">Achievements</span></div>
   </div>
 
   <!-- SKILLS -->
   <div class="pf-section">
-    <h3 class="pf-section-title">🛠️ Skills</h3>
+    <h3 class="pf-section-title"><span class="pf-dot" style="background:#A463D9;"></span>Skills</h3>
     <% if (portfolioData.skills && portfolioData.skills.length) { %>
       <div><% portfolioData.skills.forEach(s => { %><span class="pf-skill-chip"><%= s %></span><% }) %></div>
     <% } else { %><p class="pf-empty">Nothing yet.</p><% } %>
@@ -128,7 +166,7 @@
   <!-- AI SUMMARY -->
   <% if (portfolioData.summary) { %>
     <div class="pf-section">
-      <h3 class="pf-section-title">🤖 Overview</h3>
+      <h3 class="pf-section-title"><span class="pf-dot" style="background:#A17807;"></span>Overview</h3>
       <div class="pf-ai-card"><%= portfolioData.summary.summary_text %></div>
     </div>
   <% } %>
@@ -136,7 +174,7 @@
   <!-- COURSES -->
   <% if (!portfolioData.scopedCourseId && portfolioData.courses.length) { %>
     <div class="pf-section">
-      <h3 class="pf-section-title">📘 Courses</h3>
+      <h3 class="pf-section-title"><span class="pf-dot" style="background:#4A90D9;"></span>Courses</h3>
       <% portfolioData.courses.forEach(c => { %>
         <div class="pf-course-row">
           <div class="pf-course-head">
@@ -156,7 +194,7 @@
   <!-- CERTIFICATES + BADGES -->
   <div class="pf-grid-2">
     <div class="pf-section">
-      <h3 class="pf-section-title">📜 Certificates</h3>
+      <h3 class="pf-section-title"><span class="pf-dot" style="background:#D9A82C;"></span>Certificates</h3>
       <% if (portfolioData.certificates.length) { %>
         <% portfolioData.certificates.forEach(cert => { %>
           <div class="pf-cert-card" style="margin-bottom:6px;">
@@ -167,12 +205,13 @@
       <% } else { %><p class="pf-empty">None yet.</p><% } %>
     </div>
     <div class="pf-section">
-      <h3 class="pf-section-title">🏅 Badges</h3>
+      <h3 class="pf-section-title"><span class="pf-dot" style="background:#C97A0F;"></span>Badges</h3>
       <% if (portfolioData.badges.length) { %>
         <div class="pf-badge-grid">
           <% portfolioData.badges.forEach(b => { %>
+            <% const medal = pfBadgeMedal(b.badge_name); %>
             <div class="pf-badge-card">
-              <div class="pf-badge-medal"><%= pfBadgeMedal(b.badge_name) %></div>
+              <div class="pf-medal" style="background:<%= medal.color %>;"><%= medal.label %></div>
               <div class="pf-badge-name"><%= b.badge_name %></div>
               <div class="pf-badge-module"><%= b.module_title %></div>
             </div>
@@ -184,17 +223,18 @@
 
   <!-- PROJECTS -->
   <div class="pf-section">
-    <h3 class="pf-section-title">🚀 Projects</h3>
+    <h3 class="pf-section-title"><span class="pf-dot" style="background:#34C77B;"></span>Projects</h3>
     <% if (portfolioData.projects.length) { %>
       <% portfolioData.projects.forEach(p => { %>
+        <% const pb = pfProjectBadge(p.type); %>
         <div class="pf-project-row">
-          <%= pfProjectIcon(p.type) %>
+          <span class="pf-badge" style="background:<%= pb.color %>;"><%= pb.label %></span>
           <span class="pf-project-title"><%= p.title %></span>
-          <span class="pf-project-type">— <%= p.type %></span>
+          <span class="pf-project-type"><%= p.type %></span>
           <% if (p.score !== null && p.score !== undefined) { %>
             <span class="pf-score-pill" style="background:<%= pfScoreColor(p.score) %>;">Score <%= p.score %></span>
           <% } %>
-          <%= p.isPublished ? ' 🌐' : '' %>
+          <% if (p.isPublished) { %><span class="pf-publish-pill">PUBLISHED</span><% } %>
         </div>
       <% }) %>
     <% } else { %><p class="pf-empty">None yet.</p><% } %>
@@ -202,11 +242,11 @@
 
   <!-- ACHIEVEMENTS / EXPERIENCE -->
   <div class="pf-section">
-    <h3 class="pf-section-title">🏆 Achievements &amp; Experience</h3>
+    <h3 class="pf-section-title"><span class="pf-dot" style="background:#D94A7A;"></span>Achievements &amp; Experience</h3>
     <% if ((portfolioData.entries || []).length) { %>
       <% portfolioData.entries.forEach(e => { %>
-        <div class="pf-timeline-item">
-          <div class="pf-timeline-title"><%= pfEntryIcon(e.entry_type) %> <%= e.title %></div>
+        <div class="pf-timeline-item" style="border-left-color:<%= pfEntryColor(e.entry_type) %>;">
+          <div class="pf-timeline-title"><%= e.title %></div>
           <div class="pf-timeline-meta">
             <%= e.entry_type %><%= e.entry_year ? ' · ' + e.entry_year : '' %><%= e.organization ? ' · ' + e.organization : '' %>
           </div>
