@@ -1077,6 +1077,41 @@ async function createTables() {
 
       `);
 
+    // Self-healing backfill: a teacher's real classroom assignment is
+    // supposed to live in classroom_teachers (every "assign teacher to
+    // classroom" code path — createClassroom/updateClassroom in both
+    // adminController.js and schoolAdminController.js, plus
+    // assignToClassroomB — writes there, never to
+    // user_school.classroom_id for a teacher). But user_school is also
+    // one of the tables exposed through the generic admin DB editor
+    // (utils/allowedTables.js), which can set classroom_id directly with
+    // no idea classroom_teachers needs to stay in sync — found in
+    // production (two teachers at the same school, approved, with a
+    // real user_school.classroom_id and real students in that classroom,
+    // but zero classroom_teachers rows, so every dashboard query —
+    // which only ever joins through classroom_teachers — showed them
+    // nothing). Deliberately narrow: only touches a teacher with NO
+    // classroom_teachers rows at all, never one who already has real
+    // assignments elsewhere — a teacher can get legitimately reassigned
+    // via classroom_teachers without user_school.classroom_id ever being
+    // updated to match (confirmed in production: one teacher's own
+    // user_school.classroom_id pointed at a classroom they'd long since
+    // moved on from, while their real, current classrooms were already
+    // correctly in classroom_teachers) — backfilling that stale value
+    // too would incorrectly add a classroom they don't actually teach.
+    await pool.query(`
+      INSERT INTO classroom_teachers (classroom_id, teacher_id)
+      SELECT us.classroom_id, us.user_id
+      FROM user_school us
+      WHERE us.role_in_school = 'teacher'
+        AND us.classroom_id IS NOT NULL
+        AND us.approved = true
+        AND NOT EXISTS (
+          SELECT 1 FROM classroom_teachers ct WHERE ct.teacher_id = us.user_id
+        )
+      ON CONFLICT (classroom_id, teacher_id) DO NOTHING;
+      `);
+
     // junction table for classroom courses
     await pool.query(`
       CREATE TABLE IF NOT EXISTS classroom_courses (
