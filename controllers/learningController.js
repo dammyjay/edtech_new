@@ -1474,6 +1474,23 @@ exports.saveAIQuizForLesson = async (req, res) => {
 // existing curriculum-authoring parity between the two roles.
 // ---------------------------------------------------------------------
 
+// Pulls the first top-level JSON array out of a raw AI response instead
+// of assuming the whole string is already valid JSON. askTutor's system
+// prompt is a conversational "supportive EdTech tutor" persona (see
+// utils/ai.js), not a strict JSON-only one — confirmed live, it can
+// preface the array with text like "Here are 20 flashcards:" (or wrap
+// it in a ```json code fence) even when explicitly told to return only
+// JSON, which broke a bare JSON.parse(raw).
+function extractJsonArray(raw) {
+  const text = String(raw).trim();
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("AI response did not contain a JSON array");
+  }
+  return JSON.parse(text.slice(start, end + 1));
+}
+
 // Generate but do NOT save — returns JSON for an editable preview.
 exports.aiPreviewFlashcardsForModule = async (req, res) => {
   try {
@@ -1499,7 +1516,7 @@ exports.aiPreviewFlashcardsForModule = async (req, res) => {
       question: `
 Generate ${numCards} study flashcards in JSON, covering what a student should remember from these lessons. Spread the cards across all the lessons below (don't concentrate them all on one lesson) — a straightforward recall question on the front, a clear, concise answer on the back. "lesson_title" MUST be copied exactly, character-for-character, from one of the lesson titles listed below — never invent or paraphrase a title.
 
-Return ONLY JSON in this format:
+Return ONLY the raw JSON array below — no preamble, no markdown code fences, no text before or after it — in this format:
 [
   {
     "lesson_title": "string — exact match to one of the lesson titles below",
@@ -1512,10 +1529,26 @@ Lesson titles (choose "lesson_title" only from this exact list): ${JSON.stringif
 
 ${lessonsBlock}
 `,
+      // askTutor's system prompt is a conversational tutor persona, not a
+      // strict JSON-only one — asking nicely for "ONLY JSON" isn't always
+      // enough, so the response is still sanitized below before parsing.
+      // Its own default (700) is sized for a chat reply, not ~20
+      // structured front/back pairs across several lessons — too small
+      // risks silently truncating the JSON mid-array. Scales with
+      // numCards, capped well under gpt-4o-mini's output limit.
+      maxTokens: Math.min(4000, 150 * Number(numCards || 20)),
     };
 
     const raw = await askTutor(prompt);
-    let items = JSON.parse(raw);
+    let items;
+    try {
+      items = extractJsonArray(raw);
+    } catch (parseErr) {
+      // Logged server-side only (never echoed to the client) — enough
+      // to diagnose a bad AI response without exposing raw model output.
+      console.error("AI preview flashcards: could not parse AI response —", parseErr.message, "— raw (first 300 chars):", raw.slice(0, 300));
+      return res.status(502).json({ error: "The AI's response couldn't be read as flashcards — try Generate again." });
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "AI did not return valid flashcards." });
