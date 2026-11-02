@@ -348,7 +348,17 @@ exports.getDashboard = async (req, res) => {
     }
 
     // ✅ Independent students (user / individual_student)
-    else if (!isSchoolLinked) {
+    // !previewMode guards against the instructor "Student View" case
+    // just above: an instructor is never isSchoolLinked (they have no
+    // student-role user_school row), so without this exclusion this
+    // branch ran right after the preview block and overwrote the
+    // classroom's real enrolledCourses with the instructor's own
+    // (always empty) course_enrollments — wiping out the preview the
+    // moment it was set. The old role==='user'/'individual_student'
+    // check this replaced never matched "instructor" either, so this
+    // exclusion just makes that same behavior explicit instead of
+    // accidental.
+    else if (!isSchoolLinked && !previewMode) {
       const enrolledCoursesRes = await pool.query(
         // LEFT JOIN — career_pathway_id is nullable on courses, and an
         // INNER JOIN here silently dropped any enrolled course with no
