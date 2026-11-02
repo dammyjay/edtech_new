@@ -195,6 +195,12 @@ router.get(
   studentController.getModuleDetails
 );
 
+router.get(
+  "/modules/:moduleId/flashcards",
+  ensureAuthenticated,
+  studentController.getModuleFlashcards
+);
+
 // Get quiz questions for a lesson
 router.get('/lessons/:id/quiz', studentController.getLessonQuiz);
 

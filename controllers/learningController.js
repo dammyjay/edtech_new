@@ -1264,6 +1264,16 @@ exports.viewSingleCourse = async (req, res) => {
     );
     const info = infoResult.rows[0];
 
+    const flashcardCountsRes = await pool.query(
+      `SELECT module_id, COUNT(*) AS count FROM flashcards
+       WHERE module_id = ANY($1::int[]) GROUP BY module_id`,
+      [modules.rows.map((m) => m.id)]
+    );
+    const flashcardCounts = {};
+    flashcardCountsRes.rows.forEach((r) => {
+      flashcardCounts[r.module_id] = Number(r.count);
+    });
+
     res.render("admin/singleCourse", {
       course,
       info,
@@ -1275,6 +1285,7 @@ exports.viewSingleCourse = async (req, res) => {
       projects: projects.rows,
       externalProjects: externalProjects.rows,
       quizzes: quizzes.rows,
+      flashcardCounts,
       activeTab: req.query.tab || "details",
       role: req.session.user?.role || "admin", // ✅ ensure role is passed
       page: 1,
@@ -1451,6 +1462,120 @@ exports.saveAIQuizForLesson = async (req, res) => {
   } catch (e) {
     console.error("Save AI quiz error:", e.message);
     res.status(500).json({ error: "Failed to save quiz." });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Flashcards — same two-step preview-then-save shape as the AI quiz
+// functions above (aiPreviewQuizForLesson / saveAIQuizForLesson), just
+// scoped to a whole module (every one of its lessons) instead of a
+// single lesson. Reachable by both Admin and Instructor (routes wired
+// in both routes/adminRoutes.js and routes/instructor.js), matching the
+// existing curriculum-authoring parity between the two roles.
+// ---------------------------------------------------------------------
+
+// Generate but do NOT save — returns JSON for an editable preview.
+exports.aiPreviewFlashcardsForModule = async (req, res) => {
+  try {
+    const { moduleId } = req.params;
+    const { numCards = 20 } = req.body;
+
+    const lessonsRes = await pool.query(
+      `SELECT id, title, content FROM lessons
+       WHERE module_id = $1 AND archived_at IS NULL
+       ORDER BY order_number`,
+      [moduleId]
+    );
+    if (!lessonsRes.rows.length) {
+      return res.status(400).json({ error: "This module has no lessons to generate flashcards from." });
+    }
+
+    const lessonsBlock = lessonsRes.rows
+      .map((l, i) => `Lesson ${i + 1} — "${l.title}":\n${(l.content || "").slice(0, 3000)}`)
+      .join("\n\n");
+    const lessonTitles = lessonsRes.rows.map((l) => l.title);
+
+    const prompt = {
+      question: `
+Generate ${numCards} study flashcards in JSON, covering what a student should remember from these lessons. Spread the cards across all the lessons below (don't concentrate them all on one lesson) — a straightforward recall question on the front, a clear, concise answer on the back. "lesson_title" MUST be copied exactly, character-for-character, from one of the lesson titles listed below — never invent or paraphrase a title.
+
+Return ONLY JSON in this format:
+[
+  {
+    "lesson_title": "string — exact match to one of the lesson titles below",
+    "front": "string — a short question or prompt",
+    "back": "string — the answer/explanation"
+  }
+]
+
+Lesson titles (choose "lesson_title" only from this exact list): ${JSON.stringify(lessonTitles)}
+
+${lessonsBlock}
+`,
+    };
+
+    const raw = await askTutor(prompt);
+    let items = JSON.parse(raw);
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "AI did not return valid flashcards." });
+    }
+
+    res.json({ preview: items, lessons: lessonsRes.rows.map((l) => ({ id: l.id, title: l.title })) });
+  } catch (e) {
+    console.error("AI preview flashcards error:", e.message);
+    res.status(500).json({ error: "Failed to preview flashcards." });
+  }
+};
+
+exports.saveFlashcardsForModule = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { moduleId } = req.params;
+    const { flashcards } = req.body; // array from frontend, possibly edited
+
+    if (!flashcards || !Array.isArray(flashcards) || !flashcards.length) {
+      return res.status(400).json({ error: "Invalid flashcard data" });
+    }
+
+    const lessonsRes = await pool.query(
+      `SELECT id, title FROM lessons WHERE module_id = $1 AND archived_at IS NULL`,
+      [moduleId]
+    );
+    // Best-effort match back to a real lesson id — case/whitespace
+    // tolerant, since the AI is asked to copy the title exactly but
+    // isn't guaranteed to. A card with no match still saves fine; it
+    // just has no "jump to lesson" link (same as a manually-added card).
+    const lessonIdByTitle = new Map(
+      lessonsRes.rows.map((l) => [l.title.trim().toLowerCase(), l.id])
+    );
+
+    await client.query("BEGIN");
+    // Regenerating replaces the module's whole set, same as re-running
+    // the AI quiz generator replaces a lesson's quiz questions.
+    await client.query(`DELETE FROM flashcards WHERE module_id = $1`, [moduleId]);
+
+    let order = 1;
+    for (const card of flashcards) {
+      if (!card.front || !card.back) continue;
+      const lessonId = card.lesson_title
+        ? lessonIdByTitle.get(String(card.lesson_title).trim().toLowerCase()) || null
+        : null;
+      await client.query(
+        `INSERT INTO flashcards (module_id, lesson_id, front_text, back_text, order_number, ai_generated)
+         VALUES ($1,$2,$3,$4,$5,true)`,
+        [moduleId, lessonId, card.front, card.back, order++]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true, count: order - 1 });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("Save flashcards error:", e.message);
+    res.status(500).json({ error: "Failed to save flashcards." });
+  } finally {
+    client.release();
   }
 };
 

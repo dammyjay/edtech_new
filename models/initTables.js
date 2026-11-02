@@ -453,6 +453,26 @@ async function createTables() {
       );`
     );
 
+    // AI-generated study flashcards, one set per module — flat child
+    // table, same shape as module_assignments right below (no "set"
+    // wrapper, since a module only ever has one live set at a time;
+    // regenerating just replaces it). lesson_id is nullable/ON DELETE
+    // SET NULL so a card survives its source lesson being deleted
+    // later — it just loses its "jump back to lesson" link instead of
+    // breaking.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS flashcards (
+        id SERIAL PRIMARY KEY,
+        module_id INTEGER REFERENCES modules(id) ON DELETE CASCADE,
+        lesson_id INTEGER REFERENCES lessons(id) ON DELETE SET NULL,
+        front_text TEXT NOT NULL,
+        back_text TEXT NOT NULL,
+        order_number INTEGER,
+        ai_generated BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     // table for module assignments
     await pool.query(
       `CREATE TABLE IF NOT EXISTS module_assignments (

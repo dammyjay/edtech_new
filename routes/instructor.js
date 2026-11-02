@@ -141,6 +141,21 @@ router.get("/lessons/:id/json", learningController.getLessonJSON);
 // routes/adminRoutes.js for why this is POST, not GET.
 router.post("/lesson/:lessonId/quiz", learningController.getOrCreateLessonQuiz);
 
+// Flashcards — preview then save, same as routes/adminRoutes.js's
+// equivalent pair, giving Instructor the same authoring parity Admin
+// already has (matches the existing quiz/lesson/module authoring
+// routes in this file).
+router.post(
+  "/modules/:moduleId/flashcards/ai-preview",
+  upload.none(),
+  learningController.aiPreviewFlashcardsForModule
+);
+router.post(
+  "/modules/:moduleId/flashcards/ai-save",
+  upload.none(),
+  learningController.saveFlashcardsForModule
+);
+
 // Create question
 router.post(
   "/quiz-question/create",

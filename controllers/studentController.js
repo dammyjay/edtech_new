@@ -3708,6 +3708,59 @@ exports.viewLesson = async (req, res) => {
   }
 };
 
+// A free study aid, not a lesson — no completion/progress tracking, no
+// locking. Access is still checked though: current classroom (live
+// classroom_courses), past classroom (student_term_enrollments, same
+// "past course" pattern as services/studentCourseAccessService.js), or
+// an independent self-enrollment (course_enrollments) all count.
+exports.getModuleFlashcards = async (req, res) => {
+  try {
+    const moduleId = req.params.moduleId;
+    const studentId = req.user.id;
+
+    const accessRes = await pool.query(
+      `SELECT m.id
+       FROM modules m
+       WHERE m.id = $1
+         AND (
+           EXISTS (
+             SELECT 1 FROM classroom_courses cc
+             JOIN user_school us ON us.classroom_id = cc.classroom_id
+             WHERE cc.course_id = m.course_id AND us.user_id = $2
+               AND us.role_in_school = 'student' AND us.approved = true
+           )
+           OR EXISTS (
+             SELECT 1 FROM student_term_enrollments ste
+             JOIN classroom_courses cc2 ON cc2.classroom_id = ste.classroom_id
+             WHERE cc2.course_id = m.course_id AND ste.student_id = $2
+           )
+           OR EXISTS (
+             SELECT 1 FROM course_enrollments ce WHERE ce.course_id = m.course_id AND ce.user_id = $2
+           )
+         )`,
+      [moduleId, studentId]
+    );
+    if (!accessRes.rows.length) {
+      return res.status(403).json({ success: false, message: "Not authorized for this module" });
+    }
+
+    const result = await pool.query(
+      `SELECT f.id, f.front_text, f.back_text, f.order_number,
+              f.lesson_id, l.title AS lesson_title
+       FROM flashcards f
+       LEFT JOIN lessons l ON l.id = f.lesson_id
+       WHERE f.module_id = $1
+       ORDER BY f.order_number`,
+      [moduleId]
+    );
+
+    res.json({ success: true, flashcards: result.rows });
+  } catch (err) {
+    console.error("getModuleFlashcards error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 exports.getModuleDetails = async (req, res) => {
   const moduleId = req.params.moduleId;
   const studentId = req.user.id;

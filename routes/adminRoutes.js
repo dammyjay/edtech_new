@@ -478,6 +478,20 @@ router.post(
   learningController.saveAIQuizForLesson
 );
 
+// Flashcards — preview then save, same shape as the AI quiz routes
+// above, scoped to a whole module instead of one lesson. Also wired in
+// routes/instructor.js, so both Admin and Instructor can generate them.
+router.post(
+  "/modules/:moduleId/flashcards/ai-preview",
+  upload.none(),
+  learningController.aiPreviewFlashcardsForModule
+);
+router.post(
+  "/modules/:moduleId/flashcards/ai-save",
+  upload.none(),
+  learningController.saveFlashcardsForModule
+);
+
 // Create question
 router.post(
   "/quiz-question/create",

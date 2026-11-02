@@ -1,4 +1,6 @@
 
+<% const rolePrefix = (typeof role !== 'undefined' && role === 'instructor') ? '/instructor' : '/admin'; %>
+<% const flashcardCountsSafe = typeof flashcardCounts !== 'undefined' ? flashcardCounts : {}; %>
 
   <div class="jk-header-card" style="margin-top:16px;">
     <div><h3 style="margin:0;">Modules</h3></div>
@@ -72,6 +74,11 @@
               data-content-id="moduleOverviewData-<%= module.id %>"
             >📦 View Curriculum</button>
           <% } %>
+
+          <!-- Flashcards -->
+          <button type="button" class="flashcard-manage-btn" data-module-id="<%= module.id %>" data-module-title="<%= module.title %>">
+            📇 <%= flashcardCountsSafe[module.id] ? `Flashcards (${flashcardCountsSafe[module.id]})` : 'Generate Flashcards' %>
+          </button>
 
           <!-- Regenerate Thumbnail -->
           <form action="/admin/modules/<%= module.id %>/regenerate-thumbnail" method="POST" style="display:inline;">
@@ -233,5 +240,146 @@
     CKEDITOR.replace("editckeditor1-<%= module.id %>");
     CKEDITOR.replace("editckeditor2-<%= module.id %>");
   <% }) %>
+</script>
+
+<!-- ===== Flashcards modal — AI generate (preview, editable) then save.
+     Same preview-then-save shape as the lesson quiz AI generator
+     (views/partials/lessons.ejs), just scoped to a whole module. One
+     modal reused for every module card; data-module-id on the trigger
+     button tells it which module it's working on. ===== -->
+<div id="flashcardModal" class="modal">
+  <div class="modal-content" style="max-width:700px;">
+    <span class="close" onclick="closeModal('flashcardModal')">&times;</span>
+    <h3 id="flashcardModalTitle">📇 Flashcards</h3>
+    <p style="font-size:12.5px; color:#8A7B55; margin-top:-6px;">20 AI-generated study cards drawn from this module's lessons — each tagged with the lesson it came from.</p>
+
+    <div id="flashcardIdleState">
+      <label style="font-size:12.5px; font-weight:700;">Number of cards</label>
+      <input type="number" id="flashcardCount" value="20" min="5" max="30" style="width:80px; display:block; margin:6px 0 12px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+      <button type="button" class="jk-btn-dark" onclick="generateFlashcardsPreview()">🧠 Generate with AI</button>
+    </div>
+
+    <div id="flashcardLoadingState" style="display:none; padding:30px 0; text-align:center; color:#666;">
+      ⏳ Generating flashcards from this module's lessons… this can take up to a minute.
+    </div>
+
+    <div id="flashcardPreviewState" style="display:none;">
+      <div id="flashcardPreviewList" style="max-height:50vh; overflow-y:auto; margin:10px 0;"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+        <button type="button" class="jk-btn-outline" onclick="generateFlashcardsPreview()">🔁 Regenerate</button>
+        <button type="button" class="jk-btn-dark" onclick="saveFlashcards()">💾 Save Flashcards</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  .flashcard-manage-btn { background:#F6F4EF; color:#4C3802; border:1px solid #EDE7D6; border-radius:8px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; }
+  .flashcard-preview-card { background:#FAF8F2; border:1px solid #EDE7D6; border-radius:10px; padding:12px; margin-bottom:10px; }
+  .flashcard-preview-card label { display:block; font-size:11px; font-weight:700; color:#6E6350; margin:6px 0 3px; }
+  .flashcard-preview-card textarea { width:100%; box-sizing:border-box; padding:6px 8px; border-radius:6px; border:1px solid #ddd; font-family:inherit; font-size:13px; resize:vertical; }
+  .flashcard-preview-card select { width:100%; box-sizing:border-box; padding:6px 8px; border-radius:6px; border:1px solid #ddd; font-family:inherit; font-size:12.5px; }
+</style>
+<script>
+  let flashcardModuleId = null;
+  let flashcardLessons = [];
+
+  document.querySelectorAll(".flashcard-manage-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      flashcardModuleId = btn.dataset.moduleId;
+      document.getElementById("flashcardModalTitle").textContent = "📇 Flashcards — " + btn.dataset.moduleTitle;
+      document.getElementById("flashcardIdleState").style.display = "block";
+      document.getElementById("flashcardLoadingState").style.display = "none";
+      document.getElementById("flashcardPreviewState").style.display = "none";
+      document.getElementById("flashcardPreviewList").innerHTML = "";
+      openModal("flashcardModal");
+    });
+  });
+
+  async function generateFlashcardsPreview() {
+    const numCards = document.getElementById("flashcardCount").value || 20;
+    document.getElementById("flashcardIdleState").style.display = "none";
+    document.getElementById("flashcardPreviewState").style.display = "none";
+    document.getElementById("flashcardLoadingState").style.display = "block";
+    try {
+      const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/ai-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numCards }),
+      });
+      const data = await res.json();
+      document.getElementById("flashcardLoadingState").style.display = "none";
+      if (!res.ok || !data.preview) {
+        document.getElementById("flashcardIdleState").style.display = "block";
+        showAlert(data.error || "Failed to generate flashcards.");
+        return;
+      }
+      flashcardLessons = data.lessons || [];
+      renderFlashcardPreview(data.preview);
+      document.getElementById("flashcardPreviewState").style.display = "block";
+    } catch (err) {
+      document.getElementById("flashcardLoadingState").style.display = "none";
+      document.getElementById("flashcardIdleState").style.display = "block";
+      showAlert("Failed to generate flashcards: " + err.message);
+    }
+  }
+
+  function renderFlashcardPreview(cards) {
+    const lessonOptions = flashcardLessons
+      .map((l) => `<option value="${l.title.replace(/"/g, "&quot;")}">${l.title}</option>`)
+      .join("");
+    const list = document.getElementById("flashcardPreviewList");
+    list.innerHTML = cards
+      .map(
+        (c, i) => `
+      <div class="flashcard-preview-card" data-index="${i}">
+        <label>Front (question/prompt)</label>
+        <textarea rows="2" class="fc-front">${(c.front || "").replace(/</g, "&lt;")}</textarea>
+        <label>Back (answer)</label>
+        <textarea rows="2" class="fc-back">${(c.back || "").replace(/</g, "&lt;")}</textarea>
+        <label>From lesson</label>
+        <select class="fc-lesson">
+          <option value="">— Not linked to a lesson —</option>
+          ${lessonOptions}
+        </select>
+        <button type="button" class="jk-btn-outline-sm" style="margin-top:8px;" onclick="this.closest('.flashcard-preview-card').remove()">Remove card</button>
+      </div>
+    `
+      )
+      .join("");
+    // Select the AI's chosen lesson for each card now that the <select> exists.
+    list.querySelectorAll(".flashcard-preview-card").forEach((card, i) => {
+      const sel = card.querySelector(".fc-lesson");
+      if (cards[i].lesson_title) sel.value = cards[i].lesson_title;
+    });
+  }
+
+  async function saveFlashcards() {
+    const cards = Array.from(document.querySelectorAll("#flashcardPreviewList .flashcard-preview-card")).map((card) => ({
+      front: card.querySelector(".fc-front").value.trim(),
+      back: card.querySelector(".fc-back").value.trim(),
+      lesson_title: card.querySelector(".fc-lesson").value || null,
+    })).filter((c) => c.front && c.back);
+
+    if (!cards.length) {
+      showAlert("Add at least one flashcard before saving.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/ai-save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flashcards: cards }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showAlert(data.error || "Failed to save flashcards.");
+        return;
+      }
+      showAlert(`Saved ${data.count} flashcards!`, "success").then(() => location.reload());
+    } catch (err) {
+      showAlert("Failed to save flashcards: " + err.message);
+    }
+  }
 </script>
 
