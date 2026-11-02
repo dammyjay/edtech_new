@@ -4136,6 +4136,11 @@ async function submitExchange() {
   function loadModuleFlashcards(moduleId, moduleTitle) {
     fcModuleTitle = moduleTitle;
     showLoading();
+    if (typeof restoreQuizSidebarIfAutoCollapsed === "function") restoreQuizSidebarIfAutoCollapsed();
+    // Same full-page immersive overlay (no sidebar/nav) every lesson
+    // part already gets — see loadLessonPart just below, which this
+    // mirrors.
+    if (typeof enterImmersiveMode === "function") enterImmersiveMode();
     document.getElementById("lessonMainArea").innerHTML = `<p>⏳ Loading flashcards…</p>`;
     fetch(`/student/modules/${moduleId}/flashcards`)
       .then((res) => res.json())
