@@ -10145,6 +10145,26 @@ exports.addExistingUserToSchool = async (req, res) => {
       [user_id, schoolId, classroomId, role]
     );
 
+    // A student's dashboard only shows classroom-linked courses
+    // (classroom_courses) once they're school-linked, completely
+    // independent of whatever they already had via course_enrollments
+    // (the self-serve/independent-learner path) — see
+    // studentController.js's isSchoolLinked branch. Without this, an
+    // existing student with real in-progress course_enrollments would
+    // see their courses vanish the moment they're attached to a fresh
+    // classroom with no courses assigned yet. Mirrors their own existing
+    // enrollments into the classroom so nothing they already had access
+    // to disappears; harmless/no-op for a classroom that already has
+    // those courses (ON CONFLICT DO NOTHING).
+    if (classroomId && role === "student") {
+      await pool.query(
+        `INSERT INTO classroom_courses (classroom_id, course_id)
+         SELECT $1, ce.course_id FROM course_enrollments ce WHERE ce.user_id = $2
+         ON CONFLICT (classroom_id, course_id) DO NOTHING`,
+        [classroomId, user_id]
+      );
+    }
+
     res.json({ success: true, message: `${userCheck.rows[0].fullname} added to this school.` });
   } catch (err) {
     console.error("❌ addExistingUserToSchool error:", err.message);

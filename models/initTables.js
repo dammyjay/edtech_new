@@ -1124,6 +1124,36 @@ async function createTables() {
 
       `);
 
+    // Backfill for classrooms created via the admin's "Add Existing
+    // Student" tool (controllers/adminController.js's
+    // addExistingUserToSchool) before it started mirroring
+    // course_enrollments into classroom_courses itself — without this,
+    // such a student's dashboard would show zero courses, since
+    // isSchoolLinked (studentController.js) now correctly routes them
+    // through classroom_courses instead of their old course_enrollments.
+    // Deliberately narrow, same spirit as the classroom_teachers backfill
+    // above: only classrooms with EXACTLY one approved student (the 1:1
+    // "classroom per private student" pattern this tool is meant for)
+    // AND zero classroom_courses rows already — never touches a group
+    // classroom or one an admin has already deliberately curated.
+    await pool.query(`
+      INSERT INTO classroom_courses (classroom_id, course_id)
+      SELECT us.classroom_id, ce.course_id
+      FROM user_school us
+      JOIN course_enrollments ce ON ce.user_id = us.user_id
+      WHERE us.role_in_school = 'student'
+        AND us.approved = true
+        AND us.classroom_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM classroom_courses cc WHERE cc.classroom_id = us.classroom_id)
+        AND (
+          SELECT COUNT(*) FROM user_school us2
+          WHERE us2.classroom_id = us.classroom_id
+            AND us2.role_in_school = 'student'
+            AND us2.approved = true
+        ) = 1
+      ON CONFLICT (classroom_id, course_id) DO NOTHING;
+    `);
+
     // A second, classroom-wide gate on top of unlocked_lessons above: a
     // student's own progress can unlock a lesson individually, but for
     // classroom students it isn't actually reachable until the instructor

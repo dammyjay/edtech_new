@@ -27,26 +27,41 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 // null for "All Terms" — an explicit, keepable state, not just "nothing
 // chosen yet" — which every term-scoped query below treats as "don't
 // filter, show everything" so this feature is purely additive.
+//
+// Keyed by schoolId (req.session.selectedTermIdBySchool[schoolId]), not
+// one flat req.session.selectedTermId — a single session can now visit
+// more than one school's dashboard (a Platform Admin "acting as" a
+// school's own admin, see middlewares/auth.js's requireSchoolAdmin) — so a
+// flat value let a term picked while managing School A silently keep
+// filtering School B's dashboard down to zero once the admin switched —
+// surfacing as "0 students / 0 teachers" even on a school with real
+// enrolled students, simply because that stale term_id matched nothing
+// there. A real school_admin only ever has one school, so this is a
+// no-op for them; it only matters once one session can see several.
 async function resolveSelectedTermId(req, schoolId) {
+  if (!req.session.selectedTermIdBySchool) req.session.selectedTermIdBySchool = {};
+  const bySchool = req.session.selectedTermIdBySchool;
+
   if (req.query.term_id !== undefined) {
-    req.session.selectedTermId = req.query.term_id || null;
+    bySchool[schoolId] = req.query.term_id || null;
   }
-  if (req.session.selectedTermId === undefined) {
+  if (bySchool[schoolId] === undefined) {
     const activeTermRes = await pool.query(
       "SELECT id FROM academic_terms WHERE school_id = $1 AND is_active = true AND archived_at IS NULL LIMIT 1",
       [schoolId]
     );
-    req.session.selectedTermId = activeTermRes.rows[0]?.id || null;
+    bySchool[schoolId] = activeTermRes.rows[0]?.id || null;
   }
-  return req.session.selectedTermId;
+  return bySchool[schoolId];
 }
 
 // GET /school-admin/select-term?term_id=<id|''> — the global term
 // selector's onchange handler (views/school-admin/dashboard.ejs) calls
 // this, then reloads whichever section is currently open.
 exports.selectTerm = async (req, res) => {
-  req.session.selectedTermId = req.query.term_id || null;
-  res.json({ success: true, selectedTermId: req.session.selectedTermId });
+  if (!req.session.selectedTermIdBySchool) req.session.selectedTermIdBySchool = {};
+  req.session.selectedTermIdBySchool[req.schoolId] = req.query.term_id || null;
+  res.json({ success: true, selectedTermId: req.session.selectedTermIdBySchool[req.schoolId] });
 };
 
 exports.getDashboard = async (req, res) => {

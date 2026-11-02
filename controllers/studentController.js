@@ -136,8 +136,27 @@ exports.getDashboard = async (req, res) => {
     let instructors = [];
     let enrolledCourses = [];
 
+    // Whether to treat this account as "school-linked" (classroom,
+    // classmates, classroom-assigned courses) or "independent"
+    // (self-enrolled via course_enrollments) is decided by an actual
+    // user_school row, not the session's cached role==="student" string.
+    // A self-registered student always gets both together at signup, so
+    // this is a no-op for them — but an account that started as an
+    // independent "user" (the platform's default for anyone who signed
+    // up without a School ID) and is LATER attached to a school/classroom
+    // (e.g. via the admin's "Add Existing Student" tool) would otherwise
+    // never be recognized as school-linked here, since its users2.role
+    // never changes to "student" — it would stay stuck seeing only its
+    // old course_enrollments, with no classroom, classmates or teacher,
+    // despite genuinely being in a classroom now.
+    const schoolLinkRes = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND role_in_school = 'student' AND approved = true LIMIT 1`,
+      [studentId]
+    );
+    const isSchoolLinked = schoolLinkRes.rows.length > 0;
+
     // ✅ School-linked students
-    if (role === "student") {
+    if (isSchoolLinked) {
       // Role in school
       const roleRes = await pool.query(
         `SELECT role_in_school, classroom_id 
@@ -296,7 +315,7 @@ exports.getDashboard = async (req, res) => {
     // instead of just vanishing. Locked against new completions/quiz
     // submissions server-side (see completeLesson/submitLessonQuiz).
     let pastCourses = [];
-    if (role === "student" && classroom) {
+    if (isSchoolLinked && classroom) {
       const { pastCourseIds } = await getStudentCourseAccess(studentId);
       if (pastCourseIds.size) {
         const pastCourseIdsArr = Array.from(pastCourseIds);
@@ -329,7 +348,7 @@ exports.getDashboard = async (req, res) => {
     }
 
     // ✅ Independent students (user / individual_student)
-    else if (role === "user" || role === "individual_student") {
+    else if (!isSchoolLinked) {
       const enrolledCoursesRes = await pool.query(
         // LEFT JOIN — career_pathway_id is nullable on courses, and an
         // INNER JOIN here silently dropped any enrolled course with no
@@ -352,7 +371,7 @@ exports.getDashboard = async (req, res) => {
     // of an ended term's content even if their live classroom has since
     // changed or been unassigned.
     const lockedTerms =
-      role === "student" ? await getLockedEndedTermsForStudent(studentId) : [];
+      isSchoolLinked ? await getLockedEndedTermsForStudent(studentId) : [];
 
     // --- Parent requests
     const requestsRes = await pool.query(
@@ -1179,7 +1198,7 @@ exports.getDashboard = async (req, res) => {
     // students; individual/self-paced students have no classroom to
     // rank within.
     let leaderboardData = null;
-    if (req.query.section === "leaderboard" && role === "student" && school && classroom) {
+    if (req.query.section === "leaderboard" && isSchoolLinked && school && classroom) {
       leaderboardData = await computeClassroomTermAnalytics(school.id, classroom.id, null);
     }
 
