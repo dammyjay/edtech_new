@@ -1,0 +1,6 @@
+front,back,lesson_title
+What does HTML stand for?,HyperText Markup Language — the standard markup language used to structure content on the web.,Introduction to Programming
+What is a variable used for in programming?,A variable stores a value (like a number or text) so it can be used and changed later in the program.,Introducing Text-Based Programming
+What tag is used to create a hyperlink in HTML?,"The <a> tag, using its href attribute to set the link's destination.",Introduction to Programming
+What is the difference between == and === in JavaScript?,"== compares values only (after converting types if needed), while === compares both value and type without converting anything.",
+What is a loop used for?,A loop repeats a block of code multiple times instead of writing it out by hand each time.,

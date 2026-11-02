@@ -1,6 +1,7 @@
 const pool = require("../models/db");
 const cloudinary = require("../utils/cloudinary");
 const fs = require("fs");
+const csvParser = require("csv-parser");
 // controllers/learningController.js
 const { askTutor } = require("../utils/ai");
 const { getCompanyInfo } = require("../utils/companyInfo");
@@ -1561,8 +1562,54 @@ ${lessonsBlock}
   }
 };
 
-exports.saveFlashcardsForModule = async (req, res) => {
+// Shared by saveFlashcardsForModule (AI preview → save) and
+// bulkUploadFlashcardsForModule (CSV import) — both replace a module's
+// whole flashcard set the same way, just from a different source.
+// cards: [{ front, back, lesson_title }]. ai_generated distinguishes
+// the two sources on the saved rows (shown in future admin tooling,
+// not currently surfaced in the UI).
+async function replaceModuleFlashcards(moduleId, cards, { aiGenerated }) {
   const client = await pool.connect();
+  try {
+    const lessonsRes = await pool.query(
+      `SELECT id, title FROM lessons WHERE module_id = $1 AND archived_at IS NULL`,
+      [moduleId]
+    );
+    // Best-effort match back to a real lesson id — case/whitespace
+    // tolerant, since neither the AI nor a hand-typed CSV is guaranteed
+    // to copy a lesson title exactly. A card with no match still saves
+    // fine; it just has no "jump to lesson" link.
+    const lessonIdByTitle = new Map(
+      lessonsRes.rows.map((l) => [l.title.trim().toLowerCase(), l.id])
+    );
+
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM flashcards WHERE module_id = $1`, [moduleId]);
+
+    let order = 1;
+    for (const card of cards) {
+      if (!card.front || !card.back) continue;
+      const lessonId = card.lesson_title
+        ? lessonIdByTitle.get(String(card.lesson_title).trim().toLowerCase()) || null
+        : null;
+      await client.query(
+        `INSERT INTO flashcards (module_id, lesson_id, front_text, back_text, order_number, ai_generated)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [moduleId, lessonId, card.front, card.back, order++, aiGenerated]
+      );
+    }
+
+    await client.query("COMMIT");
+    return order - 1;
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+exports.saveFlashcardsForModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
     const { flashcards } = req.body; // array from frontend, possibly edited
@@ -1571,44 +1618,131 @@ exports.saveFlashcardsForModule = async (req, res) => {
       return res.status(400).json({ error: "Invalid flashcard data" });
     }
 
-    const lessonsRes = await pool.query(
-      `SELECT id, title FROM lessons WHERE module_id = $1 AND archived_at IS NULL`,
-      [moduleId]
-    );
-    // Best-effort match back to a real lesson id — case/whitespace
-    // tolerant, since the AI is asked to copy the title exactly but
-    // isn't guaranteed to. A card with no match still saves fine; it
-    // just has no "jump to lesson" link (same as a manually-added card).
-    const lessonIdByTitle = new Map(
-      lessonsRes.rows.map((l) => [l.title.trim().toLowerCase(), l.id])
-    );
-
-    await client.query("BEGIN");
-    // Regenerating replaces the module's whole set, same as re-running
-    // the AI quiz generator replaces a lesson's quiz questions.
-    await client.query(`DELETE FROM flashcards WHERE module_id = $1`, [moduleId]);
-
-    let order = 1;
-    for (const card of flashcards) {
-      if (!card.front || !card.back) continue;
-      const lessonId = card.lesson_title
-        ? lessonIdByTitle.get(String(card.lesson_title).trim().toLowerCase()) || null
-        : null;
-      await client.query(
-        `INSERT INTO flashcards (module_id, lesson_id, front_text, back_text, order_number, ai_generated)
-         VALUES ($1,$2,$3,$4,$5,true)`,
-        [moduleId, lessonId, card.front, card.back, order++]
-      );
-    }
-
-    await client.query("COMMIT");
-    res.json({ ok: true, count: order - 1 });
+    const count = await replaceModuleFlashcards(moduleId, flashcards, { aiGenerated: true });
+    res.json({ ok: true, count });
   } catch (e) {
-    await client.query("ROLLBACK");
     console.error("Save flashcards error:", e.message);
     res.status(500).json({ error: "Failed to save flashcards." });
+  }
+};
+
+// Batch upload — replaces the module's whole set from an uploaded CSV
+// (front, back, lesson_title columns — see
+// public/samples/flashcard-upload-sample.csv). Same multer pattern
+// already used for bulk student CSV import (5MB limit, .csv-only
+// filter — see routes/adminRoutes.js's upload2 / routes/instructor.js's
+// equivalent), including deleting the temp upload afterward either way.
+exports.bulkUploadFlashcardsForModule = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded." });
+  }
+  const { moduleId } = req.params;
+
+  try {
+    const rows = await new Promise((resolve, reject) => {
+      const collected = [];
+      fs.createReadStream(req.file.path)
+        .pipe(csvParser())
+        .on("data", (row) => {
+          // Normalize keys (trim/lowercase) — same tolerance as
+          // adminController.js's platformBulkAddUsers for header
+          // variations like " Front " or "BACK".
+          const clean = {};
+          for (const key in row) clean[key.trim().toLowerCase()] = (row[key] || "").trim();
+          collected.push(clean);
+        })
+        .on("end", () => resolve(collected))
+        .on("error", reject);
+    });
+
+    const cards = rows
+      .filter((r) => r.front && r.back)
+      .map((r) => ({ front: r.front, back: r.back, lesson_title: r.lesson_title || null }));
+
+    if (!cards.length) {
+      return res.status(400).json({ error: "No valid rows found — each row needs at least a 'front' and 'back' value." });
+    }
+
+    const count = await replaceModuleFlashcards(moduleId, cards, { aiGenerated: false });
+    res.json({ ok: true, count, skipped: rows.length - cards.length });
+  } catch (e) {
+    console.error("Bulk upload flashcards error:", e.message);
+    res.status(500).json({ error: "Failed to import flashcards from that file." });
   } finally {
-    client.release();
+    fs.unlink(req.file.path, () => {});
+  }
+};
+
+// Existing flashcards for a module (admin/instructor "manage" view —
+// edit/delete individual cards without regenerating the whole set).
+exports.listFlashcardsForModule = async (req, res) => {
+  try {
+    const { moduleId } = req.params;
+    const result = await pool.query(
+      `SELECT f.id, f.front_text, f.back_text, f.lesson_id, l.title AS lesson_title, f.order_number
+       FROM flashcards f
+       LEFT JOIN lessons l ON l.id = f.lesson_id
+       WHERE f.module_id = $1
+       ORDER BY f.order_number`,
+      [moduleId]
+    );
+    res.json({ ok: true, flashcards: result.rows });
+  } catch (e) {
+    console.error("List flashcards error:", e.message);
+    res.status(500).json({ error: "Failed to load flashcards." });
+  }
+};
+
+exports.createFlashcard = async (req, res) => {
+  try {
+    const { moduleId } = req.params;
+    const { front, back, lesson_id } = req.body;
+    if (!front || !back) {
+      return res.status(400).json({ error: "Front and back are both required." });
+    }
+    const orderRes = await pool.query(
+      `SELECT COALESCE(MAX(order_number), 0) + 1 AS next FROM flashcards WHERE module_id = $1`,
+      [moduleId]
+    );
+    const result = await pool.query(
+      `INSERT INTO flashcards (module_id, lesson_id, front_text, back_text, order_number, ai_generated)
+       VALUES ($1,$2,$3,$4,$5,false) RETURNING id`,
+      [moduleId, lesson_id || null, front, back, orderRes.rows[0].next]
+    );
+    res.json({ ok: true, id: result.rows[0].id });
+  } catch (e) {
+    console.error("Create flashcard error:", e.message);
+    res.status(500).json({ error: "Failed to add flashcard." });
+  }
+};
+
+exports.updateFlashcard = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { front, back, lesson_id } = req.body;
+    if (!front || !back) {
+      return res.status(400).json({ error: "Front and back are both required." });
+    }
+    const result = await pool.query(
+      `UPDATE flashcards SET front_text = $1, back_text = $2, lesson_id = $3 WHERE id = $4 RETURNING id`,
+      [front, back, lesson_id || null, id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Flashcard not found." });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Update flashcard error:", e.message);
+    res.status(500).json({ error: "Failed to update flashcard." });
+  }
+};
+
+exports.deleteFlashcard = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM flashcards WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Delete flashcard error:", e.message);
+    res.status(500).json({ error: "Failed to delete flashcard." });
   }
 };
 

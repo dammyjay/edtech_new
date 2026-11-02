@@ -492,6 +492,22 @@ router.post(
   learningController.saveFlashcardsForModule
 );
 
+// Batch CSV upload — reuses upload2 (already scoped to .csv-only, 5MB
+// max — see its definition above) rather than introducing another
+// multer instance just for this.
+router.post(
+  "/modules/:moduleId/flashcards/upload",
+  upload2.single("file"),
+  learningController.bulkUploadFlashcardsForModule
+);
+
+// Manage existing flashcards individually (list/add/edit/delete),
+// without regenerating the whole set.
+router.get("/modules/:moduleId/flashcards/list", learningController.listFlashcardsForModule);
+router.post("/modules/:moduleId/flashcards/create", upload.none(), learningController.createFlashcard);
+router.post("/flashcards/:id/edit", upload.none(), learningController.updateFlashcard);
+router.post("/flashcards/:id/delete", learningController.deleteFlashcard);
+
 // Create question
 router.post(
   "/quiz-question/create",

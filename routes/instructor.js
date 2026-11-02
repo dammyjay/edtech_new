@@ -10,6 +10,24 @@ const instructorController = require("../controllers/instructorController");
 const externalProjectController = require("../controllers/externalProjectController");
 // const upload = require("../middlewares/upload");
 const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/upload");
+const multer = require("multer");
+const path = require("path");
+
+// Same .csv-only, 5MB-capped pattern as routes/adminRoutes.js's upload2
+// — scoped to this file only for the flashcard CSV import below.
+const csvUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, "uploads/"),
+    filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (path.extname(file.originalname).toLowerCase() !== ".csv") {
+      return cb(new Error("Only .csv files are accepted for bulk import."));
+    }
+    cb(null, true);
+  },
+});
 
 router.post("/login", loginLimiter, adminController.login);
 // Instructor dashboard
@@ -155,6 +173,20 @@ router.post(
   upload.none(),
   learningController.saveFlashcardsForModule
 );
+
+// Batch CSV upload — see the matching comment in routes/adminRoutes.js.
+router.post(
+  "/modules/:moduleId/flashcards/upload",
+  csvUpload.single("file"),
+  learningController.bulkUploadFlashcardsForModule
+);
+
+// Manage existing flashcards individually (list/add/edit/delete),
+// without regenerating the whole set.
+router.get("/modules/:moduleId/flashcards/list", learningController.listFlashcardsForModule);
+router.post("/modules/:moduleId/flashcards/create", upload.none(), learningController.createFlashcard);
+router.post("/flashcards/:id/edit", upload.none(), learningController.updateFlashcard);
+router.post("/flashcards/:id/delete", learningController.deleteFlashcard);
 
 // Create question
 router.post(

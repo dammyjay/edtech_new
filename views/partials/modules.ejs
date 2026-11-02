@@ -251,20 +251,48 @@
   <div class="modal-content" style="max-width:700px;">
     <span class="close" onclick="closeModal('flashcardModal')">&times;</span>
     <h3 id="flashcardModalTitle">📇 Flashcards</h3>
-    <p style="font-size:12.5px; color:#8A7B55; margin-top:-6px;">20 AI-generated study cards drawn from this module's lessons — each tagged with the lesson it came from.</p>
+    <p style="font-size:12.5px; color:#8A7B55; margin-top:-6px;">Study cards drawn from this module's lessons — each tagged with the lesson it came from.</p>
 
-    <div id="flashcardIdleState">
-      <label style="font-size:12.5px; font-weight:700;">Number of cards</label>
-      <input type="number" id="flashcardCount" value="20" min="5" max="30" style="width:80px; display:block; margin:6px 0 12px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
-      <button type="button" class="jk-btn-dark" onclick="generateFlashcardsPreview()">🧠 Generate with AI</button>
+    <!-- Existing cards: edit/delete individually, or add one manually. -->
+    <div id="flashcardManageState" style="display:none;">
+      <div id="flashcardManageList" style="max-height:45vh; overflow-y:auto; margin:10px 0;"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="jk-btn-outline-sm" onclick="addBlankManageCard()">➕ Add Card</button>
+        <button type="button" class="jk-btn-outline-sm" onclick="showFlashcardState('flashcardIdleState')">🔁 Replace Entire Set</button>
+      </div>
+    </div>
+
+    <!-- Generate (AI) or batch-upload (CSV) a whole new set. -->
+    <div id="flashcardIdleState" style="display:none;">
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <label style="font-size:12.5px; font-weight:700;">🧠 Generate with AI</label>
+          <p style="font-size:11.5px; color:#8A7B55; margin:4px 0;">Number of cards</p>
+          <input type="number" id="flashcardCount" value="20" min="5" max="30" style="width:80px; display:block; margin-bottom:10px; padding:6px 8px; border-radius:6px; border:1px solid #ddd;" />
+          <button type="button" class="jk-btn-dark" onclick="generateFlashcardsPreview()">🧠 Generate with AI</button>
+        </div>
+        <div style="flex:1; min-width:220px; border-left:1px solid #EDE7D6; padding-left:20px;">
+          <label style="font-size:12.5px; font-weight:700;">⬆️ Batch Upload (CSV)</label>
+          <p style="font-size:11.5px; color:#8A7B55; margin:4px 0 10px;">
+            Columns: <code>front, back, lesson_title</code> (lesson_title optional).
+            <a href="/samples/flashcard-upload-sample.csv" download>Download sample format</a>.
+          </p>
+          <input type="file" id="flashcardCsvFile" accept=".csv" style="display:block; margin-bottom:10px; font-size:12.5px;" />
+          <button type="button" class="jk-btn-outline" onclick="uploadFlashcardsCsv()">⬆️ Upload &amp; Replace</button>
+        </div>
+      </div>
+      <p id="flashcardBackToManageWrap" style="margin-top:14px; display:none;">
+        <a href="javascript:void(0)" onclick="loadFlashcardManageList()">← Back to existing cards</a>
+      </p>
     </div>
 
     <div id="flashcardLoadingState" style="display:none; padding:30px 0; text-align:center; color:#666;">
-      ⏳ Generating flashcards from this module's lessons… this can take up to a minute.
+      ⏳ Working on it… this can take up to a minute.
     </div>
 
     <div id="flashcardPreviewState" style="display:none;">
-      <div id="flashcardPreviewList" style="max-height:50vh; overflow-y:auto; margin:10px 0;"></div>
+      <p style="font-size:12.5px; color:#A83232; font-weight:700;">⚠️ Saving this will replace the module's entire current flashcard set.</p>
+      <div id="flashcardPreviewList" style="max-height:45vh; overflow-y:auto; margin:10px 0;"></div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
         <button type="button" class="jk-btn-outline" onclick="generateFlashcardsPreview()">🔁 Regenerate</button>
         <button type="button" class="jk-btn-dark" onclick="saveFlashcards()">💾 Save Flashcards</button>
@@ -278,6 +306,7 @@
   .flashcard-preview-card label { display:block; font-size:11px; font-weight:700; color:#6E6350; margin:6px 0 3px; }
   .flashcard-preview-card textarea { width:100%; box-sizing:border-box; padding:6px 8px; border-radius:6px; border:1px solid #ddd; font-family:inherit; font-size:13px; resize:vertical; }
   .flashcard-preview-card select { width:100%; box-sizing:border-box; padding:6px 8px; border-radius:6px; border:1px solid #ddd; font-family:inherit; font-size:12.5px; }
+  .flashcard-preview-card .fc-row-actions { display:flex; gap:8px; margin-top:8px; }
 </style>
 <script>
   let flashcardModuleId = null;
@@ -287,19 +316,161 @@
     btn.addEventListener("click", () => {
       flashcardModuleId = btn.dataset.moduleId;
       document.getElementById("flashcardModalTitle").textContent = "📇 Flashcards — " + btn.dataset.moduleTitle;
-      document.getElementById("flashcardIdleState").style.display = "block";
-      document.getElementById("flashcardLoadingState").style.display = "none";
-      document.getElementById("flashcardPreviewState").style.display = "none";
-      document.getElementById("flashcardPreviewList").innerHTML = "";
+      ["flashcardManageState", "flashcardIdleState", "flashcardLoadingState", "flashcardPreviewState"].forEach(
+        (id) => (document.getElementById(id).style.display = "none")
+      );
+      document.getElementById("flashcardBackToManageWrap").style.display = "none";
+      document.getElementById("flashcardCsvFile").value = "";
       openModal("flashcardModal");
+      loadFlashcardManageList();
     });
   });
 
+  function showFlashcardState(id) {
+    ["flashcardManageState", "flashcardIdleState", "flashcardLoadingState", "flashcardPreviewState"].forEach(
+      (sid) => (document.getElementById(sid).style.display = sid === id ? "block" : "none")
+    );
+  }
+
+  // Fetches the module's existing cards. Cards found → management list
+  // (edit/delete); none yet → straight to the generate/upload state,
+  // since there's nothing to manage.
+  async function loadFlashcardManageList() {
+    showFlashcardState("flashcardLoadingState");
+    try {
+      const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/list`);
+      const data = await res.json();
+      flashcardLessons = []; // repopulated by the AI preview when needed
+      if (!res.ok || !data.ok) {
+        showAlert(data.error || "Failed to load flashcards.");
+        showFlashcardState("flashcardIdleState");
+        return;
+      }
+      if (!data.flashcards.length) {
+        document.getElementById("flashcardBackToManageWrap").style.display = "none";
+        showFlashcardState("flashcardIdleState");
+        return;
+      }
+      renderFlashcardManageList(data.flashcards);
+      document.getElementById("flashcardBackToManageWrap").style.display = "block";
+      showFlashcardState("flashcardManageState");
+    } catch (err) {
+      showAlert("Failed to load flashcards: " + err.message);
+      showFlashcardState("flashcardIdleState");
+    }
+  }
+
+  function manageCardTemplate(card) {
+    const id = card.id ?? "";
+    return `
+      <div class="flashcard-preview-card" data-id="${id}">
+        <label>Front (question/prompt)</label>
+        <textarea rows="2" class="fc-front">${(card.front_text || "").replace(/</g, "&lt;")}</textarea>
+        <label>Back (answer)</label>
+        <textarea rows="2" class="fc-back">${(card.back_text || "").replace(/</g, "&lt;")}</textarea>
+        <label>From lesson</label>
+        <input type="text" class="fc-lesson-id" value="${card.lesson_id || ""}" hidden />
+        <div class="fc-lesson-display" style="font-size:12.5px; color:#6E6350;">${card.lesson_title ? "📖 " + card.lesson_title : "— Not linked to a lesson —"}</div>
+        <div class="fc-row-actions">
+          <button type="button" class="jk-btn-outline-sm" onclick="saveManageCard(this)">💾 ${id ? "Save" : "Add"}</button>
+          ${id ? `<button type="button" class="jk-btn-outline-sm" onclick="deleteManageCard(this)">🗑️ Delete</button>` : `<button type="button" class="jk-btn-outline-sm" onclick="this.closest('.flashcard-preview-card').remove()">Cancel</button>`}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFlashcardManageList(cards) {
+    document.getElementById("flashcardManageList").innerHTML = cards.map(manageCardTemplate).join("");
+  }
+
+  function addBlankManageCard() {
+    showFlashcardState("flashcardManageState");
+    const list = document.getElementById("flashcardManageList");
+    list.insertAdjacentHTML("afterbegin", manageCardTemplate({ id: null, front_text: "", back_text: "", lesson_id: null, lesson_title: null }));
+  }
+
+  async function saveManageCard(btn) {
+    const row = btn.closest(".flashcard-preview-card");
+    const id = row.dataset.id;
+    const front = row.querySelector(".fc-front").value.trim();
+    const back = row.querySelector(".fc-back").value.trim();
+    if (!front || !back) {
+      showAlert("Front and back are both required.");
+      return;
+    }
+    const url = id
+      ? `<%= rolePrefix %>/flashcards/${id}/edit`
+      : `<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/create`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ front, back }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showAlert(data.error || "Failed to save card.");
+        return;
+      }
+      showAlert(id ? "Card updated." : "Card added.", "success");
+      loadFlashcardManageList();
+    } catch (err) {
+      showAlert("Failed to save card: " + err.message);
+    }
+  }
+
+  async function deleteManageCard(btn) {
+    const row = btn.closest(".flashcard-preview-card");
+    const id = row.dataset.id;
+    const ok = await showConfirm("Delete this flashcard?");
+    if (!ok) return;
+    try {
+      const res = await fetch(`<%= rolePrefix %>/flashcards/${id}/delete`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showAlert(data.error || "Failed to delete card.");
+        return;
+      }
+      row.remove();
+    } catch (err) {
+      showAlert("Failed to delete card: " + err.message);
+    }
+  }
+
+  async function uploadFlashcardsCsv() {
+    const fileInput = document.getElementById("flashcardCsvFile");
+    if (!fileInput.files.length) {
+      showAlert("Choose a CSV file first.");
+      return;
+    }
+    const ok = await showConfirm("This will replace this module's entire flashcard set with what's in the file. Continue?");
+    if (!ok) return;
+
+    showFlashcardState("flashcardLoadingState");
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    try {
+      const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showAlert(data.error || "Failed to import flashcards.");
+        showFlashcardState("flashcardIdleState");
+        return;
+      }
+      const skippedNote = data.skipped ? ` (${data.skipped} row(s) skipped — missing front/back)` : "";
+      showAlert(`Imported ${data.count} flashcards!${skippedNote}`, "success").then(() => location.reload());
+    } catch (err) {
+      showAlert("Failed to import flashcards: " + err.message);
+      showFlashcardState("flashcardIdleState");
+    }
+  }
+
   async function generateFlashcardsPreview() {
     const numCards = document.getElementById("flashcardCount").value || 20;
-    document.getElementById("flashcardIdleState").style.display = "none";
-    document.getElementById("flashcardPreviewState").style.display = "none";
-    document.getElementById("flashcardLoadingState").style.display = "block";
+    showFlashcardState("flashcardLoadingState");
     try {
       const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/ai-preview`, {
         method: "POST",
@@ -307,18 +478,16 @@
         body: JSON.stringify({ numCards }),
       });
       const data = await res.json();
-      document.getElementById("flashcardLoadingState").style.display = "none";
       if (!res.ok || !data.preview) {
-        document.getElementById("flashcardIdleState").style.display = "block";
+        showFlashcardState("flashcardIdleState");
         showAlert(data.error || "Failed to generate flashcards.");
         return;
       }
       flashcardLessons = data.lessons || [];
       renderFlashcardPreview(data.preview);
-      document.getElementById("flashcardPreviewState").style.display = "block";
+      showFlashcardState("flashcardPreviewState");
     } catch (err) {
-      document.getElementById("flashcardLoadingState").style.display = "none";
-      document.getElementById("flashcardIdleState").style.display = "block";
+      showFlashcardState("flashcardIdleState");
       showAlert("Failed to generate flashcards: " + err.message);
     }
   }
