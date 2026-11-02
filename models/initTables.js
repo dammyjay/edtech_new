@@ -1154,6 +1154,38 @@ async function createTables() {
       ON CONFLICT (classroom_id, course_id) DO NOTHING;
     `);
 
+    // Companion backfill: classroom_courses alone isn't enough to make a
+    // course show as actually offered by the school — admin/school-admin
+    // views (e.g. the admin school page's "Courses Assigned to This
+    // School" panel) read school_courses, a separate school-level
+    // authorization layer. Same narrow "classroom per private student"
+    // scope as above; term_id left NULL ("authorized regardless of
+    // term", same meaning an admin's own no-term course assignment has).
+    // SELECT DISTINCT + the matching expression-index ON CONFLICT guards
+    // against two different private students in the same school sharing
+    // a course, which would otherwise try to insert the same
+    // (school_id, course_id) pair twice in one statement.
+    await pool.query(`
+      INSERT INTO school_courses (school_id, course_id, term_id)
+      SELECT DISTINCT us.school_id, ce.course_id, NULL::int
+      FROM user_school us
+      JOIN course_enrollments ce ON ce.user_id = us.user_id
+      WHERE us.role_in_school = 'student'
+        AND us.approved = true
+        AND us.classroom_id IS NOT NULL
+        AND (
+          SELECT COUNT(*) FROM user_school us2
+          WHERE us2.classroom_id = us.classroom_id
+            AND us2.role_in_school = 'student'
+            AND us2.approved = true
+        ) = 1
+        AND NOT EXISTS (
+          SELECT 1 FROM school_courses sc
+          WHERE sc.school_id = us.school_id AND sc.course_id = ce.course_id AND COALESCE(sc.term_id, 0) = 0
+        )
+      ON CONFLICT (school_id, course_id, (COALESCE(term_id, 0))) DO NOTHING;
+    `);
+
     // A second, classroom-wide gate on top of unlocked_lessons above: a
     // student's own progress can unlock a lesson individually, but for
     // classroom students it isn't actually reachable until the instructor

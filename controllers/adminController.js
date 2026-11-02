@@ -10163,6 +10163,24 @@ exports.addExistingUserToSchool = async (req, res) => {
          ON CONFLICT (classroom_id, course_id) DO NOTHING`,
         [classroomId, user_id]
       );
+
+      // classroom_courses alone isn't enough — a school only actually
+      // "offers" a course once it's also in school_courses (what the
+      // admin's "Courses Assigned to This School" panel and the
+      // school-admin's own course picker read); without this a course
+      // that's genuinely accessible to the student via their classroom
+      // would still show the school as not offering it at all.
+      // term_id left NULL — "authorized regardless of term", the same
+      // meaning an admin's own no-term course assignment has.
+      await pool.query(
+        `INSERT INTO school_courses (school_id, course_id, term_id)
+         SELECT $1, ce.course_id, NULL FROM course_enrollments ce WHERE ce.user_id = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM school_courses sc
+           WHERE sc.school_id = $1 AND sc.course_id = ce.course_id AND COALESCE(sc.term_id, 0) = 0
+         )`,
+        [schoolId, user_id]
+      );
     }
 
     res.json({ success: true, message: `${userCheck.rows[0].fullname} added to this school.` });
