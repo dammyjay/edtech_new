@@ -14,94 +14,36 @@ const FILE_PATH = path.join(__dirname, "jkthub-brd-status-checklist.xlsx");
 const TODAY = "2026-11-02";
 
 // ---------------------------------------------------------------------
-// New rows for this revision
+// New rows for this revision — NOTE: each run appends whatever's in
+// these two arrays, so after a successful run, replace their contents
+// with the NEXT revision's rows rather than accumulating old ones here
+// (the previous batch is already persisted in the .xlsx itself).
 // ---------------------------------------------------------------------
 
 // [Area, Item, Status, Notes]
 const NEW_KNOWN_ISSUES = [
   [
-    "Teacher",
-    "Cross-school data leak: the dashboard's pending-assignments count, the grading queue, and the actual grade-submission authorization check all scoped a submission by \"does one of my classrooms have this catalog course assigned,\" not by whether the submitting student is actually in my classroom",
+    "Admin — Act as School Admin",
+    "A stale per-session term filter silently carried over between schools — a Platform Admin acting as School A's admin, then switching to School B, kept seeing School B's dashboard filtered by School A's leftover term selection, showing 0 students/0 teachers on a school with real ones",
     "Fixed",
-    "Reported directly by a client user: a teacher saw a student from a different school in their \"assignments waiting to be graded\" count. Root cause: controllers/teacherController.js joined assignment_submissions through the shared course catalog (module_assignments → modules → courses → classroom_courses → classroom_teachers), but classroom_courses maps one catalog course to classrooms across different schools, and none of the three call sites (getDashboardData's pending count, getGradingQueue, submitGrade's ownership check) verified the submitting student was enrolled in the teacher's own classroom. submitGrade's copy was the most serious — a teacher could actually submit a grade for a cross-school student, not just see them. Fixed by adding a user_school join tying the student to the teacher's own classroom_id, the same pattern already used correctly elsewhere in the file. Logged as a new Critical finding in the project's own security/buildSecurityTracker.js and security-audit-tracker.xlsx.",
+    "Root cause: schoolAdminController.js's whole-panel term filter was a single flat req.session.selectedTermId — correct for a real school_admin (always exactly one school), but not for the new acting-as feature, where one session can now visit multiple schools' dashboards in a row. A term id picked for one school silently kept filtering a completely different school's queries once the admin switched, with no re-scoping on school change. Fixed by keying the stored term selection by school id (req.session.selectedTermIdBySchool[schoolId]) instead of one flat session value.",
   ],
   [
-    "Teacher / Instructor",
-    "The identical cross-school leak, independently, in External Project grading — found while building Instructor's own grading parity, not yet reported by a client",
+    "Student",
+    "An account attached to a school/classroom via the admin's \"Add Existing Student\" tool (users2.role stays 'user', never changes to 'student') never actually appeared as school-linked on its own dashboard — no classroom, no classmates, no teacher, no classroom-assigned courses",
     "Fixed",
-    "controllers/externalProjectController.js's getExternalProjectGradingQueue/overrideExternalProjectGrade (the teacher-side External Project review queue) had the same gap — joined through classroom_courses/classroom_teachers with no check that the submitting student was in the teacher's own classroom. Fixed with the same user_school join. The new Instructor-side equivalents (next row) were built correctly from the start instead of copying the bug forward.",
+    "Root cause: studentController.js's main dashboard decided \"show classroom/classmates/teacher\" based on the session's static role==='student' check, not on whether a real user_school record actually exists — the exact role='user' vs role='student' landmine already flagged elsewhere in this register. A self-registered student always gets both together at signup, so this was invisible until an account could legitimately be attached to a school AFTER already existing as a plain 'user'. Replaced the check with a genuine user_school lookup (isSchoolLinked) in all 4 places the dashboard branched on it.",
   ],
   [
-    "Instructor",
-    "No Grading or External Projects section existed for Instructor at all — only Teacher had them, so an instructor could not review or grade submissions from their own students",
+    "Admin — Add Existing Student",
+    "Attaching an existing student with real course_enrollments to a fresh classroom made their in-progress courses disappear from their own dashboard, and the school showed \"no courses assigned\" even though the classroom had the right student in it",
     "Fixed",
-    "New instructorController.getGradingQueue/submitGrade (scoped via classroom_instructors, with the student-enrollment join above baked in from the start) and new externalProjectController.getExternalProjectGradingQueueForInstructor/overrideExternalProjectGradeForInstructor, dispatched from loadSection's existing section router. Two new sidebar tabs (Grading, External Projects) and two new views styled with the instructor dashboard's own jk- design system (Teacher's tc- component library isn't loaded there). An instructor can now review and override AI-graded assignment and external-project submissions from students they actually teach, exactly like a Teacher.",
-  ],
-  [
-    "Teacher / Admin — reports & course pages",
-    "Modules and lessons displayed in whatever order the database happened to return them (effectively id/insertion order) instead of their real curriculum order_number — in the teacher's per-student course report, the admin course-details page's Module/Lesson tabs (the \"All Modules\" lesson list also interleaved different modules' lessons instead of grouping each module's together), and the Portfolio/CV PDF's course summary",
-    "Fixed",
-    "Found via a client report of modules showing out of sequence on a teacher's \"view report\" page. Fixed missing/wrong ORDER BY clauses in teacherController.js's viewCourseReport, learningController.js's viewSingleCourse (the real page behind /admin/courses/:id and /instructor/courses/:id — modules now ORDER BY order_number, and the Lessons tab's \"All Modules\" list now ORDER BY m.order_number, l.order_number so every module's lessons stay grouped together), and userController.js's/adminController.js's downloadCourseSummary. Left the admin course list itself untouched — it was already correctly grouped by pathway/level/sort_order.",
-  ],
-  [
-    "Teacher / Student reports",
-    "An in-progress (incomplete) module showed a pass/fail-looking letter grade (e.g. \"Grade F\") instead of reflecting that it isn't finished yet",
-    "Fixed",
-    "Client feedback: a module at 25% complete showed \"Grade F,\" reading as a failing grade rather than work-in-progress. Fixed in the one shared template every role's report/PDF goes through (utils/reportTemplate.js) — a module under 100% now shows an \"In Progress\" chip instead of a letter grade, in both the multi-module course report and the standalone module report, applying automatically to every role's download (teacher, student, admin, instructor, parent/general). While in this file, removed ~210 lines of dead code in adminController.js — two old grade-calculation blocks that were computed but never actually passed to the real render call, which already computed its own grade from the shared template.",
-  ],
-  [
-    "Teacher",
-    "Student progress page (teacher's \"view student\") was a cramped, 3-level-deep nested table — hard to scan, columns cut off on narrower screens",
-    "Fixed (redesigned)",
-    "views/teacher/sections/student-progress.ejs rebuilt with a tabbed browser (Courses/Modules/Lessons/Quizzes/Assignments) modeled on the already-shipped, more polished Instructor version of the same page — collapsible course cards, progress bars, grade circles, flat scannable lists per tab — using data the controller already fetched, no backend changes needed. Also applies the \"In Progress vs grade\" fix above at the module level.",
-  ],
-  [
-    "Admin",
-    "No way to attach an already-existing platform account to a school/classroom — only brand-new accounts could be created, so an individual learner who already had an account would need a duplicate just to join a school (e.g. an online-only program)",
-    "Fixed (new feature)",
-    "New adminController.searchExistingUsersForSchool / addExistingUserToSchool, with an \"Add Existing Student\"/\"Add Existing Teacher\" search-and-attach modal on the school details page, alongside the existing \"Add Student\"/\"Add Teacher\" (create-new) buttons. Uses an upsert (ON CONFLICT on user_school's existing UNIQUE(user_id, school_id)) so re-attaching someone who already has a stray/unapproved row for the school updates it instead of erroring — confirmed live against the production schema that the constraint actually exists.",
-  ],
-  [
-    "Admin",
-    "The new \"Add Existing Student\" search only matched users2.role='student', silently missing independent learners who sign up without a School ID — exactly the population the feature was built for",
-    "Fixed",
-    "Client-reported: searching for a known existing user returned no results. Root cause: the public signup flow only sets role='student' when a School ID was provided at signup; anyone who signs up without one keeps the generic default role='user' instead — confirmed this is already the platform's own convention, since the admin's main \"All Students\" page (/admin/students) already queries role='user'. Search now matches role IN ('student','user') for a student search (teacher search stays role='teacher' only — no equivalent self-signup-without-a-school gap exists for teachers). Verified against the live database that the fix returns the previously-missing account.",
-  ],
-  [
-    "Admin",
-    "A Platform Admin could not manage a school as its own school_admin — no multi-role accounts, no dashboard switcher; the only workaround would have been a second account/login",
-    "Fixed (new feature)",
-    "New \"Manage as School Admin\" action on a school's detail page sets a session flag (no change to the admin's own users2.role) and drops the admin into the real /school-admin/dashboard with full functionality; a banner with a one-click \"Exit to Platform Admin\" returns them. middlewares/auth.js's requireSchoolAdmin (the single gate on every /school-admin/* route) recognizes the flag as a second valid way in. Found and fixed 13 separate functions in schoolAdminController.js that were bypassing that gate's already-resolved school id and re-querying schools WHERE created_by = req.session.user.id themselves — which would have 404'd for an admin account and silently broken half of school-admin (add student, bulk upload, classrooms, course assignment, quotes, payments, attendance history) the moment a real admin tried it. All 13 now read the gate's resolved value instead — a pure simplification with zero behavior change for real school_admins, and the actual fix that makes acting-as work correctly everywhere, not just the dashboard's front page.",
+    "Two-part gap, found immediately after fixing the role='user' dashboard issue above (fixing that one exposed this one): a newly-created classroom has zero classroom_courses by default, and the dashboard's school-linked branch only ever shows classroom-assigned courses, never a student's own course_enrollments — so an existing student's real progress would vanish the moment they were correctly recognized as school-linked. Separately, classroom_courses alone isn't sufficient for a course to count as \"offered by the school\" at all — school_courses, a distinct school-level authorization table, is what the admin's \"Courses Assigned to This School\" panel and the school-admin's own course picker read, and nothing populated that either. addExistingUserToSchool now mirrors a newly-attached student's course_enrollments into both classroom_courses and school_courses (term_id NULL = authorized regardless of term). Backfilled the same way in models/initTables.js for classrooms already created via this tool, scoped narrowly to the classroom-per-private-student pattern (exactly one approved student) so it never touches a group classroom or one an admin has already deliberately curated. Verified the backfill query against the live database (read-only) before shipping it.",
   ],
 ];
 
 // [Role, As a user I want to..., So that..., Status]
-const NEW_USER_STORIES = [
-  [
-    "Instructor",
-    "review and grade a queue of assignment submissions from students I teach, seeing the AI's suggested grade first",
-    "grading is faster while I still make the final call",
-    "Implemented this session",
-  ],
-  [
-    "Instructor",
-    "review External Project submissions against their rubric and deliverables, and override the AI's score",
-    "real-world project work gets a fair, human-checked grade",
-    "Implemented this session",
-  ],
-  [
-    "Platform Admin",
-    "attach an existing platform account to a school and classroom instead of creating a duplicate one",
-    "a student or teacher who already has an account doesn't end up with two just to join a school",
-    "Implemented this session",
-  ],
-  [
-    "Platform Admin",
-    "temporarily manage a school exactly as its own school admin, from my own account",
-    "I can set up or troubleshoot any school — including an online-only program I run myself — without a second login",
-    "Implemented this session",
-  ],
-];
+const NEW_USER_STORIES = [];
 
 // ---------------------------------------------------------------------
 // Styling — matches the existing sheets' own conventions exactly
