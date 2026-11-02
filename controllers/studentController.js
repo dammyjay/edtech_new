@@ -3721,8 +3721,12 @@ exports.viewLesson = async (req, res) => {
 // A free study aid, not a lesson — no completion/progress tracking, no
 // locking. Access is still checked though: current classroom (live
 // classroom_courses), past classroom (student_term_enrollments, same
-// "past course" pattern as services/studentCourseAccessService.js), or
-// an independent self-enrollment (course_enrollments) all count.
+// "past course" pattern as services/studentCourseAccessService.js), an
+// independent self-enrollment (course_enrollments), or an instructor
+// previewing the course via "Student View" (getDashboard's previewMode
+// — that flow doesn't pass its previewClassroomId through to this
+// endpoint, so this checks more broadly: does the requester teach ANY
+// classroom this module's course is assigned to) all count.
 exports.getModuleFlashcards = async (req, res) => {
   try {
     const moduleId = req.params.moduleId;
@@ -3746,6 +3750,11 @@ exports.getModuleFlashcards = async (req, res) => {
            )
            OR EXISTS (
              SELECT 1 FROM course_enrollments ce WHERE ce.course_id = m.course_id AND ce.user_id = $2
+           )
+           OR EXISTS (
+             SELECT 1 FROM classroom_instructors ci
+             JOIN classroom_courses cc3 ON cc3.classroom_id = ci.classroom_id
+             WHERE cc3.course_id = m.course_id AND ci.instructor_id = $2
            )
          )`,
       [moduleId, studentId]
