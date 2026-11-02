@@ -767,6 +767,22 @@ async function createTables() {
       `
     );
 
+    // Records that a student has watched all the way through a module's
+    // flashcard deck (services/flashcardProgressService.js) — the gate a
+    // module's assignment now waits on, same spirit as unlocked_assignments
+    // right above, just keyed by module instead of by assignment (a
+    // module can have more than one assignment; completing the deck once
+    // unlocks all of them).
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS student_flashcard_progress (
+        id SERIAL PRIMARY KEY,
+        student_id INT REFERENCES users2(id) ON DELETE CASCADE,
+        module_id INT REFERENCES modules(id) ON DELETE CASCADE,
+        completed_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(student_id, module_id)
+      );`
+    );
+
     // table for user certificates
     await pool.query(
       `CREATE TABLE IF NOT EXISTS user_certificates (

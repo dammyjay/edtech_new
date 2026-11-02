@@ -4041,6 +4041,11 @@ async function submitExchange() {
     border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
   }
   .fc-nav { display: flex; justify-content: center; gap: 10px; margin-top: 4px; }
+  .fc-nav button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .fc-progress-wrap { width: 70%; max-width: 260px; height: 6px; border-radius: 999px; background: rgba(0,0,0,0.12); overflow: hidden; margin-top: 18px; }
+  .fc-back .fc-progress-wrap { background: #F0EADA; }
+  .fc-progress-bar { height: 100%; width: 0%; border-radius: 999px; background: #fff; transition: width 0.1s linear; }
+  .fc-back .fc-progress-bar { background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); }
   @media (max-width: 800px) {
     .fc-scene { max-width: 100%; }
     .fc-card { height: 320px; }
@@ -4127,22 +4132,36 @@ async function submitExchange() {
 
   window.loadLessonPart = loadLessonPart;
 
-  // ===== Flashcards — a free study aid, not a lesson: no progress
-  // tracking, no immersive mode, no lock checks. Renders straight into
-  // the same #lessonMainArea every lesson part uses, so it sits in the
-  // normal page flow rather than a separate page. The "From: <lesson>"
-  // link on the back of a card reuses loadLessonPart directly, so
-  // jumping back to the real lesson behaves exactly like clicking it
-  // from the sidebar.
-  // Held module-scoped rather than threaded through generated onclick
-  // attribute strings each re-render — a module title containing a
-  // quote character would otherwise break out of the attribute.
+  // ===== Flashcards — unlock at the same point the assignment used to
+  // (all this module's lessons done), and now come BEFORE it: the
+  // assignment itself waits for the whole deck to be watched
+  // (services/flashcardProgressService.js). Renders straight into the
+  // same #lessonMainArea every lesson part uses, in the same full-page
+  // immersive overlay. The "From: <lesson>" link on the back of a card
+  // reuses loadLessonPart directly, so jumping back to the real lesson
+  // behaves exactly like clicking it from the sidebar.
+  //
+  // Forced reading pace: a freshly-reached card can't be flipped until
+  // a short fill bar finishes (FC_READ_SECONDS), and once flipped, Next
+  // stays disabled until a second fill bar finishes on the back — so a
+  // card can't just be flipped-and-skipped. Only applies the FIRST time
+  // a card is reached in this session (fcReadIndices) and never at all
+  // once the whole deck has already been completed before
+  // (fcAlreadyCompleted) — going back over material you've genuinely
+  // already read isn't what this is guarding against.
+  const FC_READ_SECONDS = 5;
   let fcDeck = [];
   let fcIndex = 0;
+  let fcModuleId = null;
   let fcModuleTitle = "";
+  let fcAlreadyCompleted = false;
+  let fcReadIndices = new Set();
+  let fcTimer = null;
 
   function loadModuleFlashcards(moduleId, moduleTitle) {
+    fcModuleId = moduleId;
     fcModuleTitle = moduleTitle;
+    fcReadIndices = new Set();
     showLoading();
     if (typeof restoreQuizSidebarIfAutoCollapsed === "function") restoreQuizSidebarIfAutoCollapsed();
     // Same full-page immersive overlay (no sidebar/nav) every lesson
@@ -4151,15 +4170,25 @@ async function submitExchange() {
     if (typeof enterImmersiveMode === "function") enterImmersiveMode();
     document.getElementById("lessonMainArea").innerHTML = `<p>⏳ Loading flashcards…</p>`;
     fetch(`/student/modules/${moduleId}/flashcards`)
-      .then((res) => res.json())
-      .then((data) => {
+      .then((res) => res.json().then((data) => ({ status: res.status, data })))
+      .then(({ status, data }) => {
         hideLoading();
         if (!data.success) {
+          if (status === 403 && data.locked) {
+            document.getElementById("lessonMainArea").innerHTML = `
+              <div style="padding:20px; background:#fff8e1; border:1px solid #f0d060; border-radius:8px; max-width:500px; margin:0 auto;">
+                <h3 style="margin-top:0;">🔒 Not Unlocked Yet</h3>
+                <p>${escapeFcText(data.message)}</p>
+              </div>
+            `;
+            return;
+          }
           document.getElementById("lessonMainArea").innerHTML = `<p>⚠️ ${escapeFcText(data.message || "Failed to load flashcards.")}</p>`;
           return;
         }
         fcDeck = data.flashcards || [];
         fcIndex = 0;
+        fcAlreadyCompleted = !!data.alreadyCompleted;
         if (!fcDeck.length) {
           document.getElementById("lessonMainArea").innerHTML = `
             <h2>📇 Flashcards — ${escapeFcText(fcModuleTitle)}</h2>
@@ -4177,15 +4206,21 @@ async function submitExchange() {
   window.loadModuleFlashcards = loadModuleFlashcards;
 
   function renderFlashcardDeck() {
+    if (fcTimer) clearInterval(fcTimer);
     const card = fcDeck[fcIndex];
+    const isLast = fcIndex === fcDeck.length - 1;
+    const alreadyRead = fcAlreadyCompleted || fcReadIndices.has(fcIndex);
+    const nextLabel = isLast ? "✅ Finish Review" : "Next →";
+
     document.getElementById("lessonMainArea").innerHTML = `
       <h2 style="text-align:center;">📇 Flashcards — ${escapeFcText(fcModuleTitle)}</h2>
-      <p style="color:#888; font-size:13px; text-align:center; margin-top:-8px;">Card ${fcIndex + 1} of ${fcDeck.length} · tap the card to flip it</p>
+      <p style="color:#888; font-size:13px; text-align:center; margin-top:-8px;">Card ${fcIndex + 1} of ${fcDeck.length}</p>
       <div class="fc-scene">
         <div class="fc-card" id="fcCard">
           <div class="fc-face fc-front">
             <p>${escapeFcText(card.front_text)}</p>
-            <span class="fc-hint">Tap to reveal</span>
+            <span class="fc-hint" id="fcFrontHint">${alreadyRead ? "Tap to reveal" : "Read this, then wait…"}</span>
+            ${alreadyRead ? "" : `<div class="fc-progress-wrap"><div class="fc-progress-bar" id="fcFlipProgress"></div></div>`}
           </div>
           <div class="fc-face fc-back">
             <p>${escapeFcText(card.back_text)}</p>
@@ -4194,17 +4229,31 @@ async function submitExchange() {
                 ? `<button type="button" class="fc-lesson-pill" id="fcLessonBtn" data-lesson-id="${card.lesson_id}">📖 From: ${escapeFcText(card.lesson_title)}</button>`
                 : ""
             }
+            ${alreadyRead ? "" : `<div class="fc-progress-wrap"><div class="fc-progress-bar" id="fcReadProgress"></div></div>`}
           </div>
         </div>
       </div>
       <div class="fc-nav">
         <button type="button" class="btn-view" id="fcPrevBtn" ${fcIndex === 0 ? "disabled" : ""}>← Prev</button>
-        <button type="button" class="btn-view" id="fcNextBtn" ${fcIndex === fcDeck.length - 1 ? "disabled" : ""}>Next →</button>
+        <button type="button" class="btn-view" id="fcNextBtn" ${alreadyRead ? "" : "disabled"}>${nextLabel}</button>
       </div>
     `;
-    document.getElementById("fcCard").addEventListener("click", () => {
-      document.getElementById("fcCard").classList.toggle("flipped");
+
+    const cardEl = document.getElementById("fcCard");
+    const nextBtn = document.getElementById("fcNextBtn");
+    let canFlip = alreadyRead;
+
+    cardEl.addEventListener("click", () => {
+      if (!canFlip) return;
+      cardEl.classList.toggle("flipped");
+      if (cardEl.classList.contains("flipped") && !alreadyRead) {
+        runFillBar("fcReadProgress", () => {
+          fcReadIndices.add(fcIndex);
+          nextBtn.disabled = false;
+        });
+      }
     });
+
     const lessonBtn = document.getElementById("fcLessonBtn");
     if (lessonBtn) {
       lessonBtn.addEventListener("click", (e) => {
@@ -4212,8 +4261,61 @@ async function submitExchange() {
         loadLessonPart(Number(lessonBtn.dataset.lessonId), "content");
       });
     }
+
     document.getElementById("fcPrevBtn").addEventListener("click", () => fcGo(-1));
-    document.getElementById("fcNextBtn").addEventListener("click", () => fcGo(1));
+    nextBtn.addEventListener("click", () => {
+      if (isLast) finishFlashcardReview();
+      else fcGo(1);
+    });
+
+    if (!alreadyRead) {
+      runFillBar("fcFlipProgress", () => {
+        canFlip = true;
+        const hint = document.getElementById("fcFrontHint");
+        if (hint) hint.textContent = "Tap to reveal";
+      });
+    }
+  }
+
+  // Fills the named progress-bar element over FC_READ_SECONDS, then
+  // calls onDone. Used both for the "wait before you can flip" bar and
+  // the "wait before Next unlocks" bar on the back of the card.
+  function runFillBar(elementId, onDone) {
+    const bar = document.getElementById(elementId);
+    if (!bar) {
+      onDone();
+      return;
+    }
+    const start = Date.now();
+    fcTimer = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - start) / (FC_READ_SECONDS * 1000)) * 100);
+      bar.style.width = pct + "%";
+      if (pct >= 100) {
+        clearInterval(fcTimer);
+        fcTimer = null;
+        onDone();
+      }
+    }, 100);
+  }
+
+  async function finishFlashcardReview() {
+    try {
+      const res = await fetch(`/student/modules/${fcModuleId}/flashcards/complete`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showAlert(data.message || "Failed to record flashcard review.");
+        return;
+      }
+      fcAlreadyCompleted = true;
+      const msg = data.assignmentUnlocked
+        ? "🎉 Great work! You've reviewed every flashcard — the assignment for this module is now unlocked."
+        : "🎉 Great work! You've reviewed every flashcard.";
+      showAlert(msg, "success").then(() => {
+        if (typeof exitImmersiveMode === "function") exitImmersiveMode();
+      });
+    } catch (err) {
+      showAlert("Failed to record flashcard review: " + err.message);
+    }
   }
 
   function fcGo(delta) {

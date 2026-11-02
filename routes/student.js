@@ -200,6 +200,11 @@ router.get(
   ensureAuthenticated,
   studentController.getModuleFlashcards
 );
+router.post(
+  "/modules/:moduleId/flashcards/complete",
+  ensureAuthenticated,
+  studentController.completeModuleFlashcards
+);
 
 // Get quiz questions for a lesson
 router.get('/lessons/:id/quiz', studentController.getLessonQuiz);

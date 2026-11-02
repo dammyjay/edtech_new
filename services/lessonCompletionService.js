@@ -28,6 +28,7 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { maybeAwardReferralBonus } = require("./referralService");
 const { recordActivityForLesson } = require("./courseTermLinkService");
 const { checkAndCompleteModule } = require("./moduleCompletionService");
+const { unlockModuleAssignmentsIfReady } = require("./flashcardProgressService");
 const { XP_BOOST } = require("../utils/shopCatalog");
 
 /**
@@ -169,6 +170,7 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
     return {
       unlocked: false,
       pendingLab: !labDone ? lab : null,
+      pendingFlashcards: null,
       nextLessonId: null,
       nextLessonModuleId: null,
       nextModuleUnlocked: false,
@@ -206,6 +208,7 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
   let nextLessonId = null;
   let nextModuleUnlocked = false;
   let nextModuleId = null;
+  let pendingFlashcards = null;
 
   const nextLessonRes = await pool.query(
     `SELECT id FROM lessons
@@ -231,14 +234,12 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
     );
     const moduleId = moduleIdRes.rows[0].module_id;
 
-    await pool.query(
-      `INSERT INTO unlocked_assignments (student_id, assignment_id)
-       SELECT $1, id
-       FROM module_assignments
-       WHERE module_id=$2
-       ON CONFLICT (student_id, assignment_id) DO NOTHING`,
-      [studentId, moduleId]
-    );
+    // Assignment unlock now waits on the module's flashcard deck (if it
+    // has one) being watched all the way through first — see
+    // services/flashcardProgressService.js. A module with no flashcards
+    // unlocks its assignment immediately, exactly as before.
+    const assignmentGate = await unlockModuleAssignmentsIfReady(studentId, moduleId);
+    pendingFlashcards = assignmentGate.pendingFlashcards;
 
     const nextModuleRes = await pool.query(
       `SELECT id
@@ -303,6 +304,7 @@ async function maybeUnlockNextLesson(studentId, lessonId) {
   return {
     unlocked: isNewCompletion,
     pendingLab: null,
+    pendingFlashcards,
     nextLessonId,
     nextLessonModuleId,
     nextModuleUnlocked,

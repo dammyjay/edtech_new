@@ -1033,6 +1033,7 @@ exports.submitProject = async (req, res) => {
       nextModuleUnlocked: unlockResult?.nextModuleUnlocked,
       nextModuleId: unlockResult?.nextModuleId,
       pendingLab: unlockResult?.pendingLab,
+      pendingFlashcards: unlockResult?.pendingFlashcards,
       labFeedback,
       submissionCount,
     });

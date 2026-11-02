@@ -13,6 +13,7 @@ const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
+const flashcardProgressService = require("../services/flashcardProgressService");
 const portfolioService = require("../services/portfolioService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
@@ -3718,49 +3719,72 @@ exports.viewLesson = async (req, res) => {
   }
 };
 
-// A free study aid, not a lesson — no completion/progress tracking, no
-// locking. Access is still checked though: current classroom (live
-// classroom_courses), past classroom (student_term_enrollments, same
-// "past course" pattern as services/studentCourseAccessService.js), an
-// independent self-enrollment (course_enrollments), or an instructor
-// previewing the course via "Student View" (getDashboard's previewMode
-// — that flow doesn't pass its previewClassroomId through to this
-// endpoint, so this checks more broadly: does the requester teach ANY
-// classroom this module's course is assigned to) all count.
+// A study aid, gated the same point the assignment used to unlock at:
+// available once every lesson in the module is done, same as the
+// assignment, and now actually comes BEFORE it — the assignment itself
+// waits for the deck to be watched (services/flashcardProgressService.js).
+// Base access (separate from the lesson-completion gate): current
+// classroom (live classroom_courses), past classroom
+// (student_term_enrollments, same "past course" pattern as
+// services/studentCourseAccessService.js), an independent
+// self-enrollment (course_enrollments), or an instructor previewing the
+// course via "Student View" (getDashboard's previewMode — that flow
+// doesn't pass its previewClassroomId through to this endpoint, so this
+// checks more broadly: does the requester teach ANY classroom this
+// module's course is assigned to). Preview mode skips the
+// lesson-completion gate entirely — an instructor has no real progress
+// to check, and the point of the preview is seeing the content, not
+// simulating the unlock sequence.
 exports.getModuleFlashcards = async (req, res) => {
   try {
     const moduleId = req.params.moduleId;
     const studentId = req.user.id;
 
     const accessRes = await pool.query(
-      `SELECT m.id
-       FROM modules m
-       WHERE m.id = $1
-         AND (
-           EXISTS (
-             SELECT 1 FROM classroom_courses cc
-             JOIN user_school us ON us.classroom_id = cc.classroom_id
-             WHERE cc.course_id = m.course_id AND us.user_id = $2
-               AND us.role_in_school = 'student' AND us.approved = true
-           )
-           OR EXISTS (
-             SELECT 1 FROM student_term_enrollments ste
-             JOIN classroom_courses cc2 ON cc2.classroom_id = ste.classroom_id
-             WHERE cc2.course_id = m.course_id AND ste.student_id = $2
-           )
-           OR EXISTS (
-             SELECT 1 FROM course_enrollments ce WHERE ce.course_id = m.course_id AND ce.user_id = $2
-           )
-           OR EXISTS (
-             SELECT 1 FROM classroom_instructors ci
-             JOIN classroom_courses cc3 ON cc3.classroom_id = ci.classroom_id
-             WHERE cc3.course_id = m.course_id AND ci.instructor_id = $2
-           )
-         )`,
+      `SELECT
+         EXISTS (
+           SELECT 1 FROM classroom_instructors ci
+           JOIN classroom_courses cc3 ON cc3.classroom_id = ci.classroom_id
+           JOIN modules m ON m.course_id = cc3.course_id
+           WHERE m.id = $1 AND ci.instructor_id = $2
+         ) AS is_preview,
+         EXISTS (
+           SELECT 1 FROM modules m
+           WHERE m.id = $1
+             AND (
+               EXISTS (
+                 SELECT 1 FROM classroom_courses cc
+                 JOIN user_school us ON us.classroom_id = cc.classroom_id
+                 WHERE cc.course_id = m.course_id AND us.user_id = $2
+                   AND us.role_in_school = 'student' AND us.approved = true
+               )
+               OR EXISTS (
+                 SELECT 1 FROM student_term_enrollments ste
+                 JOIN classroom_courses cc2 ON cc2.classroom_id = ste.classroom_id
+                 WHERE cc2.course_id = m.course_id AND ste.student_id = $2
+               )
+               OR EXISTS (
+                 SELECT 1 FROM course_enrollments ce WHERE ce.course_id = m.course_id AND ce.user_id = $2
+               )
+             )
+         ) AS has_student_access`,
       [moduleId, studentId]
     );
-    if (!accessRes.rows.length) {
+    const { is_preview: isPreview, has_student_access: hasStudentAccess } = accessRes.rows[0];
+
+    if (!isPreview && !hasStudentAccess) {
       return res.status(403).json({ success: false, message: "Not authorized for this module" });
+    }
+
+    if (!isPreview) {
+      const lessonsDone = await flashcardProgressService.hasCompletedAllLessons(studentId, moduleId);
+      if (!lessonsDone) {
+        return res.status(403).json({
+          success: false,
+          locked: true,
+          message: "Finish this module's lessons first to unlock its flashcards.",
+        });
+      }
     }
 
     const result = await pool.query(
@@ -3773,9 +3797,36 @@ exports.getModuleFlashcards = async (req, res) => {
       [moduleId]
     );
 
-    res.json({ success: true, flashcards: result.rows });
+    const alreadyCompleted = isPreview
+      ? false
+      : await flashcardProgressService.hasCompletedFlashcards(studentId, moduleId);
+
+    res.json({ success: true, flashcards: result.rows, alreadyCompleted });
   } catch (err) {
     console.error("getModuleFlashcards error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Called once the student has watched every card in the deck (the
+// client enforces the per-card forced-reading timers; this just
+// records completion and unlocks the assignment if nothing else is
+// blocking it). Re-watching an already-completed deck is harmless —
+// ON CONFLICT DO NOTHING in markFlashcardsCompleted.
+exports.completeModuleFlashcards = async (req, res) => {
+  try {
+    const moduleId = req.params.moduleId;
+    const studentId = req.user.id;
+
+    const hasCards = await flashcardProgressService.hasFlashcards(moduleId);
+    if (!hasCards) {
+      return res.status(404).json({ success: false, message: "This module has no flashcards." });
+    }
+
+    const result = await flashcardProgressService.markFlashcardsCompleted(studentId, moduleId);
+    res.json({ success: true, assignmentUnlocked: result.unlocked });
+  } catch (err) {
+    console.error("completeModuleFlashcards error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -4450,6 +4501,7 @@ ${JSON.stringify(reviewData, null, 2)}
     // when nothing new happened this time.
     const {
       pendingLab,
+      pendingFlashcards,
       nextLessonId,
       nextModuleUnlocked,
       nextModuleId,
@@ -4457,7 +4509,7 @@ ${JSON.stringify(reviewData, null, 2)}
       badgeName,
       badgeImage,
     } = isInstructorPreview
-      ? { pendingLab: null, nextLessonId: null, nextModuleUnlocked: false, nextModuleId: null, badgeAwarded: false, badgeName: null, badgeImage: null }
+      ? { pendingLab: null, pendingFlashcards: null, nextLessonId: null, nextModuleUnlocked: false, nextModuleId: null, badgeAwarded: false, badgeName: null, badgeImage: null }
       : await maybeUnlockNextLesson(studentId, lessonId);
     const moduleResult = { badgeAwarded, badgeName, badgeImage };
 
@@ -4629,6 +4681,10 @@ ${JSON.stringify(reviewData, null, 2)}
       // instead of "Next Lesson" (views/student/dashboard.ejs's
       // renderQuizSummary), since nextLessonId is null in that case.
       pendingLab,
+      // Set only when this was the module's last lesson AND it has a
+      // flashcard deck the student hasn't watched yet — the assignment
+      // stays locked until they do (services/flashcardProgressService.js).
+      pendingFlashcards,
       submissionCount: attemptCountSoFar + 1,
       maxAttempts: MAX_QUIZ_ATTEMPTS,
       attempts: allQuizAttempts,
