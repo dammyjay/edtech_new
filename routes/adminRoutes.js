@@ -634,6 +634,10 @@ router.get("/schools/:id", adminController.getSchoolDetails);
 // Schools had no delete/archive action at all before this — see
 // controllers/archiveController.js and services/archiveService.js.
 router.post("/schools/:id/archive", archiveController.archiveEntity("school"));
+
+// Act-as-school-admin — see the matching comment in adminController.js.
+router.post("/schools/:id/act-as-school-admin", adminController.actAsSchoolAdmin);
+router.post("/stop-acting-as-school-admin", adminController.stopActingAsSchoolAdmin);
 router.get("/schools/:id/export-students-excel", adminController.exportStudentsExcel);
 // router.get("/admin/schools/:id/export-students-pdf", adminController.exportStudentsPDF);
 
@@ -679,6 +683,11 @@ router.post("/quotes/:id/reject", adminController.rejectQuote);
 router.post("/schools/:schoolId/users", upload.single("profile_picture"), adminController.addUserToSchool);
 router.put("/schools/:schoolId/users/:userId", upload.single("profile_picture"), adminController.updateUserInSchool);
 router.delete("/schools/:schoolId/users/:userId", adminController.deleteUserFromSchool);
+
+// Attach an existing platform account to this school, instead of creating
+// a new one — see the matching comment in adminController.js.
+router.get("/schools/:schoolId/search-existing-users", adminController.searchExistingUsersForSchool);
+router.post("/schools/:schoolId/users/existing", adminController.addExistingUserToSchool);
 router.post("/terms/create", adminController.createTerm);
 router.put("/terms/:id", adminController.updateTerm);
 router.delete("/terms/:id", adminController.deleteTerm);

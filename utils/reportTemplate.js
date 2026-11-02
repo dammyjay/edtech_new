@@ -83,6 +83,29 @@ function gradeCircle(score, label = "Grade") {
   `;
 }
 
+// A module that isn't finished yet shouldn't show a pass/fail-looking
+// letter grade (its lessons are, by definition, incomplete, so any grade
+// so far is an artificially low snapshot) — show it's still in progress
+// instead. Only once a module reaches 100% does its real grade apply.
+function gradeChipOrInProgress(percent, score) {
+  if (percent < 100) {
+    return `<span class="rp-badge tier-neutral rp-badge-md">In Progress</span>`;
+  }
+  return gradeChip(score);
+}
+
+function gradeCircleOrInProgress(percent, score, label = "Grade") {
+  if (percent < 100) {
+    return `
+      <div class="rp-grade-badge tier-neutral">
+        <span class="rp-grade-letter" style="font-size:16px;">${percent}%</span>
+        <span class="rp-grade-label">In Progress</span>
+      </div>
+    `;
+  }
+  return gradeCircle(score, label);
+}
+
 function badgeImageHtml(badge, size = 40) {
   if (!badge) return "";
   return badge.badge_image
@@ -574,7 +597,7 @@ function renderModuleReportHtml(data) {
           ${badges.length ? badgeImageHtml(badges[0], 28) + " " : ""}<i class='fa-solid fa-puzzle-piece rp-icon rp-icon-green'></i> ${esc(moduleTitle)}
           <span style="font-size:12px; font-weight:400; color:#8a7841;">— ${esc(courseTitle || "")}</span>
         </h2>
-        ${gradeCircle(grade, "Grade")}
+        ${gradeCircleOrInProgress(percent, grade, "Grade")}
       </div>
       <div style="height:10px;"></div>
       ${progressBar(percent)}
@@ -711,7 +734,7 @@ function buildCourseSectionHtml(courseTitle, modules = []) {
         <div class="rp-module-card-header">
           <h3>${mod.badges.length ? badgeImageHtml(mod.badges[0], 22) + " " : ""}${mod.percent === 100 ? "<i class='fa-solid fa-trophy rp-icon rp-icon-gold'></i>" : mod.percent > 0 ? "<i class='fa-solid fa-book-open rp-icon rp-icon-blue'></i>" : "<i class='fa-regular fa-circle rp-icon rp-icon-gray'></i>"} ${esc(mod.title)}</h3>
           <div style="display:flex; align-items:center; gap:8px;">
-            ${gradeChip(mod.grade)}
+            ${gradeChipOrInProgress(mod.percent, mod.grade)}
             <span style="font-weight:800; color:#4C3802; font-size:13px;">${mod.percent}%${mod.timeSpent ? ` · <i class='fa-solid fa-stopwatch rp-icon rp-icon-teal'></i> ${esc(mod.timeSpent)}` : ""}</span>
           </div>
         </div>

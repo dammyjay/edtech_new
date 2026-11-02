@@ -52,32 +52,13 @@ exports.selectTerm = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   const announcements = await getAnnouncements("dashboard");
 
-  const schoolRes = await pool.query(
-  `SELECT s.id, s.name
-   FROM schools s
-   WHERE s.created_by = $1
-   LIMIT 1`,
-  [req.session.user.id]
-);
-
-if (!schoolRes.rows.length) {
-  return res.status(404).send("School not found");
-}
-
-const schoolDbId = schoolRes.rows[0].id;
-// const schoolName = schoolRes.rows[0].name;
-
-  // Get school name
-  const schoolRow = await pool.query(
-    "SELECT id, name FROM schools WHERE id = $1",
-    [schoolDbId]
-  );
-
-  if (!schoolRow.rows.length) {
-    return res.status(404).send("School not found");
-  }
-
-  const schoolName = schoolRow.rows[0].name;
+  // Resolved by requireSchoolAdmin (routes/schoolAdmin.js's router-wide
+  // gate), not re-queried here — this is also what makes "acting as
+  // school admin" (a platform admin temporarily managing a school) work,
+  // since req.schoolId covers that case; a fresh
+  // `created_by = req.session.user.id` lookup here would not.
+  const schoolDbId = req.schoolId;
+  const schoolName = req.schoolName;
 
   // Whole-panel term filter — see resolveSelectedTermId above.
   const selectedTermId = await resolveSelectedTermId(req, schoolDbId);
@@ -310,19 +291,13 @@ ORDER BY engagement_rate DESC;
 exports.loadSection = async (req, res) => {
   const section = req.params.section;
 
-
-  const schoolRes = await pool.query(
-    `SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1`,
-    [req.session.user.id]
-  );
-
-  if (!schoolRes.rows.length) {
-    return res.status(404).send("School not found");
-  }
-
-  const schoolName = schoolRes.rows[0].name;
-
-  const schoolId = schoolRes.rows[0].id;
+  // Resolved once by requireSchoolAdmin (routes/schoolAdmin.js's
+  // router-wide gate) rather than re-queried here — this also makes the
+  // "acting as school admin" view (a platform admin temporarily managing
+  // a school) work, since req.schoolId covers that case too; a fresh
+  // `created_by = req.session.user.id` lookup here would not.
+  const schoolId = req.schoolId;
+  const schoolName = req.schoolName;
 
   // Whole-panel term filter — see resolveSelectedTermId above. Resolved
   // once here so every section branch below can read it.
@@ -1003,17 +978,8 @@ ORDER BY engagement_rate DESC;
 exports.addStudent = async (req, res) => {
   try {
     const { fullname, gender } = req.body;
-    const schoolRes = await pool.query(
-      "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
-      [req.session.user.id]
-    );
-
-    if (!schoolRes.rows.length) {
-      return res.status(404).send("School not found");
-    }
-
-    const schoolId = schoolRes.rows[0].id;
-    const schoolName = schoolRes.rows[0].name; // ✅ now works
+    const schoolId = req.schoolId;
+    const schoolName = req.schoolName;
 
     // 🔥 Generate email
     const cleanName = fullname.toLowerCase().replace(/\s+/g, "");
@@ -1067,17 +1033,8 @@ exports.bulkAddStudents = async (req, res) => {
       return res.json({ success: false, message: "No file uploaded" });
     }
 
-    const schoolRes = await pool.query(
-      "SELECT id, name FROM schools WHERE created_by = $1 LIMIT 1",
-      [req.session.user.id],
-    );
-
-    if (!schoolRes.rows.length) {
-      return res.json({ success: false, message: "School not found" });
-    }
-
-    const schoolId = schoolRes.rows[0].id;
-    const schoolName = schoolRes.rows[0].name;
+    const schoolId = req.schoolId;
+    const schoolName = req.schoolName;
 
     const schoolFirstWord = schoolName
       .split(" ")[0]
@@ -1256,12 +1213,7 @@ exports.rejectUser = async (req, res) => {
 
 // List classrooms
 exports.listClassrooms = async (req, res) => {
-  const schoolRes = await pool.query(
-    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-    [req.session.user.id]
-  );
-
-  const schoolId = schoolRes.rows[0].id;
+  const schoolId = req.schoolId;
   const result = await pool.query(
     "SELECT * FROM classrooms WHERE school_id = $1",
     [schoolId]
@@ -1271,12 +1223,7 @@ exports.listClassrooms = async (req, res) => {
 
 // Create classroom
 exports.createClassroom = async (req, res) => {
-  const schoolRes = await pool.query(
-    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-    [req.session.user.id]
-  );
-
-  const schoolId = schoolRes.rows[0].id;
+  const schoolId = req.schoolId;
   const { name, teacher_id } = req.body;
 
   try {
@@ -1316,13 +1263,7 @@ exports.assignToClassroom = async (req, res) => {
   try {
     const { student_id } = req.body;
     const classroomId = req.params.id;
-
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
-
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
 
     // Check if user is part of this school
     const roleResult = await pool.query(
@@ -1382,12 +1323,7 @@ exports.assignToClassroomB = async (req, res) => {
   try {
     const { classroom_id } = req.body; // From AJAX POST JSON
     const userId = req.params.id;       // From URL param
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
-
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
 
     // Check if user is part of this school
     const roleResult = await pool.query(
@@ -1560,12 +1496,7 @@ exports.deleteClassroom = async (req, res) => {
 exports.addStudentToClassroom = async (req, res) => {
   const classroomId = req.params.id;
   const { student_id } = req.body;
-  const schoolRes = await pool.query(
-    `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-    [req.session.user.id]
-  );
-
-  const schoolId = schoolRes.rows[0].id;
+  const schoolId = req.schoolId;
 
   try {
     if (!student_id) {
@@ -1745,12 +1676,7 @@ exports.addQuote = async (req, res) => {
     if (!term_id) {
       return res.status(400).send("A term is required to create a quote.");
     }
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
-
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
 
     await pool.query(
       `INSERT INTO quotes (school_id, term_id, price_per_student, status)
@@ -1792,12 +1718,7 @@ exports.deleteQuote = async (req, res) => {
 // branch), which is fixed here too.
 exports.getPayments = async (req, res) => {
   try {
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
-
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
     const payments = await pool.query(
       `SELECT sp.id, sp.amount, sp.payment_date, sp.created_at,
               t.name AS term_name, q.status AS quote_status
@@ -1830,12 +1751,7 @@ exports.updatePayment = async (req, res) => {
 exports.assignCourseToClassroom = async (req, res) => {
   try {
     const { classroomId, courseId } = req.body;
-    const schoolRes = await pool.query(
-  `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-  [req.session.user.id]
-);
-
-const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
 
     // Check that this course is authorized for the school's currently
     // active term (or a general, term-less authorization) — same
@@ -1883,12 +1799,7 @@ exports.updateClassroomCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
     const { id } = req.params; // classroom_course.id
-
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id]
-    );
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
 
     // Confirm this classroom_courses row actually belongs to THIS
     // school (previously unchecked — a school admin could otherwise
@@ -2757,16 +2668,7 @@ exports.saveAttendance = async (req, res) => {
 // =============================
 exports.getAttendanceHistory = async (req, res) => {
   try {
-    const schoolRes = await pool.query(
-      `SELECT id FROM schools WHERE created_by = $1 LIMIT 1`,
-      [req.session.user.id],
-    );
-
-    if (!schoolRes.rows.length) {
-      return res.status(404).json({ error: "School not found" });
-    }
-
-    const schoolId = schoolRes.rows[0].id;
+    const schoolId = req.schoolId;
     const { term_id, classroom_id } = req.query;
 
     let query = `

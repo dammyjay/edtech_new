@@ -15,16 +15,23 @@
         <h2><%= school.name %></h2>
         <p><%= school.address || 'No address on file' %> · <%= school.email || 'No email' %> · <%= school.phone || 'No phone' %></p>
       </div>
-      <div class="jk-term-filter">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A17807" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        <select id="globalTermFilter" onchange="changeGlobalTerm(this.value)">
-          <option value="" <%= !selectedTermId ? 'selected' : '' %>>All Terms</option>
-          <% school.terms.forEach(term => { %>
-            <option value="<%= term.term_id %>" <%= selectedTermId === term.term_id ? 'selected' : '' %>>
-              <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
-            </option>
-          <% }) %>
-        </select>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <form method="POST" action="/admin/schools/<%= school.id %>/act-as-school-admin">
+          <button type="submit" class="jk-btn-outline" title="View and manage this school exactly as its own school_admin would, without logging out.">
+            <i class="fa-solid fa-right-left"></i> Manage as School Admin
+          </button>
+        </form>
+        <div class="jk-term-filter">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A17807" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <select id="globalTermFilter" onchange="changeGlobalTerm(this.value)">
+            <option value="" <%= !selectedTermId ? 'selected' : '' %>>All Terms</option>
+            <% school.terms.forEach(term => { %>
+              <option value="<%= term.term_id %>" <%= selectedTermId === term.term_id ? 'selected' : '' %>>
+                <%= term.term_name %> <%= term.status === 'active' ? '(active)' : '' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
       </div>
     </div>
     <% if (selectedTermId) { %>
@@ -544,6 +551,7 @@
       <% }) %>
     </select>
     <div class="jk-toolbar-spacer"></div>
+    <button class="jk-btn-outline" onclick="openAddExistingUserModal('teacher')" type="button">Add Existing Teacher</button>
     <button class="jk-btn-dark" onclick="openUserForm('teacher')" type="button">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add Teacher
@@ -737,6 +745,7 @@
         <button class="jk-dropdown-item" onclick="runMigration(); toggleBulkToolsMenu();" type="button">Migrate Login Fields</button>
       </div>
     </div>
+    <button class="jk-btn-outline" onclick="openAddExistingUserModal('student')" type="button">Add Existing Student</button>
     <button class="jk-btn-dark" onclick="openUserForm('student')" type="button">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add Student
@@ -941,6 +950,126 @@
     loadClassroomCandidates();
   }
   function closeAssignStudentsModal() { document.getElementById("assignStudentsModal").hidden = true; }
+</script>
+
+<!-- ===== "Add Existing Student/Teacher" modal — attaches an account that
+     already exists on the platform (e.g. already at another school) to
+     THIS school/classroom, instead of creating a duplicate new account
+     the way the "Add Student"/"Add Teacher" buttons above do. ===== -->
+<style>
+  .jk-existing-user-row { padding: 10px 12px; border: 1px solid #EDE7D6; border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+  .jk-existing-user-row:hover { background: #FAF8F2; }
+  .jk-existing-user-row.selected { background: var(--brand-tint, #FBF3DD); border-color: var(--brand-pri, #A17807); }
+  .jk-empty-sm { color: #8A7B55; font-size: 12.5px; padding: 6px 2px; }
+</style>
+<div id="addExistingUserModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal" style="width:520px;">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="addExistingUserModalTitle">Add Existing Student</h4>
+        <p>Search for an account that already exists on the platform and attach it to this school.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeAddExistingUserModal()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <div class="jk-search-wrap" style="max-width:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A8C66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="existingUserSearch" class="jk-search-input" placeholder="Search by name or email…" oninput="searchExistingUsers()">
+      </div>
+      <div id="existingUserResults" style="margin-top:12px; max-height:260px; overflow-y:auto;"></div>
+
+      <div id="existingUserAssignRow" style="margin-top:14px; display:none;">
+        <label style="font-size:12.5px; font-weight:700; color:#4C3802;">Classroom (optional)</label>
+        <select id="existingUserClassroom" class="jk-select-multi" style="margin-top:6px;">
+          <option value="">— No classroom yet —</option>
+          <% school.classrooms.forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }) %>
+        </select>
+        <button class="jk-btn-dark" style="margin-top:10px; width:100%;" onclick="confirmAddExistingUser()" type="button">Attach to This School</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  let addExistingUserRole = "student";
+  let addExistingUserSelectedId = null;
+  let addExistingUserSearchTimer = null;
+
+  function openAddExistingUserModal(role) {
+    addExistingUserRole = role;
+    addExistingUserSelectedId = null;
+    document.getElementById("addExistingUserModalTitle").textContent = "Add Existing " + (role === "teacher" ? "Teacher" : "Student");
+    document.getElementById("existingUserSearch").value = "";
+    document.getElementById("existingUserResults").innerHTML = "";
+    document.getElementById("existingUserClassroom").value = "";
+    document.getElementById("existingUserAssignRow").style.display = "none";
+    document.getElementById("addExistingUserModal").hidden = false;
+  }
+  function closeAddExistingUserModal() {
+    document.getElementById("addExistingUserModal").hidden = true;
+  }
+
+  function searchExistingUsers() {
+    clearTimeout(addExistingUserSearchTimer);
+    const q = document.getElementById("existingUserSearch").value.trim();
+    const resultsEl = document.getElementById("existingUserResults");
+    document.getElementById("existingUserAssignRow").style.display = "none";
+    addExistingUserSelectedId = null;
+    if (q.length < 2) { resultsEl.innerHTML = ""; return; }
+
+    addExistingUserSearchTimer = setTimeout(async () => {
+      resultsEl.innerHTML = "<p class='jk-empty-sm'>Searching…</p>";
+      try {
+        const schoolId = "<%= school.id %>";
+        const res = await fetch(`/admin/schools/${schoolId}/search-existing-users?q=${encodeURIComponent(q)}&role=${addExistingUserRole}`);
+        const data = await res.json();
+        if (!data.success || !data.users.length) {
+          resultsEl.innerHTML = "<p class='jk-empty-sm'>No matching accounts found (or they're already in this school).</p>";
+          return;
+        }
+        resultsEl.innerHTML = data.users.map(u => `
+          <div class="jk-existing-user-row" data-id="${u.id}" onclick="selectExistingUser(${u.id}, this)">
+            <p class="jk-row-name" style="margin:0; font-weight:700; font-size:13px;">${u.fullname}</p>
+            <p class="jk-row-sub" style="margin:2px 0 0; font-size:11.5px; color:#8A7B55;">${u.email}${u.current_school_name ? " · currently at " + u.current_school_name : ""}</p>
+          </div>
+        `).join("");
+      } catch (err) {
+        resultsEl.innerHTML = "<p class='jk-empty-sm'>Search failed — try again.</p>";
+      }
+    }, 300);
+  }
+
+  function selectExistingUser(id, el) {
+    addExistingUserSelectedId = id;
+    document.querySelectorAll("#existingUserResults .jk-existing-user-row").forEach(r => r.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("existingUserAssignRow").style.display = "block";
+  }
+
+  async function confirmAddExistingUser() {
+    if (!addExistingUserSelectedId) return;
+    const schoolId = "<%= school.id %>";
+    const classroomId = document.getElementById("existingUserClassroom").value || null;
+    try {
+      const res = await fetch(`/admin/schools/${schoolId}/users/existing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: addExistingUserSelectedId, classroom_id: classroomId, role_in_school: addExistingUserRole })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeAddExistingUserModal();
+        showAlert(data.message || "Added!").then(() => location.reload());
+      } else {
+        showAlert("Failed: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      showAlert("Failed: " + err.message);
+    }
+  }
 </script>
 
 <!-- ===== Shared "Assign Instructor(s)" modal — one classroom, many

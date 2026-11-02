@@ -1174,7 +1174,7 @@ exports.viewSingleCourse = async (req, res) => {
 
     // Get modules for the course
     const modules = await pool.query(
-      "SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL",
+      "SELECT * FROM modules WHERE course_id = $1 AND archived_at IS NULL ORDER BY order_number",
       [id]
     );
 
@@ -1190,7 +1190,11 @@ exports.viewSingleCourse = async (req, res) => {
       lessonsQuery += " AND m.id = $2";
       params.push(selectedModuleId);
     }
-    lessonsQuery += " ORDER BY l.order_number";
+    // Order by the module's own order_number first, then the lesson's
+    // order_number within it — so "All Modules" shows every module's
+    // lessons grouped together in curriculum order, not interleaved by
+    // each lesson's own order_number across different modules.
+    lessonsQuery += " ORDER BY m.order_number, l.order_number";
     const lessons = await pool.query(lessonsQuery, params);
 
     // Get module assignments

@@ -3,7 +3,8 @@ const pool = require("../models/db");
 const bcrypt = require("bcrypt");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
-const { notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
+const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
+const externalProjectController = require("./externalProjectController");
 const instructorAwardService = require("../services/instructorAwardService");
 const classroomPacingService = require("../services/classroomPacingService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
@@ -918,6 +919,19 @@ exports.loadSection = async (req, res) => {
     const { section } = req.params;
     const instructorId = req.user.id;
 
+    // Grading and external-projects each need their own submissions query
+    // (not the generic shared `data` object every other section below
+    // renders against), so they're dispatched straight to their own
+    // handlers — same split teacher sections use (routes/teacher.js's
+    // own "grading"/"external-projects" cases) — before any of the
+    // heavier shared-data queries below run.
+    if (section === "grading") {
+      return module.exports.getGradingQueue(req, res);
+    }
+    if (section === "external_projects") {
+      return externalProjectController.getExternalProjectGradingQueueForInstructor(req, res);
+    }
+
     if (req.query.school_id) {
       req.session.activeSchoolId = req.query.school_id;
     }
@@ -1491,6 +1505,99 @@ exports.loadSection = async (req, res) => {
   }
 };
 
+// ===================== ASSIGNMENT GRADING =====================
+// Parity with teacherController.js's getGradingQueue/submitGrade — same
+// shape, scoped to classroom_instructors instead of classroom_teachers.
+// Includes the user_school join tying the submitting student to THIS
+// instructor's own classroom (see the matching fix/finding in
+// teacherController.js) so a shared catalog course assigned to another
+// school's classroom can't leak that classroom's submissions in here.
+exports.getGradingQueue = async (req, res) => {
+  const instructorId = req.user.id;
+  const filter = req.query.filter || "ungraded"; // ungraded | unreviewed | all
+
+  try {
+    let filterClause = "";
+    if (filter === "ungraded") filterClause = "AND asub.grade IS NULL";
+    else if (filter === "unreviewed") filterClause = "AND asub.grade IS NOT NULL AND asub.manually_graded_at IS NULL";
+
+    const result = await pool.query(
+      `SELECT asub.id, asub.description, asub.score, asub.total, asub.grade, asub.ai_feedback,
+              asub.teacher_feedback, asub.manually_graded_at, asub.created_at,
+              u.id AS student_id, u.fullname AS student_name,
+              ma.title AS assignment_title, ma.instructions,
+              c.name AS classroom_name
+       FROM assignment_submissions asub
+       JOIN module_assignments ma ON ma.id = asub.assignment_id
+       JOIN modules m ON m.id = ma.module_id
+       JOIN courses cr ON cr.id = m.course_id
+       JOIN classroom_courses cc ON cc.course_id = cr.id
+       JOIN classroom_instructors ci ON ci.classroom_id = cc.classroom_id
+       JOIN classrooms c ON c.id = cc.classroom_id
+       JOIN users2 u ON u.id = asub.student_id
+       JOIN user_school us ON us.user_id = asub.student_id
+                           AND us.classroom_id = ci.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
+       WHERE ci.instructor_id = $1 ${filterClause}
+       ORDER BY asub.created_at DESC`,
+      [instructorId]
+    );
+
+    res.render("instructor/sections/grading", { submissions: result.rows, filter });
+  } catch (err) {
+    console.error("Instructor grading queue error:", err);
+    res.status(500).send("<p>Error loading grading queue</p>");
+  }
+};
+
+exports.submitGrade = async (req, res) => {
+  const { submissionId } = req.params;
+  const { grade, score, total, teacher_feedback } = req.body;
+  const instructorId = req.user.id;
+
+  try {
+    const ownershipCheck = await pool.query(
+      `SELECT asub.student_id, ma.title AS assignment_title
+       FROM assignment_submissions asub
+       JOIN module_assignments ma ON ma.id = asub.assignment_id
+       JOIN modules m ON m.id = ma.module_id
+       JOIN courses cr ON cr.id = m.course_id
+       JOIN classroom_courses cc ON cc.course_id = cr.id
+       JOIN classroom_instructors ci ON ci.classroom_id = cc.classroom_id
+       JOIN user_school us ON us.user_id = asub.student_id
+                           AND us.classroom_id = ci.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
+       WHERE asub.id = $1 AND ci.instructor_id = $2`,
+      [submissionId, instructorId]
+    );
+    if (!ownershipCheck.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to grade this submission" });
+    }
+
+    await pool.query(
+      `UPDATE assignment_submissions
+       SET grade = $1, score = $2, total = $3, teacher_feedback = $4,
+           graded_by = $5, manually_graded_at = NOW()
+       WHERE id = $6`,
+      [grade, score || null, total || null, teacher_feedback || null, instructorId, submissionId]
+    );
+
+    const { student_id, assignment_title } = ownershipCheck.rows[0];
+    await notifyUser(student_id, {
+      type: "grade_posted",
+      title: "Your assignment was graded",
+      message: `${assignment_title || "An assignment"} — grade: ${grade}`,
+      url: "/student/dashboard",
+    });
+
+    res.json({ success: true, message: "Grade saved" });
+  } catch (err) {
+    console.error("Instructor submit grade error:", err);
+    res.status(500).json({ success: false, message: "Server error while saving grade" });
+  }
+};
 
 exports.getInstructorStudentsSection = async (req, res) => {
   try {

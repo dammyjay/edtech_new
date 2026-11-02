@@ -75,6 +75,39 @@ function ensureAdmin(req, res, next) {
 // requests — populates req.session.user.school_id (and req.schoolId /
 // req.schoolName) before any controller runs.
 async function requireSchoolAdmin(req, res, next) {
+  // A platform admin can temporarily "act as" a given school's admin
+  // (see adminController.js's actAsSchoolAdmin, POST
+  // /admin/schools/:id/act-as-school-admin) without their own account's
+  // role ever changing — req.session.actingAsSchoolId is the only thing
+  // that records this, and only an "admin" session can set it. Resolved
+  // here first, before the normal school_admin path below, so it reaches
+  // the exact same req.schoolId/req.schoolName every real school_admin
+  // request gets — every controller in schoolAdminController.js reads
+  // those, never the role directly, so this is otherwise invisible to
+  // the rest of the app. res.locals.actingAsAdmin lets any view show a
+  // "you're acting as X" banner without each controller having to pass
+  // it through explicitly (same pattern as res.locals.csrfToken).
+  if (req.session.user && req.session.user.role === "admin" && req.session.actingAsSchoolId) {
+    try {
+      const result = await pool.query(
+        "SELECT id, name FROM schools WHERE id = $1",
+        [req.session.actingAsSchoolId]
+      );
+      if (!result.rows.length) {
+        req.session.actingAsSchoolId = null;
+        return res.status(404).send("That school no longer exists");
+      }
+      req.session.user.school_id = result.rows[0].id;
+      req.schoolId = result.rows[0].id;
+      req.schoolName = result.rows[0].name;
+      res.locals.actingAsAdmin = true;
+      return next();
+    } catch (err) {
+      console.error("requireSchoolAdmin (acting-as) error:", err);
+      return res.status(500).send("Server error");
+    }
+  }
+
   if (!req.session.user || req.session.user.role !== "school_admin") {
     return res.status(403).send("Access denied");
   }
@@ -89,6 +122,7 @@ async function requireSchoolAdmin(req, res, next) {
     req.session.user.school_id = result.rows[0].id;
     req.schoolId = result.rows[0].id;
     req.schoolName = result.rows[0].name;
+    res.locals.actingAsAdmin = false;
     return next();
   } catch (err) {
     console.error("requireSchoolAdmin error:", err);

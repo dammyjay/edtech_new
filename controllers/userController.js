@@ -1431,7 +1431,7 @@ exports.downloadCourseSummary = async (req, res) => {
 
     // --- Modules
     const modulesRes = await pool.query(
-      `SELECT id, title FROM modules WHERE course_id = $1`,
+      `SELECT id, title FROM modules WHERE course_id = $1 ORDER BY order_number`,
       [courseId]
     );
     const modules = modulesRes.rows;
@@ -1441,10 +1441,10 @@ exports.downloadCourseSummary = async (req, res) => {
       `SELECT l.id, l.title, l.module_id, ulp.completed_at
        FROM lessons l
        JOIN modules m ON l.module_id = m.id
-       LEFT JOIN user_lesson_progress ulp 
+       LEFT JOIN user_lesson_progress ulp
          ON ulp.lesson_id = l.id AND ulp.user_id = $1
        WHERE m.course_id = $2
-       ORDER BY l.id`,
+       ORDER BY l.order_number`,
       [studentId, courseId]
     );
     const lessons = lessonsRes.rows;

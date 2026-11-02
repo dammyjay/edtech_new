@@ -34,10 +34,68 @@
   .tc-sp-score-try { background: #FBEAEA; color: #A83232; }
   .tc-sp-score-neutral { background: #f0f0f0; color: #666; }
 
+  /* ---- Gamified tabbed progress browser, modeled on the instructor
+     role's sp- design (views/instructor/sections/studentProgress.ejs)
+     so a score/grade/tier looks the same everywhere a teacher or
+     instructor sees it — just scoped tc-sp- to coexist with the hero/
+     badge styles above and teacher_sidenav.ejs's .tc- library. ---- */
+  .tc-sp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 16px; }
+  .tc-sp-tab {
+    padding: 9px 16px; border-radius: 999px; background: #fff;
+    border: 1px solid #e5e0d0; cursor: pointer; font-weight: 700; font-size: 12.5px;
+    color: #665c3f; transition: 0.15s ease; white-space: nowrap;
+  }
+  .tc-sp-tab:hover { background: var(--brand-tint, #FBF3DD); }
+  .tc-sp-tab.active { background: var(--brand-pri, #A17807); color: #fff; border-color: var(--brand-pri, #A17807); }
+
+  .tc-sp-panel { display: none; }
+  .tc-sp-panel.active { display: block; animation: tcSpFadeIn 0.22s ease; }
+  @keyframes tcSpFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .tc-sp-bar { height: 9px; background: #f2ede0; border-radius: 999px; overflow: hidden; }
+  .tc-sp-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); transition: width 0.3s; }
+
+  .tc-sp-grade-circle {
+    width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .tc-sp-grade-circle .letter { font-size: 15px; font-weight: 800; line-height: 1; }
+  .tc-sp-grade-circle .lbl { font-size: 6px; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+  .tc-sp-grade-circle.great { background: #EAF6EE; color: #1E6B34; }
+  .tc-sp-grade-circle.good { background: #FFF4E5; color: #8A5300; }
+  .tc-sp-grade-circle.try { background: #FBEAEA; color: #A83232; }
+  .tc-sp-grade-circle.neutral { background: #f0f0f0; color: #888; }
+
+  .tc-sp-course-card { background: #fff; border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); overflow: hidden; margin-bottom: 16px; }
+  .tc-sp-course-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; cursor: pointer; gap: 10px; flex-wrap: wrap; }
+  .tc-sp-course-head:hover { background: var(--brand-tint, #FBF3DD); }
+  .tc-sp-course-head h3 { margin: 0; font-size: 15px; color: var(--brand-pri-dark, #4C3802); }
+  .tc-sp-course-head .percent { font-size: 12px; color: #777; }
+  .tc-sp-toggle-icon { font-size: 18px; font-weight: 800; transition: transform 0.25s ease; color: var(--brand-pri-dark, #4C3802); flex-shrink: 0; }
+  .tc-sp-toggle-icon.open { transform: rotate(45deg); }
+  .tc-sp-course-bar-wrap { padding: 0 18px; }
+  .tc-sp-course-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+  .tc-sp-course-body.open { max-height: 6000px; }
+  .tc-sp-course-body-inner { padding: 14px 18px 18px; }
+
+  .tc-sp-module-card { background: #FBF9F3; border: 1px solid #f0ead8; border-radius: var(--radius, 10px); padding: 14px 16px; margin-bottom: 10px; }
+  .tc-sp-module-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .tc-sp-module-head h4 { margin: 0; font-size: 13.5px; color: #4C3802; }
+  .tc-sp-module-sub { font-size: 11.5px; color: #887c5c; margin: 4px 0 8px; }
+  .tc-sp-lesson-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; border-bottom: 1px dashed #ece4d0; }
+  .tc-sp-lesson-row:last-child { border-bottom: none; }
+  .tc-sp-lesson-row .lesson-title { flex: 1; }
+
+  .tc-sp-list-card {
+    background: #fff; border-radius: var(--radius, 10px); padding: 13px 16px; margin-bottom: 9px;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .tc-sp-list-card .main { flex: 1; min-width: 180px; }
+  .tc-sp-list-card .title { font-weight: 700; font-size: 13.5px; color: #333; }
+  .tc-sp-list-card .sub { font-size: 11.5px; color: #888; margin-top: 2px; }
+
   .course-card { background: #fff; border: 1px solid #eee; border-radius: var(--radius-lg, 16px); padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06)); }
-  .course-card > h3 { margin: 0 0 10px; font-size: 15px; color: var(--brand-pri-dark, #4C3802); }
-  .module-card { border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 10px; }
-  .module-card h4.collapsible { margin: 0; font-size: 13.5px; font-weight: 700; color: #444; }
 
   /* Printing is disabled for teacher-viewed student progress — matches the
      "view, never download/print" restriction; this blanks the page on
@@ -47,7 +105,53 @@
   @media print {
     body { display: none !important; }
   }
+
+  @media (max-width: 600px) {
+    .tc-sp-hero { padding: 18px; }
+    .tc-sp-tabs { gap: 6px; }
+    .tc-sp-tab { padding: 8px 12px; font-size: 11.5px; }
+  }
 </style>
+
+<%
+  function tcSpScoreTier(score) {
+    if (score === null || score === undefined) return { emoji: "📋", cls: "neutral" };
+    if (score >= 80) return { emoji: "⭐", cls: "great" };
+    if (score >= 60) return { emoji: "👍", cls: "good" };
+    return { emoji: "💪", cls: "try" };
+  }
+  function tcSpLetterGrade(score) {
+    if (score === null || score === undefined) return null;
+    if (score >= 80) return "A";
+    if (score >= 70) return "B";
+    if (score >= 60) return "C";
+    if (score >= 50) return "D";
+    return "F";
+  }
+  function tcSpModuleQuizAvg(m) {
+    const scored = m.quizzes.filter((q) => q.score !== null && q.score !== undefined);
+    return scored.length ? Math.round(scored.reduce((a, b) => a + b.score, 0) / scored.length) : null;
+  }
+  function tcSpModuleAssignmentAvg(m) {
+    const scored = m.assignments.filter((a) => a.total !== null && a.total !== undefined);
+    return scored.length ? Math.round(scored.reduce((a, b) => a + (b.total || 0), 0) / scored.length) : null;
+  }
+  // Mirrors utils/reportTemplate.js's smartScore — the average of lesson
+  // completion %, quiz average (if any quizzes exist) and assignment
+  // average (if any exist), so the grade shown here matches the one in
+  // the downloadable report exactly.
+  function tcSpModuleScore(m, quizAvg, assignmentAvg) {
+    const parts = [m.percent];
+    if (quizAvg !== null) parts.push(quizAvg);
+    if (assignmentAvg !== null) parts.push(assignmentAvg);
+    return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+  }
+  function tcSpFriendlyQuizTitle(q, lessonTitle) {
+    const raw = (q.title || "").trim();
+    if (lessonTitle && /^quiz for lesson\s*\d+$/i.test(raw)) return `Quiz for Lesson: ${lessonTitle}`;
+    return raw || lessonTitle || "Quiz";
+  }
+%>
 
 <div id="tcStudentProgressRoot">
   <div class="btns" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
@@ -113,94 +217,175 @@
     </div>
   <% } %>
 
-  <h2 class="tc-section-title">📚 Course Progress</h2>
-  <% if (courses.length) { %>
+  <% if (!courses.length) { %>
+    <h2 class="tc-section-title">📚 Course Progress</h2>
+    <p class="tc-empty">No progress data available.</p>
+  <% } else { %>
+
+  <div class="tc-sp-tabs">
+    <div class="tc-sp-tab active" data-tcsp-tab="courses" onclick="tcSpOpenTab('courses')">🎓 Courses</div>
+    <div class="tc-sp-tab" data-tcsp-tab="modules" onclick="tcSpOpenTab('modules')">🧩 Modules</div>
+    <div class="tc-sp-tab" data-tcsp-tab="lessons" onclick="tcSpOpenTab('lessons')">📖 Lessons</div>
+    <div class="tc-sp-tab" data-tcsp-tab="quizzes" onclick="tcSpOpenTab('quizzes')">🧠 Quizzes</div>
+    <div class="tc-sp-tab" data-tcsp-tab="assignments" onclick="tcSpOpenTab('assignments')">📝 Assignments</div>
+  </div>
+
+  <!-- ============ COURSES ============ -->
+  <div id="tcsp-courses" class="tc-sp-panel active">
+    <% courses.forEach((c, ci) => { %>
+      <div class="tc-sp-course-card">
+        <div class="tc-sp-course-head" onclick="tcSpToggleCourse(<%= ci %>)">
+          <h3>🎓 <%= c.course_title %></h3>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="percent"><%= c.percent %>% complete</span>
+            <span class="tc-sp-toggle-icon" id="tcsp-icon-<%= ci %>">➕</span>
+          </div>
+        </div>
+        <div class="tc-sp-course-bar-wrap"><div class="tc-sp-bar"><div class="tc-sp-bar-fill" style="width:<%= c.percent %>%"></div></div></div>
+
+        <div class="tc-sp-course-body" id="tcsp-course-body-<%= ci %>">
+          <div class="tc-sp-course-body-inner">
+            <% c.modules.forEach(m => { %>
+              <% const mQuizAvg = tcSpModuleQuizAvg(m); const mAssignAvg = tcSpModuleAssignmentAvg(m); %>
+              <div class="tc-sp-module-card">
+                <div class="tc-sp-module-head">
+                  <h4><%= m.percent === 100 ? "🏆" : m.percent > 0 ? "📦" : "⚪" %> <%= m.module_title %></h4>
+                  <% if (m.percent === 100) { %>
+                    <% const grade = tcSpLetterGrade(tcSpModuleScore(m, mQuizAvg, mAssignAvg)); const gt = tcSpScoreTier(tcSpModuleScore(m, mQuizAvg, mAssignAvg)); %>
+                    <span class="tc-sp-score-chip tc-sp-score-<%= gt.cls === 'great' ? 'great' : gt.cls === 'good' ? 'good' : gt.cls === 'try' ? 'try' : 'neutral' %>">Grade <%= grade %> · <%= m.percent %>%</span>
+                  <% } else { %>
+                    <span class="tc-sp-score-chip tc-sp-score-neutral">⏳ In Progress · <%= m.percent %>%</span>
+                  <% } %>
+                </div>
+                <div class="tc-sp-bar" style="margin:6px 0 8px;"><div class="tc-sp-bar-fill" style="width:<%= m.percent %>%"></div></div>
+                <div class="tc-sp-module-sub">
+                  <%= m.completedLessons %>/<%= m.totalLessons %> lessons · Quiz <%= mQuizAvg !== null ? mQuizAvg + '%' : 'N/A' %> · Assignment <%= mAssignAvg !== null ? mAssignAvg + '%' : 'N/A' %>
+                </div>
+                <% m.lessons.forEach(l => { %>
+                  <div class="tc-sp-lesson-row">
+                    <span><%= l.completed ? "✅" : "⭕" %></span>
+                    <span class="lesson-title"><%= l.title %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+
+  <!-- ============ MODULES ============ -->
+  <div id="tcsp-modules" class="tc-sp-panel">
     <% courses.forEach(c => { %>
-      <div class="course-card">
-        <h3>🎓 <%= c.course_title %> — <%= c.percent %>% complete</h3>
+      <% c.modules.forEach(m => { %>
+        <% const mQuizAvg = tcSpModuleQuizAvg(m); const mAssignAvg = tcSpModuleAssignmentAvg(m); const score = tcSpModuleScore(m, mQuizAvg, mAssignAvg); const grade = tcSpLetterGrade(score); const gt = tcSpScoreTier(score); %>
+        <div class="tc-sp-list-card">
+          <% if (m.percent === 100) { %>
+            <div class="tc-sp-grade-circle <%= gt.cls %>"><span class="letter"><%= grade %></span><span class="lbl">Grade</span></div>
+          <% } else { %>
+            <div class="tc-sp-grade-circle neutral"><span class="letter" style="font-size:12px;"><%= m.percent %>%</span><span class="lbl">In Progress</span></div>
+          <% } %>
+          <div class="main">
+            <div class="title"><%= m.module_title %> <span style="font-weight:400; color:#999; font-size:11.5px;">— <%= c.course_title %></span></div>
+            <div class="sub"><%= m.completedLessons %>/<%= m.totalLessons %> lessons · Quiz <%= mQuizAvg !== null ? mQuizAvg + '%' : 'N/A' %> · Assignment <%= mAssignAvg !== null ? mAssignAvg + '%' : 'N/A' %></div>
+            <div class="tc-sp-bar" style="margin-top:6px; max-width:220px;"><div class="tc-sp-bar-fill" style="width:<%= m.percent %>%"></div></div>
+          </div>
+        </div>
+      <% }) %>
+    <% }) %>
+  </div>
 
-        <% c.modules.forEach(m => { %>
-          <div class="module-card">
-            <h4 class="collapsible">
-              📦 <%= m.module_title %> — <%= m.percent %>% complete
-            </h4>
-
-            <div class="content" style="display: none; padding: 10px; border: 1px solid #eee; margin-top: 8px; border-radius: 8px;">
-              <div class="table-responsive">
-                <table class="user-table sortable-table" width="100%">
-                    <thead>
-                    <tr>
-                        <th>Lesson</th>
-                        <th>Status</th>
-                        <th>Quiz</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <% m.lessons.forEach(l => { %>
-                        <tr>
-                        <td><%= l.title %></td>
-                        <td><span class="tc-sp-score-chip <%= l.completed ? 'tc-sp-score-great' : 'tc-sp-score-neutral' %>"><%= l.completed ? "✅ Completed" : "Not yet" %></span></td>
-                        <td>
-                            <%
-                                const lessonQuizzes = m.quizzes.filter(q => q.lesson_id === l.id);
-                            %>
-                            <% if (lessonQuizzes.length) { %>
-                                <% lessonQuizzes.forEach(q => { %>
-                                    <%
-                                      const quizLabel = /^quiz for lesson\s*\d+$/i.test((q.title || '').trim())
-                                        ? `Quiz for Lesson: ${l.title}`
-                                        : (q.title || 'Quiz');
-                                      const tier = q.score === null ? 'neutral' : (q.score >= 80 ? 'great' : q.score >= 60 ? 'good' : 'try');
-                                    %>
-                                    <div style="margin-bottom:4px;">
-                                      <%= quizLabel %> —
-                                      <span class="tc-sp-score-chip tc-sp-score-<%= tier %>"><%= q.score !== null ? q.score : 'N/A' %></span>
-                                    </div>
-                                <% }) %>
-                            <% } else { %>
-                                <span class="tc-empty">N/A</span>
-                            <% } %>
-                        </td>
-                        </tr>
-                    <% }) %>
-                    </tbody>
-                </table>
-              </div>
-
-              <div class="module-assignments" style="margin-top:15px;">
-                <h5 style="margin:0 0 8px; font-size:12.5px; color:#666;">📑 Module Assignments</h5>
-                <% if (m.assignments.length) { %>
-                  <% m.assignments.forEach(a => { %>
-                    <% const gTier = a.total === null ? 'neutral' : (a.total >= 80 ? 'great' : a.total >= 60 ? 'good' : 'try'); %>
-                    <div style="margin-bottom:4px;">
-                      <%= a.title %> —
-                      <span class="tc-sp-score-chip tc-sp-score-<%= gTier %>"><%= a.grade ?? "Pending" %><%= a.total !== null ? ` (${a.total})` : '' %></span>
-                    </div>
-                  <% }) %>
-                <% } else { %>
-                  <p class="tc-empty">No assignments for this module.</p>
-                <% } %>
-              </div>
+  <!-- ============ LESSONS ============ -->
+  <div id="tcsp-lessons" class="tc-sp-panel">
+    <% courses.forEach(c => { %>
+      <% c.modules.forEach(m => { %>
+        <% m.lessons.forEach(l => { %>
+          <div class="tc-sp-list-card">
+            <span style="font-size:20px;"><%= l.completed ? "✅" : "⭕" %></span>
+            <div class="main">
+              <div class="title"><%= l.title %></div>
+              <div class="sub"><%= m.module_title %> · <%= c.course_title %></div>
             </div>
           </div>
         <% }) %>
-      </div>
+      <% }) %>
     <% }) %>
-  <% } else { %>
-    <p class="tc-empty">No progress data available.</p>
+  </div>
+
+  <!-- ============ QUIZZES ============ -->
+  <div id="tcsp-quizzes" class="tc-sp-panel">
+    <% let anyQuizzes = false; %>
+    <% courses.forEach(c => { %>
+      <% c.modules.forEach(m => { %>
+        <% m.quizzes.forEach(q => { %>
+          <% anyQuizzes = true; %>
+          <% const lesson = m.lessons.find(l => l.id === q.lesson_id); const t = tcSpScoreTier(q.score); %>
+          <div class="tc-sp-list-card">
+            <span class="tc-sp-score-chip tc-sp-score-<%= t.cls %>"><%= t.emoji %> <%= q.score !== null ? q.score + '%' : 'Not yet taken' %></span>
+            <div class="main">
+              <div class="title"><%= tcSpFriendlyQuizTitle(q, lesson ? lesson.title : null) %></div>
+              <div class="sub"><%= m.module_title %> · <%= c.course_title %></div>
+            </div>
+          </div>
+        <% }) %>
+      <% }) %>
+    <% }) %>
+    <% if (!anyQuizzes) { %><p class="tc-empty">No quizzes in this student's courses yet.</p><% } %>
+  </div>
+
+  <!-- ============ ASSIGNMENTS ============ -->
+  <div id="tcsp-assignments" class="tc-sp-panel">
+    <% let anyAssignments = false; %>
+    <% courses.forEach(c => { %>
+      <% c.modules.forEach(m => { %>
+        <% m.assignments.forEach(a => { %>
+          <% anyAssignments = true; %>
+          <% const t = tcSpScoreTier(a.total); %>
+          <div class="tc-sp-list-card">
+            <span class="tc-sp-score-chip tc-sp-score-<%= t.cls %>"><%= a.total !== null && a.total !== undefined ? a.total + '%' : 'Pending' %></span>
+            <div class="main">
+              <div class="title"><%= a.title %></div>
+              <div class="sub"><%= m.module_title %> · <%= c.course_title %></div>
+            </div>
+          </div>
+        <% }) %>
+      <% }) %>
+    <% }) %>
+    <% if (!anyAssignments) { %><p class="tc-empty">No assignments in this student's courses yet.</p><% } %>
+  </div>
+
   <% } %>
 </div>
 
 <script>
 (function () {
-  // Simple collapsible toggle
-  document.querySelectorAll(".collapsible").forEach(header => {
-    header.style.cursor = "pointer";
-    header.addEventListener("click", () => {
-      const content = header.nextElementSibling;
-      content.style.display = content.style.display === "none" ? "block" : "none";
-    });
-  });
+  window.tcSpOpenTab = function (tabId) {
+    document.querySelectorAll('.tc-sp-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tc-sp-panel').forEach(panel => panel.classList.remove('active'));
+    const tab = document.querySelector(`.tc-sp-tab[data-tcsp-tab="${tabId}"]`);
+    if (tab) tab.classList.add('active');
+    const panel = document.getElementById('tcsp-' + tabId);
+    if (panel) panel.classList.add('active');
+  };
+
+  window.tcSpToggleCourse = function (index) {
+    const body = document.getElementById("tcsp-course-body-" + index);
+    const icon = document.getElementById("tcsp-icon-" + index);
+    if (!body || !icon) return;
+    body.classList.toggle("open");
+    icon.textContent = body.classList.contains("open") ? "✖" : "➕";
+    icon.classList.toggle("open", body.classList.contains("open"));
+  };
+
+  // Open the first course by default so there's something to see on load.
+  const firstBody = document.getElementById("tcsp-course-body-0");
+  const firstIcon = document.getElementById("tcsp-icon-0");
+  if (firstBody && firstIcon) {
+    firstBody.classList.add("open");
+    firstIcon.textContent = "✖";
+    firstIcon.classList.add("open");
+  }
 
   // Same copy/right-click deterrent already used elsewhere in this app
   // (e.g. views/admin/courses.ejs's article body) — a convenience friction,

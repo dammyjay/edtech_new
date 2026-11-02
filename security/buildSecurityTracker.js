@@ -536,6 +536,26 @@ const FINDINGS = [
     fixImplemented:
       "Reused the existing transactions table (already UNIQUE-constrained on reference, from the /verify-payment fix) as the ledger here too: the reference is checked against it before ever calling Paystack (clean 409 'already been processed' if found), and a row is inserted there immediately after a successful, validated payment — so a reference can never be reused for any registration, this one or another. Added an ownership check: eventPayment.ejs already sends email: reg.registrant_email to Paystack at checkout (PaystackPop.setup) — the fix cross-checks Paystack's own verify response (payment.customer.email, which reflects what was actually charged, not anything client-supplied at verify time) against reg.registrant_email, rejecting with 403 on a mismatch. Also fixed an adjacent, unrelated crash found while reading this code: the GET route referenced `e.amount` (e is only a SQL alias, not a JS variable) instead of `reg.amount`, throwing a ReferenceError for any registration with neither total_amount nor amount_paid set yet. Verified live: missing reference/regId -> 400; unknown regId -> 404; a fresh unknown reference correctly reaches Paystack's real API and fails there (as before); replaying an already-recorded reference (simulating a real unrelated payment) against a registration -> instant 409, confirmed the registration's amount_paid/payment_status were left untouched in the database; the GET page no longer crashes on the e.amount bug. Could not test the email-cross-check's rejection path itself end-to-end (would require a real completed Paystack transaction with a specific customer email), but the comparison logic was verified by direct code review and the rest of the flow around it is live-tested.",
   },
+
+  // ===== NEW FINDING — 2026-11-01, reported directly by a user =====
+  {
+    severity: "Critical",
+    category: "Broken Access Control",
+    title: "Cross-school assignment grading leak in the teacher dashboard (shared-catalog course)",
+    location:
+      "controllers/teacherController.js: getDashboardData's pendingAssignmentsRes (~line 164), getGradingQueue (~line 1608), submitGrade's ownershipCheck (~line 1626)",
+    description:
+      "All three queries scope 'this teacher's submissions to grade' by joining assignment_submissions -> module_assignments -> modules -> courses -> classroom_courses -> classroom_teachers. But classroom_courses maps one shared catalog course to classrooms in potentially many different schools, and none of the three queries verified that the SUBMITTING student (asub.student_id) was actually enrolled in the teacher's own classroom — only that some classroom the teacher taught happened to have the same catalog course assigned.",
+    risk:
+      "Reported live by a user: a teacher's dashboard showed '1 assignment waiting to be graded' for a student enrolled in a completely different school, because that school's classroom was assigned the same shared course. submitGrade had the identical gap, so this wasn't just a visibility leak — a teacher could actually submit a grade for a student outside their own school.",
+    fix:
+      "Add a user_school join tying asub.student_id to the SAME classroom_id as the teacher's own classroom_teachers row (role_in_school='student', approved=true) — the pattern already used correctly elsewhere in the same file (viewStudentProgress's 'courses for this student' query, ~line 489) and already applied on the instructor side (see 'Unauthenticated download of any student's grades/quiz report' above).",
+    status: "Fixed",
+    dateFound: "2026-11-01",
+    dateFixed: "2026-11-01",
+    fixImplemented:
+      "Added `JOIN user_school us ON us.user_id = asub.student_id AND us.classroom_id = ct.classroom_id AND us.role_in_school = 'student' AND us.approved = true` to all three queries in controllers/teacherController.js. Audited controllers/instructorController.js's equivalent queries (lines ~1053, 1066, 1668, 1903) and confirmed they already carry this same student-to-classroom scoping, from the earlier instructor-side fix — this gap was specific to the newer, separate teacher role's code, which hadn't had the same pass applied. Also checked teacherController.js's one quiz_submissions query (downloadQuizReport, ~line 818) — confirmed it's dead code, never wired to any route in routes/teacher.js, so not a live exposure; left as-is. Verified controllers/teacherController.js still parses correctly (node --check) after the edits; not yet verified against a live two-school reproduction.",
+  },
 ];
 
 // ---------- Build workbook ----------

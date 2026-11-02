@@ -1,0 +1,99 @@
+<style>
+  .jk-grade-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; }
+  .jk-grade-card .ai-box { background: #FAF8F2; border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: 12.5px; color: #4C3802; }
+  .jk-grade-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-top: 10px; }
+  .jk-grade-form label { display: block; font-size: 11px; font-weight: 700; color: #6E6350; margin-bottom: 4px; }
+  .jk-grade-form input { padding: 7px 10px; border-radius: 8px; border: 1px solid #E7E0CE; font-family: inherit; font-size: 13px; }
+</style>
+
+<div class="jk-header-card">
+  <div>
+    <h2>📤 External Project Grading</h2>
+    <p>Projects built outside any in-app lab (a real web server, a Docker deployment) and submitted as a file or link — see the Grading tab for module assignments.</p>
+  </div>
+</div>
+
+<% if (!submissions.length) { %>
+  <div class="instructor-empty">
+    <i class="fa-solid fa-file-arrow-up"></i>
+    <p>Nothing here — you're all caught up!</p>
+  </div>
+<% } else { %>
+  <% submissions.forEach(function(s) { %>
+    <div class="jk-grade-card">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center;">
+        <div>
+          <h3 style="margin:0 0 4px; font-size:15px; color:#1A1510;"><%= s.project_title %></h3>
+          <p style="margin:0; color:#6E6350; font-size:12.5px;"><%= s.student_name %> · <%= new Date(s.submitted_at).toLocaleDateString() %></p>
+        </div>
+        <% if (s.graded_by) { %>
+          <span class="jk-pill jk-pill--active">✅ Reviewed</span>
+        <% } else if (s.status === 'graded') { %>
+          <span class="jk-pill jk-pill--on">🤖 AI-graded</span>
+        <% } else if (s.status === 'grading_failed') { %>
+          <span class="jk-pill jk-pill--unpaid">⚠️ Grading failed</span>
+        <% } else if (s.status === 'submitted') { %>
+          <span class="jk-pill jk-pill--inactive">📥 Awaiting review (not AI-graded)</span>
+        <% } else { %>
+          <span class="jk-pill jk-pill--inactive">⏳ Grading…</span>
+        <% } %>
+      </div>
+
+      <div style="margin:10px 0; font-size:13px; color:#332A18;">
+        <strong>Submitted:</strong>
+        <ul style="margin:4px 0 0; padding-left:18px;">
+          <% (s.attachments || []).forEach(function(a) { %>
+            <li><%= a.label %> — <a href="<%= a.url %>" target="_blank" rel="noopener">view</a></li>
+          <% }) %>
+        </ul>
+        <% if (s.notes) { %><p style="margin:8px 0 0; white-space:pre-wrap;"><%= s.notes %></p><% } %>
+      </div>
+
+      <% if (s.score !== null || s.feedback) { %>
+        <div class="ai-box">
+          <strong>AI grade:</strong> <%= s.score ?? "–" %>/100
+          <% if (s.feedback) { %><br><%= s.feedback %><% } %>
+          <% if (s.criteria_breakdown) { %>
+            <ul style="margin:8px 0 0; padding-left:18px;">
+              <% (s.criteria_breakdown || []).forEach(function(c) { %>
+                <li><%= c.criterion %>: <%= c.score %> — <%= c.comment %></li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+      <% } %>
+
+      <form class="jk-grade-form" data-id="<%= s.id %>">
+        <div>
+          <label>Score (0-100)</label>
+          <input type="number" name="score" value="<%= s.score ?? '' %>" min="0" max="100" style="width:80px;" />
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <label>Feedback</label>
+          <input type="text" name="teacher_feedback" value="<%= s.teacher_feedback || '' %>" placeholder="Feedback for the student" style="width:100%;" />
+        </div>
+        <button type="submit" class="jk-btn-dark">Save Grade</button>
+      </form>
+    </div>
+  <% }) %>
+<% } %>
+
+<script>
+  document.querySelectorAll('.jk-grade-form').forEach(function (form) {
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const id = form.dataset.id;
+      const score = form.score.value;
+      const teacher_feedback = form.teacher_feedback.value;
+
+      const res = await fetch(`/instructor/external-projects/submission/${id}/grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, teacher_feedback })
+      });
+      const data = await res.json();
+      showAlert(data.message || (data.success ? 'Grade saved' : 'Error saving grade'), data.success ? 'success' : 'error');
+      if (data.success) loadSection('external_projects');
+    });
+  });
+</script>

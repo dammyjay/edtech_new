@@ -5094,7 +5094,7 @@ function calculateGrade(score) {
         `SELECT id, title
         FROM modules
         WHERE course_id = $1
-        ORDER BY id`,
+        ORDER BY order_number`,
         [courseId],
       );
       const modules = modulesRes.rows;
@@ -5108,7 +5108,7 @@ function calculateGrade(score) {
           ON ulp.lesson_id = l.id
           AND ulp.user_id = $1
         WHERE m.course_id = $2
-        ORDER BY l.id`,
+        ORDER BY l.order_number`,
         [studentId, courseId],
       );
       // const lessons = lessonsRes.rows;
@@ -5232,122 +5232,6 @@ function calculateGrade(score) {
         };
       });
 
-      /* ==========================
-        MODULE PERFORMANCE MAP
-      ========================== */
-
-      const modulePerformanceMap = {};
-
-      modules.forEach((module) => {
-        const moduleLessons = lessons.filter((l) => l.module_id === module.id);
-
-        const moduleQuizzes = quizzes.filter((q) => q.module_id === module.id);
-
-        const moduleAssignments = assignments.filter(
-          (a) => a.module_id === module.id,
-        );
-
-        /* Lesson Completion */
-
-        const moduleCompletedLessons = moduleLessons.filter(
-          (l) => l.completed_at,
-        ).length;
-
-        const moduleCompletionPercent = moduleLessons.length
-          ? Math.round((moduleCompletedLessons / moduleLessons.length) * 100)
-          : 0;
-
-        /* Quiz Average */
-
-        const moduleQuizScores = moduleQuizzes
-          .filter((q) => q.score !== null)
-          .map((q) => q.score);
-
-        const moduleQuizAvg = moduleQuizScores.length
-          ? Math.round(
-              moduleQuizScores.reduce((a, b) => a + b, 0) /
-                moduleQuizScores.length,
-            )
-          : 0;
-
-        /* Assignment Average */
-
-        const moduleAssignmentScores = moduleAssignments
-          .filter((a) => a.total !== null)
-          .map((a) => a.total);
-
-        const moduleAssignmentAvg = moduleAssignmentScores.length
-          ? Math.round(
-              moduleAssignmentScores.reduce((a, b) => a + b, 0) /
-                moduleAssignmentScores.length,
-            )
-          : 0;
-
-        /* Smart Module Score */
-
-        let moduleParts = [];
-        let moduleTotal = 0;
-
-        moduleParts.push(moduleCompletionPercent);
-        moduleTotal += moduleCompletionPercent;
-
-        if (moduleQuizzes.length > 0) {
-          moduleParts.push(moduleQuizAvg);
-          moduleTotal += moduleQuizAvg;
-        }
-
-        if (moduleAssignments.length > 0) {
-          moduleParts.push(moduleAssignmentAvg);
-          moduleTotal += moduleAssignmentAvg;
-        }
-
-        const moduleScore = moduleParts.length
-          ? Math.round(moduleTotal / moduleParts.length)
-          : 0;
-
-        /* Module Grade */
-
-        let moduleGrade = "F";
-
-        if (moduleScore >= 80) moduleGrade = "A";
-        else if (moduleScore >= 70) moduleGrade = "B";
-        else if (moduleScore >= 60) moduleGrade = "C";
-        else if (moduleScore >= 50) moduleGrade = "D";
-
-        /* Consistency */
-
-        let consistencyComment = "No completion data.";
-
-        const completionDates = moduleLessons
-          .filter((l) => l.completed_at)
-          .map((l) => new Date(l.completed_at))
-          .sort((a, b) => a - b);
-
-        if (completionDates.length > 1) {
-          const first = completionDates[0];
-          const last = completionDates[completionDates.length - 1];
-
-          const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
-
-          if (daysDiff <= 7) {
-            consistencyComment = "Excellent completion consistency.";
-          } else if (daysDiff <= 30) {
-            consistencyComment = "Moderate completion consistency.";
-          } else {
-            consistencyComment =
-              "Completion interval is wide. Improvement recommended.";
-          }
-        }
-
-        modulePerformanceMap[module.id] = {
-          completionPercent: moduleCompletionPercent,
-          quizAvg: moduleQuizAvg,
-          assignmentAvg: moduleAssignmentAvg,
-          moduleScore,
-          moduleGrade,
-          consistencyComment,
-        };
-      });
 
       const certRes = await pool.query(
         `SELECT certificate_url, certificate_code, issued_at
@@ -5712,96 +5596,6 @@ function calculateGrade(score) {
       const school = schoolRes.rows[0] || null;
 
       /* ================= CALCULATIONS ================= */
-
-      const totalLessons = lessons.length;
-      const completedLessons = lessons.filter((l) => l.completed_at).length;
-      const percent = totalLessons
-        ? Math.round((completedLessons / totalLessons) * 100)
-        : 0;
-
-      const quizScores = quizzes
-        .filter((q) => q.score !== null)
-        .map((q) => q.score);
-      const quizAvg = quizScores.length
-        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
-        : 0;
-
-      const assignmentScores = assignments
-        .filter((a) => a.total !== null)
-        .map((a) => a.total);
-
-      const assignmentAvg = assignmentScores.length
-        ? Math.round(
-            assignmentScores.reduce((a, b) => a + b, 0) /
-              assignmentScores.length,
-          )
-        : 0;
-
-      /* ==========================
-      MODULE GRADE CALCULATION
-      ========================== */
-
-      // let moduleScore = Math.round((percent + quizAvg + assignmentAvg) / 3);
-
-      /* ==========================
-    SMART MODULE GRADE CALCULATION
-  ========================== */
-
-      let moduleParts = [];
-      let moduleTotal = 0;
-
-      // Always include lesson completion
-      moduleParts.push(percent);
-      moduleTotal += percent;
-
-      // Include quiz if exists
-      if (quizzes.length > 0) {
-        moduleParts.push(quizAvg);
-        moduleTotal += quizAvg;
-      }
-
-      // Include assignment if exists
-      const hasModuleAssignments = assignments.length > 0;
-
-      if (hasModuleAssignments) {
-        moduleParts.push(assignmentAvg);
-        moduleTotal += assignmentAvg;
-      }
-
-      let moduleScore = moduleParts.length
-        ? Math.round(moduleTotal / moduleParts.length)
-        : 0;
-
-      let moduleGrade = "F";
-      if (moduleScore >= 80) moduleGrade = "A";
-      else if (moduleScore >= 70) moduleGrade = "B";
-      else if (moduleScore >= 60) moduleGrade = "C";
-      else if (moduleScore >= 50) moduleGrade = "D";
-
-      /* ==========================
-      CONSISTENCY CHECK
-      ========================== */
-
-      let consistencyComment = "";
-      const completionDates = lessons
-        .filter((l) => l.completed_at)
-        .map((l) => new Date(l.completed_at))
-        .sort((a, b) => a - b);
-
-      if (completionDates.length > 1) {
-        const first = completionDates[0];
-        const last = completionDates[completionDates.length - 1];
-        const daysDiff = Math.ceil((last - first) / (1000 * 60 * 60 * 24));
-
-        if (daysDiff <= 7) {
-          consistencyComment = "Excellent completion consistency.";
-        } else if (daysDiff <= 30) {
-          consistencyComment = "Moderate completion consistency.";
-        } else {
-          consistencyComment =
-            "Completion interval is wide. Improvement recommended.";
-        }
-      }
 
       /* ================= BUILD HTML ================= */
 
@@ -6717,6 +6511,34 @@ exports.getSchoolDetails = async (req, res) => {
       res.status(500).send("Error generating report PDF");
     }
   };
+
+// Lets a platform admin temporarily manage a school exactly as its own
+// school_admin would — one account, no second login — without the
+// account's own `role` ever changing. Stored as a plain session flag
+// (req.session.actingAsSchoolId), read by middlewares/auth.js's
+// requireSchoolAdmin, which is what every /school-admin/* route is
+// gated by. The admin's own /admin/* access is completely unaffected
+// (their role is still "admin"), so "exiting" this mode is just a link
+// back into the normal admin dashboard, same as any other admin page.
+exports.actAsSchoolAdmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const schoolCheck = await pool.query("SELECT id FROM schools WHERE id = $1", [id]);
+    if (!schoolCheck.rowCount) {
+      return res.status(404).send("School not found");
+    }
+    req.session.actingAsSchoolId = schoolCheck.rows[0].id;
+    res.redirect("/school-admin/dashboard");
+  } catch (err) {
+    console.error("❌ actAsSchoolAdmin error:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
+exports.stopActingAsSchoolAdmin = (req, res) => {
+  req.session.actingAsSchoolId = null;
+  res.redirect("/admin/dashboard");
+};
 
 // 📄 Download Student Login Cards (PDF with Logo)
 exports.downloadStudentLoginCards = async (req, res) => {
@@ -10221,6 +10043,112 @@ exports.addUserToSchool = async (req, res) => {
   } catch (err) {
     console.error("❌ addUserToSchool error:", err.message);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Search platform users NOT already in this school, to attach an existing
+// account instead of creating a duplicate one via addUserToSchool above.
+// Needed for e.g. a student who already has a platform account (maybe at
+// another school already) being added to a second school/classroom — e.g.
+// an online program — without spinning up a brand-new account for them.
+exports.searchExistingUsersForSchool = async (req, res) => {
+  const { schoolId } = req.params;
+  const q = (req.query.q || "").trim();
+  // A "student" search also has to match users2.role = 'user' — the
+  // public signup flow (userController.js) only ever sets role='student'
+  // when a School ID was given at signup; anyone who signed up without
+  // one (exactly the "individual" learners this search exists to find)
+  // is stored with the generic default role='user' instead. Teachers
+  // don't have an equivalent self-signup-without-a-school path, so that
+  // search stays strictly role='teacher'.
+  const roles = req.query.role === "teacher" ? ["teacher"] : ["student", "user"];
+
+  if (q.length < 2) {
+    return res.json({ success: true, users: [] });
+  }
+
+  try {
+    const schoolCheck = await pool.query("SELECT id FROM schools WHERE id = $1", [schoolId]);
+    if (!schoolCheck.rowCount) {
+      return res.status(400).json({ success: false, message: "Invalid School ID" });
+    }
+
+    const result = await pool.query(
+      `SELECT u.id, u.fullname, u.email,
+              (SELECT s2.name
+               FROM user_school us2
+               JOIN schools s2 ON s2.id = us2.school_id
+               WHERE us2.user_id = u.id
+               ORDER BY us2.joined_at DESC
+               LIMIT 1) AS current_school_name
+       FROM users2 u
+       WHERE u.role = ANY($1::text[])
+         AND u.archived_at IS NULL
+         AND (u.fullname ILIKE $2 OR u.email ILIKE $2)
+         AND NOT EXISTS (
+           SELECT 1 FROM user_school us
+           WHERE us.user_id = u.id AND us.school_id = $3
+         )
+       ORDER BY u.fullname
+       LIMIT 20`,
+      [roles, `%${q}%`, schoolId]
+    );
+
+    res.json({ success: true, users: result.rows });
+  } catch (err) {
+    console.error("❌ searchExistingUsersForSchool error:", err.message);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Attaches an existing platform account to this school/classroom, as an
+// alternative to addUserToSchool (which always creates a brand-new
+// account). user_school has a UNIQUE(user_id, school_id) constraint, so a
+// user re-added to a school they already have a (possibly unapproved or
+// differently-classroomed) row for gets that row updated instead of a
+// duplicate-key error.
+exports.addExistingUserToSchool = async (req, res) => {
+  const { schoolId } = req.params;
+  const { user_id, classroom_id, role_in_school } = req.body;
+  const role = role_in_school === "teacher" ? "teacher" : "student";
+
+  try {
+    const schoolCheck = await pool.query("SELECT id FROM schools WHERE id = $1", [schoolId]);
+    if (!schoolCheck.rowCount) {
+      return res.status(400).json({ success: false, message: "Invalid School ID" });
+    }
+
+    const userCheck = await pool.query("SELECT id, fullname FROM users2 WHERE id = $1", [user_id]);
+    if (!userCheck.rowCount) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let classroomId = null;
+    if (classroom_id) {
+      const classroomCheck = await pool.query(
+        "SELECT id FROM classrooms WHERE id = $1 AND school_id = $2",
+        [classroom_id, schoolId]
+      );
+      if (!classroomCheck.rowCount) {
+        return res.status(400).json({ success: false, message: "That classroom doesn't belong to this school" });
+      }
+      classroomId = classroom_id;
+    }
+
+    await pool.query(
+      `INSERT INTO user_school (user_id, school_id, classroom_id, role_in_school, approved)
+       VALUES ($1, $2, $3, $4, true)
+       ON CONFLICT (user_id, school_id)
+       DO UPDATE SET classroom_id = EXCLUDED.classroom_id,
+                      role_in_school = EXCLUDED.role_in_school,
+                      approved = true`,
+      [user_id, schoolId, classroomId, role]
+    );
+
+    res.json({ success: true, message: `${userCheck.rows[0].fullname} added to this school.` });
+  } catch (err) {
+    console.error("❌ addExistingUserToSchool error:", err.message);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 

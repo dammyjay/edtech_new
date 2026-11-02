@@ -161,6 +161,19 @@ exports.getDashboardData = async (req, res) => {
     const strugglingStudents = strugglingStudentsRes.rows;
 
     // ✅ Pending assignments
+    //
+    // courses/module_assignments are a shared catalog — the SAME course
+    // (and the same module_assignments row) can be assigned, via
+    // classroom_courses, to classrooms in completely different schools.
+    // Joining asub -> ma -> ... -> classroom_courses -> classroom_teachers
+    // only proves "this teacher teaches SOME classroom that has this
+    // course assigned" — it says nothing about which classroom the
+    // SUBMITTING student is actually in, so a student in a different
+    // school taking the same shared course showed up here too. The
+    // extra user_school join below ties asub.student_id to the SAME
+    // classroom_id as ct (this teacher's classroom) — the same pattern
+    // already used correctly elsewhere in this file (the student-progress
+    // "courses for this student" query ~line 489).
     const pendingAssignmentsRes = await pool.query(
       `SELECT COUNT(asub.*) AS pending_assignments
        FROM assignment_submissions asub
@@ -169,6 +182,10 @@ exports.getDashboardData = async (req, res) => {
        JOIN courses cr ON cr.id = m.course_id
        JOIN classroom_courses cc ON cc.course_id = cr.id
        JOIN classroom_teachers ct ON ct.classroom_id = cc.classroom_id
+       JOIN user_school us ON us.user_id = asub.student_id
+                           AND us.classroom_id = ct.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
        WHERE ct.teacher_id = $1 ${classFilter}
          AND asub.grade IS NULL`,
       params
@@ -1061,7 +1078,7 @@ exports.viewCourseReport = async (req, res) => {
       }
     }
 
-    const modulesRes = await pool.query(`SELECT id, title FROM modules WHERE course_id = $1`, [courseId]);
+    const modulesRes = await pool.query(`SELECT id, title FROM modules WHERE course_id = $1 ORDER BY order_number`, [courseId]);
     const lessonsRes = await pool.query(
       cutoffDate
         ? `SELECT l.id, l.title, l.module_id,
@@ -1070,13 +1087,13 @@ exports.viewCourseReport = async (req, res) => {
            JOIN modules m ON l.module_id = m.id
            LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
            WHERE m.course_id = $2
-           ORDER BY l.id`
+           ORDER BY l.order_number`
         : `SELECT l.id, l.title, l.module_id, ulp.completed_at
            FROM lessons l
            JOIN modules m ON l.module_id = m.id
            LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
            WHERE m.course_id = $2
-           ORDER BY l.id`,
+           ORDER BY l.order_number`,
       cutoffDate ? [id, courseId, cutoffDate] : [id, courseId]
     );
     const quizzesRes = await pool.query(
@@ -1608,6 +1625,14 @@ exports.getGradingQueue = async (req, res) => {
        JOIN classroom_teachers ct ON ct.classroom_id = cc.classroom_id
        JOIN classrooms c ON c.id = cc.classroom_id
        JOIN users2 u ON u.id = asub.student_id
+       -- Same cross-school leak fix as the dashboard's pending-assignments
+       -- count above: a shared course assigned to classrooms in other
+       -- schools otherwise let their students' submissions show up here
+       -- too. Ties the submitting student to THIS teacher's own classroom.
+       JOIN user_school us ON us.user_id = asub.student_id
+                           AND us.classroom_id = ct.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
        WHERE ct.teacher_id = $1 ${filterClause}
        ORDER BY asub.created_at DESC`,
       [teacherId]
@@ -1626,6 +1651,12 @@ exports.submitGrade = async (req, res) => {
   const teacherId = req.user.id;
 
   try {
+    // Same cross-school leak as the grading queue/dashboard count above —
+    // this is the more serious copy of it, since it's the actual
+    // authorization check: without the user_school join, a teacher could
+    // genuinely grade a submission from a student in a different school
+    // entirely, as long as the two schools happened to share the same
+    // catalog course.
     const ownershipCheck = await pool.query(
       `SELECT asub.student_id, ma.title AS assignment_title
        FROM assignment_submissions asub
@@ -1634,6 +1665,10 @@ exports.submitGrade = async (req, res) => {
        JOIN courses cr ON cr.id = m.course_id
        JOIN classroom_courses cc ON cc.course_id = cr.id
        JOIN classroom_teachers ct ON ct.classroom_id = cc.classroom_id
+       JOIN user_school us ON us.user_id = asub.student_id
+                           AND us.classroom_id = ct.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
        WHERE asub.id = $1 AND ct.teacher_id = $2`,
       [submissionId, teacherId]
     );

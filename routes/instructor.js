@@ -7,6 +7,7 @@ const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
 const learningController = require("../controllers/learningController");
 const adminController = require("../controllers/adminController");
 const instructorController = require("../controllers/instructorController");
+const externalProjectController = require("../controllers/externalProjectController");
 // const upload = require("../middlewares/upload");
 const { upload, lessonUpload, lessonSlideUpload } = require("../middlewares/upload");
 
@@ -67,6 +68,14 @@ router.get("/attendance/history", instructorController.getAttendanceHistory);
 router.get("/attendance/session/:id", instructorController.getAttendanceSessionDetails);
 
 router.get("/attendance/export/pdf/:sessionId", instructorController.exportAttendancePDF);
+
+// ------------------ GRADING ------------------
+router.get("/grading", instructorController.getGradingQueue);
+router.post("/grading/:submissionId", instructorController.submitGrade);
+
+// ------------------ EXTERNAL PROJECT GRADING ------------------
+router.get("/external-projects/queue", externalProjectController.getExternalProjectGradingQueueForInstructor);
+router.post("/external-projects/submission/:submissionId/grade", externalProjectController.overrideExternalProjectGradeForInstructor);
 
 // Gamified points/coins — anti-bias caps enforced server-side in
 // services/instructorAwardService.js, not just in the UI.

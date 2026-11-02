@@ -453,6 +453,16 @@ exports.getExternalProjectGradingQueue = async (req, res) => {
        JOIN classroom_courses cc ON cc.course_id = ${COURSE_ID_RESOLUTION}
        JOIN classroom_teachers ct ON ct.classroom_id = cc.classroom_id
        JOIN users2 u ON u.id = eps.student_id
+       -- Same cross-school leak class fixed for assignment_submissions in
+       -- teacherController.js: classroom_courses maps one shared catalog
+       -- course to classrooms in potentially many different schools, so
+       -- without this join a teacher saw every classroom's submissions
+       -- for a course they happened to also teach, not just their own
+       -- classroom's students.
+       JOIN user_school us ON us.user_id = eps.student_id
+                           AND us.classroom_id = ct.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
        WHERE ct.teacher_id = $1
        ORDER BY eps.submitted_at DESC`,
       [teacherId]
@@ -477,6 +487,10 @@ exports.overrideExternalProjectGrade = async (req, res) => {
        ${RESOLVE_JOINS}
        JOIN classroom_courses cc ON cc.course_id = ${COURSE_ID_RESOLUTION}
        JOIN classroom_teachers ct ON ct.classroom_id = cc.classroom_id
+       JOIN user_school us ON us.user_id = eps.student_id
+                           AND us.classroom_id = ct.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
        WHERE eps.id = $1 AND ct.teacher_id = $2`,
       [submissionId, teacherId]
     );
@@ -502,6 +516,84 @@ exports.overrideExternalProjectGrade = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("overrideExternalProjectGrade error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Instructor review / override — parity with the teacher functions
+// above, scoped to classroom_instructors instead of classroom_teachers.
+// ---------------------------------------------------------------------
+
+exports.getExternalProjectGradingQueueForInstructor = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const result = await pool.query(
+      `SELECT eps.*, ep.title AS project_title, ep.instructions, ep.rubric,
+              u.id AS student_id, u.fullname AS student_name
+       FROM external_project_submissions eps
+       JOIN external_projects ep ON ep.id = eps.external_project_id
+       ${RESOLVE_JOINS}
+       JOIN classroom_courses cc ON cc.course_id = ${COURSE_ID_RESOLUTION}
+       JOIN classroom_instructors ci ON ci.classroom_id = cc.classroom_id
+       JOIN users2 u ON u.id = eps.student_id
+       JOIN user_school us ON us.user_id = eps.student_id
+                           AND us.classroom_id = ci.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
+       WHERE ci.instructor_id = $1
+       ORDER BY eps.submitted_at DESC`,
+      [instructorId]
+    );
+    res.render("instructor/sections/externalProjectGrading", { submissions: result.rows });
+  } catch (err) {
+    console.error("getExternalProjectGradingQueueForInstructor error:", err.message);
+    res.status(500).send("<p>Error loading grading queue</p>");
+  }
+};
+
+exports.overrideExternalProjectGradeForInstructor = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { score, teacher_feedback } = req.body;
+    const instructorId = req.user.id;
+
+    const ownershipCheck = await pool.query(
+      `SELECT eps.student_id, ep.title AS project_title
+       FROM external_project_submissions eps
+       JOIN external_projects ep ON ep.id = eps.external_project_id
+       ${RESOLVE_JOINS}
+       JOIN classroom_courses cc ON cc.course_id = ${COURSE_ID_RESOLUTION}
+       JOIN classroom_instructors ci ON ci.classroom_id = cc.classroom_id
+       JOIN user_school us ON us.user_id = eps.student_id
+                           AND us.classroom_id = ci.classroom_id
+                           AND us.role_in_school = 'student'
+                           AND us.approved = true
+       WHERE eps.id = $1 AND ci.instructor_id = $2`,
+      [submissionId, instructorId]
+    );
+    if (!ownershipCheck.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to grade this submission" });
+    }
+
+    await pool.query(
+      `UPDATE external_project_submissions
+       SET score=$1, teacher_feedback=$2, graded_by=$3, status='graded', graded_at=NOW()
+       WHERE id=$4`,
+      [score || null, teacher_feedback || null, instructorId, submissionId]
+    );
+
+    const { student_id, project_title } = ownershipCheck.rows[0];
+    await notifyUser(student_id, {
+      type: "grade_posted",
+      title: "Your project grade was updated by an instructor",
+      message: `${project_title || "A project"} — score: ${score}`,
+      url: "/student/dashboard",
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("overrideExternalProjectGradeForInstructor error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };

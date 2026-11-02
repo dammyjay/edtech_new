@@ -153,8 +153,8 @@ function roleStorySection(block) {
 // ============================================================================
 
 const ROLE_TABLE_ROWS = [
-  ["Platform Admin", "Entire platform, every school", "Superuser. Owns curriculum, all schools/terms, users of every role, payments, site content, moderation, and a direct database browser."],
-  ["Instructor", "Own courses; assigned classrooms across one or more schools", "JKT's own staff. Only role besides Admin that authors curriculum (courses/lessons/quizzes/assignments), but scoped to courses they created. Placed into classrooms by Admin, not by a school."],
+  ["Platform Admin", "Entire platform, every school", "Superuser. Owns curriculum, all schools/terms, users of every role, payments, site content, moderation, and a direct database browser. Can also temporarily act as any school's own School Admin, from the same account."],
+  ["Instructor", "Own courses; assigned classrooms across one or more schools", "JKT's own staff. Only role besides Admin that authors curriculum (courses/lessons/quizzes/assignments), but scoped to courses they created. Placed into classrooms by Admin, not by a school. Also owns an assignment and External Project grading queue for their own classrooms, same as Teacher."],
   ["Teacher", "Assigned classrooms within one school", "A school's own staff. Delivers and grades existing courses — no content authoring. Owns the assignment and external-project grading queues, classroom announcements."],
   ["School Admin", "One school, entirely", "Owns a school's account: approvals, classrooms, terms, attendance oversight, billing (quotes/payments). No grading, no content authoring, no chat."],
   ["Student", "Own account and (if school-linked) own classroom", "Learns: courses, labs, quizzes, assignments, external projects. Earns XP/coins, publishes to the gallery, chats with teacher/class, links to parents."],
@@ -252,10 +252,14 @@ const FEATURE_MODULES = [
       { category: "Approvals & Linking", items: [
         "Approve or reject teachers/school-admins/students who self-registered against a School ID (School Admin, for their own school).",
         "Link a child's account to a parent; view a parent's linked children; search users and parents (Admin).",
+        "Search the whole platform for an account that already exists (e.g. an independent learner who signed up without a School ID) and attach it directly to a school and classroom, instead of creating a duplicate new account — covers both students and teachers.",
       ]},
       { category: "Records", items: [
         "View any student's full progress, performance, quiz and assignment history.",
         "Own admin account sign-in with forgot/reset-password and a dedicated profile page.",
+      ]},
+      { category: "Cross-Role Access", items: [
+        "Temporarily manage a school exactly as its own School Admin would, from the same Platform Admin account — no second login, no change to the account's own role — with a visible banner and one-click exit back to the normal admin view at any time.",
       ]},
     ],
   },
@@ -368,7 +372,7 @@ const FEATURE_MODULES = [
   {
     id: "3.7",
     title: "External Project Submissions & Grading",
-    roles: "Admin (author), Student (submit), Teacher (grade/override), Admin (feature)",
+    roles: "Admin (author), Student (submit), Teacher/Instructor (grade/override), Admin (feature)",
     intro: "A course-agnostic way to submit real-world work built outside any in-app lab (a real server, a Docker deployment, a robotics build) as files or links, without the platform ever executing what's submitted.",
     groups: [
       { category: "Task Definition (Admin)", items: [
@@ -382,7 +386,7 @@ const FEATURE_MODULES = [
         "View all past submissions with status, score and feedback.",
       ]},
       { category: "Grading & Featuring", items: [
-        "Teacher reviews AI-graded submissions per rubric criterion and can override the score and add feedback, notifying the student.",
+        "Teacher and Instructor each have their own queue, scoped to their own classrooms, to review AI-graded submissions per rubric criterion and override the score and add feedback, notifying the student.",
         "Admin can feature a graded submission in the logged-in Gallery and the public Showcase — gated by the same parental consent (§3.10) that governs Lab Gallery visibility.",
       ]},
     ],
@@ -390,14 +394,14 @@ const FEATURE_MODULES = [
   {
     id: "3.8",
     title: "Assignments (Legacy System)",
-    roles: "Instructor/Admin (author), Student (submit), Teacher (grade)",
+    roles: "Instructor/Admin (author), Student (submit), Teacher/Instructor (grade)",
     intro: "An older, module-scoped submission system that predates External Projects. Kept and documented as-is; not the recommended path for new project-style work (see Known Issues, §5).",
     groups: [
       { category: "How It Works", items: [
         "Each module can carry assignments, unlocked once the module's final-lesson quiz has been attempted.",
         "Student submits a text answer plus an optional single file; AI grades synchronously against a free-text rubric embedded in the instructions.",
         "Submitting every assignment in a course is required before its completion certificate is issued.",
-        "Teacher can override the AI's grade in a dedicated grading queue (filterable by ungraded/AI-graded/all).",
+        "Teacher and Instructor each have their own dedicated grading queue (filterable by ungraded/AI-graded/all) to override the AI's grade, scoped to their own classrooms.",
         "Submission history is viewable by the student, with grade and feedback per attempt.",
       ]},
       { category: "How It Differs From External Projects", items: [
@@ -570,7 +574,7 @@ const FEATURE_MODULES = [
     groups: [
       { category: "", items: [
         "Browse, filter and search all published Lab Gallery projects; toggle a 'Flagged only' view; unpublish inappropriate projects instantly.",
-        "Review teacher-graded External Project submissions and choose which to feature in the Gallery/Showcase, or remove a feature (grading itself stays with Teachers — this is a visibility decision only).",
+        "Review teacher- or instructor-graded External Project submissions and choose which to feature in the Gallery/Showcase, or remove a feature (grading itself stays with Teacher/Instructor — this is a visibility decision only).",
         "Review, approve/publish or delete visitor-submitted testimonials and feedback.",
       ]},
     ],
@@ -644,7 +648,7 @@ const FEATURE_MODULES = [
         "AI Tutor chat (lesson-aware and code-aware), quiz hints and post-answer explanations, mastery-path suggestions.",
       ]},
       { category: "Grading", items: [
-        "AI grades assignment submissions, capstone course projects, lab tasks, and External Project submissions — always a first pass, always human-overridable by a Teacher.",
+        "AI grades assignment submissions, capstone course projects, lab tasks, and External Project submissions — always a first pass, always human-overridable by a Teacher or Instructor.",
       ]},
       { category: "Authoring & Reporting Tools", items: [
         "AI-generated quizzes from lesson content (Admin/Instructor); AI-written narrative commentary in platform/school reports and pitch decks/proposals (Admin).",
@@ -658,6 +662,7 @@ const NFR_ITEMS = [
   { cat: "Security", items: [
     "Sessions stored in Postgres (connect-pg-simple), 1-day expiry, httpOnly + SameSite=Lax cookies. The `secure` cookie flag is currently false — a gap to close before enforcing HTTPS-only cookies in production.",
     "Role-based guards for: logged-in user, parent, teacher, instructor/admin (shared check — see §5), admin, school admin, and 'may access this specific student'.",
+    "Grading queues (assignment submissions and External Projects, both Teacher and Instructor) are scoped by the submitting student's actual enrollment in the grader's own classroom, not merely by a shared catalog course being assigned to one of their classrooms — a cross-school data leak found (reported directly by a client user) and fixed platform-wide this revision; the most serious instance let a teacher actually submit a grade for a student outside their own school, not just see them.",
     "CSRF protection (custom per-session token via header/form-field/URL) is being rolled out router-by-router — not every route is covered yet.",
     "Passwords hashed with bcrypt; sign-up confirmed via emailed one-time codes; uploads restricted by type/size (lesson files 10MB, external-project files 25MB).",
   ]},
@@ -682,6 +687,7 @@ const KNOWN_ISSUES = [
   ["Student", "App Inventor Lab and AI Lab", "Both appear as cards on the Labs home page but link to pages that don't exist yet."],
   ["Parent", "No parent-to-school-admin messaging surface", "A general direct-message API exists platform-wide, but nothing on the parent dashboard exposes it for contacting the school admin (not a teacher — confirmed with the client this should go to the school admin, not individual teachers)."],
   ["Cross-cutting", "CSRF coverage: two deliberate public exemptions remain", "publicAnnouncementRoutes.js (homepage view/dismiss tracking) and publicFaqRoutes.js (FAQ question + testimony submission) stay unprotected by design — both are reachable by anonymous visitors with no session yet, and the app deliberately avoids creating a session row just from an anonymous page view (saveUninitialized: false). Spam risk only, no privileged session to protect. Every authenticated-area router now has CSRF coverage."],
+  ["Cross-cutting", "\"Individual\" (non-school) users are stored as role='user', not role='student'", "A platform account only gets role='student' at signup if a School ID was provided; an independent learner who signs up without one keeps the generic default role='user' instead. This is already the platform's own convention — the admin's main \"All Students\" list already queries role='user' — but it is a landmine for any new feature that searches for \"students\" by role alone: the new Add Existing Student search (§3.3) originally did exactly that and silently missed this entire population until fixed."],
 ];
 
 // Active fix queue — every row in KNOWN_ISSUES (§5) is now queued for
@@ -721,6 +727,8 @@ const USER_STORY_BLOCKS = [
       { want: "set the certificate template (background, signature) per course", benefit: "every student's completion certificate looks professional and on-brand" },
       { want: "compose and send targeted newsletters and manage homepage announcements", benefit: "the right message reaches the right audience (a school, a classroom, or everyone) without manual list-building" },
       { want: "review and publish visitor-submitted testimonials and feedback", benefit: "the public site only shows content that's been checked first" },
+      { want: "attach an existing platform account to a school and classroom instead of creating a duplicate one", benefit: "a student or teacher who already has an account (e.g. signed up independently) doesn't end up with two accounts just to join a school" },
+      { want: "temporarily manage a school exactly as its own School Admin, from my own account", benefit: "I can set up or troubleshoot any school — including an online-only program I run myself — without juggling a second login" },
     ],
   },
   {
@@ -734,6 +742,8 @@ const USER_STORY_BLOCKS = [
       { want: "write a narrative class report for a classroom each term", benefit: "the school admin gets qualitative context, not just numbers, on how the class is doing" },
       { want: "chat one-to-one with my students and moderate my classroom's group chat", benefit: "I can answer questions and keep the classroom conversation on-topic and respectful" },
       { want: "take and export attendance for my classrooms", benefit: "attendance records exist even though I'm not a school's own staff member" },
+      { want: "review and grade a queue of assignment submissions from students I teach, seeing the AI's suggested grade first", benefit: "grading is faster while I still make the final call" },
+      { want: "review External Project submissions against their rubric and deliverables, and override the AI's score", benefit: "real-world project work gets a fair, human-checked grade" },
     ],
   },
   {
@@ -847,7 +857,7 @@ children.push(
     alignment: AlignmentType.CENTER, spacing: { after: 400 },
     children: [new TextRun({ text: "A complete inventory of every feature, for every role, as currently implemented", size: 24, color: BRAND, italics: true })],
   }),
-  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Prepared: September 23, 2026", size: 20, color: MUTED })] }),
+  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Prepared: September 23, 2026 · Revised: November 2, 2026", size: 20, color: MUTED })] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 700 }, children: [new TextRun({ text: "Repository: edtech_new · Branch: fix/branding-header-audit · Live: acad.jkthub.com", size: 20, color: MUTED })] }),
   calloutBox("How This Document Was Built", [
     "Compiled directly from the codebase — routes, controllers and views across every role — not from memory or assumption. Where something appears broken, unfinished, or inconsistent, it is called out explicitly in §5 (Known Issues) rather than described as a working feature.",
