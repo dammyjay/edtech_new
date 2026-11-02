@@ -4030,6 +4030,7 @@ async function submitExchange() {
     border-radius: var(--radius-lg, 16px); padding: 40px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
     box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.08));
+    overflow: hidden;
   }
   .fc-face p { font-size: 26px; font-weight: 600; margin: 0; line-height: 1.45; }
   .fc-front { background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); color: #fff; }
@@ -4042,9 +4043,12 @@ async function submitExchange() {
   }
   .fc-nav { display: flex; justify-content: center; gap: 10px; margin-top: 4px; }
   .fc-nav button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .fc-progress-wrap { width: 70%; max-width: 260px; height: 6px; border-radius: 999px; background: rgba(0,0,0,0.12); overflow: hidden; margin-top: 18px; }
-  .fc-back .fc-progress-wrap { background: #F0EADA; }
-  .fc-progress-bar { height: 100%; width: 0%; border-radius: 999px; background: #fff; transition: width 0.1s linear; }
+  .fc-progress-track {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    background: rgba(255,255,255,0.3);
+  }
+  .fc-back .fc-progress-track { background: #F0EADA; }
+  .fc-progress-bar { height: 100%; width: 0%; background: #fff; transition: width 0.1s linear; }
   .fc-back .fc-progress-bar { background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); }
   @media (max-width: 800px) {
     .fc-scene { max-width: 100%; }
@@ -4220,7 +4224,7 @@ async function submitExchange() {
           <div class="fc-face fc-front">
             <p>${escapeFcText(card.front_text)}</p>
             <span class="fc-hint" id="fcFrontHint">${alreadyRead ? "Tap to reveal" : "Read this, then wait…"}</span>
-            ${alreadyRead ? "" : `<div class="fc-progress-wrap"><div class="fc-progress-bar" id="fcFlipProgress"></div></div>`}
+            ${alreadyRead ? "" : `<div class="fc-progress-track"><div class="fc-progress-bar" id="fcFlipProgress"></div></div>`}
           </div>
           <div class="fc-face fc-back">
             <p>${escapeFcText(card.back_text)}</p>
@@ -4229,7 +4233,7 @@ async function submitExchange() {
                 ? `<button type="button" class="fc-lesson-pill" id="fcLessonBtn" data-lesson-id="${card.lesson_id}">📖 From: ${escapeFcText(card.lesson_title)}</button>`
                 : ""
             }
-            ${alreadyRead ? "" : `<div class="fc-progress-wrap"><div class="fc-progress-bar" id="fcReadProgress"></div></div>`}
+            ${alreadyRead ? "" : `<div class="fc-progress-track"><div class="fc-progress-bar" id="fcReadProgress"></div></div>`}
           </div>
         </div>
       </div>
