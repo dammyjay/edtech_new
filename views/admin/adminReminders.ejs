@@ -1,0 +1,277 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'reminders' }) %>
+
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div>
+      <h2>📣 School Reminders</h2>
+      <p>Send a one-off reminder to one or more schools. It resends automatically until the school replies — WhatsApp or email — and the AI checks whether the reply shows they understood it.</p>
+    </div>
+    <button class="jk-btn-dark" onclick="openCreateModal()">+ New Reminder</button>
+  </div>
+
+  <div class="jk-term-grid" id="remindersGrid">
+    <p>Loading reminders…</p>
+  </div>
+
+</section>
+
+<!-- Create reminder modal -->
+<div class="jk-modal-overlay" id="createModalOverlay" hidden>
+  <div class="jk-modal jk-term-modal">
+    <div class="jk-modal-head">
+      <h4>New Reminder</h4>
+      <button class="jk-modal-close" onclick="closeCreateModal()">✕</button>
+    </div>
+    <div class="jk-modal-body">
+      <label>Title</label>
+      <input type="text" id="rTitle" placeholder="e.g. Please update your school logo">
+
+      <label>Message</label>
+      <textarea id="rMessage" rows="4" placeholder="What do you need the school to know or do?"></textarea>
+
+      <label>Due date</label>
+      <input type="date" id="rDueDate">
+
+      <label>Resend every (days) until they reply</label>
+      <input type="number" id="rResendDays" value="2" min="1">
+
+      <label>Schools</label>
+      <div id="rSchoolsList" style="max-height:180px; overflow-y:auto; border:1px solid #E7DFC8; border-radius:8px; padding:10px;">
+        <p>Loading schools…</p>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="jk-btn-dark" onclick="submitReminder()">Send</button>
+        <button class="jk-btn-outline" onclick="closeCreateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="jk-modal-overlay" id="detailModalOverlay" hidden>
+  <div class="jk-modal jk-term-modal">
+    <div class="jk-modal-head">
+      <h4 id="detailModalTitle">Reminder</h4>
+      <button class="jk-modal-close" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="jk-modal-body" id="detailModalBody">
+      <p>Loading…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  let remindersCache = [];
+  let schoolsCache = [];
+
+  function escapeHtmlRem(str) {
+    return (str || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function statusPillClass(status) {
+    if (status === 'understood' || status === 'followup_sent') return 'jk-pill--active';
+    if (status === 'unclear') return 'jk-pill--on';
+    return 'jk-pill--inactive';
+  }
+
+  function statusLabel(status) {
+    return {
+      pending: 'Awaiting reply',
+      understood: 'Understood',
+      unclear: 'Reply unclear',
+      followup_sent: 'Follow-up sent',
+    }[status] || status;
+  }
+
+  function loadReminders() {
+    fetch('/admin/reminders/list')
+      .then(res => res.json())
+      .then(data => {
+        remindersCache = data.reminders || [];
+        renderReminders();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('remindersGrid').innerHTML = '<p>Failed to load reminders.</p>';
+      });
+  }
+
+  function renderReminders() {
+    const grid = document.getElementById('remindersGrid');
+    if (!remindersCache.length) {
+      grid.innerHTML = '<p>No reminders yet. Click "+ New Reminder" to send one.</p>';
+      return;
+    }
+    grid.innerHTML = remindersCache.map(r => `
+      <div class="jk-term-card">
+        <div class="jk-tc-head">
+          <div>
+            <p class="jk-tc-name">${escapeHtmlRem(r.title)}</p>
+            <p class="jk-tc-period">Due ${new Date(r.due_date).toLocaleDateString()} · resends every ${r.resend_interval_days}d</p>
+          </div>
+          <span class="jk-pill ${r.status === 'active' ? 'jk-pill--active' : 'jk-pill--inactive'}">${r.status}</span>
+        </div>
+        <p style="margin:8px 0; font-size:13px; color:#6E6350;">${escapeHtmlRem(r.message).slice(0, 140)}${r.message.length > 140 ? '…' : ''}</p>
+        <p style="font-size:13px;"><strong>${r.understood_schools}</strong> / ${r.total_schools} schools have responded</p>
+        <div class="jk-tc-actions">
+          <button class="jk-btn-outline-sm" onclick="openDetailModal(${r.id})">View</button>
+          ${r.status === 'active' ? `<button class="jk-btn-outline-sm" onclick="closeReminder(${r.id})">Close</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function loadSchoolsForCreate() {
+    fetch('/admin/api/schools')
+      .then(res => res.json())
+      .then(data => {
+        schoolsCache = data || [];
+        const list = document.getElementById('rSchoolsList');
+        if (!schoolsCache.length) {
+          list.innerHTML = '<p>No schools found.</p>';
+          return;
+        }
+        list.innerHTML = `
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:600;">
+            <input type="checkbox" id="rSchoolAll" onchange="toggleAllSchools(this)" style="width:auto; margin:0;"> All schools
+          </label>
+          ${schoolsCache.map(s => `
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+              <input type="checkbox" class="rSchoolCheckbox" value="${s.id}" style="width:auto; margin:0;"> ${escapeHtmlRem(s.name)}
+            </label>
+          `).join('')}
+        `;
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('rSchoolsList').innerHTML = '<p>Failed to load schools.</p>';
+      });
+  }
+
+  function toggleAllSchools(checkbox) {
+    document.querySelectorAll('.rSchoolCheckbox').forEach(cb => cb.checked = checkbox.checked);
+  }
+
+  function openCreateModal() {
+    document.getElementById('rTitle').value = '';
+    document.getElementById('rMessage').value = '';
+    document.getElementById('rDueDate').value = '';
+    document.getElementById('rResendDays').value = 2;
+    loadSchoolsForCreate();
+    document.getElementById('createModalOverlay').hidden = false;
+  }
+
+  function closeCreateModal() {
+    document.getElementById('createModalOverlay').hidden = true;
+  }
+
+  function submitReminder() {
+    const title = document.getElementById('rTitle').value.trim();
+    const message = document.getElementById('rMessage').value.trim();
+    const dueDate = document.getElementById('rDueDate').value;
+    const resendIntervalDays = document.getElementById('rResendDays').value;
+    const schoolIds = Array.from(document.querySelectorAll('.rSchoolCheckbox:checked')).map(cb => cb.value);
+
+    if (!title || !message || !dueDate) {
+      alert('Title, message, and due date are required.');
+      return;
+    }
+    if (!schoolIds.length) {
+      alert('Select at least one school.');
+      return;
+    }
+
+    fetch('/admin/reminders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, message, dueDate, resendIntervalDays, schoolIds }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        closeCreateModal();
+        loadReminders();
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Failed to send reminder.');
+      });
+  }
+
+  function closeReminder(id) {
+    if (!confirm('Stop this reminder? No further resends or follow-ups will go out.')) return;
+    fetch(`/admin/reminders/${id}/close`, { method: 'POST' })
+      .then(res => res.json())
+      .then(() => loadReminders())
+      .catch(err => console.error(err));
+  }
+
+  function openDetailModal(id) {
+    document.getElementById('detailModalBody').innerHTML = '<p>Loading…</p>';
+    document.getElementById('detailModalOverlay').hidden = false;
+    fetch(`/admin/reminders/${id}`)
+      .then(res => res.json())
+      .then(data => renderDetail(data))
+      .catch(err => {
+        console.error(err);
+        document.getElementById('detailModalBody').innerHTML = '<p>Failed to load reminder.</p>';
+      });
+  }
+
+  function closeDetailModal() {
+    document.getElementById('detailModalOverlay').hidden = true;
+  }
+
+  function renderDetail(data) {
+    const { reminder, targets } = data;
+    document.getElementById('detailModalTitle').textContent = reminder.title;
+    document.getElementById('detailModalBody').innerHTML = `
+      <p style="color:#6E6350;">${escapeHtmlRem(reminder.message)}</p>
+      <p style="font-size:13px; margin-bottom:16px;">Due ${new Date(reminder.due_date).toLocaleDateString()} · resends every ${reminder.resend_interval_days}d · status: ${reminder.status}</p>
+      ${targets.map(t => `
+        <div style="border-top:1px solid #F1ECDD; padding:12px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>${escapeHtmlRem(t.school_name)}</strong>
+            <span class="jk-pill ${statusPillClass(t.status)}">${statusLabel(t.status)}</span>
+          </div>
+          <p style="font-size:12px; color:#8A7B55; margin:4px 0;">
+            ${t.last_sent_at ? 'Last sent ' + new Date(t.last_sent_at).toLocaleString() : 'Not sent yet'}
+          </p>
+          ${
+            t.replies.length
+            ? t.replies.map(rep => `
+                <div style="background:#FAF7EE; border-radius:8px; padding:8px 10px; margin-top:6px; font-size:13px;">
+                  <p style="margin:0 0 2px; color:#6E6350;"><strong>${escapeHtmlRem(rep.fullname || 'Unknown')}</strong> via ${rep.channel} · ${new Date(rep.received_at).toLocaleString()}</p>
+                  <p style="margin:0;">${escapeHtmlRem(rep.raw_text)}</p>
+                  <p style="margin:4px 0 0; font-size:12px; color:${rep.ai_understood ? '#2E7D32' : '#A15400'};">AI: ${rep.ai_understood ? 'Understood' : 'Not clearly understood'}${rep.ai_summary ? ' — ' + escapeHtmlRem(rep.ai_summary) : ''}</p>
+                </div>
+              `).join('')
+            : '<p style="font-size:12px; color:#8A7B55;">No reply yet.</p>'
+          }
+          ${
+            (t.status === 'pending' || t.status === 'unclear')
+            ? `<button class="jk-btn-outline-sm" style="margin-top:8px;" onclick="markUnderstood(${t.id}, ${reminder.id})">Mark as understood</button>`
+            : ''
+          }
+        </div>
+      `).join('')}
+    `;
+  }
+
+  function markUnderstood(targetId, reminderId) {
+    fetch(`/admin/reminders/targets/${targetId}/mark-understood`, { method: 'POST' })
+      .then(res => res.json())
+      .then(() => {
+        openDetailModal(reminderId);
+        loadReminders();
+      })
+      .catch(err => console.error(err));
+  }
+
+  loadReminders();
+</script>

@@ -74,4 +74,43 @@ async function askTutor({ question, lessonContext = "", userName = "Student", ma
   }
 }
 
-module.exports = { askTutor };
+// Used by services/adminReminderService.js to judge whether a school's
+// WhatsApp/email reply to an admin reminder shows they understood it —
+// gates whether the resend nagging stops and the day-before-due-date
+// follow-up gets auto-scheduled (controllers/webhookController.js).
+async function classifyReminderReply({ reminderTitle, reminderMessage, replyText }) {
+  try {
+    const resp = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You judge whether a school's reply to a reminder message shows they read and understood it. " +
+            'Reply with ONLY compact JSON: {"understood": true|false, "summary": "<one short sentence>"}. ' +
+            "understood=true only if the reply clearly acknowledges or responds to the reminder's actual content " +
+            "(e.g. confirms, asks a relevant question, says they'll comply). A vague, off-topic, or unclear reply is understood=false.",
+        },
+        {
+          role: "user",
+          content: `Reminder title: ${reminderTitle}\nReminder message: ${reminderMessage}\n\nSchool's reply: ${replyText}`,
+        },
+      ],
+      max_tokens: 150,
+      temperature: 0,
+    });
+
+    const raw = resp.choices[0]?.message?.content?.trim() || "";
+    const match = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : raw);
+    return {
+      understood: parsed.understood === true,
+      summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : "",
+    };
+  } catch (err) {
+    console.error("classifyReminderReply error:", err.message);
+    return { understood: false, summary: "" };
+  }
+}
+
+module.exports = { askTutor, classifyReminderReply };

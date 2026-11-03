@@ -15,6 +15,7 @@ require("./cron/parentAtRiskAlert");
 require("./cron/spacedReviewNudge");
 require("./cron/weeklyLeaderboardCoins");
 require("./cron/lessonTaskReminderJobs");
+require("./cron/adminReminderJobs");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const runNewsletterScheduler = require("./cron/newsletterScheduler");
 // const runDevotionalScheduler = require("./cron/cronJobs");
@@ -198,6 +199,11 @@ app.use("/", publicRoutes);
 
 const adminRoutes = require("./routes/adminRoutes");
 app.use("/admin", adminRoutes);
+
+// No ensureAuthenticated/CSRF here on purpose — Meta and Brevo call
+// these directly, with no session or CSRF token (see routes/webhookRoutes.js).
+const webhookRoutes = require("./routes/webhookRoutes");
+app.use("/webhooks", webhookRoutes);
 
 // const videoRoutes = require("./routes/videoRoutes");
 // app.use("/admin", videoRoutes);

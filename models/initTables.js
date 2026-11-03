@@ -2795,6 +2795,75 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       `);
     }
 
+    // General admin-to-school reminders (services/adminReminderService.js)
+    // — distinct from the per-task lesson reminders in
+    // cron/lessonTaskReminderJobs.js: these are one-off, admin-authored
+    // messages (not tied to a lesson task) resent every
+    // resend_interval_days until the school replies, after which a
+    // single follow-up check-in goes out the day before due_date.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS admin_reminders (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        due_date DATE NOT NULL,
+        resend_interval_days INTEGER NOT NULL DEFAULT 2,
+        created_by INT REFERENCES users2(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
+    // One row per (reminder, school) — the unit resend/follow-up logic
+    // actually operates on. status: pending -> understood -> followup_sent
+    // (or 'unclear' if the AI couldn't tell, which still stops the
+    // resend nagging but waits for an admin to look rather than
+    // auto-scheduling the follow-up).
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS admin_reminder_targets (
+        id SERIAL PRIMARY KEY,
+        reminder_id INT NOT NULL REFERENCES admin_reminders(id) ON DELETE CASCADE,
+        school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        last_sent_at TIMESTAMP,
+        next_send_at TIMESTAMP,
+        understood_at TIMESTAMP,
+        followup_sent_at TIMESTAMP,
+        UNIQUE(reminder_id, school_id)
+      );`
+    );
+
+    // Materialized at creation time: the school admin (schools.created_by)
+    // plus every teacher in that school at that moment. Kept as its own
+    // table (rather than re-deriving live) so an inbound reply can be
+    // matched back to "is this person a recipient of this reminder" even
+    // if the school's teacher roster changes later.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS admin_reminder_recipients (
+        id SERIAL PRIMARY KEY,
+        target_id INT NOT NULL REFERENCES admin_reminder_targets(id) ON DELETE CASCADE,
+        user_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        role TEXT NOT NULL,
+        UNIQUE(target_id, user_id)
+      );`
+    );
+
+    // Inbound replies (WhatsApp webhook or Brevo inbound-parse webhook —
+    // controllers/webhookController.js), with the AI's judgement of
+    // whether the reply shows the school understood the reminder.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS admin_reminder_replies (
+        id SERIAL PRIMARY KEY,
+        target_id INT NOT NULL REFERENCES admin_reminder_targets(id) ON DELETE CASCADE,
+        user_id INT REFERENCES users2(id) ON DELETE SET NULL,
+        channel TEXT NOT NULL,
+        raw_text TEXT NOT NULL,
+        ai_understood BOOLEAN,
+        ai_summary TEXT,
+        received_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

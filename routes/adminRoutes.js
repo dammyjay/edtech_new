@@ -19,6 +19,7 @@ const userController = require("../controllers/userController")
 const reportController = require("../controllers/reportController");
 const reportsAdminController = require("../controllers/reportsAdminController");
 const surveyController = require("../controllers/surveyController");
+const adminReminderController = require("../controllers/adminReminderController");
 const archiveController = require("../controllers/archiveController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
@@ -518,6 +519,17 @@ router.post("/module-survey/questions", surveyController.createQuestion);
 router.post("/module-survey/questions/:id", surveyController.updateQuestion);
 router.post("/module-survey/questions/:id/delete", surveyController.deleteQuestion);
 router.get("/module-survey/responses", surveyController.getResponses);
+
+// General admin-to-school reminders (controllers/adminReminderController.js,
+// services/adminReminderService.js) — ad hoc, not tied to a lesson task;
+// resent until a school replies, then a day-before-due-date follow-up
+// auto-schedules once the AI judges the reply shows understanding.
+router.get("/reminders", adminReminderController.adminPage);
+router.get("/reminders/list", adminReminderController.listReminders);
+router.get("/reminders/:id", adminReminderController.getReminderDetail);
+router.post("/reminders", adminReminderController.createReminder);
+router.post("/reminders/:id/close", adminReminderController.closeReminder);
+router.post("/reminders/targets/:targetId/mark-understood", adminReminderController.markUnderstoodManually);
 
 // Create question
 router.post(

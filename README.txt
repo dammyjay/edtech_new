@@ -248,7 +248,31 @@ The application reads the following variables from the environment
     BREVO_API_KEY                 Transactional email (Brevo)
     BREVO_FROM
 
-    OPENAI_API_KEY                AI-generated report commentary / tutor chat
+    OPENAI_API_KEY                AI-generated report commentary / tutor chat;
+                                  also judges whether a school's reply to an
+                                  admin reminder shows understanding
+                                  (services/adminReminderService.js)
+
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN  Any string you choose — entered into Meta's
+                                  app dashboard (WhatsApp > Configuration >
+                                  Webhook) when registering the webhook URL
+                                  https://acad.jkthub.com/webhooks/whatsapp,
+                                  so Meta's one-time verification handshake
+                                  can confirm it's really this server
+                                  (controllers/webhookController.js). Also
+                                  subscribe to the "messages" field there so
+                                  inbound replies are actually delivered.
+
+    BREVO_INBOUND_DOMAIN           Optional — a subdomain (e.g.
+                                  reply.jkthub.com) whose MX record you point
+                                  at Brevo's inbound mail servers, then
+                                  register in Brevo's dashboard (Transactional
+                                  > Inbound Parsing) with webhook URL
+                                  https://acad.jkthub.com/webhooks/email-reply.
+                                  Until this is set up, admin reminder emails
+                                  still send, but a school's email reply has
+                                  nowhere to be routed back to — WhatsApp
+                                  replies work independently of this.
 
     VAPID_PUBLIC_KEY              Web push notifications
     VAPID_PRIVATE_KEY

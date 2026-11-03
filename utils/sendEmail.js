@@ -38,7 +38,7 @@ apiInstance.setApiKey(
   process.env.BREVO_API_KEY,
 );
 
-async function sendEmail(to, subject, htmlContent, { cc } = {}) {
+async function sendEmail(to, subject, htmlContent, { cc, replyTo } = {}) {
   try {
     // Supports either:
     // sendEmail("abc@gmail.com", ...)
@@ -65,6 +65,14 @@ async function sendEmail(to, subject, htmlContent, { cc } = {}) {
     // that went to the primary recipient(s) rather than a separate copy.
     if (cc && cc.length > 0) {
       sendSmtpEmail.cc = cc.map((email) => ({ email }));
+    }
+
+    // Lets a caller route replies to an address other than BREVO_FROM —
+    // e.g. admin reminders encode a target id into the local part
+    // (reminder-<id>@BREVO_INBOUND_DOMAIN) so Brevo's inbound-parse
+    // webhook can tell which reminder a reply belongs to.
+    if (replyTo) {
+      sendSmtpEmail.replyTo = { email: replyTo };
     }
 
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
