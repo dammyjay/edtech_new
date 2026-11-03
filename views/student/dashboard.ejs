@@ -4060,6 +4060,60 @@ async function submitExchange() {
   @media (max-width: 480px) {
     .fc-card { height: 280px; }
   }
+
+  /* --- Redesigned assignment submission UI --- */
+  .assign-wrap { max-width: 1100px; margin: 0 auto; }
+  .assign-header { margin-bottom: 16px; }
+  .assign-header h2 { margin: 0 0 8px; color: var(--brand-pri-dark, #4C3802); }
+  .assign-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #777; }
+  .assign-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+  .assign-tabs { display: none; gap: 8px; margin-bottom: 14px; }
+  .assign-tab {
+    flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd;
+    background: #fff; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  .assign-tab.active {
+    background: var(--brand-pri, #A17807); color: #fff; border-color: var(--brand-pri, #A17807);
+  }
+
+  .assign-layout { display: flex; gap: 20px; align-items: flex-start; }
+  .assign-pane {
+    flex: 1; min-width: 0; background: #fff; border: 1px solid #eee;
+    border-radius: var(--radius-lg, 16px); padding: 22px;
+    box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.06));
+  }
+  .assign-question-pane { max-height: 78vh; overflow-y: auto; position: sticky; top: 10px; }
+  .assign-question-pane h3 { margin-top: 0; }
+  .assign-question-pane .instructions { line-height: 1.8; font-size: 15px; }
+
+  .assign-answer-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+  }
+  .assign-answer-head label { font-weight: 700; font-size: 15px; }
+  .assign-save-indicator { font-size: 12px; color: #999; font-weight: 600; transition: color 0.2s; }
+  .assign-save-indicator.saving { color: #b5651d; }
+  .assign-save-indicator.saved { color: #1e7e42; }
+
+  .assign-file-label { display: block; margin-top: 16px; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #555; }
+  .assign-hint {
+    background: var(--brand-tint, #FBF3DD); color: var(--brand-pri-dark, #4C3802);
+    border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
+  }
+  .assign-submit-btn {
+    margin-top: 18px; width: 100%; padding: 15px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
+  }
+  .assign-submit-btn:hover { opacity: 0.92; }
+
+  @media (max-width: 860px) {
+    .assign-tabs { display: flex; }
+    .assign-layout { flex-direction: column; }
+    .assign-pane { display: none; max-height: none; position: static; }
+    .assign-pane.active { display: block; }
+  }
 </style>
 
 <!-- script for loading lesson content and assignment loading and submission review -->
@@ -5014,24 +5068,6 @@ document.addEventListener("visibilitychange", () => {
               .join("")
           : "<p>No detailed breakdown.</p>";
 
-        // lessonMain.innerHTML = `
-        //   ${guideHTML}
-        //   <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px; background-color:#f9f9f9;">
-        //     <h2>📑 ${data.assignment.title}</h2>
-        //     <p><strong>Course:</strong> ${data.assignment.course_title}</p>
-        //     <p><strong>Module:</strong> ${data.assignment.module_title}</p>
-        //     <hr>
-        //     <h3>✅ You already submitted this assignment</h3>
-        //     <p><strong>Description:</strong> ${data.submission.description}</p>
-        //     ${data.submission.file_url ? `<p><a href="${data.submission.file_url}" target="_blank">📂 View File</a></p>` : ""}
-        //     <h3>📊 AI Feedback</h3>
-        //     <p><strong>Total Score:</strong> ${data.submission.total ?? "Pending"}</p>
-        //     <p><strong>Grade:</strong> ${data.submission.grade ?? "N/A"}</p>
-        //     <div><strong>Criteria Breakdown:</strong>${data.submission.criteria}</div>
-        //     <div><strong>Comments:</strong><p>${data.submission.ai_feedback ?? "Pending"}</p></div>
-        //   </div>
-        // `;
-
         lessonMain.innerHTML = `
           ${guideHTML}
         <details class="assignment-details" open>
@@ -5092,105 +5128,120 @@ document.addEventListener("visibilitychange", () => {
         hideLoading();
         return;
       } else {
-        // ✅ Show form if not yet submitted
-        // lessonMain.innerHTML = `
-        // ${guideHTML}
-        //   <div class="assignment-container" style="border:1px solid #ccc; padding:15px; border-radius:8px; max-width:600px;">
-        //     <h2>📑 ${data.assignment.title}</h2>
-        //     <p><strong>Course:</strong> ${data.assignment.course_title}</p>
-        //     <p><strong>Module:</strong> ${data.assignment.module_title}</p>
-        //     <div class="instructions">
-        //       <strong>Instructions:</strong>
-        //       <p>${data.assignment.instructions}</p>
-        //     </div>
-        //     <p><strong>Due Date:</strong> ${data.assignment.due_date || "No due date"}</p>
+        // ✅ Show form if not yet submitted — split question/answer layout + autosave draft
+        const draftKey = `assignment_draft_${assignmentId}`;
 
-        //     <h3>Submit Your Work</h3>
-        //     <form id="submitAssignmentForm" enctype="multipart/form-data">
-        //       <input type="hidden" name="assignmentId" value="${assignmentId}" />
-        //       <label>Description:</label><br>
-        //       <textarea id="assignmentDescription" name="description" placeholder="Write your answer..." required></textarea><br><br>
-        //       <label>Upload File (optional):</label>
-        //       <input type="file" name="file"><br><br>
-        //       <button type="submit">Submit Assignment</button>
-        //     </form>
-        //   </div>
-        // `;
-       
-                lessonMain.innerHTML = `
+        lessonMain.innerHTML = `
 
         ${guideHTML}
 
-        <details class="assignment-details" open>
+        <div class="assign-wrap">
 
-            <summary>
-                📑 Assignment
-            </summary>
+            <div class="assign-header">
+                <h2>📑 ${data.assignment.title}</h2>
+                <div class="assign-meta">
+                    <span>🎓 ${data.assignment.course_title}</span>
+                    <span>📦 ${data.assignment.module_title}</span>
+                    <span>📅 ${data.assignment.due_date ? "Due " + data.assignment.due_date : "No due date"}</span>
+                </div>
+            </div>
 
-            <div class="assignment-container">
+            <div class="assign-tabs">
+                <button type="button" class="assign-tab active" id="assignTabQuestion">📖 Question</button>
+                <button type="button" class="assign-tab" id="assignTabAnswer">✍️ My Answer</button>
+            </div>
 
-                <h2>${data.assignment.title}</h2>
+            <div class="assign-layout">
 
-                <p><strong>Course:</strong> ${data.assignment.course_title}</p>
-
-                <p><strong>Module:</strong> ${data.assignment.module_title}</p>
-
-                <p>
-                    <strong>Due Date:</strong>
-                    ${data.assignment.due_date || "No due date"}
-                </p>
-
-                <hr>
-
-                <h3>Instructions</h3>
-
-                <div class="instructions">
-                    ${data.assignment.instructions}
+                <div class="assign-pane assign-question-pane active" id="assignQuestionPane">
+                    <h3>Instructions</h3>
+                    <div class="instructions">
+                        ${data.assignment.instructions}
+                    </div>
                 </div>
 
-                <hr>
+                <div class="assign-pane assign-answer-pane active" id="assignAnswerPane">
 
-                <h3>Submit Your Work</h3>
+                    <form id="submitAssignmentForm" enctype="multipart/form-data">
 
-                <form id="submitAssignmentForm" enctype="multipart/form-data">
+                        <input type="hidden" name="assignmentId" value="${assignmentId}">
 
-                    <input
-                        type="hidden"
-                        name="assignmentId"
-                        value="${assignmentId}"
-                    >
+                        <div class="assign-hint">
+                            💡 Take your time. Write your answer below — it saves automatically as you type, so you won't lose it if you refresh.
+                        </div>
 
-                    <label>Description</label>
+                        <div class="assign-answer-head">
+                            <label for="assignmentDescription">Your Answer</label>
+                            <span class="assign-save-indicator" id="assignSaveIndicator"></span>
+                        </div>
 
-                    <textarea
-                        id="assignmentDescription"
-                        name="description"
-                        required
-                    ></textarea>
+                        <textarea
+                            id="assignmentDescription"
+                            name="description"
+                            required
+                        ></textarea>
 
-                    <br><br>
+                        <label class="assign-file-label">📎 Attach a file (optional)</label>
 
-                    <label>Upload File (optional)</label>
+                        <input
+                            type="file"
+                            name="file"
+                        >
 
-                    <input
-                        type="file"
-                        name="file"
-                    >
+                        <button type="submit" class="assign-submit-btn">
+                            🚀 Submit Assignment
+                        </button>
 
-                    <br><br>
+                    </form>
 
-                    <button type="submit">
-                        Submit Assignment
-                    </button>
-
-                </form>
+                </div>
 
             </div>
 
-        </details>
+        </div>
 
         `;
-       
+
+        // 📱 Mobile tab switcher between the question and the answer panes
+        const assignTabQuestion = document.getElementById("assignTabQuestion");
+        const assignTabAnswer = document.getElementById("assignTabAnswer");
+        const assignQuestionPane = document.getElementById("assignQuestionPane");
+        const assignAnswerPane = document.getElementById("assignAnswerPane");
+        function switchAssignTab(which) {
+          const showQuestion = which === "question";
+          assignTabQuestion.classList.toggle("active", showQuestion);
+          assignTabAnswer.classList.toggle("active", !showQuestion);
+          assignQuestionPane.classList.toggle("active", showQuestion);
+          assignAnswerPane.classList.toggle("active", !showQuestion);
+        }
+        assignTabQuestion.addEventListener("click", () => switchAssignTab("question"));
+        assignTabAnswer.addEventListener("click", () => switchAssignTab("answer"));
+
+        // 💾 Auto-save the student's answer to this device as they type, so a
+        // refresh never loses typed work. Debounced; cleared on successful submit.
+        const assignSaveIndicator = document.getElementById("assignSaveIndicator");
+        let assignSaveTimer = null;
+        function scheduleAssignAutosave() {
+          if (assignSaveIndicator) {
+            assignSaveIndicator.textContent = "Saving…";
+            assignSaveIndicator.className = "assign-save-indicator saving";
+          }
+          clearTimeout(assignSaveTimer);
+          assignSaveTimer = setTimeout(() => {
+            try {
+              const content = CKEDITOR.instances.assignmentDescription
+                ? CKEDITOR.instances.assignmentDescription.getData()
+                : document.getElementById("assignmentDescription").value;
+              localStorage.setItem(draftKey, content);
+              if (assignSaveIndicator) {
+                assignSaveIndicator.textContent = "✓ Saved";
+                assignSaveIndicator.className = "assign-save-indicator saved";
+              }
+            } catch (e) {
+              // localStorage may be unavailable (e.g. private browsing) — nothing to recover, fail silently
+            }
+          }, 1000);
+        }
 
         // 🟢 Initialize CKEditor for assignment submission
         setTimeout(() => {
@@ -5198,6 +5249,19 @@ document.addEventListener("visibilitychange", () => {
             CKEDITOR.instances.assignmentDescription.destroy(true);
           }
           CKEDITOR.replace("assignmentDescription");
+          CKEDITOR.instances.assignmentDescription.on("instanceReady", () => {
+            try {
+              const draft = localStorage.getItem(draftKey);
+              if (draft) {
+                CKEDITOR.instances.assignmentDescription.setData(draft);
+                if (assignSaveIndicator) {
+                  assignSaveIndicator.textContent = "📝 Draft restored";
+                  assignSaveIndicator.className = "assign-save-indicator saved";
+                }
+              }
+            } catch (e) {}
+            CKEDITOR.instances.assignmentDescription.on("change", scheduleAssignAutosave);
+          });
         }, 50);
 
 
@@ -5228,6 +5292,8 @@ document.addEventListener("visibilitychange", () => {
               }
 
             if (result.success) {
+              try { localStorage.removeItem(draftKey); } catch (e) {}
+
               const criteriaHTML = result.criteria
                 ? Object.entries(result.criteria)
                     .map(([crit, score]) => `<p>${crit}: <strong>${score}</strong></p>`)
@@ -5250,7 +5316,7 @@ document.addEventListener("visibilitychange", () => {
                 </div>
               `;
 
-              
+
             } else {
               showAlert(result.message || "❌ Submission failed.");
             }
