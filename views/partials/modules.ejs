@@ -340,7 +340,7 @@
     try {
       const res = await fetch(`<%= rolePrefix %>/modules/${flashcardModuleId}/flashcards/list`);
       const data = await res.json();
-      flashcardLessons = []; // repopulated by the AI preview when needed
+      flashcardLessons = data.lessons || [];
       if (!res.ok || !data.ok) {
         showAlert(data.error || "Failed to load flashcards.");
         showFlashcardState("flashcardIdleState");
@@ -362,6 +362,9 @@
 
   function manageCardTemplate(card) {
     const id = card.id ?? "";
+    const lessonOptions = flashcardLessons
+      .map((l) => `<option value="${l.id}">${(l.title || "").replace(/</g, "&lt;")}</option>`)
+      .join("");
     return `
       <div class="flashcard-preview-card" data-id="${id}">
         <label>Front (question/prompt)</label>
@@ -369,8 +372,10 @@
         <label>Back (answer)</label>
         <textarea rows="2" class="fc-back">${(card.back_text || "").replace(/</g, "&lt;")}</textarea>
         <label>From lesson</label>
-        <input type="text" class="fc-lesson-id" value="${card.lesson_id || ""}" hidden />
-        <div class="fc-lesson-display" style="font-size:12.5px; color:#6E6350;">${card.lesson_title ? "📖 " + card.lesson_title : "— Not linked to a lesson —"}</div>
+        <select class="fc-lesson-id">
+          <option value="">— Not linked to a lesson —</option>
+          ${lessonOptions}
+        </select>
         <div class="fc-row-actions">
           <button type="button" class="jk-btn-outline-sm" onclick="saveManageCard(this)">💾 ${id ? "Save" : "Add"}</button>
           ${id ? `<button type="button" class="jk-btn-outline-sm" onclick="deleteManageCard(this)">🗑️ Delete</button>` : `<button type="button" class="jk-btn-outline-sm" onclick="this.closest('.flashcard-preview-card').remove()">Cancel</button>`}
@@ -380,7 +385,14 @@
   }
 
   function renderFlashcardManageList(cards) {
-    document.getElementById("flashcardManageList").innerHTML = cards.map(manageCardTemplate).join("");
+    const list = document.getElementById("flashcardManageList");
+    list.innerHTML = cards.map(manageCardTemplate).join("");
+    // Select each card's current lesson now that the <select> exists —
+    // can't be done via the "selected" attribute above since the value
+    // needs to match dynamically per card.
+    list.querySelectorAll(".flashcard-preview-card").forEach((row, i) => {
+      if (cards[i].lesson_id) row.querySelector(".fc-lesson-id").value = cards[i].lesson_id;
+    });
   }
 
   function addBlankManageCard() {
@@ -394,6 +406,7 @@
     const id = row.dataset.id;
     const front = row.querySelector(".fc-front").value.trim();
     const back = row.querySelector(".fc-back").value.trim();
+    const lessonId = row.querySelector(".fc-lesson-id").value || null;
     if (!front || !back) {
       showAlert("Front and back are both required.");
       return;
@@ -405,7 +418,7 @@
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ front, back }),
+        body: JSON.stringify({ front, back, lesson_id: lessonId }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {

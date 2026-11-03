@@ -1678,15 +1678,24 @@ exports.bulkUploadFlashcardsForModule = async (req, res) => {
 exports.listFlashcardsForModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
-    const result = await pool.query(
-      `SELECT f.id, f.front_text, f.back_text, f.lesson_id, l.title AS lesson_title, f.order_number
-       FROM flashcards f
-       LEFT JOIN lessons l ON l.id = f.lesson_id
-       WHERE f.module_id = $1
-       ORDER BY f.order_number`,
-      [moduleId]
-    );
-    res.json({ ok: true, flashcards: result.rows });
+    const [cardsRes, lessonsRes] = await Promise.all([
+      pool.query(
+        `SELECT f.id, f.front_text, f.back_text, f.lesson_id, l.title AS lesson_title, f.order_number
+         FROM flashcards f
+         LEFT JOIN lessons l ON l.id = f.lesson_id
+         WHERE f.module_id = $1
+         ORDER BY f.order_number`,
+        [moduleId]
+      ),
+      // Also returned here (not just from the AI preview) so the
+      // "Add Card"/edit "From lesson" picker has real options to show
+      // even when nothing's been AI-generated this session.
+      pool.query(
+        `SELECT id, title FROM lessons WHERE module_id = $1 AND archived_at IS NULL ORDER BY order_number`,
+        [moduleId]
+      ),
+    ]);
+    res.json({ ok: true, flashcards: cardsRes.rows, lessons: lessonsRes.rows });
   } catch (e) {
     console.error("List flashcards error:", e.message);
     res.status(500).json({ error: "Failed to load flashcards." });
