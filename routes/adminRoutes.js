@@ -18,6 +18,7 @@ const externalProjectController = require("../controllers/externalProjectControl
 const userController = require("../controllers/userController")
 const reportController = require("../controllers/reportController");
 const reportsAdminController = require("../controllers/reportsAdminController");
+const surveyController = require("../controllers/surveyController");
 const archiveController = require("../controllers/archiveController");
 const { getCourseById } = require("../models/courseModel"); // adjust path if needed
 const { getModulesByCourse } = require("../models/moduleModel"); // adjust path if needed
@@ -507,6 +508,16 @@ router.get("/modules/:moduleId/flashcards/list", learningController.listFlashcar
 router.post("/modules/:moduleId/flashcards/create", upload.none(), learningController.createFlashcard);
 router.post("/flashcards/:id/edit", upload.none(), learningController.updateFlashcard);
 router.post("/flashcards/:id/delete", learningController.deleteFlashcard);
+
+// Compulsory module feedback survey — one global, admin-editable question
+// bank (controllers/surveyController.js) shown to every student right
+// after they finish a module. Page + question CRUD + response viewer.
+router.get("/module-survey", surveyController.adminPage);
+router.get("/module-survey/questions", surveyController.listQuestions);
+router.post("/module-survey/questions", surveyController.createQuestion);
+router.post("/module-survey/questions/:id", surveyController.updateQuestion);
+router.post("/module-survey/questions/:id/delete", surveyController.deleteQuestion);
+router.get("/module-survey/responses", surveyController.getResponses);
 
 // Create question
 router.post(

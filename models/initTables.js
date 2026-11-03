@@ -2731,6 +2731,70 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Compulsory student feedback survey, shown right after finishing a
+    // module (every lesson in it done) and re-prompted on every later
+    // lesson open until answered (controllers/surveyController.js,
+    // services/surveyService.js) — one global, admin-editable question
+    // bank reused for every module, not a per-module copy.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS survey_questions (
+        id SERIAL PRIMARY KEY,
+        question_text TEXT NOT NULL,
+        question_type TEXT NOT NULL DEFAULT 'multiple_choice',
+        options JSONB,
+        category TEXT,
+        order_number INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
+    // One row per student per module once they've submitted the survey —
+    // the UNIQUE constraint is what makes "has this student already given
+    // feedback for this module" a single cheap existence check.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS survey_submissions (
+        id SERIAL PRIMARY KEY,
+        student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        module_id INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+        submitted_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(student_id, module_id)
+      );`
+    );
+
+    // question_id is ON DELETE SET NULL (not CASCADE) and question_text_snapshot
+    // is stored redundantly so a question the admin later edits or removes
+    // doesn't corrupt or blank out historical answers already collected
+    // under its original wording.
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS survey_answers (
+        id SERIAL PRIMARY KEY,
+        submission_id INT NOT NULL REFERENCES survey_submissions(id) ON DELETE CASCADE,
+        question_id INT REFERENCES survey_questions(id) ON DELETE SET NULL,
+        question_text_snapshot TEXT NOT NULL,
+        answer_text TEXT NOT NULL
+      );`
+    );
+
+    // Seed a sensible default question set exactly once — if an admin has
+    // since deleted every question on purpose, leave it empty rather than
+    // re-seeding behind their back.
+    const existingSurveyQuestions = await pool.query("SELECT COUNT(*) FROM survey_questions");
+    if (parseInt(existingSurveyQuestions.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO survey_questions (question_text, question_type, options, category, order_number) VALUES
+        ('How helpful were the videos in this module?', 'multiple_choice', '["Very helpful","Somewhat helpful","Not helpful","I didn''t watch any videos"]', 'video', 1),
+        ('How clear were the lesson notes?', 'multiple_choice', '["Very clear","Somewhat clear","Confusing","I didn''t read them"]', 'notes', 2),
+        ('How useful were the lesson slides?', 'multiple_choice', '["Very useful","Somewhat useful","Not useful","I didn''t use them"]', 'slides', 3),
+        ('How was the difficulty of the quiz in this module?', 'multiple_choice', '["Too easy","Just right","Too hard"]', 'quiz', 4),
+        ('How helpful were the flashcards?', 'multiple_choice', '["Very helpful","Somewhat helpful","Not helpful","I didn''t use them"]', 'flashcards', 5),
+        ('How easy was it to use the platform for this module?', 'multiple_choice', '["Very easy","Easy","A bit difficult","Very difficult"]', 'platform', 6),
+        ('Overall, how was this module for you?', 'multiple_choice', '["Excellent","Good","Okay","Poor"]', 'overall', 7),
+        ('What is one thing we could improve?', 'text', NULL, 'improvement', 8);
+      `);
+    }
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

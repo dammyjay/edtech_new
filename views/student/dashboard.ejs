@@ -447,6 +447,22 @@
   </div>
 </div>
 
+<!-- Compulsory module feedback survey — no close/X and no backdrop-click
+     handler on purpose: this one can't be dismissed without submitting. -->
+<div id="feedbackSurveyModalOverlay" class="survey-modal-overlay" style="display:none;">
+  <div class="survey-modal">
+    <div class="survey-modal-head">
+      <h2>📝 Quick Feedback</h2>
+      <p id="surveyModalModuleName"></p>
+    </div>
+    <div class="survey-modal-body" id="surveyModalBody"></div>
+    <div class="survey-modal-foot">
+      <span class="survey-modal-note">Please answer every question to continue.</span>
+      <button type="button" class="survey-submit-btn" id="surveySubmitBtn" onclick="submitFeedbackSurvey()">Submit Feedback</button>
+    </div>
+  </div>
+</div>
+
  <main class="main-content">
 
   <%
@@ -4114,6 +4130,44 @@ async function submitExchange() {
     .assign-pane { display: none; max-height: none; position: static; }
     .assign-pane.active { display: block; }
   }
+
+  /* --- Compulsory feedback survey modal --- */
+  .survey-modal-overlay {
+    position: fixed; inset: 0; background: rgba(26,21,16,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3000; padding: 20px;
+  }
+  .survey-modal {
+    background: #fff; border-radius: 18px; width: 560px; max-width: 100%;
+    max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .survey-modal-head { padding: 22px 24px 10px; }
+  .survey-modal-head h2 { margin: 0 0 4px; color: var(--brand-pri-dark, #4C3802); }
+  .survey-modal-head p { margin: 0; font-size: 13px; color: #777; font-weight: 600; }
+  .survey-modal-body { padding: 10px 24px; display: flex; flex-direction: column; gap: 18px; }
+  .survey-question label { display: block; font-weight: 700; font-size: 14.5px; margin-bottom: 8px; color: #332A18; }
+  .survey-options { display: flex; flex-direction: column; gap: 6px; }
+  .survey-option {
+    display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13.5px;
+    background: #FAF8F2; border: 1px solid #EDE7D6; border-radius: 9px; padding: 9px 12px; cursor: pointer;
+  }
+  .survey-option:has(input:checked) { border-color: var(--brand-pri, #A17807); background: var(--brand-tint, #FBF3DD); }
+  .survey-option input { accent-color: var(--brand-pri, #A17807); }
+  .survey-text-input {
+    width: 100%; min-height: 70px; border-radius: 9px; border: 1px solid #E7E0CE;
+    padding: 10px 12px; font-family: inherit; font-size: 13.5px; box-sizing: border-box; resize: vertical;
+  }
+  .survey-modal-foot {
+    padding: 16px 24px 22px; display: flex; flex-direction: column; gap: 10px;
+    border-top: 1px solid #F1ECDD; margin-top: 4px;
+  }
+  .survey-modal-note { font-size: 12px; color: #8A7B55; text-align: center; }
+  .survey-submit-btn {
+    padding: 14px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
+  }
+  .survey-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
 
 <!-- script for loading lesson content and assignment loading and submission review -->
@@ -4401,6 +4455,17 @@ async function submitExchange() {
           document.getElementById("lessonMainArea").innerHTML =
             `<p>⚠️ ${data.message || "Failed to load lesson."}</p>`;
           hideLoading();
+          return;
+        }
+
+        // Compulsory feedback survey gate — blocks opening THIS lesson's
+        // content until the student clears any feedback they owe for a
+        // module they've already finished. Doesn't touch the lesson
+        // timer/currentLessonId below; once submitted, this same call is
+        // simply retried so the student lands exactly where they clicked.
+        if (data.pendingFeedback) {
+          hideLoading();
+          showFeedbackSurveyModal(() => loadLessonPart(lessonId, part));
           return;
         }
 
@@ -6895,12 +6960,24 @@ function submitQuizAnswers(lessonId){
       }, 2100);
     }
 
-    // 💭 Reflection prompt — last in the chain, entirely optional (Skip
-    // closes it with no request sent; the endpoint itself also treats
-    // both fields as optional either way).
+    // 💭 Reflection prompt — entirely optional (Skip closes it with no
+    // request sent; the endpoint itself also treats both fields as
+    // optional either way).
     setTimeout(() => {
       showReflectionPrompt(lessonId);
     }, 1800);
+
+    // 📝 Compulsory feedback survey — genuinely last in the chain (and
+    // not skippable, unlike everything above): set only when this quiz
+    // just finished off a module the student hasn't given feedback for
+    // yet. loadLessonPart's own gate would catch it on the next lesson
+    // open regardless, but popping it immediately means they're not
+    // left wondering why the sidebar's next lesson/module won't open yet.
+    if (result.pendingFeedback) {
+      setTimeout(() => {
+        showFeedbackSurveyModal();
+      }, 2600);
+    }
 
       // The submission itself is already fully saved server-side at this
       // point — everything from here down is just building the follow-up
@@ -7193,6 +7270,115 @@ function goToAssignment() {
   loadAssignment(assignmentId);
 }
 
+// ===== Compulsory module feedback survey =====
+// No close/X button anywhere on this modal and no backdrop-click
+// handler — per the product decision, a student can't dismiss it
+// without submitting, though it never blocks anything OTHER than
+// opening lesson content (it doesn't lock the module/next-module
+// unlock itself — see services/surveyService.js).
+let surveyModalOnDone = null;
+let surveyModalQuestions = [];
+
+function showFeedbackSurveyModal(onDone) {
+  fetch("/student/feedback-survey/active")
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok || !data.pending) {
+        if (typeof onDone === "function") onDone();
+        return;
+      }
+      surveyModalOnDone = onDone;
+      surveyModalQuestions = data.questions || [];
+      document.getElementById("surveyModalModuleName").textContent =
+        `About the module: ${data.module.moduleTitle}`;
+
+      const body = document.getElementById("surveyModalBody");
+      body.innerHTML = surveyModalQuestions.map((q, idx) => {
+        if (q.question_type === "text") {
+          return `
+            <div class="survey-question" data-qid="${q.id}">
+              <label>${idx + 1}. ${escapeFcText(q.question_text)}</label>
+              <textarea class="survey-text-input" data-qid="${q.id}"></textarea>
+            </div>
+          `;
+        }
+        const options = Array.isArray(q.options) ? q.options : [];
+        return `
+          <div class="survey-question" data-qid="${q.id}">
+            <label>${idx + 1}. ${escapeFcText(q.question_text)}</label>
+            <div class="survey-options">
+              ${options.map(opt => `
+                <label class="survey-option">
+                  <input type="radio" name="survey-q-${q.id}" value="${escapeFcText(opt)}">
+                  <span>${escapeFcText(opt)}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("feedbackSurveyModalOverlay").style.display = "flex";
+    })
+    .catch(err => {
+      console.error("Failed to load feedback survey:", err);
+      // Fail open — a network hiccup shouldn't trap the student.
+      if (typeof onDone === "function") onDone();
+    });
+}
+
+function submitFeedbackSurvey() {
+  const answers = {};
+  let missing = false;
+
+  surveyModalQuestions.forEach(q => {
+    if (q.question_type === "text") {
+      const el = document.querySelector(`.survey-text-input[data-qid="${q.id}"]`);
+      const val = el ? el.value.trim() : "";
+      if (!val) missing = true;
+      answers[q.id] = val;
+    } else {
+      const checked = document.querySelector(`input[name="survey-q-${q.id}"]:checked`);
+      if (!checked) missing = true;
+      answers[q.id] = checked ? checked.value : "";
+    }
+  });
+
+  if (missing) {
+    showAlert("Please answer every question before submitting.");
+    return;
+  }
+
+  const btn = document.getElementById("surveySubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+
+  fetch("/student/feedback-survey/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answers })
+  })
+    .then(res => res.json())
+    .then(result => {
+      btn.disabled = false;
+      btn.textContent = "Submit Feedback";
+      if (!result.success) {
+        showAlert(result.message || "Please answer every question before submitting.");
+        return;
+      }
+      document.getElementById("feedbackSurveyModalOverlay").style.display = "none";
+      const done = surveyModalOnDone;
+      surveyModalOnDone = null;
+      if (typeof done === "function") done();
+    })
+    .catch(err => {
+      console.error("Failed to submit feedback survey:", err);
+      btn.disabled = false;
+      btn.textContent = "Submit Feedback";
+      showAlert("Could not submit feedback. Please try again.");
+    });
+}
+
 // Fires confetti + a chime + the mascot's celebratory pose inside a
 // celebration-modal's content card — shared by all four modals in the
 // chain below rather than repeating the same three calls in each.
@@ -7339,6 +7525,14 @@ function submitQuizInline(e, lessonId) {
     setTimeout(() => {
       showReflectionPrompt(lessonId);
     }, 1800);
+
+    // 📝 Compulsory feedback survey — see the identical block in
+    // submitQuizAnswers above for why this is last and not skippable.
+    if (result.pendingFeedback) {
+      setTimeout(() => {
+        showFeedbackSurveyModal();
+      }, 2600);
+    }
 
       // The submission is already fully saved server-side by this point
       // — see the identical comment in submitQuizAnswers above. Isolated

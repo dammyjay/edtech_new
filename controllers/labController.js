@@ -4,6 +4,7 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { getStudentStreak } = require("../services/streakService");
 const { awardCoins, spendCoins } = require("../services/coinService");
 const { awardXp, maybeUnlockNextLesson } = require("../services/lessonCompletionService");
+const { getPendingFeedbackModule } = require("../services/surveyService");
 const { generateMasterySignal } = require("../services/masteryPathService");
 const { compileSketch } = require("../services/arduinoCompileService");
 const { askTutor } = require("../utils/ai");
@@ -1021,6 +1022,12 @@ exports.submitProject = async (req, res) => {
       await awardCoins(studentId, SUBMIT_COIN_REWARD, reason);
     }
 
+    // Same compulsory survey check as the quiz-submit/viewLesson paths —
+    // only meaningful once a lesson-attached lab actually ran the
+    // unlock chain (unlockResult set); a freeform playground project
+    // never finishes a module on its own.
+    const pendingFeedback = unlockResult ? await getPendingFeedbackModule(studentId) : null;
+
     res.json({
       success: true,
       isFirstSubmission,
@@ -1034,6 +1041,7 @@ exports.submitProject = async (req, res) => {
       nextModuleId: unlockResult?.nextModuleId,
       pendingLab: unlockResult?.pendingLab,
       pendingFlashcards: unlockResult?.pendingFlashcards,
+      pendingFeedback,
       labFeedback,
       submissionCount,
     });

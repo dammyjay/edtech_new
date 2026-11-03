@@ -1,0 +1,290 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'module-survey' }) %>
+
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div>
+      <h2>📝 Module Feedback Survey</h2>
+      <p>Shown to every student right after they finish a module, and again until they answer it. Edit the question bank below — changes apply to every module.</p>
+    </div>
+    <button class="jk-btn-dark" onclick="openQuestionModal()">+ Add Question</button>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" id="tabBtnQuestions" onclick="switchSurveyTab('questions')">Questions</button>
+    <button class="tab-btn" id="tabBtnResponses" onclick="switchSurveyTab('responses')">Responses</button>
+  </div>
+
+  <div id="surveyQuestionsPanel">
+    <div class="jk-term-grid" id="surveyQuestionsGrid">
+      <p>Loading questions…</p>
+    </div>
+  </div>
+
+  <div id="surveyResponsesPanel" style="display:none;">
+    <div class="jk-stat-card" style="margin-bottom:16px; max-width:260px;">
+      <div class="jk-stat-label">Total Submissions</div>
+      <div class="jk-stat-value" id="surveyTotalSubmissions">—</div>
+    </div>
+    <div id="surveyResponsesList"><p>Loading responses…</p></div>
+  </div>
+
+</section>
+
+<!-- Add/Edit Question modal -->
+<div class="jk-modal-overlay" id="questionModalOverlay" hidden>
+  <div class="jk-modal jk-term-modal">
+    <div class="jk-modal-head">
+      <h4 id="questionModalTitle">Add Question</h4>
+      <button class="jk-modal-close" onclick="closeQuestionModal()">✕</button>
+    </div>
+    <div class="jk-modal-body">
+      <input type="hidden" id="qEditId">
+
+      <label>Question text</label>
+      <input type="text" id="qText" placeholder="e.g. How helpful were the videos in this module?">
+
+      <label>Category (optional, for your own reference)</label>
+      <input type="text" id="qCategory" placeholder="e.g. video, notes, quiz, platform">
+
+      <label>Type</label>
+      <select id="qType" onchange="toggleOptionsEditor()">
+        <option value="multiple_choice">Multiple choice</option>
+        <option value="text">Open text</option>
+      </select>
+
+      <div id="qOptionsWrap">
+        <label>Options (students pick one)</label>
+        <div id="qOptionsList"></div>
+        <button type="button" class="jk-btn-outline-sm" onclick="addOptionField()">+ Add option</button>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+        <input type="checkbox" id="qActive" checked style="width:auto; margin:0;">
+        Active (shown to students)
+      </label>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="jk-btn-dark" onclick="saveQuestion()">Save</button>
+        <button class="jk-btn-outline" onclick="closeQuestionModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let surveyQuestionsCache = [];
+
+  function switchSurveyTab(tab) {
+    document.getElementById('tabBtnQuestions').classList.toggle('active', tab === 'questions');
+    document.getElementById('tabBtnResponses').classList.toggle('active', tab === 'responses');
+    document.getElementById('surveyQuestionsPanel').style.display = tab === 'questions' ? 'block' : 'none';
+    document.getElementById('surveyResponsesPanel').style.display = tab === 'responses' ? 'block' : 'none';
+    if (tab === 'responses') loadResponses();
+  }
+
+  function escapeHtmlSurvey(str) {
+    return (str || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function loadQuestions() {
+    fetch('/admin/module-survey/questions')
+      .then(res => res.json())
+      .then(data => {
+        surveyQuestionsCache = data.questions || [];
+        renderQuestions();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('surveyQuestionsGrid').innerHTML = '<p>Failed to load questions.</p>';
+      });
+  }
+
+  function renderQuestions() {
+    const grid = document.getElementById('surveyQuestionsGrid');
+    if (!surveyQuestionsCache.length) {
+      grid.innerHTML = '<p>No questions yet. Click "+ Add Question" to create one.</p>';
+      return;
+    }
+    grid.innerHTML = surveyQuestionsCache.map(q => `
+      <div class="jk-term-card">
+        <div class="jk-tc-head">
+          <div>
+            <p class="jk-tc-name">${escapeHtmlSurvey(q.question_text)}</p>
+            <p class="jk-tc-period">${q.category ? escapeHtmlSurvey(q.category) + ' · ' : ''}${q.question_type === 'text' ? 'Open text' : 'Multiple choice'}</p>
+          </div>
+          <span class="jk-pill ${q.is_active ? 'jk-pill--active' : 'jk-pill--inactive'}">${q.is_active ? 'Active' : 'Inactive'}</span>
+        </div>
+        ${
+          q.question_type === 'multiple_choice' && Array.isArray(q.options)
+          ? `<div class="jk-stat-pills" style="flex-wrap:wrap;">${q.options.map(o => `<span class="jk-flag-pill">${escapeHtmlSurvey(o)}</span>`).join('')}</div>`
+          : ''
+        }
+        <div class="jk-tc-actions">
+          <button class="jk-btn-outline-sm" onclick="openQuestionModal(${q.id})">✏️ Edit</button>
+          <button class="jk-btn-outline-sm" onclick="deleteQuestion(${q.id})">🗑️ Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function addOptionField(value) {
+    const list = document.getElementById('qOptionsList');
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.marginBottom = '6px';
+    row.innerHTML = `
+      <input type="text" class="qOptionInput" value="${escapeHtmlSurvey(value || '')}" style="flex:1;">
+      <button type="button" class="jk-icon-btn" onclick="this.parentElement.remove()">✕</button>
+    `;
+    list.appendChild(row);
+  }
+
+  function toggleOptionsEditor() {
+    document.getElementById('qOptionsWrap').style.display =
+      document.getElementById('qType').value === 'multiple_choice' ? 'block' : 'none';
+  }
+
+  function openQuestionModal(id) {
+    document.getElementById('qOptionsList').innerHTML = '';
+    if (id) {
+      const q = surveyQuestionsCache.find(x => x.id === id);
+      if (!q) return;
+      document.getElementById('questionModalTitle').textContent = 'Edit Question';
+      document.getElementById('qEditId').value = q.id;
+      document.getElementById('qText').value = q.question_text;
+      document.getElementById('qCategory').value = q.category || '';
+      document.getElementById('qType').value = q.question_type;
+      document.getElementById('qActive').checked = q.is_active;
+      (Array.isArray(q.options) ? q.options : []).forEach(o => addOptionField(o));
+      if (q.question_type === 'multiple_choice' && !(Array.isArray(q.options) && q.options.length)) {
+        addOptionField(); addOptionField();
+      }
+    } else {
+      document.getElementById('questionModalTitle').textContent = 'Add Question';
+      document.getElementById('qEditId').value = '';
+      document.getElementById('qText').value = '';
+      document.getElementById('qCategory').value = '';
+      document.getElementById('qType').value = 'multiple_choice';
+      document.getElementById('qActive').checked = true;
+      addOptionField(); addOptionField();
+    }
+    toggleOptionsEditor();
+    document.getElementById('questionModalOverlay').hidden = false;
+  }
+
+  function closeQuestionModal() {
+    document.getElementById('questionModalOverlay').hidden = true;
+  }
+
+  function saveQuestion() {
+    const id = document.getElementById('qEditId').value;
+    const question_text = document.getElementById('qText').value.trim();
+    const category = document.getElementById('qCategory').value.trim();
+    const question_type = document.getElementById('qType').value;
+    const is_active = document.getElementById('qActive').checked;
+    const options = Array.from(document.querySelectorAll('.qOptionInput')).map(i => i.value.trim()).filter(Boolean);
+
+    if (!question_text) {
+      alert('Question text is required.');
+      return;
+    }
+    if (question_type === 'multiple_choice' && options.length < 2) {
+      alert('Add at least 2 options.');
+      return;
+    }
+
+    const body = { question_text, category, question_type, options, is_active };
+    const url = id ? `/admin/module-survey/questions/${id}` : '/admin/module-survey/questions';
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        closeQuestionModal();
+        loadQuestions();
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Failed to save question.');
+      });
+  }
+
+  function deleteQuestion(id) {
+    if (!confirm('Delete this question? Existing answers already collected will keep their own copy of the question text.')) return;
+    fetch(`/admin/module-survey/questions/${id}/delete`, { method: 'POST' })
+      .then(res => res.json())
+      .then(() => loadQuestions())
+      .catch(err => console.error(err));
+  }
+
+  function loadResponses() {
+    fetch('/admin/module-survey/responses')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('surveyTotalSubmissions').textContent = data.totalSubmissions ?? 0;
+        const list = document.getElementById('surveyResponsesList');
+        if (!data.questions || !data.questions.length) {
+          list.innerHTML = '<p>No questions to show responses for yet.</p>';
+          return;
+        }
+        list.innerHTML = data.questions.map(q => {
+          if (q.questionType === 'text') {
+            return `
+              <div class="jk-report-panel">
+                <h3>${escapeHtmlSurvey(q.questionText)}</h3>
+                ${
+                  q.textAnswers.length
+                  ? q.textAnswers.map(a => `
+                      <div style="padding:10px 0; border-top:1px solid #F1ECDD;">
+                        <p style="margin:0 0 4px; font-size:13px; color:#6E6350;">
+                          <strong>${escapeHtmlSurvey(a.studentName)}</strong> · ${escapeHtmlSurvey(a.moduleTitle)} ·
+                          ${new Date(a.submittedAt).toLocaleDateString()}
+                        </p>
+                        <p style="margin:0;">${escapeHtmlSurvey(a.answer)}</p>
+                      </div>
+                    `).join('')
+                  : '<p style="color:#8A7B55;">No answers yet.</p>'
+                }
+              </div>
+            `;
+          }
+          const total = q.tally.reduce((sum, t) => sum + t.count, 0) || 1;
+          return `
+            <div class="jk-report-panel">
+              <h3>${escapeHtmlSurvey(q.questionText)}</h3>
+              ${
+                q.tally.length
+                ? q.tally.sort((a, b) => b.count - a.count).map(t => `
+                    <div style="margin-bottom:10px;">
+                      <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+                        <span>${escapeHtmlSurvey(t.answer)}</span>
+                        <strong>${t.count} (${Math.round((t.count / total) * 100)}%)</strong>
+                      </div>
+                      <div style="background:#F1ECDD; border-radius:6px; height:8px; overflow:hidden;">
+                        <div style="background:var(--brand-pri, #A17807); height:100%; width:${Math.round((t.count / total) * 100)}%;"></div>
+                      </div>
+                    </div>
+                  `).join('')
+                : '<p style="color:#8A7B55;">No answers yet.</p>'
+              }
+            </div>
+          `;
+        }).join('');
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('surveyResponsesList').innerHTML = '<p>Failed to load responses.</p>';
+      });
+  }
+
+  loadQuestions();
+</script>

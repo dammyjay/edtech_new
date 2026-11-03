@@ -223,6 +223,13 @@ router.post(
 
 router.post("/lessons/:lessonId/reflect", express.json(), studentController.submitReflection);
 
+// Compulsory module feedback survey (services/surveyService.js) — the
+// modal's own fetch calls, separate from the viewLesson/submitLessonQuiz
+// responses that just flag WHETHER one is pending.
+const surveyController = require("../controllers/surveyController");
+router.get("/feedback-survey/active", surveyController.getActiveSurveyForStudent);
+router.post("/feedback-survey/submit", express.json(), surveyController.submitSurvey);
+
 router.post("/streak/freeze", express.json(), studentController.freezeStreak);
 router.get("/avatar-frames", studentController.getAvatarFrames);
 router.post("/avatar-frames/unlock", express.json(), studentController.unlockAvatarFrame);

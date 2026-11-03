@@ -14,6 +14,7 @@ const { recordActivityForLesson } = require("../services/courseTermLinkService")
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
 const flashcardProgressService = require("../services/flashcardProgressService");
+const { getPendingFeedbackModule } = require("../services/surveyService");
 const portfolioService = require("../services/portfolioService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
@@ -3697,6 +3698,12 @@ exports.viewLesson = async (req, res) => {
     const quizStarted = quizDone ? false : isInstructorPreview ? false : await hasStudentStartedQuiz(lessonId, studentId);
     const resourcesLocked = isInstructorPreview ? false : quizStarted;
 
+    // Compulsory feedback survey gate (services/surveyService.js) — checked
+    // on EVERY lesson open, not just the one right after finishing a
+    // module, so a student who closes the tab before answering gets
+    // asked again the next time they try to open any lesson.
+    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackModule(studentId);
+
     res.json({
       success: true,
       id: lesson.id,
@@ -3712,6 +3719,8 @@ exports.viewLesson = async (req, res) => {
       hasPendingAssignment: pendingRes.rows.length > 0,
 
       pendingAssignments: pendingRes.rows,
+
+      pendingFeedback,
     });
   } catch (err) {
     console.error(err);
@@ -4513,6 +4522,12 @@ ${JSON.stringify(reviewData, null, 2)}
       : await maybeUnlockNextLesson(studentId, lessonId);
     const moduleResult = { badgeAwarded, badgeName, badgeImage };
 
+    // Same compulsory survey check as viewLesson, surfaced immediately
+    // once this quiz submission finishes off the module's last lesson
+    // (or any lesson, really — getPendingFeedbackModule doesn't care
+    // which lesson triggered it, only whether one is owed).
+    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackModule(studentId);
+
     const xpAfterRes = await pool.query("SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1", [studentId]);
     const levelAfter = getLevelForXp(xpAfterRes.rows[0].xp);
 
@@ -4685,6 +4700,9 @@ ${JSON.stringify(reviewData, null, 2)}
       // flashcard deck the student hasn't watched yet — the assignment
       // stays locked until they do (services/flashcardProgressService.js).
       pendingFlashcards,
+      // Set whenever the student owes feedback for a finished module —
+      // the client shows a blocking survey modal when this is present.
+      pendingFeedback,
       submissionCount: attemptCountSoFar + 1,
       maxAttempts: MAX_QUIZ_ATTEMPTS,
       attempts: allQuizAttempts,
