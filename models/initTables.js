@@ -2849,6 +2849,18 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Set on every row inserted by a backlog catch-up submission
+    // (services/surveyService.js's submitSurveyAnswers) — a student with
+    // more than one module owed at once answers ONE combined survey, and
+    // every owed module still gets its own exemption row here so none of
+    // them can re-trigger the prompt, but only the first actually has
+    // survey_answers attached. Flagged mainly so this is visible/debuggable,
+    // not because any query strictly depends on it (see getResponses'
+    // comment on counting submissions via survey_answers instead).
+    await pool.query(
+      `ALTER TABLE survey_submissions ADD COLUMN IF NOT EXISTS is_backlog_catchup BOOLEAN NOT NULL DEFAULT false;`
+    );
+
     // question_id is ON DELETE SET NULL (not CASCADE) and question_text_snapshot
     // is stored redundantly so a question the admin later edits or removes
     // doesn't corrupt or blank out historical answers already collected

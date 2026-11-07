@@ -5,7 +5,7 @@
 // services/surveyService.js for the gating logic itself).
 
 const pool = require("../models/db");
-const { getPendingFeedbackModule, getActiveQuestions, submitSurveyAnswers } = require("../services/surveyService");
+const { getPendingFeedbackModules, getActiveQuestions, submitSurveyAnswers } = require("../services/surveyService");
 
 // ===== Admin =====
 
@@ -111,7 +111,12 @@ exports.deleteQuestion = async (req, res) => {
 // to actually see how students feel without building a full BI page.
 exports.getResponses = async (req, res) => {
   try {
-    const totalRes = await pool.query(`SELECT COUNT(*) FROM survey_submissions`);
+    // Counts distinct submissions that actually HAVE answers, not every
+    // survey_submissions row — a backlog catch-up (services/surveyService.js)
+    // inserts one bare exemption row per owed module but only attaches
+    // real answers to one of them, so COUNT(*) on the table itself would
+    // overcount how many times a student actually sat through the survey.
+    const totalRes = await pool.query(`SELECT COUNT(DISTINCT submission_id) FROM survey_answers`);
     const totalSubmissions = parseInt(totalRes.rows[0].count, 10);
 
     const questionsRes = await pool.query(
@@ -173,12 +178,18 @@ exports.getResponses = async (req, res) => {
 exports.getActiveSurveyForStudent = async (req, res) => {
   try {
     const studentId = req.session?.student?.id || req.user?.id;
-    const pending = await getPendingFeedbackModule(studentId);
-    if (!pending) {
+    const pendingModules = await getPendingFeedbackModules(studentId);
+    if (!pendingModules.length) {
       return res.json({ ok: true, pending: false });
     }
     const questions = await getActiveQuestions();
-    res.json({ ok: true, pending: true, module: pending, questions });
+    res.json({
+      ok: true,
+      pending: true,
+      module: pendingModules[0],
+      backlogCount: pendingModules.length,
+      questions,
+    });
   } catch (err) {
     console.error("Get active survey error:", err.message);
     res.status(500).json({ error: "Failed to load survey." });

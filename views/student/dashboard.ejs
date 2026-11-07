@@ -7290,7 +7290,9 @@ function showFeedbackSurveyModal(onDone) {
       surveyModalOnDone = onDone;
       surveyModalQuestions = data.questions || [];
       document.getElementById("surveyModalModuleName").textContent =
-        `About the module: ${data.module.moduleTitle}`;
+        data.backlogCount > 1
+          ? `You've completed ${data.backlogCount} modules without giving feedback — just answer once to cover all of them!`
+          : `About the module: ${data.module.moduleTitle}`;
 
       const body = document.getElementById("surveyModalBody");
       body.innerHTML = surveyModalQuestions.map((q, idx) => {
