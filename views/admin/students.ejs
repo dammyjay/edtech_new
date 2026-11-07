@@ -212,6 +212,7 @@
       <div style="display:flex; flex-wrap:wrap; gap:8px;">
         <a id="modalProgressLink" class="jk-btn-outline" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Progress</a>
         <a id="modalEnrollmentsLink" class="jk-btn-outline" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Enrollments</a>
+        <a id="modalPortfolioLink" class="jk-btn-outline" style="text-decoration:none; display:inline-flex; align-items:center;" href="#">View Portfolio / CV</a>
       </div>
     </div>
   </div>
@@ -229,6 +230,7 @@
     document.getElementById("modalDate").textContent = new Date(user.created_at).toLocaleString();
     document.getElementById("modalProgressLink").href = `/admin/students/${user.id}/progress?from=admin`;
     document.getElementById("modalEnrollmentsLink").href = `/admin/students/${user.id}/enrollments`;
+    document.getElementById("modalPortfolioLink").href = `/admin/students/${user.id}/portfolio`;
     document.getElementById("userModal").hidden = false;
   }
 

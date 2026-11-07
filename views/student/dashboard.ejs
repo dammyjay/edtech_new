@@ -1217,12 +1217,14 @@
         padding: 16px; position: relative; overflow: hidden;
       }
       .pf-cert-card::before { content: "🎗️"; position: absolute; top: 10px; right: 12px; font-size: 20px; opacity: 0.6; }
+      .pf-cert-img { display: block; width: 100%; max-height: 140px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; cursor: pointer; background: #fff; }
       .pf-cert-title { font-weight: 800; font-size: 13.5px; color: #4C3802; margin-bottom: 4px; padding-right: 20px; }
       .pf-cert-date { font-size: 11px; color: #8A7B55; }
 
       .pf-badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); gap: 14px; }
       .pf-badge-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 14px 8px; text-align: center; }
       .pf-badge-medal { font-size: 34px; }
+      .pf-badge-img { width: 56px; height: 56px; object-fit: contain; margin: 0 auto; display: block; }
       .pf-badge-name { font-size: 11px; font-weight: 800; margin-top: 4px; color: #1A1510; }
       .pf-badge-module { font-size: 10px; color: #8A7B55; }
 
@@ -1364,6 +1366,9 @@
           <div class="pf-cert-grid">
             <% portfolioData.certificates.forEach(cert => { %>
               <div class="pf-cert-card">
+                <% if (cert.certificate_url) { %>
+                  <img src="<%= cert.certificate_url %>" alt="<%= cert.course_title %> certificate" class="pf-cert-img" onclick="openCertificateLightbox('<%= cert.certificate_url %>')" />
+                <% } %>
                 <div class="pf-cert-title"><%= cert.course_title %></div>
                 <div class="pf-cert-date">Issued <%= new Date(cert.issued_at).toLocaleDateString() %></div>
               </div>
@@ -1381,7 +1386,11 @@
           <div class="pf-badge-grid">
             <% portfolioData.badges.forEach(b => { %>
               <div class="pf-badge-card">
-                <div class="pf-badge-medal"><%= pfBadgeMedal(b.badge_name) %></div>
+                <% if (b.badge_image) { %>
+                  <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" class="pf-badge-img" />
+                <% } else { %>
+                  <div class="pf-badge-medal"><%= pfBadgeMedal(b.badge_name) %></div>
+                <% } %>
                 <div class="pf-badge-name"><%= b.badge_name %></div>
                 <div class="pf-badge-module"><%= b.module_title %></div>
               </div>

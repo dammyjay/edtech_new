@@ -49,7 +49,7 @@ async function getCourses(studentId) {
 
 async function getCertificates(studentId, courseId) {
   const res = await pool.query(
-    `SELECT uc.id, uc.issued_at, uc.course_id, c.title AS course_title
+    `SELECT uc.id, uc.issued_at, uc.course_id, uc.certificate_url, c.title AS course_title
      FROM user_certificates uc
      JOIN courses c ON c.id = uc.course_id
      WHERE uc.user_id = $1 ${courseId ? "AND uc.course_id = $2" : ""}

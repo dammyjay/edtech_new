@@ -29,6 +29,7 @@ const { generateClassReport, generateStudentReport } = require("../services/repo
 const { saveReport } = require("../services/classTermReportStore");
 const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
+const portfolioService = require("../services/portfolioService");
 const generateThumbnail = require("../utils/generateThumbnail");
 const { withFeedback, safeRedirectTarget } = require("../utils/adminFeedback");
 
@@ -4891,6 +4892,68 @@ exports.viewStudentEnrollments = async (req, res) => {
   } catch (err) {
     console.error("View student enrollments error:", err.message);
     res.status(500).send("Failed to fetch enrollments");
+  }
+};
+
+// Read-only view of any student's Portfolio/CV — same data/template shape
+// as the student's own view (views/student/dashboard.ejs's portfolio
+// section) and the parent's read-only copy (views/parent/childPortfolio.ejs),
+// just admin-chrome'd. No ownership check needed beyond the router-wide
+// ensureAdmin gate: an admin can look up any student by design.
+exports.viewStudentPortfolio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [studentRes, infoRes] = await Promise.all([
+      pool.query(`SELECT id, fullname, avatar_url, profile_picture, xp FROM users2 WHERE id = $1`, [id]),
+      pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"),
+    ]);
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).send("Student not found");
+
+    const [portfolioData, streak] = await Promise.all([
+      portfolioService.getPortfolioData(id, { courseId: req.query.courseId }),
+      getStudentStreak(id),
+    ]);
+    const levelInfo = getLevelForXp(student.xp || 0);
+
+    res.render("admin/studentPortfolio", {
+      student,
+      portfolioData,
+      levelInfo,
+      streak,
+      info: infoRes.rows[0] || {},
+      role: "admin",
+    });
+  } catch (err) {
+    console.error("View student portfolio error:", err.message);
+    res.status(500).send("Failed to load this student's portfolio.");
+  }
+};
+
+exports.downloadStudentPortfolioPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const studentRes = await pool.query(
+      `SELECT fullname, avatar_url, profile_picture FROM users2 WHERE id = $1`,
+      [id]
+    );
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).send("Student not found");
+
+    const pdf = await portfolioService.renderPortfolioPdf({
+      studentId: id,
+      displayName: student.fullname,
+      avatarUrl: student.avatar_url || student.profile_picture || null,
+      courseId: req.query.courseId,
+    });
+
+    const safeName = (student.fullname || "Portfolio").replace(/[^\w\-]+/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}-Portfolio.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error("downloadStudentPortfolioPdf error:", err.message);
+    res.status(500).send("Couldn't generate this portfolio PDF right now — please try again shortly.");
   }
 };
 

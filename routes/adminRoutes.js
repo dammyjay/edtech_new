@@ -643,6 +643,8 @@ router.delete("/events/:id", adminController.deleteEvent);
 router.get("/students", adminController.listStudents);
 router.get("/students/:id/progress", adminController.viewStudentProgress);
 router.get("/students/:id/enrollments", adminController.viewStudentEnrollments);
+router.get("/students/:id/portfolio", adminController.viewStudentPortfolio);
+router.get("/students/:id/portfolio/pdf", adminController.downloadStudentPortfolioPdf);
 
 // view student quiz result and assignment result
 router.get("/parent/quiz/:id", userController.viewQuizResult);
