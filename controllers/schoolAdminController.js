@@ -13,6 +13,9 @@ const { computeClassroomTermAnalytics, buildClassroomAnalyticsPdfHtml } = requir
 const { getLockedStudentsForRoster } = require("../services/termReactivationService");
 const { notifyUser, DASHBOARD_URL_BY_ROLE } = require("../utils/notify");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
+const portfolioService = require("../services/portfolioService");
+const { getStudentStreak } = require("../services/streakService");
+const { getLevelForXp } = require("../utils/xpLevels");
 const { calculateQuoteTotal } = require("../services/quoteCalcService");
 const { getLessonTasksForSchool } = require("../services/lessonTaskService");
 const archiveService = require("../services/archiveService");
@@ -3714,5 +3717,72 @@ exports.getAttendanceSummary = async (req, res) => {
   } catch (err) {
     console.error("Error loading attendance summary:", err);
     res.status(500).json({ success: false, message: "Error loading attendance summary" });
+  }
+};
+
+// Read-only view of a student's Portfolio/CV, scoped to the school admin's
+// OWN school — req.schoolId is resolved by this router's auth middleware
+// (middlewares/auth.js), never trusted from the request itself. Same
+// data/template shape as the platform admin's and parent's read-only
+// copies, just this role's own header/nav chrome.
+exports.viewStudentPortfolio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ownership = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND school_id = $2 AND role_in_school = 'student'`,
+      [id, req.schoolId]
+    );
+    if (!ownership.rows.length) return res.status(403).send("This student isn't in your school.");
+
+    const studentRes = await pool.query(
+      `SELECT id, fullname, avatar_url, profile_picture, xp FROM users2 WHERE id = $1`,
+      [id]
+    );
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).send("Student not found");
+
+    const [portfolioData, streak] = await Promise.all([
+      portfolioService.getPortfolioData(id, { courseId: req.query.courseId }),
+      getStudentStreak(id),
+    ]);
+    const levelInfo = getLevelForXp(student.xp || 0);
+
+    res.render("school-admin/studentPortfolio", { student, portfolioData, levelInfo, streak });
+  } catch (err) {
+    console.error("School admin view student portfolio error:", err.message);
+    res.status(500).send("Failed to load this student's portfolio.");
+  }
+};
+
+exports.downloadStudentPortfolioPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ownership = await pool.query(
+      `SELECT 1 FROM user_school WHERE user_id = $1 AND school_id = $2 AND role_in_school = 'student'`,
+      [id, req.schoolId]
+    );
+    if (!ownership.rows.length) return res.status(403).send("This student isn't in your school.");
+
+    const studentRes = await pool.query(
+      `SELECT fullname, avatar_url, profile_picture FROM users2 WHERE id = $1`,
+      [id]
+    );
+    const student = studentRes.rows[0];
+    if (!student) return res.status(404).send("Student not found");
+
+    const pdf = await portfolioService.renderPortfolioPdf({
+      studentId: id,
+      displayName: student.fullname,
+      avatarUrl: student.avatar_url || student.profile_picture || null,
+      courseId: req.query.courseId,
+    });
+
+    const safeName = (student.fullname || "Portfolio").replace(/[^\w\-]+/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}-Portfolio.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error("downloadStudentPortfolioPdf (school admin) error:", err.message);
+    res.status(500).send("Couldn't generate this portfolio PDF right now — please try again shortly.");
   }
 };

@@ -318,6 +318,8 @@ router.get(
 // marked the term ended (see getClassTermReportStatus below).
 // =============================
 router.get("/students/:id/progress", adminController.viewStudentProgress);
+router.get("/students/:id/portfolio", schoolAdminController.viewStudentPortfolio);
+router.get("/students/:id/portfolio/pdf", schoolAdminController.downloadStudentPortfolioPdf);
 router.get("/term-analytics", schoolAdminController.getTermAnalytics);
 router.get("/download-progress", schoolAdminController.downloadSchoolProgressReport);
 router.get(

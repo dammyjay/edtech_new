@@ -98,6 +98,7 @@
             <td>
               <button class="btn-edit" onclick="openAssignClassroomModal(<%= s.id %>, '<%= s.fullname %>')">➕ Add to Classroom</button>
               <a class="btn-sec" href="/school-admin/students/<%= s.id %>/progress?from=school_admin">📊 Progress</a>
+              <a class="btn-sec" href="/school-admin/students/<%= s.id %>/portfolio">🎓 Portfolio</a>
             </td>
           </tr>
         <% }) %>

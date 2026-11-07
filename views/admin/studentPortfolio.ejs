@@ -62,6 +62,8 @@
   .pf-badge-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 14px 8px; text-align: center; }
   .pf-badge-medal { font-size: 34px; }
   .pf-badge-img { width: 56px; height: 56px; object-fit: contain; margin: 0 auto; display: block; }
+  .pf-badge-clickable { cursor: pointer; }
+  .pf-badge-clickable:hover { box-shadow: 0 4px 12px rgba(26,21,16,0.08); }
   .pf-badge-name { font-size: 11px; font-weight: 800; margin-top: 4px; color: #1A1510; }
   .pf-badge-module { font-size: 10px; color: #8A7B55; }
 
@@ -210,7 +212,7 @@
     <% if (portfolioData.badges.length) { %>
       <div class="pf-badge-grid">
         <% portfolioData.badges.forEach(b => { %>
-          <div class="pf-badge-card">
+          <div class="pf-badge-card<%= b.badge_image ? ' pf-badge-clickable' : '' %>" data-img="<%= b.badge_image || '' %>">
             <% if (b.badge_image) { %>
               <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" class="pf-badge-img" />
             <% } else { %>
@@ -274,6 +276,13 @@
 </section>
 
 <script>
+  document.querySelectorAll('.pf-badge-clickable').forEach((card) => {
+    card.addEventListener('click', () => {
+      const img = card.dataset.img;
+      if (img) window.open(img, '_blank');
+    });
+  });
+
   function switchAdminPortfolioCourse(courseId) {
     const url = new URL(window.location.href);
     if (courseId) url.searchParams.set('courseId', courseId);

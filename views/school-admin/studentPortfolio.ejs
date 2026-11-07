@@ -1,0 +1,301 @@
+<%- include('../partials/header', { title: student.fullname + "'s Portfolio" }) %>
+<%- include('../partials/sidenav') %>
+
+<style>
+  .pf-wrap { max-width: 960px; margin: 20px auto; }
+  .pf-hero {
+    background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807));
+    color: #fff; border-radius: 18px; padding: 26px 24px; margin-bottom: 18px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 20px; justify-content: space-between;
+    box-shadow: 0 8px 26px rgba(161,120,7,0.25);
+  }
+  .pf-hero-left { display: flex; align-items: center; gap: 16px; }
+  .pf-hero-avatar { width: 64px; height: 64px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.65); object-fit: cover; background: rgba(255,255,255,0.2); }
+  .pf-hero-name { margin: 0 0 4px; font-size: 20px; font-weight: 800; }
+  .pf-hero-sub { margin: 0 0 6px; font-size: 12px; opacity: 0.9; }
+  .pf-hero-chip { display: inline-block; background: rgba(255,255,255,0.22); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-right: 6px; }
+  .pf-hero-xpwrap { background: rgba(255,255,255,0.25); border-radius: 999px; height: 8px; width: 180px; overflow: hidden; margin-top: 8px; }
+  .pf-hero-xpbar { background: #fff; height: 100%; }
+  .pf-hero-score { text-align: center; background: rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 22px; }
+  .pf-hero-score .num { font-size: 30px; font-weight: 900; display: block; line-height: 1; }
+  .pf-hero-score .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; }
+
+  .pf-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .pf-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; background: #fff; color: var(--brand-pri-dark, #4C3802); border: 1px solid #E7E0CE; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+  .pf-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .pf-btn-gradient { background: linear-gradient(135deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); color: #fff; border: none; }
+  .pf-select { background: #fff; border: 1px solid #E7E0CE; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #4C3802; cursor: pointer; }
+
+  .pf-stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 22px; }
+  @media (max-width: 900px) { .pf-stat-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+  @media (max-width: 520px) { .pf-stat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .pf-stat-card { background: #fff; border-radius: 14px; padding: 14px 12px; text-align: center; border-top: 3px solid var(--pf-accent, #A17807); box-shadow: 0 2px 8px rgba(26,21,16,0.06); }
+  .pf-stat-card .pf-stat-icon { font-size: 22px; }
+  .pf-stat-card .pf-stat-val { font-size: 22px; font-weight: 800; color: #1A1510; display: block; margin: 2px 0; }
+  .pf-stat-card .pf-stat-lbl { font-size: 10.5px; color: #8A7B55; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .pf-section { background: #fff; border: 1px solid #EDE7D6; border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+  .pf-section-title { margin: 0 0 14px; font-size: 16px; font-weight: 800; color: #1A1510; display: flex; align-items: center; gap: 8px; }
+  .pf-empty { color: #8A7B55; font-size: 13px; background: #FAF8F2; border-radius: 10px; padding: 14px; text-align: center; }
+
+  .pf-skill-chip { display: inline-block; background: linear-gradient(135deg, #FBF3DD, #F3E2B4); color: var(--brand-pri-dark, #4C3802); padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700; margin: 0 8px 8px 0; border: 1px solid #EBD7A0; }
+
+  .pf-ai-card { background: linear-gradient(135deg, #FFFCF5, #FBF3DD); border-left: 4px solid var(--brand-pri, #A17807); border-radius: 14px; padding: 18px; white-space: pre-line; font-size: 14px; color: #332A18; line-height: 1.6; }
+  .pf-ai-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--brand-pri-dark, #4C3802); color: #fff; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .pf-ai-meta { color: #8A7B55; font-size: 11px; margin-top: 10px; }
+
+  .pf-course-card { border: 1px solid #EDE7D6; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .pf-course-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .pf-course-title { font-weight: 800; font-size: 14px; color: #1A1510; }
+  .pf-level-pill { font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #F6F4EF; }
+  .pf-progress-track { background: #F1ECDD; border-radius: 999px; height: 12px; overflow: hidden; }
+  .pf-progress-fill { background: linear-gradient(90deg, var(--brand-pri-light, #D9A82C), var(--brand-pri, #A17807)); height: 100%; border-radius: 999px; }
+  .pf-course-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11.5px; color: #8A7B55; font-weight: 700; }
+
+  .pf-cert-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 14px; }
+  .pf-cert-card { background: linear-gradient(135deg, #FFFCF5, #FBF3DD); border: 1px solid #EBD7A0; border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
+  .pf-cert-card::before { content: "🎗️"; position: absolute; top: 10px; right: 12px; font-size: 20px; opacity: 0.6; }
+  .pf-cert-img { display: block; width: 100%; max-height: 140px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; cursor: pointer; background: #fff; }
+  .pf-cert-title { font-weight: 800; font-size: 13.5px; color: #4C3802; margin-bottom: 4px; padding-right: 20px; }
+  .pf-cert-date { font-size: 11px; color: #8A7B55; }
+
+  .pf-badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); gap: 14px; }
+  .pf-badge-card { background: #fff; border: 1px solid #EDE7D6; border-radius: 14px; padding: 14px 8px; text-align: center; }
+  .pf-badge-medal { font-size: 34px; }
+  .pf-badge-img { width: 56px; height: 56px; object-fit: contain; margin: 0 auto; display: block; }
+  .pf-badge-clickable { cursor: pointer; }
+  .pf-badge-clickable:hover { box-shadow: 0 4px 12px rgba(26,21,16,0.08); }
+  .pf-badge-name { font-size: 11px; font-weight: 800; margin-top: 4px; color: #1A1510; }
+  .pf-badge-module { font-size: 10px; color: #8A7B55; }
+
+  .pf-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 14px; }
+  .pf-project-card { border: 1px solid #EDE7D6; border-radius: 14px; padding: 14px; position: relative; }
+  .pf-project-icon { font-size: 22px; }
+  .pf-project-title { font-weight: 800; font-size: 13px; margin: 6px 0 4px; color: #1A1510; }
+  .pf-project-type { font-size: 11px; color: #8A7B55; }
+  .pf-score-pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; margin-top: 8px; color: #fff; }
+  .pf-publish-ribbon { position: absolute; top: 10px; right: 10px; font-size: 16px; }
+
+  .pf-timeline { position: relative; padding-left: 26px; }
+  .pf-timeline::before { content: ""; position: absolute; left: 10px; top: 4px; bottom: 4px; width: 2px; background: #EDE7D6; }
+  .pf-timeline-item { position: relative; margin-bottom: 14px; background: #FAF8F2; border-radius: 12px; padding: 12px 16px; }
+  .pf-timeline-icon { position: absolute; left: -26px; top: 12px; font-size: 16px; background: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid #EDE7D6; }
+  .pf-timeline-title { font-weight: 800; font-size: 13.5px; color: #1A1510; }
+  .pf-timeline-meta { font-size: 11px; color: #8A7B55; margin-top: 2px; }
+  .pf-timeline-desc { font-size: 12.5px; color: #4C4432; margin-top: 6px; }
+</style>
+
+<%
+  const pfScore = (portfolioData.certificates.length * 15) + (portfolioData.badges.length * 8) +
+    (portfolioData.projects.length * 10) + (portfolioData.entries.length * 5);
+  const pfLevelColor = (lvl) => lvl === 'Advanced' ? '#B23A2A' : lvl === 'Intermediate' ? '#9A6B1E' : '#1E7A42';
+  const pfProjectIcon = (type) => (type || '').includes('Web') ? '🌐' : (type || '').includes('Block') ? '🧩' : (type || '').includes('Python') ? '🐍' : (type || '').includes('Arduino') ? '🔌' : (type || '').includes('External') ? '📁' : '🚀';
+  const pfScoreColor = (score) => (score === null || score === undefined) ? '#8A7B55' : score >= 70 ? '#1E7A42' : score >= 50 ? '#9A6B1E' : '#B23A2A';
+  const pfEntryIcon = (t) => t === 'competition' ? '🏆' : t === 'project' ? '🚀' : t === 'experience' ? '💼' : '⭐';
+  const pfBadgeMedal = (name) => name === 'Beginner' ? '🥉' : name === 'Intermediate' ? '🥈' : name === 'Advanced' ? '🥇' : name === 'Master' ? '👑' : '🎖️';
+%>
+
+<div class="pf-wrap">
+
+  <!-- HERO -->
+  <div class="pf-hero">
+    <div class="pf-hero-left">
+      <img class="pf-hero-avatar" src="<%= student.avatar_url || student.profile_picture || '/profile.webp' %>" alt="">
+      <div>
+        <h2 class="pf-hero-name">🎓 <%= student.fullname %>'s Portfolio</h2>
+        <p class="pf-hero-sub">Read-only — only <%= student.fullname %> can edit this.</p>
+        <span class="pf-hero-chip">🏆 Level <%= levelInfo.level %> — <%= levelInfo.name %></span>
+        <span class="pf-hero-chip">🔥 <%= streak.currentStreak %>-day streak</span>
+        <% if (levelInfo.xpForNextLevel) { %>
+          <div class="pf-hero-xpwrap"><div class="pf-hero-xpbar" style="width:<%= levelInfo.progressPercent %>%;"></div></div>
+        <% } %>
+      </div>
+    </div>
+    <div class="pf-hero-score">
+      <span class="num"><%= pfScore %></span>
+      <span class="lbl">🌟 Portfolio Points</span>
+    </div>
+  </div>
+
+  <div class="pf-toolbar">
+    <select id="portfolioCourseSelect" class="pf-select" onchange="switchSchoolAdminPortfolioCourse(this.value)">
+      <option value="" <%= !portfolioData.scopedCourseId ? 'selected' : '' %>>📋 Full CV (all courses)</option>
+      <% (portfolioData.courseOptions || []).forEach(c => { %>
+        <option value="<%= c.id %>" <%= portfolioData.scopedCourseId === c.id ? 'selected' : '' %>><%= c.title %></option>
+      <% }) %>
+    </select>
+
+    <a href="/school-admin/students/<%= student.id %>/portfolio/pdf<%= portfolioData.scopedCourseId ? '?courseId=' + portfolioData.scopedCourseId : '' %>" class="pf-btn pf-btn-gradient" id="portfolioPdfBtn" onclick="return handlePortfolioPdfClick(this)">⬇️ Download PDF</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="pf-stat-grid">
+    <div class="pf-stat-card" style="--pf-accent:#4A90D9;"><div class="pf-stat-icon">📘</div><span class="pf-stat-val"><%= portfolioData.courses.length %></span><span class="pf-stat-lbl">Courses</span></div>
+    <div class="pf-stat-card" style="--pf-accent:#D9A82C;"><div class="pf-stat-icon">📜</div><span class="pf-stat-val"><%= portfolioData.certificates.length %></span><span class="pf-stat-lbl">Certificates</span></div>
+    <div class="pf-stat-card" style="--pf-accent:#C97A0F;"><div class="pf-stat-icon">🏅</div><span class="pf-stat-val"><%= portfolioData.badges.length %></span><span class="pf-stat-lbl">Badges</span></div>
+    <div class="pf-stat-card" style="--pf-accent:#34C77B;"><div class="pf-stat-icon">🚀</div><span class="pf-stat-val"><%= portfolioData.projects.length %></span><span class="pf-stat-lbl">Projects</span></div>
+    <div class="pf-stat-card" style="--pf-accent:#A463D9;"><div class="pf-stat-icon">🛠️</div><span class="pf-stat-val"><%= portfolioData.skills.length %></span><span class="pf-stat-lbl">Skills</span></div>
+    <div class="pf-stat-card" style="--pf-accent:#D94A7A;"><div class="pf-stat-icon">🏆</div><span class="pf-stat-val"><%= portfolioData.entries.length %></span><span class="pf-stat-lbl">Achievements</span></div>
+  </div>
+
+  <!-- SKILLS -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">🛠️ Skills</h3>
+    <% if (portfolioData.skills && portfolioData.skills.length) { %>
+      <div><% portfolioData.skills.forEach(s => { %><span class="pf-skill-chip"><%= s %></span><% }) %></div>
+    <% } else { %>
+      <p class="pf-empty">Nothing yet.</p>
+    <% } %>
+  </div>
+
+  <!-- AI SUMMARY -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">🤖 AI Overview</h3>
+    <div class="pf-ai-card">
+      <div class="pf-ai-tag">✨ AI-GENERATED</div>
+      <% if (portfolioData.summary) { %>
+        <%= portfolioData.summary.summary_text %>
+        <div class="pf-ai-meta">Generated <%= new Date(portfolioData.summary.generated_at).toLocaleDateString() %></div>
+      <% } else { %>
+        <span style="color:#8A7B55;">This student hasn't generated an AI summary yet.</span>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- COURSES -->
+  <% if (!portfolioData.scopedCourseId) { %>
+    <div class="pf-section">
+      <h3 class="pf-section-title">📘 Courses</h3>
+      <% if (portfolioData.courses.length) { %>
+        <% portfolioData.courses.forEach(c => { %>
+          <div class="pf-course-card">
+            <div class="pf-course-head">
+              <span class="pf-course-title"><%= c.title %></span>
+              <span class="pf-level-pill" style="color:<%= pfLevelColor(c.level) %>;"><%= c.level || 'Level n/a' %></span>
+            </div>
+            <div class="pf-progress-track"><div class="pf-progress-fill" style="width:<%= c.progress %>%;"></div></div>
+            <div class="pf-course-meta">
+              <span><%= c.progress %>% complete</span>
+              <span><%= c.quiz_avg !== null ? '🧠 Quiz avg ' + c.quiz_avg + '%' : 'No quizzes yet' %></span>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p class="pf-empty">No enrolled courses yet.</p>
+      <% } %>
+    </div>
+  <% } %>
+
+  <!-- CERTIFICATES -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">📜 Certificates</h3>
+    <% if (portfolioData.certificates.length) { %>
+      <div class="pf-cert-grid">
+        <% portfolioData.certificates.forEach(cert => { %>
+          <div class="pf-cert-card">
+            <% if (cert.certificate_url) { %>
+              <img src="<%= cert.certificate_url %>" alt="<%= cert.course_title %> certificate" class="pf-cert-img" onclick="window.open('<%= cert.certificate_url %>', '_blank')" />
+            <% } %>
+            <div class="pf-cert-title"><%= cert.course_title %></div>
+            <div class="pf-cert-date">Issued <%= new Date(cert.issued_at).toLocaleDateString() %></div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pf-empty">None yet.</p>
+    <% } %>
+  </div>
+
+  <!-- BADGES -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">🏅 Badges</h3>
+    <% if (portfolioData.badges.length) { %>
+      <div class="pf-badge-grid">
+        <% portfolioData.badges.forEach(b => { %>
+          <div class="pf-badge-card<%= b.badge_image ? ' pf-badge-clickable' : '' %>" data-img="<%= b.badge_image || '' %>">
+            <% if (b.badge_image) { %>
+              <img src="<%= b.badge_image %>" alt="<%= b.badge_name %>" class="pf-badge-img" />
+            <% } else { %>
+              <div class="pf-badge-medal"><%= pfBadgeMedal(b.badge_name) %></div>
+            <% } %>
+            <div class="pf-badge-name"><%= b.badge_name %></div>
+            <div class="pf-badge-module"><%= b.module_title %></div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pf-empty">None yet.</p>
+    <% } %>
+  </div>
+
+  <!-- PROJECTS -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">🚀 Projects</h3>
+    <% if (portfolioData.projects.length) { %>
+      <div class="pf-project-grid">
+        <% portfolioData.projects.forEach(p => { %>
+          <div class="pf-project-card">
+            <% if (p.isPublished) { %><span class="pf-publish-ribbon" title="Published to Gallery">🌐</span><% } %>
+            <div class="pf-project-icon"><%= pfProjectIcon(p.type) %></div>
+            <div class="pf-project-title"><%= p.title %></div>
+            <div class="pf-project-type"><%= p.type %></div>
+            <% if (p.score !== null && p.score !== undefined) { %>
+              <span class="pf-score-pill" style="background:<%= pfScoreColor(p.score) %>;">Score <%= p.score %></span>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pf-empty">None yet.</p>
+    <% } %>
+  </div>
+
+  <!-- ACHIEVEMENTS / EXPERIENCE -->
+  <div class="pf-section">
+    <h3 class="pf-section-title">🏆 Achievements &amp; Experience</h3>
+    <% if ((portfolioData.entries || []).length) { %>
+      <div class="pf-timeline">
+        <% portfolioData.entries.forEach(e => { %>
+          <div class="pf-timeline-item">
+            <div class="pf-timeline-icon"><%= pfEntryIcon(e.entry_type) %></div>
+            <div class="pf-timeline-title"><%= e.title %></div>
+            <div class="pf-timeline-meta">
+              <%= e.entry_type %><%= e.entry_year ? ' · ' + e.entry_year : '' %><%= e.organization ? ' · ' + e.organization : '' %>
+            </div>
+            <% if (e.description) { %><div class="pf-timeline-desc"><%= e.description %></div><% } %>
+            <% if (e.link_url) { %><a href="<%= e.link_url %>" target="_blank" style="font-size:11.5px;">🔗 Link</a><% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="pf-empty">Nothing added yet.</p>
+    <% } %>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.pf-badge-clickable').forEach((card) => {
+    card.addEventListener('click', () => {
+      const img = card.dataset.img;
+      if (img) window.open(img, '_blank');
+    });
+  });
+
+  function switchSchoolAdminPortfolioCourse(courseId) {
+    const url = new URL(window.location.href);
+    if (courseId) url.searchParams.set('courseId', courseId);
+    else url.searchParams.delete('courseId');
+    window.location.href = url.toString();
+  }
+
+  // The actual download still happens via the link's own href (a native
+  // browser download) — this just gives feedback while Puppeteer renders
+  // the PDF server-side, which takes a few real seconds.
+  function handlePortfolioPdfClick(link) {
+    const original = link.textContent;
+    link.textContent = "⏳ Generating…";
+    setTimeout(() => { link.textContent = original; }, 6000);
+    return true;
+  }
+</script>

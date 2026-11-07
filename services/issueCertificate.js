@@ -2,6 +2,7 @@ const pool = require("../models/db");
 const fs = require("fs");
 const generateCertificate = require("../utils/generateCertificate");
 const cloudinary = require("../utils/cloudinary");
+const { notifyPortfolioUpdate } = require("./portfolioUpdateNotifier");
 
 // The platform-wide default template: the row with is_active=true in
 // certificate_templates (controllers/companyController.js's admin-managed
@@ -87,6 +88,14 @@ module.exports = async ({ userId, courseId, studentName, courseTitle }) => {
      (user_id, course_id, certificate_code, certificate_url)
      VALUES ($1,$2,$3,$4)`,
     [userId, courseId, certCode, url]
+  );
+
+  // Fire-and-forget: regenerates the AI portfolio overview and emails
+  // parent/school-admin/platform-admins — see services/portfolioUpdateNotifier.js.
+  // Only ever reached once per real new certificate (the `existing`
+  // check above short-circuits every later call, including regeneration).
+  notifyPortfolioUpdate(userId, { kind: "certificate", title: courseTitle }).catch((err) =>
+    console.error("Certificate portfolio-update notify failed:", err.message)
   );
 };
 

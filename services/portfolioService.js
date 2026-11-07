@@ -344,18 +344,24 @@ async function deleteEntry(studentId, entryId) {
 // a parent's download of a linked child's portfolio
 // (controllers/userController.js) — same render, different caller.
 async function renderPortfolioPdf({ studentId, displayName, avatarUrl, courseId }) {
-  const [portfolioData, xpRes, streak, company] = await Promise.all([
+  const [portfolioData, studentRes, streak, company] = await Promise.all([
     getPortfolioData(studentId, { courseId }),
-    pool.query("SELECT xp FROM users2 WHERE id = $1", [studentId]),
+    pool.query("SELECT xp, public_profile_enabled, public_profile_slug FROM users2 WHERE id = $1", [studentId]),
     getStudentStreak(studentId),
     getCompanyInfo(),
   ]);
+  const studentRow = studentRes.rows[0] || {};
 
-  const levelInfo = getLevelForXp((xpRes.rows[0] || {}).xp || 0);
+  const levelInfo = getLevelForXp(studentRow.xp || 0);
+  // Real images/emoji don't render reliably in this PDF (see the big
+  // comment in views/pdf/portfolio.ejs) — a link to the public profile
+  // (only if the student actually has one enabled) is the next best way
+  // to actually see a certificate/badge image from this document.
+  const publicProfileSlug = studentRow.public_profile_enabled ? studentRow.public_profile_slug || null : null;
 
   const html = await ejs.renderFile(
     path.join(__dirname, "../views/pdf/portfolio.ejs"),
-    { portfolioData, displayName, avatarUrl, levelInfo, streak, companyName: company.company_name }
+    { portfolioData, displayName, avatarUrl, levelInfo, streak, companyName: company.company_name, publicProfileSlug }
   );
 
   return generatePdf(html, { margin: { top: "16px", bottom: "16px", left: "16px", right: "16px" } });

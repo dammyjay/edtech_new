@@ -3,6 +3,7 @@
 
 const pool = require("../models/db");
 const { awardCoins } = require("./coinService");
+const { notifyPortfolioUpdate } = require("./portfolioUpdateNotifier");
 
 async function checkAndCompleteModule(studentId, moduleId) {
   try {
@@ -88,6 +89,11 @@ async function checkAndCompleteModule(studentId, moduleId) {
 
     awardCoins(studentId, 20, `Badge: ${badgeName}`).catch((err) =>
       console.error("Badge coin award failed:", err.message)
+    );
+    // Fire-and-forget: regenerates the AI portfolio overview and emails
+    // parent/school-admin/platform-admins — see services/portfolioUpdateNotifier.js.
+    notifyPortfolioUpdate(studentId, { kind: "badge", title: badgeName }).catch((err) =>
+      console.error("Badge portfolio-update notify failed:", err.message)
     );
 
     return {

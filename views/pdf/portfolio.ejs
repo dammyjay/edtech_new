@@ -82,6 +82,8 @@
   .pf-cert-card { background: #FFFCF5; border: 1px solid #EBD7A0; border-radius: 8px; padding: 9px 11px; font-size: 10.5px; }
   .pf-cert-title { font-weight: 700; color: #4C3802; }
   .pf-cert-date { font-size: 9px; color: #8A7B55; margin-top: 2px; }
+  .pf-cert-link { font-size: 9px; margin-top: 4px; }
+  .pf-cert-link a { color: #A17807; font-family: Arial, sans-serif; font-weight: 700; text-decoration: none; }
 
   .pf-badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .pf-badge-card { width: 90px; text-align: center; border: 1px solid #EDE7D6; border-radius: 8px; padding: 8px 4px; }
@@ -200,6 +202,9 @@
           <div class="pf-cert-card" style="margin-bottom:6px;">
             <div class="pf-cert-title"><%= cert.course_title %></div>
             <div class="pf-cert-date">Issued <%= new Date(cert.issued_at).toLocaleDateString() %></div>
+            <% if (publicProfileSlug) { %>
+              <div class="pf-cert-link"><a href="https://acad.jkthub.com/achievements/<%= publicProfileSlug %>/certificate/<%= cert.id %>">View certificate image &rarr;</a></div>
+            <% } %>
           </div>
         <% }) %>
       <% } else { %><p class="pf-empty">None yet.</p><% } %>
@@ -214,6 +219,9 @@
               <div class="pf-medal" style="background:<%= medal.color %>;"><%= medal.label %></div>
               <div class="pf-badge-name"><%= b.badge_name %></div>
               <div class="pf-badge-module"><%= b.module_title %></div>
+              <% if (publicProfileSlug) { %>
+                <div class="pf-cert-link"><a href="https://acad.jkthub.com/achievements/<%= publicProfileSlug %>/badge/<%= b.id %>">View image &rarr;</a></div>
+              <% } %>
             </div>
           <% }) %>
         </div>
