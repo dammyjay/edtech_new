@@ -1,0 +1,86 @@
+<button type="button" class="back-btn" onclick="loadSection('dashboard')">⬅ Back to dashboard</button>
+
+<h2 class="tc-section-title">🎮 Arcade Live Session</h2>
+<p style="color:#777; font-size:13px;">Start a live Arcade activity for one of your classrooms — every student who joins plays the same game at once, and you see a live scoreboard here.</p>
+
+<% if (activeSession) { %>
+  <div id="arcadeSessionLive" data-session-id="<%= activeSession.id %>">
+    <p><strong><%= activeSession.classroom_name %></strong> is playing <strong><%= activeSession.game_id %></strong> right now.</p>
+    <button type="button" class="back-btn" onclick="endArcadeSession(<%= activeSession.id %>)">⏹ End session</button>
+    <table class="user-table sortable-table" width="100%" style="margin-top:14px;">
+      <thead><tr><th>Student</th><th>Best score</th></tr></thead>
+      <tbody id="arcadeSessionLeaderboardBody"><tr><td colspan="2">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <script>
+    (function () {
+      const sessionId = <%= activeSession.id %>;
+      function refresh() {
+        fetch(`/teacher/arcade-session/${sessionId}/leaderboard`)
+          .then(res => res.json())
+          .then(data => {
+            if (!data.success) return;
+            const body = document.getElementById('arcadeSessionLeaderboardBody');
+            if (!body) return;
+            if (!data.leaderboard.length) {
+              body.innerHTML = '<tr><td colspan="2">No one has joined yet.</td></tr>';
+              return;
+            }
+            body.innerHTML = data.leaderboard.map(r => `<tr><td>${r.fullname}</td><td>${r.score}</td></tr>`).join('');
+          })
+          .catch(err => console.error(err));
+      }
+      refresh();
+      window._arcadeSessionInterval = setInterval(refresh, 4000);
+    })();
+
+    function endArcadeSession(id) {
+      if (!confirm('End this live session?')) return;
+      if (window._arcadeSessionInterval) clearInterval(window._arcadeSessionInterval);
+      fetch(`/teacher/arcade-session/${id}/end`, { method: 'POST' })
+        .then(res => res.json())
+        .then(() => loadSection('arcade-session'))
+        .catch(err => console.error(err));
+    }
+  </script>
+<% } else if (!classrooms || classrooms.length === 0) { %>
+  <p style="color:#999;">You don't have any classrooms yet.</p>
+<% } else { %>
+  <label>Classroom</label>
+  <select id="asClassroom" style="display:block; width:100%; max-width:320px; margin-bottom:10px; padding:8px;">
+    <% classrooms.forEach(c => { %>
+      <option value="<%= c.id %>"><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label>Game</label>
+  <select id="asGame" style="display:block; width:100%; max-width:320px; margin-bottom:14px; padding:8px;">
+    <% games.forEach(g => { %>
+      <option value="<%= g.id %>"><%= g.icon %> <%= g.name %></option>
+    <% }) %>
+  </select>
+
+  <button type="button" class="back-btn" onclick="startArcadeSession()">▶ Start live session</button>
+
+  <script>
+    function startArcadeSession() {
+      const classroomId = document.getElementById('asClassroom').value;
+      const gameId = document.getElementById('asGame').value;
+      if (!classroomId || !gameId) return;
+      fetch('/teacher/arcade-session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroomId, gameId }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            alert(data.message || 'Could not start session.');
+            return;
+          }
+          loadSection('arcade-session');
+        })
+        .catch(err => console.error(err));
+    }
+  </script>
+<% } %>

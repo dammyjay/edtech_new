@@ -15,6 +15,7 @@ const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
 const flashcardProgressService = require("../services/flashcardProgressService");
 const { getPendingFeedbackModule } = require("../services/surveyService");
+const arcadeSessionService = require("../services/arcadeSessionService");
 const portfolioService = require("../services/portfolioService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
@@ -2688,6 +2689,7 @@ exports.getArcade = async (req, res) => {
     ]);
     const classroom = classroomRes.rows[0];
     const arcadeEnabled = classroom ? classroom.arcade_enabled !== false : true;
+    const activeSession = classroom ? await arcadeSessionService.getActiveSessionForClassroom(classroom.id) : null;
 
     res.render("student/arcade", {
       title: "Arcade",
@@ -2696,6 +2698,8 @@ exports.getArcade = async (req, res) => {
       coins: studentRes.rows[0]?.coins || 0,
       arcadeEnabled,
       classroomName: classroom?.name || null,
+      activeSession,
+      studentId,
     });
   } catch (err) {
     console.error("getArcade error:", err.message);
@@ -2786,6 +2790,16 @@ exports.reportArcadeScore = async (req, res) => {
 
     const awarded = await awardXp(studentId, xpGained, `Arcade: ${game.name}`);
 
+    // If the student joined their classroom's live instructor-led session
+    // for this exact game, feed this round's score into it — a no-op for
+    // everyone else (services/arcadeSessionService.js).
+    try {
+      const participant = await arcadeSessionService.reportScoreToActiveSession({ studentId, gameId });
+      if (participant) await arcadeSessionService.updateParticipantBestScore(participant.id, score);
+    } catch (err) {
+      console.error("reportArcadeScore session update failed:", err.message);
+    }
+
     const bestRes = await pool.query(
       `SELECT MAX(score) AS best FROM arcade_plays WHERE student_id = $1 AND game_id = $2`,
       [studentId, gameId]
@@ -2850,6 +2864,33 @@ exports.getArcadeLeaderboard = async (req, res) => {
     });
   } catch (err) {
     console.error("getArcadeLeaderboard error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+// GET /student/arcade/weekly-leaderboard — platform-wide, current week in
+// progress (cron/weeklyArcadeChampion.js awards the actual prize once the
+// week ends) plus whoever won it last week, for the "🏆 This week" panel.
+exports.getArcadeWeeklyLeaderboard = async (req, res) => {
+  try {
+    const topRes = await pool.query(
+      `SELECT u.fullname, SUM(p.xp_awarded) AS total_xp
+       FROM arcade_plays p JOIN users2 u ON u.id = p.student_id
+       WHERE p.played_at >= NOW() - INTERVAL '7 days'
+       GROUP BY u.id, u.fullname ORDER BY total_xp DESC LIMIT 5`
+    );
+    const lastChampionRes = await pool.query(
+      `SELECT c.total_xp, u.fullname FROM arcade_weekly_champions c
+       JOIN users2 u ON u.id = c.student_id ORDER BY c.week_start DESC LIMIT 1`
+    );
+
+    res.json({
+      success: true,
+      leaderboard: topRes.rows.map((r) => ({ fullname: r.fullname, totalXp: Number(r.total_xp) })),
+      lastChampion: lastChampionRes.rows[0] || null,
+    });
+  } catch (err) {
+    console.error("getArcadeWeeklyLeaderboard error:", err.message);
     res.status(500).json({ success: false });
   }
 };

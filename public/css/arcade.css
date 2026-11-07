@@ -387,3 +387,79 @@
   .arcade-card .icon { font-size: 34px; }
   .arcade-stage-card { padding: 16px 8px 22px; }
 }
+
+/* ---------- Weekly Arcade leaderboard panel ---------- */
+.arcade-weekly-panel {
+  background: linear-gradient(135deg, var(--arcade-bg-elevated), var(--arcade-bg));
+  border-radius: var(--arcade-radius);
+  padding: 16px 20px;
+  color: var(--arcade-text);
+  margin-bottom: 16px;
+}
+.arcade-weekly-panel h4 { margin: 0 0 8px; font-size: 15px; }
+.arcade-weekly-list { margin: 0; padding-left: 20px; font-size: 13px; }
+.arcade-weekly-list li { margin-bottom: 2px; }
+.arcade-weekly-champ { margin: 8px 0 0; font-size: 12px; color: var(--arcade-text-dim); }
+
+/* ---------- Instructor-led session banner ---------- */
+.arcade-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  color: #065f46;
+  padding: 12px 18px;
+  border-radius: var(--arcade-radius);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.arcade-play-btn-secondary {
+  margin-top: 8px;
+  background: rgba(79, 70, 229, 0.25);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+/* ---------- Networked multiplayer modals ---------- */
+.mp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 16, 32, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+.mp-modal-card {
+  background: var(--arcade-bg-elevated);
+  color: var(--arcade-text);
+  border-radius: var(--arcade-radius);
+  padding: 20px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+.mp-modal-card h3 { margin: 0 0 10px; }
+.mp-modal-head { display: flex; align-items: center; justify-content: space-between; }
+.mp-modal-close {
+  background: none;
+  border: none;
+  color: var(--arcade-text-dim);
+  font-size: 18px;
+  cursor: pointer;
+}
+.mp-modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+.mp-lobby-hint { font-size: 12px; color: var(--arcade-text-dim); margin: 4px 0 12px; }
+.mp-lobby-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.mp-lobby-row:first-child { border-top: none; }
+.mp-match-status { font-weight: 700; margin: 4px 0 10px; }

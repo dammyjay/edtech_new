@@ -8,6 +8,8 @@ const { upload, lessonUpload } = require("../middlewares/upload");
 const activityLoggerMiddleware = require("../middlewares/activityMiddleware");
 const studentController = require("../controllers/studentController");
 const externalProjectController = require("../controllers/externalProjectController");
+const arcadeMultiplayerController = require("../controllers/arcadeMultiplayerController");
+const arcadeSessionService = require("../services/arcadeSessionService");
 
 const { ensureAuthenticated } = require("../middlewares/auth");
 const { ensureCsrfToken, verifyCsrfToken } = require("../middlewares/csrf");
@@ -249,6 +251,31 @@ router.get("/arcade", studentController.getArcade);
 router.post("/arcade/:gameId/play", express.json(), studentController.playArcadeGame);
 router.post("/arcade/:gameId/score", express.json(), studentController.reportArcadeScore);
 router.get("/arcade/:gameId/leaderboard", studentController.getArcadeLeaderboard);
+router.get("/arcade/weekly-leaderboard", studentController.getArcadeWeeklyLeaderboard);
+
+// Networked "play a real player" mode (controllers/arcadeMultiplayerController.js,
+// services/arcadeMultiplayerService.js) — Tic-Tac-Toe & Connect Four only.
+router.post("/arcade/presence/ping", express.json(), arcadeMultiplayerController.pingPresence);
+router.get("/arcade/online", arcadeMultiplayerController.listOnline);
+router.post("/arcade/challenge", express.json(), arcadeMultiplayerController.createChallenge);
+router.get("/arcade/challenges/incoming", arcadeMultiplayerController.getIncomingChallenges);
+router.post("/arcade/challenges/:id/:action", arcadeMultiplayerController.respondToChallenge);
+router.get("/arcade/matches/:id", arcadeMultiplayerController.getMatch);
+router.post("/arcade/matches/:id/move", express.json(), arcadeMultiplayerController.makeMove);
+
+// Instructor-led classroom session — students join their own classroom's
+// live session (services/arcadeSessionService.js); starting/ending it is
+// a teacher action (routes/teacher.js).
+router.post("/arcade/sessions/:id/join", express.json(), async (req, res) => {
+  const studentId = req.session?.student?.id || req.user?.id;
+  if (!studentId) return res.status(401).json({ success: false });
+  try {
+    const session = await arcadeSessionService.joinSession(req.params.id, studentId);
+    res.json({ success: true, session });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
 
 router.get("/quizzes/mine", studentController.getMyQuizzes);
 router.get("/quizzes/submission/:id", studentController.getQuizSubmissionById);

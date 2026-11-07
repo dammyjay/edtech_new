@@ -57,6 +57,92 @@ async function createTables() {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_arcade_plays_student_game ON arcade_plays(student_id, game_id);
     `);
+    // Tags a play as coming from a real 1v1 match (services/arcadeMultiplayerService.js)
+    // rather than a solo round against the computer — still backs the same
+    // per-game leaderboard/personal-best and XP trickle, just distinguishable.
+    await pool.query(`
+      ALTER TABLE arcade_plays ADD COLUMN IF NOT EXISTS is_multiplayer BOOLEAN NOT NULL DEFAULT false;
+    `);
+
+    // One row per ISO week a platform-wide Arcade champion has been
+    // awarded (cron/weeklyArcadeChampion.js) — the UNIQUE(week_start) is
+    // what makes the job idempotent if it ever reruns the same week.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_weekly_champions (
+        id SERIAL PRIMARY KEY,
+        week_start DATE UNIQUE NOT NULL,
+        student_id INTEGER REFERENCES users2(id) ON DELETE SET NULL,
+        total_xp INTEGER NOT NULL,
+        awarded_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Lightweight online presence for the arcade's "challenge a real
+    // player" lobby (services/arcadeMultiplayerService.js) — upserted by a
+    // heartbeat ping while a student has the arcade page open; "online"
+    // is derived at query time from how recent last_seen_at is, not a
+    // stored boolean, so a crashed tab can't get stuck "online" forever.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_presence (
+        user_id INTEGER PRIMARY KEY REFERENCES users2(id) ON DELETE CASCADE,
+        last_seen_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        status TEXT NOT NULL DEFAULT 'idle'
+      );
+    `);
+
+    // A single 1v1 challenge/match between two real students, for the
+    // networked (non-computer) mode of Tic-Tac-Toe/Connect Four —
+    // services/arcadeMultiplayerService.js owns all the game-rule
+    // validation; this row is just the authoritative shared state both
+    // players' clients poll. board is a JSON-serialized board shaped per
+    // game_id (flat 9-cell array for tic-tac-toe, 6x7 nested array for
+    // connect-four) since the two games don't share a board shape.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_matches (
+        id SERIAL PRIMARY KEY,
+        game_id TEXT NOT NULL,
+        player1_id INTEGER NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        player2_id INTEGER NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        board JSONB,
+        turn_user_id INTEGER REFERENCES users2(id) ON DELETE SET NULL,
+        result TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_arcade_matches_players ON arcade_matches(player1_id, player2_id, status);
+    `);
+
+    // Instructor-led "everyone plays at once" session (a Kahoot-style class
+    // activity, not a 1v1 match) — services/arcadeSessionService.js. One
+    // active session per classroom at a time is enforced in the service,
+    // not here, since a partial unique index keyed on "no other active row
+    // for this classroom" needs a WHERE clause anyway.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_sessions (
+        id SERIAL PRIMARY KEY,
+        classroom_id INTEGER NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+        game_id TEXT NOT NULL,
+        created_by INTEGER REFERENCES users2(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        started_at TIMESTAMP DEFAULT NOW(),
+        ended_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS arcade_session_participants (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES arcade_sessions(id) ON DELETE CASCADE,
+        student_id INTEGER NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        score INTEGER NOT NULL DEFAULT 0,
+        joined_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(session_id, student_id)
+      );
+    `);
 
     // Public email-list sign-up (footer "Subscribe to our newsletter" form)
     // — distinct from push_subscriptions (browser push) and

@@ -10,12 +10,24 @@
     <div class="arcade-coins">🪙 <span id="arcadeCoins"><%= coins %></span> coins</div>
   </div>
 
+  <div id="arcadeWeeklyPanel" class="arcade-weekly-panel">
+    <p>🏆 Loading this week's Arcade leaderboard…</p>
+  </div>
+
+  <% if (activeSession) { %>
+    <div class="arcade-session-banner">
+      <span>🎮 Your teacher started a live <strong><%= games.find(g => g.id === activeSession.game_id)?.name || activeSession.game_id %></strong> session!</span>
+      <button type="button" class="arcade-btn-primary" onclick="joinArcadeSession(<%= activeSession.id %>, '<%= activeSession.game_id %>')">Join now</button>
+    </div>
+  <% } %>
+
   <% if (!arcadeEnabled) { %>
     <div class="arcade-disabled-banner">
       Your school has turned off the Arcade for <%= classroomName || 'your classroom' %> right now. Check back later!
     </div>
   <% } else {
     const tags = ["All", ...new Set(games.map(g => g.tag))];
+    const MULTIPLAYER_GAME_IDS = ["tic-tac-toe", "connect-four"];
   %>
     <div class="arcade-filters" id="arcadeFilters">
       <% tags.forEach((t, i) => { %>
@@ -31,6 +43,9 @@
           <h3><%= g.name %></h3>
           <p><%= g.description %></p>
           <button type="button" class="arcade-play-btn" onclick="playGame('<%= g.id %>', <%= g.playCost %>, <%= g.hasDifficulty ? 'true' : 'false' %>)">🪙 <%= g.playCost %> — Play</button>
+          <% if (MULTIPLAYER_GAME_IDS.includes(g.id)) { %>
+            <button type="button" class="arcade-play-btn arcade-play-btn-secondary" onclick="ArcadeMultiplayer.openLobby('<%= g.id %>')">👥 Play a Real Player (free)</button>
+          <% } %>
         </div>
       <% }) %>
     </div>
@@ -43,6 +58,7 @@
 </div>
 
 <script src="/js/arcadeEngine.js"></script>
+<script src="/js/arcadeMultiplayer.js"></script>
 <script src="/games/snake.js"></script>
 <script src="/games/2048.js"></script>
 <script src="/games/memory-match.js"></script>
@@ -169,6 +185,7 @@
     const container = document.getElementById('arcadeGameContainer');
     const game = currentGameId && window.ArcadeGames && window.ArcadeGames[currentGameId];
     if (game && game.stop) game.stop(container);
+    window.ArcadeMultiplayer?.stopMatchStage();
     container.innerHTML = '';
     currentGameId = null;
     document.getElementById('arcadeStage').style.display = 'none';
@@ -176,6 +193,49 @@
     const filters = document.getElementById('arcadeFilters');
     if (filters) filters.style.display = 'flex';
   }
+
+  // Networked multiplayer (public/js/arcadeMultiplayer.js) needs to know
+  // who "I" am to tell my moves/turn apart from the opponent's.
+  window.__arcadeUserId = <%= studentId %>;
+  <% if (arcadeEnabled) { %>
+  ArcadeMultiplayer.startPresence();
+  ArcadeMultiplayer.startChallengeWatch();
+  <% } %>
+
+  function joinArcadeSession(sessionId, gameId) {
+    fetch(`/student/arcade/sessions/${sessionId}/join`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          showToast(data.message || 'Could not join session.');
+          return;
+        }
+        const game = (<%- JSON.stringify(games) %>).find(g => g.id === gameId);
+        startActualGame(gameId, game ? game.playCost : 0, null);
+      })
+      .catch(() => showToast('Could not join session.'));
+  }
+
+  function loadWeeklyArcadePanel() {
+    const panel = document.getElementById('arcadeWeeklyPanel');
+    if (!panel) return;
+    fetch('/student/arcade/weekly-leaderboard')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) { panel.style.display = 'none'; return; }
+        const rows = data.leaderboard.map((r, i) => `<li>#${i + 1} ${r.fullname} — ${r.totalXp} XP</li>`).join('');
+        const champ = data.lastChampion
+          ? `<p class="arcade-weekly-champ">Last week's Arcade Champion: <strong>${data.lastChampion.fullname}</strong> (${data.lastChampion.total_xp} XP)</p>`
+          : '';
+        panel.innerHTML = `
+          <h4>🏆 This Week's Arcade Leaderboard</h4>
+          ${rows ? `<ol class="arcade-weekly-list">${rows}</ol>` : '<p>No arcade activity yet this week — be the first!</p>'}
+          ${champ}
+        `;
+      })
+      .catch(() => { panel.style.display = 'none'; });
+  }
+  loadWeeklyArcadePanel();
 </script>
 <style>
   @keyframes arcadeSpin { to { transform: rotate(360deg); } }

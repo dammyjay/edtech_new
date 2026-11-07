@@ -49,6 +49,8 @@ router.get("/section/:name", async (req, res) => {
         return externalProjectController.getExternalProjectGradingQueue(req, res);
       case "lesson-tasks":
         return teacherController.getLessonTasksSection(req, res);
+      case "arcade-session":
+        return teacherController.getArcadeSessionSection(req, res);
       default:
         return res.status(404).send("<p>Section not found</p>");
     }
@@ -57,6 +59,11 @@ router.get("/section/:name", async (req, res) => {
     return res.status(500).send("<p>Error loading section</p>");
   }
 });
+
+// ------------------ ARCADE LIVE SESSION ------------------
+router.post("/arcade-session/start", express.json(), teacherController.startArcadeSession);
+router.post("/arcade-session/:id/end", teacherController.endArcadeSession);
+router.get("/arcade-session/:id/leaderboard", teacherController.getArcadeSessionLeaderboard);
 
 // ------------------ CLASSROOM STUDENTS ------------------
 router.get("/classroom/:id/students", (req, res) => {

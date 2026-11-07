@@ -8,6 +8,8 @@ const { getStudentStreak } = require("../services/streakService");
 const { getLevelForXp } = require("../utils/xpLevels");
 const { notifyUser, notifyClassroom, notifyNewDirectMessage, notifyNewClassMessage, notifyClassroomAnnouncement } = require("../utils/notify");
 const { getLessonTasksForTeacher } = require("../services/lessonTaskService");
+const arcadeSessionService = require("../services/arcadeSessionService");
+const { ARCADE_GAMES } = require("../utils/arcadeGames");
 // const puppeteer = require("puppeteer");
 
 // ----------------- DASHBOARD WRAPPER -----------------
@@ -1986,5 +1988,86 @@ exports.getLessonTasksSection = async (req, res) => {
   } catch (err) {
     console.error("Teacher lesson tasks section error:", err);
     res.status(500).send("<p>Error loading lesson tasks.</p>");
+  }
+};
+
+// GET /teacher/section/arcade-session — instructor-led "everyone plays at
+// once" Arcade activity (services/arcadeSessionService.js). Shows the
+// teacher's own classrooms, the game picker, and — if one of those
+// classrooms already has a live session — its live scoreboard.
+exports.getArcadeSessionSection = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const classesRes = await pool.query(
+      `SELECT c.id, c.name FROM classrooms c
+       JOIN classroom_teachers ct ON ct.classroom_id = c.id
+       WHERE ct.teacher_id = $1 AND c.archived_at IS NULL ORDER BY c.name ASC`,
+      [teacherId]
+    );
+
+    let activeSession = null;
+    for (const classroom of classesRes.rows) {
+      const session = await arcadeSessionService.getActiveSessionForClassroom(classroom.id);
+      if (session) {
+        activeSession = { ...session, classroom_name: classroom.name };
+        break;
+      }
+    }
+
+    res.render("teacher/sections/arcade_session", {
+      classrooms: classesRes.rows,
+      games: ARCADE_GAMES,
+      activeSession,
+    });
+  } catch (err) {
+    console.error("Teacher arcade session section error:", err);
+    res.status(500).send("<p>Error loading arcade session.</p>");
+  }
+};
+
+exports.startArcadeSession = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { classroomId, gameId } = req.body;
+
+    const ownsClassroom = await pool.query(
+      `SELECT 1 FROM classroom_teachers WHERE classroom_id = $1 AND teacher_id = $2`,
+      [classroomId, teacherId]
+    );
+    if (!ownsClassroom.rows.length) return res.status(403).json({ success: false, message: "Not your classroom." });
+
+    const session = await arcadeSessionService.startSession({ classroomId, gameId, createdBy: teacherId });
+    const game = ARCADE_GAMES.find((g) => g.id === gameId);
+    await notifyClassroom(classroomId, teacherId, {
+      type: "arcade_session",
+      title: "🎮 Live Arcade session started!",
+      message: `Your teacher started a live ${game?.name || gameId} session — join in from the Arcade.`,
+      url: "/student/arcade",
+    });
+
+    res.json({ success: true, session });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.endArcadeSession = async (req, res) => {
+  try {
+    await arcadeSessionService.endSession(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("endArcadeSession error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.getArcadeSessionLeaderboard = async (req, res) => {
+  try {
+    const result = await arcadeSessionService.getSessionLeaderboard(req.params.id);
+    if (!result) return res.status(404).json({ success: false });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("getArcadeSessionLeaderboard error:", err.message);
+    res.status(500).json({ success: false });
   }
 };
