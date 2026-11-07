@@ -2818,10 +2818,17 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
     );
 
     // Compulsory student feedback survey, shown right after finishing a
-    // module (every lesson in it done) and re-prompted on every later
-    // lesson open until answered (controllers/surveyController.js,
-    // services/surveyService.js) — one global, admin-editable question
-    // bank reused for every module, not a per-module copy.
+    // COURSE (every module/lesson in it done — the same completion signal
+    // that already issues a certificate, see user_certificates below) and
+    // re-prompted on every later lesson open until answered
+    // (controllers/surveyController.js, services/surveyService.js) — one
+    // global, admin-editable question bank reused for every course, not a
+    // per-course copy. Originally triggered per-MODULE; moved to
+    // per-COURSE since asking after every module was too frequent.
+    // `scope` separates this ('course') from the unrelated, independently
+    // -triggered general platform-experience survey ('platform') — see
+    // platform_survey_submissions below — sharing one admin-managed bank
+    // and page rather than building a second parallel CRUD.
     await pool.query(
       `CREATE TABLE IF NOT EXISTS survey_questions (
         id SERIAL PRIMARY KEY,
@@ -2835,30 +2842,62 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
         updated_at TIMESTAMP DEFAULT NOW()
       );`
     );
+    await pool.query(
+      `ALTER TABLE survey_questions ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'course';`
+    );
 
-    // One row per student per module once they've submitted the survey —
-    // the UNIQUE constraint is what makes "has this student already given
-    // feedback for this module" a single cheap existence check.
+    // One row per student per course once they've submitted the survey —
+    // the unique index below is what makes "has this student already
+    // given feedback for this course" a single cheap existence check.
+    // module_id is the ORIGINAL per-module column, kept (now nullable)
+    // purely so any rows created before the per-course move stay valid
+    // historical records; every new row uses course_id instead.
     await pool.query(
       `CREATE TABLE IF NOT EXISTS survey_submissions (
         id SERIAL PRIMARY KEY,
         student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
-        module_id INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+        module_id INT REFERENCES modules(id) ON DELETE CASCADE,
         submitted_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(student_id, module_id)
       );`
     );
+    await pool.query(`ALTER TABLE survey_submissions ALTER COLUMN module_id DROP NOT NULL;`);
+    await pool.query(
+      `ALTER TABLE survey_submissions ADD COLUMN IF NOT EXISTS course_id INT REFERENCES courses(id) ON DELETE CASCADE;`
+    );
+    await pool.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_survey_submissions_student_course ON survey_submissions(student_id, course_id);`
+    );
 
     // Set on every row inserted by a backlog catch-up submission
     // (services/surveyService.js's submitSurveyAnswers) — a student with
-    // more than one module owed at once answers ONE combined survey, and
-    // every owed module still gets its own exemption row here so none of
+    // more than one course owed at once answers ONE combined survey, and
+    // every owed course still gets its own exemption row here so none of
     // them can re-trigger the prompt, but only the first actually has
     // survey_answers attached. Flagged mainly so this is visible/debuggable,
     // not because any query strictly depends on it (see getResponses'
     // comment on counting submissions via survey_answers instead).
     await pool.query(
       `ALTER TABLE survey_submissions ADD COLUMN IF NOT EXISTS is_backlog_catchup BOOLEAN NOT NULL DEFAULT false;`
+    );
+
+    // General platform-experience feedback (survey_questions rows with
+    // scope='platform') reuses this same submissions table — course_id
+    // stays NULL for these rows (Postgres treats NULLs as distinct in a
+    // unique index, so any number of a student's platform submissions
+    // coexist fine with the student+course unique index above) — rather
+    // than a separate table, which survey_answers' submission_id FK
+    // couldn't point at without a second, duplicate answers table.
+    // Unlike the once-per-course survey, a student answers this many
+    // times over their lifetime, so `scope` is what tells a platform row
+    // apart from a course row, not a once-per-entity existence check.
+    // services/surveyService.js's isEligibleForPlatformFeedback reads
+    // MAX(submitted_at) WHERE scope='platform' (falling back to the
+    // student's account creation date) to enforce "at least ~14 days
+    // since they last answered" before even rolling the random
+    // per-page-load chance.
+    await pool.query(
+      `ALTER TABLE survey_submissions ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'course';`
     );
 
     // question_id is ON DELETE SET NULL (not CASCADE) and question_text_snapshot
@@ -2890,6 +2929,24 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
         ('How easy was it to use the platform for this module?', 'multiple_choice', '["Very easy","Easy","A bit difficult","Very difficult"]', 'platform', 6),
         ('Overall, how was this module for you?', 'multiple_choice', '["Excellent","Good","Okay","Poor"]', 'overall', 7),
         ('What is one thing we could improve?', 'text', NULL, 'improvement', 8);
+      `);
+    }
+
+    // Starter question set for the 'platform' scope — independent gate
+    // from the course-scope seed above (so it still runs even if that
+    // one already fired before this scope existed), same "never
+    // re-seed if an admin emptied it on purpose" rule.
+    const existingPlatformQuestions = await pool.query(
+      "SELECT COUNT(*) FROM survey_questions WHERE scope = 'platform'"
+    );
+    if (parseInt(existingPlatformQuestions.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO survey_questions (question_text, question_type, options, category, order_number, scope) VALUES
+        ('How easy is it to find your way around the platform?', 'multiple_choice', '["Very easy","Easy","A bit difficult","Very difficult"]', 'navigation', 1, 'platform'),
+        ('How would you rate the platform overall so far?', 'multiple_choice', '["Excellent","Good","Okay","Poor"]', 'overall', 2, 'platform'),
+        ('How likely are you to recommend this platform to a friend?', 'multiple_choice', '["Very likely","Likely","Not sure","Unlikely"]', 'recommend', 3, 'platform'),
+        ('Have you run into any bugs or glitches recently?', 'multiple_choice', '["No","Yes, minor","Yes, major"]', 'bugs', 4, 'platform'),
+        ('What feature would you most like us to add or improve?', 'text', NULL, 'feature-request', 5, 'platform');
       `);
     }
 

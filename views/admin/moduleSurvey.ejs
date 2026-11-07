@@ -4,8 +4,8 @@
 
   <div class="jk-header-card">
     <div>
-      <h2>📝 Module Feedback Survey</h2>
-      <p>Shown to every student right after they finish a module, and again until they answer it. Edit the question bank below — changes apply to every module.</p>
+      <h2>📝 Feedback Surveys</h2>
+      <p>Two independent surveys share this question bank — tag each question "Course" or "Platform" below. <strong>Course</strong> questions are shown once a student finishes an entire course (and again until answered). <strong>Platform</strong> questions are shown periodically (roughly every 2 weeks, at random) to ask about the platform itself.</p>
     </div>
     <button class="jk-btn-dark" onclick="openQuestionModal()">+ Add Question</button>
   </div>
@@ -45,7 +45,13 @@
       <input type="text" id="qText" placeholder="e.g. How helpful were the videos in this module?">
 
       <label>Category (optional, for your own reference)</label>
-      <input type="text" id="qCategory" placeholder="e.g. video, notes, quiz, platform">
+      <input type="text" id="qCategory" placeholder="e.g. video, notes, quiz, navigation">
+
+      <label>Survey</label>
+      <select id="qScope">
+        <option value="course">Course feedback (shown once a course is finished)</option>
+        <option value="platform">Platform feedback (shown periodically, at random)</option>
+      </select>
 
       <label>Type</label>
       <select id="qType" onchange="toggleOptionsEditor()">
@@ -100,13 +106,8 @@
       });
   }
 
-  function renderQuestions() {
-    const grid = document.getElementById('surveyQuestionsGrid');
-    if (!surveyQuestionsCache.length) {
-      grid.innerHTML = '<p>No questions yet. Click "+ Add Question" to create one.</p>';
-      return;
-    }
-    grid.innerHTML = surveyQuestionsCache.map(q => `
+  function renderQuestionCard(q) {
+    return `
       <div class="jk-term-card">
         <div class="jk-tc-head">
           <div>
@@ -125,7 +126,23 @@
           <button class="jk-btn-outline-sm" onclick="deleteQuestion(${q.id})">🗑️ Delete</button>
         </div>
       </div>
-    `).join('');
+    `;
+  }
+
+  function renderQuestions() {
+    const grid = document.getElementById('surveyQuestionsGrid');
+    if (!surveyQuestionsCache.length) {
+      grid.innerHTML = '<p>No questions yet. Click "+ Add Question" to create one.</p>';
+      return;
+    }
+    const courseQuestions = surveyQuestionsCache.filter(q => q.scope !== 'platform');
+    const platformQuestions = surveyQuestionsCache.filter(q => q.scope === 'platform');
+    grid.innerHTML = `
+      <h3 style="grid-column:1/-1; margin:4px 0 0;">📚 Course Feedback</h3>
+      ${courseQuestions.length ? courseQuestions.map(renderQuestionCard).join('') : '<p style="grid-column:1/-1; color:#8A7B55;">No course-feedback questions yet.</p>'}
+      <h3 style="grid-column:1/-1; margin:16px 0 0;">🧭 Platform Feedback</h3>
+      ${platformQuestions.length ? platformQuestions.map(renderQuestionCard).join('') : '<p style="grid-column:1/-1; color:#8A7B55;">No platform-feedback questions yet.</p>'}
+    `;
   }
 
   function addOptionField(value) {
@@ -155,6 +172,7 @@
       document.getElementById('qEditId').value = q.id;
       document.getElementById('qText').value = q.question_text;
       document.getElementById('qCategory').value = q.category || '';
+      document.getElementById('qScope').value = q.scope === 'platform' ? 'platform' : 'course';
       document.getElementById('qType').value = q.question_type;
       document.getElementById('qActive').checked = q.is_active;
       (Array.isArray(q.options) ? q.options : []).forEach(o => addOptionField(o));
@@ -166,6 +184,7 @@
       document.getElementById('qEditId').value = '';
       document.getElementById('qText').value = '';
       document.getElementById('qCategory').value = '';
+      document.getElementById('qScope').value = 'course';
       document.getElementById('qType').value = 'multiple_choice';
       document.getElementById('qActive').checked = true;
       addOptionField(); addOptionField();
@@ -182,6 +201,7 @@
     const id = document.getElementById('qEditId').value;
     const question_text = document.getElementById('qText').value.trim();
     const category = document.getElementById('qCategory').value.trim();
+    const scope = document.getElementById('qScope').value;
     const question_type = document.getElementById('qType').value;
     const is_active = document.getElementById('qActive').checked;
     const options = Array.from(document.querySelectorAll('.qOptionInput')).map(i => i.value.trim()).filter(Boolean);
@@ -195,7 +215,7 @@
       return;
     }
 
-    const body = { question_text, category, question_type, options, is_active };
+    const body = { question_text, category, scope, question_type, options, is_active };
     const url = id ? `/admin/module-survey/questions/${id}` : '/admin/module-survey/questions';
 
     fetch(url, {
@@ -236,7 +256,7 @@
           list.innerHTML = '<p>No questions to show responses for yet.</p>';
           return;
         }
-        list.innerHTML = data.questions.map(q => {
+        const renderQuestionResponses = (qs) => qs.map(q => {
           if (q.questionType === 'text') {
             return `
               <div class="jk-report-panel">
@@ -279,6 +299,15 @@
             </div>
           `;
         }).join('');
+
+        const courseQs = data.questions.filter(q => q.scope !== 'platform');
+        const platformQs = data.questions.filter(q => q.scope === 'platform');
+        list.innerHTML = `
+          <h3 style="margin:4px 0 10px;">📚 Course Feedback</h3>
+          ${courseQs.length ? renderQuestionResponses(courseQs) : '<p style="color:#8A7B55;">No course-feedback questions yet.</p>'}
+          <h3 style="margin:20px 0 10px;">🧭 Platform Feedback</h3>
+          ${platformQs.length ? renderQuestionResponses(platformQs) : '<p style="color:#8A7B55;">No platform-feedback questions yet.</p>'}
+        `;
       })
       .catch(err => {
         console.error(err);

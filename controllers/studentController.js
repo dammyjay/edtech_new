@@ -14,7 +14,7 @@ const { recordActivityForLesson } = require("../services/courseTermLinkService")
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
 const flashcardProgressService = require("../services/flashcardProgressService");
-const { getPendingFeedbackModule } = require("../services/surveyService");
+const { getPendingFeedbackCourse, rollPlatformFeedback } = require("../services/surveyService");
 const arcadeSessionService = require("../services/arcadeSessionService");
 const portfolioService = require("../services/portfolioService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
@@ -3741,9 +3741,13 @@ exports.viewLesson = async (req, res) => {
 
     // Compulsory feedback survey gate (services/surveyService.js) — checked
     // on EVERY lesson open, not just the one right after finishing a
-    // module, so a student who closes the tab before answering gets
-    // asked again the next time they try to open any lesson.
-    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackModule(studentId);
+    // course, so a student who closes the tab before answering gets
+    // asked again the next time they try to open any lesson. Platform
+    // feedback is only ever rolled when no course feedback is owed, so
+    // the two never both show up in the same visit.
+    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackCourse(studentId);
+    const pendingPlatformFeedback =
+      isInstructorPreview || pendingFeedback ? false : await rollPlatformFeedback(studentId);
 
     res.json({
       success: true,
@@ -3762,6 +3766,7 @@ exports.viewLesson = async (req, res) => {
       pendingAssignments: pendingRes.rows,
 
       pendingFeedback,
+      pendingPlatformFeedback,
     });
   } catch (err) {
     console.error(err);
@@ -4564,10 +4569,12 @@ ${JSON.stringify(reviewData, null, 2)}
     const moduleResult = { badgeAwarded, badgeName, badgeImage };
 
     // Same compulsory survey check as viewLesson, surfaced immediately
-    // once this quiz submission finishes off the module's last lesson
-    // (or any lesson, really — getPendingFeedbackModule doesn't care
+    // once this quiz submission finishes off the course's last lesson
+    // (or any lesson, really — getPendingFeedbackCourse doesn't care
     // which lesson triggered it, only whether one is owed).
-    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackModule(studentId);
+    const pendingFeedback = isInstructorPreview ? null : await getPendingFeedbackCourse(studentId);
+    const pendingPlatformFeedback =
+      isInstructorPreview || pendingFeedback ? false : await rollPlatformFeedback(studentId);
 
     const xpAfterRes = await pool.query("SELECT COALESCE(xp, 0) AS xp FROM users2 WHERE id = $1", [studentId]);
     const levelAfter = getLevelForXp(xpAfterRes.rows[0].xp);
@@ -4741,9 +4748,12 @@ ${JSON.stringify(reviewData, null, 2)}
       // flashcard deck the student hasn't watched yet — the assignment
       // stays locked until they do (services/flashcardProgressService.js).
       pendingFlashcards,
-      // Set whenever the student owes feedback for a finished module —
+      // Set whenever the student owes feedback for a finished course —
       // the client shows a blocking survey modal when this is present.
       pendingFeedback,
+      // Set when no course feedback was owed and the random platform-
+      // feedback roll hit (services/surveyService.js's rollPlatformFeedback).
+      pendingPlatformFeedback,
       submissionCount: attemptCountSoFar + 1,
       maxAttempts: MAX_QUIZ_ATTEMPTS,
       attempts: allQuizAttempts,

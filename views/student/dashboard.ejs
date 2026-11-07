@@ -4463,7 +4463,7 @@ async function submitExchange() {
         // module they've already finished. Doesn't touch the lesson
         // timer/currentLessonId below; once submitted, this same call is
         // simply retried so the student lands exactly where they clicked.
-        if (data.pendingFeedback) {
+        if (data.pendingFeedback || data.pendingPlatformFeedback) {
           hideLoading();
           showFeedbackSurveyModal(() => loadLessonPart(lessonId, part));
           return;
@@ -6973,7 +6973,7 @@ function submitQuizAnswers(lessonId){
     // yet. loadLessonPart's own gate would catch it on the next lesson
     // open regardless, but popping it immediately means they're not
     // left wondering why the sidebar's next lesson/module won't open yet.
-    if (result.pendingFeedback) {
+    if (result.pendingFeedback || result.pendingPlatformFeedback) {
       setTimeout(() => {
         showFeedbackSurveyModal();
       }, 2600);
@@ -7290,9 +7290,11 @@ function showFeedbackSurveyModal(onDone) {
       surveyModalOnDone = onDone;
       surveyModalQuestions = data.questions || [];
       document.getElementById("surveyModalModuleName").textContent =
-        data.backlogCount > 1
-          ? `You've completed ${data.backlogCount} modules without giving feedback — just answer once to cover all of them!`
-          : `About the module: ${data.module.moduleTitle}`;
+        data.track === "platform"
+          ? "A couple of quick questions about your experience on the platform"
+          : data.backlogCount > 1
+          ? `You've completed ${data.backlogCount} courses without giving feedback — just answer once to cover all of them!`
+          : `About the course: ${data.course.courseTitle}`;
 
       const body = document.getElementById("surveyModalBody");
       body.innerHTML = surveyModalQuestions.map((q, idx) => {
@@ -7534,7 +7536,7 @@ function submitQuizInline(e, lessonId) {
 
     // 📝 Compulsory feedback survey — see the identical block in
     // submitQuizAnswers above for why this is last and not skippable.
-    if (result.pendingFeedback) {
+    if (result.pendingFeedback || result.pendingPlatformFeedback) {
       setTimeout(() => {
         showFeedbackSurveyModal();
       }, 2600);
