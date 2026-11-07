@@ -7369,6 +7369,10 @@ function submitFeedbackSurvey() {
         return;
       }
       document.getElementById("feedbackSurveyModalOverlay").style.display = "none";
+      if (typeof result.newCoinBalance === "number") updateCoinsDisplay(result.newCoinBalance);
+      if (result.coinsAwarded && typeof showToast === "function") {
+        showToast(`Thanks for the feedback! +${result.coinsAwarded} 🪙`);
+      }
       const done = surveyModalOnDone;
       surveyModalOnDone = null;
       if (typeof done === "function") done();

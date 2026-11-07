@@ -5,7 +5,7 @@
 // services/surveyService.js for the gating logic itself).
 
 const pool = require("../models/db");
-const { getPendingFeedbackModules, getActiveQuestions, submitSurveyAnswers } = require("../services/surveyService");
+const { getPendingFeedbackModules, getQuestionsForSurvey, submitSurveyAnswers } = require("../services/surveyService");
 
 // ===== Admin =====
 
@@ -182,7 +182,7 @@ exports.getActiveSurveyForStudent = async (req, res) => {
     if (!pendingModules.length) {
       return res.json({ ok: true, pending: false });
     }
-    const questions = await getActiveQuestions();
+    const questions = await getQuestionsForSurvey(pendingModules[0].moduleId);
     res.json({
       ok: true,
       pending: true,

@@ -28,6 +28,10 @@
 // track.
 
 const pool = require("../models/db");
+const { awardCoins } = require("./coinService");
+
+const QUESTIONS_PER_SURVEY = 3;
+const FEEDBACK_COIN_REWARD = 10;
 
 // A module counts as "finished" once every one of its lessons has a
 // user_lesson_progress row for this student — independent of whether it
@@ -70,6 +74,38 @@ async function getActiveQuestions() {
   return r.rows;
 }
 
+// Deterministic pseudo-random shuffle keyed on `seed` — same seed always
+// produces the same order, so a GET (what to show) and the later POST
+// (what to validate against) agree on which QUESTIONS_PER_SURVEY-sized
+// subset is "this survey", without persisting any new state. seed is the
+// oldest pending module's id, so the same student sees a different
+// subset for their next module too.
+function seededShuffle(arr, seed) {
+  let state = 0;
+  const seedStr = String(seed);
+  for (let i = 0; i < seedStr.length; i++) state = (state * 31 + seedStr.charCodeAt(i)) >>> 0;
+  const next = () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// A random QUESTIONS_PER_SURVEY-sized subset of the active bank, not the
+// whole thing every time — keeps each ask short (~15s) and means a
+// student who's completed a dozen modules never sees the exact same
+// form twice in a row, even with a small question bank.
+async function getQuestionsForSurvey(seed) {
+  const active = await getActiveQuestions();
+  if (active.length <= QUESTIONS_PER_SURVEY) return active;
+  return seededShuffle(active, seed).slice(0, QUESTIONS_PER_SURVEY);
+}
+
 // Re-derives the pending module(s) server-side (never trusts a client-
 // supplied moduleId) and validates every active question got a non-empty
 // answer before writing anything. answersByQuestionId: { [questionId]: "text" }.
@@ -81,7 +117,7 @@ async function submitSurveyAnswers(studentId, answersByQuestionId) {
     return { success: true, alreadyDone: true };
   }
 
-  const questions = await getActiveQuestions();
+  const questions = await getQuestionsForSurvey(pending[0].moduleId);
   for (const q of questions) {
     const answer = (answersByQuestionId?.[q.id] ?? "").toString().trim();
     if (!answer) {
@@ -126,9 +162,23 @@ async function submitSurveyAnswers(studentId, answersByQuestionId) {
     );
   }
 
+  // A flat reward regardless of backlog size — it's paid for the one
+  // piece of effort just given, not multiplied by how many modules a
+  // catch-up happens to clear, which would reward letting feedback pile
+  // up instead of answering promptly.
+  await awardCoins(studentId, FEEDBACK_COIN_REWARD, "Module feedback survey");
+  const balanceRes = await pool.query(`SELECT coins FROM users2 WHERE id = $1`, [studentId]);
+  const newCoinBalance = balanceRes.rows[0]?.coins ?? null;
+
   return isBacklogCatchup
-    ? { success: true, backlogCatchup: true, moduleCount: pending.length }
-    : { success: true, moduleTitle: pending[0].moduleTitle };
+    ? { success: true, backlogCatchup: true, moduleCount: pending.length, coinsAwarded: FEEDBACK_COIN_REWARD, newCoinBalance }
+    : { success: true, moduleTitle: pending[0].moduleTitle, coinsAwarded: FEEDBACK_COIN_REWARD, newCoinBalance };
 }
 
-module.exports = { getPendingFeedbackModule, getPendingFeedbackModules, getActiveQuestions, submitSurveyAnswers };
+module.exports = {
+  getPendingFeedbackModule,
+  getPendingFeedbackModules,
+  getActiveQuestions,
+  getQuestionsForSurvey,
+  submitSurveyAnswers,
+};
