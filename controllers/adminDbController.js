@@ -308,6 +308,45 @@ exports.deleteRecord = async (req, res) => {
   }
 
   try {
+    // quiz_submissions/quiz_answer_checks have no FK to quizzes/quiz_questions
+    // — quiz_answer_checks is deliberately scoped by TIME (checked_at vs. the
+    // student's last quiz_submissions row), not by a submission id, so the
+    // student's quiz UI can restore in-progress answers before a submission
+    // exists (see studentController.js's getQuiz). That means deleting a
+    // submission (or the whole quiz) from here leaves those check rows
+    // orphaned, and the next time the student opens the quiz, the "since
+    // last submission" boundary falls back to "since the beginning of time"
+    // and replays the OLD attempt's answers as if they were just made —
+    // showing every question answered and the student stuck on the last one.
+    // Clean those up here so deleting from this panel can't cause that.
+    if (table === "quiz_submissions") {
+      const subRes = await pool.query(
+        `SELECT quiz_id, student_id FROM quiz_submissions WHERE id = $1`,
+        [id]
+      );
+      const sub = subRes.rows[0];
+      if (sub) {
+        await pool.query(
+          `DELETE FROM quiz_answer_checks
+           WHERE student_id = $1 AND question_id IN (SELECT id FROM quiz_questions WHERE quiz_id = $2)`,
+          [sub.student_id, sub.quiz_id]
+        );
+      }
+    } else if (table === "quizzes") {
+      // quiz_questions cascades automatically (its own FK), but it still
+      // needs to be read here, before that happens, to clean up the
+      // orphaned quiz_answer_checks rows that reference its question ids.
+      const questionIdsRes = await pool.query(
+        `SELECT id FROM quiz_questions WHERE quiz_id = $1`,
+        [id]
+      );
+      const questionIds = questionIdsRes.rows.map((r) => r.id);
+      if (questionIds.length) {
+        await pool.query(`DELETE FROM quiz_answer_checks WHERE question_id = ANY($1::int[])`, [questionIds]);
+      }
+      await pool.query(`DELETE FROM quiz_submissions WHERE quiz_id = $1`, [id]);
+    }
+
     await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
     res.redirect(`/admin/db/${table}`);
   } catch (err) {
