@@ -13,6 +13,12 @@
   }
   .db-table-card .db-table-name { font-weight: 800; font-size: 13.5px; color: #1A1510; word-break: break-word; }
   .db-table-card .db-table-count { font-size: 12px; color: #8A7B55; margin-top: 4px; }
+  .db-table-search {
+    width: 100%; max-width: 360px; padding: 10px 14px; margin: 4px 0 18px; box-sizing: border-box;
+    border: 1px solid #F1ECDD; border-radius: 10px; font-size: 13.5px; background: #fff;
+  }
+  .db-table-search:focus { outline: none; border-color: #C9B77E; }
+  .db-table-empty { display: none; color: #8A7B55; font-size: 13px; margin-top: 8px; }
 </style>
 
 <section class="section jk-page">
@@ -21,14 +27,37 @@
     <div><h2>Database Tables</h2></div>
   </div>
 
-  <div class="db-table-grid">
+  <input
+    type="text"
+    id="dbTableSearch"
+    class="db-table-search"
+    placeholder="Search tables by name..."
+    oninput="filterDbTables(this.value)"
+  />
+
+  <div class="db-table-grid" id="dbTableGrid">
     <% tables.forEach(table => { %>
-      <a href="/admin/db/<%= table.name %>" class="db-table-card">
+      <a href="/admin/db/<%= table.name %>" class="db-table-card" data-table-name="<%= table.name %>">
         <div class="db-table-icon"><i class="fa-solid fa-database"></i></div>
         <div class="db-table-name"><%= table.name %></div>
         <div class="db-table-count"><%= table.count %> Records</div>
       </a>
     <% }) %>
   </div>
+  <div class="db-table-empty" id="dbTableEmpty">No tables match that search.</div>
 
 </section>
+
+<script>
+  function filterDbTables(query) {
+    const needle = query.trim().toLowerCase();
+    const cards = document.querySelectorAll('#dbTableGrid .db-table-card');
+    let visibleCount = 0;
+    cards.forEach((card) => {
+      const matches = card.dataset.tableName.toLowerCase().includes(needle);
+      card.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+    document.getElementById('dbTableEmpty').style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+</script>
