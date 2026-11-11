@@ -5,7 +5,7 @@
 <% if (activeSession) { %>
   <div id="arcadeSessionLive" data-session-id="<%= activeSession.id %>">
     <div class="jk-toolbar">
-      <div><strong><%= activeSession.classroom_name %></strong> is playing <strong><%= activeSession.game_id %></strong> right now.</div>
+      <div><strong><%= activeSession.classroom_name %></strong> (<%= activeSession.school_name %>) is playing <strong><%= activeSession.game_id %></strong> right now.</div>
       <button class="jk-btn-outline" onclick="endArcadeSession(<%= activeSession.id %>)"><i class="fa-solid fa-stop"></i> End session</button>
     </div>
     <div class="jk-table-wrap">
@@ -56,9 +56,18 @@
     <div>
       <label style="font-size:12px; font-weight:700; display:block; margin-bottom:4px; color:#4C3802;">Classroom</label>
       <select id="asClassroom" class="jk-select">
+        <%
+          let currentSchoolId = null;
+        %>
         <% classrooms.forEach(c => { %>
+          <% if (c.school_id !== currentSchoolId) { %>
+            <% if (currentSchoolId !== null) { %></optgroup><% } %>
+            <optgroup label="<%= c.school_name %>">
+            <% currentSchoolId = c.school_id; %>
+          <% } %>
           <option value="<%= c.id %>"><%= c.name %></option>
         <% }) %>
+        <% if (currentSchoolId !== null) { %></optgroup><% } %>
       </select>
     </div>
     <div>

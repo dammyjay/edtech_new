@@ -1565,10 +1565,18 @@ exports.getGradingQueue = async (req, res) => {
 exports.getArcadeSessionSection = async (req, res) => {
   try {
     const instructorId = req.user.id;
+    // school_id/school_name included (and sorted by school first) so the
+    // view can group the classroom picker by school — with classrooms
+    // spanning every school this instructor teaches at (see comment
+    // above), a bare classroom name alone isn't enough to tell which
+    // school's "LOWER PRIMARY" a given option actually is.
     const classesRes = await pool.query(
-      `SELECT c.id, c.name FROM classrooms c
+      `SELECT c.id, c.name, s.id AS school_id, s.name AS school_name
+       FROM classrooms c
        JOIN classroom_instructors ci ON ci.classroom_id = c.id
-       WHERE ci.instructor_id = $1 AND c.archived_at IS NULL ORDER BY c.name ASC`,
+       JOIN schools s ON s.id = c.school_id
+       WHERE ci.instructor_id = $1 AND c.archived_at IS NULL
+       ORDER BY s.name ASC, c.name ASC`,
       [instructorId]
     );
 
@@ -1576,7 +1584,7 @@ exports.getArcadeSessionSection = async (req, res) => {
     for (const classroom of classesRes.rows) {
       const session = await arcadeSessionService.getActiveSessionForClassroom(classroom.id);
       if (session) {
-        activeSession = { ...session, classroom_name: classroom.name };
+        activeSession = { ...session, classroom_name: classroom.name, school_name: classroom.school_name };
         break;
       }
     }
