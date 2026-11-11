@@ -60,7 +60,7 @@ exports.getDashboardData = async (req, res) => {
           COUNT(DISTINCT l.id) AS total_lessons,
           COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
           ROUND(AVG(qs.score::numeric),1) AS avg_quiz_score,
-          ROUND(AVG(asub.grade::numeric),1) AS avg_assignment_score,
+          ROUND(AVG(CASE WHEN asub.total > 0 THEN asub.score::numeric / asub.total * 100 END),1) AS avg_assignment_score,
           ROUND(
             (COUNT(DISTINCT u.id) FILTER (WHERE la.last_login >= NOW() - INTERVAL '7 days')
              * 100.0 / NULLIF(COUNT(DISTINCT u.id),0))::numeric, 1
@@ -97,7 +97,7 @@ exports.getDashboardData = async (req, res) => {
           COUNT(DISTINCT l.id) AS total_lessons,
           COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
           ROUND(AVG(qs.score::numeric),1) AS avg_quiz_score,
-          ROUND(AVG(asub.grade::numeric),1) AS avg_assignment_score,
+          ROUND(AVG(CASE WHEN asub.total > 0 THEN asub.score::numeric / asub.total * 100 END),1) AS avg_assignment_score,
           ROUND(
             (COUNT(DISTINCT u.id) FILTER (WHERE la.last_login >= NOW() - INTERVAL '7 days')
              * 100.0 / NULLIF(COUNT(DISTINCT u.id),0))::numeric, 1
@@ -708,7 +708,7 @@ exports.viewClassroomStudents = async (req, res) => {
           COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
           COUNT(DISTINCT l.id) AS total_lessons,
           ROUND(AVG(qs.score::numeric),1) AS avg_quiz_score,
-          ROUND(AVG(asub.grade::numeric),1) AS avg_assignment_score,
+          ROUND(AVG(CASE WHEN asub.total > 0 THEN asub.score::numeric / asub.total * 100 END),1) AS avg_assignment_score,
           la.last_login
        FROM user_school us
        JOIN users2 u ON u.id = us.user_id

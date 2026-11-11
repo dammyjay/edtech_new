@@ -1211,13 +1211,13 @@ exports.loadSection = async (req, res) => {
               WHERE ci.instructor_id = $1 AND us.school_id = $2
                 AND us.role_in_school = 'student' AND us.approved = true
              ) AS avg_quiz_score,
-             (SELECT ROUND(AVG(asub.grade::numeric), 1)
+             (SELECT ROUND(AVG(asub.score::numeric / NULLIF(asub.total, 0) * 100), 1)
               FROM assignment_submissions asub
               JOIN user_school us ON us.user_id = asub.student_id
               JOIN classroom_instructors ci ON ci.classroom_id = us.classroom_id
               WHERE ci.instructor_id = $1 AND us.school_id = $2
                 AND us.role_in_school = 'student' AND us.approved = true
-                AND asub.grade IS NOT NULL
+                AND asub.score IS NOT NULL AND asub.total IS NOT NULL
              ) AS avg_assignment_score`,
           [instructorId, activeSchoolId]
         );
