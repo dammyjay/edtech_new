@@ -87,6 +87,11 @@ router.get("/attendance/session/:id", instructorController.getAttendanceSessionD
 
 router.get("/attendance/export/pdf/:sessionId", instructorController.exportAttendancePDF);
 
+// ------------------ ARCADE LIVE SESSION ------------------
+router.post("/arcade-session/start", express.json(), instructorController.startArcadeSession);
+router.post("/arcade-session/:id/end", instructorController.endArcadeSession);
+router.get("/arcade-session/:id/leaderboard", instructorController.getArcadeSessionLeaderboard);
+
 // ------------------ GRADING ------------------
 router.get("/grading", instructorController.getGradingQueue);
 router.post("/grading/:submissionId", instructorController.submitGrade);

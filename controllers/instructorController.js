@@ -3,7 +3,9 @@ const pool = require("../models/db");
 const bcrypt = require("bcrypt");
 const generatePdf = require("../utils/generatePdf");
 const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/reportTemplate");
-const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
+const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage, notifyClassroom } = require("../utils/notify");
+const arcadeSessionService = require("../services/arcadeSessionService");
+const { ARCADE_GAMES } = require("../utils/arcadeGames");
 const externalProjectController = require("./externalProjectController");
 const instructorAwardService = require("../services/instructorAwardService");
 const classroomPacingService = require("../services/classroomPacingService");
@@ -931,6 +933,9 @@ exports.loadSection = async (req, res) => {
     if (section === "external_projects") {
       return externalProjectController.getExternalProjectGradingQueueForInstructor(req, res);
     }
+    if (section === "arcade_session") {
+      return module.exports.getArcadeSessionSection(req, res);
+    }
 
     if (req.query.school_id) {
       req.session.activeSchoolId = req.query.school_id;
@@ -1548,6 +1553,89 @@ exports.getGradingQueue = async (req, res) => {
   } catch (err) {
     console.error("Instructor grading queue error:", err);
     res.status(500).send("<p>Error loading grading queue</p>");
+  }
+};
+
+// Arcade Live Session (routes/instructor.js) — mirrors
+// controllers/teacherController.js's getArcadeSessionSection/startArcadeSession/
+// endArcadeSession/getArcadeSessionLeaderboard, scoped to classroom_instructors
+// instead of classroom_teachers. Not restricted to the selected
+// activeSchoolId tab — same reasoning as getGradingQueue/external_projects
+// above (an instructor's classrooms can span multiple schools).
+exports.getArcadeSessionSection = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const classesRes = await pool.query(
+      `SELECT c.id, c.name FROM classrooms c
+       JOIN classroom_instructors ci ON ci.classroom_id = c.id
+       WHERE ci.instructor_id = $1 AND c.archived_at IS NULL ORDER BY c.name ASC`,
+      [instructorId]
+    );
+
+    let activeSession = null;
+    for (const classroom of classesRes.rows) {
+      const session = await arcadeSessionService.getActiveSessionForClassroom(classroom.id);
+      if (session) {
+        activeSession = { ...session, classroom_name: classroom.name };
+        break;
+      }
+    }
+
+    res.render("instructor/sections/arcade_session", {
+      classrooms: classesRes.rows,
+      games: ARCADE_GAMES,
+      activeSession,
+    });
+  } catch (err) {
+    console.error("Instructor arcade session section error:", err);
+    res.status(500).send("<p>Error loading arcade session.</p>");
+  }
+};
+
+exports.startArcadeSession = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { classroomId, gameId } = req.body;
+
+    const ownsClassroom = await pool.query(
+      `SELECT 1 FROM classroom_instructors WHERE classroom_id = $1 AND instructor_id = $2`,
+      [classroomId, instructorId]
+    );
+    if (!ownsClassroom.rows.length) return res.status(403).json({ success: false, message: "Not your classroom." });
+
+    const session = await arcadeSessionService.startSession({ classroomId, gameId, createdBy: instructorId });
+    const game = ARCADE_GAMES.find((g) => g.id === gameId);
+    await notifyClassroom(classroomId, instructorId, {
+      type: "arcade_session",
+      title: "🎮 Live Arcade session started!",
+      message: `Your instructor started a live ${game?.name || gameId} session — join in from the Arcade.`,
+      url: "/student/arcade",
+    });
+
+    res.json({ success: true, session });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.endArcadeSession = async (req, res) => {
+  try {
+    await arcadeSessionService.endSession(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Instructor endArcadeSession error:", err.message);
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.getArcadeSessionLeaderboard = async (req, res) => {
+  try {
+    const result = await arcadeSessionService.getSessionLeaderboard(req.params.id);
+    if (!result) return res.status(404).json({ success: false });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Instructor getArcadeSessionLeaderboard error:", err.message);
+    res.status(500).json({ success: false });
   }
 };
 
