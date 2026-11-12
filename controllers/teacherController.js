@@ -10,6 +10,7 @@ const { notifyUser, notifyClassroom, notifyNewDirectMessage, notifyNewClassMessa
 const { getLessonTasksForTeacher } = require("../services/lessonTaskService");
 const arcadeSessionService = require("../services/arcadeSessionService");
 const { ARCADE_GAMES } = require("../utils/arcadeGames");
+const schoolEventNotifier = require("../services/schoolEventNotifier");
 // const puppeteer = require("puppeteer");
 
 // ----------------- DASHBOARD WRAPPER -----------------
@@ -1403,6 +1404,10 @@ exports.saveAttendance = async (req, res) => {
       );
     }
 
+    schoolEventNotifier
+      .notifyAttendanceTaken({ classroomId: classroom_id, actorId: teacherId, date })
+      .catch((err) => console.error("Attendance notify failed:", err.message));
+
     res.json({ success: true });
   } catch (err) {
     console.error("Save attendance error:", err);
@@ -1597,6 +1602,189 @@ exports.getTermAttendanceSummary = async (req, res) => {
   } catch (err) {
     console.error("Term attendance summary error:", err);
     res.status(500).send("<p>Error loading term attendance summary</p>");
+  }
+};
+
+// ===================== CLASS REPORTS =====================
+// Narrative CKEditor write-ups, mirroring
+// controllers/instructorController.js's class-report CRUD exactly,
+// scoped to classroom_teachers/teacher_id instead of
+// classroom_instructors/instructor_id. Gated per-school by
+// schools.teacher_class_reports_enabled — a platform-admin-controlled
+// opt-in (see adminController.js's toggleTeacherClassReports and
+// views/admin/school-details.ejs), not a platform-wide rollout, since
+// Teachers getting this wasn't an automatic "same as Instructors" grant.
+// classroom_reports.instructor_id is a generic "author" column shared
+// with the Instructor feature — it just stores whichever role wrote it.
+async function teacherClassroomWithReportsAccess(classroomId, teacherId) {
+  const result = await pool.query(
+    `SELECT c.school_id, s.teacher_class_reports_enabled
+     FROM classrooms c
+     JOIN classroom_teachers ct ON ct.classroom_id = c.id
+     JOIN schools s ON s.id = c.school_id
+     WHERE c.id = $1 AND ct.teacher_id = $2`,
+    [classroomId, teacherId]
+  );
+  return result.rows[0] || null;
+}
+
+exports.getClassReportsSection = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+
+    // Only classrooms whose school has this feature turned on — a
+    // teacher at a school where it's off sees an explanatory empty
+    // state instead of a composer that would 403 the moment they tried
+    // to save.
+    const classesRes = await pool.query(
+      `SELECT c.id, c.name
+       FROM classrooms c
+       JOIN classroom_teachers ct ON ct.classroom_id = c.id
+       JOIN schools s ON s.id = c.school_id
+       WHERE ct.teacher_id = $1 AND s.teacher_class_reports_enabled = true AND c.archived_at IS NULL
+       ORDER BY c.name ASC`,
+      [teacherId]
+    );
+    const enabledClassrooms = classesRes.rows;
+
+    let reports = [];
+    if (enabledClassrooms.length) {
+      const reportsRes = await pool.query(
+        `SELECT cr.id, cr.title, cr.content, cr.report_date, cr.created_at,
+                c.name AS classroom_name, t.name AS term_name
+         FROM classroom_reports cr
+         JOIN classrooms c ON c.id = cr.classroom_id
+         LEFT JOIN academic_terms t ON t.id = cr.term_id
+         WHERE cr.instructor_id = $1
+         ORDER BY cr.report_date DESC, cr.created_at DESC`,
+        [teacherId]
+      );
+      reports = reportsRes.rows;
+    }
+
+    res.render("teacher/sections/class_reports", {
+      classes: enabledClassrooms,
+      reports,
+      featureEnabled: enabledClassrooms.length > 0,
+    });
+  } catch (err) {
+    console.error("Teacher class reports section error:", err);
+    res.status(500).send("<p>Error loading class reports.</p>");
+  }
+};
+
+exports.createClassReport = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { classroom_id, term_id, title, content, report_date } = req.body;
+
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ success: false, message: "Title and content are required" });
+    }
+
+    const access = await teacherClassroomWithReportsAccess(classroom_id, teacherId);
+    if (!access) {
+      return res.status(403).json({ success: false, message: "Not your classroom" });
+    }
+    if (!access.teacher_class_reports_enabled) {
+      return res.status(403).json({
+        success: false,
+        message: "Class Reports aren't enabled for your school yet — ask your platform admin to turn it on.",
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO classroom_reports
+         (classroom_id, school_id, instructor_id, term_id, title, content, report_date)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_DATE))
+       RETURNING id, title, content, report_date, created_at`,
+      [classroom_id, access.school_id, teacherId, term_id || null, title.trim(), content, report_date || null]
+    );
+
+    schoolEventNotifier
+      .notifyClassReportSubmitted({ classroomId: classroom_id, authorId: teacherId, reportTitle: title.trim() })
+      .catch((err) => console.error("Class report notify failed:", err.message));
+
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Create class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.getClassReport = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT cr.*, c.name AS classroom_name, t.name AS term_name
+       FROM classroom_reports cr
+       JOIN classrooms c ON c.id = cr.classroom_id
+       JOIN classroom_teachers ct ON ct.classroom_id = cr.classroom_id
+       LEFT JOIN academic_terms t ON t.id = cr.term_id
+       WHERE cr.id = $1 AND ct.teacher_id = $2`,
+      [id, teacherId]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ success: false, message: "Report not found" });
+    }
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Get class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.updateClassReport = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+    const { title, content, report_date, term_id } = req.body;
+
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ success: false, message: "Title and content are required" });
+    }
+
+    // Only the original author may edit — same author-only convention
+    // instructorController.js's updateClassReport uses.
+    const result = await pool.query(
+      `UPDATE classroom_reports
+       SET title = $1, content = $2,
+           report_date = COALESCE($3, report_date),
+           term_id = COALESCE($4, term_id),
+           updated_at = NOW()
+       WHERE id = $5 AND instructor_id = $6
+       RETURNING id, title, content, report_date, updated_at`,
+      [title.trim(), content, report_date || null, term_id || null, id, teacherId]
+    );
+
+    if (!result.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to edit this report" });
+    }
+    res.json({ success: true, report: result.rows[0] });
+  } catch (err) {
+    console.error("Update class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.deleteClassReport = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `DELETE FROM classroom_reports WHERE id = $1 AND instructor_id = $2 RETURNING id`,
+      [id, teacherId]
+    );
+    if (!result.rowCount) {
+      return res.status(403).json({ success: false, message: "Not authorized to delete this report" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete class report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

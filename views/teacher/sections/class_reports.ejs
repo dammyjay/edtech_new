@@ -1,0 +1,238 @@
+<h2 class="tc-section-title">📝 Class Reports</h2>
+
+<% if (!featureEnabled) { %>
+  <div class="tc-alert tc-alert-info">
+    <span class="tc-alert-icon">🔒</span>
+    <div class="tc-alert-body">
+      Class Reports aren't turned on for your school yet. Ask your platform admin to enable it from the school's settings.
+    </div>
+  </div>
+<% } else { %>
+  <button class="tc-btn tc-btn-primary" onclick="openNewReportModal()">➕ New Report</button>
+
+  <% if (!reports || reports.length === 0) { %>
+    <p class="tc-empty">No class reports yet — write your first one above.</p>
+  <% } else { %>
+    <div class="tc-classroom-grid">
+      <% reports.forEach(r => { %>
+        <div class="tc-classroom-card">
+          <h3><%= r.title %></h3>
+          <p><i class="fa-solid fa-school"></i> <%= r.classroom_name %></p>
+          <% if (r.term_name) { %><p><i class="fa-solid fa-calendar"></i> <%= r.term_name %></p><% } %>
+          <p><i class="fa-solid fa-clock"></i> <%= new Date(r.report_date).toLocaleDateString() %></p>
+          <div class="tc-classroom-actions">
+            <button class="tc-btn tc-btn-secondary tc-btn-sm" onclick="openViewReportModal(<%= r.id %>)"><i class="fa-solid fa-eye"></i> View</button>
+            <button class="tc-btn tc-btn-secondary tc-btn-sm" onclick="openEditReportModal(<%= r.id %>)">Edit</button>
+            <button class="tc-btn tc-btn-danger tc-btn-sm" onclick="deleteClassReportConfirm(<%= r.id %>)">Delete</button>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <!-- View Modal (read-only) -->
+  <div id="viewReportModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="width:600px;">
+      <span class="close-btn" onclick="closeViewReportModal()">&times;</span>
+      <h3 id="viewReportTitle">📄 Report</h3>
+      <p id="viewReportMeta" style="color:#666; font-size:13px; margin-bottom:12px;"></p>
+      <div id="viewReportContent" style="line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <!-- Compose / Edit Modal -->
+  <div id="classReportModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="width:600px;">
+      <span class="close-btn" onclick="closeClassReportModal()">&times;</span>
+      <h3 id="reportModalTitle">📝 New Class Report</h3>
+
+      <div id="reportClassroomRow">
+        <label style="display:block; font-size:13px; font-weight:600; margin-top:10px;">Classroom</label>
+        <select id="reportClassroomSelect" style="width:100%; margin-bottom:10px;">
+          <% (classes || []).forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <label style="display:block; font-size:13px; font-weight:600;">Title</label>
+      <input type="text" id="reportTitleInput" style="width:100%; margin-bottom:10px;" placeholder="e.g. Week 5 progress notes" />
+
+      <label style="display:block; font-size:13px; font-weight:600;">Date</label>
+      <input type="date" id="reportDateInput" style="margin-bottom:10px;" />
+
+      <label style="display:block; font-size:13px; font-weight:600;">Report</label>
+      <textarea id="reportContentField" name="content" rows="10"></textarea>
+
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="tc-btn tc-btn-primary" onclick="submitClassReport()"><i class="fa-solid fa-floppy-disk"></i> Save Report</button>
+        <button class="tc-btn tc-btn-secondary" onclick="closeClassReportModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      let classReportEditor = null;
+      let editingReportId = null;
+
+      function ensureReportEditor() {
+        if (classReportEditor) return;
+        classReportEditor = CKEDITOR.replace("reportContentField", { height: 240, versionCheck: false });
+      }
+
+      function destroyClassReportEditor() {
+        if (!classReportEditor) return;
+        try {
+          classReportEditor.destroy(true);
+        } catch (err) {
+          // Detached DOM on a fast section swap can make destroy() itself
+          // throw — the goal is just dropping the dangling reference.
+        }
+        classReportEditor = null;
+      }
+
+      // The section's own DOM is about to be ripped out by the next
+      // loadSection() call — see teacher_sidenav.ejs's
+      // cleanupPreviousSection()/window.__teacherSectionCleanup comment.
+      window.__teacherSectionCleanup = destroyClassReportEditor;
+
+      window.openNewReportModal = function () {
+        editingReportId = null;
+        document.getElementById("reportModalTitle").textContent = "📝 New Class Report";
+        document.getElementById("reportTitleInput").value = "";
+        document.getElementById("reportDateInput").value = new Date().toISOString().split("T")[0];
+        document.getElementById("reportClassroomRow").hidden = false;
+
+        ensureReportEditor();
+        const clear = () => classReportEditor.setData("");
+        if (classReportEditor.status === "ready") clear();
+        else classReportEditor.once("instanceReady", clear);
+
+        document.getElementById("classReportModal").style.display = "flex";
+      };
+
+      window.openEditReportModal = async function (id) {
+        try {
+          const res = await fetch(`/teacher/class-reports/${id}`);
+          const data = await res.json();
+          if (!data.success) {
+            showAlert(data.message || "Couldn't load this report.", "error");
+            return;
+          }
+
+          editingReportId = id;
+          document.getElementById("reportModalTitle").textContent = "✏️ Edit Class Report";
+          document.getElementById("reportTitleInput").value = data.report.title;
+          document.getElementById("reportDateInput").value = (data.report.report_date || "").toString().split("T")[0];
+          document.getElementById("reportClassroomRow").hidden = true;
+
+          ensureReportEditor();
+          const setData = () => classReportEditor.setData(data.report.content || "");
+          if (classReportEditor.status === "ready") setData();
+          else classReportEditor.once("instanceReady", setData);
+
+          document.getElementById("classReportModal").style.display = "flex";
+        } catch (err) {
+          console.error("Open edit report error:", err);
+          showAlert("Server error loading report.", "error");
+        }
+      };
+
+      window.closeClassReportModal = function () {
+        document.getElementById("classReportModal").style.display = "none";
+      };
+
+      window.openViewReportModal = async function (id) {
+        try {
+          const res = await fetch(`/teacher/class-reports/${id}`);
+          const data = await res.json();
+          if (!data.success) {
+            showAlert(data.message || "Couldn't load this report.", "error");
+            return;
+          }
+
+          const r = data.report;
+          document.getElementById("viewReportTitle").textContent = `📄 ${r.title}`;
+          const metaParts = [
+            `<i class="fa-solid fa-school"></i> ${r.classroom_name}`,
+            r.term_name ? `<i class="fa-solid fa-calendar"></i> ${r.term_name}` : "",
+            `<i class="fa-solid fa-clock"></i> ${new Date(r.report_date).toLocaleDateString()}`,
+          ].filter(Boolean);
+          document.getElementById("viewReportMeta").innerHTML = metaParts.join(" &nbsp;·&nbsp; ");
+          document.getElementById("viewReportContent").innerHTML = r.content || "";
+
+          document.getElementById("viewReportModal").style.display = "flex";
+        } catch (err) {
+          console.error("Open view report error:", err);
+          showAlert("Server error loading report.", "error");
+        }
+      };
+
+      window.closeViewReportModal = function () {
+        document.getElementById("viewReportModal").style.display = "none";
+      };
+
+      window.submitClassReport = async function () {
+        const title = document.getElementById("reportTitleInput").value.trim();
+        const reportDate = document.getElementById("reportDateInput").value || null;
+        const classroomSelect = document.getElementById("reportClassroomSelect");
+        const classroomId = classroomSelect ? classroomSelect.value : null;
+
+        if (classReportEditor) classReportEditor.updateElement();
+        const content = document.getElementById("reportContentField").value.trim();
+
+        if (!title || !content) {
+          showAlert("Please add a title and write something in the report.", "warning");
+          return;
+        }
+        if (!editingReportId && !classroomId) {
+          showAlert("Please select a classroom.", "warning");
+          return;
+        }
+
+        const url = editingReportId ? `/teacher/class-reports/${editingReportId}/edit` : "/teacher/class-reports";
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, content, classroom_id: classroomId, report_date: reportDate }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            showAlert(editingReportId ? "Report updated!" : "Report saved!", "success");
+            closeClassReportModal();
+            loadSection("class-reports");
+          } else {
+            showAlert(data.message || "Couldn't save the report.", "error");
+          }
+        } catch (err) {
+          console.error("Submit class report error:", err);
+          showAlert("Server error saving report.", "error");
+        }
+      };
+
+      window.deleteClassReportConfirm = async function (id) {
+        const ok = await showConfirm("Delete this class report? This can't be undone.", {
+          confirmText: "Delete",
+          type: "danger",
+        });
+        if (!ok) return;
+
+        try {
+          const res = await fetch(`/teacher/class-reports/${id}/delete`, { method: "POST" });
+          const data = await res.json();
+          if (data.success) {
+            showAlert("Report deleted.", "success");
+            loadSection("class-reports");
+          } else {
+            showAlert(data.message || "Couldn't delete report.", "error");
+          }
+        } catch (err) {
+          console.error("Delete class report error:", err);
+          showAlert("Server error deleting report.", "error");
+        }
+      };
+    })();
+  </script>
+<% } %>

@@ -17,6 +17,7 @@ const generateDefaultPassword = require("../utils/generateDefaultPassword");
 const generatePdf = require("../utils/generatePdf");
 const { getQuoteDocumentPdf } = require("../services/quoteDocumentService");
 const { calculateQuoteTotal, recalcAndPersistQuoteTotal, attachAddonToQuote } = require("../services/quoteCalcService");
+const schoolEventNotifier = require("../services/schoolEventNotifier");
 const { getAllSchoolsWithPaymentSummary } = require("../services/schoolsAdminListService");
 const archiveService = require("../services/archiveService");
 const { escapeHtml, formatNaira } = require("../services/platformReportSections/sectionHelpers");
@@ -6290,12 +6291,31 @@ exports.getSchoolDetails = async (req, res) => {
       "SELECT id, name, price_amount, is_addon, is_quantity_based, free_quantity, price_per_extra_unit FROM pricing_plans WHERE segment = 'school' AND is_active = true ORDER BY sort_order ASC, name ASC"
     );
 
+    // Class Reports oversight — narrative write-ups from BOTH Instructors
+    // and (where this school has opted in — school.teacher_class_reports_enabled,
+    // toggled via toggleTeacherClassReports below) Teachers. instructor_id
+    // is classroom_reports' generic "author" column, so this one query
+    // covers both without a UNION.
+    const classroomReportsResult = await pool.query(
+      `SELECT cr.id, cr.title, cr.content, cr.report_date, cr.created_at,
+              c.name AS classroom_name, t.name AS term_name,
+              u.fullname AS author_name
+       FROM classroom_reports cr
+       JOIN classrooms c ON c.id = cr.classroom_id
+       JOIN users2 u ON u.id = cr.instructor_id
+       LEFT JOIN academic_terms t ON t.id = cr.term_id
+       WHERE cr.school_id = $1
+       ORDER BY cr.report_date DESC, cr.created_at DESC`,
+      [id]
+    );
+
     res.render("admin/school-details", {
       info: req.companyInfo || {},
       school,
       quotes: quotesResult.rows,
       schoolPlans: schoolPlansResult.rows.filter((p) => !p.is_addon),
       schoolAddonPlans: schoolPlansResult.rows.filter((p) => p.is_addon),
+      classroomReports: classroomReportsResult.rows,
       currentPage: "schools",
       role: "admin",
       // Set when redirected here right after assigning students to a
@@ -6317,6 +6337,29 @@ exports.getSchoolDetails = async (req, res) => {
   } catch (err) {
     console.error("Error fetching school details:", err);
     res.status(500).send("Error loading school details");
+  }
+};
+
+// Platform-admin-controlled per-school opt-in: whether this school's
+// Teacher accounts may write narrative Class Reports — a feature
+// Instructors always have, but Teachers only get where an admin has
+// explicitly turned it on for their school (see
+// controllers/teacherController.js's getClassReportsSection/
+// createClassReport, both of which re-check this same column).
+exports.toggleTeacherClassReports = async (req, res) => {
+  if (!req.session.user || req.session.user.role !== "admin") {
+    return res.redirect("/admin/login");
+  }
+  const { id } = req.params;
+  try {
+    await pool.query(
+      `UPDATE schools SET teacher_class_reports_enabled = NOT COALESCE(teacher_class_reports_enabled, false) WHERE id = $1`,
+      [id]
+    );
+    res.redirect(`/admin/schools/${id}`);
+  } catch (err) {
+    console.error("toggleTeacherClassReports error:", err);
+    res.status(500).send("Error updating setting");
   }
 };
 
@@ -11648,6 +11691,10 @@ exports.saveAttendance = async (req, res) => {
         [sessionId, r.student_id, r.status],
       );
     }
+
+    schoolEventNotifier
+      .notifyAttendanceTaken({ classroomId: classroom_id, actorId: userId, date })
+      .catch((err) => console.error("Attendance notify failed:", err.message));
 
     res.json({ success: true });
   } catch (err) {

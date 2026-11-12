@@ -19,6 +19,7 @@ const { getLevelForXp } = require("../utils/xpLevels");
 const { calculateQuoteTotal } = require("../services/quoteCalcService");
 const { getLessonTasksForSchool } = require("../services/lessonTaskService");
 const archiveService = require("../services/archiveService");
+const schoolEventNotifier = require("../services/schoolEventNotifier");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 
 // Resolves which term the school admin currently has the whole-panel
@@ -2670,6 +2671,10 @@ exports.saveAttendance = async (req, res) => {
         [sessionId, record.student_id, record.status],
       );
     }
+
+    schoolEventNotifier
+      .notifyAttendanceTaken({ classroomId: classroom_id, actorId: req.session.user.id, date: sessionDate })
+      .catch((err) => console.error("Attendance notify failed:", err.message));
 
     res.json({
       success: true,

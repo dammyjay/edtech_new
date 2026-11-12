@@ -6,6 +6,7 @@ const { renderQuizReportHtml, renderStudentFullReportHtml } = require("../utils/
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage, notifyClassroom } = require("../utils/notify");
 const arcadeSessionService = require("../services/arcadeSessionService");
 const { ARCADE_GAMES } = require("../utils/arcadeGames");
+const schoolEventNotifier = require("../services/schoolEventNotifier");
 const externalProjectController = require("./externalProjectController");
 const instructorAwardService = require("../services/instructorAwardService");
 const classroomPacingService = require("../services/classroomPacingService");
@@ -2879,6 +2880,10 @@ exports.saveAttendance = async (req, res) => {
       );
     }
 
+    schoolEventNotifier
+      .notifyAttendanceTaken({ classroomId: classroom_id, actorId: userId, date })
+      .catch((err) => console.error("Attendance notify failed:", err.message));
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -3641,6 +3646,10 @@ exports.createClassReport = async (req, res) => {
        RETURNING id, title, content, report_date, created_at`,
       [classroom_id, classroom.school_id, instructorId, term_id || null, title.trim(), content, report_date || null]
     );
+
+    schoolEventNotifier
+      .notifyClassReportSubmitted({ classroomId: classroom_id, authorId: instructorId, reportTitle: title.trim() })
+      .catch((err) => console.error("Class report notify failed:", err.message));
 
     res.json({ success: true, report: result.rows[0] });
   } catch (err) {

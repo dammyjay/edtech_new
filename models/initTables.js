@@ -931,6 +931,14 @@ async function createTables() {
       -- simply never fires for this school until an admin sets it.
       ALTER TABLE schools
       ADD COLUMN IF NOT EXISTS class_days INTEGER[];
+
+      -- Platform-admin-controlled per-school toggle: whether this
+      -- school's Teacher accounts may write narrative Class Reports
+      -- (classroom_reports) — a feature Instructors already always have.
+      -- Opt-in (default false) rather than a platform-wide rollout, per
+      -- an explicit admin request to control it per school.
+      ALTER TABLE schools
+      ADD COLUMN IF NOT EXISTS teacher_class_reports_enabled BOOLEAN DEFAULT false;
     `);
 
       // User school

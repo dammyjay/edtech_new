@@ -686,6 +686,7 @@ router.post(
   adminController.updateSchoolInfo
 );
 router.get("/schools/:id", adminController.getSchoolDetails);
+router.post("/schools/:id/toggle-class-reports", adminController.toggleTeacherClassReports);
 // Schools had no delete/archive action at all before this — see
 // controllers/archiveController.js and services/archiveService.js.
 router.post("/schools/:id/archive", archiveController.archiveEntity("school"));

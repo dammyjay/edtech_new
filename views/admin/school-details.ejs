@@ -298,7 +298,8 @@
   <button class="login-tab" onclick="openTab('classrooms-section', this)">🏫 Classrooms</button>
   <button class="login-tab" onclick="openTab('course-assignment-section', this)">📘 Assign Courses</button>
   <button class="login-tab" onclick="openTab('terms-section', this)">📅 Terms</button>
-  <button class="login-tab" onclick="openTab('attendance-section', this)">📋 Attendance</button>  
+  <button class="login-tab" onclick="openTab('attendance-section', this)">📋 Attendance</button>
+  <button class="login-tab" onclick="openTab('class-reports-section', this)">📝 Class Reports</button>
 
 </div>
 
@@ -534,6 +535,66 @@
       </tbody>
     </table>
   </div>
+
+</div>
+
+<!-- Class Reports Section -->
+<div id="class-reports-section" style="display:none;">
+
+  <div class="jk-header-card">
+    <div>
+      <h2>📝 Class Reports</h2>
+      <p>Narrative reports written by this school's Instructors<%= school.teacher_class_reports_enabled ? ' and Teachers' : '' %>.</p>
+    </div>
+    <form method="POST" action="/admin/schools/<%= school.id %>/toggle-class-reports">
+      <button type="submit" class="<%= school.teacher_class_reports_enabled ? 'jk-btn-outline' : 'jk-btn-dark' %>">
+        <%= school.teacher_class_reports_enabled ? '🔓 Teacher reports: ON — turn off' : '🔒 Teacher reports: OFF — turn on' %>
+      </button>
+    </form>
+  </div>
+  <p style="color:#6E6350; font-size:12.5px; margin-top:-10px;">
+    By default only Instructors can write Class Reports. Turning this on lets this school's own Teacher accounts write them too.
+  </p>
+
+  <% if (!classroomReports || classroomReports.length === 0) { %>
+    <p style="color:#6E6350; margin-top:16px;">No class reports have been written yet.</p>
+  <% } else { %>
+    <div class="jk-term-grid" style="margin-top:16px;">
+      <% classroomReports.forEach(r => { %>
+        <div class="jk-term-card" style="cursor:pointer;" onclick="openClassroomReportModal(<%= r.id %>)">
+          <h4 style="margin-bottom:6px;"><%= r.title %></h4>
+          <p style="font-size:13px; color:#6E6350; margin:0 0 6px;">
+            <i class="fa-solid fa-chalkboard-user"></i> <%= r.author_name %>
+            &nbsp;·&nbsp;
+            <i class="fa-solid fa-school"></i> <%= r.classroom_name %>
+            <% if (r.term_name) { %>&nbsp;·&nbsp;<%= r.term_name %><% } %>
+          </p>
+          <p style="font-size:12px; color:#8A7B55;"><%= new Date(r.report_date).toLocaleDateString() %></p>
+        </div>
+        <div id="classroomReportData-<%= r.id %>" hidden><%- r.content %></div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <div id="classroomReportModal" class="jk-modal-overlay" style="display:none;">
+    <div class="jk-modal jk-modal--wide">
+      <div class="jk-modal-head">
+        <h4 id="classroomReportModalTitle">📄 Report</h4>
+        <button class="jk-modal-close" onclick="document.getElementById('classroomReportModal').style.display='none'" aria-label="Close">&times;</button>
+      </div>
+      <div class="jk-modal-body" id="classroomReportModalBody" style="line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <script>
+    function openClassroomReportModal(id) {
+      const dataEl = document.getElementById('classroomReportData-' + id);
+      const titleEl = document.querySelector('[onclick="openClassroomReportModal(' + id + ')"] h4');
+      document.getElementById('classroomReportModalTitle').textContent = '📄 ' + (titleEl ? titleEl.textContent : 'Report');
+      document.getElementById('classroomReportModalBody').innerHTML = dataEl ? dataEl.innerHTML : '';
+      document.getElementById('classroomReportModal').style.display = 'flex';
+    }
+  </script>
 
 </div>
 
@@ -2325,7 +2386,7 @@ function exportExcel() {
 
   function openTab(sectionId, btn) {
     // Hide all sections
-    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section', 'attendance-section'];
+    const sections = ['teachers-section', 'instructors-section', 'students-section', 'classrooms-section', 'course-assignment-section', 'terms-section', 'attendance-section', 'class-reports-section'];
     sections.forEach(id => {
       document.getElementById(id).style.display = 'none';
     });
