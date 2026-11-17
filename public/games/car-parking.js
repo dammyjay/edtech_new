@@ -3,7 +3,10 @@
 (function () {
   const ACCEL = 0.09, BRAKE = 0.16, DRAG = 0.985, STEER_RATE = 0.0032;
   const MAX_FWD = 2.6, MAX_REV = -1.6;
-  const GRIP_BY_DIFFICULTY = { easy: 0.14, medium: 0.1, hard: 0.075 };
+  // Higher grip = velocity snaps toward the heading direction faster, i.e.
+  // more direct/arcade-y steering and less "slippery" drift feel — kids
+  // found the old low values (0.1-0.14) too hard to control.
+  const GRIP_BY_DIFFICULTY = { easy: 0.34, medium: 0.24, hard: 0.16 };
   const TIME_LIMIT = 90;
   const HOLD_FRAMES = 45;
 
@@ -48,7 +51,8 @@
     const timeEl = container.querySelector("#cpTime");
     const bumpsEl = container.querySelector("#cpBumps");
 
-    let dims, ctx, car, zone, obstacles, levelIndex, bumps, timeLeft, holdFrames, running, rafId, overlayEl, removeResize;
+    let dims, ctx, car, zone, obstacles, levelIndex = 0, bumps = 0, timeLeft, holdFrames = 0, running, rafId, overlayEl, removeResize;
+    let bumpCooldown = 0;
     const keys = { left: false, right: false, gas: false, brake: false };
 
     function loadLevel() {
@@ -79,13 +83,14 @@
 
     function step(dt) {
       const steps = dt / 16.67;
+      if (bumpCooldown > 0) bumpCooldown -= steps;
       const accel = keys.gas ? ACCEL : keys.brake ? -BRAKE : 0;
       car.speed += accel * steps;
       car.speed *= Math.pow(DRAG, steps);
       car.speed = Math.max(MAX_REV, Math.min(MAX_FWD, car.speed));
 
       const steerDir = (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
-      const speedFactor = Math.max(0.25, Math.min(1, Math.abs(car.speed) / MAX_FWD));
+      const speedFactor = Math.max(0.45, Math.min(1, Math.abs(car.speed) / MAX_FWD));
       const revSign = car.speed < 0 ? -1 : 1;
       car.heading += STEER_RATE * steps * 16.67 * steerDir * speedFactor * revSign;
 
@@ -114,10 +119,12 @@
           const overlap = carR - (dist || 0.001);
           const nx = dist ? dx / dist : 1, ny = dist ? dy / dist : 0;
           car.x += nx * overlap; car.y += ny * overlap;
-          if (Math.abs(car.speed) > 0.3) {
+          if (Math.abs(car.speed) > 0.3 && bumpCooldown <= 0) {
             bumps++;
             bumpsEl.textContent = String(bumps);
+            ArcadeSound.play("bump");
             ArcadeEngine.vibrate(18);
+            bumpCooldown = 20;
           }
           car.speed *= -0.3;
           car._vx *= 0.2; car._vy *= 0.2;
@@ -141,6 +148,7 @@
 
     function levelComplete() {
       ArcadeEngine.confetti(container, 14);
+      ArcadeSound.play("score");
       ArcadeEngine.vibrate(20);
       levelIndex++;
       if (levelIndex >= LEVELS.length) {
@@ -207,7 +215,7 @@
       running = false;
       cancelAnimationFrame(rafId);
       const score = Math.max(0, levelIndex * 150 + Math.round(timeLeft) * 2 - bumps * 15);
-      if (won) ArcadeEngine.confetti(container);
+      if (won) { ArcadeEngine.confetti(container); ArcadeSound.play("win"); } else ArcadeSound.play("lose");
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: won ? "🚗" : "⏱️", title: won ? "All parked!" : "Time's up",
         subtitle: `Levels: ${levelIndex}/${LEVELS.length} · Bumps: ${bumps}`, buttonLabel: "Play Again", onRestart: reset, score,

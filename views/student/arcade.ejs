@@ -7,7 +7,10 @@
       <h2>🎮 Arcade</h2>
       <p class="subtitle">21 games — swipe, tap, or drag on any device.</p>
     </div>
-    <div class="arcade-coins">🪙 <span id="arcadeCoins"><%= coins %></span> coins</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button type="button" id="arcadeSoundToggle" class="arcade-sound-toggle" onclick="toggleArcadeSound()" aria-label="Mute sound">🔊</button>
+      <div class="arcade-coins">🪙 <span id="arcadeCoins"><%= coins %></span> coins</div>
+    </div>
   </div>
 
   <div id="arcadeWeeklyPanel" class="arcade-weekly-panel">
@@ -57,6 +60,7 @@
   <% } %>
 </div>
 
+<script src="/js/arcadeSound.js"></script>
 <script src="/js/arcadeEngine.js"></script>
 <script src="/js/arcadeMultiplayer.js"></script>
 <script src="/games/snake.js"></script>
@@ -79,7 +83,7 @@
 <script src="/games/mini-golf.js"></script>
 <script src="/games/penalty-shootout.js"></script>
 <script src="/games/car-parking.js"></script>
-<script src="/games/car-racing.js"></script>
+<script type="module" src="/games/car-racing.js"></script>
 <script>
   function showToast(message) {
     const el = document.createElement('div');
@@ -92,6 +96,14 @@
     document.body.appendChild(el);
     requestAnimationFrame(() => { el.style.opacity = 1; });
     setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.remove(), 300); }, 2200);
+  }
+
+  function toggleArcadeSound() {
+    const muted = ArcadeSound.toggleMute();
+    document.getElementById('arcadeSoundToggle').textContent = muted ? '🔇' : '🔊';
+  }
+  if (document.getElementById('arcadeSoundToggle')) {
+    document.getElementById('arcadeSoundToggle').textContent = ArcadeSound.isMuted() ? '🔇' : '🔊';
   }
 
   // Genre filter chips

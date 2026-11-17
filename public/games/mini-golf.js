@@ -34,7 +34,7 @@
     const strokesEl = container.querySelector("#mgStrokes");
     const scoreEl = container.querySelector("#mgScore");
 
-    let dims, ctx, ball, walls, cup, r, cupR, strokes, holeIndex, totalScore, running, rafId, overlayEl, removeResize;
+    let dims, ctx, ball, walls, cup, r, cupR, strokes = 0, holeIndex = 0, totalScore = 0, running, rafId, overlayEl, removeResize;
     let aiming = false, aimCurrent = null, completingHole = false;
 
     function loadHole() {
@@ -125,6 +125,7 @@
       totalScore += pts;
       scoreEl.textContent = String(totalScore);
       ArcadeEngine.confetti(container, 14);
+      ArcadeSound.play("sink");
       ArcadeEngine.vibrate(16);
       holeIndex++;
       if (holeIndex >= HOLES.length) {
@@ -182,6 +183,7 @@
       running = false;
       cancelAnimationFrame(rafId);
       ArcadeEngine.confetti(container);
+      ArcadeSound.play("win");
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "⛳", title: "Course complete!",
         subtitle: `Final score: ${totalScore}`, buttonLabel: "Play Again", onRestart: reset, score: totalScore,
@@ -228,6 +230,7 @@
       strokes++;
       strokesEl.textContent = String(strokes);
       aimCurrent = null;
+      ArcadeSound.play("swoosh");
       ArcadeEngine.vibrate(10);
     }
 

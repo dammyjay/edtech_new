@@ -122,11 +122,13 @@
             b.alive = false;
             if (b.cue) {
               score = Math.max(0, score - 10);
+              ArcadeSound.play("miss");
               setTimeout(() => {
                 b.alive = true; b.x = dims.width * 0.22; b.y = dims.height / 2; b.vx = 0; b.vy = 0;
               }, 500);
             } else {
               score += 15;
+              ArcadeSound.play("sink");
               ArcadeEngine.vibrate(16);
             }
             scoreEl.textContent = String(score);
@@ -182,7 +184,7 @@
     function finish(won) {
       running = false;
       cancelAnimationFrame(rafId);
-      if (won) ArcadeEngine.confetti(container);
+      if (won) { ArcadeEngine.confetti(container); ArcadeSound.play("win"); } else ArcadeSound.play("lose");
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: won ? "🎱" : "⏱️", title: won ? "Table cleared!" : "Out of shots",
         subtitle: `Score: ${score} · Shots: ${shots}`, buttonLabel: "Play Again", onRestart: reset, score,
@@ -233,6 +235,7 @@
       shots++;
       shotsEl.textContent = String(shots);
       aimCurrent = null;
+      ArcadeSound.play("swoosh");
       ArcadeEngine.vibrate(10);
     }
 

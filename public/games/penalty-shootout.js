@@ -59,6 +59,7 @@
       flightStart = performance.now();
       flightFrom = { x: ball.x, y: ball.y };
       flightTo = target;
+      ArcadeSound.play("swoosh");
 
       const willRead = Math.random() < readChance;
       const reach = goal.w * reachFrac;
@@ -76,11 +77,13 @@
         kickIndex++;
         if (saved) {
           resultText = "Saved!";
+          ArcadeSound.play("save");
         } else {
           goals++;
           score += corner ? 25 : 20;
           resultText = corner ? "Top corner! ⚽" : "GOAL! ⚽";
           ArcadeEngine.confetti(container, 14);
+          ArcadeSound.play("goal");
         }
         goalsEl.textContent = String(goals);
         scoreEl.textContent = String(score);
@@ -166,7 +169,8 @@
     function finish() {
       running = false;
       cancelAnimationFrame(rafId);
-      if (goals === TOTAL_KICKS) { score += 50; ArcadeEngine.confetti(container); }
+      if (goals === TOTAL_KICKS) { score += 50; ArcadeEngine.confetti(container); ArcadeSound.play("win"); }
+      else if (goals === 0) ArcadeSound.play("lose");
       overlayEl = ArcadeEngine.overlay(container, {
         emoji: "⚽", title: goals === TOTAL_KICKS ? "Perfect shootout!" : "Shootout over",
         subtitle: `${goals}/${TOTAL_KICKS} goals`, buttonLabel: "Play Again", onRestart: reset, score,

@@ -242,7 +242,7 @@ const ARCADE_GAMES = [
   {
     id: "car-racing",
     name: "Car Racing",
-    description: "2-lap drift race against a rival car. Stay off the grass!",
+    description: "Real 3D chase-cam race, 2 laps against a rival car.",
     playCost: 8,
     icon: "🏎️",
     tag: "Driving",
