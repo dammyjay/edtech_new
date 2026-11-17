@@ -6010,16 +6010,24 @@ exports.getSchoolDetails = async (req, res) => {
 
     school.courses = schoolCoursesResult.rows; // attach school courses
 
-    // Fetch teachers
+    // Fetch teachers — a teacher's real classroom assignment(s) live in
+    // classroom_teachers (many-to-many, same as classroom_instructors
+    // below), not the legacy single-value user_school.classroom_id, so
+    // this mirrors the instructor query exactly rather than joining that
+    // column directly.
     const teachersResult = await pool.query(
       `
       SELECT u.id, u.fullname AS full_name, u.email, u.phone, u.dob, u.gender,
              u.role, u.wallet_balance, u.created_at,
-             c.name AS classroom_name
+             COALESCE(string_agg(DISTINCT c.name, ', ' ORDER BY c.name), 'Not yet assigned') AS classrooms,
+             COALESCE(ARRAY_AGG(DISTINCT c.id) FILTER (WHERE c.id IS NOT NULL), '{}') AS classroom_ids
       FROM user_school us
       JOIN users2 u ON us.user_id = u.id
-      LEFT JOIN classrooms c ON us.classroom_id = c.id
+      LEFT JOIN classroom_teachers ct ON ct.teacher_id = u.id
+      LEFT JOIN classrooms c ON c.id = ct.classroom_id AND c.school_id = $1
       WHERE us.school_id = $1 AND us.role_in_school = 'teacher' AND u.archived_at IS NULL
+      GROUP BY u.id, u.fullname, u.email, u.phone, u.dob, u.gender, u.role, u.wallet_balance, u.created_at
+      ORDER BY u.fullname
       `,
       [id]
     );
@@ -6064,11 +6072,10 @@ exports.getSchoolDetails = async (req, res) => {
     c.id,
     c.name,
     (SELECT COUNT(*) FROM student_term_enrollments ste WHERE ste.classroom_id = c.id AND ste.term_id = $2) AS student_count,
-    COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' THEN u.id END) AS teacher_count,
+    COUNT(DISTINCT ct.teacher_id) AS teacher_count,
     COUNT(DISTINCT ci.instructor_id) AS instructor_count
   FROM classrooms c
-  LEFT JOIN user_school us ON c.id = us.classroom_id
-  LEFT JOIN users2 u ON us.user_id = u.id
+  LEFT JOIN classroom_teachers ct ON ct.classroom_id = c.id
   LEFT JOIN classroom_instructors ci ON ci.classroom_id = c.id
   WHERE c.school_id = $1 AND c.archived_at IS NULL
   GROUP BY c.id, c.name
@@ -6079,11 +6086,12 @@ exports.getSchoolDetails = async (req, res) => {
     c.id,
     c.name,
     COUNT(DISTINCT CASE WHEN us.role_in_school = 'student' THEN u.id END) AS student_count,
-    COUNT(DISTINCT CASE WHEN us.role_in_school = 'teacher' THEN u.id END) AS teacher_count,
+    COUNT(DISTINCT ct.teacher_id) AS teacher_count,
     COUNT(DISTINCT ci.instructor_id) AS instructor_count
   FROM classrooms c
   LEFT JOIN user_school us ON c.id = us.classroom_id
   LEFT JOIN users2 u ON us.user_id = u.id
+  LEFT JOIN classroom_teachers ct ON ct.classroom_id = c.id
   LEFT JOIN classroom_instructors ci ON ci.classroom_id = c.id
   WHERE c.school_id = $1 AND c.archived_at IS NULL
   GROUP BY c.id, c.name
@@ -10710,8 +10718,54 @@ exports.assignUsersToClassroom = async (req, res) => {
         message: "Instructors assigned successfully",
         instructors: instructorsResult.rows,
       });
+    } else if (role === "teacher") {
+      // Teachers, like instructors, can be in more than one classroom —
+      // their real assignment lives in classroom_teachers, never in
+      // user_school.classroom_id (that column is a single-classroom slot
+      // only meaningful for students; see the self-healing backfill note
+      // in models/initTables.js for why writing it for a teacher here
+      // used to silently break their dashboard, which only ever reads
+      // classroom_teachers).
+      const teacherCheck = await pool.query(
+        `SELECT u.id FROM users2 u
+         JOIN user_school us ON u.id = us.user_id
+         WHERE u.id = ANY($1::int[])
+           AND us.school_id = $2
+           AND us.role_in_school = 'teacher'
+           AND us.is_active = true
+           AND u.archived_at IS NULL`,
+        [user_ids, schoolId]
+      );
+      const validTeacherIds = teacherCheck.rows.map((r) => r.id);
+      if (validTeacherIds.length === 0) {
+        return res.status(404).json({ success: false, message: "No valid teachers found in this school." });
+      }
+
+      await pool.query(
+        `INSERT INTO classroom_teachers (classroom_id, teacher_id)
+         SELECT $1, t FROM UNNEST($2::int[]) AS t
+         ON CONFLICT (classroom_id, teacher_id) DO NOTHING`,
+        [classroomId, validTeacherIds]
+      );
+
+      const teachersAfter = await pool.query(
+        `SELECT u.id, u.fullname AS full_name, u.email,
+                COALESCE(string_agg(DISTINCT c.name, ', ' ORDER BY c.name), 'Not yet assigned') AS classrooms
+         FROM users2 u
+         LEFT JOIN classroom_teachers ct ON ct.teacher_id = u.id
+         LEFT JOIN classrooms c ON c.id = ct.classroom_id AND c.school_id = $1
+         WHERE u.id = ANY($2::int[])
+         GROUP BY u.id, u.fullname, u.email`,
+        [schoolId, validTeacherIds]
+      );
+
+      return res.json({
+        success: true,
+        message: "Teachers assigned successfully",
+        teachers: teachersAfter.rows,
+      });
     } else {
-      // ✅ Students / Teachers (single classroom only)
+      // ✅ Students (single classroom only)
       const userResult = await pool.query(
         `SELECT u.id, u.fullname, u.email
          FROM users2 u

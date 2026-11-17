@@ -624,14 +624,14 @@
       <thead>
         <tr>
           <th>Teacher</th>
-          <th>Classroom</th>
+          <th>Classrooms</th>
           <th class="jk-col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
       <% if (school.teachers.length > 0) { %>
           <% school.teachers.forEach(teacher => { %>
-            <tr data-name="<%= teacher.full_name %>" data-email="<%= teacher.email %>" data-classroom="<%= teacher.classroom_name || '' %>">
+            <tr data-name="<%= teacher.full_name %>" data-email="<%= teacher.email %>" data-classroom="<%= teacher.classrooms || '' %>">
               <td>
                 <div class="jk-row-user">
                   <div class="jk-avatar" style="background:#1F7AC9;"><%= (teacher.full_name || '?').split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() %></div>
@@ -641,8 +641,9 @@
                   </div>
                 </div>
               </td>
-              <td><%= teacher.classroom_name || '—' %></td>
+              <td style="max-width:300px;"><%= teacher.classrooms %></td>
               <td class="jk-col-actions">
+                <button class="jk-btn-outline-sm" onclick="openManageTeacherClassrooms('<%= teacher.id %>', '<%= teacher.full_name.replace(/'/g, "\\'") %>', <%- JSON.stringify(teacher.classroom_ids) %>)" type="button">Manage Classrooms</button>
                 <button class="jk-icon-btn" title="View &amp; manage <%= teacher.full_name %>" onclick='openUserModal(<%- JSON.stringify(teacher) %>)' type="button">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:16px; height:16px; flex-shrink:0; display:block;"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg>
                 </button>
@@ -656,6 +657,71 @@
     </table>
   </div>
 </div>
+
+<!-- ===== "Manage Classrooms" modal for a teacher — same pattern as the
+     instructor one below: picks several classrooms for ONE teacher.
+     classroom_teachers has no "remove" endpoint yet, so unchecking an
+     already-assigned classroom here is a no-op, same as instructor. ===== -->
+<div id="manageTeacherModal" class="jk-modal-overlay" hidden>
+  <div class="jk-modal">
+    <div class="jk-modal-head">
+      <div>
+        <h4 id="manageTeacherModalTitle">Manage Classrooms</h4>
+        <p>Check any classrooms to add this teacher to them.</p>
+      </div>
+      <button class="jk-modal-close" onclick="closeManageTeacherClassrooms()" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="jk-modal-body">
+      <div class="jk-checklist" id="manageTeacherChecklist">
+        <% school.classrooms.forEach(c => { %>
+          <label>
+            <input type="checkbox" class="manage-teacher-classroom-cb" value="<%= c.id %>">
+            <%= c.name %>
+          </label>
+        <% }) %>
+      </div>
+      <button class="jk-btn-dark" style="width:100%; margin-top:12px;" onclick="submitManageTeacherClassrooms()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+<script>
+  let manageTeacherId = null;
+  let manageTeacherAlreadyIn = [];
+  function openManageTeacherClassrooms(teacherId, teacherName, classroomIds) {
+    manageTeacherId = teacherId;
+    manageTeacherAlreadyIn = (classroomIds || []).map((id) => String(id));
+    document.getElementById("manageTeacherModalTitle").textContent = "Manage Classrooms — " + teacherName;
+    document.querySelectorAll(".manage-teacher-classroom-cb").forEach((cb) => {
+      cb.checked = manageTeacherAlreadyIn.includes(cb.value);
+    });
+    document.getElementById("manageTeacherModal").hidden = false;
+  }
+  function closeManageTeacherClassrooms() { document.getElementById("manageTeacherModal").hidden = true; }
+
+  async function submitManageTeacherClassrooms() {
+    const checked = Array.from(document.querySelectorAll(".manage-teacher-classroom-cb:checked")).map((cb) => cb.value);
+    const newlyChecked = checked.filter((id) => !manageTeacherAlreadyIn.includes(id));
+    if (newlyChecked.length === 0) {
+      closeManageTeacherClassrooms();
+      return;
+    }
+    try {
+      await Promise.all(newlyChecked.map((classroomId) =>
+        fetch(`/admin/classrooms/${classroomId}/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_ids: [manageTeacherId], role: "teacher" }),
+        })
+      ));
+      showAlert(`✅ Added to ${newlyChecked.length} classroom(s)!`).then(() => location.reload());
+    } catch (err) {
+      console.error(err);
+      showAlert("❌ Something went wrong.");
+    }
+  }
+</script>
 <hr>
 
 <!-- instructors section -->
@@ -2596,8 +2662,10 @@ function exportExcel() {
       const nameText = (tr.dataset.name || "").toLowerCase();
       const emailText = (tr.dataset.email || "").toLowerCase();
       const classText = (tr.dataset.classroom || "").toLowerCase();
-
-      const matchClass = (filterClass === "" || classText === filterClass);
+      // A teacher's data-classroom can be a comma-joined list ("class a,
+      // class b") since one teacher can be in several classrooms —
+      // match any one of them, not the whole string.
+      const matchClass = (filterClass === "" || classText.split(", ").includes(filterClass));
       const matchSearch = (nameText.includes(searchText) || emailText.includes(searchText));
 
       tr.style.display = (matchClass && matchSearch) ? "" : "none";
@@ -2634,7 +2702,7 @@ function exportExcel() {
     document.getElementById("modalDOB").textContent = user.dob ? new Date(user.dob).toLocaleDateString() : "—";
     document.getElementById("modalGender").textContent = user.gender || "—";
     document.getElementById("modalRole").textContent = user.role_in_school || user.role || "—";
-    document.getElementById("modalClassroom").textContent = user.classroom_name || "—";
+    document.getElementById("modalClassroom").textContent = user.classrooms || user.classroom_name || "—";
     document.getElementById("modalWalletBalance").textContent = user.wallet_balance || 0;
     document.getElementById("modalDate").textContent = user.created_at ? new Date(user.created_at).toDateString() : "—";
     document.getElementById("modalLoginType").textContent = user.login_type || "—";
@@ -2964,7 +3032,7 @@ function exportExcel() {
 
       const select = document.getElementById("assignClassroom");
 
-      if (role === "instructor") {
+      if (role === "instructor" || role === "teacher") {
         select.setAttribute("multiple", "multiple"); // allow many classes
         select.value = "";
       } else {
