@@ -1212,7 +1212,13 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null, send = true }) {
     });
     emailSubject = `Coding Class Invoice - ${q.term_name}`;
     emailHtml = buildInvoiceEmailHtml({ q, company, total, totalPaid, balance });
-    filename = `${(q.school_name || "School").replace(/\s+/g, "_")}_Invoice.pdf`;
+
+    // Same sanitizing as the receipt filename below — term_name often
+    // has slashes ("2026/2027 Term 1"), which used to pass straight
+    // through unescaped and could produce an invalid/broken filename.
+    const safeSchoolName = (q.school_name || "School").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_");
+    const safeTermName = (q.term_name || "Term").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_");
+    filename = `${safeSchoolName}_${safeTermName}_Invoice.pdf`;
   }
 
   const pdf = await generatePdf(html);
