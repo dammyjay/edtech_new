@@ -1051,7 +1051,7 @@ font-size:12px;
  * @returns {Promise<{pdf: Buffer, filename: string, quote: object}|null>}
  *   null when no matching quote is found (caller should 404).
  */
-async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
+async function getQuoteDocumentPdf({ quoteId, schoolId = null, send = true }) {
   const params = [quoteId];
   let schoolFilter = "";
   if (schoolId) {
@@ -1207,7 +1207,13 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
 
   const pdf = await generatePdf(html);
 
-  if (q.school_email) {
+  // `send: false` (admin's View/Download actions) builds the exact same
+  // PDF without the side effect of emailing the school — previously
+  // every download silently sent a copy too, with no way to just look
+  // at it first. The explicit "Send to School" action is the only path
+  // that still emails.
+  let emailed = false;
+  if (send && q.school_email) {
     await sendEmailWithAttachment(
       q.school_email,
       emailSubject,
@@ -1216,9 +1222,10 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
       pdf,
       ["jaykirchtechhub@gmail.com"]
     );
+    emailed = true;
   }
 
-  return { pdf, filename, quote: q };
+  return { pdf, filename, quote: q, emailed };
 }
 
 module.exports = { getQuoteDocumentPdf };

@@ -700,7 +700,9 @@ router.get("/schools/:id/export-students-excel", adminController.exportStudentsE
 // for quotes and course assignment
 router.post("/payments", adminController.addPayment);
 router.get("/quotes", adminController.getQuotes);
+router.get("/quotes/:id/view", adminController.viewQuotePDF);
 router.get("/quotes/:id/download", adminController.downloadQuotePDF);
+router.post("/quotes/:id/send", adminController.sendQuoteToSchool);
 router.get("/quotes/:id/receipt", adminController.generateSchoolReceipt);
 router.post("/quotes/:id/status", adminController.updateQuoteStatus);
 router.get("/parent-invoices", adminController.getParentInvoices);

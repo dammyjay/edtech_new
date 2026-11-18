@@ -7460,10 +7460,32 @@ exports.getQuotes = async (req, res) => {
   }
 };
 
+// Opens the PDF inline in a new tab — same document downloadQuotePDF/
+// sendQuoteToSchool produce, just for looking at first. Never emails
+// anyone (send: false), so an admin can check a quote looks right
+// without the school finding out.
+exports.viewQuotePDF = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const doc = await getQuoteDocumentPdf({ quoteId: id, send: false });
+    if (!doc) return res.status(404).send("Invoice not found");
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename=${doc.filename}`);
+    res.send(doc.pdf);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating invoice");
+  }
+};
+
 exports.downloadQuotePDF = async (req, res) => {
   const { id } = req.params;
   try {
-    const doc = await getQuoteDocumentPdf({ quoteId: id });
+    // send: false — downloading a copy for yourself shouldn't also
+    // silently email the school; see exports.sendQuoteToSchool for the
+    // explicit, separate action that does that on purpose.
+    const doc = await getQuoteDocumentPdf({ quoteId: id, send: false });
     if (!doc) return res.status(404).send("Invoice not found");
 
     res.setHeader("Content-Type", "application/pdf");
@@ -7478,6 +7500,31 @@ exports.downloadQuotePDF = async (req, res) => {
   }
 };
 
+// Explicitly emails the school a copy (the only action that does) —
+// POST, not GET, since it's a real side effect, not just a document
+// fetch. Previously the only way this ever happened was as an
+// undocumented side effect of downloadQuotePDF; the "Send" button in
+// the quotes list used to link to this exact route with no handler
+// registered at all (a dead 404).
+exports.sendQuoteToSchool = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const doc = await getQuoteDocumentPdf({ quoteId: id, send: true });
+    if (!doc) return res.status(404).json({ success: false, message: "Invoice not found" });
+
+    if (!doc.emailed) {
+      return res.json({
+        success: false,
+        message: "This school has no email on file, so nothing was sent — add one first.",
+      });
+    }
+    res.json({ success: true, message: `Invoice emailed to ${doc.quote.school_email}.` });
+  } catch (err) {
+    console.error("sendQuoteToSchool error:", err);
+    res.status(500).json({ success: false, message: "Error sending invoice" });
+  }
+};
+
 // Kept as its own route (GET /admin/quotes/:id/receipt) for backward
 // compatibility, though nothing in the admin UI links to it directly —
 // downloadQuotePDF above already returns a receipt automatically once
@@ -7485,7 +7532,7 @@ exports.downloadQuotePDF = async (req, res) => {
 exports.generateSchoolReceipt = async (req, res) => {
   const { id } = req.params;
   try {
-    const doc = await getQuoteDocumentPdf({ quoteId: id });
+    const doc = await getQuoteDocumentPdf({ quoteId: id, send: false });
     if (!doc) return res.status(404).send("Receipt not found");
 
     res.setHeader("Content-Type", "application/pdf");

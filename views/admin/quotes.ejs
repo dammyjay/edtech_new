@@ -165,11 +165,15 @@
               </button>
             </td>
             <td class="jk-col-actions">
+              <a href="/admin/quotes/<%= q.id %>/view" target="_blank" class="jk-icon-btn" title="View">
+                <i class="fa-solid fa-eye" style="color:#6E6350;"></i>
+              </a>
+
               <a href="/admin/quotes/<%= q.id %>/download" class="jk-icon-btn" title="Download">
                 <i class="fa-solid fa-file-pdf" style="color:#B23A2A;"></i>
               </a>
 
-              <a href="/admin/quotes/<%= q.id %>/send" class="jk-icon-btn" title="Send">
+              <a href="#" onclick="sendQuoteToSchool(<%= q.id %>); return false;" class="jk-icon-btn" title="Send to School">
                 <i class="fa-solid fa-paper-plane" style="color:#2563EB;"></i>
               </a>
 
@@ -278,6 +282,20 @@
 
   function closeModal(id) {
     document.getElementById(id).style.display = 'none';
+  }
+
+  // Explicit, separate from viewing/downloading — see
+  // controllers/adminController.js's sendQuoteToSchool for why this
+  // used to be a dead link with no route at all.
+  async function sendQuoteToSchool(quoteId) {
+    if (!(await showConfirm("Email this invoice to the school now?"))) return;
+    try {
+      const res = await fetch(`/admin/quotes/${quoteId}/send`, { method: "POST" });
+      const data = await res.json();
+      showAlert(data.message || (data.success ? "Sent." : "Couldn't send that."));
+    } catch (err) {
+      showAlert("Server error — please try again.");
+    }
   }
 
   // optional: close when clicking outside
