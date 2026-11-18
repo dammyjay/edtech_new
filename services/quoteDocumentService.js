@@ -1082,7 +1082,7 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
       JOIN academic_terms t
       ON q.term_id=t.id
       LEFT JOIN student_term_enrollments ts
-      ON ts.term_id=q.term_id
+      ON ts.term_id=q.term_id AND ts.exempt_from_billing IS NOT TRUE
       WHERE q.id=$1 ${schoolFilter}
       GROUP BY
       q.id,
@@ -1122,6 +1122,10 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
   const totalPaid = Number(q.total_paid || 0);
   const balance = Number(q.balance || 0);
 
+  // exempt_from_billing students are excluded from the list exported on
+  // the invoice/receipt — they're still fully enrolled on the platform,
+  // just not counted or named on what the school is billed for (see
+  // services/quoteCalcService.js, which this exact filter mirrors).
   const studentsResult = await pool.query(
     `
     SELECT
@@ -1132,7 +1136,7 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null }) {
         ON u.id = ste.student_id
     LEFT JOIN classrooms c
         ON c.id = ste.classroom_id
-    WHERE ste.term_id = $1
+    WHERE ste.term_id = $1 AND ste.exempt_from_billing IS NOT TRUE
     ORDER BY c.name, u.fullname;
     `,
     [q.term_id]

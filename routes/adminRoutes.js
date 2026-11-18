@@ -755,6 +755,10 @@ router.delete(
 );
 router.get("/terms/:termId/students", adminController.getTermStudents);
 router.post(
+  "/terms/:termId/students/:studentId/toggle-exempt",
+  adminController.toggleTermStudentExemption
+);
+router.post(
   "/terms/assign-students",
   adminController.assignStudentsToTerm
 );

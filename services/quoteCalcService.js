@@ -26,8 +26,11 @@ async function calculateQuoteTotal(quoteId) {
   const quote = quoteRes.rows[0];
   if (!quote) return null;
 
+  // exempt_from_billing (e.g. sponsored, billed outside this platform) —
+  // excluded from the count this quote is priced on, but never touches
+  // their actual enrollment/platform access.
   const countRes = await pool.query(
-    `SELECT COUNT(*) FROM student_term_enrollments WHERE term_id = $1`,
+    `SELECT COUNT(*) FROM student_term_enrollments WHERE term_id = $1 AND exempt_from_billing IS NOT TRUE`,
     [quote.term_id]
   );
   const totalStudents = Number(countRes.rows[0].count);

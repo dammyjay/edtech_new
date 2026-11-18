@@ -445,9 +445,13 @@
         <div class="jk-roster-row">
           <div class="jk-avatar" style="background:${palette[(s.fullname || "").length % palette.length]};">${initialsOf(s.fullname)}</div>
           <div style="flex:1;">
-            <p style="margin:0; font-weight:700; font-size:13.5px; color:#1A1510;">${s.fullname}</p>
+            <p style="margin:0; font-weight:700; font-size:13.5px; color:#1A1510;">${s.fullname}${s.exempt_from_billing ? ' <span style="font-size:10px; font-weight:800; color:#A17807; background:#FCF3DD; border-radius:999px; padding:2px 8px; margin-left:4px;">EXEMPT FROM BILLING</span>' : ""}</p>
             <p style="margin:0; font-size:12px; color:#6E6350;">${s.email || "—"} · ${s.classroom || "No classroom"}</p>
           </div>
+          <label style="display:flex; align-items:center; gap:5px; font-size:11.5px; color:#6E6350; white-space:nowrap; cursor:pointer;" title="When checked, this student isn't counted or listed on this term's invoice to the school — they keep full platform access either way.">
+            <input type="checkbox" ${s.exempt_from_billing ? "checked" : ""} onchange="toggleTermStudentExemption('${termId}', '${s.id}')" />
+            Exempt from billing
+          </label>
           <button class="jk-btn-outline-sm" style="color:#B23A2A; border-color:#F3D4CE;" onclick="removeStudentFromTermModal('${termId}', '${s.id}')" type="button">Remove</button>
         </div>
       `).join("");
@@ -456,6 +460,22 @@
     }
   }
   function closeTermRosterModal() { document.getElementById("termRosterModal").hidden = true; }
+
+  async function toggleTermStudentExemption(termId, studentId) {
+    try {
+      const res = await fetch(`/admin/terms/${termId}/students/${studentId}/toggle-exempt`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) {
+        showAlert(data.message || "Couldn't update that.");
+        await refreshTermRosterModal();
+        return;
+      }
+      await refreshTermRosterModal();
+    } catch (err) {
+      showAlert("Server error — try again.");
+      await refreshTermRosterModal();
+    }
+  }
 
   // Same confirm + DELETE as removeStudentFromTerm(), but refreshes this
   // modal in place instead of reloading the whole page (removeStudentFromTerm

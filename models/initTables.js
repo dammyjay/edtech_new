@@ -1432,6 +1432,18 @@ async function createTables() {
 
           `)
 
+    // A student can be exempted from a specific term's school quote/
+    // invoice (e.g. sponsored, paid for separately outside this
+    // platform's billing, or any other arrangement) without touching
+    // their actual enrollment — they keep full platform access and still
+    // show up in every academic report; only the billing count
+    // (services/quoteCalcService.js) and the exported invoice's student
+    // list (services/quoteDocumentService.js) exclude them.
+    await pool.query(`
+      ALTER TABLE student_term_enrollments
+      ADD COLUMN IF NOT EXISTS exempt_from_billing BOOLEAN DEFAULT false;
+    `)
+
     // Attendance sessions
     await pool.query(`
      CREATE TABLE IF NOT EXISTS attendance_sessions (

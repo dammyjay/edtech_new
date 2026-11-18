@@ -11297,14 +11297,15 @@ exports.getTermStudents = async (req, res) => {
 
   const result = await pool.query(
     `
-    SELECT 
+    SELECT
       u.id,
       u.fullname,
       u.email,
       c.name AS classroom,
       q.price_per_student,
       q.total_amount,
-      q.status
+      q.status,
+      ts.exempt_from_billing
     FROM student_term_enrollments ts
     JOIN users2 u ON ts.student_id = u.id
     LEFT JOIN classrooms c ON c.id = ts.classroom_id
@@ -11316,6 +11317,39 @@ exports.getTermStudents = async (req, res) => {
   );
 
   res.json(result.rows);
+};
+
+// Toggles whether this student is counted/listed on this term's school
+// quote/invoice — see the exempt_from_billing comment in
+// models/initTables.js. Doesn't touch enrollment/classroom/access at
+// all, and immediately recalculates the term's quote (if it has one) so
+// the stored total_students/total_amount/balance don't go stale until
+// something else happens to trigger a recalc.
+exports.toggleTermStudentExemption = async (req, res) => {
+  const { termId, studentId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `UPDATE student_term_enrollments
+       SET exempt_from_billing = NOT COALESCE(exempt_from_billing, false)
+       WHERE term_id = $1 AND student_id = $2
+       RETURNING exempt_from_billing`,
+      [termId, studentId]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: "Student is not enrolled in this term." });
+    }
+
+    const quoteRes = await pool.query(`SELECT id FROM quotes WHERE term_id = $1`, [termId]);
+    if (quoteRes.rows.length) {
+      await recalcAndPersistQuoteTotal(quoteRes.rows[0].id);
+    }
+
+    res.json({ success: true, exempt_from_billing: result.rows[0].exempt_from_billing });
+  } catch (err) {
+    console.error("toggleTermStudentExemption error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 };
 
 exports.assignStudentsToTerm = async (req, res) => {
