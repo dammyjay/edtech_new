@@ -551,6 +551,7 @@ router.post(
 
 // Delete question
 router.post("/quiz-question/:id/delete", learningController.deleteQuizQuestion);
+router.post("/quiz-questions/bulk-delete", learningController.bulkDeleteQuizQuestions);
 
 router.post(
   "/assignments/create",

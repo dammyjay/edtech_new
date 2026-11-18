@@ -667,13 +667,57 @@ exports.importQuizJson = async (req, res) => {
 
 exports.deleteQuizQuestion = async (req, res) => {
   try {
-    await pool.query(`DELETE FROM quiz_questions WHERE id = $1`, [
-      req.params.id,
-    ]);
-    res.json({ success: true });
+    const deleted = await pool.query(
+      `DELETE FROM quiz_questions WHERE id = $1 RETURNING quiz_id`,
+      [req.params.id]
+    );
+    if (!deleted.rows.length) {
+      return res.status(404).json({ success: false, message: "Question not found" });
+    }
+
+    // Returning the fresh list (same shape editQuizQuestion already
+    // does) lets the caller re-render in place instead of needing to
+    // know and re-fetch by lesson id — see the lessons.ejs comment on
+    // deleteQuestion for the bug this used to cause.
+    const quizId = deleted.rows[0].quiz_id;
+    const remaining = await pool.query(
+      `SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC`,
+      [quizId]
+    );
+    res.json({ success: true, questions: remaining.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false });
+  }
+};
+
+// Deletes several questions in one request — the quiz modal's bulk
+// "Delete Selected" action. Scoped to a single quiz_id (sent by the
+// caller, which already knows it) rather than trusting ids alone, so a
+// stray/tampered id from a different quiz can't be used to probe or
+// delete questions the admin isn't currently looking at.
+exports.bulkDeleteQuizQuestions = async (req, res) => {
+  try {
+    const { quiz_id, ids } = req.body;
+    const idList = Array.isArray(ids) ? ids.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n)) : [];
+
+    if (!quiz_id || idList.length === 0) {
+      return res.status(400).json({ success: false, message: "quiz_id and at least one question id are required" });
+    }
+
+    await pool.query(
+      `DELETE FROM quiz_questions WHERE quiz_id = $1 AND id = ANY($2::int[])`,
+      [quiz_id, idList]
+    );
+
+    const remaining = await pool.query(
+      `SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC`,
+      [quiz_id]
+    );
+    res.json({ success: true, questions: remaining.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

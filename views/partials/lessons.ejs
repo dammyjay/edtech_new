@@ -137,72 +137,185 @@
 
 
 <!-- QUIZ MODAL -->
-<div id="quizModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <h2>Manage Quiz</h2>
+<div id="quizModal" class="qm-overlay" style="display:none;">
+  <div class="qm-panel">
+    <div class="qm-header">
+      <h2>📝 Manage Quiz</h2>
+      <button type="button" class="qm-close" onclick="closeQuizModal()" aria-label="Close">&times;</button>
+    </div>
 
-    <hr>
+    <div class="qm-body">
+      <div class="qm-list-head">
+        <label class="qm-checkbox-label">
+          <input type="checkbox" id="qmSelectAll" onchange="toggleSelectAllQuestions(this)">
+          <span id="qmQuestionCount">0 questions</span>
+        </label>
+      </div>
 
-    <h3>Import Quiz JSON</h3>
-    <input
-      type="file"
-      id="quizFile"
-      accept=".json"
-    />
+      <div id="quizQuestions" class="qm-question-list"></div>
 
-    <textarea
-      id="quizJson"
-      rows="10"
-      style="width:100%;"
-      placeholder="Paste JSON here..."
-    ></textarea>
+      <!-- Sticky bulk-action bar — only shown once ≥1 question is checked -->
+      <div class="qm-bulkbar" id="qmBulkBar" hidden>
+        <span id="qmSelectedCount">0 selected</span>
+        <div class="qm-bulkbar-actions">
+          <button type="button" class="qm-btn qm-btn-outline" onclick="clearQuestionSelection()">Clear</button>
+          <button type="button" class="qm-btn qm-btn-danger" onclick="bulkDeleteSelectedQuestions()">Delete Selected</button>
+        </div>
+      </div>
 
-    <br><br>
+      <details class="qm-import">
+        <summary>Import from JSON</summary>
+        <div class="qm-import-body">
+          <input type="file" id="quizFile" accept=".json" />
+          <textarea id="quizJson" rows="6" placeholder="Paste JSON here..."></textarea>
+          <button type="button" class="qm-btn qm-btn-outline" onclick="importQuizJson()">Import JSON</button>
+        </div>
+      </details>
 
-    <button
-      type="button"
-      onclick="importQuizJson()"
-    >
-      Import JSON
-    </button>
+      <hr class="qm-divider">
 
-  <p>Or type manually</p>
-    <div id="quizQuestions"></div>
+      <form id="quizForm" class="qm-form">
+        <input type="hidden" name="quiz_id" id="quiz_id">
+        <h3 id="qmFormTitle" class="qm-form-title">Add a Question</h3>
 
-    <hr>
-    <form id="quizForm">
-  <input type="hidden" name="quiz_id" id="quiz_id">
+        <label>Question</label>
+        <textarea name="question" rows="2" required></textarea>
 
-  <label>Question</label>
-  <textarea name="question" required></textarea>
+        <div class="qm-form-row">
+          <div class="qm-form-col">
+            <label>Question Type</label>
+            <select name="question_type" id="question_type" onchange="toggleOptions()">
+              <option value="multiple_choice">Multiple Choice</option>
+              <option value="true_false">True/False</option>
+              <option value="short_answer">Short Answer</option>
+            </select>
+          </div>
+          <div class="qm-form-col">
+            <label>Correct Answer</label>
+            <input type="text" name="correct_option" required>
+          </div>
+        </div>
 
-  <label>Question Type</label>
-  <select name="question_type" id="question_type" onchange="toggleOptions()">
-    <option value="multiple_choice">Multiple Choice</option>
-    <option value="true_false">True/False</option>
-    <option value="short_answer">Short Answer</option>
-  </select>
+        <div id="options_container" class="qm-options">
+          <label>Options</label>
+          <input type="text" name="options" placeholder="Option 1">
+          <input type="text" name="options" placeholder="Option 2">
+          <input type="text" name="options" placeholder="Option 3">
+          <input type="text" name="options" placeholder="Option 4">
+        </div>
 
-  <div id="options_container">
-    <label>Options</label>
-    <input type="text" name="options" placeholder="Option 1">
-    <input type="text" name="options" placeholder="Option 2">
-    <input type="text" name="options" placeholder="Option 3">
-    <input type="text" name="options" placeholder="Option 4">
-  </div>
+        <div class="qm-form-actions">
+          <button type="submit" class="qm-btn qm-btn-primary" id="qmSubmitBtn">Add Question</button>
+          <button type="button" class="qm-btn qm-btn-outline" id="qmCancelEditBtn" onclick="resetQuizForm()" hidden>Cancel Edit</button>
+        </div>
+      </form>
+    </div>
 
-  <label>Correct Answer</label>
-  <input type="text" name="correct_option" required>
-
-  <div class="modal-actions">
-    <button type="submit">Add Question</button>
-    <button type="button" onclick="closeQuizModal()">Close</button>
-  </div>
-</form>
-
-
+    <div class="qm-footer">
+      <button type="button" class="qm-btn qm-btn-outline" onclick="closeQuizModal()">Close</button>
+    </div>
   </div>
 </div>
+
+<style>
+  .qm-overlay {
+    position: fixed; inset: 0; background: rgba(20, 20, 30, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000; padding: 20px;
+  }
+  .qm-panel {
+    background: #fff; width: 100%; max-width: 640px; max-height: 88vh;
+    border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; overflow: hidden;
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+  .qm-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; border-bottom: 1px solid #ececf2;
+  }
+  .qm-header h2 { margin: 0; font-size: 18px; color: #1a1a2e; }
+  .qm-close {
+    background: none; border: none; font-size: 24px; line-height: 1;
+    color: #8a8a99; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+  }
+  .qm-close:hover { background: #f2f2f6; color: #1a1a2e; }
+  .qm-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+  .qm-footer { padding: 14px 22px; border-top: 1px solid #ececf2; text-align: right; }
+
+  .qm-list-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; font-size: 13px; color: #55556b; font-weight: 600;
+  }
+  .qm-checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+  .qm-question-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .qm-question-card {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: #f8f8fb; border: 1px solid #ececf2; border-radius: 10px;
+    padding: 12px 14px; transition: border-color .15s ease, background .15s ease;
+  }
+  .qm-question-card.qm-selected { border-color: #6c63ff; background: #f1f0ff; }
+  .qm-question-card .qm-card-check { margin-top: 2px; }
+  .qm-card-body { flex: 1; min-width: 0; }
+  .qm-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .qm-qnum { font-size: 11px; font-weight: 800; color: #8a8a99; letter-spacing: .03em; }
+  .qm-type-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    padding: 2px 8px; border-radius: 999px; background: #eceafd; color: #6c63ff;
+  }
+  .qm-question-text { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: #1a1a2e; word-break: break-word; }
+  .qm-options-preview { margin: 0 0 4px; font-size: 12.5px; color: #55556b; }
+  .qm-answer { margin: 0; font-size: 12.5px; color: #2a9d5c; font-weight: 600; }
+  .qm-card-actions { display: flex; flex-direction: column; gap: 6px; }
+  .qm-icon-btn {
+    border: 1px solid #ececf2; background: #fff; border-radius: 8px;
+    padding: 5px 9px; font-size: 12px; cursor: pointer; color: #55556b;
+  }
+  .qm-icon-btn:hover { background: #f2f2f6; }
+  .qm-icon-btn-danger:hover { background: #fdecec; color: #c0392b; border-color: #f3d4ce; }
+  .qm-empty { text-align: center; color: #8a8a99; font-size: 13px; padding: 24px 0; }
+
+  .qm-bulkbar {
+    position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between;
+    background: #1a1a2e; color: #fff; padding: 10px 14px; border-radius: 10px;
+    margin-bottom: 14px; font-size: 13px; font-weight: 600;
+  }
+  .qm-bulkbar-actions { display: flex; gap: 8px; }
+
+  .qm-import { margin-bottom: 10px; }
+  .qm-import summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #6c63ff; padding: 4px 0; }
+  .qm-import-body { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .qm-import-body textarea { width: 100%; font-family: monospace; font-size: 12px; box-sizing: border-box; }
+
+  .qm-divider { border: none; border-top: 1px solid #ececf2; margin: 16px 0; }
+
+  .qm-form { display: flex; flex-direction: column; gap: 10px; }
+  .qm-form-title { margin: 0 0 2px; font-size: 14px; color: #1a1a2e; }
+  .qm-form label { font-size: 12px; font-weight: 700; color: #55556b; margin-bottom: 2px; display: block; }
+  .qm-form textarea, .qm-form input[type="text"], .qm-form select {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #dadae6;
+    border-radius: 8px; font-size: 13.5px; font-family: inherit;
+  }
+  .qm-form-row { display: flex; gap: 12px; }
+  .qm-form-col { flex: 1; }
+  .qm-options { display: flex; flex-direction: column; gap: 6px; }
+  .qm-form-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+  .qm-btn {
+    border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 700;
+    cursor: pointer; border: 1px solid transparent;
+  }
+  .qm-btn-primary { background: #6c63ff; color: #fff; }
+  .qm-btn-primary:hover { background: #594ff0; }
+  .qm-btn-outline { background: #fff; border-color: #dadae6; color: #1a1a2e; }
+  .qm-btn-outline:hover { background: #f2f2f6; }
+  .qm-btn-danger { background: #e74c3c; color: #fff; }
+  .qm-btn-danger:hover { background: #cf4232; }
+
+  @media (max-width: 560px) {
+    .qm-form-row { flex-direction: column; gap: 10px; }
+  }
+</style>
 
 <!-- LAB MODAL -->
 <div id="labModal" class="modal" style="display:none;">
@@ -359,6 +472,8 @@ document.querySelectorAll('.ai-generate-form').forEach(form => {
 <script>
 let isEditing = false;
 let editingQuestionId = null;
+let currentQuestions = [];
+let selectedQuestionIds = new Set();
 
 // function openQuizModal(lessonId) {
 //   fetch(`/admin/lesson/${lessonId}/quiz`)
@@ -481,30 +596,114 @@ function closeQuizModal() {
   document.getElementById('quizModal').style.display = 'none';
 }
 
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+const QUESTION_TYPE_LABELS = {
+  multiple_choice: "Multiple Choice",
+  true_false: "True/False",
+  short_answer: "Short Answer",
+};
+
 // Render quiz questions
 function renderQuestions(questions) {
-  const container = document.getElementById('quizQuestions');
-  container.innerHTML = '';
+  currentQuestions = questions || [];
+  selectedQuestionIds.clear();
 
-  if (questions.length === 0) {
-    container.innerHTML = '<p>No questions yet.</p>';
+  const container = document.getElementById('quizQuestions');
+  const countEl = document.getElementById('qmQuestionCount');
+  countEl.textContent = `${currentQuestions.length} question${currentQuestions.length === 1 ? "" : "s"}`;
+
+  if (currentQuestions.length === 0) {
+    container.innerHTML = '<p class="qm-empty">No questions yet — add one below.</p>';
+    updateQuestionSelectionUI();
     return;
   }
 
-  questions.forEach(q => {
-    container.innerHTML += `
-      <div class="quiz-question">
-        <p><strong>${q.question}</strong></p>
-        ${q.options ? '<p>Options: ' + q.options.join(', ') + '</p>' : ''}
-        <p>Answer: ${q.correct_option}</p>
-        <div class="article-buttons">
-        <button style  = "btn-edit" type="button" onclick='editQuestion(${JSON.stringify(q)})'>Edit</button>
-        <button style  = "btn-delete"  type="button" onclick="deleteQuestion(${q.id})">Delete</button>
+  container.innerHTML = currentQuestions.map((q, i) => `
+    <div class="qm-question-card" data-id="${q.id}">
+      <label class="qm-card-check">
+        <input type="checkbox" class="qm-question-cb" value="${q.id}" onchange="updateQuestionSelectionUI()">
+      </label>
+      <div class="qm-card-body">
+        <div class="qm-card-top">
+          <span class="qm-qnum">Q${i + 1}</span>
+          <span class="qm-type-badge">${QUESTION_TYPE_LABELS[q.question_type] || q.question_type || ""}</span>
         </div>
+        <p class="qm-question-text">${escapeHtml(q.question)}</p>
+        ${q.options && q.options.length ? `<p class="qm-options-preview">Options: ${q.options.map(escapeHtml).join(', ')}</p>` : ''}
+        <p class="qm-answer">Answer: ${escapeHtml(q.correct_option)}</p>
       </div>
-      <hr>
-    `;
+      <div class="qm-card-actions">
+        <button class="qm-icon-btn" type="button" onclick='editQuestion(${JSON.stringify(q)})'>Edit</button>
+        <button class="qm-icon-btn qm-icon-btn-danger" type="button" onclick="deleteQuestion(${q.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateQuestionSelectionUI();
+}
+
+function toggleSelectAllQuestions(checkbox) {
+  document.querySelectorAll('.qm-question-cb').forEach((cb) => { cb.checked = checkbox.checked; });
+  updateQuestionSelectionUI();
+}
+
+function clearQuestionSelection() {
+  document.querySelectorAll('.qm-question-cb').forEach((cb) => { cb.checked = false; });
+  document.getElementById('qmSelectAll').checked = false;
+  updateQuestionSelectionUI();
+}
+
+// Keeps selectedQuestionIds, the bulk bar, the "N selected" count, the
+// select-all checkbox, and each card's highlight all in sync whenever
+// any individual checkbox changes.
+function updateQuestionSelectionUI() {
+  selectedQuestionIds.clear();
+  document.querySelectorAll('.qm-question-cb:checked').forEach((cb) => selectedQuestionIds.add(cb.value));
+
+  document.querySelectorAll('.qm-question-card').forEach((card) => {
+    card.classList.toggle('qm-selected', selectedQuestionIds.has(card.dataset.id));
   });
+
+  const bulkBar = document.getElementById('qmBulkBar');
+  const total = currentQuestions.length;
+  const selected = selectedQuestionIds.size;
+
+  bulkBar.hidden = selected === 0;
+  document.getElementById('qmSelectedCount').textContent = `${selected} selected`;
+
+  const selectAll = document.getElementById('qmSelectAll');
+  selectAll.checked = total > 0 && selected === total;
+  selectAll.indeterminate = selected > 0 && selected < total;
+}
+
+async function bulkDeleteSelectedQuestions() {
+  const ids = Array.from(selectedQuestionIds);
+  if (!ids.length) return;
+
+  if (!(await showConfirm(`Delete ${ids.length} selected question${ids.length === 1 ? "" : "s"}? This can't be undone.`))) return;
+
+  try {
+    const res = await fetch('/admin/quiz-questions/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quiz_id: document.getElementById('quiz_id').value, ids }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      renderQuestions(data.questions);
+      showAlert(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}.`);
+    } else {
+      showAlert(data.message || "Couldn't delete those questions.");
+    }
+  } catch (err) {
+    console.error(err);
+    showAlert("Server error deleting questions.");
+  }
 }
 
 // Fill form with existing question data for editing
@@ -526,7 +725,9 @@ function editQuestion(q) {
     });
   }
 
-  document.querySelector('#quizForm button[type="submit"]').textContent = "Update Question";
+  document.getElementById('qmFormTitle').textContent = "Edit Question";
+  document.getElementById('qmSubmitBtn').textContent = "Update Question";
+  document.getElementById('qmCancelEditBtn').hidden = false;
 }
 
 // Reset form to add mode
@@ -535,7 +736,9 @@ function resetQuizForm() {
   editingQuestionId = null;
   document.getElementById('quizForm').reset();
   toggleOptions();
-  document.querySelector('#quizForm button[type="submit"]').textContent = "Add Question";
+  document.getElementById('qmFormTitle').textContent = "Add a Question";
+  document.getElementById('qmSubmitBtn').textContent = "Add Question";
+  document.getElementById('qmCancelEditBtn').hidden = true;
 }
 
 // Toggle options fields based on type
@@ -588,14 +791,24 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
 });
 
 // Delete a question via AJAX
+// Was calling openQuizModal(quiz_id) here — but openQuizModal expects a
+// LESSON id, and #quiz_id holds the QUIZ's id (a different id space
+// entirely). That fetched /admin/lesson/{quizId}/quiz, which happened
+// to hit some unrelated lesson (from any course) that coincidentally
+// shares that numeric id, and rendered THEIR questions instead — "a
+// question from another course shows up." The delete endpoint already
+// returns the real, correct remaining list for this quiz; just render
+// that directly instead of re-deriving a lesson id at all.
 async function deleteQuestion(id) {
-  if (!(await showConfirm('Delete question?'))) return;
+  if (!(await showConfirm('Delete this question?'))) return;
 
   fetch(`/admin/quiz-question/${id}/delete`, { method: 'POST' })
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        openQuizModal(document.getElementById('quiz_id').value);
+        renderQuestions(data.questions);
+      } else {
+        showAlert(data.message || "Couldn't delete that question.");
       }
     })
     .catch(err => console.error(err));
