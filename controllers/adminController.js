@@ -7470,6 +7470,11 @@ exports.viewQuotePDF = async (req, res) => {
     const doc = await getQuoteDocumentPdf({ quoteId: id, send: false });
     if (!doc) return res.status(404).send("Invoice not found");
 
+    // This PDF is regenerated fresh from live data on every request —
+    // without this, a browser opening the same /view URL twice (e.g. two
+    // clicks after toggling an exemption in between) can silently serve
+    // its own cached copy from the first click instead of re-fetching.
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=${doc.filename}`);
     res.send(doc.pdf);
@@ -7488,6 +7493,7 @@ exports.downloadQuotePDF = async (req, res) => {
     const doc = await getQuoteDocumentPdf({ quoteId: id, send: false });
     if (!doc) return res.status(404).send("Invoice not found");
 
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
