@@ -304,6 +304,31 @@ async function generateAndSaveSummary(studentId, { courseId } = {}) {
   return summaryText;
 }
 
+// Keeps the AI summary reasonably fresh on frequent, lower-stakes progress
+// (a quiz submission, a lesson completion) without the cost or noise of
+// the badge/certificate path (one askTutor() call + an email blast to
+// parents/admins every time) — that stays exactly as-is, reserved for
+// actual milestones. This just regenerates the aggregate (course_id IS
+// NULL) summary text, silently, and only if it's missing or stale, so a
+// student submitting ten quizzes in a row costs one AI call, not ten.
+const SUMMARY_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+async function maybeRefreshSummary(studentId) {
+  try {
+    const existing = await pool.query(
+      `SELECT generated_at FROM portfolio_summaries WHERE student_id = $1 AND course_id IS NULL`,
+      [studentId]
+    );
+    const generatedAt = existing.rows[0]?.generated_at;
+    if (generatedAt && Date.now() - new Date(generatedAt).getTime() < SUMMARY_REFRESH_INTERVAL_MS) {
+      return; // still fresh — skip the AI call
+    }
+    await generateAndSaveSummary(studentId);
+  } catch (err) {
+    console.error("maybeRefreshSummary failed:", err.message);
+  }
+}
+
 const ENTRY_TYPES = new Set(["project", "competition", "experience", "other"]);
 
 async function addEntry(studentId, { entryType, title, organization, entryYear, description, linkUrl }) {
@@ -370,6 +395,7 @@ async function renderPortfolioPdf({ studentId, displayName, avatarUrl, courseId 
 module.exports = {
   getPortfolioData,
   generateAndSaveSummary,
+  maybeRefreshSummary,
   addEntry,
   updateEntry,
   deleteEntry,

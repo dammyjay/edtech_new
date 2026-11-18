@@ -3000,6 +3000,12 @@ exports.completeLesson = async (req, res) => {
       [userId, lessonId]
     );
 
+    if (!alreadyDone.rows.length) {
+      portfolioService.maybeRefreshSummary(userId).catch((err) =>
+        console.error("Lesson-complete portfolio refresh failed:", err.message)
+      );
+    }
+
     if (isFirstEverCompletion) {
       maybeAwardReferralBonus(userId).catch((err) =>
         console.error("Referral bonus check failed:", err.message)
@@ -4509,6 +4515,12 @@ ${JSON.stringify(reviewData, null, 2)}
         RETURNING id`,
         [quizId, studentId, percent, percent >= 50, JSON.stringify(reviewData)]
       );
+
+    if (!isInstructorPreview) {
+      portfolioService.maybeRefreshSummary(studentId).catch((err) =>
+        console.error("Quiz-submit portfolio refresh failed:", err.message)
+      );
+    }
 
     // Every attempt's own score, oldest first, including the one just
     // inserted above — same average + breakdown shown on a later

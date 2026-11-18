@@ -3183,28 +3183,44 @@ function exportExcel() {
   };
 
   // 🔹 Helper: Add classroom to dropdowns
+  // The filter dropdowns match against data-classroom (a classroom NAME —
+  // see filterUsers()), while assignClassroom submits a classroom ID to
+  // the backend, so each group needs its own option value convention.
+  const CLASSROOM_NAME_VALUE_DROPDOWNS = ["teacherClassFilter", "studentClassFilter"];
+  const CLASSROOM_ID_VALUE_DROPDOWNS = ["assignClassroom"];
+
   function addClassroomToDropdowns(classroom) {
-    const dropdownIds = ["teacherClassFilter", "studentClassFilter", "assignClassroom"];
-    dropdownIds.forEach(id => {
+    CLASSROOM_NAME_VALUE_DROPDOWNS.forEach(id => {
       const select = document.getElementById(id);
-      if (select) {
-        const opt = document.createElement("option");
-        opt.value = classroom.id;
-        opt.textContent = classroom.name;
-        select.appendChild(opt);
-      }
+      if (!select) return;
+      const opt = document.createElement("option");
+      opt.value = classroom.name;
+      opt.textContent = classroom.name;
+      select.appendChild(opt);
+    });
+    CLASSROOM_ID_VALUE_DROPDOWNS.forEach(id => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      const opt = document.createElement("option");
+      opt.value = classroom.id;
+      opt.textContent = classroom.name;
+      select.appendChild(opt);
     });
   }
 
   // 🔹 Helper: Update classroom name in dropdowns
-  function updateClassroomInDropdowns(classroom) {
-    const dropdownIds = ["teacherClassFilter", "studentClassFilter", "assignClassroom"];
-    dropdownIds.forEach(id => {
+  function updateClassroomInDropdowns(classroom, oldName) {
+    CLASSROOM_NAME_VALUE_DROPDOWNS.forEach(id => {
       const select = document.getElementById(id);
-      if (select) {
-        const opt = select.querySelector(`option[value="${classroom.id}"]`);
-        if (opt) opt.textContent = classroom.name;
-      }
+      if (!select) return;
+      const opt = oldName ? select.querySelector(`option[value="${oldName}"]`) : null;
+      if (opt) { opt.value = classroom.name; opt.textContent = classroom.name; }
+    });
+    CLASSROOM_ID_VALUE_DROPDOWNS.forEach(id => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      const opt = select.querySelector(`option[value="${classroom.id}"]`);
+      if (opt) opt.textContent = classroom.name;
     });
   }
 

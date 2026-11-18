@@ -1448,15 +1448,6 @@ exports.viewClassroom = async (req, res) => {
   });
 };
 
-// Edit classroom form
-exports.editClassroomForm = async (req, res) => {
-  const { id } = req.params;
-  const classroom = await pool.query("SELECT * FROM classrooms WHERE id = $1", [
-    id,
-  ]);
-  res.render("school-admin/edit-classroom", { classroom: classroom.rows[0] });
-};
-
 // Update classroom
 exports.updateClassroom = async (req, res) => {
   const { id } = req.params; // classroomId

@@ -113,7 +113,6 @@ router.post(
   schoolAdminController.createClassroom
 );
 router.get("/classrooms/:id", schoolAdminController.viewClassroom);
-router.get("/classrooms/:id/edit", schoolAdminController.editClassroomForm);
 router.post(
   "/classrooms/:id/edit",
   activityLoggerMiddleware(
