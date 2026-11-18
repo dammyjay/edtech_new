@@ -1119,8 +1119,18 @@ async function getQuoteDocumentPdf({ quoteId, schoolId = null, send = true }) {
     q.total_amount = calc.totalAmount;
   }
 
-  const totalPaid = Number(q.total_paid || 0);
-  const balance = Number(q.balance || 0);
+  // q.total_paid/q.balance (selected from the stored quotes row above)
+  // only get refreshed when something happens to trigger
+  // recalcAndPersistQuoteTotal — they'd previously gone stale here the
+  // same way total_students/total_amount did before the override two
+  // lines up, so total_paid is re-summed fresh and balance is derived
+  // from the live totalAmount, never the stored column.
+  const paidRes = await pool.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total_paid FROM school_payments WHERE quote_id = $1`,
+    [q.id]
+  );
+  const totalPaid = Number(paidRes.rows[0].total_paid);
+  const balance = Number(q.total_amount || 0) - totalPaid;
 
   // exempt_from_billing students are excluded from the list exported on
   // the invoice/receipt — they're still fully enrolled on the platform,
