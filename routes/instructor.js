@@ -79,6 +79,8 @@ router.get(
 
 router.get("/attendance/students", instructorController.getAttendanceStudents);
 
+router.get("/attendance/last-session", instructorController.getLastAttendanceSession);
+
 router.post("/attendance/save", instructorController.saveAttendance);
 
 router.get("/attendance/history", instructorController.getAttendanceHistory);

@@ -116,7 +116,12 @@ async function loadAttendanceStudents() {
     return;
   }
 
-  let html = "<h4 style='margin:14px 0 8px;'>Mark Attendance</h4>";
+  let html = `
+    <div style="display:flex; align-items:center; justify-content:space-between; margin:14px 0 8px;">
+      <h4 style="margin:0;">Mark Attendance</h4>
+      <button type="button" class="jk-btn-outline-sm" onclick="copyPreviousAttendance()">📋 Copy Previous Session</button>
+    </div>
+  `;
 
   data.forEach((s) => {
     html += `
@@ -134,6 +139,48 @@ async function loadAttendanceStudents() {
   html += `<button class="btn-primary" id="saveAttendanceBtn" onclick="saveAttendance()" style="margin-top:10px; width:100%;">Save Attendance</button>`;
 
   container.innerHTML = html;
+}
+
+async function copyPreviousAttendance() {
+  const term_id = document.getElementById("attendanceFilterTerm").value;
+  const classroom_id = document.getElementById("attendanceFilterClassroom").value;
+  const before_date = document.getElementById("attendanceDate").value;
+
+  if (!classroom_id || !before_date) {
+    showAlert("Pick a classroom and date first.", "error");
+    return;
+  }
+
+  let data;
+  try {
+    const res = await fetch(
+      `/instructor/attendance/last-session?term_id=${term_id}&classroom_id=${classroom_id}&before_date=${before_date}`
+    );
+    data = await res.json();
+  } catch (err) {
+    console.error("Copy previous attendance error:", err);
+    showAlert("Couldn't load the previous session — try again.", "error");
+    return;
+  }
+
+  if (!data.found) {
+    showAlert("No earlier session found for this classroom to copy from.", "error");
+    return;
+  }
+
+  const statusByStudent = {};
+  data.records.forEach((r) => { statusByStudent[String(r.student_id)] = r.status; });
+
+  let applied = 0;
+  document.querySelectorAll("#attendanceStudentList select[data-id]").forEach((sel) => {
+    const status = statusByStudent[sel.dataset.id];
+    if (status) {
+      sel.value = status;
+      applied++;
+    }
+  });
+
+  showAlert(`Copied ${applied} student(s) from ${new Date(data.date).toDateString()} — review before saving.`, "success");
 }
 
 // This file is loaded once via a persistent <script src> in

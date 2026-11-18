@@ -2698,6 +2698,43 @@ exports.assignedCoursesSection = async (req, res) => {
 };
 
 
+// Powers the "Copy Previous Session" button in the Take Attendance modal
+// — finds the most recent HELD session strictly before the date the
+// instructor currently has selected (so re-opening the modal on an old
+// date still copies from whatever came before THAT date, not just
+// "yesterday"), and returns its per-student statuses to pre-fill with.
+exports.getLastAttendanceSession = async (req, res) => {
+  const { term_id, classroom_id, before_date } = req.query;
+
+  if (!term_id || !classroom_id || !before_date) {
+    return res.status(400).json({ found: false, message: "term_id, classroom_id and before_date are required" });
+  }
+
+  try {
+    const sessionRes = await pool.query(
+      `SELECT id, date FROM attendance_sessions
+       WHERE term_id = $1 AND classroom_id = $2 AND date < $3 AND session_status = 'held'
+       ORDER BY date DESC
+       LIMIT 1`,
+      [term_id, classroom_id, before_date]
+    );
+    if (!sessionRes.rows.length) {
+      return res.json({ found: false });
+    }
+
+    const session = sessionRes.rows[0];
+    const recordsRes = await pool.query(
+      `SELECT student_id, status FROM attendance_records WHERE session_id = $1`,
+      [session.id]
+    );
+
+    res.json({ found: true, date: session.date, records: recordsRes.rows });
+  } catch (err) {
+    console.error("getLastAttendanceSession error:", err);
+    res.status(500).json({ found: false, message: "Server error" });
+  }
+};
+
 exports.getAttendanceStudents = async (req, res) => {
   const { term_id, classroom_id } = req.query;
 
