@@ -17,6 +17,7 @@ const flashcardProgressService = require("../services/flashcardProgressService")
 const { getPendingFeedbackCourse, rollPlatformFeedback } = require("../services/surveyService");
 const arcadeSessionService = require("../services/arcadeSessionService");
 const portfolioService = require("../services/portfolioService");
+const parentLinkingService = require("../services/parentLinkingService");
 const { generateMasterySignal, getOpenMasterySignals, dismissMasterySignal } = require("../services/masteryPathService");
 const { notifyUser, notifyNewDirectMessage, notifyNewClassMessage } = require("../utils/notify");
 const {
@@ -395,6 +396,7 @@ exports.getDashboard = async (req, res) => {
       [studentId]
     );
     const parentRequests = requestsRes.rows;
+    const parentEmailPrompt = await parentLinkingService.getPromptState(studentId);
 
     const issueCertificate = require("../services/issueCertificate");
 
@@ -1374,6 +1376,7 @@ exports.getDashboard = async (req, res) => {
       selectedLesson: null,
       parentRequests,
       parents,
+      parentEmailPrompt,
       projectSubmissions,
       courseProjects,
       courseCompleted,
@@ -1978,6 +1981,7 @@ exports.getEnrolledCourses = async (req, res) => {
       [studentId]
     );
     const parentRequests = requestsRes.rows;
+    const parentEmailPrompt = await parentLinkingService.getPromptState(studentId);
 
     // Stats (same as before)
     const completedCoursesRes = await pool.query(
@@ -2070,6 +2074,7 @@ exports.getEnrolledCourses = async (req, res) => {
       selectedPathway: req.query.pathway || null,
       parents,
       parentRequests,
+      parentEmailPrompt,
       announcements,
       levelInfo,
       streak,
@@ -5454,6 +5459,27 @@ exports.respondToParentRequest = async (req, res) => {
   } catch (err) {
     console.error("Parent request response error:", err.message);
     res.status(500).send("Server error responding to parent request");
+  }
+};
+
+// Self-service "link your parent" flow (services/parentLinkingService.js)
+// — the dashboard prompts for this whenever parentEmailPrompt.needed is
+// true (no parent_children row at all yet). Unlike respondToParentRequest
+// above, this links immediately — no waiting on the parent to approve.
+exports.linkParentEmail = async (req, res) => {
+  const studentId = req.user.id;
+  const { email } = req.body;
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ success: false, message: "Please enter an email address." });
+  }
+
+  try {
+    const result = await parentLinkingService.linkParentByEmail(studentId, email);
+    res.json(result);
+  } catch (err) {
+    console.error("linkParentEmail error:", err.message);
+    res.status(500).json({ success: false, message: "Server error — please try again." });
   }
 };
 

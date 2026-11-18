@@ -911,6 +911,25 @@ async function createTables() {
       `
     );
 
+    // Tracks a student-submitted parent email through the self-service
+    // "link your parent" flow (services/parentLinkingService.js) — unlike
+    // parent_child_requests above (parent-initiated, needs the child's
+    // approval), this is student-initiated and links immediately, with
+    // this row as the audit trail + the hook a delayed Brevo bounce check
+    // uses to retract a bad link (see checkForBounce in that service).
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS parent_email_invites (
+        id SERIAL PRIMARY KEY,
+        student_id INT NOT NULL REFERENCES users2(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        parent_id INT REFERENCES users2(id) ON DELETE SET NULL,
+        message_id TEXT,
+        status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'linked_existing', 'bounced'
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      `
+    );
+
     // tables for schools
     await pool.query(`
       CREATE TABLE IF NOT EXISTS schools (

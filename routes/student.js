@@ -374,6 +374,13 @@ router.post(
   studentController.respondToParentRequest
 );
 
+// Self-service "link your parent by email" — see services/parentLinkingService.js
+router.post(
+  "/link-parent-email",
+  express.json(),
+  studentController.linkParentEmail
+);
+
 // routes/student.js
 router.get("/classroom", studentController.getClassroom);
 

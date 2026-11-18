@@ -447,6 +447,29 @@
   </div>
 </div>
 
+<!-- Prompts a student with no linked parent for their parent's email —
+     reappears on every dashboard load (dismissible for this visit only)
+     until parentEmailPrompt.needed is false, i.e. a parent_children row
+     exists. See services/parentLinkingService.js. -->
+<% if (typeof parentEmailPrompt !== "undefined" && parentEmailPrompt && parentEmailPrompt.needed) { %>
+<div id="parentEmailModal" class="modal" style="display:block;">
+  <div class="modal-content">
+    <h2>👨‍👩‍👧 Add Your Parent/Guardian</h2>
+    <% if (parentEmailPrompt.bouncedEmail) { %>
+      <p style="color:#b42318;">The email you gave us (<strong><%= parentEmailPrompt.bouncedEmail %></strong>) didn't go through — please double-check it and try a different one.</p>
+    <% } else { %>
+      <p>Add your parent or guardian's email so they can follow your progress, see your portfolio of badges and certificates, and get our newsletters and event announcements.</p>
+    <% } %>
+    <input type="email" id="parentEmailInput" placeholder="parent@example.com" style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:6px;" />
+    <p id="parentEmailError" style="color:#b42318; display:none; font-size:13px; margin:0 0 10px;"></p>
+    <div class="modal-buttons">
+      <button type="button" onclick="submitParentEmail()">Add Parent</button>
+      <button type="button" onclick="closeParentEmailModal()">Remind Me Later</button>
+    </div>
+  </div>
+</div>
+<% } %>
+
 <!-- Compulsory module feedback survey — no close/X and no backdrop-click
      handler on purpose: this one can't be dismissed without submitting. -->
 <div id="feedbackSurveyModalOverlay" class="survey-modal-overlay" style="display:none;">
@@ -7265,6 +7288,43 @@ function closeReminderModal(){
   document.getElementById(
     "assignmentReminderModal"
   ).style.display = "none";
+}
+
+function closeParentEmailModal() {
+  const modal = document.getElementById("parentEmailModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function submitParentEmail() {
+  const input = document.getElementById("parentEmailInput");
+  const errorEl = document.getElementById("parentEmailError");
+  const email = (input.value || "").trim();
+  errorEl.style.display = "none";
+
+  if (!email) {
+    errorEl.textContent = "Please enter an email address.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  try {
+    const res = await fetch("/student/link-parent-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeParentEmailModal();
+      showAlert(data.message);
+    } else {
+      errorEl.textContent = data.message || "That didn't work — please try again.";
+      errorEl.style.display = "block";
+    }
+  } catch (err) {
+    errorEl.textContent = "Server error — please try again.";
+    errorEl.style.display = "block";
+  }
 }
 
 function goToAssignment() {

@@ -79,6 +79,7 @@ module.exports = [
   "notifications",
   "parent_child_requests",
   "parent_children",
+  "parent_email_invites",
   "parent_payments",
   "parent_training_invoices",
   "pending_users",
