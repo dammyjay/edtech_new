@@ -188,10 +188,13 @@
               <% } %>
             </td>
             <td class="jk-col-actions">
+              <a href="/admin/parent-invoices/<%= invoice.id %>/view" target="_blank" class="jk-icon-btn" title="View">
+                <i class="fa-solid fa-eye" style="color:#6E6350;"></i>
+              </a>
               <a href="/admin/parent-invoices/<%= invoice.id %>/download" class="jk-icon-btn" title="Download">
                 <i class="fa-solid fa-file-pdf" style="color:#B23A2A;"></i>
               </a>
-              <a href="/admin/parent-invoices/<%= invoice.id %>/send" class="jk-icon-btn" title="Send">
+              <a href="#" onclick="sendParentInvoice(<%= invoice.id %>); return false;" class="jk-icon-btn" title="Send to Parent">
                 <i class="fa-solid fa-paper-plane" style="color:#2563EB;"></i>
               </a>
               <a href="#" onclick="openPaymentModal('<%= invoice.id %>'); return false;" class="jk-icon-btn" title="Add Payment">
@@ -364,6 +367,19 @@
 
   function closeModal(id) {
     document.getElementById(id).style.display = 'none';
+  }
+
+  // Explicit, separate from viewing/downloading — mirrors
+  // sendQuoteToSchool in views/admin/quotes.ejs.
+  async function sendParentInvoice(invoiceId) {
+    if (!(await showConfirm("Email this invoice to the parent now?"))) return;
+    try {
+      const res = await fetch(`/admin/parent-invoices/${invoiceId}/send`, { method: "POST" });
+      const data = await res.json();
+      showAlert(data.message || (data.success ? "Sent." : "Couldn't send that."));
+    } catch (err) {
+      showAlert("Server error — please try again.");
+    }
   }
 
   // optional: close when clicking outside

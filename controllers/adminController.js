@@ -8088,7 +8088,15 @@ exports.createParentTrainingInvoice = async (req, res) => {
   }
 };
 
-exports.downloadParentInvoicePDF = async (req, res) => {
+// opts lets the three thin routes below (view/download/send) share this
+// one implementation instead of three copies of ~700 lines of inline
+// HTML — same split as services/quoteDocumentService.js's `send` option
+// for school quotes: view/download never email the parent, only the
+// explicit "send" route does. `disposition` controls inline-in-browser
+// vs save-to-disk; `jsonResponse` is for the send route, which doesn't
+// hand back PDF bytes at all, just a confirmation.
+exports.downloadParentInvoicePDF = async (req, res, opts = {}) => {
+  const { send = true, disposition = "attachment", jsonResponse = false } = opts;
   const { id } = req.params;
 
   try {
@@ -8116,7 +8124,7 @@ exports.downloadParentInvoicePDF = async (req, res) => {
     const invoice = result.rows[0];
 
     if (invoice.status === "paid") {
-        return exports.generateParentReceipt(req, res, invoice);
+        return exports.generateParentReceipt(req, res, invoice, opts);
     }
 
     // Fetch students attached to invoice
@@ -8646,9 +8654,8 @@ CEO Signature
 `;
 
     const pdf = await generatePdf(html);
-    console.log(Buffer.isBuffer(pdf));
-    console.log(pdf.constructor.name);
 
+    if (send) {
     await sendEmailWithAttachment(
       invoice.parent_email,
 
@@ -8870,12 +8877,23 @@ font-size:12px;
       `,
       [id],
     );
+    }
 
+    if (jsonResponse) {
+      return res.json({
+        success: send,
+        message: send
+          ? `Invoice emailed to ${invoice.parent_email}.`
+          : "Nothing sent.",
+      });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/pdf");
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=${invoice.parent_name.replace(/\s+/g, "_")}_Invoice.pdf`,
+      `${disposition}; filename=${invoice.parent_name.replace(/\s+/g, "_")}_Invoice.pdf`,
     );
 
     res.send(pdf);
@@ -8896,7 +8914,8 @@ font-size:12px;
     }
 };
 
-exports.generateParentReceipt = async (req, res, invoice) => {
+exports.generateParentReceipt = async (req, res, invoice, opts = {}) => {
+  const { send = true, disposition = "attachment", jsonResponse = false } = opts;
 
   try {
 
@@ -9473,6 +9492,7 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         `;
 
         const pdf = await generatePdf(html);
+        if (send) {
         await sendEmailWithAttachment(
 
             invoice.parent_email,
@@ -9631,11 +9651,23 @@ exports.generateParentReceipt = async (req, res, invoice) => {
         ["jaykirchtechhub@gmail.com"]
 
         );
+    }
+
+    if (jsonResponse) {
+      return res.json({
+        success: send,
+        message: send
+          ? `Receipt emailed to ${invoice.parent_email}.`
+          : "Nothing sent.",
+      });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/pdf");
 
     res.setHeader(
         "Content-Disposition",
-        `attachment; filename=${receiptNumber}.pdf`
+        `${disposition}; filename=${receiptNumber}.pdf`
     );
 
     res.send(pdf);

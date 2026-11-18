@@ -723,8 +723,16 @@ router.post(
   adminController.createParentTrainingInvoice,
 );
 router.get(
+  "/parent-invoices/:id/view",
+  (req, res) => adminController.downloadParentInvoicePDF(req, res, { send: false, disposition: "inline" }),
+);
+router.get(
   "/parent-invoices/:id/download",
-  adminController.downloadParentInvoicePDF,
+  (req, res) => adminController.downloadParentInvoicePDF(req, res, { send: false, disposition: "attachment" }),
+);
+router.post(
+  "/parent-invoices/:id/send",
+  (req, res) => adminController.downloadParentInvoicePDF(req, res, { send: true, jsonResponse: true }),
 );
 router.get("/school-courses", adminController.getSchoolCourses);
 router.post("/school-courses/assign", adminController.assignSchoolCourses);
