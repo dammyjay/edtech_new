@@ -6251,6 +6251,11 @@ exports.getSchoolDetails = async (req, res) => {
 
       return {
         ...term,
+        // The raw COUNT(ts.student_id) from termsResult above doesn't
+        // know about exempt_from_billing — overridden here with the
+        // same billed count calc.totalAmount already reflects, so the
+        // "Students" pill and the invoice total never disagree.
+        student_count: calc ? calc.totalStudents : term.student_count,
         quote: quote
           ? {
               ...quote,
@@ -7318,10 +7323,14 @@ exports.getQuotes = async (req, res) => {
     JOIN schools s ON q.school_id = s.id
     JOIN academic_terms t ON q.term_id = t.id
 
-    -- ✅ students counted separately
+    -- ✅ students counted separately (exempt_from_billing excluded — see
+    -- services/quoteCalcService.js, which this mirrors; this list page
+    -- has its own independent recompute rather than using that shared
+    -- service, so the filter has to be repeated here too)
     LEFT JOIN (
       SELECT term_id, COUNT(*) AS total_students
       FROM student_term_enrollments
+      WHERE exempt_from_billing IS NOT TRUE
       GROUP BY term_id
     ) st ON st.term_id = q.term_id
 
