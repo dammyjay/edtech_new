@@ -283,6 +283,7 @@ const FEATURE_MODULES = [
       ]},
       { category: "Quizzes", items: [
         "Take a quiz, get an immediate score plus a question-by-question review with an AI explanation on every answer.",
+        "Questions/options with an admin-added image show that image in the review too — captured as a frozen snapshot at the moment of submission (alongside the question text and correct answer, which were already snapshotted), so a later admin edit to the question's image never changes what a past attempt's review shows. Attempts submitted before this was added have no image in their review (none was ever captured for them).",
         "A refreshed or reopened in-progress quiz resumes exactly where the student left off — already-answered questions are restored showing their checked/locked state — instead of restarting from question one.",
         "Retake freely, but XP (and a pass bonus) is only awarded on the first attempt; one answer-check per question per attempt.",
         "Correct-answer streak bonuses (3 or 5 in a row); an optional 'Boss Battle' game-style replay of a past quiz.",

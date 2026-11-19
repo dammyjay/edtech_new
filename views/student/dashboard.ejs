@@ -7094,6 +7094,16 @@ function submitQuizAnswers(lessonId){
 
 }
 
+// Finds the option image (if any) matching a given answer's TEXT —
+// q.options/q.optionImages are parallel arrays (same index = same
+// option), snapshotted at submission time alongside the rest of q.
+function reviewOptionImageHtml(q, answerText) {
+  if (!answerText || !q.options || !q.optionImages) return "";
+  const i = q.options.findIndex(o => String(o).trim().toLowerCase() === String(answerText).trim().toLowerCase());
+  const src = i >= 0 ? q.optionImages[i] : null;
+  return src ? `<br><img class="wg-option-img" src="${src}" alt="">` : "";
+}
+
 function renderReviewQuestion(){
 
   const q =
@@ -7139,12 +7149,14 @@ function renderReviewQuestion(){
       <h3>
         ${q.question}
       </h3>
+      ${q.questionImageUrl ? `<img class="wg-question-img" src="${q.questionImageUrl}" alt="">` : ""}
 
       <p>
         <strong>
           Your Answer:
         </strong>
         ${q.yourAnswer || "No answer"}
+        ${reviewOptionImageHtml(q, q.yourAnswer)}
       </p>
 
       <p>
@@ -7152,6 +7164,7 @@ function renderReviewQuestion(){
           Correct Answer:
         </strong>
         ${q.correctAnswer}
+        ${reviewOptionImageHtml(q, q.correctAnswer)}
       </p>
 
       <p class="${

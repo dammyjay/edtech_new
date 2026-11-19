@@ -501,6 +501,15 @@ function renderQuizReportHtml(data) {
   const answered = reviewData.filter((r) => r.yourAnswer && String(r.yourAnswer).trim() !== "").length;
   const correct = reviewData.filter((r) => r.isCorrect).length;
 
+  // q.options/q.optionImages are parallel arrays (same index = same
+  // option), snapshotted at submission time — see the matching comment
+  // in controllers/studentController.js's submitLessonQuiz.
+  const quizOptionImage = (q, answerText) => {
+    if (!answerText || !q.options || !q.optionImages) return null;
+    const i = q.options.findIndex((o) => String(o).trim().toLowerCase() === String(answerText).trim().toLowerCase());
+    return i >= 0 ? q.optionImages[i] : null;
+  };
+
   const body = `
     <div class="rp-section">
       <h2><i class='fa-solid fa-book-open-reader rp-icon rp-icon-blue'></i> Where This Came From</h2>
@@ -535,8 +544,11 @@ function renderQuizReportHtml(data) {
             (q) => `
           <div class="rp-quiz-review-card ${q.isCorrect ? "correct" : "wrong"}">
             <p style="font-weight:700;">${esc(q.question)}</p>
+            ${q.questionImageUrl ? `<img src="${esc(q.questionImageUrl)}" alt="" style="max-width:220px; display:block; margin:6px 0; border-radius:8px;">` : ""}
             <p><strong>Your answer:</strong> ${esc(q.yourAnswer || "No answer")}</p>
+            ${quizOptionImage(q, q.yourAnswer) ? `<img src="${esc(quizOptionImage(q, q.yourAnswer))}" alt="" style="max-width:140px; display:block; margin:4px 0; border-radius:6px;">` : ""}
             ${!q.isCorrect ? `<p><strong>Correct answer:</strong> ${esc(q.correctAnswer)}</p>` : ""}
+            ${!q.isCorrect && quizOptionImage(q, q.correctAnswer) ? `<img src="${esc(quizOptionImage(q, q.correctAnswer))}" alt="" style="max-width:140px; display:block; margin:4px 0; border-radius:6px;">` : ""}
             <p class="rp-quiz-review-status">${q.isCorrect ? "<i class='fa-solid fa-circle-check rp-icon rp-icon-green'></i> Correct!" : "<i class='fa-solid fa-circle-xmark rp-icon rp-icon-red'></i> Not quite"}</p>
             ${q.feedback ? `<div class="rp-quiz-review-feedback"><i class='fa-solid fa-robot rp-icon rp-icon-blue'></i> ${esc(q.feedback)}</div>` : ""}
           </div>`

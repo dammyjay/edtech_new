@@ -4393,7 +4393,8 @@ exports.submitLessonQuiz = async (req, res) => {
 
     // ✅ Fetch quiz questions
     const qRes = await pool.query(
-      `SELECT qq.id, qq.question, qq.options, qq.correct_option
+      `SELECT qq.id, qq.question, qq.options, qq.correct_option,
+              qq.question_image_url, qq.option_images
        FROM quiz_questions qq
        WHERE qq.quiz_id = $1
        ORDER BY qq.id ASC`,
@@ -4420,12 +4421,21 @@ exports.submitLessonQuiz = async (req, res) => {
 
       if (isCorrect) score++;
 
+      // Snapshot question_image_url/options/option_images AS THEY WERE
+      // at submission time, same as question/correct_option just below —
+      // review_data is a frozen historical record, not something that
+      // should change if an admin edits the question/images later. See
+      // the matching comment on the quiz_questions.question_image_url
+      // migration in models/initTables.js for why these columns exist.
       reviewData.push({
         id: q.id,
         question: q.question,
         yourAnswer,
         correctAnswer: q.correct_option,
         isCorrect,
+        options: q.options || null,
+        questionImageUrl: q.question_image_url || null,
+        optionImages: q.option_images || null,
       });
     });
 

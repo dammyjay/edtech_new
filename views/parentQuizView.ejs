@@ -136,12 +136,26 @@
 
     <h3 class="section-title">📝 Breakdown</h3>
 
+    <%
+      // q.options/q.optionImages are parallel arrays (same index = same
+      // option), snapshotted at submission time — see the matching
+      // comment in controllers/studentController.js's submitLessonQuiz.
+      const pqOptionImage = (q, answerText) => {
+        if (!answerText || !q.options || !q.optionImages) return null;
+        const i = q.options.findIndex(o => String(o).trim().toLowerCase() === String(answerText).trim().toLowerCase());
+        return i >= 0 ? q.optionImages[i] : null;
+      };
+    %>
     <% if (reviewData && reviewData.length > 0) { %>
       <% reviewData.forEach(q => { %>
+        <% const yourImg = pqOptionImage(q, q.yourAnswer); const correctImg = pqOptionImage(q, q.correctAnswer); %>
         <div class="question">
           <p><strong>Question:</strong> <%= q.question %></p>
+          <% if (q.questionImageUrl) { %><img src="<%= q.questionImageUrl %>" alt="" style="max-width:260px; display:block; margin:6px 0; border-radius:8px;"><% } %>
           <p><strong>Your Answer:</strong> <%= q.yourAnswer || "No answer" %></p>
+          <% if (yourImg) { %><img src="<%= yourImg %>" alt="" style="max-width:160px; display:block; margin:4px 0; border-radius:6px;"><% } %>
           <p><strong>Correct Answer:</strong> <%= q.correctAnswer %></p>
+          <% if (correctImg) { %><img src="<%= correctImg %>" alt="" style="max-width:160px; display:block; margin:4px 0; border-radius:6px;"><% } %>
           <p class="<%= q.isCorrect ? 'correct' : 'wrong' %>">
             <%= q.isCorrect ? "✅ Correct" : "❌ Wrong" %>
           </p>
