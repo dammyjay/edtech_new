@@ -688,6 +688,15 @@
   margin: 2px 0 14px;
 }
 
+.wg-question-img {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 12px;
+  margin: 0 0 16px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+}
+
 .wg-options-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -744,4 +753,21 @@
 
 .wg-option-text {
   flex: 1;
+}
+
+.wg-option-img {
+  max-width: 100%;
+  max-height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* An option with an image stacks it above the label instead of the
+   default icon+text row, and drops the fixed min-height so the image
+   isn't awkwardly cramped. */
+.wg-option-box:has(.wg-option-img) {
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
 }

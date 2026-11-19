@@ -6362,10 +6362,18 @@ async function requestFiftyFifty(questionId) {
     <h2 class="quiz-question-title wg-question-title">
       ${q.question}
     </h2>
+    ${q.question_image_url ? `<img class="wg-question-img" src="${q.question_image_url}" alt="">` : ""}
 
     <div class="quiz-options wg-options-grid">
 
-      ${(quizFiftyFiftyOptions[q.id] || q.options).map((option, i) => {
+      ${(() => {
+        // 50/50 swaps in a narrowed 2-option array whose index no longer
+        // lines up with the original options/option_images — rather than
+        // also threading the removed option's image through that
+        // narrowing server-side, option images just aren't shown once
+        // 50/50 is active (still shows the text either way).
+        const isFiftyFifty = !!quizFiftyFiftyOptions[q.id];
+        return (quizFiftyFiftyOptions[q.id] || q.options).map((option, i) => {
         const isSelected = selectedAnswer === option;
         let cls = (isSelected ? "selected " : "") + "wg-option-box";
         let extraStyle = `background:${WG_COLORS[i % WG_COLORS.length]};`;
@@ -6383,12 +6391,15 @@ async function requestFiftyFifty(questionId) {
         const clickHandler = checked
           ? ""
           : `onclick="selectAnswer(${q.id}, '${option.replace(/'/g, "\\'")}')"`;
+        const optionImageUrl = !isFiftyFifty && q.option_images && q.option_images[i];
+        const imgMarkup = optionImageUrl ? `<img class="wg-option-img" src="${optionImageUrl}" alt="">` : "";
         return `
         <div class="quiz-option ${cls}" style="${extraStyle}" ${clickHandler}>
-          ${shapeMarkup}<span class="wg-option-text">${option}</span>
+          ${shapeMarkup}${imgMarkup}<span class="wg-option-text">${option}</span>
         </div>
         `;
-      }).join("")}
+        }).join("");
+      })()}
 
     </div>
 

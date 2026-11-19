@@ -531,6 +531,15 @@ router.post("/reminders", adminReminderController.createReminder);
 router.post("/reminders/:id/close", adminReminderController.closeReminder);
 router.post("/reminders/targets/:targetId/mark-understood", adminReminderController.markUnderstoodManually);
 
+// Image upload for the quiz modal's paste/file-picker slots (question
+// image + per-option images) — used by both create and edit forms,
+// independently of the text-field submit itself.
+router.post(
+  "/quiz-question/upload-image",
+  upload.single("quiz_image"),
+  learningController.uploadQuizImage
+);
+
 // Create question
 router.post(
   "/quiz-question/create",

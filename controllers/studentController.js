@@ -4215,7 +4215,7 @@ exports.getLessonQuiz = async (req, res) => {
 
     // 3️⃣ Otherwise, fetch quiz questions
     const questionsRes = await pool.query(
-      `SELECT id, question, question_type, options
+      `SELECT id, question, question_type, options, question_image_url, option_images
        FROM quiz_questions
        WHERE quiz_id = $1
        ORDER BY id ASC`,

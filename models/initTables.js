@@ -641,6 +641,20 @@ async function createTables() {
       `
     );
 
+    // Optional images for a question and/or its multiple-choice options
+    // (e.g. "which of these 4 screenshots has a syntax error?"). Kept as
+    // purely additive, parallel data rather than changing what `options`/
+    // `correct_option` mean — grading still compares correct_option
+    // against the chosen option's TEXT exactly as before; option_images[i]
+    // is just an optional image shown alongside options[i], same index,
+    // same length when set. This avoids touching the live grading path
+    // (controllers/studentController.js) at all.
+    await pool.query(`
+      ALTER TABLE quiz_questions
+      ADD COLUMN IF NOT EXISTS question_image_url TEXT,
+      ADD COLUMN IF NOT EXISTS option_images TEXT[];
+    `);
+
       // table for course enrollments
     await pool.query(
       `CREATE TABLE IF NOT EXISTS course_enrollments (

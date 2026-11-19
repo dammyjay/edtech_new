@@ -454,22 +454,51 @@ exports.getOrCreateLessonQuiz = async (req, res) => {
 };
 
 // CREATE question
+// Single-image upload used by the quiz modal's paste/file-picker image
+// slots (question image + each option's image) — multer's Cloudinary
+// storage (middlewares/upload.js, "quiz_image" field -> quizzes/images
+// folder) has already uploaded the file by the time this runs; this
+// just hands the resulting URL back to the browser.
+exports.uploadQuizImage = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No image received." });
+  }
+  res.json({ success: true, url: req.file.path || req.file.secure_url });
+};
+
+// option_images[i] is an optional image URL shown alongside options[i] —
+// same index, same length as options when present. Blank slots arrive
+// as "" (never filtered out), so index alignment survives even when
+// only some options have an image. Never used for grading — that still
+// only ever compares correct_option against the chosen option's text.
+function readOptionImages(body, optionsLength) {
+  let images = body.option_images || [];
+  if (typeof images === "string") images = [images];
+  images = images.map((url) => (url && url.trim() ? url.trim() : null));
+  while (images.length < optionsLength) images.push(null);
+  return images.some((url) => url) ? images.slice(0, optionsLength) : null;
+}
+
 exports.createQuizQuestion = async (req, res) => {
   try {
     const { quiz_id, question, question_type, correct_option } = req.body;
     let options = req.body.options || [];
 
     if (typeof options === "string") options = [options];
+    const questionImageUrl = (req.body.question_image_url || "").trim() || null;
+    const optionImages = readOptionImages(req.body, options.length);
 
     await pool.query(
-      `INSERT INTO quiz_questions (quiz_id, question, question_type, options, correct_option)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO quiz_questions (quiz_id, question, question_type, options, correct_option, question_image_url, option_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         quiz_id,
         question,
         question_type,
         options.length ? options : null,
         correct_option,
+        questionImageUrl,
+        optionImages,
       ]
     );
 
@@ -728,16 +757,21 @@ exports.editQuizQuestion = async (req, res) => {
     let options = req.body.options || [];
 
     if (typeof options === "string") options = [options];
+    const questionImageUrl = (req.body.question_image_url || "").trim() || null;
+    const optionImages = readOptionImages(req.body, options.length);
 
     const updated = await pool.query(
       `UPDATE quiz_questions
-       SET question = $1, question_type = $2, options = $3, correct_option = $4
-       WHERE id = $5 RETURNING *`,
+       SET question = $1, question_type = $2, options = $3, correct_option = $4,
+           question_image_url = $5, option_images = $6
+       WHERE id = $7 RETURNING *`,
       [
         question,
         question_type,
         options.length ? options : null,
         correct_option,
+        questionImageUrl,
+        optionImages,
         id,
       ]
     );
