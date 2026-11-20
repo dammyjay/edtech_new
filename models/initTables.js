@@ -3072,6 +3072,27 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // One row per actual lesson-task-reminder email/WhatsApp send
+    // (cron/lessonTaskReminderJobs.js) — lets an inbound reply (same
+    // webhook as admin_reminder_replies above, routed through
+    // services/lessonTaskReminderReplyService.js) be matched back to who
+    // it was sent to and what it was about, without needing the full
+    // target/status state machine admin_reminders uses (a lesson task
+    // reminder isn't a negotiation with one school, it's a daily nag to
+    // three different recipient groups until the class happens).
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS lesson_task_reminder_sends (
+        id SERIAL PRIMARY KEY,
+        school_id INT REFERENCES schools(id) ON DELETE CASCADE,
+        recipient_user_id INT REFERENCES users2(id) ON DELETE CASCADE,
+        recipient_role TEXT NOT NULL,
+        recipient_email TEXT,
+        recipient_phone TEXT,
+        summary TEXT,
+        sent_at TIMESTAMP DEFAULT NOW()
+      );`
+    );
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

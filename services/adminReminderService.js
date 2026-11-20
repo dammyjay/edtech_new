@@ -19,6 +19,7 @@ const sendEmail = require("../utils/sendEmail");
 const { sendWhatsAppTemplate } = require("../utils/sendWhatsApp");
 const { toWhatsAppNumber } = require("../utils/phoneFormat");
 const { classifyReminderReply } = require("../utils/ai");
+const { notifyUser } = require("../utils/notify");
 
 const BASE_URL = "https://acad.jkthub.com";
 
@@ -35,35 +36,56 @@ function formatDate(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+const ALL_ROLES = ["school_admin", "teacher", "parent"];
+
 // School admin (schools.created_by — the confirmed real linkage, same as
 // cron/lessonTaskReminderJobs.js) + every teacher assigned to one of the
-// school's classrooms.
-async function getSchoolRecipients(schoolId) {
+// school's classrooms + every parent of one of the school's students —
+// filtered down to whichever of those three the reminder's creator
+// actually picked (targetRoles).
+async function getSchoolRecipients(schoolId, targetRoles = ALL_ROLES) {
   const recipients = [];
+  const roles = Array.isArray(targetRoles) && targetRoles.length ? targetRoles : ALL_ROLES;
 
   const schoolRes = await pool.query(`SELECT created_by FROM schools WHERE id = $1`, [schoolId]);
   const createdBy = schoolRes.rows[0]?.created_by;
-  if (createdBy) {
+  if (roles.includes("school_admin") && createdBy) {
     const adminRes = await pool.query(`SELECT id, fullname, email, phone FROM users2 WHERE id = $1`, [createdBy]);
     if (adminRes.rows[0]) recipients.push({ ...adminRes.rows[0], role: "school_admin" });
   }
 
-  const teacherRes = await pool.query(
-    `SELECT DISTINCT u.id, u.fullname, u.email, u.phone
-     FROM classroom_teachers ct
-     JOIN classrooms c ON c.id = ct.classroom_id
-     JOIN users2 u ON u.id = ct.teacher_id
-     WHERE c.school_id = $1`,
-    [schoolId]
-  );
-  for (const row of teacherRes.rows) {
-    if (row.id !== createdBy) recipients.push({ ...row, role: "teacher" });
+  if (roles.includes("teacher")) {
+    const teacherRes = await pool.query(
+      `SELECT DISTINCT u.id, u.fullname, u.email, u.phone
+       FROM classroom_teachers ct
+       JOIN classrooms c ON c.id = ct.classroom_id
+       JOIN users2 u ON u.id = ct.teacher_id
+       WHERE c.school_id = $1`,
+      [schoolId]
+    );
+    for (const row of teacherRes.rows) {
+      if (row.id !== createdBy) recipients.push({ ...row, role: "teacher" });
+    }
+  }
+
+  if (roles.includes("parent")) {
+    const parentRes = await pool.query(
+      `SELECT DISTINCT u.id, u.fullname, u.email, u.phone
+       FROM parent_children pc
+       JOIN user_school us ON us.user_id = pc.child_id AND us.role_in_school = 'student'
+       JOIN users2 u ON u.id = pc.parent_id
+       WHERE us.school_id = $1`,
+      [schoolId]
+    );
+    for (const row of parentRes.rows) {
+      recipients.push({ ...row, role: "parent" });
+    }
   }
 
   return recipients;
 }
 
-async function createReminder({ title, message, dueDate, resendIntervalDays, createdBy, schoolIds }) {
+async function createReminder({ title, message, dueDate, resendIntervalDays, createdBy, schoolIds, targetRoles }) {
   const reminderRes = await pool.query(
     `INSERT INTO admin_reminders (title, message, due_date, resend_interval_days, created_by)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
@@ -80,7 +102,7 @@ async function createReminder({ title, message, dueDate, resendIntervalDays, cre
     const target = targetRes.rows[0];
     if (!target) continue;
 
-    const recipients = await getSchoolRecipients(schoolId);
+    const recipients = await getSchoolRecipients(schoolId, targetRoles);
     for (const r of recipients) {
       await pool.query(
         `INSERT INTO admin_reminder_recipients (target_id, user_id, role) VALUES ($1, $2, $3)
@@ -100,6 +122,11 @@ async function createReminder({ title, message, dueDate, resendIntervalDays, cre
   return reminder;
 }
 
+async function getPlatformAdminEmails() {
+  const res = await pool.query(`SELECT email FROM users2 WHERE role = 'admin'`);
+  return res.rows.map((r) => r.email).filter(Boolean);
+}
+
 async function sendToTarget(target, reminder, kind) {
   const recipRes = await pool.query(
     `SELECT arr.user_id, arr.role, u.fullname, u.email, u.phone
@@ -112,6 +139,7 @@ async function sendToTarget(target, reminder, kind) {
     kind === "followup"
       ? `Following up on "${reminder.title}": ${reminder.message} (due ${dueDateStr}). Please confirm you're still on track.`
       : reminder.message;
+  const adminCc = await getPlatformAdminEmails();
 
   for (const r of recipRes.rows) {
     if (r.email) {
@@ -120,7 +148,7 @@ async function sendToTarget(target, reminder, kind) {
           r.email,
           kind === "followup" ? `Checking in: ${reminder.title}` : reminder.title,
           `<p>Hello ${r.fullname || ""},</p><p>${bodyText}</p>`,
-          { replyTo: replyToEmailFor(target.id) }
+          { replyTo: replyToEmailFor(target.id), cc: adminCc }
         );
       } catch (err) {
         console.error(`Admin reminder email failed (target ${target.id}, user ${r.user_id}):`, err.message);
@@ -173,11 +201,14 @@ async function processDueFollowups() {
 // a reply from someone no longer "owed" a reminder is simply not matched.
 async function findOpenTargetForSender({ phone, email }) {
   const res = await pool.query(
-    `SELECT arr.target_id, arr.user_id, u.phone, u.email, t.reminder_id, r.title, r.message
+    `SELECT arr.target_id, arr.user_id, u.phone, u.email, u.fullname, t.reminder_id, t.school_id,
+            r.title, r.message, r.created_by,
+            s.name AS school_name
      FROM admin_reminder_recipients arr
      JOIN admin_reminder_targets t ON t.id = arr.target_id
      JOIN admin_reminders r ON r.id = t.reminder_id
      JOIN users2 u ON u.id = arr.user_id
+     JOIN schools s ON s.id = t.school_id
      WHERE t.status = 'pending' AND r.status = 'active'
      ORDER BY t.id DESC`
   );
@@ -219,7 +250,34 @@ async function recordInboundReply({ phone, email, channel, text }) {
     [match.target_id, newStatus]
   );
 
+  // Platform admins always get told a reply came in (same "admin sees
+  // everything" principle as the email CC in sendToTarget above) — plus
+  // whoever actually created this reminder, so an instructor who sent it
+  // finds out too, not just whichever admin happens to check the
+  // dashboard.
+  notifyReplyRecipients(match, text, classification).catch((err) =>
+    console.error("adminReminderService: reply notification failed:", err.message)
+  );
+
   return { targetId: match.target_id, ...classification };
+}
+
+async function notifyReplyRecipients(match, replyText, classification) {
+  const title = `Reply to "${match.title}" from ${match.school_name}`;
+  const message = `${match.fullname || "Someone"} (${match.school_name}) replied: "${replyText}"${
+    classification.summary ? ` — AI summary: ${classification.summary}` : ""
+  }`;
+  const url = "/admin/reminders";
+
+  const admins = await pool.query(`SELECT id FROM users2 WHERE role = 'admin'`);
+  const notifiedIds = new Set();
+  for (const row of admins.rows) {
+    notifiedIds.add(row.id);
+    await notifyUser(row.id, { type: "reminder_reply", title, message, url, email: true });
+  }
+  if (match.created_by && !notifiedIds.has(match.created_by)) {
+    await notifyUser(match.created_by, { type: "reminder_reply", title, message, url, email: true });
+  }
 }
 
 async function markUnderstoodManually(targetId) {
@@ -233,12 +291,18 @@ async function closeReminder(reminderId) {
   await pool.query(`UPDATE admin_reminders SET status = 'closed' WHERE id = $1`, [reminderId]);
 }
 
-async function listReminders() {
+// createdBy scopes this to one sender's own reminders — used by the
+// instructor-facing reminders section so an instructor only ever sees
+// what they personally sent, never the full platform list admin gets.
+async function listReminders(createdBy) {
   const res = await pool.query(
     `SELECT r.*,
        (SELECT COUNT(*) FROM admin_reminder_targets t WHERE t.reminder_id = r.id) AS total_schools,
        (SELECT COUNT(*) FROM admin_reminder_targets t WHERE t.reminder_id = r.id AND t.status IN ('understood','followup_sent')) AS understood_schools
-     FROM admin_reminders r ORDER BY r.created_at DESC`
+     FROM admin_reminders r
+     WHERE $1::int IS NULL OR r.created_by = $1
+     ORDER BY r.created_at DESC`,
+    [createdBy || null]
   );
   return res.rows;
 }

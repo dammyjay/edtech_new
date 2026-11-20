@@ -132,6 +132,17 @@ function afterSectionLoad(section) {
   if (section === "attendance" && typeof loadAttendanceHistory === "function") {
     loadAttendanceHistory();
   }
+  // Same reason as attendance above — these sections' own inline
+  // <script> tags used to silently never run (main.innerHTML= never
+  // executes embedded scripts), so their init now lives in
+  // instructorArcadeSession.js / instructorReminders.js instead,
+  // called explicitly here.
+  if (section === "arcade_session" && typeof initArcadeSessionSection === "function") {
+    initArcadeSessionSection();
+  }
+  if (section === "reminders" && typeof loadInstructorReminders === "function") {
+    loadInstructorReminders();
+  }
 }
 
 function bindSchoolSelector() {

@@ -1,0 +1,70 @@
+<div class="jk-header-card">
+  <div>
+    <h2>📣 Reminders</h2>
+    <p>Send a reminder to one or more of your schools. It resends automatically until someone replies, and the platform admin always gets a copy.</p>
+  </div>
+  <button class="jk-btn-dark" onclick="openCreateReminderModal()">+ New Reminder</button>
+</div>
+
+<div class="jk-term-grid" id="instReminderGrid">
+  <p>Loading reminders…</p>
+</div>
+
+<!-- Create reminder modal -->
+<div class="jk-modal-overlay" id="instCreateReminderOverlay" hidden>
+  <div class="jk-modal jk-term-modal">
+    <div class="jk-modal-head">
+      <h4>New Reminder</h4>
+      <button class="jk-modal-close" onclick="closeCreateReminderModal()">✕</button>
+    </div>
+    <div class="jk-modal-body">
+      <label>Title</label>
+      <input type="text" id="irTitle" placeholder="e.g. Please submit this week's attendance">
+
+      <label>Message</label>
+      <textarea id="irMessage" rows="4" placeholder="What do you need them to know or do?"></textarea>
+
+      <label>Due date</label>
+      <input type="date" id="irDueDate">
+
+      <label>Resend every (days) until they reply</label>
+      <input type="number" id="irResendDays" value="2" min="1">
+
+      <label>Who should get this?</label>
+      <div style="display:flex; gap:14px; margin:6px 0 12px;">
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="irRoleCheckbox" value="school_admin" checked style="width:auto; margin:0;"> School Coordinator
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="irRoleCheckbox" value="teacher" checked style="width:auto; margin:0;"> Teachers
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="irRoleCheckbox" value="parent" checked style="width:auto; margin:0;"> Parents
+        </label>
+      </div>
+
+      <label>Schools (only schools you're assigned to)</label>
+      <div id="irSchoolsList" style="max-height:180px; overflow-y:auto; border:1px solid #E7DFC8; border-radius:8px; padding:10px;">
+        <p>Loading schools…</p>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="jk-btn-dark" onclick="submitInstructorReminder()">Send</button>
+        <button class="jk-btn-outline" onclick="closeCreateReminderModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="jk-modal-overlay" id="instReminderDetailOverlay" hidden>
+  <div class="jk-modal jk-term-modal">
+    <div class="jk-modal-head">
+      <h4 id="instReminderDetailTitle">Reminder</h4>
+      <button class="jk-modal-close" onclick="closeReminderDetailModal()">✕</button>
+    </div>
+    <div class="jk-modal-body" id="instReminderDetailBody">
+      <p>Loading…</p>
+    </div>
+  </div>
+</div>

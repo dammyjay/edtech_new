@@ -81,6 +81,14 @@ router.get("/attendance/students", instructorController.getAttendanceStudents);
 
 router.get("/attendance/last-session", instructorController.getLastAttendanceSession);
 
+// General reminders (services/adminReminderService.js) — scoped to this
+// instructor's own schools/reminders, see controllers/instructorController.js.
+router.get("/reminders/schools", instructorController.getReminderSchools);
+router.get("/reminders/list", instructorController.listReminders);
+router.get("/reminders/:id", instructorController.getReminderDetail);
+router.post("/reminders", express.json(), instructorController.createReminder);
+router.post("/reminders/:id/close", instructorController.closeReminder);
+
 router.post("/attendance/save", instructorController.saveAttendance);
 
 router.get("/attendance/history", instructorController.getAttendanceHistory);

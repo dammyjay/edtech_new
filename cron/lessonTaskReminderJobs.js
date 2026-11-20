@@ -34,8 +34,9 @@ const pool = require("../models/db");
 const sendEmail = require("../utils/sendEmail");
 const { sendWhatsAppTemplate } = require("../utils/sendWhatsApp");
 const { toWhatsAppNumber } = require("../utils/phoneFormat");
-const { isReminderDueToday } = require("../services/classDayService");
+const { computeNextClassDate } = require("../services/classDayService");
 const { getPendingTasksForSchool, markTasksReminded } = require("../services/lessonTaskService");
+const lessonTaskReminderReplyService = require("../services/lessonTaskReminderReplyService");
 
 const LEAD_DAYS = 2;
 // Same hardcoded production domain already used for every other
@@ -167,20 +168,30 @@ function buildParentEmailHtml(parent, items) {
 
 async function runLessonTaskReminderJob() {
   const today = new Date();
-  const upcomingClassDate = new Date(today);
-  upcomingClassDate.setDate(today.getDate() + LEAD_DAYS);
-  const upcomingClassDateStr = formatDate(upcomingClassDate);
+  const todayStr = formatDate(today);
 
   const platformAdmins = await getPlatformAdmins();
+  const platformAdminEmails = platformAdmins.map((a) => a.email).filter(Boolean);
 
   const schoolsRes = await pool.query(
     `SELECT id, name, created_by, class_days FROM schools WHERE class_days IS NOT NULL`
   );
 
   for (const school of schoolsRes.rows) {
-    if (!isReminderDueToday(school.class_days, today, LEAD_DAYS)) continue;
+    // Fires every day from LEAD_DAYS out through the class day itself
+    // (inclusive) — was a single exact-match check at exactly LEAD_DAYS
+    // out, per the client's request to keep nagging daily until class,
+    // not just once.
+    const nextClassDate = computeNextClassDate(school.class_days, today);
+    if (!nextClassDate) continue;
+    const daysUntilClass = Math.round((nextClassDate - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+    if (daysUntilClass < 0 || daysUntilClass > LEAD_DAYS) continue;
+    const upcomingClassDateStr = formatDate(nextClassDate);
 
-    const pendingTasks = await getPendingTasksForSchool(school.id, upcomingClassDateStr);
+    // Dedup key is TODAY's date, not the target class date — a task
+    // already reminded for "class on the 5th" still needs reminding
+    // again tomorrow, and the day after, right up to the 5th.
+    const pendingTasks = await getPendingTasksForSchool(school.id, todayStr);
     if (pendingTasks.length === 0) continue;
 
     const summaryLine = pendingTasks.map(taskSummaryLine).join("; ");
@@ -198,11 +209,15 @@ async function runLessonTaskReminderJob() {
       } else {
         if (admin.email) {
           try {
+            const sendId = await lessonTaskReminderReplyService.recordSend({
+              schoolId: school.id, recipientUserId: school.created_by, recipientRole: "school_admin",
+              recipientEmail: admin.email, recipientPhone: admin.phone, summary: summaryLine,
+            });
             await sendEmail(
               admin.email,
               `Upcoming class reminder for ${school.name}`,
               buildAdminEmailHtml(school, upcomingClassDateStr, pendingTasks),
-              { cc: platformAdmins.map((a) => a.email).filter(Boolean) }
+              { cc: platformAdminEmails, replyTo: lessonTaskReminderReplyService.replyToEmailFor(sendId) }
             );
           } catch (err) {
             console.error(`Lesson task reminder email failed for school ${school.id} admin:`, err.message);
@@ -233,9 +248,19 @@ async function runLessonTaskReminderJob() {
     // --- Teachers (one combined send per teacher) ---
     const teacherGroups = await getTeacherGroupsForTasks(pendingTasks);
     for (const { teacher, tasks } of teacherGroups.values()) {
+      const teacherSummary = tasks.map(taskSummaryLine).join("; ");
       if (teacher.email) {
         try {
-          await sendEmail(teacher.email, "Pending lesson tasks in your classroom(s)", buildTeacherEmailHtml(teacher, tasks, upcomingClassDateStr));
+          const sendId = await lessonTaskReminderReplyService.recordSend({
+            schoolId: school.id, recipientUserId: teacher.id, recipientRole: "teacher",
+            recipientEmail: teacher.email, recipientPhone: teacher.phone, summary: teacherSummary,
+          });
+          await sendEmail(
+            teacher.email,
+            "Pending lesson tasks in your classroom(s)",
+            buildTeacherEmailHtml(teacher, tasks, upcomingClassDateStr),
+            { cc: platformAdminEmails, replyTo: lessonTaskReminderReplyService.replyToEmailFor(sendId) }
+          );
         } catch (err) {
           console.error(`Lesson task reminder email failed for teacher ${teacher.id}:`, err.message);
         }
@@ -243,7 +268,7 @@ async function runLessonTaskReminderJob() {
       const teacherNumber = toWhatsAppNumber(teacher.phone);
       if (teacherNumber) {
         try {
-          await sendWhatsAppTemplate(teacherNumber, [teacher.fullname, tasks.map(taskSummaryLine).join("; "), upcomingClassDateStr, `${BASE_URL}/teacher/dashboard?section=lesson-tasks`]);
+          await sendWhatsAppTemplate(teacherNumber, [teacher.fullname, teacherSummary, upcomingClassDateStr, `${BASE_URL}/teacher/dashboard?section=lesson-tasks`]);
         } catch (err) {
           console.error(`Lesson task reminder WhatsApp failed for teacher ${teacher.id}:`, err.message);
         }
@@ -253,16 +278,25 @@ async function runLessonTaskReminderJob() {
     // --- Parents (one combined send per parent, own child(ren) only) ---
     const parentGroups = await getParentGroupsForTasks(pendingTasks);
     for (const { parent, items } of parentGroups.values()) {
+      const parentSummary = items.map(({ childName, task }) => `${childName} — ${task.title}`).join("; ");
       if (parent.email) {
         try {
-          await sendEmail(parent.email, "Reminder: pending class task", buildParentEmailHtml(parent, items));
+          const sendId = await lessonTaskReminderReplyService.recordSend({
+            schoolId: school.id, recipientUserId: parent.id, recipientRole: "parent",
+            recipientEmail: parent.email, recipientPhone: parent.phone, summary: parentSummary,
+          });
+          await sendEmail(
+            parent.email,
+            "Reminder: pending class task",
+            buildParentEmailHtml(parent, items),
+            { cc: platformAdminEmails, replyTo: lessonTaskReminderReplyService.replyToEmailFor(sendId) }
+          );
         } catch (err) {
           console.error(`Lesson task reminder email failed for parent ${parent.id}:`, err.message);
         }
       }
       const parentNumber = toWhatsAppNumber(parent.phone);
       if (parentNumber) {
-        const parentSummary = items.map(({ childName, task }) => `${childName} — ${task.title}`).join("; ");
         try {
           await sendWhatsAppTemplate(parentNumber, [parent.fullname, parentSummary, upcomingClassDateStr, `${BASE_URL}/parent/lesson-task/${items[0].task.id}`]);
         } catch (err) {
@@ -271,7 +305,7 @@ async function runLessonTaskReminderJob() {
       }
     }
 
-    await markTasksReminded(pendingTasks.map((t) => t.id), upcomingClassDateStr);
+    await markTasksReminded(pendingTasks.map((t) => t.id), todayStr);
   }
 }
 

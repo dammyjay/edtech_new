@@ -13,6 +13,7 @@ const classroomPacingService = require("../services/classroomPacingService");
 const generateDefaultPassword = require("../utils/generateDefaultPassword");
 const { recalcAndPersistQuoteTotal } = require("../services/quoteCalcService");
 const { generateUniqueStudentEmail, generateStudentPinAndAvatar } = require("../services/instructorStudentService");
+const adminReminderService = require("../services/adminReminderService");
 const { computeClassroomTermAnalytics } = require("../services/classroomTermAnalyticsService");
 const lessonTaskService = require("../services/lessonTaskService");
 
@@ -936,6 +937,9 @@ exports.loadSection = async (req, res) => {
     }
     if (section === "arcade_session") {
       return module.exports.getArcadeSessionSection(req, res);
+    }
+    if (section === "reminders") {
+      return res.render("instructor/sections/reminders");
     }
 
     if (req.query.school_id) {
@@ -3771,5 +3775,127 @@ exports.deleteClassReport = async (req, res) => {
   } catch (err) {
     console.error("Delete class report error:", err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ===================== GENERAL REMINDERS (instructor-facing) =====================
+// Thin wrapper over services/adminReminderService.js — same backend as
+// the platform admin's /admin/reminders, but an instructor can only ever
+// pick from schools they're actually assigned to (validated server-side
+// below, not just hidden client-side), and only ever sees/manages
+// reminders they personally created.
+
+async function getInstructorSchoolIds(instructorId) {
+  const res = await pool.query(
+    `SELECT DISTINCT s.id
+     FROM classrooms c
+     JOIN classroom_instructors ci ON ci.classroom_id = c.id
+     JOIN schools s ON s.id = c.school_id
+     WHERE ci.instructor_id = $1 AND c.archived_at IS NULL`,
+    [instructorId]
+  );
+  return res.rows.map((r) => r.id);
+}
+
+exports.getReminderSchools = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const res2 = await pool.query(
+      `SELECT DISTINCT s.id, s.name
+       FROM classrooms c
+       JOIN classroom_instructors ci ON ci.classroom_id = c.id
+       JOIN schools s ON s.id = c.school_id
+       WHERE ci.instructor_id = $1 AND c.archived_at IS NULL
+       ORDER BY s.name ASC`,
+      [instructorId]
+    );
+    res.json(res2.rows);
+  } catch (err) {
+    console.error("getReminderSchools error:", err.message);
+    res.status(500).json({ error: "Failed to load schools." });
+  }
+};
+
+exports.listReminders = async (req, res) => {
+  try {
+    const reminders = await adminReminderService.listReminders(req.user.id);
+    res.json({ reminders });
+  } catch (err) {
+    console.error("instructor listReminders error:", err.message);
+    res.status(500).json({ error: "Failed to load reminders." });
+  }
+};
+
+exports.getReminderDetail = async (req, res) => {
+  try {
+    const detail = await adminReminderService.getReminderDetail(req.params.id);
+    if (!detail || detail.reminder.created_by !== req.user.id) {
+      return res.status(404).json({ error: "Reminder not found." });
+    }
+    res.json(detail);
+  } catch (err) {
+    console.error("instructor getReminderDetail error:", err.message);
+    res.status(500).json({ error: "Failed to load reminder." });
+  }
+};
+
+const VALID_REMINDER_TARGET_ROLES = ["school_admin", "teacher", "parent"];
+
+exports.createReminder = async (req, res) => {
+  try {
+    const { title, message, dueDate, resendIntervalDays, schoolIds, targetRoles } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ error: "Title is required." });
+    if (!message || !message.trim()) return res.status(400).json({ error: "Message is required." });
+    if (!dueDate) return res.status(400).json({ error: "Due date is required." });
+    if (!Array.isArray(schoolIds) || schoolIds.length === 0) {
+      return res.status(400).json({ error: "Select at least one school." });
+    }
+
+    // Server-side enforcement, not just hiding other schools in the UI —
+    // silently drop any submitted id that isn't actually one of this
+    // instructor's own schools rather than trusting the client.
+    const ownSchoolIds = await getInstructorSchoolIds(req.user.id);
+    const ownSet = new Set(ownSchoolIds);
+    const requestedIds = schoolIds.map((id) => parseInt(id, 10)).filter(Boolean);
+    const allowedIds = requestedIds.filter((id) => ownSet.has(id));
+    if (allowedIds.length === 0) {
+      return res.status(403).json({ error: "You can only send reminders to schools you're assigned to." });
+    }
+
+    const roles = Array.isArray(targetRoles)
+      ? targetRoles.filter((r) => VALID_REMINDER_TARGET_ROLES.includes(r))
+      : VALID_REMINDER_TARGET_ROLES;
+    if (roles.length === 0) {
+      return res.status(400).json({ error: "Select at least one recipient group." });
+    }
+
+    const reminder = await adminReminderService.createReminder({
+      title: title.trim(),
+      message: message.trim(),
+      dueDate,
+      resendIntervalDays: Math.max(1, parseInt(resendIntervalDays, 10) || 2),
+      createdBy: req.user.id,
+      schoolIds: allowedIds,
+      targetRoles: roles,
+    });
+
+    res.json({ ok: true, reminder });
+  } catch (err) {
+    console.error("instructor createReminder error:", err.message);
+    res.status(500).json({ error: "Failed to create reminder." });
+  }
+};
+
+exports.closeReminder = async (req, res) => {
+  try {
+    const detail = await adminReminderService.getReminderDetail(req.params.id);
+    if (!detail || detail.reminder.created_by !== req.user.id) {
+      return res.status(404).json({ error: "Reminder not found." });
+    }
+    await adminReminderService.closeReminder(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("instructor closeReminder error:", err.message);
+    res.status(500).json({ error: "Failed to close reminder." });
   }
 };

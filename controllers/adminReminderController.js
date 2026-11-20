@@ -29,14 +29,22 @@ exports.getReminderDetail = async (req, res) => {
   }
 };
 
+const VALID_TARGET_ROLES = ["school_admin", "teacher", "parent"];
+
 exports.createReminder = async (req, res) => {
   try {
-    const { title, message, dueDate, resendIntervalDays, schoolIds } = req.body;
+    const { title, message, dueDate, resendIntervalDays, schoolIds, targetRoles } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ error: "Title is required." });
     if (!message || !message.trim()) return res.status(400).json({ error: "Message is required." });
     if (!dueDate) return res.status(400).json({ error: "Due date is required." });
     if (!Array.isArray(schoolIds) || schoolIds.length === 0) {
       return res.status(400).json({ error: "Select at least one school." });
+    }
+    const roles = Array.isArray(targetRoles)
+      ? targetRoles.filter((r) => VALID_TARGET_ROLES.includes(r))
+      : VALID_TARGET_ROLES;
+    if (roles.length === 0) {
+      return res.status(400).json({ error: "Select at least one recipient group." });
     }
 
     const reminder = await adminReminderService.createReminder({
@@ -46,6 +54,7 @@ exports.createReminder = async (req, res) => {
       resendIntervalDays: Math.max(1, parseInt(resendIntervalDays, 10) || 2),
       createdBy: req.user.id,
       schoolIds: schoolIds.map((id) => parseInt(id, 10)).filter(Boolean),
+      targetRoles: roles,
     });
 
     res.json({ ok: true, reminder });

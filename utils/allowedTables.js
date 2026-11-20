@@ -67,6 +67,7 @@ module.exports = [
   "lesson_assignments",
   "lesson_labs",
   "lesson_reflections",
+  "lesson_task_reminder_sends",
   "lessons",
   "mastery_signals",
   "messages",

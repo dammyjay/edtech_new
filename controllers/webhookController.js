@@ -4,6 +4,23 @@
 // mounted in routes/webhookRoutes.js outside every auth/CSRF-gated
 // router (a webhook call carries no session or CSRF token).
 const adminReminderService = require("../services/adminReminderService");
+const lessonTaskReminderReplyService = require("../services/lessonTaskReminderReplyService");
+
+// Tries the general school-reminder system first (its matching already
+// scopes to currently-pending targets), then falls back to lesson task
+// reminder sends if nothing matched there — same sender-email/phone
+// matching approach, just a different, simpler table (see
+// services/lessonTaskReminderReplyService.js for why it's separate).
+async function routeReminderReply({ phone, email, channel, text }) {
+  const adminReminderMatch = await adminReminderService.recordInboundReply({ phone, email, channel, text });
+  if (adminReminderMatch) return adminReminderMatch;
+
+  const lessonTaskSend = await lessonTaskReminderReplyService.findOpenSendForSender({ phone, email });
+  if (lessonTaskSend) {
+    return lessonTaskReminderReplyService.recordReply({ sendId: lessonTaskSend.id, channel, text });
+  }
+  return null;
+}
 
 // Meta's one-time handshake when you register the webhook URL in the
 // Meta app dashboard (WhatsApp > Configuration > Webhook).
@@ -33,7 +50,7 @@ exports.receiveWhatsApp = async (req, res) => {
         for (const msg of messages) {
           if (msg.type !== "text" || !msg.text?.body) continue;
           const fromPhone = msg.from; // digits, no leading '+' — same shape toWhatsAppNumber produces
-          await adminReminderService.recordInboundReply({
+          await routeReminderReply({
             phone: fromPhone,
             channel: "whatsapp",
             text: msg.text.body,
@@ -61,7 +78,7 @@ exports.receiveEmailReply = async (req, res) => {
       const fromAddress = item.From?.Address || item.from;
       const text = item.RawTextBody || item.text || item.TextBody || "";
       if (!fromAddress || !text.trim()) continue;
-      await adminReminderService.recordInboundReply({
+      await routeReminderReply({
         email: fromAddress,
         channel: "email",
         text: text.trim(),

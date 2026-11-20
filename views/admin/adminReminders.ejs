@@ -36,6 +36,19 @@
       <label>Resend every (days) until they reply</label>
       <input type="number" id="rResendDays" value="2" min="1">
 
+      <label>Who should get this?</label>
+      <div style="display:flex; gap:14px; margin:6px 0 12px;">
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="rRoleCheckbox" value="school_admin" checked style="width:auto; margin:0;"> School Coordinator
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="rRoleCheckbox" value="teacher" checked style="width:auto; margin:0;"> Teachers
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+          <input type="checkbox" class="rRoleCheckbox" value="parent" checked style="width:auto; margin:0;"> Parents
+        </label>
+      </div>
+
       <label>Schools</label>
       <div id="rSchoolsList" style="max-height:180px; overflow-y:auto; border:1px solid #E7DFC8; border-radius:8px; padding:10px;">
         <p>Loading schools…</p>
@@ -159,6 +172,7 @@
     document.getElementById('rMessage').value = '';
     document.getElementById('rDueDate').value = '';
     document.getElementById('rResendDays').value = 2;
+    document.querySelectorAll('.rRoleCheckbox').forEach(cb => cb.checked = true);
     loadSchoolsForCreate();
     document.getElementById('createModalOverlay').hidden = false;
   }
@@ -173,6 +187,7 @@
     const dueDate = document.getElementById('rDueDate').value;
     const resendIntervalDays = document.getElementById('rResendDays').value;
     const schoolIds = Array.from(document.querySelectorAll('.rSchoolCheckbox:checked')).map(cb => cb.value);
+    const targetRoles = Array.from(document.querySelectorAll('.rRoleCheckbox:checked')).map(cb => cb.value);
 
     if (!title || !message || !dueDate) {
       alert('Title, message, and due date are required.');
@@ -182,11 +197,15 @@
       alert('Select at least one school.');
       return;
     }
+    if (!targetRoles.length) {
+      alert('Select at least one recipient group.');
+      return;
+    }
 
     fetch('/admin/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, message, dueDate, resendIntervalDays, schoolIds }),
+      body: JSON.stringify({ title, message, dueDate, resendIntervalDays, schoolIds, targetRoles }),
     })
       .then(res => res.json())
       .then(data => {

@@ -15,37 +15,6 @@
       </table>
     </div>
   </div>
-  <script>
-    (function () {
-      const sessionId = <%= activeSession.id %>;
-      function refresh() {
-        fetch(`/instructor/arcade-session/${sessionId}/leaderboard`)
-          .then(res => res.json())
-          .then(data => {
-            if (!data.success) return;
-            const body = document.getElementById('arcadeSessionLeaderboardBody');
-            if (!body) return;
-            if (!data.leaderboard.length) {
-              body.innerHTML = '<tr><td colspan="2">No one has joined yet.</td></tr>';
-              return;
-            }
-            body.innerHTML = data.leaderboard.map(r => `<tr><td>${r.fullname}</td><td>${r.score}</td></tr>`).join('');
-          })
-          .catch(err => console.error(err));
-      }
-      refresh();
-      window._arcadeSessionInterval = setInterval(refresh, 4000);
-    })();
-
-    function endArcadeSession(id) {
-      if (!confirm('End this live session?')) return;
-      if (window._arcadeSessionInterval) clearInterval(window._arcadeSessionInterval);
-      fetch(`/instructor/arcade-session/${id}/end`, { method: 'POST' })
-        .then(res => res.json())
-        .then(() => loadSection('arcade_session'))
-        .catch(err => console.error(err));
-    }
-  </script>
 <% } else if (!classrooms || classrooms.length === 0) { %>
   <div class="instructor-empty">
     <i class="fa-solid fa-gamepad"></i>
@@ -80,26 +49,4 @@
     </div>
     <button class="jk-btn-dark" onclick="startArcadeSession()"><i class="fa-solid fa-play"></i> Start live session</button>
   </div>
-
-  <script>
-    function startArcadeSession() {
-      const classroomId = document.getElementById('asClassroom').value;
-      const gameId = document.getElementById('asGame').value;
-      if (!classroomId || !gameId) return;
-      fetch('/instructor/arcade-session/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroomId, gameId }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (!data.success) {
-            showAlert(data.message || 'Could not start session.', 'error');
-            return;
-          }
-          loadSection('arcade_session');
-        })
-        .catch(err => console.error(err));
-    }
-  </script>
 <% } %>
