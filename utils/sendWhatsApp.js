@@ -1,59 +1,66 @@
 // utils/sendWhatsApp.js
 //
-// Meta Cloud API (WhatsApp Business Platform), direct — no middleman.
-// Mirrors utils/sendEmail.js's shape (async function, throws on
-// failure, caller catches). The Cloud API requires a pre-approved
-// message template for any business-initiated message (a scheduled
-// reminder is business-initiated, not a reply inside a 24h customer
-// window) — this cannot send free text, only a named template with
-// positional {{1}}/{{2}}/... params.
+// Brevo's WhatsApp API — same provider/API key already used for email
+// (utils/sendEmail.js's BREVO_API_KEY), instead of a separate direct
+// Meta Cloud API integration (the previous version of this file) that
+// was never actually usable: it required its own Meta Business/WhatsApp
+// Business account and WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID,
+// neither of which were ever set up, so every call here has always
+// thrown "not configured" — silently caught and logged by every caller
+// (the reminder cron jobs), never actually delivering a single message.
 //
-// WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_TEMPLATE_NAME
-// are not set yet — the user hasn't created a Meta Business/WhatsApp
-// Business account. Calls will fail until they are; callers (the
-// reminder cron) catch and log rather than let this block email.
-const axios = require("axios");
+// WhatsApp Business Platform still requires a pre-approved message
+// template for any business-initiated message (a scheduled reminder is
+// business-initiated, not a reply inside a 24h customer-service window)
+// — that's a WhatsApp/Meta policy, true regardless of which provider
+// (BSP) sends through it, not something Brevo or this code can skip.
+// Before this can actually send anything, three things need doing in
+// the Brevo dashboard (Transactional > WhatsApp), none of which this
+// code can do on its own behalf:
+//   1. Activate WhatsApp for the account and register/verify a WhatsApp
+//      Business sender number.
+//   2. Create a message template with FOUR placeholders, in order:
+//      recipient's name, a summary of what's due, a due date, and a
+//      link — named however the dashboard asks (Brevo's own params
+//      object below uses whatever key names you give each placeholder
+//      there), then submit it for Meta's approval (can take a while).
+//   3. Set BREVO_WHATSAPP_SENDER_NUMBER (the verified sender number,
+//      digits only, country code, no "+") and BREVO_WHATSAPP_TEMPLATE_ID
+//      (the numeric id Brevo shows once the template is approved) env
+//      vars — BREVO_API_KEY is already set, reused as-is.
+const Brevo = require("@getbrevo/brevo");
 
-const API_VERSION = process.env.WHATSAPP_API_VERSION || "v21.0";
+const whatsappApi = new Brevo.TransactionalWhatsAppApi();
+whatsappApi.setApiKey(Brevo.TransactionalWhatsAppApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 /**
- * @param {string} to - E.164-style digits, no leading '+' (see utils/phoneFormat.js)
- * @param {string[]} params - positional template parameters, in order
+ * @param {string} to - digits only, country code, no leading '+' (see
+ *   utils/phoneFormat.js's toWhatsAppNumber — same format Brevo expects).
+ * @param {string[]} params - positional [name, summary, dueDateStr, link],
+ *   same 4-slot shape every reminder caller already builds — mapped here
+ *   onto the named keys the Brevo template's placeholders actually use.
  */
 async function sendWhatsAppTemplate(to, params = []) {
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
+  const senderNumber = process.env.BREVO_WHATSAPP_SENDER_NUMBER;
+  const templateId = process.env.BREVO_WHATSAPP_TEMPLATE_ID;
 
-  if (!accessToken || !phoneNumberId || !templateName) {
-    throw new Error("WhatsApp is not configured yet (missing WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_TEMPLATE_NAME).");
+  if (!senderNumber || !templateId) {
+    throw new Error("WhatsApp is not configured yet (missing BREVO_WHATSAPP_SENDER_NUMBER/BREVO_WHATSAPP_TEMPLATE_ID).");
   }
 
-  try {
-    const { data } = await axios.post(
-      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "template",
-        template: {
-          name: templateName,
-          language: { code: "en" },
-          components: [
-            {
-              type: "body",
-              parameters: params.map((text) => ({ type: "text", text: String(text) })),
-            },
-          ],
-        },
-      },
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+  const [name, summary, dueDate, link] = params;
 
-    console.log("✅ WhatsApp sent:", data.messages?.[0]?.id || data);
-    return data;
+  try {
+    const { body } = await whatsappApi.sendWhatsappMessage({
+      senderNumber,
+      contactNumbers: [to],
+      templateId: Number(templateId),
+      params: { name, summary, due_date: dueDate, link },
+    });
+    console.log("✅ WhatsApp sent:", body?.messageId || body);
+    return body;
   } catch (error) {
-    console.error("❌ WhatsApp sending failed:", error.response?.data || error.message);
+    console.error("❌ WhatsApp sending failed:", error.response?.body || error.message);
     throw error;
   }
 }

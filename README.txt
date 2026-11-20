@@ -253,6 +253,29 @@ The application reads the following variables from the environment
                                   admin reminder shows understanding
                                   (services/adminReminderService.js)
 
+    BREVO_WHATSAPP_SENDER_NUMBER   Outbound WhatsApp (utils/sendWhatsApp.js) —
+                                  sends through Brevo's WhatsApp API using the
+                                  same BREVO_API_KEY already set above, not a
+                                  separate Meta Business integration. Before
+                                  either of these two vars will do anything:
+                                  activate WhatsApp in Brevo (Transactional >
+                                  WhatsApp), verify/register a WhatsApp
+                                  Business sender number there (this var,
+                                  digits only, country code, no "+"), then
+                                  create a message template with 4
+                                  placeholders — recipient's name, a summary
+                                  of what's due, a due date, a link — and
+                                  submit it for approval (Meta/WhatsApp policy
+                                  requires this for any business-initiated
+                                  message, regardless of provider; approval
+                                  can take a while). Until all of that's done,
+                                  every reminder's WhatsApp attempt fails
+                                  with "WhatsApp is not configured yet" —
+                                  caught and logged, never blocks the email
+                                  send alongside it.
+    BREVO_WHATSAPP_TEMPLATE_ID     The numeric id Brevo shows once that
+                                  template is approved.
+
     WHATSAPP_WEBHOOK_VERIFY_TOKEN  Any string you choose — entered into Meta's
                                   app dashboard (WhatsApp > Configuration >
                                   Webhook) when registering the webhook URL
@@ -261,7 +284,16 @@ The application reads the following variables from the environment
                                   can confirm it's really this server
                                   (controllers/webhookController.js). Also
                                   subscribe to the "messages" field there so
-                                  inbound replies are actually delivered.
+                                  inbound replies are actually delivered. NOTE:
+                                  this assumes Meta delivers inbound replies to
+                                  a webhook you register directly — once
+                                  outbound WhatsApp actually goes live through
+                                  Brevo above, confirm in Brevo's own
+                                  dashboard whether inbound replies to that
+                                  number route here the same way, or through
+                                  a Brevo-specific webhook/polling mechanism
+                                  instead; this hasn't been verified against a
+                                  real Brevo WhatsApp account yet.
 
     BREVO_INBOUND_DOMAIN           Optional — a subdomain (e.g.
                                   reply.jkthub.com) whose MX record you point
