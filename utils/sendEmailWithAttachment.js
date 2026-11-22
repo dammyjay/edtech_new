@@ -1,5 +1,6 @@
 const Brevo = require("@getbrevo/brevo");
 const { getCompanyInfo } = require("./companyInfo");
+const { logEmailSent } = require("./emailLogger");
 
 const apiInstance = new Brevo.TransactionalEmailsApi();
 
@@ -44,6 +45,8 @@ async function sendEmailWithAttachment(
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log("✅ Invoice email sent.");
+
+    logEmailSent({ brevoResponse: data, subject, to: [to], bcc: bcc || [] });
 
     return data;
   } catch (err) {
@@ -91,6 +94,8 @@ async function sendEmailWithAttachments(to, subject, htmlContent, attachments, b
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log("✅ Multi-attachment email sent.");
+
+    logEmailSent({ brevoResponse: data, subject, to: [to], bcc: bcc || [] });
 
     return data;
   } catch (err) {

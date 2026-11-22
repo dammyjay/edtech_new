@@ -30,6 +30,7 @@
 
 const Brevo = require("@getbrevo/brevo");
 const { getCompanyInfo } = require("./companyInfo");
+const { logEmailSent } = require("./emailLogger");
 
 const apiInstance = new Brevo.TransactionalEmailsApi();
 
@@ -78,6 +79,15 @@ async function sendEmail(to, subject, htmlContent, { cc, replyTo } = {}) {
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log("✅ Email sent:", data.messageId || data);
+
+    // Fire-and-forget — never block/slow the caller on a logging write,
+    // and logEmailSent itself never throws (see utils/emailLogger.js).
+    logEmailSent({
+      brevoResponse: data,
+      subject,
+      to: recipients.map((r) => r.email),
+      cc: cc || [],
+    });
 
     return data;
   } catch (error) {

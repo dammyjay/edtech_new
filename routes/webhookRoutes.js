@@ -11,5 +11,6 @@ const webhookController = require("../controllers/webhookController");
 router.get("/whatsapp", webhookController.verifyWhatsApp);
 router.post("/whatsapp", webhookController.receiveWhatsApp);
 router.post("/email-reply", webhookController.receiveEmailReply);
+router.post("/brevo-email-events", webhookController.receiveBrevoEmailEvent);
 
 module.exports = router;

@@ -3093,6 +3093,36 @@ ALTER TABLE student_term_reactivations ADD CONSTRAINT student_term_reactivations
       );`
     );
 
+    // Every email this platform sends via Brevo (utils/sendEmail.js,
+    // utils/sendEmailWithAttachment.js), one row per actual recipient
+    // (to/cc/bcc each get their own row, since that's how Brevo's event
+    // webhook reports them). `status` starts at 'sent' and advances as
+    // controllers/webhookController.js's receiveBrevoEmailEvent applies
+    // Brevo's delivered/opened/bounced/etc. events, matched back by
+    // (message_id, recipient_email) — the pair Brevo's own webhook
+    // payload always carries, whether one or many recipients shared a
+    // single send call. Lets /admin/email-log show send status without
+    // ever needing to open Brevo's own dashboard.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_log (
+        id SERIAL PRIMARY KEY,
+        message_id TEXT,
+        recipient_email TEXT NOT NULL,
+        recipient_type TEXT DEFAULT 'to',
+        subject TEXT,
+        status TEXT NOT NULL DEFAULT 'sent',
+        sent_at TIMESTAMP DEFAULT NOW(),
+        delivered_at TIMESTAMP,
+        opened_at TIMESTAMP,
+        last_event TEXT,
+        last_event_at TIMESTAMP,
+        error_message TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_email_log_message_id ON email_log(message_id);
+      CREATE INDEX IF NOT EXISTS idx_email_log_recipient_email ON email_log(recipient_email);
+      CREATE INDEX IF NOT EXISTS idx_email_log_sent_at ON email_log(sent_at DESC);
+    `);
+
     console.log("✅ All tables are updated and ready.");
   } catch (err) {
     console.error("❌ Error creating tables:", err.message);

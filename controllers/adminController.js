@@ -405,6 +405,70 @@ exports.analyticsPage = async (req, res) => {
   }
 };
 
+// Every email this platform has sent via Brevo (utils/sendEmail.js,
+// utils/sendEmailWithAttachment.js), with live delivery status —
+// matches eventRegistrations.ejs's convention (plain GET query-string
+// filters + server-side pagination) rather than an AJAX section, since
+// email_log can grow large and a simple re-render per page is the
+// simplest thing that scales. Status only reflects reality once Brevo's
+// Transactional webhook is pointed at /webhooks/brevo-email-events in
+// the Brevo dashboard — until then every row just sits at "sent".
+exports.emailLogPage = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const pageSize = 50;
+    const offset = (page - 1) * pageSize;
+    const status = req.query.status || "";
+    const search = (req.query.search || "").trim();
+
+    const conditions = [];
+    const params = [];
+    if (status) {
+      params.push(status);
+      conditions.push(`status = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(recipient_email ILIKE $${params.length} OR subject ILIKE $${params.length})`);
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const [countRes, summaryRes, infoRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM email_log ${whereClause}`, params),
+      pool.query(`SELECT status, COUNT(*)::int AS count FROM email_log GROUP BY status`),
+      pool.query("SELECT * FROM company_info ORDER BY id DESC LIMIT 1"),
+    ]);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    const rowsRes = await pool.query(
+      `SELECT id, recipient_email, recipient_type, subject, status, sent_at, delivered_at, opened_at, last_event, last_event_at, error_message
+       FROM email_log ${whereClause}
+       ORDER BY sent_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, pageSize, offset]
+    );
+
+    const summaryByStatus = {};
+    summaryRes.rows.forEach((r) => { summaryByStatus[r.status] = r.count; });
+
+    res.render("admin/emailLog", {
+      info: infoRes.rows[0] || {},
+      role: "admin",
+      rows: rowsRes.rows,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      status,
+      search,
+      summaryByStatus,
+    });
+  } catch (err) {
+    console.error("emailLogPage error:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
 exports.dashboard = async (req, res) => {
   // if (!req.session.admin) return res.redirect('/admin/login');
   if (!req.session.user || req.session.user.role !== "admin") {

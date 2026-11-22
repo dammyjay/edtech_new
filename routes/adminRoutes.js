@@ -171,6 +171,7 @@ router.get("/users/filter", adminController.filterUsersAjax);
 
 router.get("/analytics/export", adminController.exportAnalyticsPDF);
 router.get("/analytics", adminController.analyticsPage);
+router.get("/email-log", adminController.emailLogPage);
 router.get("/stats/overview", adminController.overview);
 // Enable avatar/PIN for one student
 // router.post("/users/:userId/enable-avatar-login", adminController.enableAvatarPinLogin);

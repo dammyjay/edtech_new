@@ -674,6 +674,7 @@ const NFR_ITEMS = [
   { cat: "Email Deliverability", items: [
     "All transactional email routes through Brevo; the current plan caps at 200 emails/day, so the weekly parent digest is deliberately spread across the week and capped at 120 sends per run to stay under it.",
     "The `resend` package is installed but unused — dead dependency, not a second email path.",
+    "Admin-facing Email Log (/admin/email-log): every email the platform sends is recorded (one row per actual recipient — to/cc/bcc), with status progressing sent → delivered → opened/clicked as Brevo's own Transactional webhook reports each event back to /webhooks/brevo-email-events, plus bounced/blocked/invalid/spam/unsubscribed states captured outright. Lets an admin track delivery without opening Brevo's own dashboard. Requires a one-time setup step in the Brevo dashboard (Transactional > Settings > Webhooks) pointing at that URL — statuses stay at 'sent' until that's done.",
   ]},
   { cat: "Payments", items: [
     "Paystack only, Naira-denominated. All amounts are recalculated and verified server-side on webhook/callback — never trusted from client input — and payments are idempotent (no double-charge/double-credit on retry).",

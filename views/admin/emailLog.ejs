@@ -1,0 +1,103 @@
+<%- include('../partials/adminHeader', { info: info, currentPage: 'dashboard' }) %>
+
+<section class="section jk-page">
+
+  <div class="jk-header-card">
+    <div><h2>📧 Email Log</h2></div>
+  </div>
+
+  <div class="jk-stat-grid">
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Total</span><span class="jk-stat-icon">📨</span></div>
+      <div class="jk-stat-value"><%= total %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Sent</span><span class="jk-stat-icon">📤</span></div>
+      <div class="jk-stat-value"><%= summaryByStatus.sent || 0 %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Delivered</span><span class="jk-stat-icon">✅</span></div>
+      <div class="jk-stat-value"><%= summaryByStatus.delivered || 0 %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Opened</span><span class="jk-stat-icon">👁️</span></div>
+      <div class="jk-stat-value"><%= summaryByStatus.opened || 0 %></div>
+    </div>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Clicked</span><span class="jk-stat-icon">🖱️</span></div>
+      <div class="jk-stat-value"><%= summaryByStatus.click || 0 %></div>
+    </div>
+    <% const failedCount = Object.keys(summaryByStatus).filter(s => !['sent','delivered','opened','click'].includes(s)).reduce((sum, s) => sum + summaryByStatus[s], 0); %>
+    <div class="jk-stat-card">
+      <div class="jk-stat-head"><span class="jk-stat-label">Bounced / Blocked</span><span class="jk-stat-icon">⚠️</span></div>
+      <div class="jk-stat-value"><%= failedCount %></div>
+    </div>
+  </div>
+
+  <div class="jk-toolbar">
+    <form method="GET" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <select name="status" class="jk-select" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        <% ['sent','delivered','opened','click','hardBounce','softBounce','blocked','invalid','deferred','spam','unsubscribed'].forEach(s => { %>
+          <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <div class="jk-search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A7B55" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" name="search" class="jk-search-input" placeholder="Search by recipient or subject" value="<%= search %>" />
+      </div>
+      <button type="submit" class="jk-btn-outline">Filter</button>
+      <% if (status || search) { %><a href="/admin/email-log" class="jk-btn-outline-sm">Clear</a><% } %>
+    </form>
+  </div>
+
+  <% if (rows.length === 0) { %>
+  <div class="jk-report-panel" style="text-align:center; color:#8A7B55;">
+    No emails match this filter yet.
+    <% if (total === 0) { %><br><small>Once the platform sends its first email after this update, it'll show up here.</small><% } %>
+  </div>
+  <% } else { %>
+  <div class="jk-table-wrap">
+    <table class="jk-table sortable-table">
+      <thead>
+        <tr>
+          <th>Recipient</th>
+          <th>Type</th>
+          <th>Subject</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th>Delivered</th>
+          <th>Opened</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% const pillClass = (s) => ({
+          sent: 'jk-pill--inactive',
+          delivered: 'jk-pill--on',
+          opened: 'jk-pill--active',
+          click: 'jk-pill--paid',
+        }[s] || 'jk-pill--unpaid'); %>
+        <% rows.forEach(r => { %>
+        <tr title="<%= r.error_message ? r.error_message.replace(/"/g, '&quot;') : '' %>">
+          <td><%= r.recipient_email %></td>
+          <td><%= r.recipient_type %></td>
+          <td><%= r.subject || '—' %></td>
+          <td><span class="jk-pill <%= pillClass(r.status) %>"><%= r.status %></span></td>
+          <td><%= new Date(r.sent_at).toLocaleString() %></td>
+          <td><%= r.delivered_at ? new Date(r.delivered_at).toLocaleString() : '—' %></td>
+          <td><%= r.opened_at ? new Date(r.opened_at).toLocaleString() : '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-top:16px;">
+    <% const qs = (p) => `?page=${p}${status ? '&status=' + encodeURIComponent(status) : ''}${search ? '&search=' + encodeURIComponent(search) : ''}`; %>
+    <a href="<%= qs(Math.max(page - 1, 1)) %>" class="jk-btn-outline-sm" style="<%= page <= 1 ? 'pointer-events:none; opacity:0.5;' : '' %>">← Prev</a>
+    <span style="font-size:13px; color:#6E6350;">Page <%= page %> of <%= totalPages %></span>
+    <a href="<%= qs(Math.min(page + 1, totalPages)) %>" class="jk-btn-outline-sm" style="<%= page >= totalPages ? 'pointer-events:none; opacity:0.5;' : '' %>">Next →</a>
+  </div>
+  <% } %>
+
+</section>

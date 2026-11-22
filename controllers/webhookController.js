@@ -5,6 +5,7 @@
 // router (a webhook call carries no session or CSRF token).
 const adminReminderService = require("../services/adminReminderService");
 const lessonTaskReminderReplyService = require("../services/lessonTaskReminderReplyService");
+const pool = require("../models/db");
 
 // Tries the general school-reminder system first (its matching already
 // scopes to currently-pending targets), then falls back to lesson task
@@ -86,5 +87,86 @@ exports.receiveEmailReply = async (req, res) => {
     }
   } catch (err) {
     console.error("receiveEmailReply error:", err.message);
+  }
+};
+
+// "Happy path" progression — a later event in this list never regresses
+// status back to an earlier one if Brevo's events arrive out of order
+// (e.g. a slightly-delayed "delivered" webhook landing after "opened"
+// already did). Anything NOT in this map (bounces, blocks, spam
+// complaints, invalid, unsubscribed, deferred...) always overwrites
+// status outright — those are important signals regardless of when
+// they arrive, and none of them is a "step backward" from any other.
+const EMAIL_STATUS_RANK = { sent: 0, delivered: 1, opened: 2, click: 3 };
+const normalizeEvent = (rawEvent) =>
+  rawEvent === "open" ? "opened" : rawEvent === "clicked" ? "click" : rawEvent === "request" ? "sent" : rawEvent;
+
+// Brevo's Transactional webhook (Brevo dashboard > Transactional >
+// Settings > Webhooks — add this route's full URL and tick at least
+// Delivered/Opens/Hard bounces/Soft bounces/Blocked/Invalid/Deferred/
+// Unsubscribed). Fires once per recipient per event, carrying
+// "message-id" + "email" together — exactly the pair utils/emailLogger.js
+// stored at send time, however many recipients shared one send call.
+// Powers /admin/email-log without ever needing Brevo's own dashboard.
+exports.receiveBrevoEmailEvent = async (req, res) => {
+  res.sendStatus(200);
+
+  try {
+    const events = Array.isArray(req.body) ? req.body : [req.body];
+    for (const evt of events) {
+      if (!evt) continue;
+      const rawEvent = evt.event;
+      const email = evt.email;
+      const messageId = evt["message-id"] || evt.messageId || evt.message_id || null;
+      if (!rawEvent || !email) continue;
+
+      const normalized = normalizeEvent(rawEvent);
+      const eventTime = evt.date ? new Date(evt.date) : new Date();
+
+      // Match back to the row utils/emailLogger.js created at send time.
+      // Falls back to email+subject (no message-id) only in case some
+      // Brevo event type ever omits it — keeps this resilient rather
+      // than silently dropping the event.
+      const existing = messageId
+        ? await pool.query(
+            `SELECT id, status FROM email_log WHERE recipient_email = $1 AND message_id = $2 ORDER BY sent_at DESC LIMIT 1`,
+            [email, messageId]
+          )
+        : await pool.query(
+            `SELECT id, status FROM email_log WHERE recipient_email = $1 AND subject = $2 ORDER BY sent_at DESC LIMIT 1`,
+            [email, evt.subject || null]
+          );
+      if (!existing.rows.length) continue; // a send we never logged — nothing to update
+
+      const row = existing.rows[0];
+      const currentRank = EMAIL_STATUS_RANK[row.status];
+      const newRank = EMAIL_STATUS_RANK[normalized];
+      // Advance status unless this is a "happy path" event arriving
+      // behind one we've already recorded further along.
+      const shouldAdvanceStatus = newRank === undefined || currentRank === undefined || newRank >= currentRank;
+
+      const setParts = ["last_event = $1", "last_event_at = $2"];
+      const params = [rawEvent, eventTime];
+      if (shouldAdvanceStatus) {
+        setParts.push(`status = $${params.length + 1}`);
+        params.push(normalized);
+      }
+      if (normalized === "delivered") {
+        setParts.push(`delivered_at = COALESCE(delivered_at, $${params.length + 1})`);
+        params.push(eventTime);
+      }
+      if (normalized === "opened") {
+        setParts.push(`opened_at = COALESCE(opened_at, $${params.length + 1})`);
+        params.push(eventTime);
+      }
+      if (evt.reason) {
+        setParts.push(`error_message = $${params.length + 1}`);
+        params.push(evt.reason);
+      }
+      params.push(row.id);
+      await pool.query(`UPDATE email_log SET ${setParts.join(", ")} WHERE id = $${params.length}`, params);
+    }
+  } catch (err) {
+    console.error("receiveBrevoEmailEvent error:", err.message);
   }
 };
