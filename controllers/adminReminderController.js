@@ -3,9 +3,23 @@
 // Admin-facing CRUD for general school reminders (views/admin/adminReminders.ejs)
 // — the business logic itself lives in services/adminReminderService.js.
 const adminReminderService = require("../services/adminReminderService");
+const { getCompanyInfo } = require("../utils/companyInfo");
 
-exports.adminPage = (req, res) => {
-  res.render("admin/adminReminders", { info: req.user });
+// Was passing `info: req.user` — the logged-in admin's own session
+// object, not the company_info row adminHeader.ejs's logo/title expect
+// — and never passed `role` at all, which partials/adminHeader.ejs
+// requires for its nav (`<% if (role === 'admin') { %>`); every load
+// crashed with "role is not defined". This route is admin-only
+// (routes/adminRoutes.js, behind router.use(ensureAdmin)), so role is
+// always 'admin' here.
+exports.adminPage = async (req, res) => {
+  try {
+    const info = await getCompanyInfo();
+    res.render("admin/adminReminders", { info, role: "admin" });
+  } catch (err) {
+    console.error("adminReminderController.adminPage error:", err.message);
+    res.status(500).send("Server error");
+  }
 };
 
 exports.listReminders = async (req, res) => {
