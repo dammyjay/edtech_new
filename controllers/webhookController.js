@@ -124,18 +124,24 @@ exports.receiveBrevoEmailEvent = async (req, res) => {
       const eventTime = evt.date ? new Date(evt.date) : new Date();
 
       // Match back to the row utils/emailLogger.js created at send time.
-      // Falls back to email+subject (no message-id) only in case some
-      // Brevo event type ever omits it — keeps this resilient rather
-      // than silently dropping the event.
-      const existing = messageId
+      // Tries message_id first (the precise match), then falls back to
+      // email+subject — needed both for the rare Brevo event that omits
+      // message-id, AND for any row logged before utils/emailLogger.js's
+      // extractMessageId() bug fix (it was reading the wrong field on
+      // the SDK's response and stored message_id as NULL for every send
+      // until caught) — those rows can only ever be matched this way.
+      let existing = messageId
         ? await pool.query(
-            `SELECT id, status FROM email_log WHERE recipient_email = $1 AND message_id = $2 ORDER BY sent_at DESC LIMIT 1`,
+            `SELECT id, status, message_id FROM email_log WHERE recipient_email = $1 AND message_id = $2 ORDER BY sent_at DESC LIMIT 1`,
             [email, messageId]
           )
-        : await pool.query(
-            `SELECT id, status FROM email_log WHERE recipient_email = $1 AND subject = $2 ORDER BY sent_at DESC LIMIT 1`,
-            [email, evt.subject || null]
-          );
+        : { rows: [] };
+      if (!existing.rows.length) {
+        existing = await pool.query(
+          `SELECT id, status, message_id FROM email_log WHERE recipient_email = $1 AND subject = $2 ORDER BY sent_at DESC LIMIT 1`,
+          [email, evt.subject || null]
+        );
+      }
       if (!existing.rows.length) continue; // a send we never logged — nothing to update
 
       const row = existing.rows[0];
@@ -162,6 +168,14 @@ exports.receiveBrevoEmailEvent = async (req, res) => {
       if (evt.reason) {
         setParts.push(`error_message = $${params.length + 1}`);
         params.push(evt.reason);
+      }
+      // Backfill message_id onto a row matched via the email+subject
+      // fallback above (its own was never captured, or this event just
+      // doesn't carry one of its own) — lets a LATER event for the same
+      // row match precisely via message_id instead of falling back again.
+      if (messageId && !row.message_id) {
+        setParts.push(`message_id = $${params.length + 1}`);
+        params.push(messageId);
       }
       params.push(row.id);
       await pool.query(`UPDATE email_log SET ${setParts.join(", ")} WHERE id = $${params.length}`, params);

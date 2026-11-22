@@ -77,15 +77,28 @@
           opened: 'jk-pill--active',
           click: 'jk-pill--paid',
         }[s] || 'jk-pill--unpaid'); %>
+        <%
+          // This page is rendered server-side (EJS tags run in Node,
+          // not the viewer's browser), so a bare toLocaleString() shows
+          // the SERVER's timezone — UTC on this app's Railway deploy —
+          // not the admin's own. The business operates out of Nigeria
+          // (Naira pricing, "Africa/Lagos" throughout), so dates/times
+          // on this page are explicitly rendered in that timezone
+          // instead, regardless of what timezone the server itself runs
+          // in. (Other admin pages that still use a bare toLocaleString()
+          // the same way have this same gap — out of scope here, but
+          // worth the same fix if it comes up.)
+          const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+        %>
         <% rows.forEach(r => { %>
         <tr title="<%= r.error_message ? r.error_message.replace(/"/g, '&quot;') : '' %>">
           <td><%= r.recipient_email %></td>
           <td><%= r.recipient_type %></td>
           <td><%= r.subject || '—' %></td>
           <td><span class="jk-pill <%= pillClass(r.status) %>"><%= r.status %></span></td>
-          <td><%= new Date(r.sent_at).toLocaleString() %></td>
-          <td><%= r.delivered_at ? new Date(r.delivered_at).toLocaleString() : '—' %></td>
-          <td><%= r.opened_at ? new Date(r.opened_at).toLocaleString() : '—' %></td>
+          <td><%= fmtDateTime(r.sent_at) %></td>
+          <td><%= fmtDateTime(r.delivered_at) %></td>
+          <td><%= fmtDateTime(r.opened_at) %></td>
         </tr>
         <% }) %>
       </tbody>

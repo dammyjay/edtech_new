@@ -14,11 +14,23 @@ const pool = require("../models/db");
 // (controllers/webhookController.js's receiveBrevoEmailEvent) matches
 // back on (message_id, recipient_email) together, which works correctly
 // either way.
+//
+// The @getbrevo/brevo SDK's sendTransacEmail resolves with
+// { response, body } — the real payload (messageId/messageIds) is
+// nested under .body, never directly on the resolved object (confirmed
+// against node_modules/@getbrevo/brevo/dist/api/transactionalEmailsApi.js).
+// This was caught live: two real sends logged with message_id NULL,
+// which would have silently broken every later webhook match for them
+// (matching by message_id can never hit a NULL). The flat
+// brevoResponse.messageId checks below are kept only as a defensive
+// fallback in case a future SDK version changes shape again — they
+// were never actually correct for the current one.
 function extractMessageId(brevoResponse) {
   if (!brevoResponse) return null;
-  if (brevoResponse.messageId) return brevoResponse.messageId;
-  if (Array.isArray(brevoResponse.messageIds) && brevoResponse.messageIds.length) {
-    return brevoResponse.messageIds[0];
+  const body = brevoResponse.body || brevoResponse;
+  if (body.messageId) return body.messageId;
+  if (Array.isArray(body.messageIds) && body.messageIds.length) {
+    return body.messageIds[0];
   }
   return null;
 }
