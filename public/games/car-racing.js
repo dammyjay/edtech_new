@@ -4,6 +4,7 @@
 // desktops. Loaded as a <script type="module"> (see views/student/arcade.ejs)
 // so it can `import` Three.js straight from a CDN with no build step.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { makeCar, disposeObject3D } from "./shared/car-mesh.js";
 
 const ACCEL = 0.0052, BRAKE = 0.0088, DRAG = 0.986, STEER_RATE = 0.0032;
 const MAX_FWD = 0.16, MAX_REV = -0.083;
@@ -21,41 +22,6 @@ function angleDelta(a, b) {
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
   return d;
-}
-
-function makeCar(bodyColor) {
-  const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 2.2), new THREE.MeshLambertMaterial({ color: bodyColor }));
-  body.position.y = 0.38;
-  group.add(body);
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.32, 1.0), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
-  cabin.position.set(0, 0.68, -0.15);
-  group.add(cabin);
-  const bumper = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.2, 0.2), new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
-  bumper.position.set(0, 0.3, 1.1);
-  group.add(bumper);
-  const wheelGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.24, 14);
-  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-  [[-0.58, 0.26, 0.75], [0.58, 0.26, 0.75], [-0.58, 0.26, -0.75], [0.58, 0.26, -0.75]].forEach(([x, y, z]) => {
-    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-    wheel.rotation.x = Math.PI / 2;
-    wheel.position.set(x, y, z);
-    group.add(wheel);
-  });
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.5, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 }));
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.02;
-  group.add(shadow);
-  return group;
-}
-
-function disposeObject3D(obj) {
-  obj.traverse((node) => {
-    if (node.geometry) node.geometry.dispose();
-    if (node.material) {
-      (Array.isArray(node.material) ? node.material : [node.material]).forEach((m) => m.dispose());
-    }
-  });
 }
 
 function start(container) {
