@@ -792,6 +792,7 @@ function deleteComponent(id) {
   for (const [key, holeKey] of [...breadboardPlacements.entries()]) {
     if (key.startsWith(id + "::") || holeKey.startsWith(id + "::")) breadboardPlacements.delete(key);
   }
+  updateHoleOccupancyVisuals();
   if (comp.el.pinInfo) {
     for (const pin of comp.el.pinInfo) {
       const key = id + "::" + pin.name;
@@ -1028,6 +1029,29 @@ function trySnapToBreadboard(componentId) {
     } else {
       breadboardPlacements.delete(key);
     }
+  }
+  updateHoleOccupancyVisuals();
+}
+
+// A hole's own marker circle lives in wireOverlay (renderPins, above),
+// a SEPARATE, always-on-top layer from the breadboard's own div — the
+// breadboard div itself now correctly sorts behind other components,
+// but its 420 individual hole markers never did, so a hole with some
+// OTHER component's pin now snapped into it still showed its own dot
+// floating over that component, doubled up with the component's own
+// (now co-located) pin marker. Hides a hole's marker while it's
+// occupied instead — visually redundant with the occupying pin, and a
+// real breadboard hole isn't visible either once something's plugged
+// into it. Call this after anything that changes breadboardPlacements
+// (trySnapToBreadboard above, deleteComponent, restoreCircuit).
+function updateHoleOccupancyVisuals() {
+  const board = findBreadboardComponent();
+  if (!board) return;
+  const occupied = new Set(breadboardPlacements.values());
+  for (const hole of board.el.pinInfo) {
+    const circle = pinCircles.get(board.id + "::" + hole.name);
+    if (!circle) continue;
+    circle.style.visibility = occupied.has(board.id + "::" + hole.name) ? "hidden" : "";
   }
 }
 
@@ -3724,6 +3748,7 @@ async function restoreCircuit(snapshot) {
       for (const [key, holeKey] of snapshot.breadboardPlacements || []) {
         breadboardPlacements.set(key, holeKey);
       }
+      updateHoleOccupancyVisuals();
       for (const w of snapshot.wires || []) {
         wires.push({
           id: w.id || "wire-" + ++wireCounter,
