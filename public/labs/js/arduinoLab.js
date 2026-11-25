@@ -837,7 +837,34 @@ document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
 // Breadboard snapping
 // ---------------------------------------------------------------------
 
+// A NATIVE (zoom=1) pixel radius — see effectiveSnapPx() below for why
+// this is never compared against an on-screen distance directly.
 const BREADBOARD_SNAP_PX = 14;
+
+// pinPos/boardHoles are already on-screen (post-zoom) pixel positions —
+// see getPinCanvasPos/breadboardHolePositions, both of which apply
+// `pin.x * viewZoom` via orientedPinOffset. Comparing that against a
+// FIXED pixel radius was the actual bug behind both "breadboard
+// connection isn't working" and "a 4-pin part only snaps 2 of its
+// holes": most real @wokwi/elements parts' native pin spacing (the
+// library's own authored CSS-px geometry, not something this lab
+// controls) isn't an exact multiple of this breadboard's 20px column /
+// 16px row pitch — e.g. wokwi-pushbutton's two leg-pairs sit 67px apart
+// at native size, 7px off the nearest 3-column multiple of 20. At
+// zoom 1 that 7px error comfortably clears a 14px tolerance, but the
+// error SCALES WITH ZOOM exactly like everything else on the canvas
+// (confirmed live: a headless probe of the real library's pinInfo),
+// while a fixed 14px radius does not — so at the editor's own allowed
+// zoom range (up to 2.5x, see ZOOM_MAX below) that same leg pair drifts
+// to 17.5px off, past the fixed threshold, while the OTHER leg pair
+// (whichever one happens to land closer to its own hole) can still be
+// well inside it: exactly "2 of 4 pins snap." Scaling the tolerance by
+// viewZoom keeps the EFFECTIVE (native-space) tolerance constant
+// instead, matching how a real breadboard's own physical fit doesn't
+// change depending on how zoomed-in your view of it is.
+function effectiveSnapPx() {
+  return BREADBOARD_SNAP_PX * viewZoom;
+}
 // "componentId::pin" -> "breadboardId::holeName" — a pin that's currently
 // close enough to a hole to count as plugged into it. Independent per
 // pin (not per component): a part's legs don't need to match the
@@ -915,7 +942,7 @@ function trySnapToBreadboard(componentId) {
       }
     }
 
-    if (nearest && nearestDist <= BREADBOARD_SNAP_PX) {
+    if (nearest && nearestDist <= effectiveSnapPx()) {
       breadboardPlacements.set(key, board.id + "::" + nearest.name);
     } else {
       breadboardPlacements.delete(key);
@@ -949,7 +976,7 @@ function highlightNearbyHoles(componentId) {
         nearest = h.hole;
       }
     }
-    if (nearest && nearestDist <= BREADBOARD_SNAP_PX) {
+    if (nearest && nearestDist <= effectiveSnapPx()) {
       pinCircles.get(board.id + "::" + nearest.name)?.classList.add("wire-pin--highlight");
     }
   }
