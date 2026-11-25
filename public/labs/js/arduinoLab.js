@@ -356,16 +356,22 @@ async function placeComponent(tag, x, y, explicitId) {
   el.dataset.componentId = id;
   canvasViewport.appendChild(el);
 
-  // A freshly-dropped breadboard defaults to the very back of the
-  // stack — without this, dropping a breadboard AFTER something is
-  // already on the canvas (easy to do while experimenting) left it
-  // painting on top of everything, including its own holes showing
-  // through parts already placed "on" it. Only for a genuinely NEW
-  // placement (no explicitId) — restoreCircuit passes explicitId for
-  // every component it rebuilds, in the exact DOM order the project
-  // was saved with (see serializeCircuit), which already reflects
-  // whatever z-order the user actually chose, breadboard included.
-  if (tag === "custom-breadboard" && !explicitId && canvasViewport.firstChild !== el) {
+  // A breadboard always defaults to the very back of the stack — on a
+  // fresh placement (dropping one AFTER other parts already exist is
+  // easy to do while experimenting) and, just as importantly, on EVERY
+  // project load too: this was originally gated to skip restoreCircuit
+  // (on the reasoning that a reload should never second-guess a z-order
+  // the user actually chose), but every project already saved predates
+  // this feature entirely — their saved order is just whatever order
+  // parts happened to be added in, not a deliberate choice, and
+  // reproducing it faithfully reproduced the exact bug this exists to
+  // fix (reported live: an old project reloading with the breadboard
+  // back on top of its own components). There's no real case for
+  // wanting a breadboard in front of anything placed on it, so this
+  // now always applies, reload included — bringToFront/sendToBack
+  // still work on every OTHER component exactly as before; this is
+  // breadboard-specific.
+  if (tag === "custom-breadboard" && canvasViewport.firstChild !== el) {
     canvasViewport.insertBefore(el, canvasViewport.firstChild);
   }
 
