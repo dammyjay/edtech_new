@@ -237,16 +237,31 @@ autoScalePreviews();
 // share one electrical node (a whole power rail; 5 holes in one column),
 // which is what makes this a real breadboard instead of 420 unrelated
 // pins. See "Connectivity" further down for how that's resolved.
+// This grid's pitch was originally picked arbitrarily (20px) rather than
+// measured against anything — confirmed live against the real
+// @wokwi/elements library (loaded unmodified, not a copy) that every
+// part's own pin spacing is authored in real-world terms at ~10px per
+// 0.1" hole, not 20: the Arduino Uno's own standardized header pins
+// land ~9.5-10px apart consecutively, and the HC-SR04's 4 legs
+// (VCC/TRIG/ECHO/GND) land at EXACTLY 10px increments. A 20px grid was
+// twice as wide as every real part's own leads, so only every OTHER
+// leg of a multi-pin part could ever land near a hole at all — this
+// was the actual root cause behind "a 4-pin part only snaps 2 holes"
+// (the earlier effectiveSnapPx() fix addressed a real but secondary
+// zoom-scaling bug on top of this one; this is the deeper, structural
+// fix). Real breadboards are also a SQUARE 0.1" grid in both
+// directions — row pitch below is now 10 to match, not the old
+// mismatched 16.
 const BB_COLS = 30;
-const BB_COL_SPACING = 20;
-const BB_LEFT_MARGIN = 30;
+const BB_COL_SPACING = 10;
+const BB_LEFT_MARGIN = 20;
 const BB_WIDTH = BB_LEFT_MARGIN * 2 + (BB_COLS - 1) * BB_COL_SPACING;
-const BB_HEIGHT = 300;
+const BB_HEIGHT = 200;
 const BB_ROW_Y = {
-  railTopPlus: 20, railTopMinus: 36,
-  a: 64, b: 80, c: 96, d: 112, e: 128,
-  f: 158, g: 174, h: 190, i: 206, j: 222,
-  railBottomPlus: 252, railBottomMinus: 268,
+  railTopPlus: 10, railTopMinus: 20,
+  a: 40, b: 50, c: 60, d: 70, e: 80,
+  f: 110, g: 120, h: 130, i: 140, j: 150,
+  railBottomPlus: 170, railBottomMinus: 180,
 };
 
 function buildBreadboardPinInfo() {
@@ -269,8 +284,8 @@ function buildBreadboardPinInfo() {
 
 function buildBreadboardSvg(pins) {
   const holes = pins.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="1.6" fill="#8a8370"/>`).join("");
-  const railX1 = BB_LEFT_MARGIN - 15;
-  const railX2 = BB_WIDTH - BB_LEFT_MARGIN + 15;
+  const railX1 = BB_LEFT_MARGIN - 8;
+  const railX2 = BB_WIDTH - BB_LEFT_MARGIN + 8;
   return `<svg width="${BB_WIDTH}" height="${BB_HEIGHT}" viewBox="0 0 ${BB_WIDTH} ${BB_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
     <rect x="0" y="0" width="${BB_WIDTH}" height="${BB_HEIGHT}" rx="8" fill="#f0ead8" stroke="#c9c0a0" stroke-width="1.5"/>
     <line x1="${railX1}" y1="${BB_ROW_Y.railTopPlus}" x2="${railX2}" y2="${BB_ROW_Y.railTopPlus}" stroke="#d9534f" stroke-width="2"/>
