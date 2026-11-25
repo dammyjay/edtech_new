@@ -1,7 +1,8 @@
-// Shared low-poly car mesh + cleanup helper for every 3D car-based arcade
-// game (car-racing.js, car-parking.js, ...). Extracted out of car-racing.js
-// so a tweak to the car model (or the geometry-disposal logic) only has to
-// happen once and stays identical across every game that uses it.
+// Shared low-poly car mesh for every 3D car-based arcade game
+// (car-racing.js, car-parking.js, ...). Extracted out of car-racing.js so
+// a tweak to the car model only has to happen once and stays identical
+// across every game that uses it. Generic (non-car-specific) Three.js
+// helpers live in ./three-helpers.js instead.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
 export function makeCar(bodyColor) {
@@ -28,13 +29,4 @@ export function makeCar(bodyColor) {
   shadow.position.y = 0.02;
   group.add(shadow);
   return group;
-}
-
-export function disposeObject3D(obj) {
-  obj.traverse((node) => {
-    if (node.geometry) node.geometry.dispose();
-    if (node.material) {
-      (Array.isArray(node.material) ? node.material : [node.material]).forEach((m) => m.dispose());
-    }
-  });
 }

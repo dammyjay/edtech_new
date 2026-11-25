@@ -8,7 +8,8 @@
 // with it. Loaded as a <script type="module"> (see views/student/arcade.ejs)
 // so it can `import` Three.js and the shared car mesh with no build step.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { makeCar, disposeObject3D } from "./shared/car-mesh.js";
+import { makeCar } from "./shared/car-mesh.js";
+import { disposeObject3D } from "./shared/three-helpers.js";
 
 const ACCEL = 0.0052, BRAKE = 0.0088, DRAG = 0.986, STEER_RATE = 0.0032;
 const MAX_FWD = 0.16, MAX_REV = -0.083;
