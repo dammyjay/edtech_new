@@ -356,6 +356,19 @@ async function placeComponent(tag, x, y, explicitId) {
   el.dataset.componentId = id;
   canvasViewport.appendChild(el);
 
+  // A freshly-dropped breadboard defaults to the very back of the
+  // stack — without this, dropping a breadboard AFTER something is
+  // already on the canvas (easy to do while experimenting) left it
+  // painting on top of everything, including its own holes showing
+  // through parts already placed "on" it. Only for a genuinely NEW
+  // placement (no explicitId) — restoreCircuit passes explicitId for
+  // every component it rebuilds, in the exact DOM order the project
+  // was saved with (see serializeCircuit), which already reflects
+  // whatever z-order the user actually chose, breadboard included.
+  if (tag === "custom-breadboard" && !explicitId && canvasViewport.firstChild !== el) {
+    canvasViewport.insertBefore(el, canvasViewport.firstChild);
+  }
+
   // Lit components render asynchronously — pinInfo itself doesn't need
   // this (it's a plain getter off property defaults), but
   // getBoundingClientRect() below does: before first render a freshly
@@ -509,8 +522,19 @@ function attachComponentDrag(el, id) {
     e.stopPropagation();
     const startClientX = e.clientX;
     const startClientY = e.clientY;
-    const startLeft = parseFloat(el.style.left) || 0;
-    const startTop = parseFloat(el.style.top) || 0;
+
+    // Dragging a part that's already part of a multi-selection moves the
+    // whole group together, each part keeping its own position relative
+    // to the others (standard editor convention). Dragging a part that
+    // ISN'T currently selected replaces the selection with just it first
+    // (same as a plain click would), then drags only that one.
+    const dragIds = selectedComponentIds.has(id) && selectedComponentIds.size > 1
+      ? [...selectedComponentIds]
+      : [id];
+    const startPositions = new Map(dragIds.map((dragId) => {
+      const c = placedComponents.get(dragId);
+      return [dragId, { left: parseFloat(c.el.style.left) || 0, top: parseFloat(c.el.style.top) || 0 }];
+    }));
     let dragged = false;
 
     function onMove(ev) {
@@ -523,20 +547,26 @@ function attachComponentDrag(el, id) {
       // the cursor/finger, regardless of how zoomed in/out the view is.
       const dx = (ev.clientX - startClientX) / viewZoom;
       const dy = (ev.clientY - startClientY) / viewZoom;
-      el.style.left = Math.max(0, startLeft + dx) + "px";
-      el.style.top = Math.max(0, startTop + dy) + "px";
-      renderPins(id);
+      clearHoleHighlights();
+      for (const dragId of dragIds) {
+        const c = placedComponents.get(dragId);
+        if (!c) continue;
+        const start = startPositions.get(dragId);
+        c.el.style.left = Math.max(0, start.left + dx) + "px";
+        c.el.style.top = Math.max(0, start.top + dy) + "px";
+        renderPins(dragId);
+        highlightNearbyHolesNoClear(dragId);
+      }
       redrawWires();
       renderSelectionToolbar();
       renderWireToolbar();
-      highlightNearbyHoles(id);
     }
     function onUp(upEvent) {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
       clearHoleHighlights();
       if (dragged) {
-        trySnapToBreadboard(id);
+        for (const dragId of dragIds) trySnapToBreadboard(dragId);
         redrawWires();
         renderSelectionToolbar();
         scheduleAutoSave();
@@ -844,9 +874,39 @@ document.getElementById("componentToolbar")?.addEventListener("click", (e) => {
   else if (btn.dataset.action === "turn") ids.forEach(rotateComponent);
   else if (btn.dataset.action === "duplicate") ids.forEach(duplicateComponent);
   else if (btn.dataset.action === "delete") ids.forEach(deleteComponent);
+  else if (btn.dataset.action === "front") bringToFront(ids);
+  else if (btn.dataset.action === "back") sendToBack(ids);
   renderSelectionToolbar();
   scheduleAutoSave();
 });
+
+// ---------------------------------------------------------------------
+// Z-order (stacking) — plain DOM reordering within #canvasViewport.
+// Nothing here carries a CSS z-index: with none set, later DOM siblings
+// simply paint over earlier ones, so "front"/"back" is just "last
+// child"/"first child". The same trick redrawWires already uses for
+// keeping drag-waypoint stubs behind the real wire path
+// (wireOverlay.insertBefore(..., firstChild)).
+// ---------------------------------------------------------------------
+
+// Moves every id in `ids` to the front, preserving their CURRENT
+// relative order among themselves (so selecting several parts and
+// bringing them forward together doesn't shuffle which of them ends up
+// on top of the others).
+function bringToFront(ids) {
+  const ordered = [...canvasViewport.children].filter((el) => ids.includes(el.dataset.componentId));
+  ordered.forEach((el) => canvasViewport.appendChild(el));
+}
+
+// Same idea in reverse — the anchor is captured ONCE before the loop so
+// each insertBefore lands relative to the same fixed point rather than
+// to wherever the previous move just put things (which would otherwise
+// silently reverse the selected parts' relative order).
+function sendToBack(ids) {
+  const ordered = [...canvasViewport.children].filter((el) => ids.includes(el.dataset.componentId));
+  const anchor = canvasViewport.firstChild;
+  ordered.forEach((el) => canvasViewport.insertBefore(el, anchor));
+}
 
 // ---------------------------------------------------------------------
 // Breadboard snapping
@@ -968,9 +1028,12 @@ function trySnapToBreadboard(componentId) {
 // The live, drag-time version of the same search — highlights whichever
 // holes a part's legs would snap into if released right now, without
 // actually committing anything (trySnapToBreadboard, called separately
-// on drag end, does the real snap).
-function highlightNearbyHoles(componentId) {
-  clearHoleHighlights();
+// on drag end, does the real snap). Doesn't clear previous highlights
+// itself — callers dragging several parts at once (see attachComponentDrag's
+// group-drag path) clear once up front, then call this per part, so an
+// earlier part's highlights in the same gesture survive a later part's
+// call instead of being wiped by it.
+function highlightNearbyHolesNoClear(componentId) {
   if (!snappingEnabled) return;
   const board = findBreadboardComponent();
   if (!board || componentId === board.id) return;
@@ -995,6 +1058,11 @@ function highlightNearbyHoles(componentId) {
       pinCircles.get(board.id + "::" + nearest.name)?.classList.add("wire-pin--highlight");
     }
   }
+}
+
+function highlightNearbyHoles(componentId) {
+  clearHoleHighlights();
+  highlightNearbyHolesNoClear(componentId);
 }
 
 function clearHoleHighlights() {
@@ -1628,12 +1696,86 @@ canvas.addEventListener("pointerdown", (e) => {
     if (touchPointers.size > 2) return; // a 3rd+ finger — ignore, keep whatever gesture is already active
   }
   if (e.target !== canvas && e.target !== canvasViewport) return; // touched a component/pin, not empty space
+  // Shift+drag on empty canvas box-selects instead of panning — the same
+  // modifier already means "add to selection" for a shift-click on a
+  // single part, so this extends that same convention to a drag.
+  if (e.pointerType !== "touch" && e.shiftKey) {
+    startBoxSelect(e);
+    return;
+  }
   panState = { startClientX: e.clientX, startClientY: e.clientY, startPanX: viewPanX, startPanY: viewPanY, moved: false };
   canvas.classList.add("panning");
   document.addEventListener("pointermove", onCanvasPanMove);
   document.addEventListener("pointerup", onCanvasPanUp);
   document.addEventListener("pointercancel", onCanvasPanUp);
 });
+
+// ---------------------------------------------------------------------
+// Box (rubber-band) select
+// ---------------------------------------------------------------------
+let boxSelectState = null; // { startClientX, startClientY, canvasLeft, canvasTop, rectEl, additive }
+
+function startBoxSelect(e) {
+  const canvasRect = canvas.getBoundingClientRect();
+  const rectEl = document.createElement("div");
+  rectEl.className = "box-select-rect";
+  rectEl.style.position = "absolute";
+  rectEl.style.border = "1px dashed #A17807";
+  rectEl.style.background = "rgba(161,120,7,0.12)";
+  rectEl.style.pointerEvents = "none";
+  rectEl.style.zIndex = "50";
+  canvas.appendChild(rectEl);
+  boxSelectState = {
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    canvasLeft: canvasRect.left,
+    canvasTop: canvasRect.top,
+    rectEl,
+    additive: e.shiftKey,
+  };
+  document.addEventListener("pointermove", onBoxSelectMove);
+  document.addEventListener("pointerup", onBoxSelectUp);
+}
+
+function onBoxSelectMove(e) {
+  if (!boxSelectState) return;
+  const { startClientX, startClientY, canvasLeft, canvasTop, rectEl } = boxSelectState;
+  const x1 = Math.min(startClientX, e.clientX) - canvasLeft;
+  const y1 = Math.min(startClientY, e.clientY) - canvasTop;
+  const x2 = Math.max(startClientX, e.clientX) - canvasLeft;
+  const y2 = Math.max(startClientY, e.clientY) - canvasTop;
+  Object.assign(rectEl.style, { left: x1 + "px", top: y1 + "px", width: (x2 - x1) + "px", height: (y2 - y1) + "px" });
+}
+
+function onBoxSelectUp(e) {
+  document.removeEventListener("pointermove", onBoxSelectMove);
+  document.removeEventListener("pointerup", onBoxSelectUp);
+  if (!boxSelectState) return;
+  const { startClientX, startClientY, rectEl, additive } = boxSelectState;
+  const x1 = Math.min(startClientX, e.clientX);
+  const y1 = Math.min(startClientY, e.clientY);
+  const x2 = Math.max(startClientX, e.clientX);
+  const y2 = Math.max(startClientY, e.clientY);
+  rectEl.remove();
+  boxSelectState = null;
+
+  if (!additive) selectedComponentIds.clear();
+  // The breadboard itself is deliberately never swept into a box-select
+  // — it spans most of the canvas underneath everything else, so any
+  // drag over a circuit would otherwise almost always grab it too, and
+  // a later group-move would then drag the whole board along with the
+  // parts on it. Clicking it directly still selects it on its own.
+  for (const comp of placedComponents.values()) {
+    if (comp.tag === "custom-breadboard") continue;
+    const r = comp.el.getBoundingClientRect();
+    const intersects = r.left < x2 && r.right > x1 && r.top < y2 && r.bottom > y1;
+    if (intersects) selectedComponentIds.add(comp.id);
+  }
+  selectedWireId = null;
+  applySelectionVisuals();
+  renderSelectionToolbar();
+  renderWireToolbar();
+}
 
 function onCanvasPanMove(e) {
   if (!panState) return;
@@ -3488,8 +3630,19 @@ function showToast(message, durationMs) {
 // Doesn't include the code (Export .ino covers that separately) since a
 // circuit and a sketch are useful to share independently of each other.
 function serializeCircuit() {
+  // Walking #canvasViewport's actual children (not placedComponents'
+  // insertion order) captures the CURRENT z-order/stacking — every
+  // placed component's el is a direct, exclusive child of it (nothing
+  // else is ever appended there), and restoreCircuit below re-places
+  // them by calling placeComponent in array order, which naturally
+  // reproduces the same DOM order on reload. Without this, a
+  // bringToFront/sendToBack the user just did would silently revert
+  // the moment the project reloads.
+  const orderedComponents = [...canvasViewport.children]
+    .map((el) => placedComponents.get(el.dataset.componentId))
+    .filter(Boolean);
   return {
-    components: [...placedComponents.values()].map((c) => ({
+    components: orderedComponents.map((c) => ({
       id: c.id,
       tag: c.tag,
       x: parseFloat(c.el.style.left) || 0,
