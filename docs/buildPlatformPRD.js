@@ -193,6 +193,9 @@ const FEATURE_MODULES = [
       { category: "Guides", items: [
         "Write/edit/delete platform guide documents, organized by guide type.",
       ]},
+      { category: "Content Sharing", items: [
+        "Admin and Instructor can copy a stable, shareable link (/go/lesson|module|course/:id) to any lesson, module or course, to hand directly to a student — e.g. for an email, a chat message, or an assignment. Opening it logs the visitor in if needed (landing them back on that exact link afterward), then checks the student's real enrollment before redirecting to the actual content; an admin/instructor/teacher opening their own shared link always gets through (legitimate preview access), and a student without access sees a plain, friendly explanation instead of the content.",
+      ]},
     ],
   },
   {
@@ -663,6 +666,7 @@ const NFR_ITEMS = [
   { cat: "Security", items: [
     "Sessions stored in Postgres (connect-pg-simple), 1-day expiry, httpOnly + SameSite=Lax cookies. The `secure` cookie flag is currently false — a gap to close before enforcing HTTPS-only cookies in production.",
     "Role-based guards for: logged-in user, parent, teacher, instructor/admin (shared check — see §5), admin, school admin, and 'may access this specific student'.",
+    "Every login-required guard now sends a logged-out visitor to login with the page they were actually trying to reach preserved, landing them back on that exact page afterward instead of always their role's dashboard — previously true only for the plain 'must be logged in' guard; the parent/teacher/school-admin guards flat-403'd a simply-logged-out visitor instead of offering login at all. login()'s own post-login redirect target is now also validated as a same-origin relative path, closing a pre-existing open-redirect gap.",
     "Grading queues (assignment submissions and External Projects, both Teacher and Instructor) are scoped by the submitting student's actual enrollment in the grader's own classroom, not merely by a shared catalog course being assigned to one of their classrooms — a cross-school data leak found (reported directly by a client user) and fixed platform-wide this revision; the most serious instance let a teacher actually submit a grade for a student outside their own school, not just see them.",
     "CSRF protection (custom per-session token via header/form-field/URL) is being rolled out router-by-router — not every route is covered yet.",
     "Passwords hashed with bcrypt; sign-up confirmed via emailed one-time codes; uploads restricted by type/size (lesson files 10MB, external-project files 25MB).",
@@ -681,6 +685,10 @@ const NFR_ITEMS = [
   ]},
   { cat: "Deployment", items: [
     "Deployed on Railway (Nixpacks build) from branch fix/branding-header-audit. package.json pins Node >=22.3.0 — required by pdf-parse's bundled pdfjs-dist, which calls a Node API only available from 22.3+ (root-caused after a production boot crash; see the September 2026 incident record).",
+  ]},
+  { cat: "Installability (PWA)", items: [
+    "The whole platform (not just the coding labs) is installable as a home-screen/desktop app via the browser's standard \"Add to Home Screen\"/install flow (public/manifest.json, public/sw.js), on top of the service worker's existing offline-caching role for the coding labs.",
+    "A one-time, dismissible \"Install our app\" prompt appears right after login, for every role, on both mobile and desktop: a native install button on Android/desktop Chromium browsers, manual \"Add to Home Screen\" instructions on iOS Safari (which has no install-prompt event at all). Dismissed state is stored per-account, not per-device, so it never nags again after the first time regardless of which button was pressed.",
   ]},
 ];
 
@@ -715,6 +723,7 @@ const USER_STORY_BLOCKS = [
     role: "Platform Administration", subject: "a Platform Admin",
     stories: [
       { want: "create and edit career pathways, courses, modules, lessons, quizzes and lab tasks", benefit: "the full curriculum stays organized and current without needing a developer" },
+      { want: "copy a direct link to a lesson, module or course and send it to a student", benefit: "they can go straight to the right content after logging in, instead of hunting for it themselves" },
       { want: "define an External Project's deliverables checklist and rubric, and toggle whether it's AI-graded", benefit: "teachers can offer real-world project work that fits how much grading effort a task actually needs" },
       { want: "onboard a new school, its terms, classrooms and courses", benefit: "a partner school can get its students learning with the right content and structure from day one" },
       { want: "create user accounts of any role and bulk-import students via CSV", benefit: "large school rosters can be set up quickly instead of one account at a time" },
@@ -737,6 +746,7 @@ const USER_STORY_BLOCKS = [
     role: "Instructor", subject: "an Instructor",
     stories: [
       { want: "create and edit my own courses, modules, lessons, quizzes and assignments", benefit: "I can deliver curriculum I've personally designed to the classrooms I teach" },
+      { want: "copy a direct link to a lesson, module or course and send it to a student", benefit: "they can go straight to the right content after logging in, instead of hunting for it themselves" },
       { want: "switch between the schools I'm assigned classrooms in", benefit: "I can manage all my classes from one place even though I work across multiple schools" },
       { want: "release a lesson to a classroom on my own schedule", benefit: "I can pace a class's progress to match how the live sessions are going, on top of each student's own unlocking rules" },
       { want: "award bonus points or coins to a student for a category of achievement", benefit: "I can recognize effort in the moment, within fair daily limits" },
