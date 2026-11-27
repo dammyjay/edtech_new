@@ -18,6 +18,10 @@
          serves, since a manifest only does anything if a user explicitly
          tries to install the site. -->
     <link rel="manifest" href="/manifest.json" />
+    <!-- iOS has no equivalent of the beforeinstallprompt event — without
+         this, "Add to Home Screen" there uses a screenshot thumbnail
+         instead of the actual logo. -->
+    <link rel="apple-touch-icon" href="/images/JKT logo bg.png" />
     <meta name="theme-color" content="#A17807" />
     <meta name="csrf-token" content="<%= csrfToken %>">
     <script src="/js/csrf.js"></script>

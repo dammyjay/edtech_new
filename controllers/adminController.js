@@ -308,6 +308,14 @@ exports.login = async (req, res) => {
       equipped_avatar_frame: user.equipped_avatar_frame,
     };
 
+    // Read once (and cleared) by notificationBell.ejs's server-side check
+    // on whichever dashboard this login lands on, to show the one-time
+    // "Install our app" prompt (public/js/installPrompt.js) — a flag
+    // rather than always showing it on every dashboard load, and session-
+    // based rather than per-page so it fires exactly once per login
+    // regardless of which of the 6 role dashboards below it lands on.
+    req.session.justLoggedIn = true;
+
     // Only ever redirect back to a same-origin relative path. redirectUrl
     // comes straight from a query param anyone can craft, so without this
     // check a link like /admin/login?redirect=https://evil.example would
@@ -381,6 +389,7 @@ exports.avatarPinLogin = async (req, res) => {
       profile_picture: user.profile_picture,
       equipped_avatar_frame: user.equipped_avatar_frame,
     };
+    req.session.justLoggedIn = true;
 
     return res.json({
       success: true,

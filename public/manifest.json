@@ -1,8 +1,8 @@
 {
-  "name": "JK Technology Learning Labs",
-  "short_name": "JKT Labs",
-  "description": "Offline-capable coding labs — Web Lab and Blockly Lab.",
-  "start_url": "/labs",
+  "name": "JKT Hub",
+  "short_name": "JKT Hub",
+  "description": "Courses, labs, and classroom tools — all in one place.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

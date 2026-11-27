@@ -114,6 +114,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// One-time "Install our app" prompt — fires on whichever dashboard a
+// fresh login lands on (controllers/adminController.js's login()/
+// avatarPinLogin() set req.session.justLoggedIn right before redirecting),
+// consumed by public/js/installPrompt.js via views/partials/
+// notificationBell.ejs, already included on every role's dashboard. The
+// flag is cleared immediately so this only ever runs once per login, and
+// the DB is only even queried on that one request, not on every page load.
+app.use(async (req, res, next) => {
+  if (!req.session.justLoggedIn || !req.session.user) return next();
+  req.session.justLoggedIn = false;
+  try {
+    const result = await pool.query(
+      "SELECT install_prompt_dismissed_at FROM users2 WHERE id = $1",
+      [req.session.user.id]
+    );
+    res.locals.showInstallPrompt = !result.rows[0]?.install_prompt_dismissed_at;
+  } catch (err) {
+    console.error("install-prompt check failed:", err.message);
+    res.locals.showInstallPrompt = false;
+  }
+  next();
+});
+
 // Same "always define it" pattern as user/users above, for the same
 // reason: partials/adminHeader.ejs, header.ejs, and userHeader.ejs are
 // shared across public and authenticated pages alike, and now render a
@@ -200,6 +223,9 @@ app.use("/", publicRoutes);
 
 const contentLinkRoutes = require("./routes/contentLinkRoutes");
 app.use("/", contentLinkRoutes);
+
+const pwaRoutes = require("./routes/pwaRoutes");
+app.use("/", pwaRoutes);
 
 const adminRoutes = require("./routes/adminRoutes");
 app.use("/admin", adminRoutes);

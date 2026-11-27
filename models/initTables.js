@@ -249,7 +249,8 @@ async function createTables() {
     ADD COLUMN IF NOT EXISTS qr_code TEXT,
     ADD COLUMN IF NOT EXISTS classroom_login_enabled BOOLEAN DEFAULT false,
     ADD COLUMN IF NOT EXISTS school_level TEXT,
-    ADD COLUMN IF NOT EXISTS login_method TEXT DEFAULT 'email';
+    ADD COLUMN IF NOT EXISTS login_method TEXT DEFAULT 'email',
+    ADD COLUMN IF NOT EXISTS install_prompt_dismissed_at TIMESTAMP;
   `);
 
 
