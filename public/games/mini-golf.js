@@ -8,7 +8,7 @@
 // (see views/student/arcade.ejs) so it can `import` Three.js with no
 // build step.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { disposeObject3D } from "./shared/three-helpers.js";
+import { disposeObject3D, fitRenderer3D } from "./shared/three-helpers.js";
 
 const FRICTION_BY_DIFFICULTY = { easy: 0.965, medium: 0.975, hard: 0.982 };
 const MAX_STROKES_PER_HOLE = 8;
@@ -53,8 +53,8 @@ function start(container) {
       <div class="arcade-score-pill"><span class="label">Strokes</span><span class="value" id="mgStrokes">0</span></div>
       <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="mgScore">0</span></div>
     </div>
-    <div class="arcade-canvas-wrap" style="width:100%; max-width:440px; margin:0 auto;">
-      <div id="mgWrap" style="width:100%; aspect-ratio:1.35; position:relative; background:#0d2818;"></div>
+    <div class="arcade-canvas-wrap">
+      <div id="mgWrap" style="width:100%; height:100%; position:relative; background:#0d2818;"></div>
     </div>
   `;
 
@@ -369,11 +369,7 @@ function start(container) {
   renderer3d.domElement.addEventListener("touchend", onTouchEnd);
 
   function fitRenderer() {
-    const w = wrap.clientWidth || 1;
-    const h = wrap.clientHeight || Math.round(w / 1.35);
-    renderer3d.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    fitRenderer3D(renderer3d, camera, wrap, 1.35);
   }
   const removeResize = ArcadeEngine.onResize(fitRenderer);
 

@@ -15,7 +15,7 @@
 // (see views/student/arcade.ejs) so it can `import` Three.js with no
 // build step.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { disposeObject3D } from "./shared/three-helpers.js";
+import { disposeObject3D, fitRenderer3D } from "./shared/three-helpers.js";
 
 const KEEPER_READ_BY_DIFFICULTY = { easy: 0.35, medium: 0.55, hard: 0.72 };
 const KEEPER_REACH_BY_DIFFICULTY = { easy: 0.24, medium: 0.3, hard: 0.36 };
@@ -44,8 +44,8 @@ function start(container) {
       <div class="arcade-score-pill"><span class="label">Kick</span><span class="value" id="psKick">1/${TOTAL_KICKS}</span></div>
       <div class="arcade-score-pill"><span class="label">Score</span><span class="value" id="psScore">0</span></div>
     </div>
-    <div class="arcade-canvas-wrap" style="width:100%; max-width:420px; margin:0 auto; position:relative;">
-      <div id="psWrap" style="width:100%; aspect-ratio:0.82; position:relative; background:#15803d;"></div>
+    <div class="arcade-canvas-wrap" style="position:relative;">
+      <div id="psWrap" style="width:100%; height:100%; position:relative; background:#15803d;"></div>
       <p id="psResult" style="position:absolute; top:46%; left:0; right:0; text-align:center; color:#fff; font-weight:800; font-size:22px; margin:0; text-shadow:0 2px 6px rgba(0,0,0,0.7); opacity:0; transition:opacity .15s; pointer-events:none;"></p>
     </div>
   `;
@@ -403,11 +403,7 @@ function start(container) {
   renderer3d.domElement.addEventListener("touchend", onTouchEnd);
 
   function fitRenderer() {
-    const w = wrap.clientWidth || 1;
-    const h = wrap.clientHeight || Math.round(w / 0.82);
-    renderer3d.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    fitRenderer3D(renderer3d, camera, wrap, 0.82);
   }
   const removeResize = ArcadeEngine.onResize(fitRenderer);
 

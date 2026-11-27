@@ -6,18 +6,40 @@
 // views/student/arcade.ejs). Exposes window.ArcadeEngine.
 (function () {
   // ---------------------------------------------------------------
-  // Responsive canvas: sizes a canvas's CSS box to fit its container's
-  // width (capped at maxWidth) while keeping the given aspect ratio, and
-  // backs it with devicePixelRatio-scaled internal resolution so it
-  // stays crisp on retina/phone screens. Returns a {width, height} in
+  // Responsive canvas: sizes a canvas's CSS box to the LARGEST it can be
+  // at the given aspect ratio while fitting inside its container's
+  // actual available width AND height (capped at maxWidth too, so it
+  // doesn't balloon absurdly large on a huge desktop monitor) — not just
+  // "fit the width and let the height be whatever that implies", which
+  // is what let a tall/narrow container (a short browser window, a
+  // landscape phone) end up with a canvas taller than the space actually
+  // available, forcing the PAGE to scroll instead of the game ever
+  // knowing its box had shrunk. The container (views/student/arcade.ejs's
+  // #arcadeGameContainer > .arcade-canvas-wrap, in fullscreen mode — see
+  // arcade.css) is a flex box that only reports a real clientHeight once
+  // the fullscreen stage layout is actually applied, which is why
+  // openFullscreenStage() in arcade.ejs nudges a resize event on open.
+  // Backs the canvas with devicePixelRatio-scaled internal resolution so
+  // it stays crisp on retina/phone screens. Returns a {width, height} in
   // CSS px the CALLER should treat as the logical drawing surface (pass
   // that same size to ctx-drawing code — the returned scale is already
   // applied to the context transform).
   function fitCanvas(canvas, aspectRatio, maxWidth) {
     maxWidth = maxWidth || 480;
     const parent = canvas.parentElement;
-    const cssWidth = Math.min(maxWidth, parent ? parent.clientWidth : maxWidth);
-    const cssHeight = cssWidth / aspectRatio;
+    const availW = parent ? parent.clientWidth : maxWidth;
+    const availH = parent ? parent.clientHeight : availW / aspectRatio;
+
+    let cssWidth = Math.min(maxWidth, availW);
+    let cssHeight = cssWidth / aspectRatio;
+    // availH is 0 outside the fullscreen stage (a non-flex parent with no
+    // explicit height) — only apply the height constraint when it's a
+    // real, positive measurement.
+    if (availH > 0 && cssHeight > availH) {
+      cssHeight = availH;
+      cssWidth = cssHeight * aspectRatio;
+    }
+
     const dpr = window.devicePixelRatio || 1;
 
     canvas.style.width = cssWidth + "px";

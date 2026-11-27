@@ -5,7 +5,7 @@
 // so it can `import` Three.js straight from a CDN with no build step.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { makeCar } from "./shared/car-mesh.js";
-import { disposeObject3D } from "./shared/three-helpers.js";
+import { disposeObject3D, fitRenderer3D } from "./shared/three-helpers.js";
 
 const ACCEL = 0.0052, BRAKE = 0.0088, DRAG = 0.986, STEER_RATE = 0.0032;
 const MAX_FWD = 0.16, MAX_REV = -0.083;
@@ -38,8 +38,8 @@ function start(container) {
       <div class="arcade-score-pill"><span class="label">Time</span><span class="value" id="crTime">0</span></div>
       <div class="arcade-score-pill"><span class="label">Rival</span><span class="value" id="crRival">1/${REQUIRED_LAPS}</span></div>
     </div>
-    <div class="arcade-canvas-wrap" style="width:100%; max-width:440px; margin:0 auto;">
-      <div id="crWrap" style="width:100%; aspect-ratio:4/3; position:relative; background:#0b1020;"></div>
+    <div class="arcade-canvas-wrap">
+      <div id="crWrap" style="width:100%; height:100%; position:relative; background:#0b1020;"></div>
     </div>
     <div class="cr-controls">
       <div class="cr-pad">
@@ -273,14 +273,15 @@ function start(container) {
   }
 
   function fitRenderer() {
-    const w = wrap.clientWidth || 1;
-    const h = wrap.clientHeight || Math.round(w * 0.75);
-    renderer3d.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    fitRenderer3D(renderer3d, camera, wrap, 4 / 3);
   }
 
   const onKeyDown = (e) => {
+    // Otherwise every press also scrolls the whole page up/down/left/right
+    // in the browser — the game being a small embedded canvas, not a
+    // full-page app, doesn't stop arrow keys from reaching the page by
+    // default the way an <input> or a true fullscreen app would.
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) e.preventDefault();
     if (["ArrowLeft", "a", "A"].includes(e.key)) keys.left = true;
     if (["ArrowRight", "d", "D"].includes(e.key)) keys.right = true;
     if (["ArrowUp", "w", "W"].includes(e.key)) keys.gas = true;

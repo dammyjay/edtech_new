@@ -169,6 +169,8 @@
     const onMouseMove = (e) => { if (dragging) movePaddleTo(e.clientX); };
     const onKey = (e) => {
       if (!paddle) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault(); // otherwise the browser scrolls the page on every press
       if (e.key === "ArrowLeft") paddle.x = Math.max(0, paddle.x - dims.width * 0.05);
       if (e.key === "ArrowRight") paddle.x = Math.min(dims.width - paddle.w, paddle.x + dims.width * 0.05);
     };

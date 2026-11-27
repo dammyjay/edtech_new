@@ -391,6 +391,94 @@
 /* A relative wrapper any game can use so .arcade-overlay positions correctly */
 .arcade-stage-relative { position: relative; }
 
+/* ---------- Fullscreen game stage ----------
+   Applied by views/student/arcade.ejs the instant any game opens, removed
+   on close — covers the whole viewport (not just "most of it", which is
+   what left some games cut off and needing the PAGE itself to scroll:
+   the old layout just stacked hint/scoreboard/canvas/controls in normal
+   document flow with a fixed max-width canvas, so on a short window
+   (landscape phone, a modest laptop) their combined height could exceed
+   the viewport and the browser scrolled the page instead of the game
+   ever knowing its box shrank.
+   Now: #arcadeStage is a fixed, full-viewport flex column (back button
+   then the game area), #arcadeGameContainer flexes to fill whatever's
+   left, and every game's OWN direct children (hint, scoreboard, on-
+   screen controls) stay their natural compact size while specifically
+   .arcade-canvas-wrap (every game's actual play surface, whether a 2D
+   <canvas> or a 3D renderer's wrap div) flexes to fill all remaining
+   space — so every game now genuinely fits "at a glance" on any screen
+   size or orientation instead of merely fitting ones at least as tall
+   as its original fixed design. */
+html.arcade-fullscreen-active, body.arcade-fullscreen-active {
+  overflow: hidden;
+  height: 100%;
+}
+
+#arcadeStage.arcade-stage--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--arcade-bg);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+#arcadeStage.arcade-stage--fullscreen .stage-back {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+#arcadeStage.arcade-stage--fullscreen #arcadeGameContainer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px 8px 14px;
+}
+/* Every direct child (hint text, scoreboard, on-screen d-pad/buttons —
+   each game's own markup, whatever it calls them) keeps its natural
+   size; only the actual play surface flexes. */
+#arcadeStage.arcade-stage--fullscreen #arcadeGameContainer > * {
+  flex-shrink: 0;
+}
+#arcadeStage.arcade-stage--fullscreen #arcadeGameContainer > .arcade-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+}
+/* A 3D game's inner wrap div (e.g. #crWrap/#poolWrap/#mgWrap/#bsWrap/
+   #psWrap) fills whatever .arcade-canvas-wrap's flex box gives it —
+   each game's own fitRenderer() reads this element's real clientWidth/
+   clientHeight (now meaningful) to size the actual WebGL canvas, with
+   no fixed aspect-ratio: a perspective camera just shows more or less
+   of the scene on a wider/taller box, which is the correct, non-
+   distorting way to adapt a real 3D view to the available space
+   (unlike a flat 2D canvas, which DOES need to preserve its aspect
+   ratio — ArcadeEngine.fitCanvas handles that case separately). */
+#arcadeStage.arcade-stage--fullscreen .arcade-canvas-wrap > div[id$="Wrap"] {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  /* On a wide/desktop or landscape view there's width to spare — let the
+     play surface breathe a little wider instead of staying squeezed to
+     a narrow portrait-shaped column in the middle of the screen. */
+  #arcadeStage.arcade-stage--fullscreen #arcadeGameContainer > .arcade-canvas-wrap {
+    max-width: min(100%, 92vh);
+  }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
   .arcade-header { flex-direction: column; align-items: flex-start; }

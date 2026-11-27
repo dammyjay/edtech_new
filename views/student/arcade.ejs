@@ -120,6 +120,29 @@
 
   let currentGameId = null;
 
+  // Covers the whole viewport the instant any game opens (see
+  // arcade.css's .arcade-stage--fullscreen) and locks background
+  // scroll, so the game is always "fit to screen" regardless of window
+  // size/orientation instead of sometimes needing the page itself
+  // scrolled to see parts of it. closeGame() below reverses both.
+  function openFullscreenStage(stage) {
+    stage.style.display = 'flex';
+    stage.classList.add('arcade-stage--fullscreen');
+    document.body.classList.add('arcade-fullscreen-active');
+    document.documentElement.classList.add('arcade-fullscreen-active');
+    // A game's own fitCanvas()/fitRenderer() call reads its container's
+    // clientWidth/clientHeight at call time — those are only correct
+    // AFTER this fullscreen layout has actually been applied, which
+    // (display switching from none to flex) needs a layout pass first.
+    // The resize listener each game already registers (ArcadeEngine.
+    // onResize) picks this up the moment the browser fires its own
+    // resize/orientation event, but entering fullscreen doesn't fire
+    // one on its own — nudge it once, next frame, so sizing is correct
+    // from the very first render instead of only after the user's next
+    // manual resize.
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  }
+
   // Games marked hasDifficulty in utils/arcadeGames.js get an Easy/Medium/
   // Hard pick before the coin spend — everything else skips straight to
   // startActualGame (difficulty stays null, which every game + the score
@@ -137,7 +160,7 @@
 
     grid.style.display = 'none';
     if (filters) filters.style.display = 'none';
-    stage.style.display = 'block';
+    openFullscreenStage(stage);
     container.innerHTML = `
       <div class="arcade-difficulty-pick">
         <h3>Choose a difficulty</h3>
@@ -164,7 +187,7 @@
     container.innerHTML = '<div style="padding:60px 0;"><div class="arcade-dpad-btn" style="width:44px;height:44px;border-radius:50%;margin:0 auto;animation:arcadeSpin 0.8s linear infinite;border-top-color:#f59e0b;"></div></div>';
     grid.style.display = 'none';
     if (filters) filters.style.display = 'none';
-    stage.style.display = 'block';
+    openFullscreenStage(stage);
 
     try {
       const res = await fetch(`/student/arcade/${gameId}/play`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -206,7 +229,11 @@
     window.ArcadeMultiplayer?.stopMatchStage();
     container.innerHTML = '';
     currentGameId = null;
-    document.getElementById('arcadeStage').style.display = 'none';
+    const stage = document.getElementById('arcadeStage');
+    stage.style.display = 'none';
+    stage.classList.remove('arcade-stage--fullscreen');
+    document.body.classList.remove('arcade-fullscreen-active');
+    document.documentElement.classList.remove('arcade-fullscreen-active');
     document.getElementById('arcadeGrid').style.display = 'grid';
     const filters = document.getElementById('arcadeFilters');
     if (filters) filters.style.display = 'flex';
