@@ -2,6 +2,19 @@
 
 const pool = require("../models/db");
 
+// Every "not logged in yet" redirect in this file should go through here
+// instead of a bare res.redirect("/admin/login") — it preserves the page
+// the user was actually trying to reach (req.originalUrl) as ?redirect=,
+// which controllers/adminController.js's login() already reads and
+// round-trips (views/admin/login.ejs's form action re-embeds it too). Before
+// this, every middleware below either dropped that URL entirely or, worse,
+// 403'd a simply-logged-out visitor instead of sending them to log in —
+// the actual cause of "redirect from email requires login, then dumps me on
+// my dashboard instead of the content" reported on this platform.
+function redirectToLogin(req, res) {
+  return res.redirect("/admin/login?redirect=" + encodeURIComponent(req.originalUrl));
+}
+
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
@@ -9,12 +22,15 @@ function ensureAuthenticated(req, res, next) {
   if (req.user) {
     return next();
   }
-  return res.redirect("/admin/login");
+  return redirectToLogin(req, res);
 }
 
 function ensureParent(req, res, next) {
   if (req.session.user && req.session.user.role === "parent") {
     return next();
+  }
+  if (!req.session.user) {
+    return redirectToLogin(req, res);
   }
   return res.status(403).send("Access denied");
 }
@@ -22,6 +38,9 @@ function ensureParent(req, res, next) {
 function ensureTeacher(req, res, next) {
   if (req.session.user && req.session.user.role === "teacher") {
     return next();
+  }
+  if (!req.session.user) {
+    return redirectToLogin(req, res);
   }
   return res.status(403).send("Access denied");
 }
@@ -44,7 +63,7 @@ function ensureInstructorOrAdmin(req, res, next) {
   ) {
     return next();
   }
-  return res.redirect("/admin/login");
+  return redirectToLogin(req, res);
 }
 
 // Same req.isAuthenticated() bug as ensureInstructorOrAdmin used to have
@@ -57,7 +76,7 @@ function ensureAdmin(req, res, next) {
   if (req.session.user && req.session.user.role === "admin") {
     return next();
   }
-  return res.redirect("/admin/login");
+  return redirectToLogin(req, res);
 }
 
 // Gate for every /school-admin/* route. Two things were previously missing
@@ -108,7 +127,10 @@ async function requireSchoolAdmin(req, res, next) {
     }
   }
 
-  if (!req.session.user || req.session.user.role !== "school_admin") {
+  if (!req.session.user) {
+    return redirectToLogin(req, res);
+  }
+  if (req.session.user.role !== "school_admin") {
     return res.status(403).send("Access denied");
   }
   try {
@@ -131,6 +153,7 @@ async function requireSchoolAdmin(req, res, next) {
 }
 
 module.exports = {
+  redirectToLogin,
   ensureAuthenticated,
   ensureParent,
   ensureTeacher,

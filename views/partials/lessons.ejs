@@ -27,6 +27,7 @@
       <p class="card-body"><strong>Module:</strong> <%= lesson.module_title %></p>
       <div class="article-buttons">
         <button class="btn-edit" onclick="openEditLessonModal(<%= lesson.id %>)">Edit</button>
+        <button class="btn-edit" type="button" onclick="copyShareLink('/go/lesson/<%= lesson.id %>')">🔗 Copy Link</button>
 
         <form method="POST" action="/admin/lessons/<%= lesson.id %>/delete" style="display:inline;">
           <input type="hidden" name="course_id" value="<%= course.id %>">

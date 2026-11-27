@@ -198,6 +198,9 @@ app.use(globalLimiter);
 const publicRoutes = require("./routes/publicRoutes");
 app.use("/", publicRoutes);
 
+const contentLinkRoutes = require("./routes/contentLinkRoutes");
+app.use("/", contentLinkRoutes);
+
 const adminRoutes = require("./routes/adminRoutes");
 app.use("/admin", adminRoutes);
 

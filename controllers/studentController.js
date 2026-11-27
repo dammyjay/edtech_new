@@ -10,6 +10,7 @@ const {upload} = require("../middlewares/upload");
 const fs = require("fs");
 const { checkAndCompleteModule } = require("../services/moduleCompletionService");
 const { isCourseLocked, getCourseIdForLesson, getStudentCourseAccess } = require("../services/studentCourseAccessService");
+const { studentHasCourseAccess } = require("../models/accessControl");
 const { recordActivityForLesson } = require("../services/courseTermLinkService");
 const { maybeAwardReferralBonus } = require("../services/referralService");
 const { awardXp, maybeUnlockNextLesson, isQuizDoneForLesson, hasStudentStartedQuiz } = require("../services/lessonCompletionService");
@@ -3918,6 +3919,23 @@ exports.getModuleDetails = async (req, res) => {
     ]);
     const module = moduleRes.rows[0];
     if (!module) return res.status(404).send("Module not found");
+
+    // Previously missing entirely — any logged-in student could view any
+    // module's lesson list by guessing/incrementing the id in this URL,
+    // regardless of whether they were ever enrolled in its course. Same
+    // three-way access check used by the new /go/module/:id share-link
+    // gate (controllers/contentLinkController.js) and by
+    // getModuleFlashcards just below. Admin/instructor/teacher accounts
+    // skip it (legitimate preview/QA access, same bypass contentLinkController
+    // already applies before ever redirecting here) — their own user id
+    // was never meant to be checked against course_enrollments at all.
+    const role = req.session.user?.role;
+    if (!["admin", "instructor", "teacher"].includes(role)) {
+      const hasAccess = await studentHasCourseAccess(studentId, module.course_id);
+      if (!hasAccess) {
+        return res.status(403).send("You don't have access to this module");
+      }
+    }
 
     // const lessonsRes = await pool.query(
     //   `SELECT * FROM lessons WHERE module_id = $1 ORDER BY id ASC`,

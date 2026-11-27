@@ -308,7 +308,19 @@ exports.login = async (req, res) => {
       equipped_avatar_frame: user.equipped_avatar_frame,
     };
 
-    if (redirectUrl) return res.redirect(redirectUrl);
+    // Only ever redirect back to a same-origin relative path. redirectUrl
+    // comes straight from a query param anyone can craft, so without this
+    // check a link like /admin/login?redirect=https://evil.example would
+    // send a user who just typed their real password straight off this
+    // site right after authenticating (open redirect).
+    const safeRedirect =
+      redirectUrl &&
+      redirectUrl.startsWith("/") &&
+      !redirectUrl.startsWith("//") &&
+      !redirectUrl.includes("://")
+        ? redirectUrl
+        : null;
+    if (safeRedirect) return res.redirect(safeRedirect);
 
     if (user.role === "admin") return res.redirect("/admin/dashboard");
     if (user.role === "school_admin") return res.redirect("/school-admin/dashboard");

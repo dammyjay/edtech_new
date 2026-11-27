@@ -15,9 +15,11 @@
       <div class="instructor-learn-progress">
         <span style="font-size:12.5px; white-space:nowrap;"><%= modules.length %> module<%= modules.length === 1 ? "" : "s" %></span>
       </div>
+      <button type="button" class="lesson-toggle-pill" onclick="copyShareLink('/go/course/<%= course.id %>')">🔗 Copy Link</button>
       <span class="preview-badge"><i class="fa-solid fa-eye"></i> Instructor View</span>
     </div>
   </div>
+  <script src="/js/copyLink.js"></script>
 
   <div class="learning-container">
     <aside class="lesson-sidebar">
@@ -29,16 +31,20 @@
       <% } %>
       <% modules.forEach(module => { %>
         <div class="module-card gamified">
-          <button class="module-toggle" onclick="toggleModule(<%= module.id %>, this)">
-            <span>📦 <%= module.title %></span>
-            <i class="fa-solid fa-chevron-right chevron"></i>
-          </button>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <button class="module-toggle" style="flex:1;" onclick="toggleModule(<%= module.id %>, this)">
+              <span>📦 <%= module.title %></span>
+              <i class="fa-solid fa-chevron-right chevron"></i>
+            </button>
+            <button type="button" class="lesson-toggle-pill" title="Copy a shareable link to this module" onclick="event.stopPropagation(); copyShareLink('/go/module/<%= module.id %>')">🔗</button>
+          </div>
           <ul id="module-<%= module.id %>" class="lesson-pill-list" style="display:none;">
             <% (moduleLessons[module.id] || []).forEach(lesson => { %>
               <li>
                 <button class="lesson-toggle-pill" onclick="toggleLessonMenu(<%= lesson.id %>)">
                   📘 <%= lesson.title %>
                 </button>
+                <button type="button" class="lesson-toggle-pill" title="Copy a shareable link to this lesson" onclick="copyShareLink('/go/lesson/<%= lesson.id %>')">🔗</button>
                 <% if (classroomId) { %>
                   <% if (lesson.isFirst) { %>
                     <span class="lesson-release-badge always-available" title="Always available to the class — can't be locked">✅ Always Available</span>

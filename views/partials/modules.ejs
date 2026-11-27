@@ -66,6 +66,7 @@
         <!-- Edit Button triggers modal -->
          <div class="article-buttons">
           <button class="btn-edit" onclick="openEditModal('<%= module.id %>')">✏️ Edit</button>
+          <button type="button" class="btn-edit" onclick="copyShareLink('/go/module/<%= module.id %>')">🔗 Copy Link</button>
           <% if (moduleCurriculum) { %>
             <button type="button" class="overview-trigger-btn"
               data-kind="Module"
